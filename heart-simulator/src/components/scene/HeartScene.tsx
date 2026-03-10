@@ -274,14 +274,15 @@ function HeartMesh() {
         const oldMap = (child.material as THREE.MeshStandardMaterial)?.map;
         child.material = new THREE.MeshPhysicalMaterial({
           map: oldMap,
-          roughness: 0.38,
-          metalness: 0.02,
-          clearcoat: 0.6,
-          clearcoatRoughness: 0.25,
-          sheen: 0.6,
-          sheenRoughness: 0.35,
-          sheenColor: new THREE.Color(0.75, 0.3, 0.25),
-          emissive: new THREE.Color(0.025, 0.004, 0.003),
+          color: new THREE.Color(1.4, 1.2, 1.1),
+          roughness: 0.42,
+          metalness: 0.01,
+          clearcoat: 0.5,
+          clearcoatRoughness: 0.3,
+          sheen: 0.5,
+          sheenRoughness: 0.4,
+          sheenColor: new THREE.Color(0.9, 0.4, 0.35),
+          emissive: new THREE.Color(0.08, 0.02, 0.015),
         });
         child.castShadow = true;
         child.receiveShadow = true;
@@ -312,8 +313,8 @@ function HeartMesh() {
         child.material.clearcoat = transparent ? 0.2 : 0.6;
         child.material.sheen = transparent ? 0.2 : 0.6;
         child.material.emissive = hoveredStructureId === 'heart-external'
-          ? new THREE.Color(0.15, 0.03, 0.02)
-          : new THREE.Color(0.025, 0.004, 0.003);
+          ? new THREE.Color(0.2, 0.06, 0.04)
+          : new THREE.Color(0.08, 0.02, 0.015);
         child.material.needsUpdate = true;
       }
     });
@@ -1352,17 +1353,18 @@ export default function HeartScene() {
       <Canvas
         camera={{ position: [0, 0.2, 4], fov: 40 }}
         shadows
-        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}
+        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
         style={{ background: 'linear-gradient(180deg, #a0a0a8 0%, #787880 100%)' }}
       >
-        {/* 3-point lighting + accents for wet tissue look */}
-        <directionalLight position={[5, 6, 4]} intensity={1.5} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} color="#fff0e0" />
-        <directionalLight position={[-4, 3, 3]} intensity={0.4} color="#b0c4e8" />
-        <directionalLight position={[1, 2, -5]} intensity={0.45} color="#e8d0b8" />
-        <pointLight position={[0, -3, 2]} intensity={0.15} color="#ff6644" distance={7} />
-        <ambientLight intensity={0.35} color="#d0c8e0" />
-        <spotLight position={[2.5, 4, 5]} angle={0.35} penumbra={0.7} intensity={0.6} color="#ffe8d0" />
-        <spotLight position={[-2, 1, 4]} angle={0.5} penumbra={0.9} intensity={0.25} color="#ffd8c0" />
+        {/* Bright 3-point lighting for realistic tissue illumination */}
+        <directionalLight position={[5, 6, 4]} intensity={3.0} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} color="#fff0e0" />
+        <directionalLight position={[-4, 3, 3]} intensity={1.5} color="#b0c4e8" />
+        <directionalLight position={[1, 2, -5]} intensity={1.2} color="#e8d0b8" />
+        <directionalLight position={[0, -2, 3]} intensity={0.8} color="#ffd0c0" />
+        <pointLight position={[0, -3, 2]} intensity={0.6} color="#ff8866" distance={10} />
+        <ambientLight intensity={1.0} color="#e0d8f0" />
+        <spotLight position={[2.5, 4, 5]} angle={0.35} penumbra={0.7} intensity={1.5} color="#ffe8d0" />
+        <spotLight position={[-2, 1, 4]} angle={0.5} penumbra={0.9} intensity={0.8} color="#ffd8c0" />
 
         <AnimationTick />
         <CameraController />
