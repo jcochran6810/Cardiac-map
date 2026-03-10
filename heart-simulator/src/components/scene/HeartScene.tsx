@@ -251,9 +251,10 @@ function HeartMesh() {
         sheenColor={new THREE.Color(0.75, 0.3, 0.25)}
         normalMap={normalMap}
         normalScale={new THREE.Vector2(0.5, 0.5)}
-        transparent={viewMode === 'cutaway'}
-        opacity={viewMode === 'cutaway' ? 0.5 : 1}
-        side={viewMode === 'cutaway' ? THREE.DoubleSide : THREE.FrontSide}
+        transparent={viewMode === 'cutaway' || viewMode === 'dissection'}
+        opacity={viewMode === 'dissection' ? 0.18 : viewMode === 'cutaway' ? 0.5 : 1}
+        side={viewMode === 'cutaway' || viewMode === 'dissection' ? THREE.DoubleSide : THREE.FrontSide}
+        depthWrite={viewMode !== 'dissection'}
         emissive={hoveredStructureId === 'heart-external' ? new THREE.Color(0.15, 0.03, 0.02) : new THREE.Color(0.025, 0.004, 0.003)}
       />
     </mesh>
@@ -726,41 +727,306 @@ function EpicardialFat() {
   );
 }
 
-// ─── Chamber meshes (internal view) ────────────────────────────────────
+// ─── Build chamber geometry (elongated, anatomically shaped) ──────────
+function buildChamberGeo(
+  scaleX: number, scaleY: number, scaleZ: number,
+  flattenTop: boolean, flattenBottom: boolean
+): THREE.BufferGeometry {
+  const geo = new THREE.SphereGeometry(1, 32, 32);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    // Flatten poles
+    if (flattenTop && y > 0.7) y = 0.7 + (y - 0.7) * 0.3;
+    if (flattenBottom && y < -0.7) y = -0.7 + (y + 0.7) * 0.3;
+    pos.setXYZ(i, x * scaleX, y * scaleY, z * scaleZ);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// ─── Valve ring geometry ──────────────────────────────────────────────
+function buildValveGeo(innerR: number, outerR: number, leaflets: number): THREE.BufferGeometry {
+  // Annulus ring
+  const ring = new THREE.RingGeometry(innerR, outerR, 32);
+  // Leaflets: partial discs that partially close the opening
+  const geos: THREE.BufferGeometry[] = [ring];
+  const leafletAngle = (Math.PI * 2) / leaflets;
+  for (let l = 0; l < leaflets; l++) {
+    const startAngle = l * leafletAngle + 0.05;
+    const arcAngle = leafletAngle * 0.75;
+    const leafGeo = new THREE.RingGeometry(0, innerR * 0.85, 16, 1, startAngle, arcAngle);
+    // Curve leaflets slightly downward (cup shape)
+    const lPos = leafGeo.attributes.position;
+    for (let i = 0; i < lPos.count; i++) {
+      const r = Math.sqrt(lPos.getX(i) ** 2 + lPos.getY(i) ** 2);
+      const droop = (r / (innerR * 0.85)) * 0.06;
+      lPos.setZ(i, lPos.getZ(i) - droop);
+    }
+    leafGeo.computeVertexNormals();
+    geos.push(leafGeo);
+  }
+  // Merge all into one
+  const merged = mergeBufferGeometries(geos);
+  return merged;
+}
+
+// Simple geometry merge utility
+function mergeBufferGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  let totalVerts = 0, totalIdx = 0;
+  for (const g of geos) { totalVerts += g.attributes.position.count; totalIdx += (g.index ? g.index.count : 0); }
+  const pos = new Float32Array(totalVerts * 3);
+  const norm = new Float32Array(totalVerts * 3);
+  const idx = new Uint32Array(totalIdx);
+  let vo = 0, io = 0;
+  for (const g of geos) {
+    const gp = g.attributes.position;
+    const gn = g.attributes.normal;
+    for (let i = 0; i < gp.count; i++) {
+      pos[(vo + i) * 3] = gp.getX(i); pos[(vo + i) * 3 + 1] = gp.getY(i); pos[(vo + i) * 3 + 2] = gp.getZ(i);
+      if (gn) { norm[(vo + i) * 3] = gn.getX(i); norm[(vo + i) * 3 + 1] = gn.getY(i); norm[(vo + i) * 3 + 2] = gn.getZ(i); }
+    }
+    if (g.index) {
+      for (let i = 0; i < g.index.count; i++) idx[io + i] = g.index.array[i] + vo;
+      io += g.index.count;
+    }
+    vo += gp.count;
+  }
+  const merged = new THREE.BufferGeometry();
+  merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  merged.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+  merged.setIndex(new THREE.BufferAttribute(idx, 1));
+  merged.computeVertexNormals();
+  return merged;
+}
+
+// ─── Chamber meshes (internal/dissection view) ──────────────────────────
 function ChamberMeshes() {
   const { viewMode } = useAppStore();
   const { selectedStructureId, selectStructure, hoverStructure } = useSceneStore();
 
   const chambers = useMemo(() => [
-    { id: 'right-atrium', position: [0.5, 0.55, 0.2] as [number, number, number], color: '#4a6f9e', label: 'RA' },
-    { id: 'left-atrium', position: [-0.4, 0.55, -0.2] as [number, number, number], color: '#8e3535', label: 'LA' },
-    { id: 'right-ventricle', position: [0.4, -0.15, 0.3] as [number, number, number], color: '#5b7faa', label: 'RV' },
-    { id: 'left-ventricle', position: [-0.2, -0.25, -0.05] as [number, number, number], color: '#a83030', label: 'LV' },
+    {
+      id: 'right-atrium', position: [0.45, 0.5, 0.15] as [number, number, number],
+      rotation: [0, 0, 0] as [number, number, number],
+      scale: [0.32, 0.28, 0.28] as [number, number, number],
+      color: '#4a6f9e', label: 'RA', flatTop: true, flatBottom: true,
+    },
+    {
+      id: 'left-atrium', position: [-0.35, 0.5, -0.15] as [number, number, number],
+      rotation: [0, 0, 0] as [number, number, number],
+      scale: [0.3, 0.26, 0.28] as [number, number, number],
+      color: '#8e3535', label: 'LA', flatTop: true, flatBottom: true,
+    },
+    {
+      id: 'right-ventricle', position: [0.35, -0.2, 0.25] as [number, number, number],
+      rotation: [0.05, 0, 0.08] as [number, number, number],
+      scale: [0.3, 0.5, 0.3] as [number, number, number],
+      color: '#5b7faa', label: 'RV', flatTop: true, flatBottom: false,
+    },
+    {
+      id: 'left-ventricle', position: [-0.15, -0.25, -0.02] as [number, number, number],
+      rotation: [0.05, 0, -0.1] as [number, number, number],
+      scale: [0.32, 0.55, 0.32] as [number, number, number],
+      color: '#a83030', label: 'LV', flatTop: true, flatBottom: false,
+    },
   ], []);
 
-  if (viewMode !== 'internal' && viewMode !== 'cutaway' && viewMode !== 'sectional') return null;
+  const chamberGeos = useMemo(() => chambers.map(ch =>
+    buildChamberGeo(1, 1, 1, ch.flatTop, !ch.flatTop)
+  ), []);
+
+  if (viewMode !== 'internal' && viewMode !== 'cutaway' && viewMode !== 'sectional' && viewMode !== 'dissection') return null;
+
+  const isDissection = viewMode === 'dissection';
 
   return (
     <group>
-      {chambers.map((ch) => (
-        <group key={ch.id} position={ch.position}>
+      {chambers.map((ch, ci) => (
+        <group key={ch.id} position={ch.position} rotation={ch.rotation}>
           <mesh
+            scale={ch.scale}
+            geometry={chamberGeos[ci]}
             onClick={() => selectStructure(ch.id)}
             onPointerOver={() => hoverStructure(ch.id)}
             onPointerOut={() => hoverStructure(null)}
           >
-            <sphereGeometry args={[0.3, 32, 32]} />
             <meshPhysicalMaterial
               color={selectedStructureId === ch.id ? '#ffff00' : ch.color}
-              transparent opacity={0.5} roughness={0.3}
+              transparent
+              opacity={isDissection ? 0.45 : 0.5}
+              roughness={0.35}
+              side={THREE.DoubleSide}
+              clearcoat={isDissection ? 0.3 : 0}
             />
           </mesh>
           <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
-            <div className="bg-cardiac-panel/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap">{ch.label}</div>
+            <div className="bg-cardiac-panel/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap font-bold">{ch.label}</div>
           </Html>
         </group>
       ))}
     </group>
+  );
+}
+
+// ─── Heart valves ────────────────────────────────────────────────────────
+function HeartValves() {
+  const { viewMode } = useAppStore();
+  const { selectedStructureId, selectStructure, hoverStructure } = useSceneStore();
+
+  const valves = useMemo(() => [
+    {
+      id: 'tricuspid-annulus',
+      label: 'Tricuspid',
+      position: [0.38, 0.22, 0.2] as [number, number, number],
+      rotation: [0.15, 0, 0.1] as [number, number, number],
+      innerR: 0.1, outerR: 0.14, leaflets: 3,
+      color: '#c49060',
+    },
+    {
+      id: 'mitral-annulus',
+      label: 'Mitral',
+      position: [-0.22, 0.22, -0.05] as [number, number, number],
+      rotation: [-0.1, 0, -0.08] as [number, number, number],
+      innerR: 0.09, outerR: 0.13, leaflets: 2,
+      color: '#c47060',
+    },
+    {
+      id: 'pulmonary-valve-cusps',
+      label: 'Pulmonary',
+      position: [0.2, 0.85, 0.45] as [number, number, number],
+      rotation: [-0.3, 0, 0.1] as [number, number, number],
+      innerR: 0.06, outerR: 0.09, leaflets: 3,
+      color: '#6080b0',
+    },
+    {
+      id: 'aortic-valve-rcc',
+      label: 'Aortic',
+      position: [-0.1, 0.88, 0.15] as [number, number, number],
+      rotation: [-0.15, 0, -0.05] as [number, number, number],
+      innerR: 0.065, outerR: 0.095, leaflets: 3,
+      color: '#b06060',
+    },
+  ], []);
+
+  const valveGeos = useMemo(() =>
+    valves.map(v => buildValveGeo(v.innerR, v.outerR, v.leaflets))
+  , []);
+
+  if (viewMode !== 'dissection' && viewMode !== 'internal' && viewMode !== 'cutaway') return null;
+
+  return (
+    <group>
+      {valves.map((v, i) => (
+        <group key={v.id} position={v.position} rotation={v.rotation}>
+          <mesh
+            geometry={valveGeos[i]}
+            onClick={() => selectStructure(v.id)}
+            onPointerOver={() => hoverStructure(v.id)}
+            onPointerOut={() => hoverStructure(null)}
+          >
+            <meshPhysicalMaterial
+              color={selectedStructureId === v.id ? '#ffff00' : v.color}
+              roughness={0.3}
+              clearcoat={0.4}
+              clearcoatRoughness={0.3}
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.85}
+              sheen={0.3}
+              sheenColor={new THREE.Color(v.color).multiplyScalar(1.3)}
+            />
+          </mesh>
+          {/* Chordae tendineae for AV valves (fibrous cords) */}
+          {(v.id === 'tricuspid-annulus' || v.id === 'mitral-annulus') && (
+            <ChordaeTendineae valveId={v.id} innerR={v.innerR} />
+          )}
+          <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
+            <div className="bg-cardiac-panel/90 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap">
+              {v.label}
+            </div>
+          </Html>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// ─── Chordae tendineae (fibrous cords from valve to papillary muscles) ──
+function ChordaeTendineae({ valveId, innerR }: { valveId: string; innerR: number }) {
+  const cords = useMemo(() => {
+    const isTri = valveId === 'tricuspid-annulus';
+    const count = isTri ? 6 : 4;
+    const cordLen = isTri ? 0.25 : 0.3;
+    const result: THREE.CatmullRomCurve3[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + 0.3;
+      const startX = Math.cos(angle) * innerR * 0.6;
+      const startY = Math.sin(angle) * innerR * 0.6;
+      const endX = Math.cos(angle + (Math.random() - 0.5) * 0.4) * innerR * 1.2;
+      const endY = Math.sin(angle + (Math.random() - 0.5) * 0.4) * innerR * 1.2;
+      result.push(new THREE.CatmullRomCurve3([
+        new THREE.Vector3(startX, startY, 0),
+        new THREE.Vector3((startX + endX) * 0.5, (startY + endY) * 0.5, -cordLen * 0.5),
+        new THREE.Vector3(endX, endY, -cordLen),
+      ]));
+    }
+    return result;
+  }, [valveId, innerR]);
+
+  return (
+    <group>
+      {cords.map((c, i) => (
+        <mesh key={i}>
+          <tubeGeometry args={[c, 12, 0.005, 6, false]} />
+          <meshStandardMaterial color="#d4b896" roughness={0.6} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// ─── Interventricular septum (wall between L and R ventricles) ────────
+function Septum() {
+  const { viewMode } = useAppStore();
+
+  const geo = useMemo(() => {
+    // Curved wall separating LV and RV
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0.22);
+    shape.bezierCurveTo(0.06, 0.1, 0.08, -0.2, 0.04, -0.55);
+    shape.bezierCurveTo(0.02, -0.7, -0.02, -0.78, -0.04, -0.8);
+    shape.lineTo(-0.08, -0.8);
+    shape.bezierCurveTo(-0.06, -0.78, -0.04, -0.7, -0.04, -0.55);
+    shape.bezierCurveTo(-0.04, -0.2, -0.02, 0.1, -0.04, 0.22);
+    shape.lineTo(0, 0.22);
+
+    const g = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.06,
+      bevelEnabled: true,
+      bevelThickness: 0.015,
+      bevelSize: 0.015,
+      bevelSegments: 4,
+      curveSegments: 24,
+    });
+    g.computeVertexNormals();
+    return g;
+  }, []);
+
+  if (viewMode !== 'dissection' && viewMode !== 'internal' && viewMode !== 'cutaway') return null;
+
+  return (
+    <mesh geometry={geo} position={[0.1, 0, 0.08]} rotation={[0.05, -0.3, 0.05]} castShadow>
+      <meshPhysicalMaterial
+        color="#9e4545"
+        roughness={0.4}
+        clearcoat={0.3}
+        transparent
+        opacity={0.6}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
@@ -897,6 +1163,8 @@ export default function HeartScene() {
           <EpicardialFat />
           <CoronaryNetwork />
           <ChamberMeshes />
+          <HeartValves />
+          <Septum />
           <ConductionOverlay />
           <BloodFlowParticles />
         </group>
