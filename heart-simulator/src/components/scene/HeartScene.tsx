@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo, useCallback, useState } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Html, Environment, ContactShadows, useGLTF } from '@react-three/drei';
+import { OrbitControls, Html, Environment, ContactShadows, useGLTF, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -1595,6 +1595,15 @@ export default function HeartScene() {
         <ContactShadows position={[0, -2.2, 0]} opacity={0.5} blur={2.5} far={5} />
         <OrbitControls enablePan enableZoom enableRotate minDistance={1.5} maxDistance={8} dampingFactor={0.08} enableDamping />
         <Environment preset="studio" />
+
+        {/* Orientation axis gizmo in bottom-right corner */}
+        <GizmoHelper alignment="bottom-right" margin={[70, 70]}>
+          <GizmoViewport
+            axisColors={['#ff4060', '#40ff60', '#4060ff']}
+            labelColor="white"
+            labels={['X', 'Y', 'Z']}
+          />
+        </GizmoHelper>
       </Canvas>
     </div>
   );
