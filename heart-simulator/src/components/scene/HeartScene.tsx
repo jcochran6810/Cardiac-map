@@ -74,7 +74,7 @@ const ANATOMY_ZONES: AnatomyZone[] = [
     }},
 
   // Epicardium (general surface fallback)
-  { id: 'epicardium', name: 'Epicardium (surface)',
+  { id: 'epicardium', name: 'Epicardium',
     test: () => 0.1 }, // lowest priority fallback
 ];
 
@@ -153,6 +153,70 @@ const STRUCTURE_CENTERS: Record<string, [number, number, number]> = {
   'left-posterior-fascicle': [-0.1, -0.1, -0.3],
   'purkinje-network-rv': [0.15, 0.15, -0.45],
   'purkinje-network-lv': [-0.15, -0.05, -0.45],
+};
+
+// Proper display names for all structures (used for labels)
+const STRUCTURE_NAMES: Record<string, string> = {
+  // Chambers
+  'right-atrium': 'Right Atrium',
+  'left-atrium': 'Left Atrium',
+  'right-ventricle': 'Right Ventricle',
+  'left-ventricle': 'Left Ventricle',
+  'right-atrial-appendage': 'Right Atrial Appendage',
+  'left-atrial-appendage': 'Left Atrial Appendage',
+  // Septa & Landmarks
+  'interatrial-septum': 'Interatrial Septum',
+  'interventricular-septum': 'Interventricular Septum',
+  'fossa-ovalis': 'Fossa Ovalis',
+  'apex': 'Apex',
+  'base-of-heart': 'Base of Heart',
+  // Valves
+  'mitral-annulus': 'Mitral Valve',
+  'aortic-valve-rcc': 'Aortic Valve',
+  'tricuspid-annulus': 'Tricuspid Valve',
+  'pulmonary-valve-cusps': 'Pulmonary Valve',
+  // Great Vessels
+  'ascending-aorta': 'Ascending Aorta',
+  'aortic-arch': 'Aortic Arch',
+  'pulmonary-trunk': 'Pulmonary Trunk',
+  'svc': 'Superior Vena Cava',
+  'ivc': 'Inferior Vena Cava',
+  // Pericardium & Layers
+  'fibrous-pericardium': 'Fibrous Pericardium',
+  'epicardium': 'Epicardium',
+  'myocardium': 'Myocardium',
+  'endocardium': 'Endocardium',
+  // Subvalvular
+  'anterolateral-papillary-muscle': 'Anterolateral Papillary Muscle',
+  'posteromedial-papillary-muscle': 'Posteromedial Papillary Muscle',
+  'moderator-band': 'Moderator Band',
+  'crista-terminalis': 'Crista Terminalis',
+  // Coronary Arteries - Left
+  'lmca': 'Left Main Coronary Artery',
+  'lad-proximal': 'LAD Proximal',
+  'lad-mid': 'LAD Mid',
+  'lad-distal': 'LAD Distal',
+  'd1': 'First Diagonal (D1)',
+  'd2': 'Second Diagonal (D2)',
+  'lcx-proximal': 'Left Circumflex (LCx)',
+  'om1': 'Obtuse Marginal 1 (OM1)',
+  'om2': 'Obtuse Marginal 2 (OM2)',
+  // Coronary Arteries - Right
+  'rca-proximal': 'RCA Proximal',
+  'rca-mid': 'RCA Mid',
+  'rca-distal': 'RCA Distal',
+  'pda': 'Posterior Descending Artery',
+  'am-branch': 'Acute Marginal Branch',
+  // Conduction System
+  'sa-node': 'SA Node',
+  'av-node': 'AV Node',
+  'bundle-of-his': 'Bundle of His',
+  'right-bundle-branch': 'Right Bundle Branch',
+  'left-bundle-branch': 'Left Bundle Branch',
+  'left-anterior-fascicle': 'Left Anterior Fascicle',
+  'left-posterior-fascicle': 'Left Posterior Fascicle',
+  'purkinje-network-rv': 'Purkinje Network (RV)',
+  'purkinje-network-lv': 'Purkinje Network (LV)',
 };
 
 // Best camera angle to view each structure region
@@ -520,12 +584,12 @@ function HeartMesh() {
   const activeId = selectedStructureId;
   const activeCenter = activeId ? STRUCTURE_CENTERS[activeId] : null;
   const activeName = activeId
-    ? ANATOMY_ZONES.find(z => z.id === activeId)?.name ?? activeId.replace(/-/g, ' ')
+    ? STRUCTURE_NAMES[activeId] ?? activeId.replace(/-/g, ' ')
     : null;
 
   // Hovered structure name for black tooltip
   const hoverName = hoveredZone
-    ? ANATOMY_ZONES.find(z => z.id === hoveredZone)?.name ?? null
+    ? STRUCTURE_NAMES[hoveredZone] ?? ANATOMY_ZONES.find(z => z.id === hoveredZone)?.name ?? hoveredZone.replace(/-/g, ' ')
     : null;
 
   return (
