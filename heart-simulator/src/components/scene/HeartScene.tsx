@@ -8,7 +8,7 @@ import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useAppStore } from '@/store/useAppStore';
 
-// ─── Simple seeded hash noise ──────────────────────────────────────────
+// ─── Noise utilities ───────────────────────────────────────────────────
 function hash(x: number, y: number): number {
   let h = x * 374761393 + y * 668265263;
   h = (h ^ (h >> 13)) * 1274126177;
@@ -16,452 +16,656 @@ function hash(x: number, y: number): number {
 }
 
 function smoothNoise(x: number, y: number): number {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const fx = x - ix;
-  const fy = y - iy;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sy = fy * fy * (3 - 2 * fy);
-  const n00 = hash(ix, iy);
-  const n10 = hash(ix + 1, iy);
-  const n01 = hash(ix, iy + 1);
-  const n11 = hash(ix + 1, iy + 1);
-  return n00 * (1 - sx) * (1 - sy) + n10 * sx * (1 - sy) + n01 * (1 - sx) * sy + n11 * sx * sy;
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = x - ix, fy = y - iy;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  return hash(ix, iy) * (1 - sx) * (1 - sy) + hash(ix + 1, iy) * sx * (1 - sy)
+    + hash(ix, iy + 1) * (1 - sx) * sy + hash(ix + 1, iy + 1) * sx * sy;
 }
 
-function fbm(x: number, y: number, octaves: number): number {
-  let value = 0, amplitude = 0.5, frequency = 1;
-  for (let i = 0; i < octaves; i++) {
-    value += amplitude * smoothNoise(x * frequency, y * frequency);
-    amplitude *= 0.5;
-    frequency *= 2.0;
-  }
-  return value;
+function fbm(x: number, y: number, oct: number): number {
+  let v = 0, a = 0.5, f = 1;
+  for (let i = 0; i < oct; i++) { v += a * smoothNoise(x * f, y * f); a *= 0.5; f *= 2; }
+  return v;
 }
 
-// ─── Procedural bump map texture ───────────────────────────────────────
-function createBumpTexture(size: number = 512): THREE.DataTexture {
-  const data = new Uint8Array(size * size);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const u = x / size;
-      const v = y / size;
-
-      // Muscle fiber direction (mostly vertical with twist)
-      const fiberAngle = u * Math.PI * 2;
-      const fiberU = u * 12 + Math.sin(v * 8) * 0.3;
-      const fiberV = v * 24;
-      const fibers = fbm(fiberU * Math.cos(fiberAngle * 0.1) + fiberV * Math.sin(fiberAngle * 0.1),
-        fiberV * Math.cos(fiberAngle * 0.1) - fiberU * Math.sin(fiberAngle * 0.1), 4);
-
-      // Fine grain (connective tissue)
-      const grain = fbm(u * 60, v * 60, 3) * 0.15;
-
-      // Medium-scale surface undulation
-      const undulation = fbm(u * 6 + 100, v * 8 + 100, 3) * 0.3;
-
-      // Surface veins (sinuous raised lines)
-      const vein1 = Math.exp(-Math.pow(Math.sin(u * Math.PI * 4 + fbm(u * 3, v * 5, 2) * 2) * 8, 2)) * 0.2;
-      const vein2 = Math.exp(-Math.pow(Math.sin(v * Math.PI * 6 + fbm(u * 4, v * 3, 2) * 1.5) * 10, 2)) * 0.15;
-
-      const combined = fibers * 0.4 + grain + undulation + vein1 + vein2;
-      data[y * size + x] = Math.min(255, Math.max(0, Math.round(combined * 255)));
-    }
-  }
-  const tex = new THREE.DataTexture(data, size, size, THREE.RedFormat);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-// ─── Procedural normal map from bump ───────────────────────────────────
-function createNormalMapFromBump(size: number = 512): THREE.DataTexture {
-  const data = new Uint8Array(size * size * 4);
-  const strength = 2.5;
-
-  // Generate heightfield first
+// ─── Procedural normal map ─────────────────────────────────────────────
+function createNormalMap(size = 512): THREE.DataTexture {
   const heights = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const u = x / size;
-      const v = y / size;
-
-      const fiberAngle = u * Math.PI * 2;
-      const fiberU = u * 12 + Math.sin(v * 8) * 0.3;
-      const fiberV = v * 24;
-      const fibers = fbm(fiberU * Math.cos(fiberAngle * 0.1) + fiberV * Math.sin(fiberAngle * 0.1),
-        fiberV * Math.cos(fiberAngle * 0.1) - fiberU * Math.sin(fiberAngle * 0.1), 4);
-      const grain = fbm(u * 60, v * 60, 3) * 0.15;
-      const undulation = fbm(u * 6 + 100, v * 8 + 100, 3) * 0.3;
-      const vein1 = Math.exp(-Math.pow(Math.sin(u * Math.PI * 4 + fbm(u * 3, v * 5, 2) * 2) * 8, 2)) * 0.2;
-      const vein2 = Math.exp(-Math.pow(Math.sin(v * Math.PI * 6 + fbm(u * 4, v * 3, 2) * 1.5) * 10, 2)) * 0.15;
-
-      heights[y * size + x] = fibers * 0.4 + grain + undulation + vein1 + vein2;
+      const u = x / size, v = y / size;
+      const fiber = fbm(u * 14 + Math.sin(v * 6) * 0.4, v * 28, 4);
+      const grain = fbm(u * 50, v * 50, 3) * 0.12;
+      const undulate = fbm(u * 5 + 77, v * 7 + 77, 3) * 0.25;
+      heights[y * size + x] = fiber * 0.45 + grain + undulate;
     }
   }
-
-  // Compute normals via finite differences
+  const data = new Uint8Array(size * size * 4);
+  const str = 3.0;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const idx = y * size + x;
-      const xp = heights[y * size + Math.min(x + 1, size - 1)];
-      const xm = heights[y * size + Math.max(x - 1, 0)];
-      const yp = heights[Math.min(y + 1, size - 1) * size + x];
-      const ym = heights[Math.max(y - 1, 0) * size + x];
-
-      const dx = (xp - xm) * strength;
-      const dy = (yp - ym) * strength;
+      const dx = (heights[y * size + Math.min(x + 1, size - 1)] - heights[y * size + Math.max(x - 1, 0)]) * str;
+      const dy = (heights[Math.min(y + 1, size - 1) * size + x] - heights[Math.max(y - 1, 0) * size + x]) * str;
       const len = Math.sqrt(dx * dx + dy * dy + 1);
-
-      data[idx * 4] = Math.round(((-dx / len) * 0.5 + 0.5) * 255);
-      data[idx * 4 + 1] = Math.round(((-dy / len) * 0.5 + 0.5) * 255);
-      data[idx * 4 + 2] = Math.round(((1 / len) * 0.5 + 0.5) * 255);
-      data[idx * 4 + 3] = 255;
+      const i = (y * size + x) * 4;
+      data[i] = ((-dx / len) * 0.5 + 0.5) * 255;
+      data[i + 1] = ((-dy / len) * 0.5 + 0.5) * 255;
+      data[i + 2] = ((1 / len) * 0.5 + 0.5) * 255;
+      data[i + 3] = 255;
     }
   }
-
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.needsUpdate = true;
   return tex;
 }
 
-// ─── Anatomical heart geometry builder ─────────────────────────────────
-function buildAnatomicalHeartGeometry(): THREE.BufferGeometry {
-  const segments = 160;
-  const rings = 120;
-  const vertices: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
+// ─── Anatomical heart geometry ─────────────────────────────────────────
+// Creates a conical heart shape: broad flat base at top, tapered apex at bottom-left
+function buildHeartGeometry(): THREE.BufferGeometry {
+  const segs = 180, rings = 128;
+  const verts: number[] = [], uvsArr: number[] = [], idxs: number[] = [];
 
   for (let j = 0; j <= rings; j++) {
     const v = j / rings;
     const phi = v * Math.PI;
 
-    for (let i = 0; i <= segments; i++) {
-      const u = i / segments;
+    for (let i = 0; i <= segs; i++) {
+      const u = i / segs;
       const theta = u * Math.PI * 2;
 
-      // Base ellipsoid radii
-      const rx = 1.0;
-      const ry = 1.3;
-      const rz = 0.88;
-
-      // Apex tapering - more aggressive, comes to a blunted point
-      let apexTaper = 1.0;
-      if (v > 0.5) {
-        const t = (v - 0.5) / 0.5;
-        apexTaper = 1.0 - 0.72 * Math.pow(t, 1.6);
-        // Blunt the very tip slightly
-        if (v > 0.92) {
-          const blunt = (v - 0.92) / 0.08;
-          apexTaper = Math.max(apexTaper, 0.04 * (1 - blunt));
-        }
+      // Conical taper: widest at top (base), narrows toward apex
+      // Real heart is ~2/3 as wide at mid-height as at base
+      let profile = 1.0;
+      if (v < 0.15) {
+        // Base region: slightly narrower at very top (flat base)
+        profile = 0.75 + 0.25 * (v / 0.15);
+      } else if (v < 0.45) {
+        // Widest region (mid-ventricles)
+        profile = 1.0 + 0.05 * Math.sin((v - 0.15) / 0.3 * Math.PI);
+      } else {
+        // Taper to apex
+        const t = (v - 0.45) / 0.55;
+        profile = 1.05 * (1.0 - Math.pow(t, 1.4));
+        // Blunt the very tip
+        if (v > 0.93) profile = Math.max(profile, 0.03);
       }
 
-      // Flat base at top (where vessels emerge)
-      let baseFlatten = 1.0;
-      if (v < 0.12) {
-        const t = 1.0 - v / 0.12;
-        baseFlatten = 1.0 - 0.25 * Math.pow(t, 1.5);
-      }
+      // Elliptical cross-section: wider left-right, flatter front-back
+      const rx = 1.05;
+      const rz = 0.82;
 
-      // Atrial bulges - more pronounced and shaped
-      const atrialRegion = v < 0.38 ? Math.pow(Math.max(0, 1.0 - v / 0.38), 2.2) : 0;
-      // Right atrium: front-right, with auricle protrusion
-      const raBase = Math.cos(theta - 0.3) * 0.5 + 0.5;
-      const raAuricle = Math.exp(-Math.pow(theta - 0.6, 2) * 12) * (v < 0.2 ? (1 - v / 0.2) : 0);
-      const raBulge = atrialRegion * raBase * 0.22 + raAuricle * 0.18;
-      // Left atrium: left-back, with its own auricle
-      const laBase = Math.cos(theta - Math.PI + 0.3) * 0.5 + 0.5;
-      const laAuricle = Math.exp(-Math.pow(theta - Math.PI + 0.8, 2) * 12) * (v < 0.2 ? (1 - v / 0.2) : 0);
-      const laBulge = atrialRegion * laBase * 0.18 + laAuricle * 0.15;
+      // Right atrium bulge: prominent on the right-anterior side
+      const raRegion = v < 0.42 ? Math.pow(Math.max(0, 1.0 - v / 0.42), 1.8) : 0;
+      const raAngle = Math.exp(-Math.pow(theta - 0.5, 2) * 3);
+      const raBulge = raRegion * raAngle * 0.28;
 
-      // Ventricular region
-      const ventricularRegion = v > 0.28 && v < 0.88
-        ? Math.sin((v - 0.28) / 0.6 * Math.PI)
-        : 0;
+      // Left atrium: left-posterior
+      const laRegion = v < 0.38 ? Math.pow(Math.max(0, 1.0 - v / 0.38), 2.0) : 0;
+      const laAngle = Math.exp(-Math.pow(theta - Math.PI - 0.4, 2) * 3);
+      const laBulge = laRegion * laAngle * 0.22;
 
-      // RV: wraps around front-right with distinct outflow tract (conus)
-      const rvBase = Math.cos(theta - 0.4) * 0.5 + 0.5;
-      const rvBulge = ventricularRegion * rvBase * 0.18;
-      // Conus arteriosus: upper-front protrusion from RV
-      const conusRegion = Math.exp(-Math.pow(v - 0.32, 2) * 80) * Math.exp(-Math.pow(theta - 0.5, 2) * 8);
-      const conusBulge = conusRegion * 0.12;
+      // RV: prominent anterior bulge, wraps around front-right
+      const vent = v > 0.25 && v < 0.9 ? Math.sin((v - 0.25) / 0.65 * Math.PI) : 0;
+      const rvAngle = Math.exp(-Math.pow(theta - 0.6, 2) * 1.5);
+      const rvBulge = vent * rvAngle * 0.2;
 
-      // LV: convex on left-back, forms the cardiac apex
-      const lvBase = Math.cos(theta - Math.PI - 0.15) * 0.5 + 0.5;
-      const lvBulge = ventricularRegion * lvBase * 0.12;
+      // Conus arteriosus (RV outflow tract)
+      const conus = Math.exp(-Math.pow(v - 0.22, 2) * 60) * Math.exp(-Math.pow(theta - 0.7, 2) * 6) * 0.15;
 
-      // Interventricular sulcus (anterior) - deeper, wider groove
-      const aivSulcus = Math.exp(-Math.pow(theta - 0.15, 2) * 6) * ventricularRegion * 0.09;
+      // LV: slightly convex on left-posterior, more muscular
+      const lvAngle = Math.exp(-Math.pow(theta - Math.PI + 0.2, 2) * 1.8);
+      const lvBulge = vent * lvAngle * 0.12;
+
+      // Anterior interventricular sulcus (deep groove)
+      const aivs = Math.exp(-Math.pow(theta - 0.15, 2) * 10) * vent * 0.1;
       // Posterior interventricular sulcus
-      const pivSulcus = Math.exp(-Math.pow(theta - Math.PI - 0.05, 2) * 6) * ventricularRegion * 0.07;
+      const pivs = Math.exp(-Math.pow(theta - Math.PI + 0.05, 2) * 8) * vent * 0.07;
+      // AV groove (coronary sulcus)
+      const avs = Math.exp(-Math.pow(v - 0.3, 2) * 250) * 0.09;
 
-      // AV groove (coronary sulcus) - wraps around the heart
-      const avGroove = Math.exp(-Math.pow(v - 0.32, 2) * 180) * 0.08;
+      const r = (1.0 + raBulge + laBulge + rvBulge + lvBulge + conus - aivs - pivs - avs) * profile;
 
-      // Obtuse margin rounding (left lateral wall)
-      const obtuseMargin = Math.exp(-Math.pow(theta - Math.PI * 0.65, 2) * 4)
-        * ventricularRegion * 0.06;
+      let x = rx * r * Math.sin(phi) * Math.cos(theta);
+      let y = 1.35 * r * Math.cos(phi);
+      let z = rz * r * Math.sin(phi) * Math.sin(theta);
 
-      // Acute margin (right lateral wall - slightly sharper)
-      const acuteMargin = -Math.exp(-Math.pow(theta - Math.PI * 1.65, 2) * 6)
-        * ventricularRegion * 0.03;
-
-      const totalRadius = (1.0 + raBulge + laBulge + rvBulge + lvBulge + conusBulge
-        + obtuseMargin + acuteMargin
-        - aivSulcus - pivSulcus - avGroove) * apexTaper * baseFlatten;
-
-      // Spherical to cartesian
-      let x = rx * totalRadius * Math.sin(phi) * Math.cos(theta);
-      let y = ry * totalRadius * Math.cos(phi);
-      let z = rz * totalRadius * Math.sin(phi) * Math.sin(theta);
-
-      // Apex displacement (shifts left-anterior, slightly rotated)
-      if (v > 0.55) {
-        const apexShift = Math.pow((v - 0.55) / 0.45, 2.2);
-        x -= apexShift * 0.18;
-        z += apexShift * 0.1;
-        // Slight twist at apex (LV spiral)
-        const twist = apexShift * 0.15;
-        const xr = x * Math.cos(twist) - z * Math.sin(twist);
-        const zr = x * Math.sin(twist) + z * Math.cos(twist);
-        x = xr;
-        z = zr;
+      // Apex shifts left and slightly anterior
+      if (v > 0.5) {
+        const s = Math.pow((v - 0.5) / 0.5, 2.0);
+        x -= s * 0.22;
+        z += s * 0.12;
+        // LV spiral twist
+        const tw = s * 0.12;
+        const xr = x * Math.cos(tw) - z * Math.sin(tw);
+        const zr = x * Math.sin(tw) + z * Math.cos(tw);
+        x = xr; z = zr;
       }
 
-      // Global tilt (heart sits at ~45 degrees in chest)
-      const tiltX = 0.18;
-      const tiltZ = 0.05;
-      let y1 = y * Math.cos(tiltX) - z * Math.sin(tiltX);
-      let z1 = y * Math.sin(tiltX) + z * Math.cos(tiltX);
-      const x1 = x * Math.cos(tiltZ) + y1 * Math.sin(tiltZ);
-      y1 = -x * Math.sin(tiltZ) + y1 * Math.cos(tiltZ);
+      // Organic surface noise
+      const n = Math.sin(theta * 7 + phi * 5) * 0.005
+        + Math.sin(theta * 15 + phi * 12) * 0.003
+        + Math.sin(theta * 31 + phi * 23) * 0.002;
 
-      // Multi-frequency surface noise for organic feel
-      const n1 = Math.sin(theta * 7 + phi * 5) * 0.006;
-      const n2 = Math.sin(theta * 13.7 + phi * 11.3) * 0.004;
-      const n3 = Math.sin(theta * 23.1 + phi * 19.7) * 0.002;
-      const n4 = Math.sin(theta * 47 + phi * 37) * 0.001;
-      const noise = n1 + n2 + n3 + n4;
-
-      vertices.push(x1 * (1 + noise), y1 * (1 + noise * 0.5), z1 * (1 + noise));
-      uvs.push(u, v);
+      verts.push(x * (1 + n), y * (1 + n * 0.4), z * (1 + n));
+      uvsArr.push(u, v);
     }
   }
 
-  for (let j = 0; j < rings; j++) {
-    for (let i = 0; i < segments; i++) {
-      const a = j * (segments + 1) + i;
-      const b = a + 1;
-      const c = (j + 1) * (segments + 1) + i;
-      const d = c + 1;
-      indices.push(a, c, b);
-      indices.push(b, c, d);
+  for (let j = 0; j < rings; j++)
+    for (let i = 0; i < segs; i++) {
+      const a = j * (segs + 1) + i, b = a + 1, c = (j + 1) * (segs + 1) + i, d = c + 1;
+      idxs.push(a, c, b, b, c, d);
     }
-  }
 
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvsArr, 2));
+  geo.setIndex(idxs);
+  geo.computeVertexNormals();
+  return geo;
 }
 
-// ─── Vertex colors for tissue ──────────────────────────────────────────
-function addVertexColors(geometry: THREE.BufferGeometry) {
-  const uv = geometry.getAttribute('uv');
-  const count = uv.count;
-  const colors = new Float32Array(count * 3);
+// ─── Vertex colors ─────────────────────────────────────────────────────
+function addVertexColors(geo: THREE.BufferGeometry) {
+  const uv = geo.getAttribute('uv');
+  const n = uv.count;
+  const c = new Float32Array(n * 3);
 
-  for (let i = 0; i < count; i++) {
-    const u = uv.getX(i);
-    const v = uv.getY(i);
+  for (let i = 0; i < n; i++) {
+    const u = uv.getX(i), v = uv.getY(i);
     const theta = u * Math.PI * 2;
 
-    // Deep reddish-brown base (realistic myocardium)
-    let r = 0.42, g = 0.11, b = 0.09;
+    // Saturated red base matching reference images
+    let r = 0.62, g = 0.14, b = 0.12;
 
-    const ventricularRegion = v > 0.3 && v < 0.85 ? Math.sin((v - 0.3) / 0.55 * Math.PI) : 0;
+    const vent = v > 0.3 && v < 0.85 ? Math.sin((v - 0.3) / 0.55 * Math.PI) : 0;
 
-    // Epicardial fat in sulci (golden-yellow)
-    const ivSulcus = Math.exp(-Math.pow(theta - 0.15, 2) * 6) * ventricularRegion;
-    const pivSulcus = Math.exp(-Math.pow(theta - Math.PI - 0.05, 2) * 6) * ventricularRegion;
-    const avSulcus = Math.exp(-Math.pow(v - 0.32, 2) * 180);
-    const fatAmount = ivSulcus * 0.5 + pivSulcus * 0.4 + avSulcus * 0.45;
+    // Fat in sulci (bright yellow-cream like references)
+    const ivs = Math.exp(-Math.pow(theta - 0.15, 2) * 10) * vent;
+    const avs = Math.exp(-Math.pow(v - 0.3, 2) * 250);
+    const fat = ivs * 0.5 + avs * 0.5;
+    r += fat * 0.35; g += fat * 0.35; b += fat * 0.1;
 
-    r += fatAmount * 0.38;
-    g += fatAmount * 0.32;
-    b += fatAmount * 0.06;
-
-    // Atria: slightly pinker/lighter
-    if (v < 0.32) {
-      const t = Math.pow(1.0 - v / 0.32, 1.5);
-      r += t * 0.1;
-      g += t * 0.03;
-      b += t * 0.03;
+    // Atria: lighter pink
+    if (v < 0.3) {
+      const t = Math.pow(1.0 - v / 0.3, 1.5);
+      r += t * 0.12; g += t * 0.05; b += t * 0.05;
     }
 
-    // Ventricular surface: darker/redder toward apex
-    if (v > 0.55) {
-      const t = (v - 0.55) / 0.45;
-      r -= t * 0.07;
-      g -= t * 0.025;
-      b -= t * 0.01;
+    // Darker toward apex
+    if (v > 0.6) {
+      const t = (v - 0.6) / 0.4;
+      r -= t * 0.08; g -= t * 0.03;
     }
 
-    // RV surface: slightly lighter/more pink (thinner wall)
-    const rvFace = Math.cos(theta - 0.4) * 0.5 + 0.5;
-    if (ventricularRegion > 0 && rvFace > 0.6) {
-      const rvBlend = (rvFace - 0.6) / 0.4 * ventricularRegion;
-      r += rvBlend * 0.04;
-      g += rvBlend * 0.01;
-    }
+    // RV slightly lighter (thinner wall, more pink)
+    const rvFace = Math.exp(-Math.pow(theta - 0.6, 2) * 1.5);
+    r += rvFace * vent * 0.06;
+    g += rvFace * vent * 0.02;
 
-    // Surface veins (subtle blue-purple tint in patches)
-    const veinPattern = Math.sin(theta * 5.3 + v * 7.1) * Math.sin(theta * 3.7 - v * 4.9);
-    if (veinPattern > 0.4) {
-      const veinIntensity = (veinPattern - 0.4) / 0.6 * 0.06;
-      r -= veinIntensity;
-      g -= veinIntensity * 0.5;
-      b += veinIntensity * 1.5;
-    }
+    // Mottled organic variation
+    const m = fbm(u * 10, v * 14, 3);
+    r += (m - 0.5) * 0.08; g += (m - 0.5) * 0.03; b += (m - 0.5) * 0.02;
 
-    // Organic variation (mottled appearance)
-    const mottled = fbm(u * 8, v * 12, 3);
-    r += (mottled - 0.5) * 0.06;
-    g += (mottled - 0.5) * 0.025;
-    b += (mottled - 0.5) * 0.02;
-
-    colors[i * 3] = Math.max(0, Math.min(1, r));
-    colors[i * 3 + 1] = Math.max(0, Math.min(1, g));
-    colors[i * 3 + 2] = Math.max(0, Math.min(1, b));
+    c[i * 3] = Math.max(0, Math.min(1, r));
+    c[i * 3 + 1] = Math.max(0, Math.min(1, g));
+    c[i * 3 + 2] = Math.max(0, Math.min(1, b));
   }
-
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
 }
 
-// ─── Heart mesh component ──────────────────────────────────────────────
+// ─── Heart mesh ────────────────────────────────────────────────────────
 function HeartMesh() {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const ref = useRef<THREE.Mesh>(null);
   const { cycleProgress, playing } = useTimelineStore();
   const { hoveredStructureId } = useSceneStore();
   const { viewMode } = useAppStore();
 
-  const { geometry, bumpMap, normalMap } = useMemo(() => {
-    const geo = buildAnatomicalHeartGeometry();
+  const { geometry, normalMap } = useMemo(() => {
+    const geo = buildHeartGeometry();
     addVertexColors(geo);
-    return {
-      geometry: geo,
-      bumpMap: createBumpTexture(512),
-      normalMap: createNormalMapFromBump(512),
-    };
+    return { geometry: geo, normalMap: createNormalMap(512) };
   }, []);
 
   useFrame(() => {
-    if (meshRef.current && playing) {
-      const systolicPhase = cycleProgress > 0.11 && cycleProgress < 0.4;
-      const t = systolicPhase ? (cycleProgress - 0.11) / 0.29 : 0;
-      const contractAmount = systolicPhase ? Math.sin(t * Math.PI) : 0;
-
-      // Anisotropic contraction: LV shortens longitudinally, thickens circumferentially
-      const sx = 1 - contractAmount * 0.035;
-      const sy = 1 + contractAmount * 0.025;
-      const sz = 1 - contractAmount * 0.035;
-      meshRef.current.scale.set(sx, sy, sz);
+    if (ref.current && playing) {
+      const sys = cycleProgress > 0.11 && cycleProgress < 0.4;
+      const t = sys ? (cycleProgress - 0.11) / 0.29 : 0;
+      const c = sys ? Math.sin(t * Math.PI) : 0;
+      ref.current.scale.set(1 - c * 0.035, 1 + c * 0.02, 1 - c * 0.035);
     }
   });
 
-  const isHighlighted = hoveredStructureId === 'heart-external';
-
   return (
-    <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
+    <mesh ref={ref} geometry={geometry} castShadow receiveShadow>
       <meshPhysicalMaterial
         vertexColors
-        roughness={0.55}
-        metalness={0.01}
-        clearcoat={0.35}
-        clearcoatRoughness={0.35}
-        sheen={0.5}
-        sheenRoughness={0.4}
-        sheenColor={new THREE.Color(0.55, 0.12, 0.08)}
-        bumpMap={bumpMap}
-        bumpScale={0.015}
+        roughness={0.38}
+        metalness={0.02}
+        clearcoat={0.6}
+        clearcoatRoughness={0.25}
+        sheen={0.6}
+        sheenRoughness={0.35}
+        sheenColor={new THREE.Color(0.7, 0.15, 0.1)}
         normalMap={normalMap}
-        normalScale={new THREE.Vector2(0.4, 0.4)}
+        normalScale={new THREE.Vector2(0.5, 0.5)}
         transparent={viewMode === 'cutaway'}
         opacity={viewMode === 'cutaway' ? 0.5 : 1}
         side={viewMode === 'cutaway' ? THREE.DoubleSide : THREE.FrontSide}
-        emissive={isHighlighted ? new THREE.Color(0.15, 0.03, 0.02) : new THREE.Color(0.02, 0.003, 0.002)}
+        emissive={hoveredStructureId === 'heart-external' ? new THREE.Color(0.15, 0.03, 0.02) : new THREE.Color(0.025, 0.004, 0.003)}
       />
     </mesh>
   );
 }
 
-// ─── Surface veins (small visible veins on epicardium) ─────────────────
-function SurfaceVeins() {
-  const veins = useMemo(() => {
-    const veinCurves: { curve: THREE.CatmullRomCurve3; radius: number }[] = [];
+// ─── Right atrial appendage (auricle) ──────────────────────────────────
+function RightAuricle() {
+  const geo = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.bezierCurveTo(0.15, 0.05, 0.25, 0.15, 0.3, 0.1);
+    shape.bezierCurveTo(0.35, 0.05, 0.32, -0.08, 0.25, -0.1);
+    shape.bezierCurveTo(0.18, -0.12, 0.08, -0.06, 0, 0);
+    const g = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.12, bevelEnabled: true, bevelThickness: 0.04,
+      bevelSize: 0.04, bevelSegments: 8, curveSegments: 24,
+    });
+    g.computeVertexNormals();
+    return g;
+  }, []);
 
-    // Anterior cardiac veins (3-4 small veins on RV surface)
-    for (let i = 0; i < 4; i++) {
-      const startAngle = 0.1 + i * 0.2;
-      const startV = 0.35 + i * 0.03;
-      const points: THREE.Vector3[] = [];
-      for (let j = 0; j < 6; j++) {
-        const t = j / 5;
-        const angle = startAngle + t * 0.15 + Math.sin(t * 3 + i) * 0.05;
-        const vPos = startV + t * 0.35;
-        const r = 1.0 + 0.15 * Math.cos(angle) - 0.08 * (vPos - 0.5);
-        const phi = vPos * Math.PI;
-        const theta = angle * Math.PI * 2;
-        points.push(new THREE.Vector3(
-          r * Math.sin(phi) * Math.cos(theta),
-          1.3 * r * Math.cos(phi) * 0.95,
-          0.88 * r * Math.sin(phi) * Math.sin(theta)
-        ));
-      }
-      veinCurves.push({ curve: new THREE.CatmullRomCurve3(points), radius: 0.005 + Math.random() * 0.003 });
-    }
+  return (
+    <mesh geometry={geo} position={[0.75, 0.45, 0.55]} rotation={[0.3, -0.8, 0.2]} castShadow>
+      <meshPhysicalMaterial
+        color="#b04545"
+        roughness={0.4}
+        clearcoat={0.5}
+        clearcoatRoughness={0.3}
+        sheen={0.4}
+        sheenColor={new THREE.Color(0.6, 0.12, 0.1)}
+      />
+    </mesh>
+  );
+}
 
-    // Great cardiac vein (follows AV groove and then IV sulcus)
-    const gcv = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.08, -0.5, 0.5),
-      new THREE.Vector3(-0.1, -0.15, 0.75),
-      new THREE.Vector3(-0.06, 0.15, 0.82),
-      new THREE.Vector3(-0.02, 0.38, 0.72),
-      new THREE.Vector3(-0.3, 0.4, 0.55),
-      new THREE.Vector3(-0.6, 0.38, 0.25),
+// ─── Left atrial appendage ─────────────────────────────────────────────
+function LeftAuricle() {
+  const geo = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.bezierCurveTo(-0.12, 0.06, -0.22, 0.12, -0.25, 0.08);
+    shape.bezierCurveTo(-0.28, 0.02, -0.24, -0.06, -0.18, -0.08);
+    shape.bezierCurveTo(-0.1, -0.1, -0.04, -0.04, 0, 0);
+    const g = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.1, bevelEnabled: true, bevelThickness: 0.035,
+      bevelSize: 0.035, bevelSegments: 8, curveSegments: 24,
+    });
+    g.computeVertexNormals();
+    return g;
+  }, []);
+
+  return (
+    <mesh geometry={geo} position={[-0.6, 0.5, 0.45]} rotation={[0.2, 0.6, -0.15]} castShadow>
+      <meshPhysicalMaterial
+        color="#a84040"
+        roughness={0.4}
+        clearcoat={0.5}
+        clearcoatRoughness={0.3}
+        sheen={0.4}
+        sheenColor={new THREE.Color(0.6, 0.12, 0.1)}
+      />
+    </mesh>
+  );
+}
+
+// ─── Great vessels (thick, prominent, matching reference images) ───────
+function GreatVessels() {
+  const vessels = useMemo(() => {
+    // Aorta: thick arch curving prominently over the top
+    const aorta = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.1, 0.95, 0.15),
+      new THREE.Vector3(-0.1, 1.3, 0.2),
+      new THREE.Vector3(0.0, 1.55, 0.1),
+      new THREE.Vector3(0.2, 1.65, -0.1),
+      new THREE.Vector3(0.4, 1.6, -0.35),
+      new THREE.Vector3(0.35, 1.35, -0.55),
+      new THREE.Vector3(0.2, 1.0, -0.7),
     ]);
-    veinCurves.push({ curve: gcv, radius: 0.008 });
-
-    // Middle cardiac vein
-    const mcv = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.1, -0.65, 0.15),
-      new THREE.Vector3(-0.05, -0.35, -0.55),
-      new THREE.Vector3(0.0, -0.05, -0.68),
-      new THREE.Vector3(0.05, 0.25, -0.6),
+    // Brachiocephalic trunk (right, thick)
+    const bct = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.12, 1.58, -0.02),
+      new THREE.Vector3(0.25, 1.85, 0.05),
+      new THREE.Vector3(0.4, 2.1, 0.1),
     ]);
-    veinCurves.push({ curve: mcv, radius: 0.007 });
+    // Left common carotid
+    const lcc = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.05, 1.62, -0.08),
+      new THREE.Vector3(-0.02, 1.9, -0.02),
+      new THREE.Vector3(-0.08, 2.15, 0.02),
+    ]);
+    // Left subclavian
+    const lsc = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.25, 1.63, -0.2),
+      new THREE.Vector3(0.0, 1.8, -0.3),
+      new THREE.Vector3(-0.3, 1.9, -0.35),
+    ]);
+    // Pulmonary trunk: thick, crosses anterior to aorta
+    const pt = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.2, 0.9, 0.5),
+      new THREE.Vector3(0.15, 1.2, 0.55),
+      new THREE.Vector3(0.0, 1.4, 0.45),
+      new THREE.Vector3(-0.2, 1.45, 0.3),
+    ]);
+    // Left pulmonary artery
+    const lpa = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.2, 1.45, 0.3),
+      new THREE.Vector3(-0.45, 1.4, 0.15),
+      new THREE.Vector3(-0.65, 1.3, 0.0),
+    ]);
+    // Right pulmonary artery (passes behind aorta)
+    const rpa = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.05, 1.4, 0.4),
+      new THREE.Vector3(0.2, 1.42, 0.2),
+      new THREE.Vector3(0.45, 1.35, 0.05),
+      new THREE.Vector3(0.65, 1.25, -0.05),
+    ]);
+    // SVC: thick, enters right atrium from above
+    const svc = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.55, 0.85, 0.2),
+      new THREE.Vector3(0.58, 1.2, 0.18),
+      new THREE.Vector3(0.55, 1.6, 0.15),
+      new THREE.Vector3(0.5, 1.95, 0.12),
+    ]);
+    // IVC
+    const ivc = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.4, -0.6, -0.2),
+      new THREE.Vector3(0.42, -0.95, -0.25),
+      new THREE.Vector3(0.4, -1.3, -0.3),
+    ]);
+    // Left pulmonary veins (upper and lower)
+    const lpvu = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.6, 0.7, -0.15),
+      new THREE.Vector3(-0.9, 0.75, -0.3),
+      new THREE.Vector3(-1.15, 0.8, -0.4),
+    ]);
+    const lpvl = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.55, 0.5, -0.25),
+      new THREE.Vector3(-0.85, 0.52, -0.4),
+      new THREE.Vector3(-1.1, 0.55, -0.48),
+    ]);
+    // Right pulmonary veins
+    const rpvu = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.35, 0.7, -0.2),
+      new THREE.Vector3(0.65, 0.75, -0.4),
+      new THREE.Vector3(0.9, 0.78, -0.5),
+    ]);
+    const rpvl = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.3, 0.5, -0.3),
+      new THREE.Vector3(0.6, 0.52, -0.45),
+      new THREE.Vector3(0.85, 0.55, -0.55),
+    ]);
 
-    return veinCurves;
+    const artMat = { color: '#c42020', roughness: 0.35, clearcoat: 0.5, clearcoatRoughness: 0.25, sheen: 0.3, sheenColor: '#ff4040' };
+    const venMat = { color: '#1e3868', roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.3, sheen: 0.2, sheenColor: '#3060b0' };
+    const pvMat = { color: '#8a2525', roughness: 0.38, clearcoat: 0.45, clearcoatRoughness: 0.28, sheen: 0.25, sheenColor: '#c04040' };
+
+    return [
+      { curve: aorta, radius: 0.14, mat: artMat },
+      { curve: bct, radius: 0.06, mat: artMat },
+      { curve: lcc, radius: 0.05, mat: artMat },
+      { curve: lsc, radius: 0.055, mat: artMat },
+      { curve: pt, radius: 0.12, mat: venMat },
+      { curve: lpa, radius: 0.065, mat: venMat },
+      { curve: rpa, radius: 0.06, mat: venMat },
+      { curve: svc, radius: 0.09, mat: venMat },
+      { curve: ivc, radius: 0.085, mat: venMat },
+      { curve: lpvu, radius: 0.045, mat: pvMat },
+      { curve: lpvl, radius: 0.04, mat: pvMat },
+      { curve: rpvu, radius: 0.045, mat: pvMat },
+      { curve: rpvl, radius: 0.04, mat: pvMat },
+    ];
   }, []);
 
   return (
     <group>
-      {veins.map((v, i) => (
-        <mesh key={i}>
-          <tubeGeometry args={[v.curve, 32, v.radius, 6, false]} />
+      {vessels.map((v, i) => (
+        <mesh key={i} castShadow>
+          <tubeGeometry args={[v.curve, 64, v.radius, 16, false]} />
           <meshPhysicalMaterial
-            color="#2a1848"
-            roughness={0.6}
-            metalness={0.0}
-            clearcoat={0.2}
+            color={v.mat.color}
+            roughness={v.mat.roughness}
+            metalness={0.02}
+            clearcoat={v.mat.clearcoat}
+            clearcoatRoughness={v.mat.clearcoatRoughness}
+            sheen={v.mat.sheen}
+            sheenColor={new THREE.Color(v.mat.sheenColor)}
           />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// ─── Dense coronary vessel network ─────────────────────────────────────
+// Creates a realistic branching tree of coronary arteries AND veins
+function CoronaryNetwork() {
+  const { viewMode } = useAppStore();
+
+  const vessels = useMemo(() => {
+    const result: { curve: THREE.CatmullRomCurve3; radius: number; color: string }[] = [];
+
+    // Helper: add a vessel and its sub-branches
+    function addBranch(
+      points: THREE.Vector3[], radius: number, color: string,
+      depth: number, maxDepth: number, seed: number
+    ) {
+      if (points.length < 2) return;
+      result.push({ curve: new THREE.CatmullRomCurve3(points), radius, color });
+      if (depth >= maxDepth) return;
+
+      // Generate 1-3 sub-branches from the parent
+      const nBranches = 1 + Math.floor(hash(seed, depth) * 2.5);
+      for (let b = 0; b < nBranches; b++) {
+        const t = 0.3 + hash(seed + b * 7, depth + 3) * 0.5; // branch point along parent
+        const pIdx = Math.floor(t * (points.length - 1));
+        const origin = points[pIdx].clone();
+        const dir = pIdx < points.length - 1
+          ? points[pIdx + 1].clone().sub(origin).normalize()
+          : points[pIdx].clone().sub(points[pIdx - 1]).normalize();
+
+        // Perpendicular deviation
+        const perp = new THREE.Vector3(
+          (hash(seed + b * 13, depth * 5) - 0.5) * 2,
+          (hash(seed + b * 17, depth * 7) - 0.5),
+          (hash(seed + b * 23, depth * 11) - 0.5) * 2
+        ).normalize();
+
+        const branchDir = dir.clone().multiplyScalar(0.6).add(perp.multiplyScalar(0.4)).normalize();
+        const branchLen = 0.15 + hash(seed + b, depth) * 0.2;
+        const numPts = 3 + Math.floor(hash(seed + b * 3, depth) * 2);
+        const branchPts: THREE.Vector3[] = [origin.clone()];
+
+        for (let p = 1; p <= numPts; p++) {
+          const f = p / numPts;
+          const wobble = new THREE.Vector3(
+            (hash(seed + p * 31, b * 41) - 0.5) * 0.06,
+            (hash(seed + p * 37, b * 43) - 0.5) * 0.04,
+            (hash(seed + p * 41, b * 47) - 0.5) * 0.06,
+          );
+          branchPts.push(origin.clone().add(branchDir.clone().multiplyScalar(branchLen * f)).add(wobble));
+        }
+
+        addBranch(branchPts, radius * 0.6, color, depth + 1, maxDepth, seed + b * 100 + depth * 50);
+      }
+    }
+
+    // ── ARTERIES (red) ──
+
+    // LAD main trunk
+    const ladPts = [
+      new THREE.Vector3(-0.05, 0.5, 0.85),
+      new THREE.Vector3(-0.08, 0.3, 0.92),
+      new THREE.Vector3(-0.1, 0.05, 0.88),
+      new THREE.Vector3(-0.12, -0.2, 0.75),
+      new THREE.Vector3(-0.12, -0.45, 0.58),
+      new THREE.Vector3(-0.1, -0.7, 0.35),
+      new THREE.Vector3(-0.08, -0.85, 0.18),
+    ];
+    addBranch(ladPts, 0.018, '#cc2020', 0, 3, 100);
+
+    // LCx main trunk
+    const lcxPts = [
+      new THREE.Vector3(-0.05, 0.5, 0.85),
+      new THREE.Vector3(-0.35, 0.47, 0.65),
+      new THREE.Vector3(-0.65, 0.4, 0.35),
+      new THREE.Vector3(-0.82, 0.35, 0.0),
+      new THREE.Vector3(-0.72, 0.3, -0.35),
+      new THREE.Vector3(-0.5, 0.2, -0.55),
+    ];
+    addBranch(lcxPts, 0.016, '#cc2020', 0, 3, 200);
+
+    // RCA main trunk
+    const rcaPts = [
+      new THREE.Vector3(0.2, 0.55, 0.82),
+      new THREE.Vector3(0.55, 0.48, 0.65),
+      new THREE.Vector3(0.8, 0.4, 0.35),
+      new THREE.Vector3(0.88, 0.35, 0.0),
+      new THREE.Vector3(0.78, 0.28, -0.35),
+      new THREE.Vector3(0.5, 0.15, -0.6),
+      new THREE.Vector3(0.2, 0.0, -0.7),
+    ];
+    addBranch(rcaPts, 0.017, '#cc2020', 0, 3, 300);
+
+    // PDA (from RCA terminus)
+    const pdaPts = [
+      new THREE.Vector3(0.2, 0.0, -0.7),
+      new THREE.Vector3(0.05, -0.15, -0.68),
+      new THREE.Vector3(-0.08, -0.35, -0.58),
+      new THREE.Vector3(-0.12, -0.55, -0.4),
+    ];
+    addBranch(pdaPts, 0.012, '#cc3030', 0, 2, 350);
+
+    // ── VEINS (blue-purple) ──
+
+    // Great cardiac vein (parallels LAD)
+    const gcvPts = [
+      new THREE.Vector3(-0.12, -0.8, 0.2),
+      new THREE.Vector3(-0.14, -0.5, 0.55),
+      new THREE.Vector3(-0.12, -0.15, 0.78),
+      new THREE.Vector3(-0.08, 0.15, 0.88),
+      new THREE.Vector3(-0.04, 0.42, 0.78),
+      new THREE.Vector3(-0.3, 0.45, 0.6),
+      new THREE.Vector3(-0.6, 0.42, 0.3),
+    ];
+    addBranch(gcvPts, 0.016, '#1a3878', 0, 3, 400);
+
+    // Middle cardiac vein (posterior IV sulcus)
+    const mcvPts = [
+      new THREE.Vector3(-0.1, -0.7, -0.25),
+      new THREE.Vector3(-0.05, -0.4, -0.55),
+      new THREE.Vector3(0.0, -0.1, -0.65),
+      new THREE.Vector3(0.05, 0.2, -0.58),
+      new THREE.Vector3(0.1, 0.38, -0.42),
+    ];
+    addBranch(mcvPts, 0.014, '#1a3878', 0, 3, 500);
+
+    // Small cardiac vein (follows RCA)
+    const scvPts = [
+      new THREE.Vector3(0.75, 0.35, 0.3),
+      new THREE.Vector3(0.82, 0.32, 0.05),
+      new THREE.Vector3(0.72, 0.28, -0.25),
+      new THREE.Vector3(0.45, 0.2, -0.48),
+    ];
+    addBranch(scvPts, 0.012, '#1a3878', 0, 2, 600);
+
+    // Anterior cardiac veins (multiple on RV surface)
+    for (let i = 0; i < 5; i++) {
+      const startTheta = 0.15 + i * 0.12;
+      const startY = 0.35 - i * 0.05;
+      const pts: THREE.Vector3[] = [];
+      for (let j = 0; j < 5; j++) {
+        const t = j / 4;
+        const angle = startTheta + t * 0.08 + Math.sin(t * 2 + i) * 0.03;
+        const yPos = startY - t * 0.55;
+        const rad = 0.95 + 0.18 * Math.cos(angle * Math.PI * 2);
+        const phi = (0.35 + t * 0.35) * Math.PI;
+        pts.push(new THREE.Vector3(
+          rad * Math.sin(phi) * Math.cos(angle * Math.PI * 2) * 1.05,
+          1.35 * rad * Math.cos(phi),
+          0.82 * rad * Math.sin(phi) * Math.sin(angle * Math.PI * 2)
+        ));
+      }
+      result.push({
+        curve: new THREE.CatmullRomCurve3(pts),
+        radius: 0.006 + hash(i, 999) * 0.004,
+        color: '#1a3878',
+      });
+    }
+
+    return result;
+  }, []);
+
+  if (viewMode !== 'coronary' && viewMode !== 'external') return null;
+
+  return (
+    <group>
+      {vessels.map((v, i) => (
+        <mesh key={i}>
+          <tubeGeometry args={[v.curve, 48, v.radius, 8, false]} />
+          <meshPhysicalMaterial
+            color={v.color}
+            roughness={0.4}
+            clearcoat={0.4}
+            clearcoatRoughness={0.3}
+            emissive={v.color}
+            emissiveIntensity={0.05}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// ─── Epicardial fat ────────────────────────────────────────────────────
+function EpicardialFat() {
+  const fat = useMemo(() => {
+    const avFat = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.7, 0.42, 0.55),
+      new THREE.Vector3(0.85, 0.38, 0.2),
+      new THREE.Vector3(0.8, 0.35, -0.15),
+      new THREE.Vector3(0.5, 0.33, -0.45),
+      new THREE.Vector3(0.0, 0.34, -0.6),
+      new THREE.Vector3(-0.5, 0.37, -0.45),
+      new THREE.Vector3(-0.75, 0.39, -0.1),
+      new THREE.Vector3(-0.7, 0.42, 0.3),
+    ]);
+    const aivFat = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.06, 0.45, 0.88),
+      new THREE.Vector3(-0.1, 0.1, 0.9),
+      new THREE.Vector3(-0.12, -0.2, 0.78),
+      new THREE.Vector3(-0.12, -0.5, 0.55),
+    ]);
+    const baseFat = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.2, 0.85, 0.25),
+      new THREE.Vector3(0.05, 0.88, 0.4),
+      new THREE.Vector3(0.3, 0.85, 0.3),
+    ]);
+
+    return [
+      { curve: avFat, radius: 0.055, color: '#d4b84a' },
+      { curve: aivFat, radius: 0.045, color: '#d4b84a' },
+      { curve: baseFat, radius: 0.06, color: '#dcc058' },
+    ];
+  }, []);
+
+  return (
+    <group>
+      {fat.map((f, i) => (
+        <mesh key={i}>
+          <tubeGeometry args={[f.curve, 40, f.radius, 10, false]} />
+          <meshPhysicalMaterial color={f.color} roughness={0.75} metalness={0.0} clearcoat={0.2} />
         </mesh>
       ))}
     </group>
@@ -474,10 +678,10 @@ function ChamberMeshes() {
   const { selectedStructureId, selectStructure, hoverStructure } = useSceneStore();
 
   const chambers = useMemo(() => [
-    { id: 'right-atrium', position: [0.45, 0.55, 0.15] as [number, number, number], color: '#4a6f9e', label: 'RA' },
-    { id: 'left-atrium', position: [-0.35, 0.55, -0.2] as [number, number, number], color: '#8e3535', label: 'LA' },
-    { id: 'right-ventricle', position: [0.35, -0.15, 0.25] as [number, number, number], color: '#5b7faa', label: 'RV' },
-    { id: 'left-ventricle', position: [-0.2, -0.2, -0.05] as [number, number, number], color: '#a83030', label: 'LV' },
+    { id: 'right-atrium', position: [0.5, 0.55, 0.2] as [number, number, number], color: '#4a6f9e', label: 'RA' },
+    { id: 'left-atrium', position: [-0.4, 0.55, -0.2] as [number, number, number], color: '#8e3535', label: 'LA' },
+    { id: 'right-ventricle', position: [0.4, -0.15, 0.3] as [number, number, number], color: '#5b7faa', label: 'RV' },
+    { id: 'left-ventricle', position: [-0.2, -0.25, -0.05] as [number, number, number], color: '#a83030', label: 'LV' },
   ], []);
 
   if (viewMode !== 'internal' && viewMode !== 'cutaway' && viewMode !== 'sectional') return null;
@@ -494,104 +698,13 @@ function ChamberMeshes() {
             <sphereGeometry args={[0.3, 32, 32]} />
             <meshPhysicalMaterial
               color={selectedStructureId === ch.id ? '#ffff00' : ch.color}
-              transparent
-              opacity={0.5}
-              roughness={0.3}
+              transparent opacity={0.5} roughness={0.3}
             />
           </mesh>
           <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
-            <div className="bg-cardiac-panel/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-              {ch.label}
-            </div>
+            <div className="bg-cardiac-panel/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap">{ch.label}</div>
           </Html>
         </group>
-      ))}
-    </group>
-  );
-}
-
-// ─── Coronary arteries ─────────────────────────────────────────────────
-function CoronaryOverlay() {
-  const { viewMode } = useAppStore();
-
-  const arteries = useMemo(() => {
-    const lad = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.05, 0.45, 0.75),
-      new THREE.Vector3(-0.08, 0.2, 0.82),
-      new THREE.Vector3(-0.1, -0.05, 0.78),
-      new THREE.Vector3(-0.12, -0.3, 0.65),
-      new THREE.Vector3(-0.1, -0.55, 0.45),
-      new THREE.Vector3(-0.08, -0.75, 0.25),
-    ]);
-    const lcx = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.05, 0.45, 0.75),
-      new THREE.Vector3(-0.35, 0.42, 0.55),
-      new THREE.Vector3(-0.65, 0.35, 0.2),
-      new THREE.Vector3(-0.75, 0.3, -0.15),
-      new THREE.Vector3(-0.6, 0.25, -0.45),
-    ]);
-    const rca = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.15, 0.5, 0.7),
-      new THREE.Vector3(0.5, 0.42, 0.55),
-      new THREE.Vector3(0.75, 0.35, 0.25),
-      new THREE.Vector3(0.8, 0.3, -0.1),
-      new THREE.Vector3(0.65, 0.2, -0.4),
-      new THREE.Vector3(0.35, 0.1, -0.6),
-    ]);
-    const diag1 = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.08, 0.2, 0.82),
-      new THREE.Vector3(-0.3, 0.05, 0.75),
-      new THREE.Vector3(-0.5, -0.1, 0.55),
-    ]);
-    const diag2 = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.1, -0.05, 0.78),
-      new THREE.Vector3(-0.35, -0.15, 0.7),
-      new THREE.Vector3(-0.55, -0.25, 0.5),
-    ]);
-    const marginal = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.75, 0.35, 0.25),
-      new THREE.Vector3(0.7, 0.1, 0.35),
-      new THREE.Vector3(0.55, -0.15, 0.35),
-    ]);
-    const pda = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.35, 0.1, -0.6),
-      new THREE.Vector3(0.15, -0.1, -0.62),
-      new THREE.Vector3(-0.02, -0.35, -0.55),
-      new THREE.Vector3(-0.08, -0.55, -0.38),
-    ]);
-    const obtuseMarg = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.65, 0.35, 0.2),
-      new THREE.Vector3(-0.72, 0.15, 0.15),
-      new THREE.Vector3(-0.68, -0.08, 0.05),
-    ]);
-
-    return [
-      { curve: lad, name: 'LAD', color: '#bb1818', radius: 0.016 },
-      { curve: lcx, name: 'LCx', color: '#bb2218', radius: 0.014 },
-      { curve: rca, name: 'RCA', color: '#bb1818', radius: 0.015 },
-      { curve: diag1, name: 'D1', color: '#cc3030', radius: 0.009 },
-      { curve: diag2, name: 'D2', color: '#cc3030', radius: 0.007 },
-      { curve: marginal, name: 'AM', color: '#cc3030', radius: 0.009 },
-      { curve: pda, name: 'PDA', color: '#cc3030', radius: 0.01 },
-      { curve: obtuseMarg, name: 'OM', color: '#cc3030', radius: 0.008 },
-    ];
-  }, []);
-
-  if (viewMode !== 'coronary' && viewMode !== 'external') return null;
-
-  return (
-    <group>
-      {arteries.map((a) => (
-        <mesh key={a.name}>
-          <tubeGeometry args={[a.curve, 64, a.radius, 8, false]} />
-          <meshPhysicalMaterial
-            color={a.color}
-            roughness={0.45}
-            clearcoat={0.3}
-            emissive={a.color}
-            emissiveIntensity={0.1}
-          />
-        </mesh>
       ))}
     </group>
   );
@@ -601,15 +714,14 @@ function CoronaryOverlay() {
 function ConductionOverlay() {
   const { viewMode } = useAppStore();
   const { conductionProgress } = useTimelineStore();
-
   if (viewMode !== 'conduction') return null;
 
   const nodes = [
-    { id: 'sa-node', pos: [0.5, 0.65, 0.3] as [number, number, number], label: 'SA Node' },
-    { id: 'av-node', pos: [0.1, 0.3, 0.3] as [number, number, number], label: 'AV Node' },
-    { id: 'bundle-of-his', pos: [0, 0.1, 0.3] as [number, number, number], label: 'Bundle of His' },
-    { id: 'rbb', pos: [0.25, -0.25, 0.3] as [number, number, number], label: 'RBB' },
-    { id: 'lbb', pos: [-0.2, -0.25, 0.3] as [number, number, number], label: 'LBB' },
+    { id: 'sa-node', pos: [0.55, 0.7, 0.3] as [number, number, number], label: 'SA Node' },
+    { id: 'av-node', pos: [0.15, 0.35, 0.3] as [number, number, number], label: 'AV Node' },
+    { id: 'bundle-of-his', pos: [0, 0.15, 0.3] as [number, number, number], label: 'Bundle of His' },
+    { id: 'rbb', pos: [0.3, -0.2, 0.3] as [number, number, number], label: 'RBB' },
+    { id: 'lbb', pos: [-0.2, -0.2, 0.3] as [number, number, number], label: 'LBB' },
   ];
 
   return (
@@ -627,9 +739,7 @@ function ConductionOverlay() {
               />
             </mesh>
             <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
-              <div className="text-yellow-400 text-xs font-bold whitespace-nowrap">
-                {node.label}
-              </div>
+              <div className="text-yellow-400 text-xs font-bold whitespace-nowrap">{node.label}</div>
             </Html>
           </group>
         );
@@ -642,198 +752,51 @@ function ConductionOverlay() {
 function BloodFlowParticles() {
   const { viewMode } = useAppStore();
   const { cycleProgress, playing } = useTimelineStore();
-  const particlesRef = useRef<THREE.Points>(null);
+  const ref = useRef<THREE.Points>(null);
+  const count = 200;
 
-  const particleCount = 200;
-  const positions = useMemo(() => {
-    const pos = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) {
+  const data = useMemo(() => {
+    const pos = new Float32Array(count * 3);
+    const col = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
       pos[i * 3] = (Math.random() - 0.5) * 1.6;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 2;
+      pos[i * 3 + 1] = (Math.random() - 0.5) * 2.4;
       pos[i * 3 + 2] = (Math.random() - 0.5) * 1.2;
-      const isOxy = pos[i * 3] < 0;
-      colors[i * 3] = isOxy ? 0.7 : 0.15;
-      colors[i * 3 + 1] = 0.05;
-      colors[i * 3 + 2] = isOxy ? 0.1 : 0.6;
+      const oxy = pos[i * 3] < 0;
+      col[i * 3] = oxy ? 0.7 : 0.15;
+      col[i * 3 + 1] = 0.05;
+      col[i * 3 + 2] = oxy ? 0.1 : 0.6;
     }
-    return { positions: pos, colors };
+    return { positions: pos, colors: col };
   }, []);
 
-  useFrame((_, delta) => {
-    if (!particlesRef.current || !playing) return;
-    const posArr = particlesRef.current.geometry.attributes.position.array as Float32Array;
-    for (let i = 0; i < particleCount; i++) {
-      posArr[i * 3 + 1] -= delta * 0.5 * (cycleProgress > 0.16 && cycleProgress < 0.4 ? 2 : 0.5);
-      if (posArr[i * 3 + 1] < -1.2) posArr[i * 3 + 1] = 1.2;
+  useFrame((_, dt) => {
+    if (!ref.current || !playing) return;
+    const p = ref.current.geometry.attributes.position.array as Float32Array;
+    for (let i = 0; i < count; i++) {
+      p[i * 3 + 1] -= dt * 0.5 * (cycleProgress > 0.16 && cycleProgress < 0.4 ? 2 : 0.5);
+      if (p[i * 3 + 1] < -1.4) p[i * 3 + 1] = 1.4;
     }
-    particlesRef.current.geometry.attributes.position.needsUpdate = true;
+    ref.current.geometry.attributes.position.needsUpdate = true;
   });
 
   if (viewMode !== 'internal' && viewMode !== 'perfusion') return null;
 
   return (
-    <points ref={particlesRef}>
+    <points ref={ref}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions.positions, 3]} />
-        <bufferAttribute attach="attributes-color" args={[positions.colors, 3]} />
+        <bufferAttribute attach="attributes-position" args={[data.positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[data.colors, 3]} />
       </bufferGeometry>
       <pointsMaterial size={0.025} vertexColors transparent opacity={0.6} />
     </points>
   );
 }
 
-// ─── Great vessels ─────────────────────────────────────────────────────
-function GreatVessels() {
-  const vessels = useMemo(() => {
-    const aorta = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.05, 0.85, 0.1),
-      new THREE.Vector3(-0.05, 1.15, 0.15),
-      new THREE.Vector3(0.0, 1.35, 0.05),
-      new THREE.Vector3(0.15, 1.45, -0.1),
-      new THREE.Vector3(0.3, 1.4, -0.3),
-      new THREE.Vector3(0.25, 1.2, -0.5),
-      new THREE.Vector3(0.15, 0.9, -0.6),
-    ]);
-    // Brachiocephalic trunk
-    const bct = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.1, 1.4, -0.05),
-      new THREE.Vector3(0.2, 1.6, 0.0),
-      new THREE.Vector3(0.35, 1.75, 0.05),
-    ]);
-    // Left common carotid
-    const lcc = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.05, 1.42, -0.08),
-      new THREE.Vector3(-0.02, 1.65, -0.05),
-      new THREE.Vector3(-0.08, 1.8, 0.0),
-    ]);
-    // Left subclavian
-    const lsc = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.2, 1.43, -0.15),
-      new THREE.Vector3(-0.05, 1.55, -0.25),
-      new THREE.Vector3(-0.3, 1.6, -0.3),
-    ]);
-    const pulmonaryTrunk = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.15, 0.8, 0.35),
-      new THREE.Vector3(0.1, 1.1, 0.4),
-      new THREE.Vector3(-0.05, 1.2, 0.35),
-      new THREE.Vector3(-0.25, 1.15, 0.2),
-    ]);
-    const rpa = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.05, 1.2, 0.35),
-      new THREE.Vector3(0.2, 1.25, 0.15),
-      new THREE.Vector3(0.45, 1.2, 0.0),
-    ]);
-    const svc = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.4, 0.75, 0.15),
-      new THREE.Vector3(0.42, 1.1, 0.12),
-      new THREE.Vector3(0.4, 1.45, 0.1),
-    ]);
-    const ivc = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.3, -0.5, -0.2),
-      new THREE.Vector3(0.32, -0.85, -0.25),
-      new THREE.Vector3(0.3, -1.15, -0.3),
-    ]);
-    const lpv = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.55, 0.6, -0.2),
-      new THREE.Vector3(-0.85, 0.65, -0.35),
-      new THREE.Vector3(-1.1, 0.7, -0.4),
-    ]);
-    const rpv = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.25, 0.6, -0.25),
-      new THREE.Vector3(0.55, 0.65, -0.4),
-      new THREE.Vector3(0.8, 0.7, -0.45),
-    ]);
-
-    return [
-      { id: 'aorta', curve: aorta, color: '#8a1a1a', radius: 0.09 },
-      { id: 'bct', curve: bct, color: '#8a1a1a', radius: 0.04 },
-      { id: 'lcc', curve: lcc, color: '#8a1a1a', radius: 0.032 },
-      { id: 'lsc', curve: lsc, color: '#8a1a1a', radius: 0.035 },
-      { id: 'pulmonary-trunk', curve: pulmonaryTrunk, color: '#223a60', radius: 0.075 },
-      { id: 'rpa', curve: rpa, color: '#223a60', radius: 0.045 },
-      { id: 'svc', curve: svc, color: '#1e3050', radius: 0.055 },
-      { id: 'ivc', curve: ivc, color: '#1e3050', radius: 0.06 },
-      { id: 'lpv', curve: lpv, color: '#6a2020', radius: 0.035 },
-      { id: 'rpv', curve: rpv, color: '#6a2020', radius: 0.035 },
-    ];
-  }, []);
-
-  return (
-    <group>
-      {vessels.map((v) => (
-        <mesh key={v.id} castShadow>
-          <tubeGeometry args={[v.curve, 48, v.radius, 12, false]} />
-          <meshPhysicalMaterial
-            color={v.color}
-            roughness={0.5}
-            metalness={0.01}
-            clearcoat={0.25}
-            clearcoatRoughness={0.4}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-// ─── Epicardial fat ────────────────────────────────────────────────────
-function EpicardialFat() {
-  const fatDeposits = useMemo(() => {
-    const avGrooveFat = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.6, 0.38, 0.5),
-      new THREE.Vector3(0.75, 0.35, 0.2),
-      new THREE.Vector3(0.7, 0.33, -0.15),
-      new THREE.Vector3(0.4, 0.32, -0.45),
-      new THREE.Vector3(0.0, 0.33, -0.6),
-      new THREE.Vector3(-0.4, 0.35, -0.45),
-      new THREE.Vector3(-0.7, 0.36, -0.15),
-      new THREE.Vector3(-0.65, 0.38, 0.25),
-    ]);
-    const aivFat = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.05, 0.4, 0.78),
-      new THREE.Vector3(-0.08, 0.1, 0.8),
-      new THREE.Vector3(-0.1, -0.2, 0.7),
-      new THREE.Vector3(-0.1, -0.45, 0.5),
-    ]);
-    // Fat pad at base of aorta
-    const aorticFat = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.15, 0.75, 0.2),
-      new THREE.Vector3(0.05, 0.78, 0.3),
-      new THREE.Vector3(0.2, 0.75, 0.2),
-    ]);
-
-    return [
-      { curve: avGrooveFat, radius: 0.04, color: '#b89838' },
-      { curve: aivFat, radius: 0.035, color: '#b89838' },
-      { curve: aorticFat, radius: 0.05, color: '#c4a84a' },
-    ];
-  }, []);
-
-  return (
-    <group>
-      {fatDeposits.map((f, i) => (
-        <mesh key={i}>
-          <tubeGeometry args={[f.curve, 32, f.radius, 8, false]} />
-          <meshPhysicalMaterial
-            color={f.color}
-            roughness={0.85}
-            metalness={0.0}
-            transparent
-            opacity={0.65}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 // ─── Animation tick ────────────────────────────────────────────────────
 function AnimationTick() {
   const tick = useTimelineStore((s) => s.tick);
-  useFrame((_, delta) => {
-    tick(delta * 1000);
-  });
+  useFrame((_, dt) => tick(dt * 1000));
   return null;
 }
 
@@ -841,83 +804,51 @@ function AnimationTick() {
 function CameraController() {
   const { camera } = useThree();
   const preset = useSceneStore((s) => s.cameraPreset);
-
   useFrame(() => {
     if (preset) {
       camera.position.lerp(new THREE.Vector3(...preset.position), 0.05);
       camera.lookAt(new THREE.Vector3(...preset.target));
     }
   });
-
   return null;
 }
 
-// ─── Main 3D Scene ─────────────────────────────────────────────────────
+// ─── Main scene ────────────────────────────────────────────────────────
 export default function HeartScene() {
   return (
     <div className="w-full h-full bg-cardiac-dark">
       <Canvas
-        camera={{ position: [0, 0, 3.5], fov: 45 }}
+        camera={{ position: [0, 0, 4], fov: 42 }}
         shadows
-        gl={{
-          antialias: true,
-          alpha: false,
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
-        }}
-        style={{ background: '#080c14' }}
+        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
+        style={{ background: '#060a12' }}
       >
-        {/* Key light: warm, upper-right-front */}
-        <directionalLight
-          position={[4, 5, 3]}
-          intensity={1.4}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          color="#fff0e0"
-        />
-        {/* Fill light: cooler blue, from left */}
-        <directionalLight position={[-4, 2, 2]} intensity={0.35} color="#b8c8e0" />
-        {/* Rim/back light: warm edge highlight */}
-        <directionalLight position={[1, 2, -5]} intensity={0.4} color="#e0c8b0" />
-        {/* Bottom bounce: warm reflected light */}
-        <pointLight position={[0, -2.5, 1.5]} intensity={0.12} color="#ff7755" distance={6} />
-        {/* Subtle ambient to prevent pure black shadows */}
-        <ambientLight intensity={0.18} color="#c0b8d0" />
-        {/* Spot highlight on the heart center for depth */}
-        <spotLight
-          position={[2, 3, 4]}
-          angle={0.4}
-          penumbra={0.8}
-          intensity={0.5}
-          color="#ffe8d8"
-          castShadow={false}
-        />
+        {/* 3-point lighting + accents for wet tissue look */}
+        <directionalLight position={[5, 6, 4]} intensity={1.5} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} color="#fff0e0" />
+        <directionalLight position={[-4, 3, 3]} intensity={0.4} color="#b0c4e8" />
+        <directionalLight position={[1, 2, -5]} intensity={0.45} color="#e8d0b8" />
+        <pointLight position={[0, -3, 2]} intensity={0.15} color="#ff6644" distance={7} />
+        <ambientLight intensity={0.2} color="#c0b8d8" />
+        <spotLight position={[2.5, 4, 5]} angle={0.35} penumbra={0.7} intensity={0.6} color="#ffe8d0" />
+        <spotLight position={[-2, 1, 4]} angle={0.5} penumbra={0.9} intensity={0.25} color="#ffd8c0" />
 
         <AnimationTick />
         <CameraController />
 
-        <group rotation={[0.2, -0.3, 0.1]}>
+        <group rotation={[0.15, -0.25, 0.08]}>
           <HeartMesh />
           <GreatVessels />
+          <RightAuricle />
+          <LeftAuricle />
           <EpicardialFat />
-          <SurfaceVeins />
-          <CoronaryOverlay />
+          <CoronaryNetwork />
           <ChamberMeshes />
           <ConductionOverlay />
           <BloodFlowParticles />
         </group>
 
-        <ContactShadows position={[0, -2, 0]} opacity={0.5} blur={2.5} far={4} />
-        <OrbitControls
-          enablePan
-          enableZoom
-          enableRotate
-          minDistance={1.5}
-          maxDistance={8}
-          dampingFactor={0.08}
-          enableDamping
-        />
+        <ContactShadows position={[0, -2.2, 0]} opacity={0.5} blur={2.5} far={5} />
+        <OrbitControls enablePan enableZoom enableRotate minDistance={1.5} maxDistance={8} dampingFactor={0.08} enableDamping />
         <Environment preset="studio" />
       </Canvas>
     </div>
