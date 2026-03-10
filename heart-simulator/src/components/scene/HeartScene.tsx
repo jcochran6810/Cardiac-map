@@ -1,12 +1,122 @@
 'use client';
 
-import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React, { useRef, useMemo, useCallback, useState } from 'react';
+import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Html, Environment, ContactShadows, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useAppStore } from '@/store/useAppStore';
+
+// ─── Anatomical region map ─────────────────────────────────────────────
+// Maps 3D zones on the normalized heart model to structure IDs.
+// The model is centered at origin, scale 1.4. Coordinates are in model-local space.
+// Z axis is roughly superior-inferior, Y is anterior-posterior, X is left-right.
+interface AnatomyZone {
+  id: string;
+  name: string;
+  test: (p: THREE.Vector3) => number; // returns confidence 0-1
+}
+
+const ANATOMY_ZONES: AnatomyZone[] = [
+  // Great vessels (top of heart, Z > 0.55)
+  { id: 'ascending-aorta', name: 'Ascending Aorta',
+    test: (p) => p.z > 0.55 && p.x < 0.1 && p.y < 0.1 ? 0.9 : 0 },
+  { id: 'pulmonary-trunk', name: 'Pulmonary Trunk',
+    test: (p) => p.z > 0.5 && p.x > 0.05 && p.y > 0.0 ? 0.85 : 0 },
+  { id: 'svc', name: 'Superior Vena Cava',
+    test: (p) => p.z > 0.5 && p.x > 0.2 && p.y < -0.05 ? 0.8 : 0 },
+  { id: 'aortic-arch', name: 'Aortic Arch',
+    test: (p) => p.z > 0.6 && p.x < -0.1 ? 0.85 : 0 },
+
+  // Atria (upper-mid region)
+  { id: 'right-atrium', name: 'Right Atrium',
+    test: (p) => {
+      if (p.z < 0.1 || p.z > 0.55) return 0;
+      if (p.x > 0.1 && p.y > -0.2) return 0.8;
+      return 0;
+    }},
+  { id: 'right-atrial-appendage', name: 'Right Atrial Appendage',
+    test: (p) => p.z > 0.2 && p.z < 0.55 && p.x > 0.3 && p.y > 0.1 ? 0.9 : 0 },
+  { id: 'left-atrium', name: 'Left Atrium',
+    test: (p) => {
+      if (p.z < 0.1 || p.z > 0.55) return 0;
+      if (p.x < -0.1 && p.y < 0.1) return 0.8;
+      return 0;
+    }},
+  { id: 'left-atrial-appendage', name: 'Left Atrial Appendage',
+    test: (p) => p.z > 0.15 && p.z < 0.5 && p.x < -0.3 && p.y > 0.0 ? 0.9 : 0 },
+
+  // Ventricles (lower region)
+  { id: 'right-ventricle', name: 'Right Ventricle',
+    test: (p) => {
+      if (p.z > 0.15 || p.z < -0.7) return 0;
+      if (p.y > 0.0 && p.x > -0.1) return 0.75;
+      return 0;
+    }},
+  { id: 'left-ventricle', name: 'Left Ventricle',
+    test: (p) => {
+      if (p.z > 0.15 || p.z < -0.7) return 0;
+      if (p.y < 0.05 || p.x < 0.0) return 0.75;
+      return 0;
+    }},
+
+  // Apex
+  { id: 'apex', name: 'Apex',
+    test: (p) => p.z < -0.65 ? 0.9 : 0 },
+
+  // Interventricular septum (anterior groove)
+  { id: 'interventricular-septum', name: 'Interventricular Septum',
+    test: (p) => {
+      if (p.z > 0.15 || p.z < -0.5) return 0;
+      if (Math.abs(p.x) < 0.12 && p.y > 0.15) return 0.7;
+      return 0;
+    }},
+
+  // Epicardium (general surface fallback)
+  { id: 'epicardium', name: 'Epicardium (surface)',
+    test: () => 0.1 }, // lowest priority fallback
+];
+
+function identifyRegion(point: THREE.Vector3): AnatomyZone | null {
+  let best: AnatomyZone | null = null;
+  let bestScore = 0;
+  for (const zone of ANATOMY_ZONES) {
+    const score = zone.test(point);
+    if (score > bestScore) {
+      bestScore = score;
+      best = zone;
+    }
+  }
+  return bestScore > 0.05 ? best : null;
+}
+
+// Reverse lookup: given a structure ID from the menu, where should we highlight?
+const STRUCTURE_CENTERS: Record<string, [number, number, number]> = {
+  'right-atrium': [0.25, 0.0, 0.3],
+  'left-atrium': [-0.25, -0.1, 0.3],
+  'right-ventricle': [0.15, 0.15, -0.2],
+  'left-ventricle': [-0.15, -0.1, -0.2],
+  'right-atrial-appendage': [0.35, 0.2, 0.35],
+  'left-atrial-appendage': [-0.35, 0.1, 0.3],
+  'ascending-aorta': [-0.05, 0.0, 0.65],
+  'aortic-arch': [-0.15, -0.05, 0.7],
+  'pulmonary-trunk': [0.1, 0.1, 0.6],
+  'svc': [0.3, -0.1, 0.6],
+  'ivc': [0.2, -0.15, -0.55],
+  'apex': [0.0, 0.0, -0.75],
+  'interventricular-septum': [0.0, 0.2, -0.1],
+  'interatrial-septum': [0.0, -0.05, 0.3],
+  'tricuspid-annulus': [0.15, 0.1, 0.1],
+  'mitral-annulus': [-0.15, -0.05, 0.1],
+  'aortic-valve-rcc': [-0.05, 0.05, 0.5],
+  'pulmonary-valve-cusps': [0.1, 0.15, 0.5],
+  'epicardium': [0.0, 0.2, 0.0],
+  'myocardium': [0.0, 0.0, 0.0],
+  'endocardium': [0.0, 0.0, 0.0],
+  'base-of-heart': [0.0, 0.0, 0.55],
+  'fossa-ovalis': [0.05, -0.1, 0.25],
+};
 
 // ─── Noise utilities ───────────────────────────────────────────────────
 function hash(x: number, y: number): number {
@@ -261,8 +371,9 @@ function BasalCap() {
 function HeartMesh() {
   const ref = useRef<THREE.Group>(null);
   const { cycleProgress, playing } = useTimelineStore();
-  const { hoveredStructureId } = useSceneStore();
+  const { selectedStructureId, hoveredStructureId, selectStructure, hoverStructure } = useSceneStore();
   const { viewMode } = useAppStore();
+  const [hoveredZone, setHoveredZone] = useState<string | null>(null);
 
   const { scene } = useGLTF('/models/heart_closed.glb');
   const heartModel = useMemo(() => scene.clone(), [scene]);
@@ -312,15 +423,117 @@ function HeartMesh() {
         child.material.depthWrite = !transparent || opacity > 0.4;
         child.material.clearcoat = transparent ? 0.2 : 0.6;
         child.material.sheen = transparent ? 0.2 : 0.6;
-        child.material.emissive = hoveredStructureId === 'heart-external'
-          ? new THREE.Color(0.2, 0.06, 0.04)
-          : new THREE.Color(0.08, 0.02, 0.015);
+        child.material.emissive = new THREE.Color(0.08, 0.02, 0.015);
         child.material.needsUpdate = true;
       }
     });
-  }, [heartModel, transparent, opacity, hoveredStructureId]);
+  }, [heartModel, transparent, opacity]);
 
-  return <primitive ref={ref} object={heartModel} scale={1.4} />;
+  // Click handler: identify which anatomical region was clicked
+  const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if (!ref.current) return;
+    // Convert hit point to model-local coordinates
+    const localPoint = ref.current.worldToLocal(e.point.clone());
+    const zone = identifyRegion(localPoint);
+    if (zone) {
+      selectStructure(zone.id);
+    }
+  }, [selectStructure]);
+
+  // Hover handler: show which region the cursor is over
+  const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    if (!ref.current) return;
+    const localPoint = ref.current.worldToLocal(e.point.clone());
+    const zone = identifyRegion(localPoint);
+    const zoneId = zone?.id ?? null;
+    if (zoneId !== hoveredZone) {
+      setHoveredZone(zoneId);
+      hoverStructure(zoneId);
+    }
+  }, [hoveredZone, hoverStructure]);
+
+  const handlePointerLeave = useCallback(() => {
+    setHoveredZone(null);
+    hoverStructure(null);
+  }, [hoverStructure]);
+
+  // Determine the active structure to highlight (from click or sidebar selection)
+  const activeId = selectedStructureId;
+  const activeCenter = activeId ? STRUCTURE_CENTERS[activeId] : null;
+  const activeName = activeId
+    ? ANATOMY_ZONES.find(z => z.id === activeId)?.name ?? activeId.replace(/-/g, ' ')
+    : null;
+
+  // Hovered structure name for tooltip
+  const hoverName = hoveredZone
+    ? ANATOMY_ZONES.find(z => z.id === hoveredZone)?.name ?? null
+    : null;
+
+  return (
+    <group ref={ref} scale={1.4}>
+      <primitive
+        object={heartModel}
+        onClick={handleClick}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+      />
+
+      {/* Highlight ring on selected structure */}
+      {activeCenter && (
+        <group position={activeCenter}>
+          <HighlightRing />
+          <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
+            <div className="bg-cardiac-accent/90 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap font-semibold capitalize">
+              {activeName}
+            </div>
+          </Html>
+        </group>
+      )}
+
+      {/* Hover tooltip (only when different from selected) */}
+      {hoverName && hoveredZone !== selectedStructureId && (
+        <HoverTooltip name={hoverName} />
+      )}
+    </group>
+  );
+}
+
+// Animated highlight ring that pulses around the selected structure
+function HighlightRing() {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (ref.current) {
+      const s = 1 + Math.sin(clock.elapsedTime * 3) * 0.15;
+      ref.current.scale.set(s, s, s);
+      (ref.current.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(clock.elapsedTime * 3) * 0.2;
+    }
+  });
+  return (
+    <mesh ref={ref} rotation={[Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.08, 0.12, 32]} />
+      <meshBasicMaterial color="#00ccff" transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  );
+}
+
+// Floating tooltip that follows the cursor ray
+function HoverTooltip({ name }: { name: string }) {
+  const { pointer, camera, viewport } = useThree();
+  const screenPos = useMemo(() => {
+    const x = (pointer.x * viewport.width) / 2;
+    const y = (pointer.y * viewport.height) / 2;
+    return [x + 0.3, y + 0.3, 0] as [number, number, number];
+  }, [pointer, viewport]);
+
+  return (
+    <Html position={screenPos} center distanceFactor={4} style={{ pointerEvents: 'none' }}>
+      <div className="bg-black/80 text-white text-[11px] px-2 py-1 rounded shadow whitespace-nowrap capitalize">
+        {name}
+      </div>
+    </Html>
+  );
 }
 
 // Preload the GLB for instant rendering
