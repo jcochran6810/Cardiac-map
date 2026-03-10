@@ -448,197 +448,221 @@ function GreatVessels() {
   );
 }
 
-// ─── Dense coronary vessel network ─────────────────────────────────────
-// Creates a realistic branching tree of coronary arteries AND veins
+// ─── Coronary vessel network matching reference image ──────────────────
+// Blue veins are dominant on anterior surface, branching downward from AV groove.
+// Red arteries run in sulci, less visible from front.
 function CoronaryNetwork() {
   const vessels = useMemo(() => {
-    const result: { curve: THREE.CatmullRomCurve3; radius: number; color: string }[] = [];
+    const V: { curve: THREE.CatmullRomCurve3; radius: number; color: string }[] = [];
+    const BLUE = '#4070cc';
+    const LBLUE = '#5585d8';
+    const RED = '#cc2020';
 
-    // Helper: add a vessel and its sub-branches
-    function addBranch(
-      points: THREE.Vector3[], radius: number, color: string,
-      depth: number, maxDepth: number, seed: number
-    ) {
-      if (points.length < 2) return;
-      result.push({ curve: new THREE.CatmullRomCurve3(points), radius, color });
-      if (depth >= maxDepth) return;
+    // Helper to add a tube
+    function add(pts: THREE.Vector3[], r: number, c: string) {
+      if (pts.length >= 2) V.push({ curve: new THREE.CatmullRomCurve3(pts), radius: r, color: c });
+    }
 
-      // Generate 1-3 sub-branches from the parent
-      const nBranches = 1 + Math.floor(hash(seed, depth) * 2.5);
-      for (let b = 0; b < nBranches; b++) {
-        const t = 0.3 + hash(seed + b * 7, depth + 3) * 0.5; // branch point along parent
-        const pIdx = Math.floor(t * (points.length - 1));
-        const origin = points[pIdx].clone();
-        const dir = pIdx < points.length - 1
-          ? points[pIdx + 1].clone().sub(origin).normalize()
-          : points[pIdx].clone().sub(points[pIdx - 1]).normalize();
-
-        // Perpendicular deviation
-        const perp = new THREE.Vector3(
-          (hash(seed + b * 13, depth * 5) - 0.5) * 2,
-          (hash(seed + b * 17, depth * 7) - 0.5),
-          (hash(seed + b * 23, depth * 11) - 0.5) * 2
-        ).normalize();
-
-        const branchDir = dir.clone().multiplyScalar(0.6).add(perp.multiplyScalar(0.4)).normalize();
-        const branchLen = 0.15 + hash(seed + b, depth) * 0.2;
-        const numPts = 3 + Math.floor(hash(seed + b * 3, depth) * 2);
-        const branchPts: THREE.Vector3[] = [origin.clone()];
-
-        for (let p = 1; p <= numPts; p++) {
-          const f = p / numPts;
-          const wobble = new THREE.Vector3(
-            (hash(seed + p * 31, b * 41) - 0.5) * 0.06,
-            (hash(seed + p * 37, b * 43) - 0.5) * 0.04,
-            (hash(seed + p * 41, b * 47) - 0.5) * 0.06,
-          );
-          branchPts.push(origin.clone().add(branchDir.clone().multiplyScalar(branchLen * f)).add(wobble));
+    // Helper: generate sub-branches from a parent vessel
+    function branch(pts: THREE.Vector3[], r: number, c: string, depth: number, max: number, seed: number) {
+      add(pts, r, c);
+      if (depth >= max) return;
+      const nb = 1 + Math.floor(hash(seed, depth) * 2);
+      for (let b = 0; b < nb; b++) {
+        const t = 0.25 + hash(seed + b * 7, depth + 3) * 0.55;
+        const pi = Math.min(Math.floor(t * (pts.length - 1)), pts.length - 2);
+        const o = pts[pi].clone();
+        const d = pts[pi + 1].clone().sub(o).normalize();
+        const px = (hash(seed + b * 13, depth * 5) - 0.5) * 2;
+        const pz = (hash(seed + b * 23, depth * 11) - 0.5) * 2;
+        const perp = new THREE.Vector3(px, -0.3, pz).normalize();
+        const bd = d.clone().multiplyScalar(0.5).add(perp.multiplyScalar(0.5)).normalize();
+        const len = 0.12 + hash(seed + b, depth) * 0.22;
+        const bp: THREE.Vector3[] = [o.clone()];
+        for (let p = 1; p <= 4; p++) {
+          const f = p / 4;
+          bp.push(o.clone().add(bd.clone().multiplyScalar(len * f)).add(
+            new THREE.Vector3((hash(seed + p * 31, b * 41) - 0.5) * 0.04, (hash(seed + p * 37, b * 43) - 0.5) * 0.03, (hash(seed + p * 41, b * 47) - 0.5) * 0.04)
+          ));
         }
-
-        addBranch(branchPts, radius * 0.6, color, depth + 1, maxDepth, seed + b * 100 + depth * 50);
+        branch(bp, r * 0.55, c, depth + 1, max, seed + b * 100 + depth * 50);
       }
     }
 
-    // ── ARTERIES (red) ──
+    // ═══════════════════════════════════════════════════════════════
+    // BLUE VEINS — dominant on anterior surface (matching reference)
+    // ═══════════════════════════════════════════════════════════════
 
-    // LAD main trunk
-    const ladPts = [
-      new THREE.Vector3(-0.05, 0.5, 0.85),
-      new THREE.Vector3(-0.08, 0.3, 0.92),
-      new THREE.Vector3(-0.1, 0.05, 0.88),
-      new THREE.Vector3(-0.12, -0.2, 0.75),
-      new THREE.Vector3(-0.12, -0.45, 0.58),
-      new THREE.Vector3(-0.1, -0.7, 0.35),
-      new THREE.Vector3(-0.08, -0.85, 0.18),
-    ];
-    addBranch(ladPts, 0.018, '#cc2020', 0, 4, 100);
+    // Central anterior interventricular vein (main trunk down the center)
+    branch([
+      new THREE.Vector3(-0.04, 0.42, 0.88),
+      new THREE.Vector3(-0.06, 0.2, 0.95),
+      new THREE.Vector3(-0.08, -0.02, 0.92),
+      new THREE.Vector3(-0.1, -0.25, 0.8),
+      new THREE.Vector3(-0.11, -0.48, 0.62),
+      new THREE.Vector3(-0.1, -0.68, 0.42),
+      new THREE.Vector3(-0.08, -0.85, 0.22),
+    ], 0.018, BLUE, 0, 4, 100);
 
-    // LCx main trunk
-    const lcxPts = [
-      new THREE.Vector3(-0.05, 0.5, 0.85),
-      new THREE.Vector3(-0.35, 0.47, 0.65),
-      new THREE.Vector3(-0.65, 0.4, 0.35),
-      new THREE.Vector3(-0.82, 0.35, 0.0),
-      new THREE.Vector3(-0.72, 0.3, -0.35),
-      new THREE.Vector3(-0.5, 0.2, -0.55),
-    ];
-    addBranch(lcxPts, 0.016, '#cc2020', 0, 4, 200);
+    // Right branch 1 — fans upper-right from center trunk
+    branch([
+      new THREE.Vector3(-0.06, 0.2, 0.95),
+      new THREE.Vector3(0.15, 0.08, 0.92),
+      new THREE.Vector3(0.35, -0.05, 0.82),
+      new THREE.Vector3(0.5, -0.2, 0.65),
+    ], 0.014, BLUE, 0, 3, 200);
 
-    // RCA main trunk
-    const rcaPts = [
-      new THREE.Vector3(0.2, 0.55, 0.82),
-      new THREE.Vector3(0.55, 0.48, 0.65),
-      new THREE.Vector3(0.8, 0.4, 0.35),
-      new THREE.Vector3(0.88, 0.35, 0.0),
-      new THREE.Vector3(0.78, 0.28, -0.35),
-      new THREE.Vector3(0.5, 0.15, -0.6),
-      new THREE.Vector3(0.2, 0.0, -0.7),
-    ];
-    addBranch(rcaPts, 0.017, '#cc2020', 0, 4, 300);
+    // Right branch 2 — mid-right
+    branch([
+      new THREE.Vector3(-0.08, -0.02, 0.92),
+      new THREE.Vector3(0.18, -0.12, 0.9),
+      new THREE.Vector3(0.4, -0.25, 0.78),
+      new THREE.Vector3(0.55, -0.4, 0.6),
+    ], 0.013, BLUE, 0, 3, 250);
 
-    // PDA (from RCA terminus)
-    const pdaPts = [
-      new THREE.Vector3(0.2, 0.0, -0.7),
-      new THREE.Vector3(0.05, -0.15, -0.68),
-      new THREE.Vector3(-0.08, -0.35, -0.58),
-      new THREE.Vector3(-0.12, -0.55, -0.4),
-    ];
-    addBranch(pdaPts, 0.012, '#cc3030', 0, 2, 350);
+    // Right branch 3 — lower-right
+    branch([
+      new THREE.Vector3(-0.1, -0.25, 0.8),
+      new THREE.Vector3(0.12, -0.35, 0.82),
+      new THREE.Vector3(0.32, -0.48, 0.7),
+      new THREE.Vector3(0.45, -0.6, 0.52),
+    ], 0.012, BLUE, 0, 3, 300);
 
-    // ── VEINS (blue-purple) ──
+    // Right branch 4 — far lower-right
+    branch([
+      new THREE.Vector3(-0.11, -0.48, 0.62),
+      new THREE.Vector3(0.08, -0.55, 0.65),
+      new THREE.Vector3(0.25, -0.65, 0.55),
+      new THREE.Vector3(0.38, -0.75, 0.38),
+    ], 0.01, BLUE, 0, 2, 350);
 
-    // Great cardiac vein (parallels LAD)
-    const gcvPts = [
-      new THREE.Vector3(-0.12, -0.8, 0.2),
-      new THREE.Vector3(-0.14, -0.5, 0.55),
-      new THREE.Vector3(-0.12, -0.15, 0.78),
-      new THREE.Vector3(-0.08, 0.15, 0.88),
-      new THREE.Vector3(-0.04, 0.42, 0.78),
-      new THREE.Vector3(-0.3, 0.45, 0.6),
-      new THREE.Vector3(-0.6, 0.42, 0.3),
-    ];
-    addBranch(gcvPts, 0.016, '#3868c8', 0, 4, 400);
+    // Left branch 1 — fans upper-left from center
+    branch([
+      new THREE.Vector3(-0.06, 0.2, 0.95),
+      new THREE.Vector3(-0.28, 0.08, 0.88),
+      new THREE.Vector3(-0.48, -0.05, 0.72),
+      new THREE.Vector3(-0.62, -0.2, 0.52),
+    ], 0.014, BLUE, 0, 3, 400);
 
-    // Middle cardiac vein (posterior IV sulcus)
-    const mcvPts = [
-      new THREE.Vector3(-0.1, -0.7, -0.25),
-      new THREE.Vector3(-0.05, -0.4, -0.55),
-      new THREE.Vector3(0.0, -0.1, -0.65),
-      new THREE.Vector3(0.05, 0.2, -0.58),
-      new THREE.Vector3(0.1, 0.38, -0.42),
-    ];
-    addBranch(mcvPts, 0.014, '#3868c8', 0, 4, 500);
+    // Left branch 2 — mid-left
+    branch([
+      new THREE.Vector3(-0.08, -0.02, 0.92),
+      new THREE.Vector3(-0.3, -0.12, 0.85),
+      new THREE.Vector3(-0.52, -0.25, 0.68),
+      new THREE.Vector3(-0.65, -0.38, 0.48),
+    ], 0.013, BLUE, 0, 3, 450);
 
-    // Small cardiac vein (follows RCA)
-    const scvPts = [
-      new THREE.Vector3(0.75, 0.35, 0.3),
-      new THREE.Vector3(0.82, 0.32, 0.05),
-      new THREE.Vector3(0.72, 0.28, -0.25),
-      new THREE.Vector3(0.45, 0.2, -0.48),
-    ];
-    addBranch(scvPts, 0.012, '#3868c8', 0, 2, 600);
+    // Left branch 3 — lower-left
+    branch([
+      new THREE.Vector3(-0.1, -0.25, 0.8),
+      new THREE.Vector3(-0.32, -0.35, 0.75),
+      new THREE.Vector3(-0.5, -0.48, 0.58),
+      new THREE.Vector3(-0.6, -0.58, 0.38),
+    ], 0.012, BLUE, 0, 3, 500);
 
-    // Posterior veins on LV surface
-    const plvPts1 = [
+    // Left branch 4 — far lower-left
+    branch([
+      new THREE.Vector3(-0.11, -0.48, 0.62),
+      new THREE.Vector3(-0.28, -0.55, 0.6),
+      new THREE.Vector3(-0.42, -0.65, 0.45),
+      new THREE.Vector3(-0.5, -0.72, 0.28),
+    ], 0.01, BLUE, 0, 2, 550);
+
+    // AV groove horizontal vein (connects across the top of ventricles)
+    add([
+      new THREE.Vector3(0.6, 0.38, 0.5),
+      new THREE.Vector3(0.4, 0.4, 0.7),
+      new THREE.Vector3(0.1, 0.42, 0.85),
+      new THREE.Vector3(-0.15, 0.42, 0.82),
+      new THREE.Vector3(-0.4, 0.4, 0.65),
+      new THREE.Vector3(-0.6, 0.38, 0.42),
+    ], 0.015, BLUE);
+
+    // Additional fine veins on RV surface (right side of anterior view)
+    branch([
+      new THREE.Vector3(0.4, 0.4, 0.7),
+      new THREE.Vector3(0.5, 0.2, 0.72),
+      new THREE.Vector3(0.58, -0.02, 0.62),
+      new THREE.Vector3(0.6, -0.22, 0.48),
+    ], 0.009, LBLUE, 0, 2, 600);
+
+    branch([
+      new THREE.Vector3(0.55, 0.3, 0.62),
+      new THREE.Vector3(0.62, 0.1, 0.58),
+      new THREE.Vector3(0.65, -0.1, 0.45),
+    ], 0.008, LBLUE, 0, 2, 620);
+
+    // Fine veins on LV surface (left side of anterior view)
+    branch([
+      new THREE.Vector3(-0.4, 0.4, 0.65),
+      new THREE.Vector3(-0.52, 0.2, 0.6),
+      new THREE.Vector3(-0.6, -0.02, 0.48),
+      new THREE.Vector3(-0.58, -0.2, 0.32),
+    ], 0.009, LBLUE, 0, 2, 650);
+
+    branch([
+      new THREE.Vector3(-0.55, 0.3, 0.52),
+      new THREE.Vector3(-0.62, 0.1, 0.42),
+      new THREE.Vector3(-0.6, -0.08, 0.3),
+    ], 0.008, LBLUE, 0, 2, 670);
+
+    // Posterior veins (visible when rotated)
+    branch([
+      new THREE.Vector3(0.1, 0.38, -0.65),
+      new THREE.Vector3(0.05, 0.1, -0.72),
+      new THREE.Vector3(0.0, -0.18, -0.68),
+      new THREE.Vector3(-0.05, -0.45, -0.52),
+    ], 0.013, BLUE, 0, 3, 700);
+
+    branch([
       new THREE.Vector3(-0.5, 0.2, -0.5),
-      new THREE.Vector3(-0.6, -0.05, -0.35),
-      new THREE.Vector3(-0.55, -0.3, -0.2),
-      new THREE.Vector3(-0.4, -0.5, -0.1),
-    ];
-    addBranch(plvPts1, 0.012, '#3868c8', 0, 3, 650);
+      new THREE.Vector3(-0.55, -0.05, -0.38),
+      new THREE.Vector3(-0.48, -0.3, -0.22),
+    ], 0.01, BLUE, 0, 2, 720);
 
-    const plvPts2 = [
-      new THREE.Vector3(-0.72, 0.3, -0.15),
-      new THREE.Vector3(-0.7, 0.05, -0.05),
-      new THREE.Vector3(-0.58, -0.2, 0.05),
-      new THREE.Vector3(-0.4, -0.45, 0.1),
-    ];
-    addBranch(plvPts2, 0.011, '#3868c8', 0, 3, 680);
+    branch([
+      new THREE.Vector3(0.6, 0.28, -0.35),
+      new THREE.Vector3(0.58, 0.05, -0.28),
+      new THREE.Vector3(0.5, -0.18, -0.15),
+    ], 0.01, BLUE, 0, 2, 740);
 
-    // Additional diagonal branches on anterior surface
-    const antBr1 = [
-      new THREE.Vector3(0.1, 0.25, 0.9),
-      new THREE.Vector3(0.3, 0.0, 0.85),
-      new THREE.Vector3(0.45, -0.25, 0.7),
-      new THREE.Vector3(0.5, -0.45, 0.5),
-    ];
-    addBranch(antBr1, 0.01, '#3868c8', 0, 3, 710);
+    // ═══════════════════════════════════════════════════════════════
+    // RED ARTERIES — less prominent, run in sulci
+    // ═══════════════════════════════════════════════════════════════
 
-    const antBr2 = [
-      new THREE.Vector3(-0.15, 0.1, 0.9),
-      new THREE.Vector3(-0.35, -0.1, 0.82),
-      new THREE.Vector3(-0.5, -0.35, 0.65),
-    ];
-    addBranch(antBr2, 0.009, '#3868c8', 0, 2, 740);
+    // LAD (runs in AIV sulcus, partially hidden by the central vein)
+    add([
+      new THREE.Vector3(-0.02, 0.48, 0.84),
+      new THREE.Vector3(-0.04, 0.25, 0.9),
+      new THREE.Vector3(-0.06, 0.0, 0.86),
+      new THREE.Vector3(-0.08, -0.25, 0.74),
+      new THREE.Vector3(-0.08, -0.5, 0.56),
+      new THREE.Vector3(-0.06, -0.72, 0.34),
+    ], 0.012, RED);
 
-    // Anterior cardiac veins (multiple on RV surface)
-    for (let i = 0; i < 5; i++) {
-      const startTheta = 0.15 + i * 0.12;
-      const startY = 0.35 - i * 0.05;
-      const pts: THREE.Vector3[] = [];
-      for (let j = 0; j < 5; j++) {
-        const t = j / 4;
-        const angle = startTheta + t * 0.08 + Math.sin(t * 2 + i) * 0.03;
-        const yPos = startY - t * 0.55;
-        const rad = 0.95 + 0.18 * Math.cos(angle * Math.PI * 2);
-        const phi = (0.35 + t * 0.35) * Math.PI;
-        pts.push(new THREE.Vector3(
-          rad * Math.sin(phi) * Math.cos(angle * Math.PI * 2) * 1.05,
-          1.35 * rad * Math.cos(phi),
-          0.82 * rad * Math.sin(phi) * Math.sin(angle * Math.PI * 2)
-        ));
-      }
-      result.push({
-        curve: new THREE.CatmullRomCurve3(pts),
-        radius: 0.006 + hash(i, 999) * 0.004,
-        color: '#3868c8',
-      });
-    }
+    // LCx (runs in AV groove to left/posterior)
+    add([
+      new THREE.Vector3(-0.02, 0.48, 0.84),
+      new THREE.Vector3(-0.3, 0.45, 0.62),
+      new THREE.Vector3(-0.58, 0.38, 0.32),
+      new THREE.Vector3(-0.72, 0.32, 0.0),
+      new THREE.Vector3(-0.62, 0.25, -0.35),
+    ], 0.011, RED);
 
-    return result;
+    // RCA (runs in AV groove to right/posterior)
+    add([
+      new THREE.Vector3(0.15, 0.5, 0.78),
+      new THREE.Vector3(0.45, 0.45, 0.62),
+      new THREE.Vector3(0.7, 0.38, 0.32),
+      new THREE.Vector3(0.78, 0.32, 0.0),
+      new THREE.Vector3(0.65, 0.25, -0.38),
+      new THREE.Vector3(0.4, 0.12, -0.58),
+    ], 0.011, RED);
+
+    return V;
   }, []);
 
-  // Always show coronary vessels - they are a defining visual feature
+  // Always show coronary vessels — they define the external heart appearance
   return (
     <group>
       {vessels.map((v, i) => (
@@ -646,11 +670,11 @@ function CoronaryNetwork() {
           <tubeGeometry args={[v.curve, 48, v.radius, 8, false]} />
           <meshPhysicalMaterial
             color={v.color}
-            roughness={0.35}
+            roughness={0.32}
             clearcoat={0.55}
-            clearcoatRoughness={0.25}
+            clearcoatRoughness={0.22}
             emissive={v.color}
-            emissiveIntensity={0.05}
+            emissiveIntensity={0.04}
           />
         </mesh>
       ))}
