@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Html, Environment, ContactShadows } from '@react-three/drei';
+import { OrbitControls, Html, Environment, ContactShadows, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -257,19 +257,39 @@ function BasalCap() {
   );
 }
 
-// ─── Heart mesh ────────────────────────────────────────────────────────
+// ─── Heart mesh (realistic GLB model with textured surface) ───────────
 function HeartMesh() {
-  const ref = useRef<THREE.Mesh>(null);
+  const ref = useRef<THREE.Group>(null);
   const { cycleProgress, playing } = useTimelineStore();
   const { hoveredStructureId } = useSceneStore();
   const { viewMode } = useAppStore();
 
-  const { geometry, normalMap } = useMemo(() => {
-    const geo = buildHeartGeometry();
-    addVertexColors(geo);
-    return { geometry: geo, normalMap: createNormalMap(512) };
-  }, []);
+  const { scene } = useGLTF('/models/heart_closed.glb');
+  const heartModel = useMemo(() => scene.clone(), [scene]);
 
+  // Apply enhanced materials to the loaded model
+  useMemo(() => {
+    heartModel.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const oldMap = (child.material as THREE.MeshStandardMaterial)?.map;
+        child.material = new THREE.MeshPhysicalMaterial({
+          map: oldMap,
+          roughness: 0.38,
+          metalness: 0.02,
+          clearcoat: 0.6,
+          clearcoatRoughness: 0.25,
+          sheen: 0.6,
+          sheenRoughness: 0.35,
+          sheenColor: new THREE.Color(0.75, 0.3, 0.25),
+          emissive: new THREE.Color(0.025, 0.004, 0.003),
+        });
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+  }, [heartModel]);
+
+  // Cardiac cycle contraction animation
   useFrame(() => {
     if (ref.current && playing) {
       const sys = cycleProgress > 0.11 && cycleProgress < 0.4;
@@ -279,31 +299,31 @@ function HeartMesh() {
     }
   });
 
+  // Update material properties reactively based on view mode
   const transparent = isTransparentMode(viewMode);
   const opacity = getHeartOpacity(viewMode);
+  useMemo(() => {
+    heartModel.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshPhysicalMaterial) {
+        child.material.transparent = transparent;
+        child.material.opacity = opacity;
+        child.material.side = transparent ? THREE.DoubleSide : THREE.FrontSide;
+        child.material.depthWrite = !transparent || opacity > 0.4;
+        child.material.clearcoat = transparent ? 0.2 : 0.6;
+        child.material.sheen = transparent ? 0.2 : 0.6;
+        child.material.emissive = hoveredStructureId === 'heart-external'
+          ? new THREE.Color(0.15, 0.03, 0.02)
+          : new THREE.Color(0.025, 0.004, 0.003);
+        child.material.needsUpdate = true;
+      }
+    });
+  }, [heartModel, transparent, opacity, hoveredStructureId]);
 
-  return (
-    <mesh ref={ref} geometry={geometry} castShadow receiveShadow>
-      <meshPhysicalMaterial
-        vertexColors
-        roughness={0.38}
-        metalness={0.02}
-        clearcoat={transparent ? 0.2 : 0.6}
-        clearcoatRoughness={0.25}
-        sheen={transparent ? 0.2 : 0.6}
-        sheenRoughness={0.35}
-        sheenColor={new THREE.Color(0.75, 0.3, 0.25)}
-        normalMap={normalMap}
-        normalScale={new THREE.Vector2(0.5, 0.5)}
-        transparent={transparent}
-        opacity={opacity}
-        side={transparent ? THREE.DoubleSide : THREE.FrontSide}
-        depthWrite={!transparent || opacity > 0.4}
-        emissive={hoveredStructureId === 'heart-external' ? new THREE.Color(0.15, 0.03, 0.02) : new THREE.Color(0.025, 0.004, 0.003)}
-      />
-    </mesh>
-  );
+  return <primitive ref={ref} object={heartModel} scale={1.4} />;
 }
+
+// Preload the GLB for instant rendering
+useGLTF.preload('/models/heart_closed.glb');
 
 // ─── Right atrial appendage (auricle) ──────────────────────────────────
 function RightAuricle() {
@@ -1349,15 +1369,6 @@ export default function HeartScene() {
 
         <group rotation={[0.1, -0.15, 0.12]}>
           <HeartMesh />
-          <BasalCap />
-          <GreatVessels />
-          <RightAuricle />
-          <LeftAuricle />
-          <EpicardialFat />
-          <CoronaryNetwork />
-          <ChamberMeshes />
-          <HeartValves />
-          <Septum />
           <WallMotionOverlay />
           <ProcedureOverlay />
           <ImagingOverlay />
