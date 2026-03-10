@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useRef, useMemo, Suspense } from 'react';
-import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
+import React, { useRef, useMemo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Environment, ContactShadows } from '@react-three/drei';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -215,89 +214,6 @@ function addVertexColors(geo: THREE.BufferGeometry) {
     c[i * 3 + 2] = Math.max(0, Math.min(1, b));
   }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
-}
-
-// ─── Generate UVs from vertex positions (for meshes without UVs) ─────
-function addPositionBasedUVs(geo: THREE.BufferGeometry) {
-  const pos = geo.attributes.position;
-  const count = pos.count;
-  const uvs = new Float32Array(count * 2);
-  geo.computeBoundingBox();
-  const box = geo.boundingBox!;
-  const yMin = box.min.y, yMax = box.max.y;
-  for (let i = 0; i < count; i++) {
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    // u = longitude angle around Y axis
-    uvs[i * 2] = (Math.atan2(z, x) / (Math.PI * 2) + 0.5) % 1.0;
-    // v = normalized height (0=bottom, 1=top)
-    uvs[i * 2 + 1] = 1.0 - (y - yMin) / (yMax - yMin);
-  }
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-}
-
-// ─── GLB heart mesh (loaded from MRI-derived model) ──────────────────
-function HeartMeshGLB() {
-  const ref = useRef<THREE.Mesh>(null);
-  const { cycleProgress, playing } = useTimelineStore();
-  const { hoveredStructureId } = useSceneStore();
-  const { viewMode } = useAppStore();
-
-  const gltf = useLoader(GLTFLoader, '/models/heart_mesh.glb');
-
-  const { geometry, normalMap } = useMemo(() => {
-    let foundGeo: THREE.BufferGeometry | null = null;
-    gltf.scene.traverse((child: THREE.Object3D) => {
-      if (child instanceof THREE.Mesh && !foundGeo) {
-        foundGeo = child.geometry.clone();
-      }
-    });
-    const geo: THREE.BufferGeometry = foundGeo || buildHeartGeometry();
-    // Add UVs based on position (GLB from PLY has no UVs)
-    if (!geo.attributes.uv) addPositionBasedUVs(geo);
-    addVertexColors(geo);
-    geo.computeVertexNormals();
-    return { geometry: geo, normalMap: createNormalMap(512) };
-  }, [gltf]);
-
-  useFrame(() => {
-    if (ref.current && playing) {
-      const sys = cycleProgress > 0.11 && cycleProgress < 0.4;
-      const t = sys ? (cycleProgress - 0.11) / 0.29 : 0;
-      const c = sys ? Math.sin(t * Math.PI) : 0;
-      ref.current.scale.set(
-        0.75 * (1 - c * 0.035),
-        0.96 * (1 + c * 0.02),
-        1.0 * (1 - c * 0.035)
-      );
-    } else if (ref.current) {
-      ref.current.scale.set(0.75, 0.96, 1.0);
-    }
-  });
-
-  const transparent = isTransparentMode(viewMode);
-  const opacity = getHeartOpacity(viewMode);
-
-  return (
-    <mesh ref={ref} geometry={geometry} castShadow receiveShadow>
-      <meshPhysicalMaterial
-        vertexColors
-        roughness={0.38}
-        metalness={0.02}
-        clearcoat={transparent ? 0.2 : 0.6}
-        clearcoatRoughness={0.25}
-        sheen={transparent ? 0.2 : 0.6}
-        sheenRoughness={0.35}
-        sheenColor={new THREE.Color(0.75, 0.3, 0.25)}
-        normalMap={normalMap}
-        normalScale={new THREE.Vector2(0.5, 0.5)}
-        transparent={transparent}
-        opacity={opacity}
-        side={transparent ? THREE.DoubleSide : THREE.FrontSide}
-        depthWrite={!transparent || opacity > 0.4}
-        emissive={hoveredStructureId === 'heart-external' ? new THREE.Color(0.15, 0.03, 0.02) : new THREE.Color(0.025, 0.004, 0.003)}
-      />
-    </mesh>
-  );
 }
 
 // ─── Opacity / side helpers per view mode ─────────────────────────────
@@ -1432,9 +1348,7 @@ export default function HeartScene() {
         <CameraController />
 
         <group rotation={[0.1, -0.15, 0.12]}>
-          <Suspense fallback={<HeartMesh />}>
-            <HeartMeshGLB />
-          </Suspense>
+          <HeartMesh />
           <BasalCap />
           <GreatVessels />
           <RightAuricle />
