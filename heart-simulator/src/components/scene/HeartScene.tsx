@@ -177,16 +177,16 @@ function addVertexColors(geo: THREE.BufferGeometry) {
     const u = uv.getX(i), v = uv.getY(i);
     const theta = u * Math.PI * 2;
 
-    // Saturated red base matching reference images
-    let r = 0.62, g = 0.14, b = 0.12;
+    // Muted rose-red body matching reference (pinkish-red, not dark)
+    let r = 0.7, g = 0.28, b = 0.26;
 
     const vent = v > 0.3 && v < 0.85 ? Math.sin((v - 0.3) / 0.55 * Math.PI) : 0;
 
-    // Fat in sulci (bright yellow-cream like references)
+    // Fat in sulci (cream/white like reference)
     const ivs = Math.exp(-Math.pow(theta - 0.15, 2) * 10) * vent;
     const avs = Math.exp(-Math.pow(v - 0.3, 2) * 250);
     const fat = ivs * 0.5 + avs * 0.5;
-    r += fat * 0.35; g += fat * 0.35; b += fat * 0.1;
+    r += fat * 0.22; g += fat * 0.45; b += fat * 0.4;
 
     // Atria: lighter pink
     if (v < 0.3) {
@@ -248,7 +248,7 @@ function HeartMesh() {
         clearcoatRoughness={0.25}
         sheen={0.6}
         sheenRoughness={0.35}
-        sheenColor={new THREE.Color(0.7, 0.15, 0.1)}
+        sheenColor={new THREE.Color(0.75, 0.3, 0.25)}
         normalMap={normalMap}
         normalScale={new THREE.Vector2(0.5, 0.5)}
         transparent={viewMode === 'cutaway'}
@@ -407,9 +407,9 @@ function GreatVessels() {
       new THREE.Vector3(0.85, 0.55, -0.55),
     ]);
 
-    const artMat = { color: '#c42020', roughness: 0.35, clearcoat: 0.5, clearcoatRoughness: 0.25, sheen: 0.3, sheenColor: '#ff4040' };
-    const venMat = { color: '#1e3868', roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.3, sheen: 0.2, sheenColor: '#3060b0' };
-    const pvMat = { color: '#8a2525', roughness: 0.38, clearcoat: 0.45, clearcoatRoughness: 0.28, sheen: 0.25, sheenColor: '#c04040' };
+    const artMat = { color: '#c42020', roughness: 0.3, clearcoat: 0.55, clearcoatRoughness: 0.2, sheen: 0.3, sheenColor: '#ff4040' };
+    const venMat = { color: '#3060b8', roughness: 0.32, clearcoat: 0.55, clearcoatRoughness: 0.2, sheen: 0.3, sheenColor: '#5080e0' };
+    const pvMat = { color: '#8a2828', roughness: 0.33, clearcoat: 0.5, clearcoatRoughness: 0.22, sheen: 0.25, sheenColor: '#c04040' };
 
     return [
       { curve: aorta, radius: 0.14, mat: artMat },
@@ -451,8 +451,6 @@ function GreatVessels() {
 // ─── Dense coronary vessel network ─────────────────────────────────────
 // Creates a realistic branching tree of coronary arteries AND veins
 function CoronaryNetwork() {
-  const { viewMode } = useAppStore();
-
   const vessels = useMemo(() => {
     const result: { curve: THREE.CatmullRomCurve3; radius: number; color: string }[] = [];
 
@@ -513,7 +511,7 @@ function CoronaryNetwork() {
       new THREE.Vector3(-0.1, -0.7, 0.35),
       new THREE.Vector3(-0.08, -0.85, 0.18),
     ];
-    addBranch(ladPts, 0.018, '#cc2020', 0, 3, 100);
+    addBranch(ladPts, 0.018, '#cc2020', 0, 4, 100);
 
     // LCx main trunk
     const lcxPts = [
@@ -524,7 +522,7 @@ function CoronaryNetwork() {
       new THREE.Vector3(-0.72, 0.3, -0.35),
       new THREE.Vector3(-0.5, 0.2, -0.55),
     ];
-    addBranch(lcxPts, 0.016, '#cc2020', 0, 3, 200);
+    addBranch(lcxPts, 0.016, '#cc2020', 0, 4, 200);
 
     // RCA main trunk
     const rcaPts = [
@@ -536,7 +534,7 @@ function CoronaryNetwork() {
       new THREE.Vector3(0.5, 0.15, -0.6),
       new THREE.Vector3(0.2, 0.0, -0.7),
     ];
-    addBranch(rcaPts, 0.017, '#cc2020', 0, 3, 300);
+    addBranch(rcaPts, 0.017, '#cc2020', 0, 4, 300);
 
     // PDA (from RCA terminus)
     const pdaPts = [
@@ -559,7 +557,7 @@ function CoronaryNetwork() {
       new THREE.Vector3(-0.3, 0.45, 0.6),
       new THREE.Vector3(-0.6, 0.42, 0.3),
     ];
-    addBranch(gcvPts, 0.016, '#1a3878', 0, 3, 400);
+    addBranch(gcvPts, 0.016, '#3868c8', 0, 4, 400);
 
     // Middle cardiac vein (posterior IV sulcus)
     const mcvPts = [
@@ -569,7 +567,7 @@ function CoronaryNetwork() {
       new THREE.Vector3(0.05, 0.2, -0.58),
       new THREE.Vector3(0.1, 0.38, -0.42),
     ];
-    addBranch(mcvPts, 0.014, '#1a3878', 0, 3, 500);
+    addBranch(mcvPts, 0.014, '#3868c8', 0, 4, 500);
 
     // Small cardiac vein (follows RCA)
     const scvPts = [
@@ -578,7 +576,40 @@ function CoronaryNetwork() {
       new THREE.Vector3(0.72, 0.28, -0.25),
       new THREE.Vector3(0.45, 0.2, -0.48),
     ];
-    addBranch(scvPts, 0.012, '#1a3878', 0, 2, 600);
+    addBranch(scvPts, 0.012, '#3868c8', 0, 2, 600);
+
+    // Posterior veins on LV surface
+    const plvPts1 = [
+      new THREE.Vector3(-0.5, 0.2, -0.5),
+      new THREE.Vector3(-0.6, -0.05, -0.35),
+      new THREE.Vector3(-0.55, -0.3, -0.2),
+      new THREE.Vector3(-0.4, -0.5, -0.1),
+    ];
+    addBranch(plvPts1, 0.012, '#3868c8', 0, 3, 650);
+
+    const plvPts2 = [
+      new THREE.Vector3(-0.72, 0.3, -0.15),
+      new THREE.Vector3(-0.7, 0.05, -0.05),
+      new THREE.Vector3(-0.58, -0.2, 0.05),
+      new THREE.Vector3(-0.4, -0.45, 0.1),
+    ];
+    addBranch(plvPts2, 0.011, '#3868c8', 0, 3, 680);
+
+    // Additional diagonal branches on anterior surface
+    const antBr1 = [
+      new THREE.Vector3(0.1, 0.25, 0.9),
+      new THREE.Vector3(0.3, 0.0, 0.85),
+      new THREE.Vector3(0.45, -0.25, 0.7),
+      new THREE.Vector3(0.5, -0.45, 0.5),
+    ];
+    addBranch(antBr1, 0.01, '#3868c8', 0, 3, 710);
+
+    const antBr2 = [
+      new THREE.Vector3(-0.15, 0.1, 0.9),
+      new THREE.Vector3(-0.35, -0.1, 0.82),
+      new THREE.Vector3(-0.5, -0.35, 0.65),
+    ];
+    addBranch(antBr2, 0.009, '#3868c8', 0, 2, 740);
 
     // Anterior cardiac veins (multiple on RV surface)
     for (let i = 0; i < 5; i++) {
@@ -600,15 +631,14 @@ function CoronaryNetwork() {
       result.push({
         curve: new THREE.CatmullRomCurve3(pts),
         radius: 0.006 + hash(i, 999) * 0.004,
-        color: '#1a3878',
+        color: '#3868c8',
       });
     }
 
     return result;
   }, []);
 
-  if (viewMode !== 'coronary' && viewMode !== 'external') return null;
-
+  // Always show coronary vessels - they are a defining visual feature
   return (
     <group>
       {vessels.map((v, i) => (
@@ -616,9 +646,9 @@ function CoronaryNetwork() {
           <tubeGeometry args={[v.curve, 48, v.radius, 8, false]} />
           <meshPhysicalMaterial
             color={v.color}
-            roughness={0.4}
-            clearcoat={0.4}
-            clearcoatRoughness={0.3}
+            roughness={0.35}
+            clearcoat={0.55}
+            clearcoatRoughness={0.25}
             emissive={v.color}
             emissiveIntensity={0.05}
           />
@@ -654,9 +684,9 @@ function EpicardialFat() {
     ]);
 
     return [
-      { curve: avFat, radius: 0.055, color: '#d4b84a' },
-      { curve: aivFat, radius: 0.045, color: '#d4b84a' },
-      { curve: baseFat, radius: 0.06, color: '#dcc058' },
+      { curve: avFat, radius: 0.07, color: '#e8d8c0' },
+      { curve: aivFat, radius: 0.055, color: '#e8d8c0' },
+      { curve: baseFat, radius: 0.07, color: '#ece0cc' },
     ];
   }, []);
 
@@ -816,26 +846,26 @@ function CameraController() {
 // ─── Main scene ────────────────────────────────────────────────────────
 export default function HeartScene() {
   return (
-    <div className="w-full h-full bg-cardiac-dark">
+    <div className="w-full h-full" style={{ background: 'linear-gradient(180deg, #a0a0a8 0%, #787880 100%)' }}>
       <Canvas
-        camera={{ position: [0, 0, 4], fov: 42 }}
+        camera={{ position: [0, 0.2, 4], fov: 40 }}
         shadows
-        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
-        style={{ background: '#060a12' }}
+        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}
+        style={{ background: 'linear-gradient(180deg, #a0a0a8 0%, #787880 100%)' }}
       >
         {/* 3-point lighting + accents for wet tissue look */}
         <directionalLight position={[5, 6, 4]} intensity={1.5} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} color="#fff0e0" />
         <directionalLight position={[-4, 3, 3]} intensity={0.4} color="#b0c4e8" />
         <directionalLight position={[1, 2, -5]} intensity={0.45} color="#e8d0b8" />
         <pointLight position={[0, -3, 2]} intensity={0.15} color="#ff6644" distance={7} />
-        <ambientLight intensity={0.2} color="#c0b8d8" />
+        <ambientLight intensity={0.35} color="#d0c8e0" />
         <spotLight position={[2.5, 4, 5]} angle={0.35} penumbra={0.7} intensity={0.6} color="#ffe8d0" />
         <spotLight position={[-2, 1, 4]} angle={0.5} penumbra={0.9} intensity={0.25} color="#ffd8c0" />
 
         <AnimationTick />
         <CameraController />
 
-        <group rotation={[0.15, -0.25, 0.08]}>
+        <group rotation={[0.1, -0.15, 0.12]}>
           <HeartMesh />
           <GreatVessels />
           <RightAuricle />
