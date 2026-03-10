@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "1.0.0",
+  "description": "AI tutor prompts and quiz questions",
+  "welcomeMessages": {
+    "1": "Welcome! I'll help you learn about the heart at an EMT level. Let's start with the basics!",
+    "2": "Welcome, paramedic! Let's dive into cardiac assessment, 12-leads, and field management.",
+    "3": "Welcome! We'll explore hemodynamics, critical care monitoring, and advanced assessment.",
+    "4": "Welcome to cardiology-level education. Let's discuss disease mechanisms, imaging, and management.",
+    "5": "Welcome! We'll cover interventional procedures, device therapy, and structural heart interventions."
+  },
+  "topicPrompts": {
+    "anatomy": ["Describe the function of this structure", "What pathologies affect this area?", "How does this relate to the ECG?"],
+    "ecg": ["Interpret this rhythm", "What clinical significance does this pattern have?", "What conditions can cause these changes?"],
+    "conditions": ["Explain the pathophysiology", "What are the key ECG findings?", "Walk through the treatment algorithm"],
+    "procedures": ["Describe the access approach", "What are the steps?", "What complications should you watch for?"],
+    "pharmacology": ["Explain the mechanism of action", "When is this drug indicated?", "What are the key side effects?"]
+  },
+  "quizQuestions": [
+    {
+      "id": "q1",
+      "question": "Which coronary artery is most commonly responsible for an anterior STEMI?",
+      "options": ["Right coronary artery", "Left anterior descending", "Left circumflex", "Left main"],
+      "correctIndex": 1,
+      "explanation": "The LAD supplies the anterior wall of the left ventricle. Occlusion leads to ST elevation in leads V1-V4.",
+      "difficulty": 1,
+      "topic": "ischemia"
+    },
+    {
+      "id": "q2",
+      "question": "What is the normal duration of the QRS complex?",
+      "options": ["< 80ms", "80-120ms", "120-200ms", "> 200ms"],
+      "correctIndex": 1,
+      "explanation": "Normal QRS duration is 80-120ms. A QRS > 120ms suggests bundle branch block or ventricular conduction delay.",
+      "difficulty": 1,
+      "topic": "ecg"
+    },
+    {
+      "id": "q3",
+      "question": "In cardiac tamponade, what is Beck's triad?",
+      "options": ["Fever, murmur, Janeway lesions", "Hypotension, JVD, muffled heart sounds", "Chest pain, dyspnea, diaphoresis", "Bradycardia, hypotension, hypothermia"],
+      "correctIndex": 1,
+      "explanation": "Beck's triad consists of hypotension (low arterial pressure), jugular venous distension (elevated venous pressure), and muffled/distant heart sounds due to pericardial fluid.",
+      "difficulty": 2,
+      "topic": "pericardial"
+    },
+    {
+      "id": "q4",
+      "question": "What is the first-line treatment for stable monomorphic ventricular tachycardia?",
+      "options": ["Defibrillation", "Amiodarone", "Adenosine", "Atropine"],
+      "correctIndex": 1,
+      "explanation": "For stable monomorphic VT, IV amiodarone is the first-line pharmacologic therapy. Unstable VT requires synchronized cardioversion.",
+      "difficulty": 2,
+      "topic": "arrhythmia"
+    },
+    {
+      "id": "q5",
+      "question": "The SA node is located in which structure?",
+      "options": ["Left atrium", "Right atrium near the SVC junction", "Interatrial septum", "Right ventricle"],
+      "correctIndex": 1,
+      "explanation": "The SA node is located in the right atrium near the junction with the superior vena cava (SVC). It serves as the heart's primary pacemaker.",
+      "difficulty": 1,
+      "topic": "conduction"
+    },
+    {
+      "id": "q6",
+      "question": "What medication should be given first in a pulseless VF/VT arrest?",
+      "options": ["Amiodarone", "Atropine", "Epinephrine", "Lidocaine"],
+      "correctIndex": 2,
+      "explanation": "Epinephrine 1mg IV/IO is given as soon as IV/IO access is established in VF/VT arrest (after the first or second shock). It improves coronary perfusion pressure.",
+      "difficulty": 1,
+      "topic": "acls"
+    },
+    {
+      "id": "q7",
+      "question": "What does the Wellens pattern on ECG suggest?",
+      "options": ["Pericarditis", "Critical proximal LAD stenosis", "Pulmonary embolism", "Hyperkalemia"],
+      "correctIndex": 1,
+      "explanation": "Wellens syndrome (deeply inverted or biphasic T waves in V2-V3) indicates critical proximal LAD stenosis and high risk for anterior MI. These patients need urgent catheterization, not stress testing.",
+      "difficulty": 3,
+      "topic": "ischemia"
+    },
+    {
+      "id": "q8",
+      "question": "What is the ejection fraction formula?",
+      "options": ["SV / HR", "(EDV - ESV) / EDV x 100", "CO / BSA", "MAP / SVR"],
+      "correctIndex": 1,
+      "explanation": "Ejection Fraction = (End-Diastolic Volume - End-Systolic Volume) / End-Diastolic Volume x 100. Normal EF is 55-70%.",
+      "difficulty": 2,
+      "topic": "physiology"
+    },
+    {
+      "id": "q9",
+      "question": "In a right-dominant circulation, which artery gives rise to the PDA?",
+      "options": ["LAD", "Left circumflex", "Right coronary artery", "Left main"],
+      "correctIndex": 2,
+      "explanation": "In right-dominant circulation (~85% of people), the posterior descending artery (PDA) arises from the RCA. In left-dominant systems, it arises from the LCx.",
+      "difficulty": 3,
+      "topic": "coronary"
+    },
+    {
+      "id": "q10",
+      "question": "What is the mechanism of action of adenosine?",
+      "options": ["Beta-adrenergic blockade", "Sodium channel blockade", "Slowing AV nodal conduction via A1 receptor activation", "Calcium channel blockade"],
+      "correctIndex": 2,
+      "explanation": "Adenosine activates A1 receptors in the AV node, opening potassium channels and hyperpolarizing the cell, which transiently blocks AV conduction. Half-life is < 10 seconds.",
+      "difficulty": 3,
+      "topic": "pharmacology"
+    }
+  ]
+}

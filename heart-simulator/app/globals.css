@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cardiac-red: #DC2626;
+  --cardiac-blue: #2563EB;
+  --cardiac-dark: #0F172A;
+  --cardiac-panel: #1E293B;
+  --cardiac-surface: #334155;
+  --cardiac-accent: #F59E0B;
+  --cardiac-conduction: #FBBF24;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--cardiac-dark);
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#__next {
+  height: 100%;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--cardiac-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--cardiac-surface);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ECG canvas */
+.ecg-canvas {
+  image-rendering: pixelated;
+}
+
+/* Panel transitions */
+.panel-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tooltip */
+.tooltip-content {
+  @apply bg-cardiac-panel text-sm text-slate-200 px-3 py-2 rounded-lg shadow-xl border border-slate-600;
+  max-width: 300px;
+}
+
+/* Structure highlight pulse */
+@keyframes pulse-highlight {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.structure-highlight {
+  animation: pulse-highlight 1.5s ease-in-out infinite;
+}
+
+/* ECG grid pattern */
+.ecg-grid {
+  background-image:
+    linear-gradient(rgba(220, 38, 38, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220, 38, 38, 0.1) 1px, transparent 1px),
+    linear-gradient(rgba(220, 38, 38, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220, 38, 38, 0.2) 1px, transparent 1px);
+  background-size: 5px 5px, 5px 5px, 25px 25px, 25px 25px;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Conduction animation */
+@keyframes conduction-pulse {
+  0% { stroke-dashoffset: 100; opacity: 0; }
+  20% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* Blood flow particle */
+@keyframes flow-particle {
+  0% { offset-distance: 0%; }
+  100% { offset-distance: 100%; }
+}

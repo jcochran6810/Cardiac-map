@@ -1,0 +1,436 @@
+{
+  "schemaVersion": "1.0.0",
+  "description": "ECG waveform profiles for cardiac conditions",
+  "profiles": [
+    {
+      "id": "normal-sinus",
+      "name": "Normal Sinus Rhythm",
+      "conditionReference": "normal-sinus-rhythm",
+      "rate": { "min": 60, "max": 100, "typical": 75 },
+      "rhythm": "Regular sinus rhythm with consistent P-QRS-T morphology",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.16, "variability": "none" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0, "morphology": "isoelectric", "leads": [] },
+      "tWave": { "morphology": "upright", "amplitude": 0.3 },
+      "qtInterval": { "duration": 0.36, "corrected": 0.40 },
+      "leadSpecificChanges": {},
+      "annotations": ["Normal P wave before every QRS", "Regular RR intervals", "Normal axis"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "This is a normal heart rhythm. The heart is beating regularly between 60-100 times per minute." },
+        { "level": 2, "explanation": "Normal sinus rhythm with upright P waves in II, regular rate 60-100, narrow QRS. Each P is followed by a QRS." },
+        { "level": 3, "explanation": "NSR with normal PR interval (120-200ms), narrow QRS (<120ms), normal QTc, no ST changes. Normal axis 0-90 degrees." },
+        { "level": 4, "explanation": "Normal sinus mechanism with intact AV conduction. Normal P wave morphology suggesting right atrial origin. Normal ventricular activation sequence." },
+        { "level": 5, "explanation": "Sinus node automaticity within normal range. Normal His-Purkinje conduction. No evidence of accessory pathways, conduction disease, or repolarization abnormalities." }
+      ]
+    },
+    {
+      "id": "sinus-bradycardia",
+      "name": "Sinus Bradycardia",
+      "conditionReference": "sinus-bradycardia",
+      "rate": { "min": 30, "max": 59, "typical": 50 },
+      "rhythm": "Regular sinus rhythm at rate below 60 bpm",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.16, "variability": "none" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0, "morphology": "isoelectric", "leads": [] },
+      "tWave": { "morphology": "upright", "amplitude": 0.3 },
+      "qtInterval": { "duration": 0.40, "corrected": 0.38 },
+      "leadSpecificChanges": {},
+      "annotations": ["Rate < 60 bpm", "Normal P-QRS-T morphology", "Consider physiologic vs pathologic"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The heart is beating slower than normal, less than 60 beats per minute. This can be normal in athletes or concerning if symptomatic." },
+        { "level": 2, "explanation": "Sinus bradycardia — rate <60 with normal P-QRS. Assess for symptoms: dizziness, syncope, hypotension. Consider atropine if symptomatic." },
+        { "level": 3, "explanation": "Sinus bradycardia may be physiologic (athletes, sleep) or pathologic (sick sinus, hypothyroidism, medications). Assess hemodynamic stability." },
+        { "level": 4, "explanation": "Evaluate for intrinsic sinus node dysfunction vs extrinsic causes (beta-blockers, CCBs, hypothyroidism). Holter monitoring for chronotropic incompetence." },
+        { "level": 5, "explanation": "EP study may reveal prolonged SNRT or CSNRT. If symptomatic and irreversible, pacemaker implantation indicated per ACC/AHA guidelines." }
+      ]
+    },
+    {
+      "id": "sinus-tachycardia",
+      "name": "Sinus Tachycardia",
+      "conditionReference": "sinus-tachycardia",
+      "rate": { "min": 101, "max": 180, "typical": 120 },
+      "rhythm": "Regular sinus rhythm at rate above 100 bpm",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.06, "amplitude": 0.2 },
+      "prInterval": { "duration": 0.14, "variability": "none" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0, "morphology": "isoelectric", "leads": [] },
+      "tWave": { "morphology": "upright", "amplitude": 0.25 },
+      "qtInterval": { "duration": 0.30, "corrected": 0.42 },
+      "leadSpecificChanges": {},
+      "annotations": ["Rate > 100 bpm", "P waves may merge with preceding T waves at high rates", "Always look for the underlying cause"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The heart is beating faster than normal. This is usually a response to something else — pain, fever, dehydration, anxiety, or bleeding." },
+        { "level": 2, "explanation": "Sinus tach — treat the cause, not the rate. Pain, fever, hypovolemia, PE, sepsis. Rate usually 100-150." },
+        { "level": 3, "explanation": "Sinus tachycardia is a physiologic response. Differential includes hypovolemia, sepsis, PE, pain, thyrotoxicosis. Inappropriate sinus tachycardia is a separate entity." },
+        { "level": 4, "explanation": "May have rate-related ST depression (demand ischemia). Distinguish from SVT — sinus tach warms up and cools down, SVT starts/stops abruptly." },
+        { "level": 5, "explanation": "If persistent without clear cause, consider inappropriate sinus tachycardia or POTS. Ivabradine may be considered. EP study not usually indicated." }
+      ]
+    },
+    {
+      "id": "atrial-fibrillation",
+      "name": "Atrial Fibrillation",
+      "conditionReference": "atrial-fibrillation",
+      "rate": { "min": 60, "max": 180, "typical": 110 },
+      "rhythm": "Irregularly irregular rhythm with no organized atrial activity",
+      "pWave": { "visible": false, "morphology": "fibrillatory", "duration": 0, "amplitude": 0 },
+      "prInterval": { "duration": 0, "variability": "absent" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0, "morphology": "isoelectric", "leads": [] },
+      "tWave": { "morphology": "upright", "amplitude": 0.25 },
+      "qtInterval": { "duration": 0.34, "corrected": 0.44 },
+      "leadSpecificChanges": {
+        "V1": { "pWaveAmplitude": 0 }
+      },
+      "annotations": ["No P waves", "Irregularly irregular RR intervals", "Fibrillatory baseline", "Assess for RVR vs controlled rate"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The top chambers of the heart are quivering instead of squeezing. The heartbeat is irregular — no pattern to it." },
+        { "level": 2, "explanation": "AFib: no P waves, irregular rhythm. Assess rate (RVR if >100). Key decisions: rate control, anticoagulation, cardioversion if unstable." },
+        { "level": 3, "explanation": "AFib with RVR: rate control with IV diltiazem or metoprolol. CHA2DS2-VASc for stroke risk. Cardiovert if hemodynamically unstable." },
+        { "level": 4, "explanation": "Classify as paroxysmal, persistent, or permanent. Echo for LAE and thrombus. Consider rhythm control strategy. TEE before cardioversion if >48hrs or unknown duration." },
+        { "level": 5, "explanation": "Pulmonary vein isolation ablation for drug-refractory symptomatic AF. LAA occlusion for anticoagulation-ineligible patients. Hybrid approaches for persistent AF." }
+      ]
+    },
+    {
+      "id": "atrial-flutter",
+      "name": "Atrial Flutter",
+      "conditionReference": "atrial-flutter",
+      "rate": { "min": 60, "max": 170, "typical": 150 },
+      "rhythm": "Regular atrial activity at ~300 bpm with variable ventricular response",
+      "pWave": { "visible": true, "morphology": "sawtooth", "duration": 0.04, "amplitude": -0.2 },
+      "prInterval": { "duration": 0, "variability": "variable" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0, "morphology": "obscured-by-flutter", "leads": ["II", "III", "aVF"] },
+      "tWave": { "morphology": "obscured", "amplitude": 0 },
+      "qtInterval": { "duration": 0.34, "corrected": 0.42 },
+      "leadSpecificChanges": {
+        "II": { "pWaveAmplitude": -0.2 },
+        "III": { "pWaveAmplitude": -0.2 },
+        "aVF": { "pWaveAmplitude": -0.2 },
+        "V1": { "pWaveAmplitude": 0.15 }
+      },
+      "annotations": ["Sawtooth flutter waves best seen in II, III, aVF", "Typical: 300 bpm atrial rate with 2:1 block = 150 bpm", "Classic regular rate at 150 should prompt consideration of flutter"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "A rapid, organized rhythm from the top of the heart. Usually very fast and regular. Look for a sawtooth pattern." },
+        { "level": 2, "explanation": "Atrial flutter at 150 bpm is classic 2:1 flutter. Sawtooth waves in inferior leads. Rate control and anticoagulation similar to AFib." },
+        { "level": 3, "explanation": "Typical flutter is a macro-reentrant circuit around the tricuspid annulus. 2:1 conduction gives rate ~150. AV blocking drugs may reveal flutter waves." },
+        { "level": 4, "explanation": "Distinguish typical (CTI-dependent) from atypical flutter. Adenosine can unmask flutter waves. Same stroke risk as AFib — anticoagulate similarly." },
+        { "level": 5, "explanation": "CTI ablation for typical flutter has >95% success rate. Atypical flutter requires detailed mapping. Often coexists with AFib — discuss combined ablation strategy." }
+      ]
+    },
+    {
+      "id": "svt",
+      "name": "Supraventricular Tachycardia",
+      "conditionReference": "paroxysmal-svt",
+      "rate": { "min": 150, "max": 250, "typical": 180 },
+      "rhythm": "Regular narrow-complex tachycardia",
+      "pWave": { "visible": false, "morphology": "buried-in-qrs", "duration": 0, "amplitude": 0 },
+      "prInterval": { "duration": 0, "variability": "absent" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": -0.1, "morphology": "rate-related-depression", "leads": ["II", "V4", "V5", "V6"] },
+      "tWave": { "morphology": "variable", "amplitude": 0.15 },
+      "qtInterval": { "duration": 0.28, "corrected": 0.46 },
+      "leadSpecificChanges": {},
+      "annotations": ["Regular narrow-complex tachycardia", "No visible P waves (or retrograde P in ST segment)", "Abrupt onset and termination"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "A very fast, regular heartbeat usually between 150-250 bpm. The patient may feel palpitations, chest tightness, or dizziness." },
+        { "level": 2, "explanation": "SVT: regular narrow-complex tachycardia. Try vagal maneuvers first, then rapid push adenosine 6mg then 12mg. If unstable: synchronized cardioversion." },
+        { "level": 3, "explanation": "Most SVTs are AVNRT or AVRT. Regular narrow complex at 150-250. Adenosine is both diagnostic and therapeutic. If wide-complex, consider VT." },
+        { "level": 4, "explanation": "AVNRT shows pseudo-R in V1 and pseudo-S in inferior leads. AVRT may show short RP. Differentiating mechanism guides long-term therapy." },
+        { "level": 5, "explanation": "EP study with mapping and ablation. AVNRT: slow pathway modification (>95% success). AVRT: accessory pathway ablation. Consider for recurrent symptoms." }
+      ]
+    },
+    {
+      "id": "first-degree-avb",
+      "name": "First-Degree AV Block",
+      "conditionReference": "first-degree-av-block",
+      "rate": { "min": 50, "max": 100, "typical": 70 },
+      "rhythm": "Regular sinus rhythm with prolonged PR interval",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.24, "variability": "none" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0, "morphology": "isoelectric", "leads": [] },
+      "tWave": { "morphology": "upright", "amplitude": 0.3 },
+      "qtInterval": { "duration": 0.36, "corrected": 0.40 },
+      "leadSpecificChanges": {},
+      "annotations": ["PR interval > 200ms", "Every P wave conducts", "Usually benign"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "There is a longer-than-normal delay between the top and bottom chambers beating. Usually not dangerous." },
+        { "level": 2, "explanation": "First-degree AV block: PR > 200ms but every P wave conducts. Usually benign. Document and monitor." },
+        { "level": 3, "explanation": "Prolonged PR may be from AV nodal delay (drugs, vagal tone) or infranodal. Usually benign unless very prolonged or progressing." },
+        { "level": 4, "explanation": "If PR > 300ms, may cause pacemaker syndrome-like symptoms from AV dyssynchrony. Can be seen with digoxin, beta-blockers, CCBs." },
+        { "level": 5, "explanation": "Rarely requires pacing unless markedly prolonged with symptoms. His bundle recording can localize delay to AV node vs His-Purkinje." }
+      ]
+    },
+    {
+      "id": "third-degree-avb",
+      "name": "Third-Degree (Complete) AV Block",
+      "conditionReference": "third-degree-av-block",
+      "rate": { "min": 25, "max": 60, "typical": 40 },
+      "rhythm": "Complete AV dissociation with independent atrial and ventricular rhythms",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0, "variability": "completely-variable" },
+      "qrsComplex": { "duration": 0.12, "morphology": "may-be-wide", "axis": -30 },
+      "stSegment": { "deviation": 0, "morphology": "variable", "leads": [] },
+      "tWave": { "morphology": "variable", "amplitude": 0.3 },
+      "qtInterval": { "duration": 0.44, "corrected": 0.44 },
+      "leadSpecificChanges": {},
+      "annotations": ["P waves march through at their own rate", "QRS at escape rate (junctional 40-60 or ventricular 20-40)", "No relationship between P and QRS"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The electrical signal from the top of the heart cannot get through to the bottom. The bottom beats on its own, very slowly. This is dangerous." },
+        { "level": 2, "explanation": "Complete heart block: no conduction from atria to ventricles. P waves and QRS independent. Escape rate determines stability. Prepare for TCP/pacing." },
+        { "level": 3, "explanation": "Third-degree AV block: complete AV dissociation. Narrow escape = junctional (more stable). Wide escape = ventricular (less stable). Temporary pacing, then permanent pacer." },
+        { "level": 4, "explanation": "Causes include inferior MI (usually transient, nodal), anterior MI (usually permanent, infranodal), drugs, infiltrative disease, post-surgical." },
+        { "level": 5, "explanation": "Infranodal block requires permanent pacing. His bundle study differentiates level of block. Consider physiologic pacing (His bundle or LBBP) over RV apical." }
+      ]
+    },
+    {
+      "id": "rbbb",
+      "name": "Right Bundle Branch Block",
+      "conditionReference": "right-bundle-branch-block",
+      "rate": { "min": 60, "max": 100, "typical": 75 },
+      "rhythm": "Regular sinus rhythm with wide QRS",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.16, "variability": "none" },
+      "qrsComplex": { "duration": 0.14, "morphology": "rsr-prime-v1", "axis": 90 },
+      "stSegment": { "deviation": -0.1, "morphology": "discordant", "leads": ["V1", "V2"] },
+      "tWave": { "morphology": "inverted-v1-v2", "amplitude": -0.2 },
+      "qtInterval": { "duration": 0.38, "corrected": 0.42 },
+      "leadSpecificChanges": {
+        "V1": { "qrsAmplitude": 0.8, "tWaveMorphology": "inverted" },
+        "V6": { "qrsAmplitude": 0.7 }
+      },
+      "annotations": ["QRS > 120ms", "RSR' pattern in V1 (rabbit ears)", "Wide S wave in I and V6", "Discordant ST-T changes"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The electrical signal is delayed getting to the right side of the heart. This causes a wider-than-normal heartbeat on the monitor." },
+        { "level": 2, "explanation": "RBBB: wide QRS with RSR' in V1, wide S in I/V6. Can be normal variant or indicate right heart strain (PE, pulmonary HTN)." },
+        { "level": 3, "explanation": "RBBB can be benign or pathologic. New RBBB with PE or RV strain is significant. Sgarbossa criteria modified for RBBB-STEMI diagnosis." },
+        { "level": 4, "explanation": "Isolated RBBB often benign. Combined with LAFB or LPFB suggests bifascicular block and more diffuse conduction disease." },
+        { "level": 5, "explanation": "HV interval prolongation in bifascicular block may indicate need for pacing. RBBB morphology VT suggests LV origin." }
+      ]
+    },
+    {
+      "id": "lbbb",
+      "name": "Left Bundle Branch Block",
+      "conditionReference": "left-bundle-branch-block",
+      "rate": { "min": 60, "max": 100, "typical": 75 },
+      "rhythm": "Regular sinus rhythm with wide QRS",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.16, "variability": "none" },
+      "qrsComplex": { "duration": 0.16, "morphology": "broad-notched", "axis": -30 },
+      "stSegment": { "deviation": -0.2, "morphology": "discordant", "leads": ["I", "aVL", "V5", "V6"] },
+      "tWave": { "morphology": "discordant", "amplitude": -0.3 },
+      "qtInterval": { "duration": 0.42, "corrected": 0.46 },
+      "leadSpecificChanges": {
+        "V1": { "qrsAmplitude": -0.6, "stDeviation": 0.2, "tWaveMorphology": "upright" },
+        "V6": { "qrsAmplitude": 0.9, "stDeviation": -0.2, "tWaveMorphology": "inverted" }
+      },
+      "annotations": ["QRS > 120ms", "Broad notched R in I, aVL, V5-V6", "Deep S in V1-V3", "Discordant ST-T changes", "LBBB makes STEMI diagnosis difficult"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The electrical signal is delayed getting to the left side of the heart. This makes ECG interpretation harder. New LBBB can be a sign of heart attack." },
+        { "level": 2, "explanation": "LBBB: wide QRS, broad R in lateral leads, deep S in V1. New LBBB + chest pain = treat as STEMI equivalent. Use Sgarbossa criteria." },
+        { "level": 3, "explanation": "LBBB obscures standard STEMI criteria. Use modified Sgarbossa: concordant ST elevation >1mm or discordant >25% of QRS amplitude." },
+        { "level": 4, "explanation": "LBBB is often associated with structural heart disease (cardiomyopathy, aortic valve disease). Mechanical dyssynchrony may benefit from CRT." },
+        { "level": 5, "explanation": "CRT indicated for LBBB QRS >150ms with EF <35% and NYHA II-IV symptoms. His bundle pacing or LBBP as alternatives to traditional CRT." }
+      ]
+    },
+    {
+      "id": "anterior-stemi",
+      "name": "Anterior STEMI",
+      "conditionReference": "anterior-stemi",
+      "rate": { "min": 60, "max": 120, "typical": 90 },
+      "rhythm": "Sinus rhythm or sinus tachycardia",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.16, "variability": "none" },
+      "qrsComplex": { "duration": 0.09, "morphology": "normal-to-slightly-wide", "axis": 0 },
+      "stSegment": { "deviation": 0.4, "morphology": "concave-to-convex-elevation", "leads": ["V1", "V2", "V3", "V4"] },
+      "tWave": { "morphology": "hyperacute-to-inverted", "amplitude": 0.5 },
+      "qtInterval": { "duration": 0.38, "corrected": 0.44 },
+      "leadSpecificChanges": {
+        "V1": { "stDeviation": 0.3 },
+        "V2": { "stDeviation": 0.5 },
+        "V3": { "stDeviation": 0.5 },
+        "V4": { "stDeviation": 0.3 },
+        "II": { "stDeviation": -0.1 },
+        "III": { "stDeviation": -0.15 },
+        "aVF": { "stDeviation": -0.1 }
+      },
+      "annotations": ["ST elevation V1-V4", "Reciprocal depression in inferior leads", "Hyperacute T waves early", "Q waves develop over hours", "LAD territory"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "This shows a heart attack affecting the front wall of the heart. The ECG lines are pushed up in certain spots. This is a life-threatening emergency." },
+        { "level": 2, "explanation": "Anterior STEMI: ST elevation V1-V4. LAD occlusion. Activate cath lab. Aspirin, heparin, NTG if no contraindication. Time is muscle." },
+        { "level": 3, "explanation": "Anterior STEMI from proximal LAD can affect large territory including septum and apex. Monitor for cardiogenic shock, VT/VF. Door-to-balloon <90 minutes." },
+        { "level": 4, "explanation": "Extensive anterior STEMI may cause severe LV dysfunction. Risk of mechanical complications (VSD, free wall rupture). Assess for multivessel disease at cath." },
+        { "level": 5, "explanation": "Primary PCI with DES. Consider mechanical support (IABP, Impella) for cardiogenic shock. Complete revascularization strategy for multivessel disease." }
+      ]
+    },
+    {
+      "id": "inferior-stemi",
+      "name": "Inferior STEMI",
+      "conditionReference": "inferior-stemi",
+      "rate": { "min": 40, "max": 100, "typical": 65 },
+      "rhythm": "Sinus rhythm, may have bradycardia or AV block",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.18, "variability": "may-lengthen" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 90 },
+      "stSegment": { "deviation": 0.3, "morphology": "convex-elevation", "leads": ["II", "III", "aVF"] },
+      "tWave": { "morphology": "hyperacute", "amplitude": 0.4 },
+      "qtInterval": { "duration": 0.38, "corrected": 0.42 },
+      "leadSpecificChanges": {
+        "II": { "stDeviation": 0.25 },
+        "III": { "stDeviation": 0.35 },
+        "aVF": { "stDeviation": 0.25 },
+        "I": { "stDeviation": -0.1 },
+        "aVL": { "stDeviation": -0.15 }
+      },
+      "annotations": ["ST elevation II, III, aVF", "Reciprocal depression in I and aVL", "Check right-sided leads (V4R) for RV involvement", "Watch for AV block"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "This shows a heart attack affecting the bottom wall of the heart. The patient may also have a slow heart rate. This needs emergency treatment." },
+        { "level": 2, "explanation": "Inferior STEMI: ST elevation II, III, aVF. Usually RCA. Get right-sided ECG. Avoid NTG if RV involved. Watch for bradycardia and AV block." },
+        { "level": 3, "explanation": "Inferior MI from RCA (85%) or LCx (15%). RV involvement: hypotension, JVD, clear lungs. Treat with fluids, not NTG/diuretics. AV block usually transient." },
+        { "level": 4, "explanation": "ST elevation III > II suggests RCA culprit. ST depression V1-V3 may indicate posterior extension. Posterior MI: check V7-V9." },
+        { "level": 5, "explanation": "Primary PCI for RCA. RV branch occlusion may cause RV failure. Temporary pacing for high-grade AV block. AV block usually resolves within 1-2 weeks." }
+      ]
+    },
+    {
+      "id": "monomorphic-vt",
+      "name": "Monomorphic Ventricular Tachycardia",
+      "conditionReference": "monomorphic-vt",
+      "rate": { "min": 120, "max": 250, "typical": 180 },
+      "rhythm": "Regular wide-complex tachycardia of ventricular origin",
+      "pWave": { "visible": false, "morphology": "dissociated", "duration": 0, "amplitude": 0 },
+      "prInterval": { "duration": 0, "variability": "absent" },
+      "qrsComplex": { "duration": 0.16, "morphology": "wide-monomorphic", "axis": -60 },
+      "stSegment": { "deviation": 0, "morphology": "discordant", "leads": [] },
+      "tWave": { "morphology": "discordant", "amplitude": -0.4 },
+      "qtInterval": { "duration": 0.40, "corrected": 0.50 },
+      "leadSpecificChanges": {},
+      "annotations": ["Wide QRS > 120ms", "Regular rate", "AV dissociation if visible", "Fusion and capture beats diagnostic", "Assume VT until proven otherwise"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "A very fast, dangerous rhythm from the bottom of the heart. Wide complexes on the monitor. If pulseless, start CPR and defibrillate." },
+        { "level": 2, "explanation": "VT: wide complex regular tachycardia. Stable: amiodarone. Unstable: synchronized cardioversion. Pulseless: defibrillation + ACLS." },
+        { "level": 3, "explanation": "Monomorphic VT is usually reentrant around scar tissue. Amiodarone 150mg IV over 10 min for stable VT. Look for underlying ischemia or cardiomyopathy." },
+        { "level": 4, "explanation": "Brugada algorithm for WCT differentiation: AV dissociation, concordance, morphology criteria. Most WCT in structural heart disease is VT." },
+        { "level": 5, "explanation": "EP study with substrate mapping for VT ablation. ICD for secondary prevention. Scar-mediated VT: substrate modification with ablation. VT storm may require sedation/intubation and escalation." }
+      ]
+    },
+    {
+      "id": "vfib",
+      "name": "Ventricular Fibrillation",
+      "conditionReference": "ventricular-fibrillation",
+      "rate": { "min": 0, "max": 0, "typical": 0 },
+      "rhythm": "Chaotic ventricular activity with no organized rhythm",
+      "pWave": { "visible": false, "morphology": "absent", "duration": 0, "amplitude": 0 },
+      "prInterval": { "duration": 0, "variability": "absent" },
+      "qrsComplex": { "duration": 0, "morphology": "chaotic", "axis": 0 },
+      "stSegment": { "deviation": 0, "morphology": "absent", "leads": [] },
+      "tWave": { "morphology": "absent", "amplitude": 0 },
+      "qtInterval": { "duration": 0, "corrected": 0 },
+      "leadSpecificChanges": {},
+      "annotations": ["Chaotic undulating baseline", "No identifiable QRS complexes", "No pulse", "Immediate defibrillation required"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The heart is quivering chaotically and not pumping blood. This is cardiac arrest. Start CPR immediately and use an AED/defibrillator." },
+        { "level": 2, "explanation": "VFib = pulseless = defibrillate immediately. CPR between shocks. Epi q3-5 min. Amiodarone 300mg after 3rd shock. Identify reversible causes (Hs and Ts)." },
+        { "level": 3, "explanation": "VF is the most common initial rhythm in witnessed cardiac arrest. Early defibrillation is the most important determinant of survival. Double sequential defibrillation for refractory VF." },
+        { "level": 4, "explanation": "VF may be primary (ischemic) or secondary (electrolyte, drug-induced). Post-ROSC: targeted temperature management, coronary angiography, neuroprognostication." },
+        { "level": 5, "explanation": "Survivors of VF arrest without reversible cause need ICD. If recurrent VF (electrical storm), consider catheter ablation of triggering PVCs or VT." }
+      ]
+    },
+    {
+      "id": "pericarditis",
+      "name": "Acute Pericarditis ECG",
+      "conditionReference": "acute-pericarditis",
+      "rate": { "min": 70, "max": 110, "typical": 90 },
+      "rhythm": "Sinus tachycardia",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.14, "variability": "none" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0.15, "morphology": "diffuse-concave-up", "leads": ["I", "II", "III", "aVF", "V2", "V3", "V4", "V5", "V6"] },
+      "tWave": { "morphology": "upright", "amplitude": 0.3 },
+      "qtInterval": { "duration": 0.36, "corrected": 0.42 },
+      "leadSpecificChanges": {
+        "aVR": { "stDeviation": -0.15 },
+        "V1": { "stDeviation": 0.05 }
+      },
+      "annotations": ["Diffuse ST elevation (concave up)", "PR depression", "ST depression and PR elevation in aVR", "No reciprocal changes (unlike STEMI)", "Spodick sign: downsloping TP segment"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The lining around the heart is inflamed. The ECG shows changes in many leads at once, unlike a heart attack which shows changes in specific leads." },
+        { "level": 2, "explanation": "Pericarditis ECG: diffuse ST elevation, PR depression. Key differentiator from STEMI: diffuse changes, no reciprocal depression, concave ST morphology." },
+        { "level": 3, "explanation": "Four stages of pericarditis ECG: diffuse STE with PR depression → normalization → diffuse T inversion → normalization. Elevated troponin suggests myopericarditis." },
+        { "level": 4, "explanation": "Distinguish from early repolarization and STEMI. ST/T ratio > 0.25 in V6 suggests pericarditis. Echo for effusion. MRI if myocarditis suspected." },
+        { "level": 5, "explanation": "Recurrent pericarditis: colchicine + NSAIDs. Consider anakinra for refractory cases. Constrictive physiology: cath for hemodynamics, pericardiectomy if confirmed." }
+      ]
+    },
+    {
+      "id": "wellens",
+      "name": "Wellens Pattern",
+      "conditionReference": "wellens-pattern",
+      "rate": { "min": 60, "max": 100, "typical": 75 },
+      "rhythm": "Normal sinus rhythm (pattern seen in pain-free interval)",
+      "pWave": { "visible": true, "morphology": "upright-rounded", "duration": 0.08, "amplitude": 0.15 },
+      "prInterval": { "duration": 0.16, "variability": "none" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": -0.05, "morphology": "minimal-change", "leads": ["V2", "V3"] },
+      "tWave": { "morphology": "deeply-inverted-or-biphasic", "amplitude": -0.3 },
+      "qtInterval": { "duration": 0.38, "corrected": 0.42 },
+      "leadSpecificChanges": {
+        "V2": { "tWaveMorphology": "deeply-inverted" },
+        "V3": { "tWaveMorphology": "deeply-inverted" },
+        "V4": { "tWaveMorphology": "inverted" }
+      },
+      "annotations": ["Deep symmetric T wave inversions in V2-V3 (Type A)", "Or biphasic T waves in V2-V3 (Type B)", "Indicates critical proximal LAD stenosis", "Do NOT stress test", "Urgent catheterization needed"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "This pattern shows that a major heart blood vessel is critically narrowed. Even though the patient may feel fine right now, they are at very high risk for a heart attack." },
+        { "level": 2, "explanation": "Wellens syndrome: deep T inversions or biphasic T waves V2-V3 in a chest pain patient who is now pain-free. Critical proximal LAD. Do NOT stress test. Cath lab." },
+        { "level": 3, "explanation": "Two types: Type A (biphasic T waves, 25%) and Type B (deeply inverted symmetric T waves, 75%). Both indicate critical proximal LAD stenosis. Troponin may be normal or mildly elevated." },
+        { "level": 4, "explanation": "Wellens represents reperfusion T wave changes after transient LAD occlusion. High risk of anterior STEMI without intervention. Sensitivity and specificity >90% for proximal LAD disease." },
+        { "level": 5, "explanation": "Coronary angiography typically reveals critical proximal LAD stenosis. PCI with stenting is definitive treatment. Without intervention, 75% progress to anterior MI within weeks." }
+      ]
+    },
+    {
+      "id": "paced-rhythm",
+      "name": "Paced Rhythm",
+      "conditionReference": "paced-rhythm",
+      "rate": { "min": 50, "max": 100, "typical": 70 },
+      "rhythm": "Regular paced rhythm with visible pacing spikes",
+      "pWave": { "visible": false, "morphology": "pacing-spike-or-absent", "duration": 0, "amplitude": 0 },
+      "prInterval": { "duration": 0, "variability": "paced" },
+      "qrsComplex": { "duration": 0.16, "morphology": "wide-paced", "axis": -60 },
+      "stSegment": { "deviation": -0.2, "morphology": "discordant", "leads": [] },
+      "tWave": { "morphology": "discordant", "amplitude": -0.3 },
+      "qtInterval": { "duration": 0.44, "corrected": 0.48 },
+      "leadSpecificChanges": {},
+      "annotations": ["Pacing spikes preceding QRS", "Wide QRS (LBBB-like pattern for RV pacing)", "Discordant ST-T changes", "Verify appropriate capture and sensing"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "This person has a pacemaker. You can see small spikes on the ECG before each heartbeat. The pacemaker is telling the heart when to beat." },
+        { "level": 2, "explanation": "Paced rhythm: look for pacing spikes. Wide QRS with LBBB pattern from RV pacing. Verify capture (spike followed by QRS) and sensing." },
+        { "level": 3, "explanation": "RV apical pacing produces LBBB-like pattern. Failure to capture: spikes without QRS. Failure to sense: inappropriate spikes. Apply magnet for asynchronous mode." },
+        { "level": 4, "explanation": "Different pacing modalities: AAI, VVI, DDD, CRT. His bundle or LBBP pacing produces narrower QRS. Evaluate for pacemaker-mediated tachycardia." },
+        { "level": 5, "explanation": "Device interrogation for comprehensive assessment. His bundle pacing for more physiologic activation. LBBP as alternative to CRT in select patients." }
+      ]
+    },
+    {
+      "id": "junctional-escape",
+      "name": "Junctional Escape Rhythm",
+      "conditionReference": "junctional-escape",
+      "rate": { "min": 35, "max": 60, "typical": 45 },
+      "rhythm": "Regular narrow-complex rhythm at junctional rate",
+      "pWave": { "visible": false, "morphology": "absent-or-retrograde", "duration": 0, "amplitude": 0 },
+      "prInterval": { "duration": 0, "variability": "absent" },
+      "qrsComplex": { "duration": 0.08, "morphology": "narrow", "axis": 60 },
+      "stSegment": { "deviation": 0, "morphology": "isoelectric", "leads": [] },
+      "tWave": { "morphology": "upright", "amplitude": 0.3 },
+      "qtInterval": { "duration": 0.40, "corrected": 0.40 },
+      "leadSpecificChanges": {},
+      "annotations": ["No P waves or retrograde P waves", "Narrow QRS at 40-60 bpm", "Regular rhythm", "Escape rhythm — do not suppress"],
+      "levelExplanations": [
+        { "level": 1, "explanation": "The heart's backup pacemaker has taken over because the main one isn't working properly. The rate is slow but the rhythm is regular." },
+        { "level": 2, "explanation": "Junctional escape: narrow QRS, rate 40-60, no P waves. This is a rescue rhythm. Do NOT give anything that could suppress it. Consider atropine or pacing if symptomatic." },
+        { "level": 3, "explanation": "Junctional escape occurs when sinus node fails or complete AV block with junctional escape. More hemodynamically stable than ventricular escape due to normal activation sequence." },
+        { "level": 4, "explanation": "May be seen with digoxin toxicity, post-cardiac surgery, or inferior MI. Distinction from accelerated junctional rhythm (rate 60-100) important." },
+        { "level": 5, "explanation": "If persistent junctional escape from complete AV block, permanent pacemaker indicated. His bundle recording localizes block level." }
+      ]
+    }
+  ]
+}

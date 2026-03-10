@@ -1,0 +1,490 @@
+{
+  "schemaVersion": "1.0.0",
+  "description": "Comprehensive coronary artery tree for cardiac education",
+  "dominanceSystems": ["right-dominant", "left-dominant", "codominant"],
+  "vessels": [
+    {
+      "id": "lmca",
+      "name": "Left Main Coronary Artery",
+      "parentVessel": null,
+      "segmentType": "trunk",
+      "commonAlias": "Left Main",
+      "perfusionTerritory": ["anterior-wall", "lateral-wall", "septum"],
+      "ecgTerritories": ["V1", "V2", "V3", "V4", "V5", "V6", "I", "aVL"],
+      "commonMIPatterns": ["Massive anterior MI", "Cardiogenic shock"],
+      "dominanceRelevance": "Supplies LAD and LCx regardless of dominance",
+      "catheterizationRelevance": "Critical structure - left main disease is surgical indication. Judkins Left or EBU catheter for engagement.",
+      "lesionSeverityHooks": {
+        "mild": "Minimal flow limitation, monitor with serial imaging",
+        "moderate": "Fractional flow reserve testing recommended",
+        "severe": "Critical - surgical revascularization usually indicated",
+        "occlusion": "Catastrophic - usually fatal unless extensive collaterals present"
+      },
+      "branchChildren": ["lad-proximal", "lcx-proximal", "ramus-intermedius"],
+      "modelPathReference": "coronary.lmca",
+      "displayOrder": 1
+    },
+    {
+      "id": "lad-proximal",
+      "name": "Proximal Left Anterior Descending",
+      "parentVessel": "lmca",
+      "segmentType": "proximal",
+      "commonAlias": "Proximal LAD",
+      "perfusionTerritory": ["anterior-wall", "anteroseptal"],
+      "ecgTerritories": ["V1", "V2", "V3", "V4"],
+      "commonMIPatterns": ["Anterior STEMI", "Wellens pattern"],
+      "dominanceRelevance": "Independent of dominance",
+      "catheterizationRelevance": "Proximal LAD lesions carry high risk. Supplies large territory including septum via septal perforators.",
+      "lesionSeverityHooks": {
+        "mild": "Low risk, medical management",
+        "moderate": "Consider FFR-guided PCI",
+        "severe": "High-risk lesion, PCI or CABG depending on anatomy",
+        "occlusion": "Large anterior STEMI with significant LV dysfunction risk"
+      },
+      "branchChildren": ["lad-mid", "d1", "s1"],
+      "modelPathReference": "coronary.lad.proximal",
+      "displayOrder": 2
+    },
+    {
+      "id": "lad-mid",
+      "name": "Mid Left Anterior Descending",
+      "parentVessel": "lad-proximal",
+      "segmentType": "mid",
+      "commonAlias": "Mid LAD",
+      "perfusionTerritory": ["anterior-wall", "anteroseptal"],
+      "ecgTerritories": ["V2", "V3", "V4"],
+      "commonMIPatterns": ["Anterior STEMI"],
+      "dominanceRelevance": "Independent of dominance",
+      "catheterizationRelevance": "Common site for PCI. Wire and stent delivery usually straightforward.",
+      "lesionSeverityHooks": {
+        "mild": "Conservative management",
+        "moderate": "FFR assessment appropriate",
+        "severe": "PCI typically recommended",
+        "occlusion": "Moderate anterior STEMI"
+      },
+      "branchChildren": ["lad-distal", "d2", "s2"],
+      "modelPathReference": "coronary.lad.mid",
+      "displayOrder": 3
+    },
+    {
+      "id": "lad-distal",
+      "name": "Distal Left Anterior Descending",
+      "parentVessel": "lad-mid",
+      "segmentType": "distal",
+      "commonAlias": "Distal LAD",
+      "perfusionTerritory": ["apex", "distal-anterior"],
+      "ecgTerritories": ["V4", "V5"],
+      "commonMIPatterns": ["Apical MI"],
+      "dominanceRelevance": "May wrap around apex in some patients",
+      "catheterizationRelevance": "Smaller vessel, CTO attempts may be challenging. Wraparound LAD supplies inferior apex.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Usually medical management",
+        "severe": "PCI if large territory at risk",
+        "occlusion": "Limited infarction unless wraparound variant"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lad.distal",
+      "displayOrder": 4
+    },
+    {
+      "id": "d1",
+      "name": "First Diagonal Branch",
+      "parentVessel": "lad-proximal",
+      "segmentType": "branch",
+      "commonAlias": "D1",
+      "perfusionTerritory": ["anterolateral-wall"],
+      "ecgTerritories": ["V3", "V4", "V5"],
+      "commonMIPatterns": ["Anterolateral ischemia"],
+      "dominanceRelevance": "Independent of dominance",
+      "catheterizationRelevance": "Bifurcation lesions at LAD-D1 require special strategies. May need two-stent technique.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Assess territory size",
+        "severe": "PCI if large diagonal",
+        "occlusion": "Focal anterolateral ischemia"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lad.d1",
+      "displayOrder": 5
+    },
+    {
+      "id": "d2",
+      "name": "Second Diagonal Branch",
+      "parentVessel": "lad-mid",
+      "segmentType": "branch",
+      "commonAlias": "D2",
+      "perfusionTerritory": ["anterolateral-wall"],
+      "ecgTerritories": ["V4", "V5"],
+      "commonMIPatterns": ["Focal anterolateral ischemia"],
+      "dominanceRelevance": "Independent of dominance",
+      "catheterizationRelevance": "Smaller branch, PCI less commonly indicated unless large.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Medical management",
+        "severe": "PCI if large branch",
+        "occlusion": "Small territory at risk"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lad.d2",
+      "displayOrder": 6
+    },
+    {
+      "id": "s1",
+      "name": "First Septal Perforator",
+      "parentVessel": "lad-proximal",
+      "segmentType": "branch",
+      "commonAlias": "S1",
+      "perfusionTerritory": ["interventricular-septum"],
+      "ecgTerritories": ["V1", "V2"],
+      "commonMIPatterns": ["Septal MI component"],
+      "dominanceRelevance": "Independent of dominance",
+      "catheterizationRelevance": "Important landmark for proximal LAD. Septal ablation target in HOCM.",
+      "lesionSeverityHooks": {
+        "mild": "Rarely clinically significant alone",
+        "moderate": "Part of proximal LAD territory",
+        "severe": "Bundle branch block risk",
+        "occlusion": "Septal infarction, conduction disturbance"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lad.s1",
+      "displayOrder": 7
+    },
+    {
+      "id": "s2",
+      "name": "Second Septal Perforator",
+      "parentVessel": "lad-mid",
+      "segmentType": "branch",
+      "commonAlias": "S2",
+      "perfusionTerritory": ["interventricular-septum"],
+      "ecgTerritories": ["V2", "V3"],
+      "commonMIPatterns": ["Septal ischemia"],
+      "dominanceRelevance": "Independent of dominance",
+      "catheterizationRelevance": "Mid-septal territory supply.",
+      "lesionSeverityHooks": {
+        "mild": "Rarely targeted for intervention",
+        "moderate": "Part of LAD territory assessment",
+        "severe": "Septal dysfunction",
+        "occlusion": "Septal wall motion abnormality"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lad.s2",
+      "displayOrder": 8
+    },
+    {
+      "id": "ramus-intermedius",
+      "name": "Ramus Intermedius",
+      "parentVessel": "lmca",
+      "segmentType": "branch",
+      "commonAlias": "Ramus",
+      "perfusionTerritory": ["anterolateral-wall"],
+      "ecgTerritories": ["I", "aVL", "V5", "V6"],
+      "commonMIPatterns": ["Lateral ischemia"],
+      "dominanceRelevance": "Present as trifurcation variant of left main",
+      "catheterizationRelevance": "When present, creates a trifurcation that complicates left main intervention.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Assess territory size — can be as large as a diagonal",
+        "severe": "PCI if large territory",
+        "occlusion": "Lateral ischemia/infarction"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.ramus",
+      "displayOrder": 9
+    },
+    {
+      "id": "lcx-proximal",
+      "name": "Proximal Left Circumflex",
+      "parentVessel": "lmca",
+      "segmentType": "proximal",
+      "commonAlias": "Proximal LCx",
+      "perfusionTerritory": ["lateral-wall", "posterolateral"],
+      "ecgTerritories": ["I", "aVL", "V5", "V6"],
+      "commonMIPatterns": ["Lateral STEMI"],
+      "dominanceRelevance": "In left-dominant systems, gives rise to PDA",
+      "catheterizationRelevance": "Engagement with JL or EBU catheter. LAO caudal view best for visualization.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "FFR assessment",
+        "severe": "PCI recommended especially in left-dominant systems",
+        "occlusion": "Lateral STEMI, more extensive if left-dominant"
+      },
+      "branchChildren": ["lcx-distal", "om1"],
+      "modelPathReference": "coronary.lcx.proximal",
+      "displayOrder": 10
+    },
+    {
+      "id": "lcx-distal",
+      "name": "Distal Left Circumflex",
+      "parentVessel": "lcx-proximal",
+      "segmentType": "distal",
+      "commonAlias": "Distal LCx",
+      "perfusionTerritory": ["posterolateral-wall"],
+      "ecgTerritories": ["V5", "V6"],
+      "commonMIPatterns": ["Posterolateral ischemia"],
+      "dominanceRelevance": "In left-dominant: gives rise to PDA and posterolateral branches",
+      "catheterizationRelevance": "May be small in right-dominant systems. Important in left-dominant.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Assess dominance significance",
+        "severe": "PCI if left-dominant",
+        "occlusion": "Posterolateral infarction"
+      },
+      "branchChildren": ["om2", "om3"],
+      "modelPathReference": "coronary.lcx.distal",
+      "displayOrder": 11
+    },
+    {
+      "id": "om1",
+      "name": "First Obtuse Marginal Branch",
+      "parentVessel": "lcx-proximal",
+      "segmentType": "branch",
+      "commonAlias": "OM1",
+      "perfusionTerritory": ["lateral-wall"],
+      "ecgTerritories": ["I", "aVL", "V5", "V6"],
+      "commonMIPatterns": ["Lateral wall ischemia"],
+      "dominanceRelevance": "Present in all dominance patterns",
+      "catheterizationRelevance": "Common PCI target. Bifurcation with LCx may require special technique.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "FFR assessment",
+        "severe": "PCI if large territory",
+        "occlusion": "Lateral wall MI"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lcx.om1",
+      "displayOrder": 12
+    },
+    {
+      "id": "om2",
+      "name": "Second Obtuse Marginal Branch",
+      "parentVessel": "lcx-distal",
+      "segmentType": "branch",
+      "commonAlias": "OM2",
+      "perfusionTerritory": ["posterolateral-wall"],
+      "ecgTerritories": ["V5", "V6"],
+      "commonMIPatterns": ["Posterolateral ischemia"],
+      "dominanceRelevance": "Present in all dominance patterns",
+      "catheterizationRelevance": "Smaller branch, PCI less common.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Medical management",
+        "severe": "PCI if large",
+        "occlusion": "Focal posterolateral ischemia"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lcx.om2",
+      "displayOrder": 13
+    },
+    {
+      "id": "om3",
+      "name": "Third Obtuse Marginal Branch",
+      "parentVessel": "lcx-distal",
+      "segmentType": "branch",
+      "commonAlias": "OM3",
+      "perfusionTerritory": ["posterolateral-wall"],
+      "ecgTerritories": ["V6"],
+      "commonMIPatterns": ["Focal posterolateral ischemia"],
+      "dominanceRelevance": "Not always present",
+      "catheterizationRelevance": "Small branch, rarely target for PCI.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Medical management",
+        "severe": "Rarely intervened upon",
+        "occlusion": "Small territory"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.lcx.om3",
+      "displayOrder": 14
+    },
+    {
+      "id": "rca-proximal",
+      "name": "Proximal Right Coronary Artery",
+      "parentVessel": null,
+      "segmentType": "proximal",
+      "commonAlias": "Proximal RCA",
+      "perfusionTerritory": ["right-atrium", "rv-free-wall"],
+      "ecgTerritories": ["II", "III", "aVF"],
+      "commonMIPatterns": ["Inferior STEMI"],
+      "dominanceRelevance": "In right-dominant systems (~85%), supplies PDA and AV node",
+      "catheterizationRelevance": "JR4 or AR catheter for engagement. RAO view for proximal visualization.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "FFR assessment, especially if dominant",
+        "severe": "PCI recommended if dominant",
+        "occlusion": "Inferior STEMI with potential RV involvement and AV block"
+      },
+      "branchChildren": ["rca-mid", "conus-branch", "sa-nodal-branch"],
+      "modelPathReference": "coronary.rca.proximal",
+      "displayOrder": 15
+    },
+    {
+      "id": "rca-mid",
+      "name": "Mid Right Coronary Artery",
+      "parentVessel": "rca-proximal",
+      "segmentType": "mid",
+      "commonAlias": "Mid RCA",
+      "perfusionTerritory": ["rv-free-wall"],
+      "ecgTerritories": ["II", "III", "aVF"],
+      "commonMIPatterns": ["Inferior STEMI"],
+      "dominanceRelevance": "In right-dominant systems, critical conduit to PDA",
+      "catheterizationRelevance": "Often tortuous segment. Common site for CTO.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "FFR assessment",
+        "severe": "PCI if dominant",
+        "occlusion": "Inferior MI if dominant"
+      },
+      "branchChildren": ["rca-distal", "am-branch"],
+      "modelPathReference": "coronary.rca.mid",
+      "displayOrder": 16
+    },
+    {
+      "id": "rca-distal",
+      "name": "Distal Right Coronary Artery",
+      "parentVessel": "rca-mid",
+      "segmentType": "distal",
+      "commonAlias": "Distal RCA",
+      "perfusionTerritory": ["inferior-wall", "posterior-wall"],
+      "ecgTerritories": ["II", "III", "aVF"],
+      "commonMIPatterns": ["Inferior STEMI"],
+      "dominanceRelevance": "Bifurcates into PDA and posterolateral branches in right-dominant",
+      "catheterizationRelevance": "Crux of the heart — critical bifurcation point.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Assess dominance",
+        "severe": "PCI if right-dominant",
+        "occlusion": "Inferior MI with AV nodal ischemia"
+      },
+      "branchChildren": ["pda", "posterolateral-branch"],
+      "modelPathReference": "coronary.rca.distal",
+      "displayOrder": 17
+    },
+    {
+      "id": "conus-branch",
+      "name": "Conus Branch",
+      "parentVessel": "rca-proximal",
+      "segmentType": "branch",
+      "commonAlias": "Conus",
+      "perfusionTerritory": ["rvot"],
+      "ecgTerritories": [],
+      "commonMIPatterns": [],
+      "dominanceRelevance": "Independent of dominance, may arise from aorta directly",
+      "catheterizationRelevance": "Collateral pathway to LAD territory via Vieussens ring.",
+      "lesionSeverityHooks": {
+        "mild": "Not clinically significant",
+        "moderate": "Not clinically significant",
+        "severe": "Important collateral pathway",
+        "occlusion": "Loss of RVOT collateral supply"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.rca.conus",
+      "displayOrder": 18
+    },
+    {
+      "id": "sa-nodal-branch",
+      "name": "SA Nodal Branch",
+      "parentVessel": "rca-proximal",
+      "segmentType": "branch",
+      "commonAlias": "SA Nodal Artery",
+      "perfusionTerritory": ["sa-node", "right-atrium"],
+      "ecgTerritories": [],
+      "commonMIPatterns": ["Sinus node dysfunction"],
+      "dominanceRelevance": "From RCA in 55%, from LCx in 45%",
+      "catheterizationRelevance": "Rarely target for PCI. Important in understanding post-MI sinus node dysfunction.",
+      "lesionSeverityHooks": {
+        "mild": "No clinical significance",
+        "moderate": "Rare sinus bradycardia",
+        "severe": "Sinus node dysfunction possible",
+        "occlusion": "Sinus node ischemia, bradycardia, sick sinus"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.rca.sa-nodal",
+      "displayOrder": 19
+    },
+    {
+      "id": "am-branch",
+      "name": "Acute Marginal Branch",
+      "parentVessel": "rca-mid",
+      "segmentType": "branch",
+      "commonAlias": "AM Branch",
+      "perfusionTerritory": ["rv-free-wall"],
+      "ecgTerritories": ["V1", "V4R"],
+      "commonMIPatterns": ["RV infarction"],
+      "dominanceRelevance": "Independent of dominance",
+      "catheterizationRelevance": "Important for RV territory assessment.",
+      "lesionSeverityHooks": {
+        "mild": "No significant impact",
+        "moderate": "Mild RV dysfunction",
+        "severe": "RV ischemia",
+        "occlusion": "RV infarction contributing to hemodynamic instability"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.rca.am",
+      "displayOrder": 20
+    },
+    {
+      "id": "pda",
+      "name": "Posterior Descending Artery",
+      "parentVessel": "rca-distal",
+      "segmentType": "branch",
+      "commonAlias": "PDA",
+      "perfusionTerritory": ["inferior-septum", "inferior-wall"],
+      "ecgTerritories": ["II", "III", "aVF"],
+      "commonMIPatterns": ["Inferior STEMI with septal involvement"],
+      "dominanceRelevance": "From RCA in right-dominant (85%), from LCx in left-dominant (8%), both in codominant (7%)",
+      "catheterizationRelevance": "Determines coronary dominance. Supplies AV node branch in most patients.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Assess clinical significance",
+        "severe": "PCI if large territory",
+        "occlusion": "Inferior septal infarction, AV block risk"
+      },
+      "branchChildren": ["av-nodal-branch"],
+      "modelPathReference": "coronary.rca.pda",
+      "displayOrder": 21
+    },
+    {
+      "id": "posterolateral-branch",
+      "name": "Posterolateral Branch",
+      "parentVessel": "rca-distal",
+      "segmentType": "branch",
+      "commonAlias": "PLV",
+      "perfusionTerritory": ["posterolateral-wall", "inferior-wall"],
+      "ecgTerritories": ["II", "III", "aVF"],
+      "commonMIPatterns": ["Posterolateral MI"],
+      "dominanceRelevance": "Present in right-dominant systems",
+      "catheterizationRelevance": "Part of dominant RCA territory.",
+      "lesionSeverityHooks": {
+        "mild": "Medical management",
+        "moderate": "Medical management",
+        "severe": "Part of overall RCA territory assessment",
+        "occlusion": "Posterolateral infarction"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.rca.plv",
+      "displayOrder": 22
+    },
+    {
+      "id": "av-nodal-branch",
+      "name": "AV Nodal Branch",
+      "parentVessel": "pda",
+      "segmentType": "terminal",
+      "commonAlias": "AV Nodal Artery",
+      "perfusionTerritory": ["av-node"],
+      "ecgTerritories": [],
+      "commonMIPatterns": ["AV block in inferior MI"],
+      "dominanceRelevance": "From dominant artery — RCA in right-dominant, LCx in left-dominant",
+      "catheterizationRelevance": "Not a PCI target. Important in understanding conduction disturbances in MI.",
+      "lesionSeverityHooks": {
+        "mild": "No clinical impact",
+        "moderate": "First-degree AV block possible",
+        "severe": "Second or third-degree AV block",
+        "occlusion": "Complete heart block in inferior MI"
+      },
+      "branchChildren": [],
+      "modelPathReference": "coronary.rca.av-nodal",
+      "displayOrder": 23
+    }
+  ]
+}
