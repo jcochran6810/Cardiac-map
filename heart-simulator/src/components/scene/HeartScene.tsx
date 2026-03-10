@@ -93,30 +93,94 @@ function identifyRegion(point: THREE.Vector3): AnatomyZone | null {
 
 // Reverse lookup: given a structure ID from the menu, where should we highlight?
 const STRUCTURE_CENTERS: Record<string, [number, number, number]> = {
+  // Chambers
   'right-atrium': [0.25, 0.0, 0.3],
   'left-atrium': [-0.25, -0.1, 0.3],
   'right-ventricle': [0.15, 0.15, -0.2],
   'left-ventricle': [-0.15, -0.1, -0.2],
   'right-atrial-appendage': [0.35, 0.2, 0.35],
   'left-atrial-appendage': [-0.35, 0.1, 0.3],
+  // Septa & Landmarks
+  'interatrial-septum': [0.0, -0.05, 0.3],
+  'interventricular-septum': [0.0, 0.2, -0.1],
+  'fossa-ovalis': [0.05, -0.1, 0.25],
+  'apex': [0.0, 0.0, -0.75],
+  'base-of-heart': [0.0, 0.0, 0.55],
+  // Valves
+  'mitral-annulus': [-0.15, -0.05, 0.1],
+  'aortic-valve-rcc': [-0.05, 0.05, 0.5],
+  'tricuspid-annulus': [0.15, 0.1, 0.1],
+  'pulmonary-valve-cusps': [0.1, 0.15, 0.5],
+  // Great Vessels
   'ascending-aorta': [-0.05, 0.0, 0.65],
   'aortic-arch': [-0.15, -0.05, 0.7],
   'pulmonary-trunk': [0.1, 0.1, 0.6],
   'svc': [0.3, -0.1, 0.6],
   'ivc': [0.2, -0.15, -0.55],
-  'apex': [0.0, 0.0, -0.75],
-  'interventricular-septum': [0.0, 0.2, -0.1],
-  'interatrial-septum': [0.0, -0.05, 0.3],
-  'tricuspid-annulus': [0.15, 0.1, 0.1],
-  'mitral-annulus': [-0.15, -0.05, 0.1],
-  'aortic-valve-rcc': [-0.05, 0.05, 0.5],
-  'pulmonary-valve-cusps': [0.1, 0.15, 0.5],
+  // Pericardium & Layers
+  'fibrous-pericardium': [0.0, 0.25, 0.0],
   'epicardium': [0.0, 0.2, 0.0],
   'myocardium': [0.0, 0.0, 0.0],
-  'endocardium': [0.0, 0.0, 0.0],
-  'base-of-heart': [0.0, 0.0, 0.55],
-  'fossa-ovalis': [0.05, -0.1, 0.25],
+  'endocardium': [0.0, -0.05, 0.0],
+  // Subvalvular
+  'anterolateral-papillary-muscle': [-0.2, 0.1, -0.35],
+  'posteromedial-papillary-muscle': [-0.1, -0.15, -0.35],
+  'moderator-band': [0.15, 0.1, -0.3],
+  'crista-terminalis': [0.3, -0.05, 0.25],
+  // Coronary arteries - Left
+  'lmca': [-0.1, 0.1, 0.52],
+  'lad-proximal': [-0.02, 0.2, 0.35],
+  'lad-mid': [0.0, 0.22, 0.05],
+  'lad-distal': [0.0, 0.2, -0.3],
+  'd1': [0.12, 0.25, 0.15],
+  'd2': [0.1, 0.23, -0.05],
+  'lcx-proximal': [-0.2, 0.0, 0.4],
+  'om1': [-0.3, 0.1, 0.15],
+  'om2': [-0.32, 0.05, -0.05],
+  // Coronary arteries - Right
+  'rca-proximal': [0.2, 0.05, 0.45],
+  'rca-mid': [0.3, -0.05, 0.2],
+  'rca-distal': [0.25, -0.1, -0.15],
+  'pda': [0.1, -0.15, -0.35],
+  'am-branch': [0.32, 0.0, 0.0],
+  // Conduction system
+  'sa-node': [0.3, -0.05, 0.4],
+  'av-node': [0.05, -0.05, 0.2],
+  'bundle-of-his': [0.0, 0.0, 0.15],
+  'right-bundle-branch': [0.12, 0.1, -0.1],
+  'left-bundle-branch': [-0.1, 0.0, -0.1],
+  'left-anterior-fascicle': [-0.15, 0.1, -0.3],
+  'left-posterior-fascicle': [-0.1, -0.1, -0.3],
+  'purkinje-network-rv': [0.15, 0.15, -0.45],
+  'purkinje-network-lv': [-0.15, -0.05, -0.45],
 };
+
+// Best camera angle to view each structure region
+const STRUCTURE_CAMERA: Record<string, { position: [number, number, number]; target: [number, number, number] }> = {
+  // Default anterior view for most structures
+};
+
+function getCameraForStructure(id: string): { position: [number, number, number]; target: [number, number, number] } {
+  if (STRUCTURE_CAMERA[id]) return STRUCTURE_CAMERA[id];
+  const center = STRUCTURE_CENTERS[id];
+  if (!center) return { position: [0, 0.2, 4], target: [0, 0, 0] };
+  // Position camera looking at the structure from a reasonable angle
+  // Offset outward from center to frame the structure
+  const [cx, cy, cz] = center;
+  // Scale from model-local coords (inside scale 1.4 group) to world
+  const wx = cx * 1.4, wy = cy * 1.4, wz = cz * 1.4;
+  // Camera distance from target
+  const dist = 3.0;
+  // Compute a direction: prefer looking from front-ish angle biased by structure position
+  const dx = wx * 0.5;
+  const dy = wy * 0.3 + 0.3;
+  const dz = 2.5;
+  const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  return {
+    position: [wx + (dx / len) * dist, wy + (dy / len) * dist, wz + (dz / len) * dist],
+    target: [wx, wy, wz],
+  };
+}
 
 // ─── Noise utilities ───────────────────────────────────────────────────
 function hash(x: number, y: number): number {
@@ -484,11 +548,24 @@ function HeartMesh() {
       {activeCenter && (
         <group position={activeCenter}>
           <HighlightRing />
-          <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
-            <div className="bg-cardiac-accent/90 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap font-semibold capitalize">
-              {activeName}
-            </div>
-          </Html>
+          {/* Label line + text offset to the right side, not overlaying the heart */}
+          <group>
+            {/* Leader line from structure to label */}
+            <line>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  args={[new Float32Array([0, 0, 0, 0.5, 0.3, 0.4]), 3]}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color="#00ccff" transparent opacity={0.6} />
+            </line>
+            <Html position={[0.5, 0.3, 0.4]} center distanceFactor={3} style={{ pointerEvents: 'none' }}>
+              <div className="bg-cardiac-accent/90 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap font-semibold capitalize">
+                {activeName}
+              </div>
+            </Html>
+          </group>
         </group>
       )}
 
@@ -1550,10 +1627,34 @@ function AnimationTick() {
 function CameraController() {
   const { camera } = useThree();
   const preset = useSceneStore((s) => s.cameraPreset);
+  const selectedStructureId = useSceneStore((s) => s.selectedStructureId);
+  const prevSelectedRef = useRef<string | null>(null);
+  const targetRef = useRef<{ position: THREE.Vector3; lookAt: THREE.Vector3 } | null>(null);
+
+  // When a structure is selected from the menu, compute camera target
   useFrame(() => {
+    if (selectedStructureId && selectedStructureId !== prevSelectedRef.current) {
+      prevSelectedRef.current = selectedStructureId;
+      const cam = getCameraForStructure(selectedStructureId);
+      targetRef.current = {
+        position: new THREE.Vector3(...cam.position),
+        lookAt: new THREE.Vector3(...cam.target),
+      };
+    } else if (!selectedStructureId) {
+      prevSelectedRef.current = null;
+      targetRef.current = null;
+    }
+
+    // Camera preset takes priority
     if (preset) {
       camera.position.lerp(new THREE.Vector3(...preset.position), 0.05);
       camera.lookAt(new THREE.Vector3(...preset.target));
+    } else if (targetRef.current) {
+      camera.position.lerp(targetRef.current.position, 0.04);
+      // Smoothly update where the camera looks
+      const currentLookAt = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).add(camera.position);
+      currentLookAt.lerp(targetRef.current.lookAt, 0.04);
+      camera.lookAt(targetRef.current.lookAt);
     }
   });
   return null;
@@ -1593,7 +1694,7 @@ export default function HeartScene() {
         </group>
 
         <ContactShadows position={[0, -2.2, 0]} opacity={0.5} blur={2.5} far={5} />
-        <OrbitControls enablePan enableZoom enableRotate minDistance={1.5} maxDistance={8} dampingFactor={0.08} enableDamping />
+        <OrbitControls enablePan enableZoom enableRotate rotateSpeed={0.8} minDistance={1.5} maxDistance={8} dampingFactor={0.08} enableDamping />
         <Environment preset="studio" />
 
         {/* Orientation axis gizmo in bottom-right corner */}
