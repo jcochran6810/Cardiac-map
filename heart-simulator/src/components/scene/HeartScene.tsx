@@ -216,6 +216,47 @@ function addVertexColors(geo: THREE.BufferGeometry) {
   geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
 }
 
+// ─── Opacity / side helpers per view mode ─────────────────────────────
+function getHeartOpacity(viewMode: string): number {
+  switch (viewMode) {
+    case 'dissection': return 0.18;
+    case 'cutaway': case 'sectional': return 0.5;
+    case 'coronary': return 0.35;
+    case 'internal': return 0.4;
+    case 'perfusion': return 0.55;
+    case 'conduction': return 0.45;
+    case 'wall-motion': return 0.7;
+    default: return 1;
+  }
+}
+function isTransparentMode(viewMode: string): boolean {
+  return viewMode !== 'external' && viewMode !== 'procedure-overlay' && viewMode !== 'imaging-correlation';
+}
+
+// ─── Basal cap (seals top of heart so interior is hidden) ─────────────
+function BasalCap() {
+  const { viewMode } = useAppStore();
+  const geo = useMemo(() => {
+    // Disc that covers the base opening where great vessels emerge
+    const g = new THREE.CircleGeometry(0.7, 48);
+    g.computeVertexNormals();
+    return g;
+  }, []);
+
+  if (isTransparentMode(viewMode)) return null;
+
+  return (
+    <mesh geometry={geo} position={[0.05, 1.1, -0.05]} rotation={[-Math.PI / 2 + 0.08, 0, 0]}>
+      <meshPhysicalMaterial
+        color="#b05050"
+        roughness={0.45}
+        clearcoat={0.3}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+}
+
 // ─── Heart mesh ────────────────────────────────────────────────────────
 function HeartMesh() {
   const ref = useRef<THREE.Mesh>(null);
@@ -238,23 +279,26 @@ function HeartMesh() {
     }
   });
 
+  const transparent = isTransparentMode(viewMode);
+  const opacity = getHeartOpacity(viewMode);
+
   return (
     <mesh ref={ref} geometry={geometry} castShadow receiveShadow>
       <meshPhysicalMaterial
         vertexColors
         roughness={0.38}
         metalness={0.02}
-        clearcoat={0.6}
+        clearcoat={transparent ? 0.2 : 0.6}
         clearcoatRoughness={0.25}
-        sheen={0.6}
+        sheen={transparent ? 0.2 : 0.6}
         sheenRoughness={0.35}
         sheenColor={new THREE.Color(0.75, 0.3, 0.25)}
         normalMap={normalMap}
         normalScale={new THREE.Vector2(0.5, 0.5)}
-        transparent={viewMode === 'cutaway' || viewMode === 'dissection'}
-        opacity={viewMode === 'dissection' ? 0.18 : viewMode === 'cutaway' ? 0.5 : 1}
-        side={viewMode === 'cutaway' || viewMode === 'dissection' ? THREE.DoubleSide : THREE.FrontSide}
-        depthWrite={viewMode !== 'dissection'}
+        transparent={transparent}
+        opacity={opacity}
+        side={transparent ? THREE.DoubleSide : THREE.FrontSide}
+        depthWrite={!transparent || opacity > 0.4}
         emissive={hoveredStructureId === 'heart-external' ? new THREE.Color(0.15, 0.03, 0.02) : new THREE.Color(0.025, 0.004, 0.003)}
       />
     </mesh>
@@ -453,27 +497,46 @@ function GreatVessels() {
 // Blue veins are dominant on anterior surface, branching downward from AV groove.
 // Red arteries run in sulci, less visible from front.
 function CoronaryNetwork() {
+  const { viewMode } = useAppStore();
   const vessels = useMemo(() => {
     const V: { curve: THREE.CatmullRomCurve3; radius: number; color: string }[] = [];
     const BLUE = '#4070cc';
     const LBLUE = '#5585d8';
     const RED = '#cc2020';
 
-    // Helper to add a tube
+    // Snap points onto heart surface so vessels don't float
+    function snap(p: THREE.Vector3): THREE.Vector3 {
+      const q = p.clone();
+      // The heart surface z-extent is ~0.82 * profile at anterior/posterior.
+      // Pull all points radially inward toward the y-axis to sit on surface.
+      const radXZ = Math.sqrt(q.x * q.x + q.z * q.z);
+      if (radXZ > 0.1) {
+        // Heart surface max radial extent at any height is ~0.86 (rx*profile)
+        // Scale radial distance to 92% to ensure surface contact
+        const scale = 0.92;
+        q.x *= scale;
+        q.z *= scale;
+      }
+      return q;
+    }
+
+    // Helper to add a tube (snaps points to surface)
     function add(pts: THREE.Vector3[], r: number, c: string) {
-      if (pts.length >= 2) V.push({ curve: new THREE.CatmullRomCurve3(pts), radius: r, color: c });
+      const snapped = pts.map(snap);
+      if (snapped.length >= 2) V.push({ curve: new THREE.CatmullRomCurve3(snapped), radius: r, color: c });
     }
 
     // Helper: generate sub-branches from a parent vessel
     function branch(pts: THREE.Vector3[], r: number, c: string, depth: number, max: number, seed: number) {
+      const snapped = pts.map(snap);
       add(pts, r, c);
       if (depth >= max) return;
       const nb = 1 + Math.floor(hash(seed, depth) * 2);
       for (let b = 0; b < nb; b++) {
         const t = 0.25 + hash(seed + b * 7, depth + 3) * 0.55;
-        const pi = Math.min(Math.floor(t * (pts.length - 1)), pts.length - 2);
-        const o = pts[pi].clone();
-        const d = pts[pi + 1].clone().sub(o).normalize();
+        const pi = Math.min(Math.floor(t * (snapped.length - 1)), snapped.length - 2);
+        const o = snapped[pi].clone();
+        const d = snapped[pi + 1].clone().sub(o).normalize();
         const px = (hash(seed + b * 13, depth * 5) - 0.5) * 2;
         const pz = (hash(seed + b * 23, depth * 11) - 0.5) * 2;
         const perp = new THREE.Vector3(px, -0.3, pz).normalize();
@@ -663,6 +726,8 @@ function CoronaryNetwork() {
     return V;
   }, []);
 
+  const isCoronaryMode = viewMode === 'coronary';
+
   // Always show coronary vessels — they define the external heart appearance
   return (
     <group>
@@ -671,11 +736,11 @@ function CoronaryNetwork() {
           <tubeGeometry args={[v.curve, 48, v.radius, 8, false]} />
           <meshPhysicalMaterial
             color={v.color}
-            roughness={0.32}
-            clearcoat={0.55}
+            roughness={isCoronaryMode ? 0.2 : 0.32}
+            clearcoat={isCoronaryMode ? 0.8 : 0.55}
             clearcoatRoughness={0.22}
             emissive={v.color}
-            emissiveIntensity={0.04}
+            emissiveIntensity={isCoronaryMode ? 0.25 : 0.04}
           />
         </mesh>
       ))}
@@ -1030,6 +1095,133 @@ function Septum() {
   );
 }
 
+// ─── Wall motion overlay (17-segment AHA model) ──────────────────────
+function WallMotionOverlay() {
+  const { viewMode } = useAppStore();
+
+  const segments = useMemo(() => {
+    // Simplified 6 basal + 6 mid + 4 apical + 1 apex = 17 segments
+    const segs: { pos: [number, number, number]; color: string; label: string }[] = [];
+    const colors = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#22c55e'];
+    const baseY = 0.35, midY = -0.1, apicalY = -0.55;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      segs.push({ pos: [Math.cos(a) * 0.55, baseY, Math.sin(a) * 0.55], color: colors[i], label: `B${i + 1}` });
+      segs.push({ pos: [Math.cos(a) * 0.5, midY, Math.sin(a) * 0.5], color: colors[(i + 1) % 6], label: `M${i + 1}` });
+    }
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      segs.push({ pos: [Math.cos(a) * 0.35, apicalY, Math.sin(a) * 0.35], color: colors[i % 6], label: `A${i + 1}` });
+    }
+    segs.push({ pos: [-0.1, -0.8, 0.05], color: '#22c55e', label: 'Apex' });
+    return segs;
+  }, []);
+
+  if (viewMode !== 'wall-motion') return null;
+
+  return (
+    <group>
+      {segments.map((s, i) => (
+        <group key={i} position={s.pos}>
+          <mesh>
+            <sphereGeometry args={[0.06, 12, 12]} />
+            <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={0.5} transparent opacity={0.8} />
+          </mesh>
+          <Html center distanceFactor={4} style={{ pointerEvents: 'none' }}>
+            <div className="text-white text-[8px] font-bold bg-black/60 px-1 rounded">{s.label}</div>
+          </Html>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// ─── Procedure overlay (common intervention sites) ───────────────────
+function ProcedureOverlay() {
+  const { viewMode } = useAppStore();
+  if (viewMode !== 'procedure-overlay') return null;
+
+  const sites = [
+    { pos: [0.15, 0.5, 0.75] as [number, number, number], label: 'Femoral Access', color: '#60a5fa' },
+    { pos: [-0.1, 0.88, 0.15] as [number, number, number], label: 'Aortic Valve (TAVR)', color: '#f472b6' },
+    { pos: [-0.22, 0.22, -0.05] as [number, number, number], label: 'Mitral Valve (MitraClip)', color: '#fb923c' },
+    { pos: [-0.06, 0.0, 0.86] as [number, number, number], label: 'LAD Stent Site', color: '#34d399' },
+    { pos: [0.55, 0.7, 0.3] as [number, number, number], label: 'Pacemaker Lead (RA)', color: '#a78bfa' },
+    { pos: [0.3, -0.3, 0.3] as [number, number, number], label: 'RV Lead', color: '#a78bfa' },
+  ];
+
+  return (
+    <group>
+      {sites.map((s, i) => (
+        <group key={i} position={s.pos}>
+          <mesh>
+            <sphereGeometry args={[0.04, 16, 16]} />
+            <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={0.7} />
+          </mesh>
+          {/* Pulsing ring */}
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.05, 0.07, 24]} />
+            <meshStandardMaterial color={s.color} emissive={s.color} emissiveIntensity={0.5} transparent opacity={0.6} side={THREE.DoubleSide} />
+          </mesh>
+          <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
+            <div className="text-white text-[9px] font-semibold bg-black/70 px-1.5 py-0.5 rounded whitespace-nowrap">{s.label}</div>
+          </Html>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// ─── Imaging correlation overlay (imaging planes) ────────────────────
+function ImagingOverlay() {
+  const { viewMode } = useAppStore();
+  if (viewMode !== 'imaging-correlation') return null;
+
+  const planes = [
+    { pos: [0, 0, 0] as [number, number, number], rot: [0, 0, 0] as [number, number, number], label: 'PLAX', color: '#60a5fa' },
+    { pos: [0, 0, 0] as [number, number, number], rot: [0, Math.PI / 2, 0] as [number, number, number], label: 'PSAX', color: '#f472b6' },
+    { pos: [0, -0.1, 0] as [number, number, number], rot: [Math.PI / 2, 0, 0.3] as [number, number, number], label: 'A4C', color: '#34d399' },
+  ];
+
+  return (
+    <group>
+      {planes.map((p, i) => (
+        <group key={i} position={p.pos} rotation={p.rot}>
+          <mesh>
+            <planeGeometry args={[2.5, 2.5]} />
+            <meshStandardMaterial color={p.color} transparent opacity={0.12} side={THREE.DoubleSide} emissive={p.color} emissiveIntensity={0.15} />
+          </mesh>
+          <Html position={[1.3, 0, 0]} distanceFactor={3} style={{ pointerEvents: 'none' }}>
+            <div className="text-white text-xs font-bold bg-black/70 px-1.5 py-0.5 rounded">{p.label}</div>
+          </Html>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// ─── Sectional view (clip plane visualization) ──────────────────────
+function SectionalClipPlane() {
+  const { viewMode } = useAppStore();
+  const { clipPlane } = useSceneStore();
+  if (viewMode !== 'sectional') return null;
+
+  return (
+    <group>
+      {/* Show a visible clip plane indicator */}
+      <mesh position={[0, 0, 0]} rotation={[0, 0, 0]}>
+        <planeGeometry args={[3, 3]} />
+        <meshStandardMaterial color="#ff6b6b" transparent opacity={0.08} side={THREE.DoubleSide} />
+      </mesh>
+      <Html position={[0, 1.5, 0]} center distanceFactor={4} style={{ pointerEvents: 'none' }}>
+        <div className="text-red-400 text-xs font-bold bg-black/60 px-2 py-1 rounded">
+          {clipPlane ? `Clip: ${clipPlane.axis.toUpperCase()} = ${clipPlane.value.toFixed(1)}` : 'Use clipping controls to section'}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 // ─── Conduction system ─────────────────────────────────────────────────
 function ConductionOverlay() {
   const { viewMode } = useAppStore();
@@ -1157,6 +1349,7 @@ export default function HeartScene() {
 
         <group rotation={[0.1, -0.15, 0.12]}>
           <HeartMesh />
+          <BasalCap />
           <GreatVessels />
           <RightAuricle />
           <LeftAuricle />
@@ -1165,6 +1358,10 @@ export default function HeartScene() {
           <ChamberMeshes />
           <HeartValves />
           <Septum />
+          <WallMotionOverlay />
+          <ProcedureOverlay />
+          <ImagingOverlay />
+          <SectionalClipPlane />
           <ConductionOverlay />
           <BloodFlowParticles />
         </group>
