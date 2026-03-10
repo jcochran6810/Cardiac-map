@@ -1,58 +1,212 @@
 'use client';
 
-import React, { useRef, useMemo, useCallback } from 'react';
-import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
+import React, { useRef, useMemo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Environment, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
-import { useSceneStore, CAMERA_PRESETS } from '@/store/useSceneStore';
+import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useAppStore } from '@/store/useAppStore';
 
-// Procedural heart geometry using parametric surface
-function createHeartShape(): THREE.Shape {
-  const shape = new THREE.Shape();
-  // Heart outline using bezier curves
-  shape.moveTo(0, -0.8);
-  shape.bezierCurveTo(0, -1.2, -0.5, -1.4, -0.8, -1.0);
-  shape.bezierCurveTo(-1.2, -0.6, -1.2, 0.2, -0.8, 0.6);
-  shape.bezierCurveTo(-0.5, 0.9, -0.1, 1.1, 0, 1.3);
-  shape.bezierCurveTo(0.1, 1.1, 0.5, 0.9, 0.8, 0.6);
-  shape.bezierCurveTo(1.2, 0.2, 1.2, -0.6, 0.8, -1.0);
-  shape.bezierCurveTo(0.5, -1.4, 0, -1.2, 0, -0.8);
-  return shape;
+// ─── Anatomical heart geometry builder ─────────────────────────────────
+// Builds a realistic heart from multiple deformed ellipsoids fused together
+// with surface grooves (sulci) and proper asymmetry.
+
+function buildAnatomicalHeartGeometry(): THREE.BufferGeometry {
+  const segments = 128;
+  const rings = 96;
+  const vertices: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let j = 0; j <= rings; j++) {
+    const v = j / rings;
+    const phi = v * Math.PI; // 0 to PI (top to bottom)
+
+    for (let i = 0; i <= segments; i++) {
+      const u = i / segments;
+      const theta = u * Math.PI * 2; // 0 to 2PI around
+
+      // --- Base ellipsoid (overall heart shape) ---
+      // The heart is wider than tall, and deeper front-to-back
+      let rx = 1.0;
+      let ry = 1.25;
+      let rz = 0.85;
+
+      // --- Apex tapering (bottom comes to a point, shifted left) ---
+      const apexFactor = Math.pow(Math.sin(phi), 0.6);
+      const apexTaper = v > 0.55 ? 1.0 - 0.65 * Math.pow((v - 0.55) / 0.45, 1.8) : 1.0;
+
+      // --- Atrial bulges (top of heart, two bumps) ---
+      const atrialRegion = v < 0.35 ? Math.pow(1.0 - v / 0.35, 2) : 0;
+      // Right atrium bulge (right-front)
+      const raAngle = Math.cos(theta - 0.3) * 0.5 + 0.5;
+      const raBulge = atrialRegion * raAngle * 0.25;
+      // Left atrium bulge (left-back)
+      const laAngle = Math.cos(theta - Math.PI + 0.3) * 0.5 + 0.5;
+      const laBulge = atrialRegion * laAngle * 0.2;
+
+      // --- Ventricular asymmetry ---
+      // LV is thick and round (left-back), RV wraps around front-right
+      const ventricularRegion = v > 0.3 && v < 0.85 ? Math.sin((v - 0.3) / 0.55 * Math.PI) : 0;
+      // RV bulge on the front-right
+      const rvAngle = Math.cos(theta - 0.4) * 0.5 + 0.5;
+      const rvBulge = ventricularRegion * rvAngle * 0.15;
+      // LV is slightly more convex on the left-back
+      const lvAngle = Math.cos(theta - Math.PI - 0.2) * 0.5 + 0.5;
+      const lvBulge = ventricularRegion * lvAngle * 0.1;
+
+      // --- Interventricular sulcus (anterior groove) ---
+      // Runs from base to apex on the front surface
+      const ivSulcusAngle = Math.exp(-Math.pow((theta - 0.2), 2) * 8);
+      const ivSulcusDepth = ventricularRegion * ivSulcusAngle * 0.08;
+      // Posterior interventricular sulcus
+      const pivSulcusAngle = Math.exp(-Math.pow((theta - Math.PI - 0.1), 2) * 8);
+      const pivSulcusDepth = ventricularRegion * pivSulcusAngle * 0.06;
+
+      // --- Coronary (atrioventricular) sulcus ---
+      // Horizontal groove separating atria from ventricles
+      const avSulcusRegion = Math.exp(-Math.pow((v - 0.33), 2) * 200);
+      const avSulcusDepth = avSulcusRegion * 0.07;
+
+      // --- Combine all modifiers ---
+      const totalRadius = (1.0 + raBulge + laBulge + rvBulge + lvBulge
+        - ivSulcusDepth - pivSulcusDepth - avSulcusDepth) * apexTaper;
+
+      // Spherical to cartesian with ellipsoid radii
+      let x = rx * totalRadius * Math.sin(phi) * Math.cos(theta);
+      let y = ry * totalRadius * Math.cos(phi); // vertical
+      let z = rz * totalRadius * Math.sin(phi) * Math.sin(theta);
+
+      // --- Apex displacement (point shifts left and slightly forward) ---
+      if (v > 0.6) {
+        const apexShift = Math.pow((v - 0.6) / 0.4, 2);
+        x -= apexShift * 0.15;
+        z += apexShift * 0.08;
+      }
+
+      // --- Slight overall tilt (heart tilts left and forward) ---
+      const tiltAngle = 0.15;
+      const yTilted = y * Math.cos(tiltAngle) - z * Math.sin(tiltAngle);
+      const zTilted = y * Math.sin(tiltAngle) + z * Math.cos(tiltAngle);
+
+      // --- Surface irregularity (organic feel) ---
+      const noise = Math.sin(theta * 7 + phi * 5) * 0.008
+        + Math.sin(theta * 13 + phi * 11) * 0.005
+        + Math.sin(theta * 23 + phi * 19) * 0.003;
+      const finalX = x * (1 + noise);
+      const finalY = yTilted * (1 + noise * 0.5);
+      const finalZ = zTilted * (1 + noise);
+
+      vertices.push(finalX, finalY, finalZ);
+      uvs.push(u, v);
+      // Placeholder normals - will recompute
+      normals.push(0, 0, 0);
+    }
+  }
+
+  // Build index buffer
+  for (let j = 0; j < rings; j++) {
+    for (let i = 0; i < segments; i++) {
+      const a = j * (segments + 1) + i;
+      const b = a + 1;
+      const c = (j + 1) * (segments + 1) + i;
+      const d = c + 1;
+      indices.push(a, c, b);
+      indices.push(b, c, d);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  return geometry;
 }
 
-// Pulsing heart mesh
+// ─── Surface detail: fat/epicardial coloring via vertex colors ─────────
+function addVertexColors(geometry: THREE.BufferGeometry) {
+  const pos = geometry.getAttribute('position');
+  const uv = geometry.getAttribute('uv');
+  const count = pos.count;
+  const colors = new Float32Array(count * 3);
+
+  for (let i = 0; i < count; i++) {
+    const u = uv.getX(i);
+    const v = uv.getY(i);
+    const theta = u * Math.PI * 2;
+
+    // Base tissue color: deep reddish-brown
+    let r = 0.45, g = 0.12, b = 0.1;
+
+    // Darker in sulci regions
+    const ventricularRegion = v > 0.3 && v < 0.85 ? Math.sin((v - 0.3) / 0.55 * Math.PI) : 0;
+    const ivSulcus = Math.exp(-Math.pow((theta - 0.2), 2) * 8) * ventricularRegion;
+    const avSulcus = Math.exp(-Math.pow((v - 0.33), 2) * 200);
+
+    // Fat deposits along sulci (yellowish)
+    const fatAmount = (ivSulcus * 0.6 + avSulcus * 0.5);
+    r += fatAmount * 0.35;
+    g += fatAmount * 0.3;
+    b += fatAmount * 0.05;
+
+    // Atria are slightly lighter/pinker
+    if (v < 0.3) {
+      const atrialBlend = 1.0 - v / 0.3;
+      r += atrialBlend * 0.08;
+      g += atrialBlend * 0.02;
+      b += atrialBlend * 0.02;
+    }
+
+    // Ventricles slightly darker/redder toward apex
+    if (v > 0.6) {
+      const apexBlend = (v - 0.6) / 0.4;
+      r -= apexBlend * 0.06;
+      g -= apexBlend * 0.02;
+    }
+
+    // Slight variation for organic look
+    const noise = Math.sin(theta * 17 + v * 31) * 0.02;
+    r += noise;
+    g += noise * 0.5;
+    b += noise * 0.3;
+
+    colors[i * 3] = Math.max(0, Math.min(1, r));
+    colors[i * 3 + 1] = Math.max(0, Math.min(1, g));
+    colors[i * 3 + 2] = Math.max(0, Math.min(1, b));
+  }
+
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+}
+
+// ─── Pulsing anatomical heart mesh ─────────────────────────────────────
 function HeartMesh() {
   const meshRef = useRef<THREE.Mesh>(null);
   const { cycleProgress, playing } = useTimelineStore();
-  const { selectedStructureId, hoveredStructureId } = useSceneStore();
+  const { hoveredStructureId } = useSceneStore();
   const { viewMode } = useAppStore();
 
   const geometry = useMemo(() => {
-    const shape = createHeartShape();
-    const extrudeSettings = {
-      depth: 0.8,
-      bevelEnabled: true,
-      bevelSegments: 12,
-      steps: 2,
-      bevelSize: 0.3,
-      bevelThickness: 0.3,
-    };
-    const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    geo.center();
-    geo.computeVertexNormals();
+    const geo = buildAnatomicalHeartGeometry();
+    addVertexColors(geo);
     return geo;
   }, []);
 
   useFrame(() => {
     if (meshRef.current && playing) {
-      // Simulate cardiac contraction
-      const contractPhase = cycleProgress > 0.11 && cycleProgress < 0.4;
-      const scale = contractPhase
-        ? 1 - 0.05 * Math.sin((cycleProgress - 0.11) / 0.29 * Math.PI)
-        : 1;
-      meshRef.current.scale.setScalar(scale);
+      // Systolic contraction: ventricles squeeze
+      const systolicPhase = cycleProgress > 0.11 && cycleProgress < 0.4;
+      const t = systolicPhase ? (cycleProgress - 0.11) / 0.29 : 0;
+      const contractAmount = systolicPhase ? Math.sin(t * Math.PI) : 0;
+
+      // Different contraction axes for realism
+      const sx = 1 - contractAmount * 0.04;
+      const sy = 1 + contractAmount * 0.02; // elongates slightly during systole
+      const sz = 1 - contractAmount * 0.04;
+      meshRef.current.scale.set(sx, sy, sz);
     }
   });
 
@@ -61,27 +215,33 @@ function HeartMesh() {
   return (
     <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
       <meshPhysicalMaterial
-        color={isHighlighted ? '#ff6b6b' : '#cc3333'}
-        roughness={0.4}
-        metalness={0.1}
+        vertexColors
+        roughness={0.65}
+        metalness={0.02}
+        clearcoat={0.3}
+        clearcoatRoughness={0.4}
+        sheen={0.4}
+        sheenRoughness={0.5}
+        sheenColor={new THREE.Color(0.5, 0.1, 0.08)}
         transparent={viewMode === 'cutaway'}
         opacity={viewMode === 'cutaway' ? 0.5 : 1}
         side={viewMode === 'cutaway' ? THREE.DoubleSide : THREE.FrontSide}
+        emissive={isHighlighted ? new THREE.Color(0.15, 0.03, 0.02) : new THREE.Color(0, 0, 0)}
       />
     </mesh>
   );
 }
 
-// Chamber meshes
+// ─── Chamber meshes (internal view) ────────────────────────────────────
 function ChamberMeshes() {
   const { viewMode } = useAppStore();
   const { selectedStructureId, selectStructure, hoverStructure } = useSceneStore();
 
   const chambers = useMemo(() => [
-    { id: 'right-atrium', position: [0.5, 0.4, 0] as [number, number, number], color: '#4a90d9', label: 'RA', size: 0.35 },
-    { id: 'left-atrium', position: [-0.5, 0.4, -0.3] as [number, number, number], color: '#d94a4a', label: 'LA', size: 0.35 },
-    { id: 'right-ventricle', position: [0.4, -0.3, 0.2] as [number, number, number], color: '#5b9bd5', label: 'RV', size: 0.45 },
-    { id: 'left-ventricle', position: [-0.3, -0.3, -0.1] as [number, number, number], color: '#e04040', label: 'LV', size: 0.5 },
+    { id: 'right-atrium', position: [0.45, 0.55, 0.15] as [number, number, number], color: '#4a6f9e', label: 'RA', size: [0.3, 0.25, 0.25] as [number, number, number] },
+    { id: 'left-atrium', position: [-0.35, 0.55, -0.2] as [number, number, number], color: '#8e3535', label: 'LA', size: [0.3, 0.25, 0.25] as [number, number, number] },
+    { id: 'right-ventricle', position: [0.35, -0.15, 0.25] as [number, number, number], color: '#5b7faa', label: 'RV', size: [0.3, 0.45, 0.25] as [number, number, number] },
+    { id: 'left-ventricle', position: [-0.2, -0.2, -0.05] as [number, number, number], color: '#a83030', label: 'LV', size: [0.35, 0.5, 0.3] as [number, number, number] },
   ], []);
 
   if (viewMode !== 'internal' && viewMode !== 'cutaway' && viewMode !== 'sectional') return null;
@@ -95,11 +255,11 @@ function ChamberMeshes() {
             onPointerOver={() => hoverStructure(ch.id)}
             onPointerOut={() => hoverStructure(null)}
           >
-            <sphereGeometry args={[ch.size, 32, 32]} />
+            <sphereGeometry args={[0.3, 32, 32]} />
             <meshPhysicalMaterial
               color={selectedStructureId === ch.id ? '#ffff00' : ch.color}
               transparent
-              opacity={0.6}
+              opacity={0.5}
               roughness={0.3}
             />
           </mesh>
@@ -114,34 +274,56 @@ function ChamberMeshes() {
   );
 }
 
-// Coronary artery overlay
+// ─── Coronary artery overlay ───────────────────────────────────────────
 function CoronaryOverlay() {
   const { viewMode } = useAppStore();
 
   const arteries = useMemo(() => {
+    // LAD runs along the anterior interventricular sulcus
     const lad = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.1, 0.8, 0.6),
-      new THREE.Vector3(-0.2, 0.3, 0.7),
-      new THREE.Vector3(-0.15, -0.2, 0.65),
-      new THREE.Vector3(-0.1, -0.7, 0.5),
+      new THREE.Vector3(-0.05, 0.45, 0.75),
+      new THREE.Vector3(-0.08, 0.2, 0.82),
+      new THREE.Vector3(-0.1, -0.05, 0.78),
+      new THREE.Vector3(-0.12, -0.3, 0.65),
+      new THREE.Vector3(-0.1, -0.55, 0.45),
+      new THREE.Vector3(-0.08, -0.75, 0.25),
     ]);
+    // LCx runs along the left AV groove
     const lcx = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.1, 0.8, 0.6),
-      new THREE.Vector3(-0.5, 0.6, 0.3),
-      new THREE.Vector3(-0.8, 0.3, -0.1),
-      new THREE.Vector3(-0.7, 0, -0.3),
+      new THREE.Vector3(-0.05, 0.45, 0.75),
+      new THREE.Vector3(-0.35, 0.42, 0.55),
+      new THREE.Vector3(-0.65, 0.35, 0.2),
+      new THREE.Vector3(-0.75, 0.3, -0.15),
+      new THREE.Vector3(-0.6, 0.25, -0.45),
     ]);
+    // RCA runs along the right AV groove
     const rca = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.2, 0.8, 0.5),
-      new THREE.Vector3(0.6, 0.5, 0.4),
-      new THREE.Vector3(0.8, 0.1, 0.1),
-      new THREE.Vector3(0.6, -0.3, -0.2),
-      new THREE.Vector3(0.3, -0.5, -0.4),
+      new THREE.Vector3(0.15, 0.5, 0.7),
+      new THREE.Vector3(0.5, 0.42, 0.55),
+      new THREE.Vector3(0.75, 0.35, 0.25),
+      new THREE.Vector3(0.8, 0.3, -0.1),
+      new THREE.Vector3(0.65, 0.2, -0.4),
+      new THREE.Vector3(0.35, 0.1, -0.6),
     ]);
+    // Diagonal branch
+    const diag = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.08, 0.2, 0.82),
+      new THREE.Vector3(-0.3, 0.05, 0.75),
+      new THREE.Vector3(-0.5, -0.1, 0.55),
+    ]);
+    // Marginal branch from RCA
+    const marginal = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.75, 0.35, 0.25),
+      new THREE.Vector3(0.7, 0.1, 0.35),
+      new THREE.Vector3(0.55, -0.15, 0.35),
+    ]);
+
     return [
-      { curve: lad, name: 'LAD', color: '#ff4444' },
-      { curve: lcx, name: 'LCx', color: '#ff6644' },
-      { curve: rca, name: 'RCA', color: '#ff8844' },
+      { curve: lad, name: 'LAD', color: '#cc2222', radius: 0.018 },
+      { curve: lcx, name: 'LCx', color: '#cc3322', radius: 0.015 },
+      { curve: rca, name: 'RCA', color: '#cc2222', radius: 0.017 },
+      { curve: diag, name: 'D1', color: '#cc3333', radius: 0.01 },
+      { curve: marginal, name: 'OM', color: '#cc3333', radius: 0.01 },
     ];
   }, []);
 
@@ -151,15 +333,20 @@ function CoronaryOverlay() {
     <group>
       {arteries.map((a) => (
         <mesh key={a.name}>
-          <tubeGeometry args={[a.curve, 64, 0.025, 8, false]} />
-          <meshStandardMaterial color={a.color} emissive={a.color} emissiveIntensity={0.3} />
+          <tubeGeometry args={[a.curve, 64, a.radius, 8, false]} />
+          <meshPhysicalMaterial
+            color={a.color}
+            roughness={0.5}
+            emissive={a.color}
+            emissiveIntensity={0.15}
+          />
         </mesh>
       ))}
     </group>
   );
 }
 
-// Conduction system overlay
+// ─── Conduction system overlay ─────────────────────────────────────────
 function ConductionOverlay() {
   const { viewMode } = useAppStore();
   const { conductionProgress } = useTimelineStore();
@@ -167,11 +354,11 @@ function ConductionOverlay() {
   if (viewMode !== 'conduction') return null;
 
   const nodes = [
-    { id: 'sa-node', pos: [0.4, 0.7, 0.3] as [number, number, number], label: 'SA Node' },
-    { id: 'av-node', pos: [0.1, 0.2, 0.3] as [number, number, number], label: 'AV Node' },
-    { id: 'bundle-of-his', pos: [0, 0, 0.3] as [number, number, number], label: 'Bundle of His' },
-    { id: 'rbb', pos: [0.3, -0.3, 0.3] as [number, number, number], label: 'RBB' },
-    { id: 'lbb', pos: [-0.3, -0.3, 0.3] as [number, number, number], label: 'LBB' },
+    { id: 'sa-node', pos: [0.5, 0.65, 0.3] as [number, number, number], label: 'SA Node' },
+    { id: 'av-node', pos: [0.1, 0.3, 0.3] as [number, number, number], label: 'AV Node' },
+    { id: 'bundle-of-his', pos: [0, 0.1, 0.3] as [number, number, number], label: 'Bundle of His' },
+    { id: 'rbb', pos: [0.25, -0.25, 0.3] as [number, number, number], label: 'RBB' },
+    { id: 'lbb', pos: [-0.2, -0.25, 0.3] as [number, number, number], label: 'LBB' },
   ];
 
   return (
@@ -181,7 +368,7 @@ function ConductionOverlay() {
         return (
           <group key={node.id} position={node.pos}>
             <mesh>
-              <sphereGeometry args={[0.06, 16, 16]} />
+              <sphereGeometry args={[0.05, 16, 16]} />
               <meshStandardMaterial
                 color={active ? '#fbbf24' : '#666'}
                 emissive={active ? '#fbbf24' : '#000'}
@@ -200,7 +387,7 @@ function ConductionOverlay() {
   );
 }
 
-// Blood flow particles
+// ─── Blood flow particles ──────────────────────────────────────────────
 function BloodFlowParticles() {
   const { viewMode } = useAppStore();
   const { cycleProgress, playing } = useTimelineStore();
@@ -211,14 +398,13 @@ function BloodFlowParticles() {
     const pos = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 2;
+      pos[i * 3] = (Math.random() - 0.5) * 1.6;
       pos[i * 3 + 1] = (Math.random() - 0.5) * 2;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 1.5;
-      // Red for oxygenated, blue for deoxygenated
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 1.2;
       const isOxy = pos[i * 3] < 0;
-      colors[i * 3] = isOxy ? 0.9 : 0.2;
-      colors[i * 3 + 1] = 0.1;
-      colors[i * 3 + 2] = isOxy ? 0.2 : 0.9;
+      colors[i * 3] = isOxy ? 0.7 : 0.15;
+      colors[i * 3 + 1] = 0.05;
+      colors[i * 3 + 2] = isOxy ? 0.1 : 0.6;
     }
     return { positions: pos, colors };
   }, []);
@@ -228,7 +414,7 @@ function BloodFlowParticles() {
     const posArr = particlesRef.current.geometry.attributes.position.array as Float32Array;
     for (let i = 0; i < particleCount; i++) {
       posArr[i * 3 + 1] -= delta * 0.5 * (cycleProgress > 0.16 && cycleProgress < 0.4 ? 2 : 0.5);
-      if (posArr[i * 3 + 1] < -1.5) posArr[i * 3 + 1] = 1.5;
+      if (posArr[i * 3 + 1] < -1.2) posArr[i * 3 + 1] = 1.2;
     }
     particlesRef.current.geometry.attributes.position.needsUpdate = true;
   });
@@ -238,78 +424,141 @@ function BloodFlowParticles() {
   return (
     <points ref={particlesRef}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions.positions, 3]}
-        />
-        <bufferAttribute
-          attach="attributes-color"
-          args={[positions.colors, 3]}
-        />
+        <bufferAttribute attach="attributes-position" args={[positions.positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[positions.colors, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.03} vertexColors transparent opacity={0.7} />
+      <pointsMaterial size={0.025} vertexColors transparent opacity={0.6} />
     </points>
   );
 }
 
-// Great vessels
+// ─── Great vessels (anatomically placed) ───────────────────────────────
 function GreatVessels() {
-  const vessels = useMemo(() => [
-    {
-      id: 'aorta',
-      curve: new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-0.1, 0.8, 0),
-        new THREE.Vector3(-0.1, 1.3, 0),
-        new THREE.Vector3(0.3, 1.6, -0.1),
-        new THREE.Vector3(0.5, 1.5, -0.3),
-        new THREE.Vector3(0.3, 1.2, -0.5),
-      ]),
-      color: '#dd3333',
-      radius: 0.08,
-    },
-    {
-      id: 'pulmonary-trunk',
-      curve: new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0.2, 0.7, 0.2),
-        new THREE.Vector3(0.1, 1.1, 0.3),
-        new THREE.Vector3(-0.2, 1.2, 0.2),
-      ]),
-      color: '#4477bb',
-      radius: 0.07,
-    },
-    {
-      id: 'svc',
-      curve: new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0.4, 0.8, 0.1),
-        new THREE.Vector3(0.4, 1.4, 0.1),
-      ]),
-      color: '#3366aa',
-      radius: 0.06,
-    },
-    {
-      id: 'ivc',
-      curve: new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0.3, -0.6, -0.1),
-        new THREE.Vector3(0.3, -1.2, -0.1),
-      ]),
-      color: '#3366aa',
-      radius: 0.06,
-    },
-  ], []);
+  const vessels = useMemo(() => {
+    // Aorta: rises from LV, arches over and back
+    const aorta = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.05, 0.85, 0.1),
+      new THREE.Vector3(-0.05, 1.15, 0.15),
+      new THREE.Vector3(0.0, 1.35, 0.05),
+      new THREE.Vector3(0.15, 1.45, -0.1),
+      new THREE.Vector3(0.3, 1.4, -0.3),
+      new THREE.Vector3(0.25, 1.2, -0.5),
+      new THREE.Vector3(0.15, 0.9, -0.6),
+    ]);
+    // Pulmonary trunk: rises from RV, splits left
+    const pulmonaryTrunk = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.15, 0.8, 0.35),
+      new THREE.Vector3(0.1, 1.1, 0.4),
+      new THREE.Vector3(-0.05, 1.2, 0.35),
+      new THREE.Vector3(-0.25, 1.15, 0.2),
+    ]);
+    // Right pulmonary artery
+    const rpa = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.05, 1.2, 0.35),
+      new THREE.Vector3(0.2, 1.25, 0.15),
+      new THREE.Vector3(0.45, 1.2, 0.0),
+    ]);
+    // SVC
+    const svc = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.4, 0.75, 0.15),
+      new THREE.Vector3(0.42, 1.1, 0.12),
+      new THREE.Vector3(0.4, 1.45, 0.1),
+    ]);
+    // IVC
+    const ivc = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.3, -0.5, -0.2),
+      new THREE.Vector3(0.32, -0.85, -0.25),
+      new THREE.Vector3(0.3, -1.15, -0.3),
+    ]);
+    // Pulmonary veins (left pair)
+    const lpv = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.55, 0.6, -0.2),
+      new THREE.Vector3(-0.85, 0.65, -0.35),
+      new THREE.Vector3(-1.1, 0.7, -0.4),
+    ]);
+    // Pulmonary veins (right pair)
+    const rpv = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.25, 0.6, -0.25),
+      new THREE.Vector3(0.55, 0.65, -0.4),
+      new THREE.Vector3(0.8, 0.7, -0.45),
+    ]);
+
+    return [
+      { id: 'aorta', curve: aorta, color: '#a82020', radius: 0.09 },
+      { id: 'pulmonary-trunk', curve: pulmonaryTrunk, color: '#2a4a7a', radius: 0.075 },
+      { id: 'rpa', curve: rpa, color: '#2a4a7a', radius: 0.045 },
+      { id: 'svc', curve: svc, color: '#2a3f6a', radius: 0.055 },
+      { id: 'ivc', curve: ivc, color: '#2a3f6a', radius: 0.06 },
+      { id: 'lpv', curve: lpv, color: '#7a2828', radius: 0.035 },
+      { id: 'rpv', curve: rpv, color: '#7a2828', radius: 0.035 },
+    ];
+  }, []);
 
   return (
     <group>
       {vessels.map((v) => (
-        <mesh key={v.id}>
-          <tubeGeometry args={[v.curve, 32, v.radius, 12, false]} />
-          <meshPhysicalMaterial color={v.color} roughness={0.3} metalness={0.1} />
+        <mesh key={v.id} castShadow>
+          <tubeGeometry args={[v.curve, 48, v.radius, 12, false]} />
+          <meshPhysicalMaterial
+            color={v.color}
+            roughness={0.55}
+            metalness={0.02}
+            clearcoat={0.2}
+            clearcoatRoughness={0.5}
+          />
         </mesh>
       ))}
     </group>
   );
 }
 
-// Animation tick
+// ─── Pericardial fat deposits along sulci ──────────────────────────────
+function EpicardialFat() {
+  const fatDeposits = useMemo(() => {
+    // Fat along the AV groove
+    const avGrooveFat = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.6, 0.38, 0.5),
+      new THREE.Vector3(0.75, 0.35, 0.2),
+      new THREE.Vector3(0.7, 0.33, -0.15),
+      new THREE.Vector3(0.4, 0.32, -0.45),
+      new THREE.Vector3(0.0, 0.33, -0.6),
+      new THREE.Vector3(-0.4, 0.35, -0.45),
+      new THREE.Vector3(-0.7, 0.36, -0.15),
+      new THREE.Vector3(-0.65, 0.38, 0.25),
+    ]);
+    // Fat along anterior IV sulcus
+    const aivFat = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.05, 0.4, 0.78),
+      new THREE.Vector3(-0.08, 0.1, 0.8),
+      new THREE.Vector3(-0.1, -0.2, 0.7),
+      new THREE.Vector3(-0.1, -0.45, 0.5),
+    ]);
+
+    return [
+      { curve: avGrooveFat, radius: 0.04, color: '#c4a84a' },
+      { curve: aivFat, radius: 0.03, color: '#c4a84a' },
+    ];
+  }, []);
+
+  return (
+    <group>
+      {fatDeposits.map((f, i) => (
+        <mesh key={i}>
+          <tubeGeometry args={[f.curve, 32, f.radius, 8, false]} />
+          <meshPhysicalMaterial
+            color={f.color}
+            roughness={0.8}
+            metalness={0.0}
+            transparent
+            opacity={0.7}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// ─── Animation tick ────────────────────────────────────────────────────
 function AnimationTick() {
   const tick = useTimelineStore((s) => s.tick);
   useFrame((_, delta) => {
@@ -318,7 +567,7 @@ function AnimationTick() {
   return null;
 }
 
-// Camera controller
+// ─── Camera controller ─────────────────────────────────────────────────
 function CameraController() {
   const { camera } = useThree();
   const preset = useSceneStore((s) => s.cameraPreset);
@@ -333,41 +582,55 @@ function CameraController() {
   return null;
 }
 
-// Main 3D Scene
+// ─── Main 3D Scene ─────────────────────────────────────────────────────
 export default function HeartScene() {
   return (
     <div className="w-full h-full bg-cardiac-dark">
       <Canvas
-        camera={{ position: [0, 0, 4], fov: 50 }}
+        camera={{ position: [0, 0, 3.5], fov: 45 }}
         shadows
-        gl={{ antialias: true, alpha: false }}
-        style={{ background: '#0F172A' }}
+        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+        style={{ background: '#0a0f1a' }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 5, 5]} intensity={0.8} castShadow />
-        <directionalLight position={[-3, 3, -3]} intensity={0.3} />
-        <pointLight position={[0, 0, 3]} intensity={0.2} color="#ff6666" />
+        {/* Key light - warm, from upper right */}
+        <directionalLight
+          position={[4, 5, 3]}
+          intensity={1.2}
+          castShadow
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          color="#fff5ee"
+        />
+        {/* Fill light - cooler, from left */}
+        <directionalLight position={[-3, 2, 2]} intensity={0.4} color="#c0d0e8" />
+        {/* Rim light - from behind */}
+        <directionalLight position={[0, 1, -4]} intensity={0.3} color="#e8d0c0" />
+        {/* Subtle ambient */}
+        <ambientLight intensity={0.25} color="#d0c8e0" />
+        {/* Warm accent from below (simulating reflected light from tissue) */}
+        <pointLight position={[0, -2, 1]} intensity={0.15} color="#ff8866" />
 
         <AnimationTick />
         <CameraController />
 
-        <group rotation={[0.1, 0, 0]}>
+        <group rotation={[0.2, -0.3, 0.1]}>
           <HeartMesh />
-          <ChamberMeshes />
-          <CoronaryOverlay />
-          <ConductionOverlay />
           <GreatVessels />
+          <EpicardialFat />
+          <CoronaryOverlay />
+          <ChamberMeshes />
+          <ConductionOverlay />
           <BloodFlowParticles />
         </group>
 
-        <ContactShadows position={[0, -2, 0]} opacity={0.4} blur={2} />
+        <ContactShadows position={[0, -2, 0]} opacity={0.5} blur={2.5} far={4} />
         <OrbitControls
           enablePan
           enableZoom
           enableRotate
           minDistance={1.5}
-          maxDistance={10}
-          dampingFactor={0.1}
+          maxDistance={8}
+          dampingFactor={0.08}
           enableDamping
         />
         <Environment preset="studio" />
