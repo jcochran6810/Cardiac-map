@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo, useCallback, useState } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Html, Environment, ContactShadows, useGLTF, GizmoHelper, GizmoViewport } from '@react-three/drei';
+import { OrbitControls, Html, Environment, ContactShadows, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -493,17 +493,10 @@ function HeartMesh() {
     });
   }, [heartModel, transparent, opacity]);
 
-  // Click handler: identify which anatomical region was clicked
+  // Click handler: identify which anatomical region was clicked (no selection from 3D click)
   const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (!ref.current) return;
-    // Convert hit point to model-local coordinates
-    const localPoint = ref.current.worldToLocal(e.point.clone());
-    const zone = identifyRegion(localPoint);
-    if (zone) {
-      selectStructure(zone.id);
-    }
-  }, [selectStructure]);
+  }, []);
 
   // Hover handler: show which region the cursor is over
   const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
@@ -523,14 +516,14 @@ function HeartMesh() {
     hoverStructure(null);
   }, [hoverStructure]);
 
-  // Determine the active structure to highlight (from click or sidebar selection)
+  // Selected structure from left menu: show yellow label with leader line
   const activeId = selectedStructureId;
   const activeCenter = activeId ? STRUCTURE_CENTERS[activeId] : null;
   const activeName = activeId
     ? ANATOMY_ZONES.find(z => z.id === activeId)?.name ?? activeId.replace(/-/g, ' ')
     : null;
 
-  // Hovered structure name for tooltip
+  // Hovered structure name for black tooltip
   const hoverName = hoveredZone
     ? ANATOMY_ZONES.find(z => z.id === hoveredZone)?.name ?? null
     : null;
@@ -544,13 +537,11 @@ function HeartMesh() {
         onPointerLeave={handlePointerLeave}
       />
 
-      {/* Highlight ring on selected structure */}
+      {/* Yellow label with leader line - only when selected from left menu */}
       {activeCenter && (
         <group position={activeCenter}>
           <HighlightRing />
-          {/* Label line + text offset to the right side, not overlaying the heart */}
           <group>
-            {/* Leader line from structure to label */}
             <line>
               <bufferGeometry>
                 <bufferAttribute
@@ -569,8 +560,8 @@ function HeartMesh() {
         </group>
       )}
 
-      {/* Hover tooltip (only when different from selected) */}
-      {hoverName && hoveredZone !== selectedStructureId && (
+      {/* Black hover tooltip - shows anatomy name on hover */}
+      {hoverName && (
         <HoverTooltip name={hoverName} />
       )}
     </group>
@@ -1624,15 +1615,18 @@ function AnimationTick() {
 }
 
 // ─── Camera controller ─────────────────────────────────────────────────
+// Animates camera to a target on selection, then stops so OrbitControls can work freely.
 function CameraController() {
   const { camera } = useThree();
   const preset = useSceneStore((s) => s.cameraPreset);
   const selectedStructureId = useSceneStore((s) => s.selectedStructureId);
   const prevSelectedRef = useRef<string | null>(null);
   const targetRef = useRef<{ position: THREE.Vector3; lookAt: THREE.Vector3 } | null>(null);
+  const animatingRef = useRef(false);
+  const frameCountRef = useRef(0);
 
-  // When a structure is selected from the menu, compute camera target
   useFrame(() => {
+    // Detect new selection
     if (selectedStructureId && selectedStructureId !== prevSelectedRef.current) {
       prevSelectedRef.current = selectedStructureId;
       const cam = getCameraForStructure(selectedStructureId);
@@ -1640,24 +1634,47 @@ function CameraController() {
         position: new THREE.Vector3(...cam.position),
         lookAt: new THREE.Vector3(...cam.target),
       };
-    } else if (!selectedStructureId) {
+      animatingRef.current = true;
+      frameCountRef.current = 0;
+    } else if (!selectedStructureId && prevSelectedRef.current) {
       prevSelectedRef.current = null;
       targetRef.current = null;
+      animatingRef.current = false;
     }
 
     // Camera preset takes priority
     if (preset) {
       camera.position.lerp(new THREE.Vector3(...preset.position), 0.05);
       camera.lookAt(new THREE.Vector3(...preset.target));
-    } else if (targetRef.current) {
-      camera.position.lerp(targetRef.current.position, 0.04);
-      // Smoothly update where the camera looks
-      const currentLookAt = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).add(camera.position);
-      currentLookAt.lerp(targetRef.current.lookAt, 0.04);
+      return;
+    }
+
+    // Animate toward structure for ~60 frames (~1 second), then stop
+    if (animatingRef.current && targetRef.current) {
+      camera.position.lerp(targetRef.current.position, 0.06);
       camera.lookAt(targetRef.current.lookAt);
+      frameCountRef.current++;
+      if (frameCountRef.current > 60) {
+        animatingRef.current = false;
+      }
     }
   });
   return null;
+}
+
+// ─── Background click deselect ─────────────────────────────────────────
+function BackgroundDeselect() {
+  const { selectStructure } = useSceneStore();
+  const handleMissed = useCallback(() => {
+    selectStructure(null);
+  }, [selectStructure]);
+
+  return (
+    <mesh visible={false} onClick={handleMissed}>
+      <sphereGeometry args={[50, 8, 8]} />
+      <meshBasicMaterial side={THREE.BackSide} />
+    </mesh>
+  );
 }
 
 // ─── Main scene ────────────────────────────────────────────────────────
@@ -1682,6 +1699,7 @@ export default function HeartScene() {
 
         <AnimationTick />
         <CameraController />
+        <BackgroundDeselect />
 
         <group rotation={[0.1, -0.15, 0.12]}>
           <HeartMesh />
@@ -1696,15 +1714,6 @@ export default function HeartScene() {
         <ContactShadows position={[0, -2.2, 0]} opacity={0.5} blur={2.5} far={5} />
         <OrbitControls enablePan enableZoom enableRotate rotateSpeed={0.8} minDistance={1.5} maxDistance={8} dampingFactor={0.08} enableDamping />
         <Environment preset="studio" />
-
-        {/* Orientation axis gizmo in bottom-right corner */}
-        <GizmoHelper alignment="bottom-right" margin={[70, 70]}>
-          <GizmoViewport
-            axisColors={['#ff4060', '#40ff60', '#4060ff']}
-            labelColor="white"
-            labels={['X', 'Y', 'Z']}
-          />
-        </GizmoHelper>
       </Canvas>
     </div>
   );
