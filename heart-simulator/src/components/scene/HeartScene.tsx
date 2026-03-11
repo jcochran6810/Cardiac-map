@@ -202,80 +202,97 @@ function identifyRegion(point: THREE.Vector3): AnatomyZone | null {
 
 // Reverse lookup: given a structure ID from the menu, where should we highlight?
 const STRUCTURE_CENTERS: Record<string, [number, number, number]> = {
+  // Coordinate system: X = right(+)/left(-), Y = posterior(+)/anterior(-), Z = superior(+)/inferior(-)
   // Chambers — positioned at the visible center of each chamber
-  'right-atrium': [0.3, -0.02, 0.32],
-  'left-atrium': [-0.28, -0.08, 0.35],
-  'right-ventricle': [0.2, 0.12, -0.15],
-  'left-ventricle': [-0.18, -0.05, -0.2],
-  'right-atrial-appendage': [0.4, 0.18, 0.4],
-  'left-atrial-appendage': [-0.4, 0.12, 0.38],
+  // RV is the most anterior chamber (most -Y), wraps around the LV
+  // LA is the most posterior chamber (most +Y)
+  // RA is anterior-right, LV is posterior-left
+  'right-atrium': [0.3, -0.08, 0.25],
+  'left-atrium': [-0.2, 0.15, 0.3],
+  'right-ventricle': [0.15, -0.18, -0.12],
+  'left-ventricle': [-0.15, 0.0, -0.25],
+  'right-atrial-appendage': [0.35, -0.2, 0.35],
+  'left-atrial-appendage': [-0.38, -0.08, 0.35],
   // Septa & Landmarks
-  'interatrial-septum': [0.0, -0.05, 0.32],
-  'interventricular-septum': [0.0, 0.05, -0.15],
-  'fossa-ovalis': [0.05, -0.08, 0.28],
-  'apex': [0.0, 0.0, -0.75],
-  'base-of-heart': [0.0, -0.02, 0.52],
+  'interatrial-septum': [0.05, 0.02, 0.28],
+  'interventricular-septum': [0.0, -0.05, -0.15],
+  'fossa-ovalis': [0.05, 0.0, 0.25],
+  'apex': [0.05, -0.05, -0.75],
+  'base-of-heart': [0.0, 0.05, 0.52],
   // Valves — at their annular positions between chambers and outflow
-  'mitral-annulus': [-0.18, -0.02, 0.08],
-  'aortic-valve-rcc': [-0.08, 0.02, 0.45],
-  'tricuspid-annulus': [0.18, 0.06, 0.08],
-  'pulmonary-valve-cusps': [0.12, 0.15, 0.48],
+  'mitral-annulus': [-0.12, 0.05, 0.08],
+  'aortic-valve-rcc': [-0.05, -0.05, 0.42],
+  'tricuspid-annulus': [0.15, -0.02, 0.05],
+  'pulmonary-valve-cusps': [0.08, -0.15, 0.45],
   // Great Vessels — along the vessel paths above the base
-  'ascending-aorta': [-0.08, 0.0, 0.62],
-  'aortic-arch': [-0.18, -0.08, 0.72],
-  'pulmonary-trunk': [0.12, 0.12, 0.58],
-  'svc': [0.32, -0.06, 0.6],
-  'ivc': [0.22, -0.12, -0.55],
+  // Aorta: center-left, slightly anterior, exits superiorly
+  'ascending-aorta': [-0.05, -0.05, 0.62],
+  'aortic-arch': [-0.12, -0.05, 0.75],
+  // Pulmonary trunk: anterior and to the right of aorta
+  'pulmonary-trunk': [0.1, -0.15, 0.58],
+  // SVC: enters RA from above, right-posterior
+  'svc': [0.3, 0.05, 0.6],
+  // IVC: enters RA from below, right-posterior
+  'ivc': [0.25, 0.08, -0.55],
   // Pericardium & Layers — staggered outward from center so labels don't overlap
-  'fibrous-pericardium': [0.0, 0.42, 0.0],
-  'epicardium': [0.0, 0.35, 0.08],
-  'myocardium': [-0.25, 0.28, 0.0],
-  'endocardium': [-0.12, -0.12, 0.0],
+  'fibrous-pericardium': [0.0, -0.42, 0.05],
+  'epicardium': [0.15, -0.35, 0.1],
+  'myocardium': [-0.25, -0.3, -0.05],
+  'endocardium': [-0.12, -0.12, -0.1],
   // Subvalvular structures — inside the LV/RV
-  'anterolateral-papillary-muscle': [-0.22, 0.08, -0.38],
-  'posteromedial-papillary-muscle': [-0.12, -0.18, -0.38],
-  'moderator-band': [0.18, 0.08, -0.3],
-  'crista-terminalis': [0.32, -0.04, 0.28],
-  // Coronary arteries - Left
-  'lmca': [-0.1, 0.1, 0.52],
-  'lad-proximal': [-0.02, 0.2, 0.35],
-  'lad-mid': [0.0, 0.22, 0.05],
-  'lad-distal': [0.0, 0.2, -0.3],
-  'd1': [0.12, 0.25, 0.15],
-  'd2': [0.1, 0.23, -0.05],
-  'lcx-proximal': [-0.2, 0.0, 0.4],
-  'om1': [-0.3, 0.1, 0.15],
-  'om2': [-0.32, 0.05, -0.05],
-  // Coronary arteries - Right
-  'rca-proximal': [0.2, 0.05, 0.45],
-  'rca-mid': [0.3, -0.05, 0.2],
-  'rca-distal': [0.25, -0.1, -0.15],
-  'pda': [0.1, -0.15, -0.35],
-  'am-branch': [0.32, 0.0, 0.0],
-  // Conduction system — anatomically corrected positions
-  // SA node: junction of SVC and right atrium (superior, right-lateral, posterior)
-  'sa-node': [0.38, 0.05, 0.55],
-  // AV node: Koch's triangle at base of interatrial septum, near coronary sinus
-  'av-node': [0.1, 0.0, 0.25],
-  'bundle-of-his': [0.02, 0.05, 0.18],
-  'right-bundle-branch': [0.12, 0.1, -0.1],
-  'left-bundle-branch': [-0.1, 0.0, -0.1],
-  'left-anterior-fascicle': [-0.15, 0.1, -0.3],
-  'left-posterior-fascicle': [-0.1, -0.1, -0.3],
-  'purkinje-network-rv': [0.15, 0.15, -0.45],
-  'purkinje-network-lv': [-0.15, -0.05, -0.45],
-  // Additional anatomy — commonly tested at paramedic level
-  'right-ventricular-outflow-tract': [0.15, 0.15, 0.35],
-  'left-ventricular-outflow-tract': [-0.1, 0.0, 0.35],
-  'coronary-sinus': [0.12, -0.15, 0.15],
-  'eustachian-valve': [0.22, -0.12, -0.45],
-  'chordae-tendineae': [-0.18, 0.0, -0.2],
-  'pulmonary-veins': [-0.4, -0.1, 0.45],
-  'descending-aorta': [-0.2, -0.15, 0.75],
-  'right-coronary-ostium': [0.08, 0.08, 0.48],
-  'left-coronary-ostium': [-0.1, 0.08, 0.48],
-  'trabeculae-carneae': [0.18, 0.1, -0.4],
-  'bachmanns-bundle': [0.15, -0.05, 0.48],
+  'anterolateral-papillary-muscle': [-0.2, -0.1, -0.38],
+  'posteromedial-papillary-muscle': [-0.08, 0.12, -0.38],
+  'moderator-band': [0.15, -0.1, -0.32],
+  'crista-terminalis': [0.32, -0.05, 0.25],
+  // Coronary arteries — Left system
+  // LMCA originates from left aortic sinus, travels anteriorly
+  'lmca': [-0.1, -0.1, 0.48],
+  // LAD runs in anterior interventricular sulcus (anterior surface)
+  'lad-proximal': [0.0, -0.22, 0.3],
+  'lad-mid': [0.0, -0.25, 0.0],
+  'lad-distal': [0.0, -0.22, -0.3],
+  'd1': [-0.12, -0.25, 0.12],
+  'd2': [-0.1, -0.23, -0.08],
+  // LCx runs posteriorly in left AV groove
+  'lcx-proximal': [-0.22, 0.0, 0.35],
+  'om1': [-0.32, 0.05, 0.12],
+  'om2': [-0.32, 0.1, -0.08],
+  // Coronary arteries — Right system
+  // RCA originates from right aortic sinus, travels in right AV groove
+  'rca-proximal': [0.15, -0.1, 0.45],
+  'rca-mid': [0.32, -0.02, 0.18],
+  'rca-distal': [0.28, 0.08, -0.12],
+  // PDA runs posteriorly in posterior interventricular sulcus
+  'pda': [0.08, 0.18, -0.35],
+  'am-branch': [0.35, -0.05, 0.0],
+  // Conduction system
+  // SA node: junction of SVC and RA, slightly posterior
+  'sa-node': [0.35, 0.02, 0.55],
+  // AV node: Koch's triangle — near coronary sinus os, septal, slightly posterior
+  'av-node': [0.1, 0.02, 0.2],
+  'bundle-of-his': [0.02, 0.0, 0.15],
+  'right-bundle-branch': [0.1, -0.05, -0.1],
+  'left-bundle-branch': [-0.08, 0.0, -0.1],
+  'left-anterior-fascicle': [-0.15, -0.1, -0.32],
+  'left-posterior-fascicle': [-0.1, 0.1, -0.32],
+  'purkinje-network-rv': [0.15, -0.12, -0.48],
+  'purkinje-network-lv': [-0.15, 0.0, -0.48],
+  // Additional anatomy
+  // RVOT: anterior, above RV, leads to pulmonary valve
+  'right-ventricular-outflow-tract': [0.1, -0.18, 0.32],
+  'left-ventricular-outflow-tract': [-0.08, -0.02, 0.32],
+  // Coronary sinus: posterior AV groove, drains into RA
+  'coronary-sinus': [0.1, 0.18, 0.1],
+  // Eustachian valve: at IVC–RA junction, posterior
+  'eustachian-valve': [0.22, 0.08, -0.48],
+  'chordae-tendineae': [-0.15, 0.02, -0.22],
+  // Pulmonary veins: enter LA posteriorly
+  'pulmonary-veins': [-0.3, 0.2, 0.4],
+  'descending-aorta': [-0.18, 0.15, 0.75],
+  'right-coronary-ostium': [0.08, -0.08, 0.46],
+  'left-coronary-ostium': [-0.08, -0.08, 0.46],
+  'trabeculae-carneae': [0.15, -0.1, -0.42],
+  'bachmanns-bundle': [0.12, -0.05, 0.45],
 };
 
 // Proper display names for all structures (used for labels)

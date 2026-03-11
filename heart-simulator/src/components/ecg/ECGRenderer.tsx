@@ -164,6 +164,26 @@ export default function ECGRenderer({ width, height, compact = false }: ECGRende
       }
     });
 
+    // Draw solid dividing lines between lead cells
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+    ctx.lineWidth = 1.5;
+    // Vertical dividers between columns
+    for (let c = 1; c < cols; c++) {
+      const x = c * cellW;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    // Horizontal dividers between rows
+    for (let r = 1; r < rows; r++) {
+      const y = r * cellH;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
     // Heart rate display
     ctx.fillStyle = '#F59E0B';
     ctx.font = 'bold 14px monospace';
