@@ -1853,12 +1853,12 @@ function BackgroundDeselect() {
 // ─── Main scene ────────────────────────────────────────────────────────
 export default function HeartScene() {
   return (
-    <div className="w-full h-full" style={{ background: 'linear-gradient(180deg, #a0a0a8 0%, #787880 100%)' }}>
+    <div className="w-full h-full" style={{ background: '#0a0a0f' }}>
       <Canvas
-        camera={{ position: [0, 0.2, 4], fov: 40 }}
+        camera={{ position: [0.8, 0.5, 3.5], fov: 40 }}
         shadows
         gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
-        style={{ background: 'linear-gradient(180deg, #a0a0a8 0%, #787880 100%)' }}
+        style={{ background: '#0a0a0f' }}
       >
         {/* Bright 3-point lighting for realistic tissue illumination */}
         <directionalLight position={[5, 6, 4]} intensity={3.0} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} color="#fff0e0" />
@@ -1874,7 +1874,7 @@ export default function HeartScene() {
         <CameraController />
         <BackgroundDeselect />
 
-        <group rotation={[0.1, -0.15, 0.12]}>
+        <group rotation={[0.15, -0.3, 0.18]}>
           <HeartMesh />
           <WallMotionOverlay />
           <ProcedureOverlay />
