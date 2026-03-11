@@ -1855,7 +1855,7 @@ export default function HeartScene() {
   return (
     <div className="w-full h-full" style={{ background: '#0a0a0f' }}>
       <Canvas
-        camera={{ position: [0.8, 0.5, 3.5], fov: 40 }}
+        camera={{ position: [0.15, 0.3, 3.8], fov: 40 }}
         shadows
         gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
         style={{ background: '#0a0a0f' }}
@@ -1874,7 +1874,7 @@ export default function HeartScene() {
         <CameraController />
         <BackgroundDeselect />
 
-        <group rotation={[0.15, -0.3, 0.18]}>
+        <group rotation={[0.12, -0.15, 0.15]}>
           <HeartMesh />
           <WallMotionOverlay />
           <ProcedureOverlay />
