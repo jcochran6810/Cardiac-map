@@ -1874,7 +1874,7 @@ export default function HeartScene() {
         <CameraController />
         <BackgroundDeselect />
 
-        <group rotation={[0.15, -0.1, 0.45]}>
+        <group rotation={[0, 0, 0.1]}>
           <HeartMesh />
           <WallMotionOverlay />
           <ProcedureOverlay />
