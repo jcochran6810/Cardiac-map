@@ -12,600 +12,210 @@ const TABS = [
   'cardiology-care', 'procedure', 'complications', 'teaching',
 ];
 
-// Content data for anatomy structures
-const ANATOMY_INFO: Record<string, { title: string; summary: string; details: string[] }> = {
-  // ─── Chambers ───────────────────────────────────────────────
+// ─── Tab-specific content for anatomy structures ────────────────────────
+// Each structure has content keyed by tab name.
+interface StructureTabData {
+  title: string;
+  overview: string[];
+  anatomy: string[];
+  physiology: string[];
+  symptoms: string[];
+  ecg: string[];
+  imaging: string[];
+  medications: string[];
+  'field-care': string[];
+  'hospital-care': string[];
+  'cardiology-care': string[];
+  procedure: string[];
+  complications: string[];
+  teaching: string[];
+}
+
+const STRUCTURE_DATA: Record<string, StructureTabData> = {
   'right-atrium': {
     title: 'Right Atrium',
-    summary: 'Receives deoxygenated blood from the systemic circulation via the SVC and IVC.',
-    details: [
-      'Thin-walled chamber receiving venous return',
-      'Contains the SA node (primary pacemaker)',
-      'Crista terminalis divides smooth from trabeculated portions',
-      'Coronary sinus drains into the posterior floor',
-      'Eustachian valve guards the IVC ostium',
-    ],
+    overview: ['Thin-walled chamber receiving venous return', 'Contains the SA node (primary pacemaker)', 'Crista terminalis divides smooth from trabeculated portions', 'Coronary sinus drains into the posterior floor', 'Eustachian valve guards the IVC ostium'],
+    anatomy: ['Wall thickness: 2-3mm', 'Receives SVC superiorly and IVC inferiorly', 'Koch triangle: AV node landmark bounded by coronary sinus, tendon of Todaro, and tricuspid annulus', 'Pectinate muscles line the anterior wall and appendage', 'Sinus venarum: smooth posterior wall derived from sinus venosus'],
+    physiology: ['Reservoir function: stores venous return during ventricular systole', 'Conduit function: passive filling of RV in early diastole', 'Booster pump: atrial contraction (atrial kick) contributes 15-25% of ventricular filling', 'RA pressure normally 2-6 mmHg (CVP)', 'A, C, and V waves visible on RA pressure tracing'],
+    symptoms: ['RA enlargement may cause no direct symptoms', 'Elevated RA pressure: JVD, peripheral edema, hepatic congestion', 'RA thrombus: can cause PE, may be seen on echo as mobile mass', 'Atrial flutter: sawtooth pattern, often originates from RA isthmus'],
+    ecg: ['P wave represents atrial depolarization', 'RA enlargement: peaked P waves >2.5mm in leads II, III, aVF (P pulmonale)', 'Best seen in lead V1 (initial positive deflection of biphasic P wave)', 'RA rhythm: inverted P waves in inferior leads suggest low atrial focus'],
+    imaging: ['Echo: subcostal and apical 4-chamber views', 'Normal RA area: 10-18 cm²', 'CT/MRI: excellent for RA masses, thrombus, and congenital anomalies', 'TEE: superior for interatrial septum and appendage evaluation'],
+    medications: ['Anticoagulation for RA thrombus (heparin, warfarin, DOACs)', 'Diuretics for RA congestion (furosemide, bumetanide)', 'Rate control for atrial arrhythmias (beta-blockers, CCBs, digoxin)', 'Antiarrhythmics for rhythm control (amiodarone, flecainide, sotalol)'],
+    'field-care': ['Assess JVP for RA pressure estimation', 'Right-sided ECG leads for RV/RA pathology', 'Fluid resuscitation cautiously if RA pressure low', 'Recognize signs of right heart failure: JVD, hepatomegaly, edema'],
+    'hospital-care': ['Central venous catheter for CVP monitoring', 'PA catheter for RA pressure measurement', 'Echocardiography for RA size, function, and masses', 'IV diuretics for decompensated right heart failure'],
+    'cardiology-care': ['Electrophysiology study: RA mapping for atrial flutter', 'CTI ablation for typical atrial flutter (RA isthmus)', 'TEE-guided cardioversion for atrial arrhythmias', 'RA lead placement for pacemaker/ICD'],
+    procedure: ['Right heart catheterization: measures RA pressure', 'EP study: diagnostic catheters placed in RA', 'CTI ablation: linear lesion across cavotricuspid isthmus', 'Pacemaker lead: screwed into RA appendage or septum'],
+    complications: ['RA perforation during catheter placement', 'RA thrombus with chronic indwelling catheters', 'Atrial flutter from surgical scarring (incisional reentry)', 'RA dilation with chronic volume overload (ASD, TR)'],
+    teaching: ['The RA is the first chamber to receive deoxygenated blood returning from the body', 'The SA node in the RA sets the normal heart rhythm at 60-100 bpm', 'Koch triangle is the key landmark for understanding AV node location', 'RA pressure (CVP) is a critical hemodynamic parameter accessible via neck veins'],
   },
   'left-atrium': {
     title: 'Left Atrium',
-    summary: 'Receives oxygenated blood from the pulmonary veins and passes it to the left ventricle.',
-    details: [
-      'Smooth-walled posterior chamber',
-      'Receives 4 pulmonary veins (RS, RI, LS, LI)',
-      'Left atrial appendage is a common site for thrombus in AF',
-      'Posterior wall is adjacent to esophagus (TEE window)',
-      'Important target for AF ablation (pulmonary vein isolation)',
-    ],
+    overview: ['Smooth-walled posterior chamber', 'Receives 4 pulmonary veins (RS, RI, LS, LI)', 'Left atrial appendage is a common site for thrombus in AF', 'Posterior wall is adjacent to esophagus (TEE window)', 'Important target for AF ablation (pulmonary vein isolation)'],
+    anatomy: ['Wall thickness: 3mm', 'Four pulmonary veins enter posteriorly', 'LAA: trabeculated pouch with variable morphology', 'Posterior wall adjacent to esophagus', 'Mitral valve annulus forms the floor'],
+    physiology: ['Reservoir: stores pulmonary venous return during LV systole', 'Conduit: passive LV filling in early diastole (E wave)', 'Booster pump: LA contraction (A wave) adds 15-25% filling', 'Normal LA pressure: 6-12 mmHg', 'Elevated LA pressure transmits to pulmonary veins causing congestion'],
+    symptoms: ['Dyspnea from elevated LA pressure (pulmonary congestion)', 'Palpitations from atrial fibrillation', 'Stroke/TIA from LAA thrombus embolization', 'Hoarseness from LA compression of recurrent laryngeal nerve (Ortner syndrome)'],
+    ecg: ['LA enlargement: wide, notched P wave >120ms in lead II (P mitrale)', 'Deep negative terminal portion of P wave in V1 (>1mm deep, >40ms wide)', 'Atrial fibrillation: absent P waves, irregularly irregular RR', 'LA origin focus: positive P in V1'],
+    imaging: ['Echo: parasternal long axis and apical 4-chamber views', 'Normal LA diameter: 2.0-4.0 cm (parasternal)', 'Normal LA volume index: <34 mL/m²', 'TEE: gold standard for LAA thrombus detection', 'Cardiac MRI: LA fibrosis mapping for AF substrate'],
+    medications: ['Anticoagulation for AF stroke prevention (DOACs preferred)', 'Antiarrhythmics: flecainide, propafenone, amiodarone, dofetilide', 'Rate control: beta-blocker, diltiazem, digoxin', 'Diuretics for LA pressure reduction'],
+    'field-care': ['Assess for irregular pulse (AF)', 'Acute pulmonary edema management: upright positioning, O2, CPAP', 'Stroke assessment if suspected cardioembolic event', '12-lead ECG for rhythm identification'],
+    'hospital-care': ['TEE to rule out LAA thrombus before cardioversion', 'IV amiodarone or ibutilide for pharmacologic cardioversion', 'Anticoagulation initiation (heparin bridge to DOAC)', 'Heart failure management with IV diuretics if congested'],
+    'cardiology-care': ['Pulmonary vein isolation (PVI) ablation for AF', 'LAA occlusion device (Watchman) for stroke prevention', 'LA appendage ligation (surgical)', 'LA pressure monitoring (CardioMEMS in HF)'],
+    procedure: ['PVI ablation: circumferential lesions around PV ostia', 'Cardioversion: synchronized shock for AF/flutter', 'TEE: probe in esophagus for LA/LAA visualization', 'Watchman device: catheter-delivered LAA occluder'],
+    complications: ['Thromboembolism (stroke) from LAA thrombus', 'Pulmonary vein stenosis after ablation', 'Atrial-esophageal fistula (rare but fatal ablation complication)', 'LA roof perforation during transseptal access'],
+    teaching: ['The LA is the most posterior cardiac chamber, explaining why TEE provides excellent views', 'AF is the most common sustained arrhythmia; LA is the primary source', '>90% of cardioembolic strokes in AF originate from the LAA', 'LA volume is a powerful predictor of cardiovascular outcomes'],
   },
   'right-ventricle': {
     title: 'Right Ventricle',
-    summary: 'Pumps deoxygenated blood to the lungs via the pulmonary artery.',
-    details: [
-      'Crescent-shaped chamber wrapping around the LV',
-      'Thinner wall than LV (lower pressure system)',
-      'Contains moderator band with RBB conduction',
-      'RVOT leads to pulmonary valve',
-      'Vulnerable to pressure overload in PE / pulmonary HTN',
-    ],
+    overview: ['Crescent-shaped chamber wrapping around the LV', 'Thinner wall than LV (lower pressure system)', 'Contains moderator band with RBB conduction', 'RVOT leads to pulmonary valve', 'Vulnerable to pressure overload in PE / pulmonary HTN'],
+    anatomy: ['Wall thickness: 3-5mm', 'Three portions: inlet, trabecular body, outlet (infundibulum)', 'Moderator band crosses from septum to anterior wall', 'Tricuspid valve forms the inlet', 'Conus arteriosus (infundibulum) leads to pulmonary valve'],
+    physiology: ['Low-pressure pump: systolic 20-30 mmHg', 'Thin-walled, compliant: tolerates volume overload better than pressure overload', 'RV output = LV output (series circulation)', 'RV contraction: peristaltic pattern from apex to RVOT', 'RV is afterload-sensitive; acute PE can cause RV failure'],
+    symptoms: ['RV failure: JVD, peripheral edema, ascites, hepatomegaly', 'Exercise intolerance from reduced cardiac output', 'Syncope in severe pulmonary hypertension', 'Chest pain from RV ischemia in RV infarction'],
+    ecg: ['RV hypertrophy: right axis deviation, tall R in V1, deep S in V5-V6', 'RV strain: ST depression and T wave inversion in V1-V4 (right precordial)', 'RBBB: indicates conduction delay through RV', 'RV infarction: ST elevation in V4R'],
+    imaging: ['Echo: RV focused apical view, parasternal views', 'TAPSE: tricuspid annular plane systolic excursion (normal >17mm)', 'RV fractional area change (normal >35%)', 'Cardiac MRI: gold standard for RV volumes and EF', 'CT: RV enlargement ratio >1.0 (RV/LV) suggests RV strain'],
+    medications: ['Pulmonary vasodilators for pulmonary HTN (sildenafil, bosentan, epoprostenol)', 'Inotropes for acute RV failure (dobutamine, milrinone)', 'Diuretics for RV congestion', 'Avoid excessive fluid and vasodilators that drop preload'],
+    'field-care': ['Right-sided ECG (V4R) for suspected RV infarction', 'Fluid bolus for RV infarction (preload-dependent)', 'Avoid nitroglycerin in RV infarction (drops preload)', 'Assess JVP and peripheral edema'],
+    'hospital-care': ['Hemodynamic monitoring with PA catheter', 'Mechanical support: Impella RP or ECMO for refractory RV failure', 'Thrombolysis or catheter-directed therapy for massive PE', 'Vasopressors to maintain coronary perfusion (norepinephrine)'],
+    'cardiology-care': ['Right heart catheterization for hemodynamic assessment', 'Pulmonary vasodilator testing in pulmonary HTN', 'RVAD (right ventricular assist device) for end-stage RV failure', 'Pericardiocentesis if tamponade contributing to RV failure'],
+    procedure: ['Right heart cath: measures RV pressures directly', 'Catheter-directed thrombolysis for PE', 'EP study: RV mapping for RVOT tachycardia', 'Endomyocardial biopsy: taken from RV septum'],
+    complications: ['RV free wall rupture (rare, post-MI)', 'Arrhythmogenic RV cardiomyopathy (ARVC): fibrofatty replacement', 'RVOT tachycardia: benign VT from RV outflow tract', 'Paradoxical septal motion in RV pressure/volume overload'],
+    teaching: ['The RV is the most anterior chamber and forms most of the sternocostal surface', 'The RV is designed for volume work (low pressure, high compliance)', 'Acute RV failure from PE is a common and life-threatening emergency', 'The moderator band is a key landmark distinguishing the morphologic RV'],
   },
   'left-ventricle': {
     title: 'Left Ventricle',
-    summary: 'The main pumping chamber of the heart, ejecting oxygenated blood into the aorta.',
-    details: [
-      'Thick-walled (8-12mm) conical chamber',
-      'Generates systemic arterial pressure',
-      'Papillary muscles anchor mitral leaflets via chordae',
-      'Normal EF: 55-70%',
-      'AHA 17-segment model used for wall motion assessment',
-      'Apex is the most distal point, often supplied by LAD',
-    ],
-  },
-  'right-atrial-appendage': {
-    title: 'Right Atrial Appendage',
-    summary: 'A small, ear-shaped pouch extending from the right atrium.',
-    details: [
-      'Trabeculated muscular pouch (auricle)',
-      'Contains pectinate muscles',
-      'Less prone to thrombus than LAA',
-      'Landmark for identifying the morphologic right atrium',
-      'Can be used for temporary pacing lead placement',
-    ],
-  },
-  'left-atrial-appendage': {
-    title: 'Left Atrial Appendage',
-    summary: 'A small pouch arising from the left atrium, clinically significant as a common site for thrombus formation.',
-    details: [
-      'Primary site of thrombus formation in atrial fibrillation (>90%)',
-      'Variable morphology: chicken wing, cactus, windsock, cauliflower',
-      'Target for LAA occlusion devices (Watchman, Amulet)',
-      'Produces atrial natriuretic peptide (ANP)',
-      'Surgical ligation or exclusion performed during cardiac surgery',
-    ],
-  },
-  // ─── Septa & Landmarks ─────────────────────────────────────
-  'interatrial-septum': {
-    title: 'Interatrial Septum',
-    summary: 'The wall dividing the right and left atria, containing the fossa ovalis.',
-    details: [
-      'Separates the two atrial chambers',
-      'Contains the fossa ovalis (thinnest region)',
-      'Site for transseptal puncture in left-sided interventions',
-      'ASDs and PFOs occur in this structure',
-      'Best visualized on subcostal echocardiographic views',
-    ],
-  },
-  'interventricular-septum': {
-    title: 'Interventricular Septum',
-    summary: 'The muscular and membranous wall separating the right and left ventricles.',
-    details: [
-      'Muscular portion: thick, contracts with systole',
-      'Membranous portion: thin fibrous tissue near AV valves',
-      'Contains the bundle of His and proximal bundle branches',
-      'VSDs most commonly occur in membranous portion',
-      'Dual blood supply from LAD (anterior) and PDA (posterior)',
-    ],
-  },
-  'fossa-ovalis': {
-    title: 'Fossa Ovalis',
-    summary: 'An oval depression in the interatrial septum, remnant of the foramen ovale.',
-    details: [
-      'Thinnest portion of the interatrial septum',
-      'Remnant of the embryonic foramen ovale',
-      'Patent foramen ovale (PFO) occurs when it fails to close completely',
-      'Target site for transseptal catheterization',
-      'Important landmark in structural heart interventions',
-    ],
-  },
-  'apex': {
-    title: 'Apex',
-    summary: 'The most inferior and lateral tip of the left ventricle.',
-    details: [
-      'Formed primarily by the left ventricle',
-      'Located at the 5th intercostal space, midclavicular line',
-      'Point of maximal impulse (PMI) palpable here',
-      'Supplied by the distal LAD artery',
-      'Common site for apical ballooning in Takotsubo cardiomyopathy',
-      'LV apical thrombus can form after anterior MI',
-    ],
-  },
-  'base-of-heart': {
-    title: 'Base of Heart',
-    summary: 'The superior broad portion of the heart where the great vessels attach.',
-    details: [
-      'Formed primarily by the left atrium posteriorly',
-      'Great vessels enter and exit at the base',
-      'Opposite the apex; faces posteriorly and superiorly',
-      'Contains the fibrous skeleton and valve annuli',
-      'Important landmark for echocardiographic measurements',
-    ],
-  },
-  // ─── Valves ─────────────────────────────────────────────────
-  'mitral-annulus': {
-    title: 'Mitral Valve',
-    summary: 'A bicuspid valve between the left atrium and left ventricle preventing backflow during systole.',
-    details: [
-      'Two leaflets: anterior (aortic) and posterior (mural)',
-      'Annulus is saddle-shaped and D-shaped',
-      'Supported by anterolateral and posteromedial papillary muscles',
-      'Most common valve affected by rheumatic disease',
-      'Mitral regurgitation and stenosis are major pathologies',
-      'Target for MitraClip/TEER, surgical repair, or replacement',
-    ],
-  },
-  'aortic-valve-rcc': {
-    title: 'Aortic Valve',
-    summary: 'A trileaflet semilunar valve between the left ventricle and ascending aorta.',
-    details: [
-      'Three cusps: right coronary (RCC), left coronary (LCC), non-coronary (NCC)',
-      'Coronary artery ostia arise from the sinuses of Valsalva',
-      'No chordae tendineae; opens/closes passively by pressure gradient',
-      'Aortic stenosis is the most common valvular disease requiring intervention',
-      'TAVR has revolutionized treatment of severe aortic stenosis',
-      'Bicuspid aortic valve is the most common congenital valve defect (1-2%)',
-    ],
-  },
-  'tricuspid-annulus': {
-    title: 'Tricuspid Valve',
-    summary: 'A three-leaflet valve between the right atrium and right ventricle.',
-    details: [
-      'Three leaflets: anterior, posterior, and septal',
-      'Largest valve annulus in the heart',
-      'AV node is located near the septal leaflet (Koch triangle)',
-      'Functional TR common with RV dilation',
-      'Annuloplasty is the main surgical repair technique',
-      'Endocarditis of this valve often associated with IV drug use',
-    ],
-  },
-  'pulmonary-valve-cusps': {
-    title: 'Pulmonary Valve',
-    summary: 'A trileaflet semilunar valve between the right ventricle and pulmonary trunk.',
-    details: [
-      'Three cusps: anterior, right, and left',
-      'Lowest pressure valve in the heart',
-      'Pulmonary stenosis often congenital; can be treated with balloon valvuloplasty',
-      'Pulmonary regurgitation common after Tetralogy of Fallot repair',
-      'Ross procedure: pulmonary valve used to replace diseased aortic valve',
-    ],
-  },
-  // ─── Great Vessels ──────────────────────────────────────────
-  'ascending-aorta': {
-    title: 'Ascending Aorta',
-    summary: 'The first segment of the aorta, arising from the left ventricle and giving rise to the coronary arteries.',
-    details: [
-      'Arises from the aortic root/valve complex',
-      'Contains the sinuses of Valsalva and coronary ostia',
-      'Normal diameter: 2.1-3.5 cm',
-      'Aneurysm risk increases with bicuspid aortic valve, Marfan syndrome',
-      'Site of acute type A aortic dissection (surgical emergency)',
-    ],
-  },
-  'aortic-arch': {
-    title: 'Aortic Arch',
-    summary: 'The curved portion of the aorta giving rise to the brachiocephalic, left carotid, and left subclavian arteries.',
-    details: [
-      'Three major branches in typical anatomy',
-      'Aortic isthmus: common site for coarctation',
-      'Ligamentum arteriosum connects to pulmonary artery',
-      'Recurrent laryngeal nerve loops around the arch',
-      'Bovine arch variant present in ~15% of population',
-    ],
-  },
-  'pulmonary-trunk': {
-    title: 'Pulmonary Trunk',
-    summary: 'The large artery carrying deoxygenated blood from the right ventricle to the lungs.',
-    details: [
-      'Bifurcates into right and left pulmonary arteries',
-      'Normally low-pressure system (25/10 mmHg)',
-      'Dilates in pulmonary hypertension',
-      'Pulmonary embolism lodges at bifurcation (saddle PE)',
-      'Connected to aorta by ligamentum arteriosum (ductus remnant)',
-    ],
-  },
-  'svc': {
-    title: 'Superior Vena Cava',
-    summary: 'The large vein returning deoxygenated blood from the upper body to the right atrium.',
-    details: [
-      'Formed by junction of right and left brachiocephalic veins',
-      'Enters the superior aspect of the right atrium',
-      'SVC syndrome: obstruction causes facial/upper extremity edema',
-      'Common site for pacing and central line placement',
-      'Anomalous pulmonary vein drainage can connect to SVC (sinus venosus ASD)',
-    ],
-  },
-  'ivc': {
-    title: 'Inferior Vena Cava',
-    summary: 'The large vein returning deoxygenated blood from the lower body to the right atrium.',
-    details: [
-      'Enters the inferior-posterior right atrium',
-      'Guarded by the Eustachian valve remnant',
-      'IVC diameter and collapsibility used to estimate RA pressure',
-      'IVC filters placed for PE prophylaxis when anticoagulation contraindicated',
-      'Important access route for cardiac catheterization (femoral approach)',
-    ],
-  },
-  // ─── Pericardium & Layers ───────────────────────────────────
-  'fibrous-pericardium': {
-    title: 'Fibrous Pericardium',
-    summary: 'The tough, non-distensible outer layer of the pericardial sac.',
-    details: [
-      'Anchored to the great vessels superiorly and diaphragm inferiorly',
-      'Limits acute cardiac dilation',
-      'Pericardial space normally contains 15-50 mL of fluid',
-      'Rapid fluid accumulation causes tamponade physiology',
-      'Surgically opened in pericardiectomy for constrictive pericarditis',
-    ],
-  },
-  'epicardium': {
-    title: 'Epicardium (Visceral Pericardium)',
-    summary: 'The outermost layer of the heart wall, also known as the visceral pericardium.',
-    details: [
-      'Serous membrane covering the heart surface',
-      'Contains the coronary arteries and cardiac veins',
-      'Epicardial fat accumulates along coronary sulci',
-      'Inflammation causes pericarditis (friction rub, ST changes)',
-      'Epicardial mapping/ablation used for refractory VT',
-    ],
-  },
-  'myocardium': {
-    title: 'Myocardium',
-    summary: 'The thick middle muscular layer of the heart wall responsible for contraction.',
-    details: [
-      'Composed of cardiac myocytes with intercalated discs',
-      'LV myocardium is 8-12mm thick; RV is 3-5mm',
-      'Spiral fiber orientation optimizes ejection mechanics',
-      'Myocardial infarction: irreversible necrosis from ischemia',
-      'Myocarditis: inflammatory infiltration (viral, autoimmune)',
-      'Target tissue for cardiac MRI late gadolinium enhancement',
-    ],
-  },
-  'endocardium': {
-    title: 'Endocardium',
-    summary: 'The smooth inner lining of the heart chambers and valves.',
-    details: [
-      'Continuous with vascular endothelium',
-      'Lines all chambers, valves, and chordae tendineae',
-      'Endocarditis: bacterial/fungal infection of endocardial surface',
-      'Vegetations typically form on valve leaflets',
-      'Subendocardial ischemia occurs first (watershed zone)',
-    ],
-  },
-  // ─── Subvalvular ───────────────────────────────────────────
-  'anterolateral-papillary-muscle': {
-    title: 'Anterolateral Papillary Muscle',
-    summary: 'A muscular projection in the LV anchoring chordae tendineae to the mitral valve.',
-    details: [
-      'Dual blood supply from LAD and LCx (more resilient to ischemia)',
-      'Attaches chordae to both anterior and posterior mitral leaflets',
-      'Less commonly ruptured than posteromedial papillary muscle',
-      'Papillary muscle dysfunction causes mitral regurgitation',
-      'Visualized on echocardiography in short-axis views',
-    ],
-  },
-  'posteromedial-papillary-muscle': {
-    title: 'Posteromedial Papillary Muscle',
-    summary: 'A muscular projection in the LV, more vulnerable to ischemia than its anterolateral counterpart.',
-    details: [
-      'Single blood supply (typically from PDA or RCA)',
-      'More vulnerable to ischemic rupture than AL papillary',
-      'Rupture is a mechanical complication of inferior MI',
-      'Causes acute severe mitral regurgitation (surgical emergency)',
-      'Attaches chordae to both mitral leaflets',
-    ],
-  },
-  'moderator-band': {
-    title: 'Moderator Band',
-    summary: 'A muscular band in the right ventricle carrying part of the conduction system.',
-    details: [
-      'Connects the interventricular septum to the anterior papillary muscle',
-      'Carries the right bundle branch to the RV free wall',
-      'Important echocardiographic landmark for identifying the RV',
-      'Distinguishes the morphologic RV from the LV',
-      'Can be prominent and mistaken for thrombus on imaging',
-    ],
-  },
-  'crista-terminalis': {
-    title: 'Crista Terminalis',
-    summary: 'A ridge of muscle in the right atrium separating the smooth and trabeculated portions.',
-    details: [
-      'Separates sinus venarum (smooth) from pectinate muscles (trabeculated)',
-      'Corresponds to the sulcus terminalis externally',
-      'Can be a source of atrial tachycardia (crista terminalis tachycardia)',
-      'Important anatomic landmark during EP studies',
-      'Can be prominent and simulate a mass on imaging',
-    ],
-  },
-  // ─── Coronary Arteries - Left ──────────────────────────────
-  'lmca': {
-    title: 'Left Main Coronary Artery (LMCA)',
-    summary: 'The short trunk arising from the left aortic sinus, bifurcating into the LAD and LCx.',
-    details: [
-      'Typically 1-2.5 cm in length',
-      'Supplies ~75% of the LV myocardium',
-      'Left main disease is high-risk; often treated with CABG',
-      'Stenosis >50% considered significant',
-      'Trifurcation pattern includes ramus intermedius in ~15%',
-    ],
-  },
-  'lad-proximal': {
-    title: 'Proximal LAD',
-    summary: 'The proximal segment of the left anterior descending artery, before the first septal perforator.',
-    details: [
-      'Supplies the anterior wall and anterior septum',
-      'Gives off diagonal and septal perforator branches',
-      'Proximal LAD occlusion causes extensive anterior STEMI',
-      'ST elevation in V1-V4 on ECG',
-      'High-risk lesion, often requires PCI or CABG',
-    ],
-  },
-  'lad-mid': {
-    title: 'Mid LAD',
-    summary: 'The middle segment of the LAD, coursing in the anterior interventricular groove.',
-    details: [
-      'Located between first septal and apex',
-      'Gives off diagonal branches (D1, D2)',
-      'Supplies the anterior and anteroseptal walls',
-      'Wellens pattern on ECG suggests critical mid-LAD stenosis',
-      'Often amenable to PCI with drug-eluting stent',
-    ],
-  },
-  'lad-distal': {
-    title: 'Distal LAD',
-    summary: 'The terminal segment of the LAD, wrapping around the apex.',
-    details: [
-      'Wraps around the cardiac apex in most patients',
-      'Supplies the apical segments',
-      'Occlusion may cause apical MI',
-      'Smaller caliber; less commonly stented',
-      'Can be target for LIMA graft in CABG',
-    ],
-  },
-  'd1': {
-    title: 'First Diagonal Branch (D1)',
-    summary: 'The first major diagonal branch of the LAD supplying the anterolateral wall.',
-    details: [
-      'Arises from the LAD at an acute angle',
-      'Supplies the anterolateral LV wall',
-      'Occlusion can cause lateral ST changes (I, aVL)',
-      'May be large enough to warrant revascularization',
-      'Important collateral pathway',
-    ],
-  },
-  'd2': {
-    title: 'Second Diagonal Branch (D2)',
-    summary: 'A smaller diagonal branch of the LAD supplying the lateral wall.',
-    details: [
-      'Smaller caliber than D1 typically',
-      'Supplies the lateral wall',
-      'Variable anatomy; may be absent',
-      'Occlusion causes limited ischemic territory',
-    ],
-  },
-  'lcx-proximal': {
-    title: 'Left Circumflex Artery (LCx)',
-    summary: 'Courses in the left AV groove, supplying the lateral and posterior walls.',
-    details: [
-      'Runs in the left atrioventricular groove',
-      'Gives off obtuse marginal (OM) branches',
-      'Supplies lateral and posterolateral LV walls',
-      'May be dominant in ~15% (supplying PDA)',
-      'Occlusion: lateral STEMI (I, aVL, V5-V6) or posterior MI',
-    ],
-  },
-  'om1': {
-    title: 'First Obtuse Marginal (OM1)',
-    summary: 'The first major branch of the LCx supplying the lateral wall.',
-    details: [
-      'Major branch of the circumflex artery',
-      'Supplies the lateral LV free wall',
-      'Occlusion causes lateral wall ischemia',
-      'ECG changes in leads I, aVL, V5-V6',
-      'Often a target for PCI or saphenous vein graft in CABG',
-    ],
-  },
-  'om2': {
-    title: 'Second Obtuse Marginal (OM2)',
-    summary: 'A branch of the LCx supplying the posterolateral wall.',
-    details: [
-      'Supplies the posterolateral wall',
-      'Variable in size and presence',
-      'May overlap territory with PDA in left-dominant systems',
-      'Contributes to lateral wall perfusion',
-    ],
-  },
-  // ─── Coronary Arteries - Right ─────────────────────────────
-  'rca-proximal': {
-    title: 'Proximal RCA',
-    summary: 'The first segment of the right coronary artery as it exits the right aortic sinus.',
-    details: [
-      'Arises from the right coronary cusp of the aorta',
-      'Gives off the conus branch and SA nodal artery',
-      'Supplies the right atrium and proximal RV',
-      'Proximal RCA lesions can cause inferior STEMI',
-      'Accessed easily during catheterization',
-    ],
-  },
-  'rca-mid': {
-    title: 'Mid RCA',
-    summary: 'The middle segment coursing in the right AV groove along the acute margin.',
-    details: [
-      'Runs in the right atrioventricular groove',
-      'Gives off the acute marginal branch',
-      'Supplies the RV free wall',
-      'Most common site for RCA atherosclerosis',
-      'Occlusion causes inferior STEMI (II, III, aVF)',
-    ],
-  },
-  'rca-distal': {
-    title: 'Distal RCA',
-    summary: 'The terminal segment at the crux of the heart, giving rise to the PDA in right-dominant anatomy.',
-    details: [
-      'Located at the crux (junction of AV and interventricular grooves)',
-      'Gives rise to PDA in right-dominant hearts (~85%)',
-      'Supplies the AV node in right-dominant circulation',
-      'Occlusion can cause AV block (inferior MI with bradycardia)',
-      'Bifurcates into PDA and posterolateral branches',
-    ],
-  },
-  'pda': {
-    title: 'Posterior Descending Artery (PDA)',
-    summary: 'Courses in the posterior interventricular groove, supplying the inferior septum.',
-    details: [
-      'Arises from RCA in ~85% (right-dominant)',
-      'Arises from LCx in ~8% (left-dominant)',
-      'Co-dominant in ~7% of patients',
-      'Supplies the inferior septum via septal perforators',
-      'Determines coronary dominance classification',
-    ],
-  },
-  'am-branch': {
-    title: 'Acute Marginal Branch',
-    summary: 'A branch of the RCA supplying the right ventricular free wall.',
-    details: [
-      'Arises from the mid-RCA at the acute margin',
-      'Supplies the RV free wall',
-      'Important for RV perfusion',
-      'RV infarction occurs when this territory is compromised',
-      'Can serve as collateral pathway to LAD territory',
-    ],
-  },
-  // ─── Conduction System ─────────────────────────────────────
-  'sa-node': {
-    title: 'Sinoatrial (SA) Node',
-    summary: 'The primary pacemaker of the heart, located in the right atrium near the SVC junction.',
-    details: [
-      'Intrinsic firing rate: 60-100 bpm',
-      'Located at the junction of SVC and right atrium',
-      'Blood supply: SA nodal artery (from RCA in 60%, LCx in 40%)',
-      'Dysfunction causes sick sinus syndrome',
-      'Influenced by autonomic nervous system (sympathetic/parasympathetic)',
-    ],
-  },
-  'av-node': {
-    title: 'Atrioventricular (AV) Node',
-    summary: 'The secondary pacemaker that delays conduction between atria and ventricles.',
-    details: [
-      'Located in Koch triangle (septal leaflet, coronary sinus, tendon of Todaro)',
-      'Intrinsic rate: 40-60 bpm as backup pacemaker',
-      'PR interval reflects AV nodal conduction delay',
-      'Blood supply: AV nodal artery (from RCA in 85%)',
-      'Site of AVNRT and target for slow-pathway ablation',
-      'AV block occurs with disease or ischemia of this node',
-    ],
-  },
-  'bundle-of-his': {
-    title: 'Bundle of His',
-    summary: 'The conduction pathway connecting the AV node to the bundle branches in the interventricular septum.',
-    details: [
-      'Penetrates the central fibrous body',
-      'Located at the membranous interventricular septum',
-      'Dual blood supply (AV nodal and septal perforator arteries)',
-      'His bundle pacing is a physiologic pacing alternative',
-      'Disease causes infra-nodal AV block',
-    ],
-  },
-  'right-bundle-branch': {
-    title: 'Right Bundle Branch',
-    summary: 'A slender fascicle conducting impulses to the right ventricle.',
-    details: [
-      'Courses along the right side of the interventricular septum',
-      'Travels via the moderator band to the RV free wall',
-      'RBBB pattern: rsR\' in V1, wide S in I/V6',
-      'Can be rate-dependent (aberrant conduction)',
-      'New RBBB with chest pain: consider PE or anterior MI',
-    ],
-  },
-  'left-bundle-branch': {
-    title: 'Left Bundle Branch',
-    summary: 'A broad conduction pathway that splits into anterior and posterior fascicles for the left ventricle.',
-    details: [
-      'Fans out over the left septal surface',
-      'Divides into anterior and posterior fascicles',
-      'LBBB pattern: broad notched R in I/V5-V6, QS/rS in V1',
-      'New LBBB may indicate acute MI (Sgarbossa criteria)',
-      'LBBB alters the sequence of ventricular depolarization',
-      'LBBB with heart failure: candidate for CRT',
-    ],
-  },
-  'left-anterior-fascicle': {
-    title: 'Left Anterior Fascicle',
-    summary: 'The anterior division of the left bundle branch, supplying the anterosuperior LV wall.',
-    details: [
-      'Thinner than the posterior fascicle (more vulnerable)',
-      'Single blood supply (LAD septal perforators)',
-      'LAFB: left axis deviation (-45 to -90 degrees)',
-      'Most common fascicular block',
-      'Combined with RBBB = bifascicular block',
-    ],
-  },
-  'left-posterior-fascicle': {
-    title: 'Left Posterior Fascicle',
-    summary: 'The posterior division of the left bundle branch, supplying the inferoposterior LV wall.',
-    details: [
-      'Thicker with dual blood supply (LAD + RCA/PDA)',
-      'Less commonly blocked in isolation (requires significant disease)',
-      'LPFB: right axis deviation (>+110 degrees)',
-      'Must exclude RVH and other causes of right axis deviation',
-      'LPFB + RBBB = bifascicular block (higher risk for complete block)',
-    ],
-  },
-  'purkinje-network-rv': {
-    title: 'Purkinje Network (RV)',
-    summary: 'The terminal conduction fibers distributed throughout the right ventricular endocardium.',
-    details: [
-      'Fastest conduction velocity in the heart (2-4 m/s)',
-      'Ensures rapid, coordinated RV depolarization',
-      'Can serve as source of ventricular arrhythmias',
-      'Purkinje-related VT can occur in structurally normal hearts',
-      'Target for catheter ablation of idiopathic VF',
-    ],
-  },
-  'purkinje-network-lv': {
-    title: 'Purkinje Network (LV)',
-    summary: 'The terminal conduction fibers distributed throughout the left ventricular endocardium.',
-    details: [
-      'Extensive subendocardial distribution in the LV',
-      'Ensures synchronous LV contraction from apex to base',
-      'Purkinje fibers can act as tertiary pacemakers (20-40 bpm)',
-      'Involved in fascicular VT (verapamil-sensitive)',
-      'Can trigger ventricular fibrillation in certain channelopathies',
-    ],
+    overview: ['Thick-walled (8-12mm) conical chamber', 'Generates systemic arterial pressure', 'Papillary muscles anchor mitral leaflets via chordae', 'Normal EF: 55-70%', 'AHA 17-segment model used for wall motion assessment', 'Apex is the most distal point, often supplied by LAD'],
+    anatomy: ['Wall thickness: 8-12mm (2-3x RV)', 'Conical shape with smooth endocardial surface', 'Two papillary muscles: anterolateral and posteromedial', 'Chordae tendineae prevent mitral valve prolapse', 'LVOT between anterior mitral leaflet and septum'],
+    physiology: ['High-pressure pump: systolic 100-140 mmHg', 'EF = (EDV - ESV) / EDV × 100; normal 55-70%', 'Frank-Starling mechanism: increased preload increases stroke volume', 'Diastolic function: relaxation, compliance, and filling', 'Cardiac output = HR × stroke volume (normal 4-8 L/min)'],
+    symptoms: ['LV failure: dyspnea, orthopnea, PND, pulmonary edema', 'Reduced cardiac output: fatigue, exercise intolerance, dizziness', 'Angina from myocardial ischemia', 'Palpitations from ventricular arrhythmias'],
+    ecg: ['LV hypertrophy: tall R in V5-V6, deep S in V1-V2 (Sokolow-Lyon: SV1 + RV5 >35mm)', 'LV strain: ST depression with T wave inversion in lateral leads', 'Q waves: evidence of prior MI transmural necrosis', 'ST elevation: acute STEMI with transmural ischemia'],
+    imaging: ['Echo: parasternal and apical views', 'Simpson biplane method for EF calculation', 'Speckle tracking for global longitudinal strain (GLS, normal < -18%)', 'Cardiac MRI: gold standard for LV volumes, mass, and scar', 'Nuclear perfusion: identifies ischemia and viability'],
+    medications: ['ACEi/ARB for LV remodeling prevention', 'Beta-blocker for HF (carvedilol, metoprolol, bisoprolol)', 'ARNI (sacubitril/valsartan) for HFrEF', 'SGLT2 inhibitor (dapagliflozin, empagliflozin) for HF', 'MRA (spironolactone, eplerenone) for HFrEF'],
+    'field-care': ['12-lead ECG for STEMI identification', 'Aspirin 325mg for suspected ACS', 'Nitroglycerin for chest pain (if no RV infarction)', 'STEMI alert and direct transport to PCI center', 'CPAP/BiPAP for acute pulmonary edema'],
+    'hospital-care': ['Troponin for myocardial injury detection', 'Echocardiography for LV function assessment', 'Coronary angiography for ACS', 'IV diuretics for acute decompensated HF', 'Inotropes/vasopressors for cardiogenic shock'],
+    'cardiology-care': ['PCI for coronary revascularization', 'CABG for multivessel or left main disease', 'CRT for LBBB with HFrEF (EF ≤35%)', 'ICD for primary prevention of sudden cardiac death (EF ≤35%)', 'LVAD as bridge to transplant or destination therapy'],
+    procedure: ['Left heart catheterization: coronary angiography + LV pressures', 'PCI: stent placement for coronary stenosis', 'Endomyocardial biopsy for cardiomyopathy workup', 'CRT implantation: LV lead via coronary sinus'],
+    complications: ['Myocardial infarction: necrosis from coronary occlusion', 'Heart failure: systolic (HFrEF) or diastolic (HFpEF)', 'Ventricular aneurysm post-MI', 'LV thrombus: risk of systemic embolization', 'Cardiogenic shock: pump failure'],
+    teaching: ['The LV is the main systemic pump and the thickest chamber', 'EF is the most widely used measure of LV systolic function', 'GDMT for HFrEF: ACEi/ARNI + BB + MRA + SGLT2i (4 pillars)', 'The 17-segment model standardizes communication about wall motion'],
   },
 };
 
-const CONDITION_INFO: Record<string, { title: string; summary: string; pathophys: string; ecg: string; treatment: string }> = {
+// Fallback tab content generator for structures not in STRUCTURE_DATA
+function getGenericStructureTab(tab: string, structId: string, info: { title: string; summary: string; details: string[] }): string[] {
+  switch (tab) {
+    case 'overview': return [info.summary, ...info.details];
+    case 'anatomy': return info.details;
+    case 'physiology': return [`${info.title} plays a role in cardiac physiology as described in the overview.`];
+    case 'symptoms': return [`Pathology of the ${info.title.toLowerCase()} may present with structure-specific symptoms.`];
+    case 'ecg': return [`ECG changes associated with ${info.title.toLowerCase()} pathology vary by condition.`];
+    case 'imaging': return [`${info.title} can be visualized with echocardiography, CT, MRI, and/or angiography.`];
+    case 'medications': return [`Medications targeting the ${info.title.toLowerCase()} depend on the specific pathology.`];
+    case 'field-care': return [`Prehospital assessment should include relevant physical exam findings.`];
+    case 'hospital-care': return [`Inpatient evaluation includes imaging and laboratory workup.`];
+    case 'cardiology-care': return [`Subspecialty evaluation may include advanced imaging and invasive assessment.`];
+    case 'procedure': return [`Procedures involving the ${info.title.toLowerCase()} are condition-specific.`];
+    case 'complications': return [`Complications depend on the underlying pathology and any interventions performed.`];
+    case 'teaching': return [info.summary, ...info.details.slice(0, 2)];
+    default: return [info.summary];
+  }
+}
+
+// ─── Legacy anatomy info (for structures not yet in STRUCTURE_DATA) ──────
+const ANATOMY_INFO: Record<string, { title: string; summary: string; details: string[] }> = {
+  'right-atrial-appendage': { title: 'Right Atrial Appendage', summary: 'A small, ear-shaped pouch extending from the right atrium.', details: ['Trabeculated muscular pouch (auricle)', 'Contains pectinate muscles', 'Less prone to thrombus than LAA', 'Landmark for identifying the morphologic right atrium', 'Can be used for temporary pacing lead placement'] },
+  'left-atrial-appendage': { title: 'Left Atrial Appendage', summary: 'A small pouch arising from the left atrium, clinically significant as a common site for thrombus formation.', details: ['Primary site of thrombus formation in atrial fibrillation (>90%)', 'Variable morphology: chicken wing, cactus, windsock, cauliflower', 'Target for LAA occlusion devices (Watchman, Amulet)', 'Produces atrial natriuretic peptide (ANP)', 'Surgical ligation or exclusion performed during cardiac surgery'] },
+  'interatrial-septum': { title: 'Interatrial Septum', summary: 'The wall dividing the right and left atria, containing the fossa ovalis.', details: ['Separates the two atrial chambers', 'Contains the fossa ovalis (thinnest region)', 'Site for transseptal puncture in left-sided interventions', 'ASDs and PFOs occur in this structure', 'Best visualized on subcostal echocardiographic views'] },
+  'interventricular-septum': { title: 'Interventricular Septum', summary: 'The muscular and membranous wall separating the right and left ventricles.', details: ['Muscular portion: thick, contracts with systole', 'Membranous portion: thin fibrous tissue near AV valves', 'Contains the bundle of His and proximal bundle branches', 'VSDs most commonly occur in membranous portion', 'Dual blood supply from LAD (anterior) and PDA (posterior)'] },
+  'fossa-ovalis': { title: 'Fossa Ovalis', summary: 'An oval depression in the interatrial septum, remnant of the foramen ovale.', details: ['Thinnest portion of the interatrial septum', 'Remnant of the embryonic foramen ovale', 'PFO occurs when it fails to close completely', 'Target site for transseptal catheterization', 'Important landmark in structural heart interventions'] },
+  'apex': { title: 'Apex', summary: 'The most inferior and lateral tip of the left ventricle.', details: ['Formed primarily by the left ventricle', 'Located at 5th intercostal space, midclavicular line', 'Point of maximal impulse (PMI) palpable here', 'Supplied by the distal LAD artery', 'Common site for apical ballooning in Takotsubo'] },
+  'base-of-heart': { title: 'Base of Heart', summary: 'The superior broad portion of the heart where the great vessels attach.', details: ['Formed primarily by the left atrium posteriorly', 'Great vessels enter and exit at the base', 'Contains the fibrous skeleton and valve annuli'] },
+  'mitral-annulus': { title: 'Mitral Valve', summary: 'A bicuspid valve between the left atrium and left ventricle.', details: ['Two leaflets: anterior (aortic) and posterior (mural)', 'Annulus is saddle-shaped', 'Supported by anterolateral and posteromedial papillary muscles', 'Most common valve affected by rheumatic disease', 'Target for MitraClip/TEER, surgical repair, or replacement'] },
+  'aortic-valve-rcc': { title: 'Aortic Valve', summary: 'A trileaflet semilunar valve between the LV and ascending aorta.', details: ['Three cusps: RCC, LCC, NCC', 'Coronary ostia arise from sinuses of Valsalva', 'No chordae tendineae', 'Aortic stenosis is most common valvular disease', 'TAVR has revolutionized treatment'] },
+  'tricuspid-annulus': { title: 'Tricuspid Valve', summary: 'A three-leaflet valve between the right atrium and right ventricle.', details: ['Three leaflets: anterior, posterior, and septal', 'Largest valve annulus', 'AV node near septal leaflet (Koch triangle)', 'Functional TR common with RV dilation'] },
+  'pulmonary-valve-cusps': { title: 'Pulmonary Valve', summary: 'A trileaflet semilunar valve between the RV and pulmonary trunk.', details: ['Three cusps: anterior, right, and left', 'Lowest pressure valve', 'PS often congenital; balloon valvuloplasty', 'PR common after TOF repair'] },
+  'ascending-aorta': { title: 'Ascending Aorta', summary: 'The first segment of the aorta.', details: ['Contains sinuses of Valsalva and coronary ostia', 'Normal diameter: 2.1-3.5 cm', 'Type A dissection is a surgical emergency'] },
+  'aortic-arch': { title: 'Aortic Arch', summary: 'The curved portion giving rise to head and arm vessels.', details: ['Three major branches', 'Aortic isthmus: coarctation site', 'Ligamentum arteriosum connects to PA'] },
+  'pulmonary-trunk': { title: 'Pulmonary Trunk', summary: 'The large artery carrying deoxygenated blood from the RV to the lungs.', details: ['Bifurcates into right and left PA', 'Low-pressure system (25/10 mmHg)', 'Saddle PE at bifurcation'] },
+  'svc': { title: 'Superior Vena Cava', summary: 'Large vein returning blood from the upper body.', details: ['Formed by brachiocephalic veins', 'SVC syndrome: obstruction causes facial edema', 'Common site for central lines'] },
+  'ivc': { title: 'Inferior Vena Cava', summary: 'Large vein returning blood from the lower body.', details: ['Guarded by Eustachian valve', 'IVC diameter estimates RA pressure on echo', 'IVC filters for PE prophylaxis'] },
+  'fibrous-pericardium': { title: 'Fibrous Pericardium', summary: 'The tough outer layer of the pericardial sac.', details: ['Limits acute cardiac dilation', 'Pericardial space: 15-50 mL fluid', 'Rapid accumulation causes tamponade'] },
+  'epicardium': { title: 'Epicardium', summary: 'Outermost layer (visceral pericardium).', details: ['Contains coronary arteries and veins', 'Inflammation causes pericarditis', 'Epicardial ablation for refractory VT'] },
+  'myocardium': { title: 'Myocardium', summary: 'The muscular layer responsible for contraction.', details: ['LV 8-12mm, RV 3-5mm', 'MI: irreversible necrosis', 'Target for cardiac MRI LGE'] },
+  'endocardium': { title: 'Endocardium', summary: 'Smooth inner lining of heart chambers.', details: ['Continuous with vascular endothelium', 'Endocarditis: infection of this surface', 'Subendocardial ischemia occurs first'] },
+  'anterolateral-papillary-muscle': { title: 'AL Papillary Muscle', summary: 'A muscular projection in the LV.', details: ['Dual blood supply (LAD and LCx)', 'Less commonly ruptured', 'Anchors mitral chordae'] },
+  'posteromedial-papillary-muscle': { title: 'PM Papillary Muscle', summary: 'More vulnerable to ischemia.', details: ['Single blood supply (PDA/RCA)', 'Rupture: acute severe MR (surgical emergency)', 'Mechanical complication of inferior MI'] },
+  'moderator-band': { title: 'Moderator Band', summary: 'A muscular band in the RV carrying conduction.', details: ['Carries RBB to RV free wall', 'Key RV landmark', 'Can mimic thrombus on imaging'] },
+  'crista-terminalis': { title: 'Crista Terminalis', summary: 'Ridge in RA separating smooth from trabeculated.', details: ['Corresponds to sulcus terminalis externally', 'Source of crista terminalis tachycardia', 'Can simulate mass on imaging'] },
+  'lmca': { title: 'LMCA', summary: 'Short trunk bifurcating into LAD and LCx.', details: ['Supplies ~75% of LV', 'Left main disease: high-risk, often CABG', 'Stenosis >50% significant'] },
+  'lad-proximal': { title: 'Proximal LAD', summary: 'Before the first septal perforator.', details: ['Supplies anterior wall and septum', 'Occlusion: extensive anterior STEMI', 'ST elevation V1-V4'] },
+  'lad-mid': { title: 'Mid LAD', summary: 'Coursing in the anterior IV groove.', details: ['Gives off diagonal branches', 'Wellens pattern: critical mid-LAD stenosis'] },
+  'lad-distal': { title: 'Distal LAD', summary: 'Terminal segment wrapping around apex.', details: ['Supplies apical segments', 'Target for LIMA graft in CABG'] },
+  'd1': { title: 'First Diagonal (D1)', summary: 'First major diagonal branch.', details: ['Supplies anterolateral wall', 'Occlusion: lateral ST changes (I, aVL)'] },
+  'd2': { title: 'Second Diagonal (D2)', summary: 'Smaller diagonal branch.', details: ['Variable anatomy, may be absent'] },
+  'lcx-proximal': { title: 'LCx', summary: 'Courses in left AV groove.', details: ['Gives off OM branches', 'May be dominant in ~15%', 'Occlusion: lateral STEMI'] },
+  'om1': { title: 'OM1', summary: 'First obtuse marginal.', details: ['Supplies lateral LV wall', 'ECG changes in I, aVL, V5-V6'] },
+  'om2': { title: 'OM2', summary: 'Second obtuse marginal.', details: ['Supplies posterolateral wall'] },
+  'rca-proximal': { title: 'Proximal RCA', summary: 'First segment exiting right aortic sinus.', details: ['Gives off SA nodal artery', 'Proximal lesions cause inferior STEMI'] },
+  'rca-mid': { title: 'Mid RCA', summary: 'Along the acute margin.', details: ['Gives off acute marginal branch', 'Most common RCA disease site', 'Inferior STEMI: II, III, aVF'] },
+  'rca-distal': { title: 'Distal RCA', summary: 'At the crux of the heart.', details: ['Gives rise to PDA (85%)', 'Supplies AV node', 'Occlusion: AV block'] },
+  'pda': { title: 'PDA', summary: 'Posterior descending artery.', details: ['From RCA in 85%', 'Determines dominance', 'Supplies inferior septum'] },
+  'am-branch': { title: 'Acute Marginal', summary: 'RCA branch to RV free wall.', details: ['RV infarction when compromised'] },
+  'sa-node': { title: 'SA Node', summary: 'Primary pacemaker.', details: ['Intrinsic rate: 60-100 bpm', 'Located at SVC-RA junction', 'Dysfunction: sick sinus syndrome'] },
+  'av-node': { title: 'AV Node', summary: 'Secondary pacemaker with conduction delay.', details: ['Intrinsic rate: 40-60 bpm', 'In Koch triangle', 'AV block from disease or ischemia'] },
+  'bundle-of-his': { title: 'Bundle of His', summary: 'Connects AV node to bundle branches.', details: ['Penetrates central fibrous body', 'His bundle pacing alternative'] },
+  'right-bundle-branch': { title: 'Right Bundle Branch', summary: 'Conducts to RV.', details: ['Via moderator band to RV wall', 'RBBB: rsR\' in V1'] },
+  'left-bundle-branch': { title: 'Left Bundle Branch', summary: 'Splits into anterior and posterior fascicles.', details: ['LBBB: broad R in I, V5-V6', 'New LBBB may indicate MI'] },
+  'left-anterior-fascicle': { title: 'Left Anterior Fascicle', summary: 'Anterior division of LBB.', details: ['LAFB: left axis deviation', 'Most common fascicular block'] },
+  'left-posterior-fascicle': { title: 'Left Posterior Fascicle', summary: 'Posterior division of LBB.', details: ['Dual blood supply', 'LPFB: right axis deviation'] },
+  'purkinje-network-rv': { title: 'Purkinje Network (RV)', summary: 'Terminal conduction fibers in RV.', details: ['Fastest conduction (2-4 m/s)', 'Can source arrhythmias'] },
+  'purkinje-network-lv': { title: 'Purkinje Network (LV)', summary: 'Terminal conduction fibers in LV.', details: ['Extensive subendocardial distribution', 'Tertiary pacemaker (20-40 bpm)'] },
+};
+
+// ─── Condition info with tab-specific content ───────────────────────────
+interface ConditionTabData {
+  title: string;
+  overview: string;
+  pathophys: string;
+  symptoms: string;
+  ecg: string;
+  imaging: string;
+  medications: string;
+  'field-care': string;
+  'hospital-care': string;
+  'cardiology-care': string;
+  procedure: string;
+  complications: string;
+  teaching: string;
+}
+
+const CONDITION_DATA: Record<string, ConditionTabData> = {
   'anterior-stemi': {
     title: 'Anterior STEMI',
-    summary: 'ST-elevation myocardial infarction affecting the anterior wall, typically from LAD occlusion.',
-    pathophys: 'Acute thrombotic occlusion of the LAD causes transmural ischemia of the anterior wall, septum, and often the apex. Without reperfusion, myocardial necrosis progresses within hours.',
-    ecg: 'ST elevation in V1-V4 (may extend to V5-V6). Reciprocal ST depression in inferior leads (II, III, aVF). May see hyperacute T waves early.',
-    treatment: 'Emergent reperfusion: primary PCI (preferred) or fibrinolysis if PCI not available within 120 minutes. Dual antiplatelet therapy, anticoagulation, beta-blocker, statin, ACE inhibitor.',
+    overview: 'ST-elevation myocardial infarction affecting the anterior wall, typically from LAD occlusion. Acute thrombotic occlusion causes transmural ischemia of the anterior wall, septum, and apex.',
+    pathophys: 'Plaque rupture or erosion in the LAD leads to thrombus formation and complete coronary occlusion. Transmural ischemia progresses to necrosis within hours without reperfusion. The wavefront of necrosis extends from subendocardium to epicardium over 3-6 hours.',
+    symptoms: 'Severe substernal chest pressure/pain, often radiating to left arm, jaw, or back. Associated diaphoresis, nausea, dyspnea. May present with syncope or sudden cardiac arrest. Elderly and diabetic patients may have atypical presentations.',
+    ecg: 'ST elevation in V1-V4 (may extend to V5-V6). Reciprocal ST depression in inferior leads (II, III, aVF). Early: hyperacute T waves. Later: Q wave development, T wave inversion. ST elevation >2mm in V2-V3 or >1mm in other leads.',
+    imaging: 'Echo: anterior/septal wall motion abnormality, reduced EF. Coronary angiography: LAD occlusion (gold standard). Cardiac MRI: edema (T2), necrosis (LGE). Nuclear: perfusion defect in LAD territory.',
+    medications: 'Acute: aspirin 325mg, P2Y12 inhibitor (ticagrelor/prasugrel), heparin, nitroglycerin, morphine PRN. Post-PCI: DAPT 12 months, high-dose statin, ACEi/ARB, beta-blocker. Aldosterone antagonist if EF ≤40%.',
+    'field-care': 'Recognize STEMI on 12-lead ECG. Activate cath lab (STEMI alert). Aspirin 325mg. IV access, cardiac monitoring, O2 if SpO2 <94%. Nitroglycerin SL for ongoing pain. Transport to PCI-capable facility. Target: first medical contact to device <90 min.',
+    'hospital-care': 'Emergent cardiac catheterization and primary PCI. Serial troponins, CBC, BMP, coagulation studies. Continuous telemetry. Echocardiography for LV function. Monitor for complications: arrhythmias, heart failure, mechanical complications. ICU admission.',
+    'cardiology-care': 'Primary PCI with drug-eluting stent to culprit LAD lesion. Consider multivessel PCI or staged procedure. IABP or Impella for cardiogenic shock. Cardiac rehabilitation referral. Risk factor modification. Repeat echo at 6-12 weeks for EF reassessment.',
+    procedure: 'Primary PCI: radial or femoral access, coronary angiography, thrombus aspiration if indicated, stent deployment. May require IABP or mechanical circulatory support. Temporary pacing wire if complete heart block.',
+    complications: 'Cardiogenic shock (7-10%). Ventricular arrhythmias (VT/VF). Free wall rupture (1-2%, day 3-5). VSD (1%). Papillary muscle rupture. LV aneurysm. LV thrombus. Pericarditis (Dressler syndrome). Heart failure.',
+    teaching: 'Anterior STEMI has the highest mortality of all STEMI locations due to large myocardial territory at risk. Time is muscle: every 30-minute delay in reperfusion increases mortality. Door-to-balloon time <90 minutes is the quality benchmark for primary PCI.',
   },
   'atrial-fibrillation': {
     title: 'Atrial Fibrillation',
-    summary: 'Chaotic atrial electrical activity causing irregularly irregular ventricular response.',
-    pathophys: 'Multiple wavelets of reentry or focal triggers (often from pulmonary veins) create disorganized atrial depolarization. AV node conducts irregularly to ventricles.',
-    ecg: 'Absent P waves, irregular fibrillatory baseline, irregularly irregular RR intervals, narrow QRS (unless aberrant conduction).',
-    treatment: 'Rate control (beta-blocker or CCB), rhythm control (amiodarone, cardioversion, ablation), anticoagulation for stroke prevention (CHA2DS2-VASc scoring).',
+    overview: 'Chaotic atrial electrical activity causing irregularly irregular ventricular response. Most common sustained arrhythmia. Prevalence increases with age. Major risk factor for stroke.',
+    pathophys: 'Multiple wavelets of reentry or focal triggers (often from pulmonary veins) create disorganized atrial depolarization at 350-600 impulses/min. AV node conducts irregularly to ventricles. Structural remodeling (fibrosis, dilation) promotes persistence. "AF begets AF."',
+    symptoms: 'Palpitations, irregular rapid heartbeat. Dyspnea and exercise intolerance. Fatigue and weakness. Dizziness or lightheadedness. Chest discomfort. Some patients are completely asymptomatic. Stroke/TIA may be the first presentation.',
+    ecg: 'Absent P waves replaced by fibrillatory baseline. Irregularly irregular RR intervals. Narrow QRS unless aberrant conduction or pre-existing BBB. Ventricular rate typically 100-160 bpm if untreated. Ashman phenomenon: aberrancy after long-short cycle.',
+    imaging: 'Echo: LA size (dilation promotes AF persistence). TEE: rule out LAA thrombus before cardioversion. Cardiac MRI: LA fibrosis quantification (LGE). CT: pulmonary vein anatomy for ablation planning.',
+    medications: 'Rate control: metoprolol, diltiazem, digoxin. Rhythm control: flecainide, propafenone (no structural HD), amiodarone, dofetilide, sotalol. Anticoagulation: apixaban, rivaroxaban, dabigatran, edoxaban (CHA₂DS₂-VASc ≥2 men, ≥3 women).',
+    'field-care': 'Identify irregular rhythm on monitor. Assess hemodynamic stability. If unstable (hypotension, AMS, chest pain): synchronized cardioversion. If stable: transport with monitoring. Do not delay transport for rate control. IV access.',
+    'hospital-care': 'Rate control target HR <110 at rest. Anticoagulation assessment (CHA₂DS₂-VASc). TSH to rule out hyperthyroidism. Echo for LV function and LA size. Consider cardioversion if new-onset (<48h) or TEE-guided. Telemetry monitoring.',
+    'cardiology-care': 'Catheter ablation (PVI) for symptomatic, drug-refractory AF. LAA occlusion device for patients who cannot tolerate anticoagulation. Surgical Maze procedure if undergoing cardiac surgery. Hybrid ablation approaches for persistent AF.',
+    procedure: 'PVI ablation: transseptal puncture, 3D mapping, circumferential lesion sets around PV ostia. Cardioversion: synchronized shock at 200J biphasic. TEE: evaluate LAA for thrombus. Watchman: catheter-delivered LAA occluder.',
+    complications: 'Stroke/systemic embolism (5x risk without anticoagulation). Tachycardia-mediated cardiomyopathy from uncontrolled rates. Heart failure exacerbation. Bleeding from anticoagulation. Ablation complications: PV stenosis, tamponade, atrial-esophageal fistula.',
+    teaching: 'AF is the most common sustained arrhythmia, affecting 2-3% of adults. Stroke prevention is the most important management decision. CHA₂DS₂-VASc score guides anticoagulation. Rate vs. rhythm control: AFFIRM showed no mortality difference, but recent EAST-AFNET 4 showed benefit of early rhythm control.',
   },
 };
 
@@ -617,8 +227,45 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
 
   if (!rightPanelOpen) return null;
 
-  const anatomyInfo = selectedStructureId ? ANATOMY_INFO[selectedStructureId] : null;
-  const conditionInfo = selectedConditionId ? CONDITION_INFO[selectedConditionId] : null;
+  // Resolve structure info from detailed data or legacy fallback
+  const structureTabData = selectedStructureId ? STRUCTURE_DATA[selectedStructureId] : null;
+  const legacyInfo = selectedStructureId ? ANATOMY_INFO[selectedStructureId] : null;
+  const conditionTabData = selectedConditionId ? CONDITION_DATA[selectedConditionId] : null;
+
+  // Get content for current tab
+  const getStructureContent = (): string[] => {
+    if (structureTabData) {
+      return (structureTabData as unknown as Record<string, string[]>)[rightPanelTab] || structureTabData.overview;
+    }
+    if (legacyInfo) {
+      return getGenericStructureTab(rightPanelTab, selectedStructureId!, legacyInfo);
+    }
+    return [];
+  };
+
+  const getConditionContent = (): string | null => {
+    if (!conditionTabData) return null;
+    const tabMap: Record<string, string> = {
+      'overview': conditionTabData.overview,
+      'anatomy': conditionTabData.pathophys,
+      'physiology': conditionTabData.pathophys,
+      'symptoms': conditionTabData.symptoms,
+      'ecg': conditionTabData.ecg,
+      'imaging': conditionTabData.imaging,
+      'medications': conditionTabData.medications,
+      'field-care': conditionTabData['field-care'],
+      'hospital-care': conditionTabData['hospital-care'],
+      'cardiology-care': conditionTabData['cardiology-care'],
+      'procedure': conditionTabData.procedure,
+      'complications': conditionTabData.complications,
+      'teaching': conditionTabData.teaching,
+    };
+    return tabMap[rightPanelTab] || conditionTabData.overview;
+  };
+
+  const structTitle = structureTabData?.title || legacyInfo?.title;
+  const structContent = getStructureContent();
+  const condContent = getConditionContent();
 
   return (
     <aside style={style} className="bg-cardiac-panel border-t border-slate-700 flex flex-col shrink-0 overflow-hidden">
@@ -642,7 +289,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 text-xs text-slate-300 space-y-3">
         {/* Welcome / empty state */}
-        {!anatomyInfo && !conditionInfo && !selectedProcedureId && (
+        {!structTitle && !conditionTabData && !selectedProcedureId && (
           <div className="text-center py-8">
             <div className="text-4xl mb-3">♥</div>
             <h3 className="text-sm font-semibold text-white mb-2">Cardiac Education Platform</h3>
@@ -653,7 +300,6 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
               <p className="text-cardiac-accent text-[10px] font-semibold mb-1">EDUCATIONAL DISCLAIMER</p>
               <p className="text-slate-500 text-[10px] leading-relaxed">
                 This is an educational simulation only. Not intended for diagnosis or treatment.
-                Waveforms and animations are representative teaching models.
               </p>
             </div>
             <div className="mt-3 text-slate-500 text-[10px]">
@@ -662,59 +308,39 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
           </div>
         )}
 
-        {/* Anatomy detail */}
-        {anatomyInfo && (
+        {/* Structure detail */}
+        {structTitle && structContent.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-white mb-1">{anatomyInfo.title}</h3>
-            <p className="text-slate-300 mb-3 leading-relaxed">{anatomyInfo.summary}</p>
-
-            <div className="space-y-2">
-              <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider">Key Points</h4>
-              <ul className="space-y-1">
-                {anatomyInfo.details.map((d, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-cardiac-accent mt-0.5">•</span>
-                    <span className="text-slate-400 leading-relaxed">{d}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-4 p-2 bg-cardiac-dark rounded">
-              <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase mb-1">Learning Level</h4>
-              <p className="text-slate-500 text-[10px]">
-                Viewing at {['', 'EMT', 'Paramedic', 'ED/ICU', 'Cardiology', 'Interventional'][learningLevel]} level
-              </p>
-            </div>
+            <h3 className="text-sm font-semibold text-white mb-1">{structTitle}</h3>
+            <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 capitalize">
+              {rightPanelTab.replace('-', ' ')}
+            </h4>
+            <ul className="space-y-1">
+              {structContent.map((d, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-cardiac-accent mt-0.5 shrink-0">•</span>
+                  <span className="text-slate-400 leading-relaxed">{d}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
         {/* Condition detail */}
-        {conditionInfo && (
+        {conditionTabData && condContent && (
           <div>
-            <h3 className="text-sm font-semibold text-white mb-1">{conditionInfo.title}</h3>
-            <p className="text-slate-300 mb-3 leading-relaxed">{conditionInfo.summary}</p>
-
-            {rightPanelTab === 'overview' && (
-              <div className="space-y-3">
-                <Section title="Pathophysiology" content={conditionInfo.pathophys} />
-                <Section title="ECG Findings" content={conditionInfo.ecg} />
-                <Section title="Treatment" content={conditionInfo.treatment} />
-              </div>
-            )}
-
-            {rightPanelTab === 'ecg' && (
-              <Section title="ECG Interpretation" content={conditionInfo.ecg} />
-            )}
-
-            {rightPanelTab === 'medications' && (
-              <Section title="Treatment Approach" content={conditionInfo.treatment} />
-            )}
+            <h3 className="text-sm font-semibold text-white mb-1">{conditionTabData.title}</h3>
+            <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 capitalize">
+              {rightPanelTab.replace('-', ' ')}
+            </h4>
+            <div className="p-2 bg-cardiac-dark rounded">
+              <p className="text-slate-400 leading-relaxed">{condContent}</p>
+            </div>
           </div>
         )}
 
         {/* Procedure detail */}
-        {selectedProcedureId && !conditionInfo && (
+        {selectedProcedureId && !conditionTabData && !structTitle && (
           <div>
             <h3 className="text-sm font-semibold text-white mb-1 capitalize">
               {selectedProcedureId.replace(/-/g, ' ')}
@@ -726,14 +352,5 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
         )}
       </div>
     </aside>
-  );
-}
-
-function Section({ title, content }: { title: string; content: string }) {
-  return (
-    <div className="p-2 bg-cardiac-dark rounded">
-      <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-1">{title}</h4>
-      <p className="text-slate-400 leading-relaxed">{content}</p>
-    </div>
   );
 }

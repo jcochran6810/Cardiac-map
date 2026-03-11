@@ -71,6 +71,7 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
               >
                 <option value={0.25}>0.25x</option>
                 <option value={0.5}>0.5x</option>
+                <option value={1}>1x</option>
               </select>
             </div>
 

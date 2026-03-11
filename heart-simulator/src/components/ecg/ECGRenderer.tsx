@@ -29,7 +29,7 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
   const lastDragXRef = useRef(0);
 
   const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, showBeatMarkers, showAnnotations, caliperMode, selectedLead, selectLead } = useECGStore();
-  const { time, heartRate, playing, frozen } = useTimelineStore();
+  const { time, heartRate, speed, playing, frozen } = useTimelineStore();
 
   // Track layout for click detection
   const layoutRef = useRef<{ leads: ECGLead[]; cols: number; rows: number; cellW: number; cellH: number }>({
@@ -227,9 +227,10 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     // Store layout for click detection
     layoutRef.current = { leads, cols, rows, cellW, cellH };
 
-    // Only auto-scroll when not dragging
+    // Only auto-scroll when not dragging; speed multiplier slows the scroll
+    // while keeping the waveform spacing (rrPixels) at the set BPM
     if (displayMode === 'scrolling' && playing && !frozen && !isDraggingRef.current) {
-      scrollOffsetRef.current += 1.5;
+      scrollOffsetRef.current += 1.5 * speed;
     }
 
     leads.forEach((lead, i) => {
@@ -284,7 +285,7 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     }
 
     animRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, conditionMod, compareMod, compact, verticalStack, selectedLead]);
+  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, speed, conditionMod, compareMod, compact, verticalStack, selectedLead]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
