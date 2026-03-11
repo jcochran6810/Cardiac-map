@@ -10,6 +10,8 @@ const GRID_COLOR = 'rgba(220, 38, 38, 0.15)';
 const GRID_MAJOR_COLOR = 'rgba(220, 38, 38, 0.3)';
 const TRACE_COLOR = '#10B981';
 const COMPARE_COLOR = '#3B82F6';
+const SELECTED_BG = 'rgba(245, 158, 11, 0.08)';
+const SELECTED_BORDER = 'rgba(245, 158, 11, 0.6)';
 
 interface ECGRendererProps {
   width?: number;
@@ -23,10 +25,16 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
   const animRef = useRef<number>(0);
   const scrollOffsetRef = useRef(0);
   const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
   const lastDragXRef = useRef(0);
 
-  const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, showBeatMarkers, showAnnotations, caliperMode } = useECGStore();
+  const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, showBeatMarkers, showAnnotations, caliperMode, selectedLead, selectLead } = useECGStore();
   const { time, heartRate, playing, frozen } = useTimelineStore();
+
+  // Track layout for click detection
+  const layoutRef = useRef<{ leads: ECGLead[]; cols: number; rows: number; cellW: number; cellH: number }>({
+    leads: [], cols: 1, rows: 1, cellW: 0, cellH: 0,
+  });
 
   const conditionMod = useMemo(() => {
     return CONDITION_MODIFIERS[activeProfileId] || {};
@@ -37,13 +45,14 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     return CONDITION_MODIFIERS[compareProfileId] || {};
   }, [compareProfileId]);
 
-  // Mouse drag handlers for scrubbing
+  // Mouse drag handlers for scrubbing + click-to-select lead
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const onMouseDown = (e: MouseEvent) => {
       isDraggingRef.current = true;
+      dragStartXRef.current = e.clientX;
       lastDragXRef.current = e.clientX;
       canvas.style.cursor = 'grabbing';
     };
@@ -51,13 +60,30 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const onMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return;
       const dx = e.clientX - lastDragXRef.current;
-      scrollOffsetRef.current -= dx * 2; // drag left = forward in time, drag right = backward
+      scrollOffsetRef.current -= dx * 2;
       lastDragXRef.current = e.clientX;
     };
 
-    const onMouseUp = () => {
+    const onMouseUp = (e: MouseEvent) => {
+      const wasDrag = Math.abs(e.clientX - dragStartXRef.current) > 5;
       isDraggingRef.current = false;
       canvas.style.cursor = 'grab';
+
+      // If it was a click (not a drag), detect which lead was clicked
+      if (!wasDrag) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const layout = layoutRef.current;
+        if (layout.cellW > 0 && layout.cellH > 0) {
+          const col = Math.floor(x / layout.cellW);
+          const row = Math.floor(y / layout.cellH);
+          const idx = row * layout.cols + col;
+          if (idx >= 0 && idx < layout.leads.length) {
+            selectLead(layout.leads[idx]);
+          }
+        }
+      }
     };
 
     const onMouseLeave = () => {
@@ -77,10 +103,9 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       window.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('mouseleave', onMouseLeave);
     };
-  }, []);
+  }, [selectLead]);
 
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    // Minor grid (1mm = 5px at 25mm/s)
     const gridSize = 5;
     ctx.strokeStyle = GRID_COLOR;
     ctx.lineWidth = 0.5;
@@ -96,7 +121,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       ctx.lineTo(w, y);
       ctx.stroke();
     }
-    // Major grid (5mm = 25px)
     const majorSize = 25;
     ctx.strokeStyle = GRID_MAJOR_COLOR;
     ctx.lineWidth = 1;
@@ -176,7 +200,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Use logical (CSS) dimensions since ctx.scale(devicePixelRatio) is already applied
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
@@ -188,7 +211,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
 
     const leads = compact ? visibleLeads.slice(0, 4) : visibleLeads;
 
-    // When verticalStack is true, use 2 columns x 6 rows layout
     let rows: number;
     let cols: number;
     if (verticalStack) {
@@ -202,6 +224,9 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const cellW = w / cols;
     const cellH = h / rows;
 
+    // Store layout for click detection
+    layoutRef.current = { leads, cols, rows, cellW, cellH };
+
     // Only auto-scroll when not dragging
     if (displayMode === 'scrolling' && playing && !frozen && !isDraggingRef.current) {
       scrollOffsetRef.current += 1.5;
@@ -213,6 +238,15 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       const cx = col * cellW;
       const cy = row * cellH;
 
+      // Highlight selected lead cell
+      if (selectedLead === lead) {
+        ctx.fillStyle = SELECTED_BG;
+        ctx.fillRect(cx, cy, cellW, cellH);
+        ctx.strokeStyle = SELECTED_BORDER;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cx + 1, cy + 1, cellW - 2, cellH - 2);
+      }
+
       drawLead(ctx, lead, cx, cy, cellW, cellH, scrollOffsetRef.current, conditionMod, TRACE_COLOR);
 
       if (compareMod) {
@@ -223,7 +257,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     // Draw solid dividing lines between lead cells
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
     ctx.lineWidth = 1.5;
-    // Vertical dividers between columns
     for (let c = 1; c < cols; c++) {
       const x = c * cellW;
       ctx.beginPath();
@@ -231,7 +264,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       ctx.lineTo(x, h);
       ctx.stroke();
     }
-    // Horizontal dividers between rows
     for (let r = 1; r < rows; r++) {
       const y = r * cellH;
       ctx.beginPath();
@@ -252,7 +284,7 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     }
 
     animRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, conditionMod, compareMod, compact, verticalStack]);
+  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, conditionMod, compareMod, compact, verticalStack, selectedLead]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

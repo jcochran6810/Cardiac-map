@@ -14,6 +14,7 @@ interface ECGState {
   showAnnotations: boolean;
   caliperMode: boolean;
   caliperPoints: { x: number; lead: ECGLead }[];
+  selectedLead: ECGLead | null;
 
   setActiveProfile: (id: string) => void;
   setCompareProfile: (id: string | null) => void;
@@ -26,6 +27,7 @@ interface ECGState {
   toggleCalipers: () => void;
   addCaliperPoint: (x: number, lead: ECGLead) => void;
   clearCalipers: () => void;
+  selectLead: (lead: ECGLead | null) => void;
 }
 
 const ALL_LEADS: ECGLead[] = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
@@ -41,6 +43,7 @@ export const useECGStore = create<ECGState>((set) => ({
   showAnnotations: true,
   caliperMode: false,
   caliperPoints: [],
+  selectedLead: null,
 
   setActiveProfile: (id) => set({ activeProfileId: id }),
   setCompareProfile: (id) => set({ compareProfileId: id }),
@@ -59,4 +62,5 @@ export const useECGStore = create<ECGState>((set) => ({
     caliperPoints: s.caliperPoints.length >= 2 ? [{ x, lead }] : [...s.caliperPoints, { x, lead }],
   })),
   clearCalipers: () => set({ caliperPoints: [] }),
+  selectLead: (lead) => set((s) => ({ selectedLead: s.selectedLead === lead ? null : lead })),
 }));

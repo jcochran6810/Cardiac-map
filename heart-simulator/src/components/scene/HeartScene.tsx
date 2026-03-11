@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useAppStore } from '@/store/useAppStore';
+import { useECGStore, ECGLead } from '@/store/useECGStore';
 
 // ─── Anatomical region map ─────────────────────────────────────────────
 // Maps 3D zones on the normalized heart model to structure IDs.
@@ -1805,6 +1806,104 @@ function SectionalClipPlane() {
   );
 }
 
+// ─── ECG Lead Axis Visualization ──────────────────────────────────────
+// Each ECG lead views the heart from a specific electrical angle.
+// Frontal plane leads (I, II, III, aVR, aVL, aVF) are in the X-Z plane.
+// Precordial leads (V1-V6) are in the horizontal X-Y plane.
+const LEAD_AXIS_VECTORS: Record<ECGLead, [number, number, number]> = {
+  // Frontal plane — angle measured from leftward horizontal
+  // Direction = [-cos(angle), 0, -sin(angle)] where 0° = leftward, 90° = inferior
+  'I':   [-1,     0,      0],       // 0° — leftward
+  'II':  [-0.5,   0,     -0.866],   // 60° — left-inferior
+  'III': [ 0.5,   0,     -0.866],   // 120° — right-inferior
+  'aVR': [ 0.866, 0,      0.5],     // -150° — right-superior
+  'aVL': [-0.866, 0,      0.5],     // -30° — left-superior
+  'aVF': [ 0,     0,     -1],       // 90° — inferior
+  // Horizontal plane — precordial leads wrap around the chest
+  'V1':  [ 0.5,  -0.866,  0],       // right parasternal
+  'V2':  [ 0.17, -0.985,  0],       // left parasternal
+  'V3':  [-0.26, -0.966,  0],       // between V2 and V4
+  'V4':  [-0.64, -0.766,  0],       // midclavicular
+  'V5':  [-0.866,-0.5,    0],       // anterior axillary
+  'V6':  [-0.985,-0.17,   0],       // midaxillary
+};
+
+function LeadAxisLine() {
+  const { selectedLead } = useECGStore();
+  const groupRef = useRef<THREE.Group>(null);
+  const labelPosRef = useRef<THREE.Group>(null);
+  const labelNegRef = useRef<THREE.Group>(null);
+
+  // Create a THREE.Line object imperatively
+  const lineObj = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: '#f59e0b',
+      transparent: true,
+      opacity: 0.85,
+    });
+    return new THREE.Line(geo, mat);
+  }, []);
+
+  useFrame(() => {
+    if (!selectedLead || !groupRef.current) return;
+
+    const dir = LEAD_AXIS_VECTORS[selectedLead];
+    if (!dir) return;
+
+    // Heart center is roughly at origin, line extends 1.8 units each way
+    const len = 1.8;
+    const positions = lineObj.geometry.attributes.position as THREE.BufferAttribute;
+    positions.setXYZ(0, dir[0] * len, dir[1] * len, dir[2] * len);
+    positions.setXYZ(1, -dir[0] * len, -dir[1] * len, -dir[2] * len);
+    positions.needsUpdate = true;
+
+    // Position labels at endpoints
+    if (labelPosRef.current) {
+      labelPosRef.current.position.set(dir[0] * (len + 0.15), dir[1] * (len + 0.15), dir[2] * (len + 0.15));
+    }
+    if (labelNegRef.current) {
+      labelNegRef.current.position.set(-dir[0] * (len + 0.15), -dir[1] * (len + 0.15), -dir[2] * (len + 0.15));
+    }
+  });
+
+  if (!selectedLead) return null;
+
+  return (
+    <group ref={groupRef}>
+      {/* Axis line via primitive */}
+      <primitive object={lineObj} />
+
+      {/* Positive electrode label */}
+      <group ref={labelPosRef}>
+        <mesh>
+          <sphereGeometry args={[0.04, 12, 12]} />
+          <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={1.0} />
+        </mesh>
+        <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
+          <div className="bg-amber-500/90 text-black text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+            {selectedLead} (+)
+          </div>
+        </Html>
+      </group>
+
+      {/* Negative electrode label */}
+      <group ref={labelNegRef}>
+        <mesh>
+          <sphereGeometry args={[0.03, 12, 12]} />
+          <meshStandardMaterial color="#6b7280" emissive="#6b7280" emissiveIntensity={0.5} />
+        </mesh>
+        <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
+          <div className="bg-slate-600/90 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap">
+            (-)
+          </div>
+        </Html>
+      </group>
+    </group>
+  );
+}
+
 // ─── Conduction system with animated arrows ───────────────────────────
 // Conduction pathway definitions: each path has 3D control points and a timing window
 // within cycleProgress that maps to the corresponding EKG feature.
@@ -1830,14 +1929,26 @@ const CONDUCTION_PATHWAYS = [
   { name: 'LBB',
     points: [[0.02, 0.05, 0.18], [-0.04, 0.02, 0.1], [-0.1, 0.0, -0.1], [-0.12, -0.05, -0.3], [-0.15, -0.05, -0.5]] as [number,number,number][],
     startTime: 0.28, endTime: 0.35, color: new THREE.Color('#ef4444') },
-  // RBB → Purkinje spread (RV wall, QRS)
-  { name: 'Purkinje RV',
-    points: [[0.15, 0.1, -0.3], [0.25, 0.12, -0.25], [0.35, 0.1, -0.15]] as [number,number,number][],
-    startTime: 0.32, endTime: 0.36, color: new THREE.Color('#f87171') },
-  // LBB → Purkinje spread (LV wall, QRS)
-  { name: 'Purkinje LV',
-    points: [[-0.12, -0.05, -0.3], [-0.25, -0.1, -0.2], [-0.35, -0.1, -0.1]] as [number,number,number][],
-    startTime: 0.32, endTime: 0.36, color: new THREE.Color('#f87171') },
+  // RBB → Purkinje spread (RV wall, QRS) — multiple branches for surface coverage
+  { name: 'Purkinje RV anterior',
+    points: [[0.15, 0.1, -0.3], [0.22, 0.12, -0.25], [0.30, 0.14, -0.15], [0.35, 0.12, -0.05]] as [number,number,number][],
+    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+  { name: 'Purkinje RV lateral',
+    points: [[0.15, 0.1, -0.3], [0.25, 0.08, -0.35], [0.32, 0.05, -0.45], [0.30, 0.0, -0.55]] as [number,number,number][],
+    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+  { name: 'Purkinje RV inferior',
+    points: [[0.20, 0.08, -0.5], [0.22, 0.0, -0.55], [0.18, -0.05, -0.6]] as [number,number,number][],
+    startTime: 0.34, endTime: 0.38, color: new THREE.Color('#fb923c') },
+  // LBB → Purkinje spread (LV wall, QRS) — multiple branches for surface coverage
+  { name: 'Purkinje LV anterior',
+    points: [[-0.12, -0.05, -0.3], [-0.20, -0.10, -0.20], [-0.30, -0.15, -0.10], [-0.35, -0.12, 0.0]] as [number,number,number][],
+    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+  { name: 'Purkinje LV lateral',
+    points: [[-0.12, -0.05, -0.3], [-0.22, -0.08, -0.35], [-0.30, -0.05, -0.45], [-0.28, 0.0, -0.55]] as [number,number,number][],
+    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+  { name: 'Purkinje LV apical',
+    points: [[-0.15, -0.05, -0.5], [-0.12, -0.08, -0.6], [-0.05, -0.05, -0.65]] as [number,number,number][],
+    startTime: 0.34, endTime: 0.38, color: new THREE.Color('#fb923c') },
 ];
 
 // Single animated conduction arrow along a curve
@@ -1852,8 +1963,11 @@ function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
   const trailRef = useRef<THREE.Mesh>(null);
   const trailMatRef = useRef<THREE.ShaderMaterial>(null);
 
-  // Tube geometry for the trail
-  const tubeGeo = useMemo(() => new THREE.TubeGeometry(curve, 64, 0.012, 8, false), [curve]);
+  // Tube geometry for the trail — thicker for better visibility on heart surface
+  const tubeGeo = useMemo(() => new THREE.TubeGeometry(curve, 80, 0.018, 12, false), [curve]);
+
+  // Outer glow tube (larger, semi-transparent)
+  const glowGeo = useMemo(() => new THREE.TubeGeometry(curve, 80, 0.035, 12, false), [curve]);
 
   // Shader material for animated trail reveal
   const trailMat = useMemo(() => {
@@ -1874,17 +1988,15 @@ function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
         uniform vec3 uColor;
         varying vec2 vUv;
         void main() {
-          // Trail: visible behind the leading edge, fades out behind
           float leading = uProgress;
           float behindLeading = step(vUv.x, leading);
-          float trailFade = smoothstep(leading - 0.5, leading, vUv.x);
-          // Glow pulse at the leading edge
+          float trailFade = smoothstep(leading - 0.6, leading, vUv.x);
+          // Brighter glow pulse at the leading edge
           float edgeDist = abs(vUv.x - leading);
-          float edgeGlow = exp(-edgeDist * 30.0) * 1.5;
-          float alpha = (behindLeading * trailFade * 0.6 + edgeGlow) * step(0.01, uProgress);
-          // Fade out after full reveal
-          alpha *= 1.0 - smoothstep(0.95, 1.0, uProgress) * 0.7;
-          gl_FragColor = vec4(uColor * (1.0 + edgeGlow * 0.5), alpha);
+          float edgeGlow = exp(-edgeDist * 20.0) * 2.0;
+          float alpha = (behindLeading * trailFade * 0.8 + edgeGlow) * step(0.01, uProgress);
+          alpha *= 1.0 - smoothstep(0.95, 1.0, uProgress) * 0.5;
+          gl_FragColor = vec4(uColor * (1.0 + edgeGlow * 0.8), alpha);
         }
       `,
       transparent: true,
@@ -1894,8 +2006,45 @@ function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
     return mat;
   }, [color]);
 
-  // Arrowhead cone geometry
-  const coneGeo = useMemo(() => new THREE.ConeGeometry(0.025, 0.06, 8), []);
+  // Glow material — soft outer halo
+  const glowMat = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uProgress: { value: 0 },
+        uColor: { value: color },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uProgress;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+          float leading = uProgress;
+          float edgeDist = abs(vUv.x - leading);
+          float edgeGlow = exp(-edgeDist * 12.0) * 1.0;
+          float behindLeading = step(vUv.x, leading);
+          float trailFade = smoothstep(leading - 0.4, leading, vUv.x);
+          float alpha = (behindLeading * trailFade * 0.15 + edgeGlow * 0.4) * step(0.01, uProgress);
+          alpha *= 1.0 - smoothstep(0.90, 1.0, uProgress) * 0.8;
+          gl_FragColor = vec4(uColor, alpha);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+  }, [color]);
+
+  const glowMatRef = useRef<THREE.ShaderMaterial>(null);
+
+  // Arrowhead cone geometry — larger for better visibility
+  const coneGeo = useMemo(() => new THREE.ConeGeometry(0.035, 0.08, 12), []);
 
   // Animate each frame
   useFrame(() => {
@@ -1908,9 +2057,12 @@ function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
       pathProgress = 1.0;
     }
 
-    // Update trail shader
+    // Update trail and glow shaders
     if (trailMatRef.current) {
       trailMatRef.current.uniforms.uProgress.value = pathProgress;
+    }
+    if (glowMatRef.current) {
+      glowMatRef.current.uniforms.uProgress.value = pathProgress;
     }
 
     // Position arrowhead along curve
@@ -1931,7 +2083,11 @@ function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
 
   return (
     <group>
-      {/* Trail tube */}
+      {/* Outer glow tube */}
+      <mesh geometry={glowGeo}>
+        <primitive object={glowMat} ref={glowMatRef} attach="material" />
+      </mesh>
+      {/* Core trail tube */}
       <mesh ref={trailRef} geometry={tubeGeo}>
         <primitive object={trailMat} ref={trailMatRef} attach="material" />
       </mesh>
@@ -1941,9 +2097,9 @@ function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
           <meshStandardMaterial
             color={color}
             emissive={color}
-            emissiveIntensity={1.5}
+            emissiveIntensity={2.0}
             transparent
-            opacity={0.9}
+            opacity={0.95}
           />
         </mesh>
       </group>
@@ -2184,6 +2340,7 @@ export default function HeartScene() {
           <ImagingOverlay />
           <SectionalClipPlane />
           <ConductionOverlay />
+          <LeadAxisLine />
           <BloodFlowParticles />
         </group>
 
