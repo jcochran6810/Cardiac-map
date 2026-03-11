@@ -621,9 +621,9 @@ export default function RightPanel() {
   const conditionInfo = selectedConditionId ? CONDITION_INFO[selectedConditionId] : null;
 
   return (
-    <aside className="w-80 bg-cardiac-panel border-l border-slate-700 flex flex-col shrink-0 overflow-hidden">
+    <aside className="h-56 bg-cardiac-panel border-t border-slate-700 flex flex-col shrink-0 overflow-hidden">
       {/* Tabs */}
-      <div className="flex flex-wrap border-b border-slate-700 px-1 py-1 gap-0.5">
+      <div className="flex flex-wrap border-b border-slate-700 px-1 py-1 gap-0.5 shrink-0">
         {TABS.map((tab) => (
           <button
             key={tab}

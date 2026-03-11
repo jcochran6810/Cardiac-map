@@ -15,12 +15,15 @@ interface ECGRendererProps {
   width?: number;
   height?: number;
   compact?: boolean;
+  verticalStack?: boolean;
 }
 
-export default function ECGRenderer({ width, height, compact = false }: ECGRendererProps) {
+export default function ECGRenderer({ width, height, compact = false, verticalStack = false }: ECGRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const scrollOffsetRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const lastDragXRef = useRef(0);
 
   const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, showBeatMarkers, showAnnotations, caliperMode } = useECGStore();
   const { time, heartRate, playing, frozen } = useTimelineStore();
@@ -33,6 +36,48 @@ export default function ECGRenderer({ width, height, compact = false }: ECGRende
     if (!compareProfileId) return null;
     return CONDITION_MODIFIERS[compareProfileId] || {};
   }, [compareProfileId]);
+
+  // Mouse drag handlers for scrubbing
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      isDraggingRef.current = true;
+      lastDragXRef.current = e.clientX;
+      canvas.style.cursor = 'grabbing';
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const dx = e.clientX - lastDragXRef.current;
+      scrollOffsetRef.current -= dx * 2; // drag left = forward in time, drag right = backward
+      lastDragXRef.current = e.clientX;
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      canvas.style.cursor = 'grab';
+    };
+
+    const onMouseLeave = () => {
+      isDraggingRef.current = false;
+      canvas.style.cursor = 'grab';
+    };
+
+    canvas.style.cursor = 'grab';
+    canvas.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('mouseleave', onMouseLeave);
+
+    return () => {
+      canvas.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('mouseleave', onMouseLeave);
+    };
+  }, []);
 
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
     // Minor grid (1mm = 5px at 25mm/s)
@@ -142,12 +187,23 @@ export default function ECGRenderer({ width, height, compact = false }: ECGRende
     drawGrid(ctx, w, h);
 
     const leads = compact ? visibleLeads.slice(0, 4) : visibleLeads;
-    const rows = compact ? Math.min(leads.length, 4) : Math.ceil(leads.length / (leads.length > 6 ? 3 : 2));
-    const cols = compact ? 1 : (leads.length > 6 ? 3 : leads.length > 3 ? 2 : 1);
+
+    // When verticalStack is true, force single column with all leads stacked
+    let rows: number;
+    let cols: number;
+    if (verticalStack) {
+      rows = leads.length;
+      cols = 1;
+    } else {
+      rows = compact ? Math.min(leads.length, 4) : Math.ceil(leads.length / (leads.length > 6 ? 3 : 2));
+      cols = compact ? 1 : (leads.length > 6 ? 3 : leads.length > 3 ? 2 : 1);
+    }
+
     const cellW = w / cols;
     const cellH = h / rows;
 
-    if (displayMode === 'scrolling' && playing && !frozen) {
+    // Only auto-scroll when not dragging
+    if (displayMode === 'scrolling' && playing && !frozen && !isDraggingRef.current) {
       scrollOffsetRef.current += 1.5;
     }
 
@@ -196,7 +252,7 @@ export default function ECGRenderer({ width, height, compact = false }: ECGRende
     }
 
     animRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, conditionMod, compareMod, compact]);
+  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, conditionMod, compareMod, compact, verticalStack]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

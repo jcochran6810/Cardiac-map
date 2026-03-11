@@ -36,7 +36,7 @@ export default function HomePage() {
         {/* Left Panel */}
         <LeftPanel />
 
-        {/* Center: 3D Scene + Bottom Dock */}
+        {/* Center: 3D Scene + Info Panel (bottom) */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* 3D Scene */}
           <div className="flex-1 relative min-h-0">
@@ -52,12 +52,12 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Bottom Dock (ECG + Timeline) */}
-          <BottomDock />
+          {/* Info Panel (moved from right side to bottom) */}
+          <RightPanel />
         </div>
 
-        {/* Right Panel */}
-        <RightPanel />
+        {/* ECG Panel (right side, all 12 leads stacked) */}
+        <BottomDock />
       </div>
 
       {/* Tutor overlay */}
