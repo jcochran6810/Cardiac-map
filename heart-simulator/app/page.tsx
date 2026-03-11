@@ -28,9 +28,9 @@ const HeartScene = dynamic(() => import('@/components/scene/HeartScene'), {
 type DragTarget = 'left' | 'info' | 'ecg' | null;
 
 export default function HomePage() {
-  const [leftWidth, setLeftWidth] = useState(240);
-  const [infoWidth, setInfoWidth] = useState(300);
-  const [ecgHeight, setEcgHeight] = useState(280);
+  const [leftWidth, setLeftWidth] = useState(260);
+  const [infoWidth, setInfoWidth] = useState(380);
+  const [ecgHeight, setEcgHeight] = useState(340);
 
   const dragTarget = useRef<DragTarget>(null);
   const containerRef = useRef<HTMLDivElement>(null);

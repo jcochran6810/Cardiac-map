@@ -42,9 +42,10 @@ interface ECGRendererProps {
   height?: number;
   compact?: boolean;
   verticalStack?: boolean;
+  inspectLead?: string | null;
 }
 
-export default function ECGRenderer({ width, height, compact = false, verticalStack = false }: ECGRendererProps) {
+export default function ECGRenderer({ width, height, compact = false, verticalStack = false, inspectLead = null }: ECGRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   // dragOffsetRef holds only the manual drag offset; auto-scroll is computed from time
@@ -238,15 +239,23 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
 
     drawGrid(ctx, w, h);
 
+    // Inspect mode: show only one lead, full size
+    const isInspecting = inspectLead && visibleLeads.includes(inspectLead as ECGLead);
+
     // Use standard 12-lead bisect order when showing all 12 leads
-    const useStandard12 = visibleLeads.length === 12;
-    const leads = compact
-      ? visibleLeads.slice(0, 4)
-      : (useStandard12 ? STANDARD_12_ORDER : visibleLeads);
+    const useStandard12 = !isInspecting && visibleLeads.length === 12;
+    const leads = isInspecting
+      ? [inspectLead as ECGLead]
+      : compact
+        ? visibleLeads.slice(0, 4)
+        : (useStandard12 ? STANDARD_12_ORDER : visibleLeads);
 
     let rows: number;
     let cols: number;
-    if (useStandard12 && !compact) {
+    if (isInspecting) {
+      cols = 1;
+      rows = 1;
+    } else if (useStandard12 && !compact) {
       // Standard 12-lead bisect: 4 columns × 3 rows
       cols = 4;
       rows = 3;
@@ -380,7 +389,7 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     }
 
     animRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, speed, time, currentPhase, cycleProgress, conditionMod, compareMod, compact, verticalStack, selectedLead, sweepSpeed]);
+  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, speed, time, currentPhase, cycleProgress, conditionMod, compareMod, compact, verticalStack, selectedLead, sweepSpeed, inspectLead]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

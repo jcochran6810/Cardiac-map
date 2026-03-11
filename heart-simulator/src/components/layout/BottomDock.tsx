@@ -17,6 +17,9 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
   const {
     gain, setGain,
     activeProfileId,
+    selectedLead,
+    inspectLead,
+    setInspectLead,
   } = useECGStore();
 
   return (
@@ -81,6 +84,26 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
           <span className="text-[10px] text-slate-300 capitalize whitespace-nowrap">{currentPhase.replace(/-/g, ' ')}</span>
         </div>
 
+        {/* Inspect button — shown when a lead is selected */}
+        {(selectedLead || inspectLead) && (
+          <button
+            onClick={() => {
+              if (inspectLead) {
+                setInspectLead(null);
+              } else if (selectedLead) {
+                setInspectLead(selectedLead);
+              }
+            }}
+            className={`px-3 py-1 text-xs rounded transition-colors ${
+              inspectLead
+                ? 'bg-cardiac-red/20 text-cardiac-red border border-cardiac-red/40'
+                : 'bg-cardiac-accent/20 text-cardiac-accent border border-cardiac-accent/40'
+            }`}
+          >
+            {inspectLead ? `Close (${inspectLead})` : `Inspect ${selectedLead}`}
+          </button>
+        )}
+
         {/* Active profile */}
         <div className="text-[10px] text-slate-500 capitalize ml-auto">
           {activeProfileId.replace(/-/g, ' ')}
@@ -89,7 +112,7 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
 
       {/* Full-width 12-lead ECG display — standard 4x3 bisect layout */}
       <div className="flex-1 min-h-0 relative">
-        <ECGRenderer compact={false} verticalStack={false} />
+        <ECGRenderer compact={false} verticalStack={false} inspectLead={inspectLead} />
       </div>
     </div>
   );

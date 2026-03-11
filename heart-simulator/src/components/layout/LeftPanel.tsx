@@ -218,12 +218,18 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const { selectStructure, selectedStructureId } = useSceneStore();
   const { selectCondition, selectedConditionId } = useConditionStore();
   const { selectProcedure, selectedProcedureId } = useProcedureStore();
-  const { startCase, activeCaseId } = useCaseStore();
+  const { startCase, activeCaseId, resetCase } = useCaseStore();
   const { setActiveProfile } = useECGStore();
   const { setHeartRate } = useTimelineStore();
 
+  const handleSelectStructure = (id: string) => {
+    selectStructure(id);
+    resetCase(); // Clear active case when browsing anatomy
+  };
+
   const handleSelectCondition = (id: string) => {
     selectCondition(id);
+    resetCase(); // Clear active case when selecting a condition
     // Sync ECG profile to the selected condition
     const ecgProfile = CONDITION_TO_ECG_PROFILE[id] || 'normal-sinus';
     setActiveProfile(ecgProfile);
@@ -236,6 +242,8 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
 
   const handleSelectCase = (id: string) => {
     startCase(id, 'initial');
+    selectCondition(null); // Clear condition selection
+    selectStructure(null); // Clear structure selection
     // Sync ECG and HR from case data
     const caseInfo = CASE_DATA[id];
     if (caseInfo) {
@@ -305,7 +313,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
                       .map((item) => (
                         <button
                           key={item.id}
-                          onClick={() => selectStructure(item.id)}
+                          onClick={() => handleSelectStructure(item.id)}
                           className={`w-full text-left px-2 py-1 rounded transition-colors ${
                             selectedStructureId === item.id
                               ? 'bg-cardiac-accent/20 text-cardiac-accent'
@@ -340,7 +348,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
                       .map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => selectStructure(item.id)}
+                        onClick={() => handleSelectStructure(item.id)}
                         className={`w-full text-left px-2 py-1 rounded transition-colors ${
                           selectedStructureId === item.id
                             ? 'bg-cardiac-red/20 text-cardiac-red'
@@ -362,7 +370,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
             {CONDUCTION_TREE.filter((item) => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase())).map((item) => (
               <button
                 key={item.id}
-                onClick={() => selectStructure(item.id)}
+                onClick={() => handleSelectStructure(item.id)}
                 className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
                   selectedStructureId === item.id
                     ? 'bg-cardiac-conduction/20 text-cardiac-conduction'
