@@ -153,7 +153,7 @@ const CASE_LIST = [
   { id: 'cardiogenic-shock', name: 'Cardiogenic Shock', diff: 'expert' },
 ];
 
-export default function LeftPanel() {
+export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const [activeTab, setActiveTab] = useState<PanelTab>('anatomy');
   const { leftPanelOpen, searchQuery, mode } = useAppStore();
   const { selectStructure, selectedStructureId } = useSceneStore();
@@ -184,7 +184,7 @@ export default function LeftPanel() {
   ];
 
   return (
-    <aside className="w-64 bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden">
+    <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden">
       {/* Tab selector */}
       <div className="flex border-b border-slate-700 overflow-x-auto">
         {tabs.map((tab) => (

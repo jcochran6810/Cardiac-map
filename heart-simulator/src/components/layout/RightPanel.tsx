@@ -609,7 +609,7 @@ const CONDITION_INFO: Record<string, { title: string; summary: string; pathophys
   },
 };
 
-export default function RightPanel() {
+export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   const { rightPanelOpen, rightPanelTab, setRightPanelTab, learningLevel } = useAppStore();
   const { selectedStructureId } = useSceneStore();
   const { selectedConditionId } = useConditionStore();
@@ -621,7 +621,7 @@ export default function RightPanel() {
   const conditionInfo = selectedConditionId ? CONDITION_INFO[selectedConditionId] : null;
 
   return (
-    <aside className="h-56 bg-cardiac-panel border-t border-slate-700 flex flex-col shrink-0 overflow-hidden">
+    <aside style={style} className="bg-cardiac-panel border-t border-slate-700 flex flex-col shrink-0 overflow-hidden">
       {/* Tabs */}
       <div className="flex flex-wrap border-b border-slate-700 px-1 py-1 gap-0.5 shrink-0">
         {TABS.map((tab) => (

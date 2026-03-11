@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useCallback, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import TopBar from '@/components/layout/TopBar';
 import LeftPanel from '@/components/layout/LeftPanel';
@@ -25,16 +25,77 @@ const HeartScene = dynamic(() => import('@/components/scene/HeartScene'), {
   ),
 });
 
+type DragTarget = 'left' | 'bottom' | 'ecg' | null;
+
 export default function HomePage() {
+  const [leftWidth, setLeftWidth] = useState(256);   // px, was w-64
+  const [bottomHeight, setBottomHeight] = useState(224); // px, was h-56
+  const [ecgWidth, setEcgWidth] = useState(320);     // px, was w-80
+
+  const dragTarget = useRef<DragTarget>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const onMouseDown = useCallback((target: DragTarget) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragTarget.current = target;
+    document.body.style.cursor = target === 'bottom' ? 'row-resize' : 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragTarget.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+
+      switch (dragTarget.current) {
+        case 'left': {
+          const newW = Math.max(140, Math.min(480, e.clientX - rect.left));
+          setLeftWidth(newW);
+          break;
+        }
+        case 'bottom': {
+          // bottomHeight is measured from the bottom of the center column
+          const newH = Math.max(80, Math.min(rect.height - 120, rect.bottom - e.clientY));
+          setBottomHeight(newH);
+          break;
+        }
+        case 'ecg': {
+          const newW = Math.max(180, Math.min(600, rect.right - e.clientX));
+          setEcgWidth(newW);
+          break;
+        }
+      }
+    };
+
+    const onMouseUp = () => {
+      dragTarget.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Top Bar */}
       <TopBar />
 
       {/* Main Content */}
-      <div className="flex-1 flex min-h-0">
+      <div ref={containerRef} className="flex-1 flex min-h-0">
         {/* Left Panel */}
-        <LeftPanel />
+        <LeftPanel style={{ width: leftWidth }} />
+
+        {/* Left resize handle */}
+        <div
+          className="w-1 cursor-col-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
+          onMouseDown={onMouseDown('left')}
+        />
 
         {/* Center: 3D Scene + Info Panel (bottom) */}
         <div className="flex-1 flex flex-col min-w-0">
@@ -52,12 +113,24 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Info Panel (moved from right side to bottom) */}
-          <RightPanel />
+          {/* Bottom resize handle */}
+          <div
+            className="h-1 cursor-row-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
+            onMouseDown={onMouseDown('bottom')}
+          />
+
+          {/* Info Panel (bottom) */}
+          <RightPanel style={{ height: bottomHeight }} />
         </div>
 
-        {/* ECG Panel (right side, all 12 leads stacked) */}
-        <BottomDock />
+        {/* ECG resize handle */}
+        <div
+          className="w-1 cursor-col-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
+          onMouseDown={onMouseDown('ecg')}
+        />
+
+        {/* ECG Panel (right side) */}
+        <BottomDock style={{ width: ecgWidth }} />
       </div>
 
       {/* Tutor overlay */}

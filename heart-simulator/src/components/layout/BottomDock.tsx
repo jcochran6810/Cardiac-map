@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
 
-export default function BottomDock() {
+export default function BottomDock({ style }: { style?: React.CSSProperties }) {
   const {
     playing, togglePlay, heartRate, setHeartRate,
     speed, setSpeed,
@@ -22,9 +22,10 @@ export default function BottomDock() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className={`bg-cardiac-panel border-l border-slate-700 flex flex-col shrink-0 transition-all ${
-      collapsed ? 'w-10' : 'w-80'
-    }`}>
+    <div
+      style={collapsed ? { width: 40 } : style}
+      className="bg-cardiac-panel border-l border-slate-700 flex flex-col shrink-0 transition-all"
+    >
       {/* Top control bar */}
       <div className={`flex items-center px-2 py-2 gap-2 shrink-0 border-b border-slate-700/50 ${
         collapsed ? 'flex-col' : 'flex-row flex-wrap'
