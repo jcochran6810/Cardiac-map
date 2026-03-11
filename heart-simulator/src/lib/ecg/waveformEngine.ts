@@ -134,103 +134,163 @@ export function generateECGStrip(
 
 /**
  * Condition modifier presets
+ * More accurate morphology parameters for each condition.
  */
 export const CONDITION_MODIFIERS: Record<string, Partial<WaveformParams>> = {
   // ─── Normal / Sinus variants ──────────────────────────────────
   'normal-sinus': {},
-  'sinus-bradycardia': {},
-  'sinus-tachycardia': {},
+  // Bradycardia: prominent T waves due to longer diastolic filling
+  'sinus-bradycardia': { tAmplitude: 0.35, tDuration: 0.14 },
+  // Tachycardia: shorter RR, P may merge with preceding T, smaller T
+  'sinus-tachycardia': { pAmplitude: 0.18, tAmplitude: 0.22, tDuration: 0.09, tOffset: 0.48 },
 
   // ─── Atrial arrhythmias ───────────────────────────────────────
-  'atrial-fibrillation': { pAmplitude: 0, noiseLevel: 0.04, baselineWander: 0.03 },
-  'afib': { pAmplitude: 0, noiseLevel: 0.04, baselineWander: 0.03 },
-  'atrial-flutter': { pAmplitude: -0.2, pDuration: 0.04, noiseLevel: 0.01 },
-  'aflutter': { pAmplitude: -0.2, pDuration: 0.04, noiseLevel: 0.01 },
-  'avnrt': { pAmplitude: 0, rAmplitude: 0.9, noiseLevel: 0.01 },
-  'wpw': { pOffset: 0.20, rOffset: 0.28, rDuration: 0.06, qAmplitude: 0.08, qDuration: 0.04, qOffset: 0.24 },
+  // AFib: no discrete P waves, irregularly irregular, fibrillatory baseline
+  'atrial-fibrillation': { pAmplitude: 0, noiseLevel: 0.035, baselineWander: 0.025 },
+  'afib': { pAmplitude: 0, noiseLevel: 0.035, baselineWander: 0.025 },
+  // Flutter: sawtooth F waves at ~300/min, typically 2:1 or 4:1 conduction
+  'atrial-flutter': { pAmplitude: -0.25, pDuration: 0.035, pOffset: 0.14, noiseLevel: 0.008 },
+  'aflutter': { pAmplitude: -0.25, pDuration: 0.035, pOffset: 0.14, noiseLevel: 0.008 },
+  // AVNRT: retrograde P buried in or just after QRS (pseudo-S in II, pseudo-r' in V1)
+  'avnrt': { pAmplitude: -0.06, pOffset: 0.35, pDuration: 0.025, rAmplitude: 0.9, noiseLevel: 0.008 },
+  // WPW: short PR, delta wave (slurred QRS upstroke), wide QRS, secondary ST-T changes
+  'wpw': { pOffset: 0.18, rOffset: 0.26, rDuration: 0.07, qAmplitude: 0.12, qDuration: 0.05, qOffset: 0.22, stDeviation: -0.06, tAmplitude: -0.15 },
 
   // ─── AV blocks ────────────────────────────────────────────────
-  'first-degree-avb': { pOffset: 0.10 },
-  'mobitz-i': { pOffset: 0.10 },
-  'mobitz-ii': { pOffset: 0.12 },
-  'third-degree-avb': { pAmplitude: 0.12, rAmplitude: 0.6, rDuration: 0.06, sAmplitude: -0.25 },
+  // 1st degree: prolonged PR interval (>200ms), all P waves conducted
+  'first-degree-avb': { pOffset: 0.08, pAmplitude: 0.15 },
+  // Mobitz I (Wenckebach): progressive PR prolongation until dropped beat
+  'mobitz-i': { pOffset: 0.08, pAmplitude: 0.15 },
+  // Mobitz II: fixed PR with sudden dropped QRS, may have wide QRS
+  'mobitz-ii': { pOffset: 0.10, pAmplitude: 0.15, rDuration: 0.055 },
+  // 3rd degree: complete AV dissociation, wide escape QRS, slow rate
+  'third-degree-avb': { pAmplitude: 0.12, rAmplitude: 0.55, rDuration: 0.07, sAmplitude: -0.3, tAmplitude: -0.22 },
 
   // ─── Bundle branch blocks ────────────────────────────────────
-  'rbbb': { rDuration: 0.06, sDuration: 0.05, sAmplitude: -0.3 },
-  'lbbb': { rDuration: 0.08, qAmplitude: 0, sAmplitude: -0.4, tAmplitude: -0.3 },
-  'bifascicular': { rDuration: 0.06, sDuration: 0.05, sAmplitude: -0.3 },
+  // RBBB: rSR' in V1, wide slurred S in I/V5-V6, QRS >120ms
+  'rbbb': { rDuration: 0.07, sDuration: 0.055, sAmplitude: -0.38, tAmplitude: -0.18 },
+  // LBBB: broad notched R in I/V5-V6, rS or QS in V1, QRS >120ms, discordant T
+  'lbbb': { rDuration: 0.09, qAmplitude: 0, sAmplitude: -0.48, tAmplitude: -0.38, stDeviation: -0.1 },
+  // Bifascicular: RBBB + LAFB or LPFB pattern
+  'bifascicular': { rDuration: 0.07, sDuration: 0.055, sAmplitude: -0.38, tAmplitude: -0.15 },
 
   // ─── Ventricular arrhythmias ──────────────────────────────────
-  'pvcs': { pAmplitude: 0, rDuration: 0.07, rAmplitude: 1.1, sAmplitude: -0.4, tAmplitude: -0.35 },
-  'vt': { pAmplitude: 0, rDuration: 0.08, rAmplitude: 1.2, sAmplitude: -0.5, tAmplitude: -0.4 },
+  // PVCs: wide bizarre QRS, no preceding P wave, compensatory pause, discordant T
+  'pvcs': { pAmplitude: 0, rDuration: 0.085, rAmplitude: 1.2, sAmplitude: -0.5, tAmplitude: -0.42, noiseLevel: 0.01 },
+  // Monomorphic VT: regular wide complex tachycardia, AV dissociation
+  'vt': { pAmplitude: 0, rDuration: 0.10, rAmplitude: 1.3, sAmplitude: -0.6, tAmplitude: -0.48, stDeviation: 0.06, noiseLevel: 0.01 },
   'ventricular-fibrillation': {},
   'vfib': {},
-  'torsades': { pAmplitude: 0, rDuration: 0.07, rAmplitude: 0.8, sAmplitude: -0.3, tAmplitude: -0.3, noiseLevel: 0.06 },
+  // Torsades: polymorphic VT with sinusoidal amplitude variation ("twisting of the points")
+  'torsades': { pAmplitude: 0, rDuration: 0.085, rAmplitude: 0.9, sAmplitude: -0.38, tAmplitude: -0.32, noiseLevel: 0.035 },
 
   // ─── Ischemia / MI ────────────────────────────────────────────
-  'anterior-stemi': { stDeviation: 0.4, tAmplitude: 0.5 },
-  'inferior-stemi': { stDeviation: 0.3, tAmplitude: 0.4 },
-  'lateral-stemi': { stDeviation: 0.25, tAmplitude: 0.35 },
-  'nstemi': { stDeviation: -0.15, tAmplitude: -0.25 },
-  'wellens': { tAmplitude: -0.3, stDeviation: -0.05 },
+  // Anterior STEMI: convex ST elevation V1-V4, hyperacute tall T waves, pathologic Q developing
+  'anterior-stemi': { stDeviation: 0.5, tAmplitude: 0.6, tDuration: 0.14, qAmplitude: -0.12 },
+  // Inferior STEMI: ST elevation II, III, aVF; reciprocal depression in I, aVL
+  'inferior-stemi': { stDeviation: 0.38, tAmplitude: 0.48, tDuration: 0.13, qAmplitude: -0.08 },
+  // Lateral STEMI: ST elevation I, aVL, V5-V6
+  'lateral-stemi': { stDeviation: 0.32, tAmplitude: 0.42, tDuration: 0.12 },
+  // NSTEMI: ST depression and/or T wave inversion (subendocardial ischemia)
+  'nstemi': { stDeviation: -0.22, tAmplitude: -0.32, tDuration: 0.12 },
+  // Wellens: deeply inverted or biphasic T waves in V2-V3 (critical LAD stenosis)
+  'wellens': { tAmplitude: -0.45, stDeviation: -0.03, tDuration: 0.15 },
 
   // ─── Cardiomyopathies ────────────────────────────────────────
-  'dcm': { rAmplitude: 0.5, qAmplitude: -0.1, tAmplitude: -0.15, rDuration: 0.06 },
-  'hcm': { rAmplitude: 1.4, sAmplitude: -0.35, tAmplitude: -0.2, qAmplitude: -0.15 },
-  'takotsubo': { stDeviation: 0.2, tAmplitude: -0.3 },
+  // DCM: low voltage, poor R wave progression, IVCD, nonspecific ST-T
+  'dcm': { rAmplitude: 0.42, qAmplitude: -0.12, tAmplitude: -0.2, rDuration: 0.065, noiseLevel: 0.01 },
+  // HCM: deep narrow Q waves (septal), tall R, LVH voltage, T inversions (strain)
+  'hcm': { rAmplitude: 1.55, sAmplitude: -0.42, tAmplitude: -0.28, qAmplitude: -0.22, qDuration: 0.025, stDeviation: -0.06 },
+  // Takotsubo: diffuse ST elevation acutely, evolves to deep widespread T inversions and QT prolongation
+  'takotsubo': { stDeviation: 0.28, tAmplitude: -0.38, tDuration: 0.16 },
 
   // ─── Heart failure ────────────────────────────────────────────
-  'hfref': { rAmplitude: 0.6, rDuration: 0.06, tAmplitude: -0.15, noiseLevel: 0.01 },
-  'hfpef': { pAmplitude: 0.2, pDuration: 0.10, rAmplitude: 1.2 },
-  'cardiogenic-shock': { rAmplitude: 0.5, stDeviation: -0.1, tAmplitude: -0.2, noiseLevel: 0.02 },
+  // HFrEF: low voltage, IVCD/LBBB, LAE, nonspecific ST-T changes
+  'hfref': { rAmplitude: 0.5, rDuration: 0.07, tAmplitude: -0.2, pAmplitude: 0.2, pDuration: 0.1, noiseLevel: 0.01 },
+  // HFpEF: LAE (P mitrale), LVH voltage criteria, diastolic pattern
+  'hfpef': { pAmplitude: 0.24, pDuration: 0.12, rAmplitude: 1.3, tAmplitude: -0.12 },
+  // Cardiogenic shock: sinus tachycardia, low voltage, diffuse ST depression
+  'cardiogenic-shock': { rAmplitude: 0.42, stDeviation: -0.15, tAmplitude: -0.25, noiseLevel: 0.02 },
 
   // ─── Valvular ────────────────────────────────────────────────
-  'aortic-stenosis': { rAmplitude: 1.5, sAmplitude: -0.4, tAmplitude: -0.2 },
-  'mitral-regurgitation': { pAmplitude: 0.2, pDuration: 0.10, rAmplitude: 1.1 },
-  'mitral-stenosis': { pAmplitude: 0.2, pDuration: 0.11 },
+  // Aortic stenosis: LVH with strain pattern (tall R, ST depression, T inversion in laterals)
+  'aortic-stenosis': { rAmplitude: 1.65, sAmplitude: -0.48, tAmplitude: -0.28, stDeviation: -0.1 },
+  // Mitral regurgitation: LAE (wide notched P in II), possible LVH
+  'mitral-regurgitation': { pAmplitude: 0.22, pDuration: 0.12, rAmplitude: 1.18 },
+  // Mitral stenosis: LAE (P mitrale), possible RVH from pulmonary HTN, AF common
+  'mitral-stenosis': { pAmplitude: 0.26, pDuration: 0.13, rAmplitude: 0.9 },
 
   // ─── Pericardial ─────────────────────────────────────────────
-  'pericarditis': { stDeviation: 0.15, tAmplitude: 0.35 },
-  'cardiac-tamponade': { rAmplitude: 0.4, pAmplitude: 0.06, noiseLevel: 0.015 },
+  // Pericarditis: diffuse concave-up ST elevation, PR depression, reciprocal in aVR
+  'pericarditis': { stDeviation: 0.2, tAmplitude: 0.4, pAmplitude: 0.12 },
+  // Tamponade: low voltage (from effusion), electrical alternans (beat-to-beat R amplitude variation)
+  'cardiac-tamponade': { rAmplitude: 0.32, pAmplitude: 0.04, noiseLevel: 0.012 },
 
   // ─── Congenital ──────────────────────────────────────────────
-  'asd': { rDuration: 0.06, sDuration: 0.04, sAmplitude: -0.25 },
-  'vsd': { rAmplitude: 1.3, sAmplitude: -0.35 },
+  // ASD: incomplete RBBB pattern (rSR' in V1), RAD, RAE
+  'asd': { rDuration: 0.065, sDuration: 0.048, sAmplitude: -0.3, pAmplitude: 0.14 },
+  // VSD: biventricular hypertrophy, LAE
+  'vsd': { rAmplitude: 1.38, sAmplitude: -0.4, pAmplitude: 0.16 },
+  // PFO: typically normal ECG
   'pfo': {},
 
   // ─── Metabolic ───────────────────────────────────────────────
-  'hyperkalemia': { tAmplitude: 0.6, tDuration: 0.06, pAmplitude: 0.05, rDuration: 0.06 },
-  'lvh': { rAmplitude: 1.5, sAmplitude: -0.4, tAmplitude: -0.2 },
+  // Hyperkalemia: tall peaked T, flattened P, widened QRS
+  'hyperkalemia': { tAmplitude: 0.68, tDuration: 0.05, pAmplitude: 0.04, rDuration: 0.07 },
+  // LVH: Sokolow-Lyon voltage criteria, strain pattern
+  'lvh': { rAmplitude: 1.65, sAmplitude: -0.48, tAmplitude: -0.28, stDeviation: -0.1 },
 };
 
 /**
- * Atrial fibrillation generator — replaces regular P waves with irregular fibrillatory baseline
+ * Atrial fibrillation generator — replaces regular P waves with irregular fibrillatory baseline.
+ * Uses multiple sine waves at different frequencies to create chaotic fibrillatory waves (f waves)
+ * with varying amplitude, simulating the 350-600/min atrial impulses seen in real AF.
  */
 export function generateAFibSample(t: number, params: WaveformParams): number {
   const afibParams = { ...params, pAmplitude: 0 };
   const base = generateBeatSample(t, afibParams);
-  // Add fibrillatory baseline
-  const fib = 0.03 * Math.sin(2 * Math.PI * t * 350 + Math.random()) +
-    0.02 * Math.sin(2 * Math.PI * t * 450 + Math.random() * 2) +
-    0.015 * Math.sin(2 * Math.PI * t * 600 + Math.random() * 3);
+  // Fibrillatory baseline: irregular low-amplitude oscillations
+  // Multiple harmonics create the chaotic appearance of f waves
+  const phase1 = t * 2654.32; // pseudo-random phase from t
+  const phase2 = t * 3847.91;
+  const phase3 = t * 5123.67;
+  const fib = 0.035 * Math.sin(2 * Math.PI * t * 380 + Math.sin(phase1)) +
+    0.025 * Math.sin(2 * Math.PI * t * 470 + Math.sin(phase2)) +
+    0.018 * Math.sin(2 * Math.PI * t * 620 + Math.sin(phase3)) +
+    0.01 * Math.sin(2 * Math.PI * t * 280 + Math.sin(phase1 * 0.7));
   return base + fib;
 }
 
 /**
- * Ventricular fibrillation generator
+ * Ventricular fibrillation generator.
+ * Creates a chaotic, disorganized waveform with varying frequency and amplitude,
+ * simulating the coarse or fine VF pattern. No discernible QRS complexes.
  */
 export function generateVFibSample(t: number): number {
-  const freq1 = 3 + Math.random() * 2;
-  const freq2 = 5 + Math.random() * 3;
-  return 0.5 * Math.sin(2 * Math.PI * freq1 * t) +
-    0.3 * Math.sin(2 * Math.PI * freq2 * t + Math.random()) +
-    0.1 * (Math.random() * 2 - 1);
+  // Multiple overlapping sine waves with slowly varying frequencies
+  // to create the characteristic undulating VF pattern
+  const modulation = 0.6 + 0.4 * Math.sin(2 * Math.PI * t * 0.8);
+  const freq1 = 3.5 + 1.5 * Math.sin(2 * Math.PI * t * 0.3);
+  const freq2 = 5.5 + 2.0 * Math.sin(2 * Math.PI * t * 0.5);
+  const freq3 = 8.0 + 3.0 * Math.sin(2 * Math.PI * t * 0.15);
+  return modulation * (
+    0.45 * Math.sin(2 * Math.PI * freq1 * t) +
+    0.3 * Math.sin(2 * Math.PI * freq2 * t + 1.2) +
+    0.15 * Math.sin(2 * Math.PI * freq3 * t + 2.8) +
+    0.08 * (Math.sin(t * 47.3) * Math.cos(t * 23.1)) // Fine irregularity
+  );
 }
 
 /**
- * Flutter generator — sawtooth pattern
+ * Flutter generator — sawtooth F-wave pattern at ~300 bpm.
+ * Creates the classic "sawtooth" appearance with negative flutter waves
+ * in the inferior leads (II, III, aVF), best seen when AV block is present.
  */
 export function generateFlutterBaseline(t: number, flutterRate: number = 300): number {
   const cycleT = (t * flutterRate) % 1;
-  return -0.2 * (1 - 2 * cycleT); // Sawtooth
+  // More realistic sawtooth: steep upstroke, gradual downstroke
+  const sawtooth = cycleT < 0.3
+    ? -0.25 * (1 - cycleT / 0.3) // Steep negative deflection
+    : -0.25 * ((cycleT - 0.3) / 0.7 - 1); // Gradual recovery
+  return sawtooth;
 }

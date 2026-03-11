@@ -5,6 +5,8 @@ export type LearningLevel = 1 | 2 | 3 | 4 | 5;
 export type ViewMode = 'external' | 'internal' | 'cutaway' | 'sectional' | 'dissection' | 'coronary' | 'conduction' | 'perfusion' | 'wall-motion' | 'procedure-overlay' | 'imaging-correlation';
 export type DetailLevel = 'low' | 'standard' | 'high';
 
+export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'cases';
+
 interface AppState {
   mode: AppMode;
   learningLevel: LearningLevel;
@@ -17,6 +19,7 @@ interface AppState {
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
   rightPanelTab: string;
+  activePanelCategory: PanelCategory;
   highContrastMode: boolean;
   reducedMotion: boolean;
 
@@ -31,6 +34,7 @@ interface AppState {
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
   setRightPanelTab: (tab: string) => void;
+  setActivePanelCategory: (cat: PanelCategory) => void;
   resetView: () => void;
 }
 
@@ -46,6 +50,7 @@ export const useAppStore = create<AppState>((set) => ({
   leftPanelOpen: true,
   rightPanelOpen: true,
   rightPanelTab: 'overview',
+  activePanelCategory: 'anatomy',
   highContrastMode: false,
   reducedMotion: false,
 
@@ -60,6 +65,11 @@ export const useAppStore = create<AppState>((set) => ({
   toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
   toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
   setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
+  setActivePanelCategory: (activePanelCategory) => set((s) => {
+    // Reset right panel tab to 'overview' when switching categories
+    // to prevent showing an irrelevant tab
+    return { activePanelCategory, rightPanelTab: 'overview' };
+  }),
   resetView: () => set({
     viewMode: 'external',
     labelsVisible: true,

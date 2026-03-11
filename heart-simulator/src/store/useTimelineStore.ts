@@ -61,7 +61,7 @@ function getPhaseAtProgress(progress: number, phases: PhaseConfig[]): CardiacPha
 }
 
 export const useTimelineStore = create<TimelineState>((set, get) => ({
-  playing: false,
+  playing: true,
   time: 0,
   heartRate: 72,
   speed: 1,

@@ -1,21 +1,25 @@
 'use client';
 
 import React from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useAppStore, PanelCategory } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
 import { useCaseStore } from '@/store/useCaseStore';
 import { CASE_DATA } from '@/data/caseData';
 
-const TABS = [
-  'overview', 'anatomy', 'physiology', 'symptoms', 'ecg',
-  'imaging', 'medications', 'field-care', 'hospital-care',
-  'cardiology-care', 'procedure', 'complications', 'teaching',
-];
+// ─── Context-sensitive tab configuration ─────────────────────────────
+// Each left panel category maps to which tabs are relevant in the right panel
+const TABS_BY_CATEGORY: Record<PanelCategory, string[]> = {
+  anatomy: ['overview', 'anatomy', 'physiology', 'symptoms', 'ecg', 'imaging', 'medications', 'teaching'],
+  coronary: ['overview', 'anatomy', 'physiology', 'symptoms', 'ecg', 'imaging', 'medications', 'teaching'],
+  conduction: ['overview', 'anatomy', 'physiology', 'symptoms', 'ecg', 'imaging', 'medications', 'teaching'],
+  conditions: ['overview', 'anatomy', 'pathophysiology', 'symptoms', 'ecg', 'imaging', 'medications', 'field-care', 'hospital-care', 'cardiology-care', 'procedure', 'complications', 'teaching'],
+  procedures: ['overview', 'indications', 'anatomy', 'procedure', 'ecg', 'equipment', 'complications', 'teaching'],
+  cases: ['overview', 'symptoms', 'ecg', 'medications', 'field-care', 'hospital-care', 'cardiology-care', 'procedure', 'complications', 'teaching'],
+};
 
 // ─── Tab-specific content for anatomy structures ────────────────────────
-// Each structure has content keyed by tab name.
 interface StructureTabData {
   title: string;
   overview: string[];
@@ -41,7 +45,7 @@ const STRUCTURE_DATA: Record<string, StructureTabData> = {
     physiology: ['Reservoir function: stores venous return during ventricular systole', 'Conduit function: passive filling of RV in early diastole', 'Booster pump: atrial contraction (atrial kick) contributes 15-25% of ventricular filling', 'RA pressure normally 2-6 mmHg (CVP)', 'A, C, and V waves visible on RA pressure tracing'],
     symptoms: ['RA enlargement may cause no direct symptoms', 'Elevated RA pressure: JVD, peripheral edema, hepatic congestion', 'RA thrombus: can cause PE, may be seen on echo as mobile mass', 'Atrial flutter: sawtooth pattern, often originates from RA isthmus'],
     ecg: ['P wave represents atrial depolarization', 'RA enlargement: peaked P waves >2.5mm in leads II, III, aVF (P pulmonale)', 'Best seen in lead V1 (initial positive deflection of biphasic P wave)', 'RA rhythm: inverted P waves in inferior leads suggest low atrial focus'],
-    imaging: ['Echo: subcostal and apical 4-chamber views', 'Normal RA area: 10-18 cm²', 'CT/MRI: excellent for RA masses, thrombus, and congenital anomalies', 'TEE: superior for interatrial septum and appendage evaluation'],
+    imaging: ['Echo: subcostal and apical 4-chamber views', 'Normal RA area: 10-18 cm\u00B2', 'CT/MRI: excellent for RA masses, thrombus, and congenital anomalies', 'TEE: superior for interatrial septum and appendage evaluation'],
     medications: ['Anticoagulation for RA thrombus (heparin, warfarin, DOACs)', 'Diuretics for RA congestion (furosemide, bumetanide)', 'Rate control for atrial arrhythmias (beta-blockers, CCBs, digoxin)', 'Antiarrhythmics for rhythm control (amiodarone, flecainide, sotalol)'],
     'field-care': ['Assess JVP for RA pressure estimation', 'Right-sided ECG leads for RV/RA pathology', 'Fluid resuscitation cautiously if RA pressure low', 'Recognize signs of right heart failure: JVD, hepatomegaly, edema'],
     'hospital-care': ['Central venous catheter for CVP monitoring', 'PA catheter for RA pressure measurement', 'Echocardiography for RA size, function, and masses', 'IV diuretics for decompensated right heart failure'],
@@ -57,7 +61,7 @@ const STRUCTURE_DATA: Record<string, StructureTabData> = {
     physiology: ['Reservoir: stores pulmonary venous return during LV systole', 'Conduit: passive LV filling in early diastole (E wave)', 'Booster pump: LA contraction (A wave) adds 15-25% filling', 'Normal LA pressure: 6-12 mmHg', 'Elevated LA pressure transmits to pulmonary veins causing congestion'],
     symptoms: ['Dyspnea from elevated LA pressure (pulmonary congestion)', 'Palpitations from atrial fibrillation', 'Stroke/TIA from LAA thrombus embolization', 'Hoarseness from LA compression of recurrent laryngeal nerve (Ortner syndrome)'],
     ecg: ['LA enlargement: wide, notched P wave >120ms in lead II (P mitrale)', 'Deep negative terminal portion of P wave in V1 (>1mm deep, >40ms wide)', 'Atrial fibrillation: absent P waves, irregularly irregular RR', 'LA origin focus: positive P in V1'],
-    imaging: ['Echo: parasternal long axis and apical 4-chamber views', 'Normal LA diameter: 2.0-4.0 cm (parasternal)', 'Normal LA volume index: <34 mL/m²', 'TEE: gold standard for LAA thrombus detection', 'Cardiac MRI: LA fibrosis mapping for AF substrate'],
+    imaging: ['Echo: parasternal long axis and apical 4-chamber views', 'Normal LA diameter: 2.0-4.0 cm (parasternal)', 'Normal LA volume index: <34 mL/m\u00B2', 'TEE: gold standard for LAA thrombus detection', 'Cardiac MRI: LA fibrosis mapping for AF substrate'],
     medications: ['Anticoagulation for AF stroke prevention (DOACs preferred)', 'Antiarrhythmics: flecainide, propafenone, amiodarone, dofetilide', 'Rate control: beta-blocker, diltiazem, digoxin', 'Diuretics for LA pressure reduction'],
     'field-care': ['Assess for irregular pulse (AF)', 'Acute pulmonary edema management: upright positioning, O2, CPAP', 'Stroke assessment if suspected cardioembolic event', '12-lead ECG for rhythm identification'],
     'hospital-care': ['TEE to rule out LAA thrombus before cardioversion', 'IV amiodarone or ibutilide for pharmacologic cardioversion', 'Anticoagulation initiation (heparin bridge to DOAC)', 'Heart failure management with IV diuretics if congested'],
@@ -86,14 +90,14 @@ const STRUCTURE_DATA: Record<string, StructureTabData> = {
     title: 'Left Ventricle',
     overview: ['Thick-walled (8-12mm) conical chamber', 'Generates systemic arterial pressure', 'Papillary muscles anchor mitral leaflets via chordae', 'Normal EF: 55-70%', 'AHA 17-segment model used for wall motion assessment', 'Apex is the most distal point, often supplied by LAD'],
     anatomy: ['Wall thickness: 8-12mm (2-3x RV)', 'Conical shape with smooth endocardial surface', 'Two papillary muscles: anterolateral and posteromedial', 'Chordae tendineae prevent mitral valve prolapse', 'LVOT between anterior mitral leaflet and septum'],
-    physiology: ['High-pressure pump: systolic 100-140 mmHg', 'EF = (EDV - ESV) / EDV × 100; normal 55-70%', 'Frank-Starling mechanism: increased preload increases stroke volume', 'Diastolic function: relaxation, compliance, and filling', 'Cardiac output = HR × stroke volume (normal 4-8 L/min)'],
+    physiology: ['High-pressure pump: systolic 100-140 mmHg', 'EF = (EDV - ESV) / EDV \u00D7 100; normal 55-70%', 'Frank-Starling mechanism: increased preload increases stroke volume', 'Diastolic function: relaxation, compliance, and filling', 'Cardiac output = HR \u00D7 stroke volume (normal 4-8 L/min)'],
     symptoms: ['LV failure: dyspnea, orthopnea, PND, pulmonary edema', 'Reduced cardiac output: fatigue, exercise intolerance, dizziness', 'Angina from myocardial ischemia', 'Palpitations from ventricular arrhythmias'],
     ecg: ['LV hypertrophy: tall R in V5-V6, deep S in V1-V2 (Sokolow-Lyon: SV1 + RV5 >35mm)', 'LV strain: ST depression with T wave inversion in lateral leads', 'Q waves: evidence of prior MI transmural necrosis', 'ST elevation: acute STEMI with transmural ischemia'],
     imaging: ['Echo: parasternal and apical views', 'Simpson biplane method for EF calculation', 'Speckle tracking for global longitudinal strain (GLS, normal < -18%)', 'Cardiac MRI: gold standard for LV volumes, mass, and scar', 'Nuclear perfusion: identifies ischemia and viability'],
     medications: ['ACEi/ARB for LV remodeling prevention', 'Beta-blocker for HF (carvedilol, metoprolol, bisoprolol)', 'ARNI (sacubitril/valsartan) for HFrEF', 'SGLT2 inhibitor (dapagliflozin, empagliflozin) for HF', 'MRA (spironolactone, eplerenone) for HFrEF'],
     'field-care': ['12-lead ECG for STEMI identification', 'Aspirin 325mg for suspected ACS', 'Nitroglycerin for chest pain (if no RV infarction)', 'STEMI alert and direct transport to PCI center', 'CPAP/BiPAP for acute pulmonary edema'],
     'hospital-care': ['Troponin for myocardial injury detection', 'Echocardiography for LV function assessment', 'Coronary angiography for ACS', 'IV diuretics for acute decompensated HF', 'Inotropes/vasopressors for cardiogenic shock'],
-    'cardiology-care': ['PCI for coronary revascularization', 'CABG for multivessel or left main disease', 'CRT for LBBB with HFrEF (EF ≤35%)', 'ICD for primary prevention of sudden cardiac death (EF ≤35%)', 'LVAD as bridge to transplant or destination therapy'],
+    'cardiology-care': ['PCI for coronary revascularization', 'CABG for multivessel or left main disease', 'CRT for LBBB with HFrEF (EF \u226435%)', 'ICD for primary prevention of sudden cardiac death (EF \u226435%)', 'LVAD as bridge to transplant or destination therapy'],
     procedure: ['Left heart catheterization: coronary angiography + LV pressures', 'PCI: stent placement for coronary stenosis', 'Endomyocardial biopsy for cardiomyopathy workup', 'CRT implantation: LV lead via coronary sinus'],
     complications: ['Myocardial infarction: necrosis from coronary occlusion', 'Heart failure: systolic (HFrEF) or diastolic (HFpEF)', 'Ventricular aneurysm post-MI', 'LV thrombus: risk of systemic embolization', 'Cardiogenic shock: pump failure'],
     teaching: ['The LV is the main systemic pump and the thickest chamber', 'EF is the most widely used measure of LV systolic function', 'GDMT for HFrEF: ACEi/ARNI + BB + MRA + SGLT2i (4 pillars)', 'The 17-segment model standardizes communication about wall motion'],
@@ -171,58 +175,17 @@ const ANATOMY_INFO: Record<string, { title: string; summary: string; details: st
   'purkinje-network-lv': { title: 'Purkinje Network (LV)', summary: 'Terminal conduction fibers in LV.', details: ['Extensive subendocardial distribution', 'Tertiary pacemaker (20-40 bpm)'] },
 };
 
-// ─── Condition info with tab-specific content ───────────────────────────
-interface ConditionTabData {
-  title: string;
-  overview: string;
-  pathophys: string;
-  symptoms: string;
-  ecg: string;
-  imaging: string;
-  medications: string;
-  'field-care': string;
-  'hospital-care': string;
-  'cardiology-care': string;
-  procedure: string;
-  complications: string;
-  teaching: string;
-}
+// ─── Dynamic imports for data files (may not exist yet) ──────────────
+// Condition and procedure data are imported directly once their data files exist.
+// These will be populated by the data file imports below.
+import { CONDITION_DATA as CONDITION_DATA_IMPORT } from '@/data/conditionData';
+import { PROCEDURE_DATA as PROCEDURE_DATA_IMPORT } from '@/data/procedureData';
 
-const CONDITION_DATA: Record<string, ConditionTabData> = {
-  'anterior-stemi': {
-    title: 'Anterior STEMI',
-    overview: 'ST-elevation myocardial infarction affecting the anterior wall, typically from LAD occlusion. Acute thrombotic occlusion causes transmural ischemia of the anterior wall, septum, and apex.',
-    pathophys: 'Plaque rupture or erosion in the LAD leads to thrombus formation and complete coronary occlusion. Transmural ischemia progresses to necrosis within hours without reperfusion. The wavefront of necrosis extends from subendocardium to epicardium over 3-6 hours.',
-    symptoms: 'Severe substernal chest pressure/pain, often radiating to left arm, jaw, or back. Associated diaphoresis, nausea, dyspnea. May present with syncope or sudden cardiac arrest. Elderly and diabetic patients may have atypical presentations.',
-    ecg: 'ST elevation in V1-V4 (may extend to V5-V6). Reciprocal ST depression in inferior leads (II, III, aVF). Early: hyperacute T waves. Later: Q wave development, T wave inversion. ST elevation >2mm in V2-V3 or >1mm in other leads.',
-    imaging: 'Echo: anterior/septal wall motion abnormality, reduced EF. Coronary angiography: LAD occlusion (gold standard). Cardiac MRI: edema (T2), necrosis (LGE). Nuclear: perfusion defect in LAD territory.',
-    medications: 'Acute: aspirin 325mg, P2Y12 inhibitor (ticagrelor/prasugrel), heparin, nitroglycerin, morphine PRN. Post-PCI: DAPT 12 months, high-dose statin, ACEi/ARB, beta-blocker. Aldosterone antagonist if EF ≤40%.',
-    'field-care': 'Recognize STEMI on 12-lead ECG. Activate cath lab (STEMI alert). Aspirin 325mg. IV access, cardiac monitoring, O2 if SpO2 <94%. Nitroglycerin SL for ongoing pain. Transport to PCI-capable facility. Target: first medical contact to device <90 min.',
-    'hospital-care': 'Emergent cardiac catheterization and primary PCI. Serial troponins, CBC, BMP, coagulation studies. Continuous telemetry. Echocardiography for LV function. Monitor for complications: arrhythmias, heart failure, mechanical complications. ICU admission.',
-    'cardiology-care': 'Primary PCI with drug-eluting stent to culprit LAD lesion. Consider multivessel PCI or staged procedure. IABP or Impella for cardiogenic shock. Cardiac rehabilitation referral. Risk factor modification. Repeat echo at 6-12 weeks for EF reassessment.',
-    procedure: 'Primary PCI: radial or femoral access, coronary angiography, thrombus aspiration if indicated, stent deployment. May require IABP or mechanical circulatory support. Temporary pacing wire if complete heart block.',
-    complications: 'Cardiogenic shock (7-10%). Ventricular arrhythmias (VT/VF). Free wall rupture (1-2%, day 3-5). VSD (1%). Papillary muscle rupture. LV aneurysm. LV thrombus. Pericarditis (Dressler syndrome). Heart failure.',
-    teaching: 'Anterior STEMI has the highest mortality of all STEMI locations due to large myocardial territory at risk. Time is muscle: every 30-minute delay in reperfusion increases mortality. Door-to-balloon time <90 minutes is the quality benchmark for primary PCI.',
-  },
-  'atrial-fibrillation': {
-    title: 'Atrial Fibrillation',
-    overview: 'Chaotic atrial electrical activity causing irregularly irregular ventricular response. Most common sustained arrhythmia. Prevalence increases with age. Major risk factor for stroke.',
-    pathophys: 'Multiple wavelets of reentry or focal triggers (often from pulmonary veins) create disorganized atrial depolarization at 350-600 impulses/min. AV node conducts irregularly to ventricles. Structural remodeling (fibrosis, dilation) promotes persistence. "AF begets AF."',
-    symptoms: 'Palpitations, irregular rapid heartbeat. Dyspnea and exercise intolerance. Fatigue and weakness. Dizziness or lightheadedness. Chest discomfort. Some patients are completely asymptomatic. Stroke/TIA may be the first presentation.',
-    ecg: 'Absent P waves replaced by fibrillatory baseline. Irregularly irregular RR intervals. Narrow QRS unless aberrant conduction or pre-existing BBB. Ventricular rate typically 100-160 bpm if untreated. Ashman phenomenon: aberrancy after long-short cycle.',
-    imaging: 'Echo: LA size (dilation promotes AF persistence). TEE: rule out LAA thrombus before cardioversion. Cardiac MRI: LA fibrosis quantification (LGE). CT: pulmonary vein anatomy for ablation planning.',
-    medications: 'Rate control: metoprolol, diltiazem, digoxin. Rhythm control: flecainide, propafenone (no structural HD), amiodarone, dofetilide, sotalol. Anticoagulation: apixaban, rivaroxaban, dabigatran, edoxaban (CHA₂DS₂-VASc ≥2 men, ≥3 women).',
-    'field-care': 'Identify irregular rhythm on monitor. Assess hemodynamic stability. If unstable (hypotension, AMS, chest pain): synchronized cardioversion. If stable: transport with monitoring. Do not delay transport for rate control. IV access.',
-    'hospital-care': 'Rate control target HR <110 at rest. Anticoagulation assessment (CHA₂DS₂-VASc). TSH to rule out hyperthyroidism. Echo for LV function and LA size. Consider cardioversion if new-onset (<48h) or TEE-guided. Telemetry monitoring.',
-    'cardiology-care': 'Catheter ablation (PVI) for symptomatic, drug-refractory AF. LAA occlusion device for patients who cannot tolerate anticoagulation. Surgical Maze procedure if undergoing cardiac surgery. Hybrid ablation approaches for persistent AF.',
-    procedure: 'PVI ablation: transseptal puncture, 3D mapping, circumferential lesion sets around PV ostia. Cardioversion: synchronized shock at 200J biphasic. TEE: evaluate LAA for thrombus. Watchman: catheter-delivered LAA occluder.',
-    complications: 'Stroke/systemic embolism (5x risk without anticoagulation). Tachycardia-mediated cardiomyopathy from uncontrolled rates. Heart failure exacerbation. Bleeding from anticoagulation. Ablation complications: PV stenosis, tamponade, atrial-esophageal fistula.',
-    teaching: 'AF is the most common sustained arrhythmia, affecting 2-3% of adults. Stroke prevention is the most important management decision. CHA₂DS₂-VASc score guides anticoagulation. Rate vs. rhythm control: AFFIRM showed no mortality difference, but recent EAST-AFNET 4 showed benefit of early rhythm control.',
-  },
-};
+const CONDITION_DATA_EXT: Record<string, Record<string, string>> = CONDITION_DATA_IMPORT || {};
+const PROCEDURE_DATA_EXT: Record<string, Record<string, unknown>> = PROCEDURE_DATA_IMPORT || {};
 
 export default function RightPanel({ style }: { style?: React.CSSProperties }) {
-  const { rightPanelOpen, rightPanelTab, setRightPanelTab, learningLevel } = useAppStore();
+  const { rightPanelOpen, rightPanelTab, setRightPanelTab, learningLevel, activePanelCategory } = useAppStore();
   const { selectedStructureId } = useSceneStore();
   const { selectedConditionId } = useConditionStore();
   const { selectedProcedureId } = useProcedureStore();
@@ -235,9 +198,17 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   // Resolve structure info from detailed data or legacy fallback
   const structureTabData = selectedStructureId ? STRUCTURE_DATA[selectedStructureId] : null;
   const legacyInfo = selectedStructureId ? ANATOMY_INFO[selectedStructureId] : null;
-  const conditionTabData = selectedConditionId ? CONDITION_DATA[selectedConditionId] : null;
 
-  // Get content for current tab
+  // Get condition data from external data file
+  const conditionData = selectedConditionId ? CONDITION_DATA_EXT[selectedConditionId] : null;
+
+  // Get procedure data from external data file
+  const procedureData = selectedProcedureId ? PROCEDURE_DATA_EXT[selectedProcedureId] : null;
+
+  // Determine which tabs to show based on the active left panel category
+  const activeTabs = TABS_BY_CATEGORY[activePanelCategory] || TABS_BY_CATEGORY.anatomy;
+
+  // Get content for current tab (structures)
   const getStructureContent = (): string[] => {
     if (structureTabData) {
       return (structureTabData as unknown as Record<string, string[]>)[rightPanelTab] || structureTabData.overview;
@@ -248,35 +219,65 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
     return [];
   };
 
+  // Get condition content for current tab
   const getConditionContent = (): string | null => {
-    if (!conditionTabData) return null;
-    const tabMap: Record<string, string> = {
-      'overview': conditionTabData.overview,
-      'anatomy': conditionTabData.pathophys,
-      'physiology': conditionTabData.pathophys,
-      'symptoms': conditionTabData.symptoms,
-      'ecg': conditionTabData.ecg,
-      'imaging': conditionTabData.imaging,
-      'medications': conditionTabData.medications,
-      'field-care': conditionTabData['field-care'],
-      'hospital-care': conditionTabData['hospital-care'],
-      'cardiology-care': conditionTabData['cardiology-care'],
-      'procedure': conditionTabData.procedure,
-      'complications': conditionTabData.complications,
-      'teaching': conditionTabData.teaching,
+    if (!conditionData) return null;
+    // Map right panel tab names to condition data field names
+    const tabFieldMap: Record<string, string> = {
+      'overview': 'overview',
+      'anatomy': 'anatomy',
+      'pathophysiology': 'pathophysiology',
+      'physiology': 'pathophysiology',
+      'symptoms': 'symptoms',
+      'ecg': 'ecg',
+      'imaging': 'imaging',
+      'medications': 'medications',
+      'field-care': 'fieldCare',
+      'hospital-care': 'hospitalCare',
+      'cardiology-care': 'cardiologyCare',
+      'procedure': 'procedure',
+      'complications': 'complications',
+      'teaching': 'teaching',
     };
-    return tabMap[rightPanelTab] || conditionTabData.overview;
+    const fieldName = tabFieldMap[rightPanelTab] || 'overview';
+    return (conditionData[fieldName] as string) || conditionData['overview'] || null;
+  };
+
+  // Get procedure content for current tab
+  const getProcedureContent = (): { type: 'text'; content: string } | { type: 'steps'; steps: { step: number; title: string; description: string }[] } | { type: 'list'; items: string[] } | null => {
+    if (!procedureData) return null;
+    const tabFieldMap: Record<string, string> = {
+      'overview': 'overview',
+      'indications': 'indications',
+      'anatomy': 'anatomy',
+      'procedure': 'steps',
+      'ecg': 'ecgConsiderations',
+      'equipment': 'equipment',
+      'complications': 'complications',
+      'teaching': 'teaching',
+    };
+    const fieldName = tabFieldMap[rightPanelTab] || 'overview';
+    const data = procedureData[fieldName];
+    if (!data) return { type: 'text', content: (procedureData['overview'] as string) || 'Select a tab to view procedure details.' };
+    if (fieldName === 'steps' && Array.isArray(data)) {
+      return { type: 'steps', steps: data as { step: number; title: string; description: string }[] };
+    }
+    if (Array.isArray(data)) {
+      return { type: 'list', items: data as string[] };
+    }
+    return { type: 'text', content: String(data) };
   };
 
   const structTitle = structureTabData?.title || legacyInfo?.title;
   const structContent = getStructureContent();
   const condContent = getConditionContent();
+  const procContent = getProcedureContent();
 
   return (
     <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden">
-      {/* Tabs */}
+      {/* Context-sensitive Tabs */}
       <div className="flex flex-wrap border-b border-slate-700 px-1 py-1 gap-0.5 shrink-0">
-        {TABS.map((tab) => (
+        {activeTabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setRightPanelTab(tab)}
@@ -286,7 +287,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
                 : 'text-slate-500 hover:text-white'
             }`}
           >
-            {tab.replace('-', ' ')}
+            {tab.replace(/-/g, ' ')}
           </button>
         ))}
       </div>
@@ -294,9 +295,9 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 text-xs text-slate-300 space-y-3">
         {/* Welcome / empty state */}
-        {!structTitle && !conditionTabData && !selectedProcedureId && !caseData && (
+        {!structTitle && !conditionData && !procedureData && !caseData && (
           <div className="text-center py-8">
-            <div className="text-4xl mb-3">♥</div>
+            <div className="text-4xl mb-3">{'\u2665'}</div>
             <h3 className="text-sm font-semibold text-white mb-2">Cardiac Education Platform</h3>
             <p className="text-slate-400 text-xs leading-relaxed">
               Select a structure, condition, or procedure from the left panel to view detailed information.
@@ -318,12 +319,12 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
           <div>
             <h3 className="text-sm font-semibold text-white mb-1">{structTitle}</h3>
             <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 capitalize">
-              {rightPanelTab.replace('-', ' ')}
+              {rightPanelTab.replace(/-/g, ' ')}
             </h4>
             <ul className="space-y-1">
               {structContent.map((d, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="text-cardiac-accent mt-0.5 shrink-0">•</span>
+                  <span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span>
                   <span className="text-slate-400 leading-relaxed">{d}</span>
                 </li>
               ))}
@@ -332,11 +333,11 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
         )}
 
         {/* Condition detail */}
-        {conditionTabData && condContent && (
+        {conditionData && condContent && (
           <div>
-            <h3 className="text-sm font-semibold text-white mb-1">{conditionTabData.title}</h3>
+            <h3 className="text-sm font-semibold text-white mb-1">{conditionData['title'] || selectedConditionId?.replace(/-/g, ' ')}</h3>
             <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 capitalize">
-              {rightPanelTab.replace('-', ' ')}
+              {rightPanelTab.replace(/-/g, ' ')}
             </h4>
             <div className="p-2 bg-cardiac-dark rounded">
               <p className="text-slate-400 leading-relaxed">{condContent}</p>
@@ -344,14 +345,80 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
           </div>
         )}
 
+        {/* Condition fallback: show condition name if no external data */}
+        {selectedConditionId && !conditionData && !structTitle && !caseData && (
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-1 capitalize">
+              {selectedConditionId.replace(/-/g, ' ')}
+            </h3>
+            <div className="p-2 bg-cardiac-dark rounded">
+              <p className="text-slate-400 leading-relaxed">
+                Detailed condition information is loading. Select tabs above to explore different aspects of this condition.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Procedure detail */}
-        {selectedProcedureId && !conditionTabData && !structTitle && !caseData && (
+        {procedureData && !conditionData && !structTitle && !caseData && (
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-1">
+              {(procedureData['name'] as string) || selectedProcedureId?.replace(/-/g, ' ')}
+            </h3>
+            {procedureData['category'] ? (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-cardiac-accent/15 text-cardiac-accent mb-2 inline-block">
+                {String(procedureData['category'])}
+              </span>
+            ) : null}
+            <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 mt-2 capitalize">
+              {rightPanelTab.replace(/-/g, ' ')}
+            </h4>
+
+            {procContent?.type === 'text' && (
+              <div className="p-2 bg-cardiac-dark rounded">
+                <p className="text-slate-400 leading-relaxed">{procContent.content}</p>
+              </div>
+            )}
+
+            {procContent?.type === 'steps' && (
+              <div className="space-y-2">
+                {procContent.steps.map((s) => (
+                  <div key={s.step} className="p-2 bg-cardiac-dark rounded">
+                    <div className="flex items-start gap-2">
+                      <span className="text-cardiac-accent font-bold text-sm shrink-0 w-5 h-5 rounded-full bg-cardiac-accent/20 flex items-center justify-center text-[10px]">
+                        {s.step}
+                      </span>
+                      <div>
+                        <h5 className="text-white font-medium text-xs mb-0.5">{s.title}</h5>
+                        <p className="text-slate-400 leading-relaxed">{s.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {procContent?.type === 'list' && (
+              <ul className="space-y-1">
+                {procContent.items.map((item, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span>
+                    <span className="text-slate-400 leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Procedure fallback: show name if no external data */}
+        {selectedProcedureId && !procedureData && !conditionData && !structTitle && !caseData && (
           <div>
             <h3 className="text-sm font-semibold text-white mb-1 capitalize">
               {selectedProcedureId.replace(/-/g, ' ')}
             </h3>
             <p className="text-slate-400 mb-3">
-              Select steps from the procedure panel to view the simulation.
+              Select tabs above to explore different aspects of this procedure.
             </p>
           </div>
         )}
@@ -419,7 +486,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
                 <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Management Guidelines</h4>
                 <ul className="space-y-1">
                   {caseData.guidelines.map((g, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400 leading-relaxed">{g}</span></li>
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400 leading-relaxed">{g}</span></li>
                   ))}
                 </ul>
               </div>
@@ -430,7 +497,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
                 <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Medications</h4>
                 <ul className="space-y-1">
                   {caseData.medications.map((m, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400">{m}</span></li>
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400">{m}</span></li>
                   ))}
                 </ul>
               </div>
@@ -452,7 +519,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
                 <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Teaching Points</h4>
                 <ul className="space-y-1">
                   {caseData.teaching.map((t, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400 leading-relaxed">{t}</span></li>
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400 leading-relaxed">{t}</span></li>
                   ))}
                 </ul>
                 <div className="mt-2 p-2 bg-cardiac-dark rounded">
@@ -467,7 +534,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
                 <h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Key Interventions</h4>
                 <ul className="space-y-1">
                   {caseData.keyInterventions.map((k, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400">{k}</span></li>
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400">{k}</span></li>
                   ))}
                 </ul>
               </div>

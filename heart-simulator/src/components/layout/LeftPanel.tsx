@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useAppStore, PanelCategory } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
@@ -9,8 +9,6 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { CASE_DATA } from '@/data/caseData';
-
-type PanelTab = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'cases';
 
 // Maps condition panel IDs → ECG waveform engine profile IDs
 const CONDITION_TO_ECG_PROFILE: Record<string, string> = {
@@ -182,22 +180,79 @@ const CONDITION_CATEGORIES = [
   { cat: 'Congenital', ids: ['asd', 'vsd', 'pfo'] },
 ];
 
-const PROCEDURE_LIST = [
-  { id: 'coronary-angiography', name: 'Coronary Angiography' },
-  { id: 'pci', name: 'PCI' },
-  { id: 'right-heart-catheterization', name: 'Right Heart Cath' },
-  { id: 'ep-study', name: 'EP Study' },
-  { id: 'catheter-ablation', name: 'Catheter Ablation' },
-  { id: 'pacemaker-implantation', name: 'Pacemaker' },
-  { id: 'icd-implantation', name: 'ICD' },
-  { id: 'crt-implantation', name: 'CRT' },
-  { id: 'tavr', name: 'TAVR' },
-  { id: 'mitraclip-teer', name: 'MitraClip / TEER' },
-  { id: 'asd-closure', name: 'ASD Closure' },
-  { id: 'laa-occlusion', name: 'LAA Occlusion' },
-  { id: 'pericardiocentesis', name: 'Pericardiocentesis' },
-  { id: 'cardioversion', name: 'Cardioversion' },
-  { id: 'defibrillation', name: 'Defibrillation' },
+const PROCEDURE_CATEGORIES = [
+  {
+    cat: 'Cath Lab',
+    items: [
+      { id: 'coronary-angiography', name: 'Coronary Angiography' },
+      { id: 'ffr-ifr', name: 'FFR / iFR Assessment' },
+      { id: 'iabp-placement', name: 'IABP Placement' },
+      { id: 'impella-placement', name: 'Impella Placement' },
+      { id: 'intravascular-lithotripsy', name: 'Intravascular Lithotripsy (IVL)' },
+      { id: 'ivus-oct', name: 'IVUS / OCT Imaging' },
+      { id: 'left-heart-cath', name: 'Left Heart Catheterization' },
+      { id: 'pci-stent', name: 'PCI / Stent Placement' },
+      { id: 'right-heart-cath', name: 'Right Heart Catheterization' },
+      { id: 'rotational-atherectomy', name: 'Rotational Atherectomy' },
+    ],
+  },
+  {
+    cat: 'Electrophysiology',
+    items: [
+      { id: 'catheter-ablation', name: 'Catheter Ablation' },
+      { id: 'crt-implantation', name: 'CRT Implantation' },
+      { id: 'ep-study', name: 'EP Study' },
+      { id: 'his-bundle-pacing', name: 'His Bundle Pacing' },
+      { id: 'icd-implantation', name: 'ICD Implantation' },
+      { id: 'lead-extraction', name: 'Lead Extraction' },
+      { id: 'leadless-pacemaker', name: 'Leadless Pacemaker (Micra)' },
+      { id: 'pacemaker-implantation', name: 'Pacemaker Implantation' },
+    ],
+  },
+  {
+    cat: 'Structural Heart',
+    items: [
+      { id: 'alcohol-septal-ablation', name: 'Alcohol Septal Ablation' },
+      { id: 'asd-closure', name: 'ASD Closure' },
+      { id: 'bav', name: 'Balloon Aortic Valvuloplasty' },
+      { id: 'bmv', name: 'Balloon Mitral Valvuloplasty' },
+      { id: 'laa-occlusion', name: 'LAA Occlusion (Watchman)' },
+      { id: 'mitraclip-teer', name: 'MitraClip / TEER' },
+      { id: 'paravalvular-leak-closure', name: 'Paravalvular Leak Closure' },
+      { id: 'pfo-closure', name: 'PFO Closure' },
+      { id: 'tavr', name: 'TAVR' },
+    ],
+  },
+  {
+    cat: 'Interventional / Vascular',
+    items: [
+      { id: 'carotid-stenting', name: 'Carotid Artery Stenting' },
+      { id: 'catheter-directed-thrombolysis', name: 'Catheter-Directed Thrombolysis' },
+      { id: 'ivc-filter', name: 'IVC Filter Placement' },
+      { id: 'peripheral-angiography', name: 'Peripheral Angiography' },
+      { id: 'peripheral-intervention', name: 'Peripheral PTA / Stenting' },
+    ],
+  },
+  {
+    cat: 'Surgical',
+    items: [
+      { id: 'cabg', name: 'CABG' },
+      { id: 'heart-transplant', name: 'Heart Transplantation' },
+      { id: 'lvad-implantation', name: 'LVAD Implantation' },
+      { id: 'valve-surgery', name: 'Valve Repair / Replacement' },
+    ],
+  },
+  {
+    cat: 'Emergency',
+    items: [
+      { id: 'cardioversion', name: 'Cardioversion' },
+      { id: 'defibrillation', name: 'Defibrillation' },
+      { id: 'ecmo-cannulation', name: 'ECMO Cannulation' },
+      { id: 'endomyocardial-biopsy', name: 'Endomyocardial Biopsy' },
+      { id: 'pericardiocentesis', name: 'Pericardiocentesis' },
+      { id: 'temporary-pacing', name: 'Temporary Transvenous Pacing' },
+    ],
+  },
 ];
 
 const CASE_LIST = [
@@ -213,8 +268,9 @@ const CASE_LIST = [
 ];
 
 export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
-  const [activeTab, setActiveTab] = useState<PanelTab>('anatomy');
-  const { leftPanelOpen, searchQuery } = useAppStore();
+  const { leftPanelOpen, searchQuery, activePanelCategory, setActivePanelCategory } = useAppStore();
+  const activeTab = activePanelCategory;
+  const setActiveTab = setActivePanelCategory;
   const { selectStructure, selectedStructureId } = useSceneStore();
   const { selectCondition, selectedConditionId } = useConditionStore();
   const { selectProcedure, selectedProcedureId } = useProcedureStore();
@@ -265,7 +321,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
 
   if (!leftPanelOpen) return null;
 
-  const tabs: { value: PanelTab; label: string }[] = [
+  const tabs: { value: PanelCategory; label: string }[] = [
     { value: 'anatomy', label: 'Anatomy' },
     { value: 'coronary', label: 'Coronary' },
     { value: 'conduction', label: 'Conduct.' },
@@ -419,19 +475,36 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
         )}
 
         {activeTab === 'procedures' && (
-          <div className="space-y-0.5">
-            {PROCEDURE_LIST.filter((proc) => !searchQuery || proc.name.toLowerCase().includes(searchQuery.toLowerCase())).map((proc) => (
-              <button
-                key={proc.id}
-                onClick={() => selectProcedure(proc.id)}
-                className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
-                  selectedProcedureId === proc.id
-                    ? 'bg-cardiac-accent/20 text-cardiac-accent'
-                    : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-                }`}
-              >
-                {proc.name}
-              </button>
+          <div className="space-y-1">
+            {PROCEDURE_CATEGORIES.map((group) => (
+              <div key={group.cat}>
+                <button
+                  onClick={() => toggleCategory(group.cat)}
+                  className="w-full flex items-center gap-1 px-2 py-1.5 text-slate-300 hover:text-white font-medium"
+                >
+                  <span className="text-[10px]">{expandedCategories.has(group.cat) ? '▼' : '▶'}</span>
+                  {group.cat}
+                </button>
+                {expandedCategories.has(group.cat) && (
+                  <div className="ml-3 space-y-0.5">
+                    {group.items
+                      .filter((proc) => !searchQuery || proc.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((proc) => (
+                        <button
+                          key={proc.id}
+                          onClick={() => selectProcedure(proc.id)}
+                          className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
+                            selectedProcedureId === proc.id
+                              ? 'bg-cardiac-accent/20 text-cardiac-accent'
+                              : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
+                          }`}
+                        >
+                          {proc.name}
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
