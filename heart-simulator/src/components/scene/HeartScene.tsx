@@ -2107,7 +2107,20 @@ export default function HeartScene() {
         </group>
 
         <ContactShadows position={[0, -2.2, 0]} opacity={0.5} blur={2.5} far={5} />
-        <OrbitControls enablePan enableZoom enableRotate rotateSpeed={0.8} minDistance={1.5} maxDistance={8} dampingFactor={0.08} enableDamping />
+        <OrbitControls
+          enablePan
+          enableZoom
+          enableRotate
+          rotateSpeed={0.5}
+          panSpeed={0.6}
+          zoomSpeed={0.8}
+          minDistance={1.5}
+          maxDistance={8}
+          dampingFactor={0.12}
+          enableDamping
+          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
+          touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
+        />
         <Environment preset="studio" />
       </Canvas>
     </div>

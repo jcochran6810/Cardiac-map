@@ -7,6 +7,7 @@ import LeftPanel from '@/components/layout/LeftPanel';
 import RightPanel from '@/components/layout/RightPanel';
 import BottomDock from '@/components/layout/BottomDock';
 import DissectionControls from '@/components/scene/DissectionControls';
+import ViewNavToolbar from '@/components/scene/ViewNavToolbar';
 import TutorPanel from '@/components/tutor/TutorPanel';
 
 const HeartScene = dynamic(() => import('@/components/scene/HeartScene'), {
@@ -41,6 +42,7 @@ export default function HomePage() {
           <div className="flex-1 relative min-h-0">
             <HeartScene />
             <DissectionControls />
+            <ViewNavToolbar />
 
             {/* Disclaimer overlay */}
             <div className="absolute bottom-2 left-2 right-2 pointer-events-none">
