@@ -638,13 +638,78 @@ function HeartMesh() {
     });
   }, [heartModel]);
 
-  // Cardiac cycle contraction animation
+  // Store shader refs for per-frame uniform updates
+  const shaderRefs = useRef<THREE.WebGLProgramParametersWithUniforms[]>([]);
+
+  // Inject custom vertex/fragment code for regional contraction + activation glow
+  useMemo(() => {
+    shaderRefs.current = [];
+    heartModel.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshPhysicalMaterial) {
+        child.material.onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+          shader.uniforms.uCycleProgress = { value: 0 };
+          shaderRefs.current.push(shader);
+
+          // Vertex: regional contraction deformation
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            `#include <common>
+            uniform float uCycleProgress;
+            varying vec3 vLocalPos;`
+          );
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            `#include <begin_vertex>
+            vLocalPos = position;
+            // Atrial contraction during P wave (cycle 0.10-0.20)
+            float atrialMask = smoothstep(0.15, 0.45, position.y); // upper region = atria
+            float pOn  = smoothstep(0.10, 0.12, uCycleProgress);
+            float pOff = 1.0 - smoothstep(0.18, 0.22, uCycleProgress);
+            float atrialSqueeze = atrialMask * pOn * pOff * 0.045;
+            // Ventricular contraction during QRS-ST (cycle 0.28-0.50)
+            float ventMask = 1.0 - smoothstep(-0.6, 0.1, position.y); // lower region = ventricles
+            float qrsOn  = smoothstep(0.28, 0.30, uCycleProgress);
+            float qrsOff = 1.0 - smoothstep(0.42, 0.50, uCycleProgress);
+            float ventSqueeze = ventMask * qrsOn * qrsOff * 0.05;
+            // Apply squeeze: compress X/Z, elongate Y slightly
+            float squeeze = atrialSqueeze + ventSqueeze;
+            transformed.x *= 1.0 - squeeze;
+            transformed.z *= 1.0 - squeeze;
+            transformed.y *= 1.0 + squeeze * 0.4;`
+          );
+
+          // Fragment: activation glow overlay
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            `#include <common>
+            uniform float uCycleProgress;
+            varying vec3 vLocalPos;`
+          );
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <emissivemap_fragment>',
+            `#include <emissivemap_fragment>
+            // Atrial depolarization glow (warm yellow-orange) during P wave
+            float aGlow = smoothstep(0.15, 0.45, vLocalPos.y);
+            float pA = smoothstep(0.10, 0.13, uCycleProgress) * (1.0 - smoothstep(0.18, 0.22, uCycleProgress));
+            totalEmissiveRadiance += vec3(0.35, 0.18, 0.05) * aGlow * pA;
+            // Ventricular depolarization glow (brighter orange-red) during QRS
+            float vGlow = 1.0 - smoothstep(-0.6, 0.1, vLocalPos.y);
+            float qrsG = smoothstep(0.28, 0.30, uCycleProgress) * (1.0 - smoothstep(0.38, 0.45, uCycleProgress));
+            totalEmissiveRadiance += vec3(0.4, 0.12, 0.04) * vGlow * qrsG;
+            // Repolarization glow (subtle blue-purple) during T wave
+            float tG = smoothstep(0.48, 0.52, uCycleProgress) * (1.0 - smoothstep(0.60, 0.66, uCycleProgress));
+            totalEmissiveRadiance += vec3(0.08, 0.05, 0.25) * vGlow * tG;`
+          );
+        };
+        child.material.needsUpdate = true;
+      }
+    });
+  }, [heartModel]);
+
+  // Update shader uniforms every frame
   useFrame(() => {
-    if (ref.current && playing) {
-      const sys = cycleProgress > 0.11 && cycleProgress < 0.4;
-      const t = sys ? (cycleProgress - 0.11) / 0.29 : 0;
-      const c = sys ? Math.sin(t * Math.PI) : 0;
-      ref.current.scale.set(1 - c * 0.035, 1 + c * 0.02, 1 - c * 0.035);
+    for (const shader of shaderRefs.current) {
+      shader.uniforms.uCycleProgress.value = cycleProgress;
     }
   });
 
@@ -1697,40 +1762,197 @@ function SectionalClipPlane() {
   );
 }
 
-// ─── Conduction system ─────────────────────────────────────────────────
-function ConductionOverlay() {
-  const { viewMode } = useAppStore();
-  const { conductionProgress } = useTimelineStore();
-  if (viewMode !== 'conduction') return null;
+// ─── Conduction system with animated arrows ───────────────────────────
+// Conduction pathway definitions: each path has 3D control points and a timing window
+// within cycleProgress that maps to the corresponding EKG feature.
+const CONDUCTION_PATHWAYS = [
+  // SA node → Right atrial spread (P wave)
+  { name: 'SA → RA',
+    points: [[0.55, 0.7, 0.35], [0.45, 0.6, 0.38], [0.3, 0.5, 0.35], [0.15, 0.35, 0.35]] as [number,number,number][],
+    startTime: 0.10, endTime: 0.18, color: new THREE.Color('#fbbf24') },
+  // SA node → Left atrial spread (P wave, slightly later)
+  { name: 'SA → LA',
+    points: [[0.55, 0.7, 0.35], [0.35, 0.72, 0.25], [0.0, 0.65, 0.18], [-0.3, 0.55, 0.22]] as [number,number,number][],
+    startTime: 0.11, endTime: 0.20, color: new THREE.Color('#fbbf24') },
+  // AV node → Bundle of His (PR interval delay)
+  { name: 'AV → His',
+    points: [[0.15, 0.35, 0.35], [0.1, 0.28, 0.32], [0.05, 0.2, 0.3], [0.0, 0.12, 0.3]] as [number,number,number][],
+    startTime: 0.22, endTime: 0.28, color: new THREE.Color('#f59e0b') },
+  // His → Right Bundle Branch (QRS)
+  { name: 'RBB',
+    points: [[0.0, 0.12, 0.3], [0.08, 0.0, 0.3], [0.18, -0.15, 0.28], [0.25, -0.35, 0.25], [0.2, -0.55, 0.2]] as [number,number,number][],
+    startTime: 0.28, endTime: 0.35, color: new THREE.Color('#ef4444') },
+  // His → Left Bundle Branch (QRS)
+  { name: 'LBB',
+    points: [[0.0, 0.12, 0.3], [-0.06, 0.0, 0.28], [-0.12, -0.15, 0.25], [-0.18, -0.35, 0.22], [-0.15, -0.55, 0.18]] as [number,number,number][],
+    startTime: 0.28, endTime: 0.35, color: new THREE.Color('#ef4444') },
+  // RBB → Purkinje spread (RV wall, QRS)
+  { name: 'Purkinje RV',
+    points: [[0.25, -0.35, 0.25], [0.35, -0.25, 0.3], [0.4, -0.1, 0.28]] as [number,number,number][],
+    startTime: 0.32, endTime: 0.36, color: new THREE.Color('#f87171') },
+  // LBB → Purkinje spread (LV wall, QRS)
+  { name: 'Purkinje LV',
+    points: [[-0.18, -0.35, 0.22], [-0.3, -0.25, 0.15], [-0.35, -0.1, 0.1]] as [number,number,number][],
+    startTime: 0.32, endTime: 0.36, color: new THREE.Color('#f87171') },
+];
 
+// Single animated conduction arrow along a curve
+function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
+  curve: THREE.CatmullRomCurve3;
+  startTime: number;
+  endTime: number;
+  color: THREE.Color;
+  cycleProgress: number;
+}) {
+  const arrowRef = useRef<THREE.Group>(null);
+  const trailRef = useRef<THREE.Mesh>(null);
+  const trailMatRef = useRef<THREE.ShaderMaterial>(null);
+
+  // Tube geometry for the trail
+  const tubeGeo = useMemo(() => new THREE.TubeGeometry(curve, 64, 0.012, 8, false), [curve]);
+
+  // Shader material for animated trail reveal
+  const trailMat = useMemo(() => {
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uProgress: { value: 0 },
+        uColor: { value: color },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uProgress;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+          // Trail: visible behind the leading edge, fades out behind
+          float leading = uProgress;
+          float behindLeading = step(vUv.x, leading);
+          float trailFade = smoothstep(leading - 0.5, leading, vUv.x);
+          // Glow pulse at the leading edge
+          float edgeDist = abs(vUv.x - leading);
+          float edgeGlow = exp(-edgeDist * 30.0) * 1.5;
+          float alpha = (behindLeading * trailFade * 0.6 + edgeGlow) * step(0.01, uProgress);
+          // Fade out after full reveal
+          alpha *= 1.0 - smoothstep(0.95, 1.0, uProgress) * 0.7;
+          gl_FragColor = vec4(uColor * (1.0 + edgeGlow * 0.5), alpha);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    return mat;
+  }, [color]);
+
+  // Arrowhead cone geometry
+  const coneGeo = useMemo(() => new THREE.ConeGeometry(0.025, 0.06, 8), []);
+
+  // Animate each frame
+  useFrame(() => {
+    // Calculate progress along this path based on cycleProgress
+    let pathProgress = 0;
+    if (cycleProgress >= startTime && cycleProgress <= endTime) {
+      pathProgress = (cycleProgress - startTime) / (endTime - startTime);
+    } else if (cycleProgress > endTime && cycleProgress < endTime + 0.08) {
+      // Brief linger after completion
+      pathProgress = 1.0;
+    }
+
+    // Update trail shader
+    if (trailMatRef.current) {
+      trailMatRef.current.uniforms.uProgress.value = pathProgress;
+    }
+
+    // Position arrowhead along curve
+    if (arrowRef.current && pathProgress > 0 && pathProgress <= 1) {
+      const t = Math.min(pathProgress, 0.999);
+      const pos = curve.getPointAt(t);
+      const tangent = curve.getTangentAt(t);
+      arrowRef.current.position.copy(pos);
+      // Orient cone along tangent direction
+      const up = new THREE.Vector3(0, 1, 0);
+      const quat = new THREE.Quaternion().setFromUnitVectors(up, tangent.normalize());
+      arrowRef.current.quaternion.copy(quat);
+      arrowRef.current.visible = true;
+    } else if (arrowRef.current) {
+      arrowRef.current.visible = false;
+    }
+  });
+
+  return (
+    <group>
+      {/* Trail tube */}
+      <mesh ref={trailRef} geometry={tubeGeo}>
+        <primitive object={trailMat} ref={trailMatRef} attach="material" />
+      </mesh>
+      {/* Arrowhead */}
+      <group ref={arrowRef}>
+        <mesh geometry={coneGeo}>
+          <meshStandardMaterial
+            color={color}
+            emissive={color}
+            emissiveIntensity={1.5}
+            transparent
+            opacity={0.9}
+          />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+function ConductionOverlay() {
+  const { cycleProgress, playing } = useTimelineStore();
+
+  // Build curves from pathway definitions
+  const pathData = useMemo(() =>
+    CONDUCTION_PATHWAYS.map((p) => ({
+      ...p,
+      curve: new THREE.CatmullRomCurve3(p.points.map((pt) => new THREE.Vector3(...pt))),
+    })),
+  []);
+
+  // Conduction node positions for labels
   const nodes = [
-    { id: 'sa-node', pos: [0.55, 0.7, 0.3] as [number, number, number], label: 'SA Node' },
-    { id: 'av-node', pos: [0.15, 0.35, 0.3] as [number, number, number], label: 'AV Node' },
-    { id: 'bundle-of-his', pos: [0, 0.15, 0.3] as [number, number, number], label: 'Bundle of His' },
-    { id: 'rbb', pos: [0.3, -0.2, 0.3] as [number, number, number], label: 'RBB' },
-    { id: 'lbb', pos: [-0.2, -0.2, 0.3] as [number, number, number], label: 'LBB' },
+    { label: 'SA', pos: [0.55, 0.7, 0.35] as [number,number,number] },
+    { label: 'AV', pos: [0.15, 0.35, 0.35] as [number,number,number] },
   ];
 
   return (
     <group>
-      {nodes.map((node, i) => {
-        const active = conductionProgress > i * 0.2;
-        return (
-          <group key={node.id} position={node.pos}>
-            <mesh>
-              <sphereGeometry args={[0.05, 16, 16]} />
-              <meshStandardMaterial
-                color={active ? '#fbbf24' : '#666'}
-                emissive={active ? '#fbbf24' : '#000'}
-                emissiveIntensity={active ? 0.8 : 0}
-              />
-            </mesh>
-            <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
-              <div className="text-yellow-400 text-xs font-bold whitespace-nowrap">{node.label}</div>
-            </Html>
-          </group>
-        );
-      })}
+      {/* Animated arrow paths */}
+      {pathData.map((p, i) => (
+        <ConductionArrow
+          key={i}
+          curve={p.curve}
+          startTime={p.startTime}
+          endTime={p.endTime}
+          color={p.color}
+          cycleProgress={cycleProgress}
+        />
+      ))}
+      {/* Node labels */}
+      {playing && nodes.map((node, i) => (
+        <group key={i} position={node.pos}>
+          <mesh>
+            <sphereGeometry args={[0.03, 12, 12]} />
+            <meshStandardMaterial
+              color="#fbbf24"
+              emissive="#fbbf24"
+              emissiveIntensity={0.8}
+            />
+          </mesh>
+          <Html center distanceFactor={3} style={{ pointerEvents: 'none' }}>
+            <div className="text-yellow-400 text-xs font-bold whitespace-nowrap drop-shadow-lg">{node.label}</div>
+          </Html>
+        </group>
+      ))}
     </group>
   );
 }
