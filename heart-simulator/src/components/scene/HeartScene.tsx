@@ -19,63 +19,172 @@ interface AnatomyZone {
 }
 
 const ANATOMY_ZONES: AnatomyZone[] = [
-  // Great vessels (top of heart, Z > 0.55)
-  { id: 'ascending-aorta', name: 'Ascending Aorta',
-    test: (p) => p.z > 0.55 && p.x < 0.1 && p.y < 0.1 ? 0.9 : 0 },
-  { id: 'pulmonary-trunk', name: 'Pulmonary Trunk',
-    test: (p) => p.z > 0.5 && p.x > 0.05 && p.y > 0.0 ? 0.85 : 0 },
-  { id: 'svc', name: 'Superior Vena Cava',
-    test: (p) => p.z > 0.5 && p.x > 0.2 && p.y < -0.05 ? 0.8 : 0 },
+  // ─── Great vessels (top of heart, Z > 0.5) ─────────────────────
+  // Aortic arch: superior-left
   { id: 'aortic-arch', name: 'Aortic Arch',
-    test: (p) => p.z > 0.6 && p.x < -0.1 ? 0.85 : 0 },
-
-  // Atria (upper-mid region)
-  { id: 'right-atrium', name: 'Right Atrium',
     test: (p) => {
-      if (p.z < 0.1 || p.z > 0.55) return 0;
-      if (p.x > 0.1 && p.y > -0.2) return 0.8;
+      if (p.z <= 0.6 || p.x > -0.05) return 0;
+      return 0.92;
+    }},
+  // Ascending aorta: superior-center, slightly left/posterior
+  { id: 'ascending-aorta', name: 'Ascending Aorta',
+    test: (p) => {
+      if (p.z <= 0.5) return 0;
+      if (p.x < 0.15 && p.x > -0.15 && p.y < 0.1) return 0.9;
       return 0;
     }},
-  { id: 'right-atrial-appendage', name: 'Right Atrial Appendage',
-    test: (p) => p.z > 0.2 && p.z < 0.55 && p.x > 0.3 && p.y > 0.1 ? 0.9 : 0 },
-  { id: 'left-atrium', name: 'Left Atrium',
+  // Pulmonary trunk: superior-center, slightly right/anterior
+  { id: 'pulmonary-trunk', name: 'Pulmonary Trunk',
     test: (p) => {
-      if (p.z < 0.1 || p.z > 0.55) return 0;
-      if (p.x < -0.1 && p.y < 0.1) return 0.8;
+      if (p.z <= 0.5) return 0;
+      if (p.x >= -0.05 && p.y >= 0.0) return 0.88;
+      return 0;
+    }},
+  // SVC: superior-right-posterior
+  { id: 'svc', name: 'Superior Vena Cava',
+    test: (p) => {
+      if (p.z <= 0.5) return 0;
+      if (p.x > 0.15 && p.y < 0.0) return 0.88;
+      return 0;
+    }},
+
+  // ─── Atrial appendages (higher priority than atria) ────────────
+  { id: 'right-atrial-appendage', name: 'Right Atrial Appendage',
+    test: (p) => {
+      if (p.z < 0.2 || p.z > 0.55) return 0;
+      if (p.x > 0.28 && p.y > 0.08) return 0.93;
       return 0;
     }},
   { id: 'left-atrial-appendage', name: 'Left Atrial Appendage',
-    test: (p) => p.z > 0.15 && p.z < 0.5 && p.x < -0.3 && p.y > 0.0 ? 0.9 : 0 },
+    test: (p) => {
+      if (p.z < 0.15 || p.z > 0.5) return 0;
+      if (p.x < -0.25 && p.y > -0.05) return 0.93;
+      return 0;
+    }},
 
-  // Ventricles (lower region)
+  // ─── Valve plane (Z ~ 0.05 to 0.2, between atria and ventricles) ──
+  // Aortic valve: center, slightly left-anterior, at the base of ascending aorta
+  { id: 'aortic-valve-rcc', name: 'Aortic Valve',
+    test: (p) => {
+      if (p.z < 0.35 || p.z > 0.55) return 0;
+      const dx = p.x + 0.05, dy = p.y - 0.05;
+      if (dx * dx + dy * dy < 0.03) return 0.95;
+      return 0;
+    }},
+  // Pulmonary valve: center-right-anterior, at the base of pulmonary trunk
+  { id: 'pulmonary-valve-cusps', name: 'Pulmonary Valve',
+    test: (p) => {
+      if (p.z < 0.35 || p.z > 0.55) return 0;
+      const dx = p.x - 0.1, dy = p.y - 0.15;
+      if (dx * dx + dy * dy < 0.03) return 0.95;
+      return 0;
+    }},
+  // Tricuspid valve: right side, at AV junction
+  { id: 'tricuspid-annulus', name: 'Tricuspid Valve',
+    test: (p) => {
+      if (p.z < 0.0 || p.z > 0.2) return 0;
+      if (p.x > 0.05 && p.x < 0.3 && Math.abs(p.y - 0.05) < 0.15) return 0.88;
+      return 0;
+    }},
+  // Mitral valve: left side, at AV junction
+  { id: 'mitral-annulus', name: 'Mitral Valve',
+    test: (p) => {
+      if (p.z < 0.0 || p.z > 0.2) return 0;
+      if (p.x < -0.05 && p.x > -0.3 && Math.abs(p.y + 0.05) < 0.15) return 0.88;
+      return 0;
+    }},
+
+  // ─── Atria (upper-mid region, Z ~ 0.1 to 0.5) ─────────────────
+  { id: 'right-atrium', name: 'Right Atrium',
+    test: (p) => {
+      if (p.z < 0.1 || p.z > 0.5) return 0;
+      if (p.x > 0.05) return 0.8;
+      return 0;
+    }},
+  { id: 'left-atrium', name: 'Left Atrium',
+    test: (p) => {
+      if (p.z < 0.1 || p.z > 0.5) return 0;
+      if (p.x < -0.05) return 0.8;
+      return 0;
+    }},
+
+  // ─── IVC (inferior-posterior-right) ─────────────────────────────
+  { id: 'ivc', name: 'Inferior Vena Cava',
+    test: (p) => {
+      if (p.z > -0.35 || p.z < -0.7) return 0;
+      if (p.x > 0.1 && p.y < -0.1) return 0.85;
+      return 0;
+    }},
+
+  // ─── Interventricular septum (anterior groove between ventricles) ──
+  { id: 'interventricular-septum', name: 'Interventricular Septum',
+    test: (p) => {
+      if (p.z > 0.1 || p.z < -0.55) return 0;
+      if (Math.abs(p.x) < 0.1 && p.y > 0.12) return 0.85;
+      return 0;
+    }},
+
+  // ─── Coronary arteries on the surface ───────────────────────────
+  // LAD: runs in the anterior interventricular groove
+  { id: 'lad-proximal', name: 'LAD Proximal',
+    test: (p) => {
+      if (p.z < 0.15 || p.z > 0.4) return 0;
+      if (Math.abs(p.x) < 0.08 && p.y > 0.15) return 0.9;
+      return 0;
+    }},
+  { id: 'lad-mid', name: 'LAD Mid',
+    test: (p) => {
+      if (p.z < -0.15 || p.z > 0.15) return 0;
+      if (Math.abs(p.x) < 0.08 && p.y > 0.15) return 0.9;
+      return 0;
+    }},
+  { id: 'lad-distal', name: 'LAD Distal',
+    test: (p) => {
+      if (p.z < -0.5 || p.z > -0.15) return 0;
+      if (Math.abs(p.x) < 0.1 && p.y > 0.1) return 0.9;
+      return 0;
+    }},
+  // LCx: runs in the left AV groove (left side, mid-height)
+  { id: 'lcx-proximal', name: 'Left Circumflex (LCx)',
+    test: (p) => {
+      if (p.z < 0.0 || p.z > 0.2) return 0;
+      if (p.x < -0.15 && p.y > -0.1 && p.y < 0.1) return 0.87;
+      return 0;
+    }},
+  // RCA: runs in the right AV groove
+  { id: 'rca-mid', name: 'RCA Mid',
+    test: (p) => {
+      if (p.z < -0.05 || p.z > 0.2) return 0;
+      if (p.x > 0.2 && Math.abs(p.y) < 0.12) return 0.87;
+      return 0;
+    }},
+
+  // ─── Ventricles (lower region, Z ~ -0.65 to 0.1) ──────────────
   { id: 'right-ventricle', name: 'Right Ventricle',
     test: (p) => {
-      if (p.z > 0.15 || p.z < -0.7) return 0;
-      if (p.y > 0.0 && p.x > -0.1) return 0.75;
+      if (p.z > 0.1 || p.z < -0.65) return 0;
+      // Anterior and right side
+      if (p.y > -0.05 && p.x > -0.05) return 0.75;
       return 0;
     }},
   { id: 'left-ventricle', name: 'Left Ventricle',
     test: (p) => {
-      if (p.z > 0.15 || p.z < -0.7) return 0;
-      if (p.y < 0.05 || p.x < 0.0) return 0.75;
+      if (p.z > 0.1 || p.z < -0.65) return 0;
+      // Posterior and/or left side
+      if (p.y <= -0.05 || p.x <= -0.05) return 0.75;
       return 0;
     }},
 
-  // Apex
+  // ─── Apex (very bottom tip) ─────────────────────────────────────
   { id: 'apex', name: 'Apex',
-    test: (p) => p.z < -0.65 ? 0.9 : 0 },
+    test: (p) => p.z < -0.6 ? 0.9 : 0 },
 
-  // Interventricular septum (anterior groove)
-  { id: 'interventricular-septum', name: 'Interventricular Septum',
+  // ─── Base of heart (broad top between atria and vessels) ────────
+  { id: 'base-of-heart', name: 'Base of Heart',
     test: (p) => {
-      if (p.z > 0.15 || p.z < -0.5) return 0;
-      if (Math.abs(p.x) < 0.12 && p.y > 0.15) return 0.7;
-      return 0;
+      if (p.z < 0.4 || p.z > 0.55) return 0;
+      return 0.6;
     }},
-
-  // Epicardium (general surface fallback)
-  { id: 'epicardium', name: 'Epicardium',
-    test: () => 0.1 }, // lowest priority fallback
 ];
 
 function identifyRegion(point: THREE.Vector3): AnatomyZone | null {
