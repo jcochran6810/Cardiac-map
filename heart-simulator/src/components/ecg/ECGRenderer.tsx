@@ -5,13 +5,37 @@ import { useECGStore, ECGLead } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { generateBeatSample, getLeadParams, CONDITION_MODIFIERS, generateVFibSample, generateAFibSample, generateFlutterBaseline } from '@/lib/ecg/waveformEngine';
 
-const LEAD_ORDER: ECGLead[] = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
+// Standard 12-lead bisect layout: 4 columns × 3 rows
+// Col 0: Limb leads, Col 1: Augmented, Col 2: Right precordial, Col 3: Left precordial
+const STANDARD_12_ORDER: ECGLead[] = [
+  'I',   'aVR', 'V1', 'V4',
+  'II',  'aVL', 'V2', 'V5',
+  'III', 'aVF', 'V3', 'V6',
+];
+
 const GRID_COLOR = 'rgba(220, 38, 38, 0.15)';
 const GRID_MAJOR_COLOR = 'rgba(220, 38, 38, 0.3)';
 const TRACE_COLOR = '#10B981';
 const COMPARE_COLOR = '#3B82F6';
 const SELECTED_BG = 'rgba(245, 158, 11, 0.08)';
 const SELECTED_BORDER = 'rgba(245, 158, 11, 0.6)';
+const PLAYHEAD_COLOR = 'rgba(245, 158, 11, 0.9)';
+const PLAYHEAD_GLOW = 'rgba(245, 158, 11, 0.3)';
+
+// Playhead offset: 3 major grid squares (75px) from left edge of each cell
+const PLAYHEAD_OFFSET = 75;
+
+// Phase label lookup for the playhead
+const PHASE_LABELS: Record<string, string> = {
+  'atrial-systole': 'P wave',
+  'isovolumetric-contraction': 'PR seg',
+  'rapid-ejection': 'QRS',
+  'reduced-ejection': 'QRS',
+  'isovolumetric-relaxation': 'ST seg',
+  'rapid-filling': 'T wave',
+  'diastasis': 'Baseline',
+  'atrial-relaxation': 'Baseline',
+};
 
 interface ECGRendererProps {
   width?: number;
@@ -23,13 +47,14 @@ interface ECGRendererProps {
 export default function ECGRenderer({ width, height, compact = false, verticalStack = false }: ECGRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const scrollOffsetRef = useRef(0);
+  // dragOffsetRef holds only the manual drag offset; auto-scroll is computed from time
+  const dragOffsetRef = useRef(0);
   const isDraggingRef = useRef(false);
   const dragStartXRef = useRef(0);
   const lastDragXRef = useRef(0);
 
   const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, showBeatMarkers, showAnnotations, caliperMode, selectedLead, selectLead } = useECGStore();
-  const { time, heartRate, speed, playing, frozen } = useTimelineStore();
+  const { time, heartRate, speed, playing, frozen, currentPhase, cycleProgress } = useTimelineStore();
 
   // Track layout for click detection
   const layoutRef = useRef<{ leads: ECGLead[]; cols: number; rows: number; cellW: number; cellH: number }>({
@@ -60,7 +85,7 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const onMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return;
       const dx = e.clientX - lastDragXRef.current;
-      scrollOffsetRef.current -= dx * 2;
+      dragOffsetRef.current -= dx * 2;
       lastDragXRef.current = e.clientX;
     };
 
@@ -154,7 +179,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
 
     const gainScale = gain * 8;
     const baseline = y + h / 2;
-    const samplesPerPixel = 1;
     const rrPixels = (60 / heartRate) * sweepSpeed * 4;
 
     ctx.strokeStyle = color;
@@ -209,11 +233,19 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
 
     drawGrid(ctx, w, h);
 
-    const leads = compact ? visibleLeads.slice(0, 4) : visibleLeads;
+    // Use standard 12-lead bisect order when showing all 12 leads
+    const useStandard12 = visibleLeads.length === 12;
+    const leads = compact
+      ? visibleLeads.slice(0, 4)
+      : (useStandard12 ? STANDARD_12_ORDER : visibleLeads);
 
     let rows: number;
     let cols: number;
-    if (verticalStack) {
+    if (useStandard12 && !compact) {
+      // Standard 12-lead bisect: 4 columns × 3 rows
+      cols = 4;
+      rows = 3;
+    } else if (verticalStack) {
       cols = 2;
       rows = Math.ceil(leads.length / cols);
     } else {
@@ -225,13 +257,17 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const cellH = h / rows;
 
     // Store layout for click detection
-    layoutRef.current = { leads, cols, rows, cellW, cellH };
+    layoutRef.current = { leads: leads as ECGLead[], cols, rows, cellW, cellH };
 
-    // Only auto-scroll when not dragging; speed multiplier slows the scroll
-    // while keeping the waveform spacing (rrPixels) at the set BPM
-    if (displayMode === 'scrolling' && playing && !frozen && !isDraggingRef.current) {
-      scrollOffsetRef.current += 1.5 * speed;
-    }
+    // Compute scroll offset synced to timeline time so the playhead
+    // correlates exactly with the 3D model's cardiac cycle phase.
+    // pxPerMs = pixels scrolled per millisecond of timeline time
+    const rrPixels = (60 / heartRate) * sweepSpeed * 4;
+    const cycleDurationMs = (60 / heartRate) * 1000;
+    const pxPerMs = rrPixels / cycleDurationMs;
+
+    // scrollOffset: time-based auto-scroll minus playhead offset, plus any manual drag
+    const scrollOffset = (time * pxPerMs) - PLAYHEAD_OFFSET + dragOffsetRef.current;
 
     leads.forEach((lead, i) => {
       const col = i % cols;
@@ -248,14 +284,68 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
         ctx.strokeRect(cx + 1, cy + 1, cellW - 2, cellH - 2);
       }
 
-      drawLead(ctx, lead, cx, cy, cellW, cellH, scrollOffsetRef.current, conditionMod, TRACE_COLOR);
+      drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffset, conditionMod, TRACE_COLOR);
 
       if (compareMod) {
-        drawLead(ctx, lead, cx, cy, cellW, cellH, scrollOffsetRef.current, compareMod, COMPARE_COLOR);
+        drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffset, compareMod, COMPARE_COLOR);
       }
     });
 
-    // Draw solid dividing lines between lead cells
+    // ─── Draw playhead line in each cell ──────────────────────────
+    const playheadX = PLAYHEAD_OFFSET;
+    if (playheadX > 0 && playheadX < cellW) {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          if (idx >= leads.length) continue;
+
+          const cx = c * cellW;
+          const cy = r * cellH;
+          const lineX = cx + playheadX;
+
+          // Glow
+          ctx.strokeStyle = PLAYHEAD_GLOW;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(lineX, cy);
+          ctx.lineTo(lineX, cy + cellH);
+          ctx.stroke();
+
+          // Solid line
+          ctx.strokeStyle = PLAYHEAD_COLOR;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.moveTo(lineX, cy);
+          ctx.lineTo(lineX, cy + cellH);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    // ─── Playhead label (top of canvas, once) ─────────────────────
+    const phaseLabel = PHASE_LABELS[currentPhase] || currentPhase;
+    const labelX = PLAYHEAD_OFFSET;
+    // Draw phase label badge
+    ctx.font = 'bold 9px sans-serif';
+    const textWidth = ctx.measureText(phaseLabel).width;
+    const badgeW = textWidth + 8;
+    const badgeH = 14;
+    const badgeX = labelX - badgeW / 2;
+    const badgeY = 1;
+
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
+    ctx.fill();
+
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.fillText(phaseLabel, labelX, badgeY + 10.5);
+    ctx.textAlign = 'left'; // reset
+
+    // ─── Draw solid dividing lines between lead cells ─────────────
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
     ctx.lineWidth = 1.5;
     for (let c = 1; c < cols; c++) {
@@ -285,7 +375,7 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     }
 
     animRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, speed, conditionMod, compareMod, compact, verticalStack, selectedLead]);
+  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, speed, time, currentPhase, cycleProgress, conditionMod, compareMod, compact, verticalStack, selectedLead, sweepSpeed]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
