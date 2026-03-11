@@ -3,6 +3,7 @@ import { create } from 'zustand';
 interface CameraPreset {
   position: [number, number, number];
   target: [number, number, number];
+  up?: [number, number, number];
   fov: number;
   label: string;
 }
@@ -40,17 +41,19 @@ const DEFAULT_LAYERS = [
 
 // Heart model orientation: Z axis = superior-inferior (base at +Z, apex at -Z),
 // Y axis = anterior-posterior (anterior face at -Y), X axis = left-right.
+// Most views use up=[0,0,1] (Z-up) so the heart appears upright (base on top, apex on bottom).
+// Superior/Inferior views look along Z, so they use up=[0,-1,0] (anterior faces viewer's bottom).
 export const CAMERA_PRESETS: CameraPreset[] = [
-  { position: [0, -5, 0], target: [0, 0, 0], fov: 50, label: 'Anterior' },
-  { position: [0, 5, 0], target: [0, 0, 0], fov: 50, label: 'Posterior' },
-  { position: [5, 0, 0], target: [0, 0, 0], fov: 50, label: 'Right Lateral' },
-  { position: [-5, 0, 0], target: [0, 0, 0], fov: 50, label: 'Left Lateral' },
-  { position: [0, 0, 5], target: [0, 0, 0], fov: 50, label: 'Superior' },
-  { position: [0, 0, -5], target: [0, 0, 0], fov: 50, label: 'Inferior' },
-  { position: [3, -3, 3], target: [0, 0, 0], fov: 50, label: 'RAO Cranial' },
-  { position: [-3, -3, 3], target: [0, 0, 0], fov: 50, label: 'LAO Cranial' },
-  { position: [3, -3, -3], target: [0, 0, 0], fov: 50, label: 'RAO Caudal' },
-  { position: [-3, -3, -3], target: [0, 0, 0], fov: 50, label: 'LAO Caudal' },
+  { position: [0, -5, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Anterior' },
+  { position: [0, 5, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Posterior' },
+  { position: [5, 0, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Right Lateral' },
+  { position: [-5, 0, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Left Lateral' },
+  { position: [0, 0, 5], target: [0, 0, 0], up: [0, -1, 0], fov: 50, label: 'Superior' },
+  { position: [0, 0, -5], target: [0, 0, 0], up: [0, -1, 0], fov: 50, label: 'Inferior' },
+  { position: [3, -3, 3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'RAO Cranial' },
+  { position: [-3, -3, 3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'LAO Cranial' },
+  { position: [3, -3, -3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'RAO Caudal' },
+  { position: [-3, -3, -3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'LAO Caudal' },
 ];
 
 export const useSceneStore = create<SceneState>((set) => ({

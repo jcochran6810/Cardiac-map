@@ -2068,6 +2068,12 @@ function CameraController() {
     };
   }, [gl, preset, setCameraPreset]);
 
+  // Set initial camera up to Z-up so heart is upright on load
+  useEffect(() => {
+    camera.up.set(0, 0, 1);
+    camera.lookAt(0, 0, 0);
+  }, [camera]);
+
   useFrame(() => {
     // Detect new selection
     if (selectedStructureId && selectedStructureId !== prevSelectedRef.current) {
@@ -2087,6 +2093,9 @@ function CameraController() {
 
     // Camera preset: lerp toward target then auto-clear so OrbitControls resumes
     if (preset) {
+      const targetUp = new THREE.Vector3(...(preset.up || [0, 0, 1]));
+      camera.up.lerp(targetUp, 0.08);
+      camera.up.normalize();
       camera.position.lerp(new THREE.Vector3(...preset.position), 0.08);
       camera.lookAt(new THREE.Vector3(...preset.target));
       presetFrameRef.current++;

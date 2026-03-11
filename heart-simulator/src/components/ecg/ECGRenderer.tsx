@@ -131,8 +131,10 @@ export default function ECGRenderer({ width, height, compact = false }: ECGRende
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const w = canvas.width;
-    const h = canvas.height;
+    // Use logical (CSS) dimensions since ctx.scale(devicePixelRatio) is already applied
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
 
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, w, h);
