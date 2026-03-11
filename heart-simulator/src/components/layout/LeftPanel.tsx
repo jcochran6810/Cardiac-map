@@ -8,6 +8,7 @@ import { useProcedureStore } from '@/store/useProcedureStore';
 import { useCaseStore } from '@/store/useCaseStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
+import { CASE_DATA } from '@/data/caseData';
 
 type PanelTab = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'cases';
 
@@ -213,7 +214,7 @@ const CASE_LIST = [
 
 export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const [activeTab, setActiveTab] = useState<PanelTab>('anatomy');
-  const { leftPanelOpen, searchQuery, mode } = useAppStore();
+  const { leftPanelOpen, searchQuery } = useAppStore();
   const { selectStructure, selectedStructureId } = useSceneStore();
   const { selectCondition, selectedConditionId } = useConditionStore();
   const { selectProcedure, selectedProcedureId } = useProcedureStore();
@@ -230,6 +231,16 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
     const hrPreset = CONDITION_HR_PRESETS[id];
     if (hrPreset !== undefined && hrPreset > 0) {
       setHeartRate(hrPreset);
+    }
+  };
+
+  const handleSelectCase = (id: string) => {
+    startCase(id, 'initial');
+    // Sync ECG and HR from case data
+    const caseInfo = CASE_DATA[id];
+    if (caseInfo) {
+      setActiveProfile(caseInfo.ecgProfile);
+      setHeartRate(caseInfo.heartRate);
     }
   };
 
@@ -324,7 +335,9 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
                 </button>
                 {expandedCategories.has(group.category) && (
                   <div className="ml-3 space-y-0.5">
-                    {group.items.map((item) => (
+                    {group.items
+                      .filter((item) => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((item) => (
                       <button
                         key={item.id}
                         onClick={() => selectStructure(item.id)}
@@ -346,7 +359,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
 
         {activeTab === 'conduction' && (
           <div className="space-y-0.5">
-            {CONDUCTION_TREE.map((item) => (
+            {CONDUCTION_TREE.filter((item) => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase())).map((item) => (
               <button
                 key={item.id}
                 onClick={() => selectStructure(item.id)}
@@ -376,7 +389,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
                 {expandedCategories.has(group.cat) && (
                   <div className="ml-3 space-y-0.5">
                     {group.ids
-                      .filter((id) => !searchQuery || id.includes(searchQuery.toLowerCase()))
+                      .filter((id) => !searchQuery || id.replace(/-/g, ' ').includes(searchQuery.toLowerCase()))
                       .map((id) => (
                         <button
                           key={id}
@@ -399,7 +412,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
 
         {activeTab === 'procedures' && (
           <div className="space-y-0.5">
-            {PROCEDURE_LIST.map((proc) => (
+            {PROCEDURE_LIST.filter((proc) => !searchQuery || proc.name.toLowerCase().includes(searchQuery.toLowerCase())).map((proc) => (
               <button
                 key={proc.id}
                 onClick={() => selectProcedure(proc.id)}
@@ -417,10 +430,10 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
 
         {activeTab === 'cases' && (
           <div className="space-y-0.5">
-            {CASE_LIST.map((c) => (
+            {CASE_LIST.filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((c) => (
               <button
                 key={c.id}
-                onClick={() => startCase(c.id, 'initial')}
+                onClick={() => handleSelectCase(c.id)}
                 className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
                   activeCaseId === c.id
                     ? 'bg-cardiac-accent/20 text-cardiac-accent'

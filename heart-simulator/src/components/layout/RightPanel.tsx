@@ -5,6 +5,8 @@ import { useAppStore } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
+import { useCaseStore } from '@/store/useCaseStore';
+import { CASE_DATA } from '@/data/caseData';
 
 const TABS = [
   'overview', 'anatomy', 'physiology', 'symptoms', 'ecg',
@@ -224,8 +226,11 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   const { selectedStructureId } = useSceneStore();
   const { selectedConditionId } = useConditionStore();
   const { selectedProcedureId } = useProcedureStore();
+  const { activeCaseId } = useCaseStore();
 
   if (!rightPanelOpen) return null;
+
+  const caseData = activeCaseId ? CASE_DATA[activeCaseId] : null;
 
   // Resolve structure info from detailed data or legacy fallback
   const structureTabData = selectedStructureId ? STRUCTURE_DATA[selectedStructureId] : null;
@@ -289,7 +294,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 text-xs text-slate-300 space-y-3">
         {/* Welcome / empty state */}
-        {!structTitle && !conditionTabData && !selectedProcedureId && (
+        {!structTitle && !conditionTabData && !selectedProcedureId && !caseData && (
           <div className="text-center py-8">
             <div className="text-4xl mb-3">♥</div>
             <h3 className="text-sm font-semibold text-white mb-2">Cardiac Education Platform</h3>
@@ -340,7 +345,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
         )}
 
         {/* Procedure detail */}
-        {selectedProcedureId && !conditionTabData && !structTitle && (
+        {selectedProcedureId && !conditionTabData && !structTitle && !caseData && (
           <div>
             <h3 className="text-sm font-semibold text-white mb-1 capitalize">
               {selectedProcedureId.replace(/-/g, ' ')}
@@ -348,6 +353,125 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
             <p className="text-slate-400 mb-3">
               Select steps from the procedure panel to view the simulation.
             </p>
+          </div>
+        )}
+
+        {/* Case detail */}
+        {caseData && (
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-1">{caseData.title}</h3>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                caseData.difficulty === 'beginner' ? 'bg-green-900/40 text-green-400' :
+                caseData.difficulty === 'intermediate' ? 'bg-yellow-900/40 text-yellow-400' :
+                caseData.difficulty === 'advanced' ? 'bg-orange-900/40 text-orange-400' : 'bg-red-900/40 text-red-400'
+              }`}>
+                {caseData.difficulty}
+              </span>
+            </div>
+
+            {/* Vitals display */}
+            <div className="bg-cardiac-dark rounded-lg p-2">
+              <h4 className="text-[10px] font-semibold text-cardiac-red uppercase tracking-wider mb-1.5">Vitals</h4>
+              <div className="grid grid-cols-2 gap-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-cardiac-red font-bold text-sm">{caseData.vitals.hr}</span>
+                  <span className="text-[10px] text-slate-500">bpm</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-blue-400 font-bold text-sm">{caseData.vitals.bp}</span>
+                  <span className="text-[10px] text-slate-500">mmHg</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className={`font-bold text-sm ${caseData.vitals.spo2 < 92 ? 'text-red-400' : 'text-green-400'}`}>{caseData.vitals.spo2}%</span>
+                  <span className="text-[10px] text-slate-500">SpO2</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-yellow-400 font-bold text-sm">{caseData.vitals.rr}</span>
+                  <span className="text-[10px] text-slate-500">RR</span>
+                </div>
+                {caseData.vitals.temp && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-300 font-bold text-sm">{caseData.vitals.temp}</span>
+                    <span className="text-[10px] text-slate-500">Temp</span>
+                  </div>
+                )}
+                {caseData.vitals.gcs && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-purple-400 font-bold text-sm">{caseData.vitals.gcs}</span>
+                    <span className="text-[10px] text-slate-500">GCS</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tab-specific case content */}
+            {rightPanelTab === 'overview' && (
+              <div className="space-y-2">
+                <div className="p-2 bg-cardiac-dark rounded"><p className="text-slate-400 leading-relaxed">{caseData.presentation}</p></div>
+                <div><h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">History</h4><p className="text-slate-400 leading-relaxed">{caseData.history}</p></div>
+                <div><h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Physical Exam</h4><p className="text-slate-400 leading-relaxed">{caseData.physicalExam}</p></div>
+              </div>
+            )}
+
+            {(rightPanelTab === 'field-care' || rightPanelTab === 'hospital-care' || rightPanelTab === 'cardiology-care' || rightPanelTab === 'procedure') && (
+              <div>
+                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Management Guidelines</h4>
+                <ul className="space-y-1">
+                  {caseData.guidelines.map((g, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400 leading-relaxed">{g}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {rightPanelTab === 'medications' && (
+              <div>
+                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Medications</h4>
+                <ul className="space-y-1">
+                  {caseData.medications.map((m, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400">{m}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {rightPanelTab === 'complications' && (
+              <div>
+                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Common Pitfalls</h4>
+                <ul className="space-y-1">
+                  {caseData.pitfalls.map((p, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-red-400 mt-0.5 shrink-0">!</span><span className="text-slate-400">{p}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {rightPanelTab === 'teaching' && (
+              <div>
+                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Teaching Points</h4>
+                <ul className="space-y-1">
+                  {caseData.teaching.map((t, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400 leading-relaxed">{t}</span></li>
+                  ))}
+                </ul>
+                <div className="mt-2 p-2 bg-cardiac-dark rounded">
+                  <h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Disposition</h4>
+                  <p className="text-slate-400">{caseData.disposition}</p>
+                </div>
+              </div>
+            )}
+
+            {rightPanelTab === 'symptoms' && (
+              <div className="p-2 bg-cardiac-dark rounded">
+                <h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Key Interventions</h4>
+                <ul className="space-y-1">
+                  {caseData.keyInterventions.map((k, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">•</span><span className="text-slate-400">{k}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
