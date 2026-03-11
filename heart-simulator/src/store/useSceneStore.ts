@@ -38,17 +38,19 @@ const DEFAULT_LAYERS = [
   'coronary-veins', 'conduction', 'landmarks',
 ];
 
+// Heart model orientation: Z axis = superior-inferior (base at +Z, apex at -Z),
+// Y axis = anterior-posterior (anterior face at -Y), X axis = left-right.
 export const CAMERA_PRESETS: CameraPreset[] = [
-  { position: [0, 0, 5], target: [0, 0, 0], fov: 50, label: 'Anterior' },
-  { position: [0, 0, -5], target: [0, 0, 0], fov: 50, label: 'Posterior' },
+  { position: [0, -5, 0], target: [0, 0, 0], fov: 50, label: 'Anterior' },
+  { position: [0, 5, 0], target: [0, 0, 0], fov: 50, label: 'Posterior' },
   { position: [5, 0, 0], target: [0, 0, 0], fov: 50, label: 'Right Lateral' },
   { position: [-5, 0, 0], target: [0, 0, 0], fov: 50, label: 'Left Lateral' },
-  { position: [0, 5, 0], target: [0, 0, 0], fov: 50, label: 'Superior' },
-  { position: [0, -5, 0], target: [0, 0, 0], fov: 50, label: 'Inferior' },
-  { position: [3, 3, 3], target: [0, 0, 0], fov: 50, label: 'RAO Cranial' },
-  { position: [-3, 3, 3], target: [0, 0, 0], fov: 50, label: 'LAO Cranial' },
-  { position: [3, -3, 3], target: [0, 0, 0], fov: 50, label: 'RAO Caudal' },
-  { position: [-3, -3, 3], target: [0, 0, 0], fov: 50, label: 'LAO Caudal' },
+  { position: [0, 0, 5], target: [0, 0, 0], fov: 50, label: 'Superior' },
+  { position: [0, 0, -5], target: [0, 0, 0], fov: 50, label: 'Inferior' },
+  { position: [3, -3, 3], target: [0, 0, 0], fov: 50, label: 'RAO Cranial' },
+  { position: [-3, -3, 3], target: [0, 0, 0], fov: 50, label: 'LAO Cranial' },
+  { position: [3, -3, -3], target: [0, 0, 0], fov: 50, label: 'RAO Caudal' },
+  { position: [-3, -3, -3], target: [0, 0, 0], fov: 50, label: 'LAO Caudal' },
 ];
 
 export const useSceneStore = create<SceneState>((set) => ({

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useMemo, useCallback, useState } from 'react';
+import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Html, Environment, ContactShadows, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -202,40 +202,40 @@ function identifyRegion(point: THREE.Vector3): AnatomyZone | null {
 
 // Reverse lookup: given a structure ID from the menu, where should we highlight?
 const STRUCTURE_CENTERS: Record<string, [number, number, number]> = {
-  // Chambers
-  'right-atrium': [0.25, 0.0, 0.3],
-  'left-atrium': [-0.25, -0.1, 0.3],
-  'right-ventricle': [0.15, 0.15, -0.2],
-  'left-ventricle': [-0.15, -0.1, -0.2],
-  'right-atrial-appendage': [0.35, 0.2, 0.35],
-  'left-atrial-appendage': [-0.35, 0.1, 0.3],
+  // Chambers — positioned at the visible center of each chamber
+  'right-atrium': [0.3, -0.02, 0.32],
+  'left-atrium': [-0.28, -0.08, 0.35],
+  'right-ventricle': [0.2, 0.12, -0.15],
+  'left-ventricle': [-0.18, -0.05, -0.2],
+  'right-atrial-appendage': [0.4, 0.18, 0.4],
+  'left-atrial-appendage': [-0.4, 0.12, 0.38],
   // Septa & Landmarks
-  'interatrial-septum': [0.0, -0.05, 0.3],
-  'interventricular-septum': [0.0, 0.2, -0.1],
-  'fossa-ovalis': [0.05, -0.1, 0.25],
+  'interatrial-septum': [0.0, -0.05, 0.32],
+  'interventricular-septum': [0.0, 0.05, -0.15],
+  'fossa-ovalis': [0.05, -0.08, 0.28],
   'apex': [0.0, 0.0, -0.75],
-  'base-of-heart': [0.0, 0.0, 0.55],
-  // Valves
-  'mitral-annulus': [-0.15, -0.05, 0.1],
-  'aortic-valve-rcc': [-0.05, 0.05, 0.5],
-  'tricuspid-annulus': [0.15, 0.1, 0.1],
-  'pulmonary-valve-cusps': [0.1, 0.15, 0.5],
-  // Great Vessels
-  'ascending-aorta': [-0.05, 0.0, 0.65],
-  'aortic-arch': [-0.15, -0.05, 0.7],
-  'pulmonary-trunk': [0.1, 0.1, 0.6],
-  'svc': [0.3, -0.1, 0.6],
-  'ivc': [0.2, -0.15, -0.55],
-  // Pericardium & Layers
-  'fibrous-pericardium': [0.0, 0.25, 0.0],
-  'epicardium': [0.0, 0.2, 0.0],
-  'myocardium': [0.0, 0.0, 0.0],
-  'endocardium': [0.0, -0.05, 0.0],
-  // Subvalvular
-  'anterolateral-papillary-muscle': [-0.2, 0.1, -0.35],
-  'posteromedial-papillary-muscle': [-0.1, -0.15, -0.35],
-  'moderator-band': [0.15, 0.1, -0.3],
-  'crista-terminalis': [0.3, -0.05, 0.25],
+  'base-of-heart': [0.0, -0.02, 0.52],
+  // Valves — at their annular positions between chambers and outflow
+  'mitral-annulus': [-0.18, -0.02, 0.08],
+  'aortic-valve-rcc': [-0.08, 0.02, 0.45],
+  'tricuspid-annulus': [0.18, 0.06, 0.08],
+  'pulmonary-valve-cusps': [0.12, 0.15, 0.48],
+  // Great Vessels — along the vessel paths above the base
+  'ascending-aorta': [-0.08, 0.0, 0.62],
+  'aortic-arch': [-0.18, -0.08, 0.72],
+  'pulmonary-trunk': [0.12, 0.12, 0.58],
+  'svc': [0.32, -0.06, 0.6],
+  'ivc': [0.22, -0.12, -0.55],
+  // Pericardium & Layers — staggered outward from center so labels don't overlap
+  'fibrous-pericardium': [0.0, 0.42, 0.0],
+  'epicardium': [0.0, 0.35, 0.08],
+  'myocardium': [-0.25, 0.28, 0.0],
+  'endocardium': [-0.12, -0.12, 0.0],
+  // Subvalvular structures — inside the LV/RV
+  'anterolateral-papillary-muscle': [-0.22, 0.08, -0.38],
+  'posteromedial-papillary-muscle': [-0.12, -0.18, -0.38],
+  'moderator-band': [0.18, 0.08, -0.3],
+  'crista-terminalis': [0.32, -0.04, 0.28],
   // Coronary arteries - Left
   'lmca': [-0.1, 0.1, 0.52],
   'lad-proximal': [-0.02, 0.2, 0.35],
@@ -252,16 +252,30 @@ const STRUCTURE_CENTERS: Record<string, [number, number, number]> = {
   'rca-distal': [0.25, -0.1, -0.15],
   'pda': [0.1, -0.15, -0.35],
   'am-branch': [0.32, 0.0, 0.0],
-  // Conduction system
-  'sa-node': [0.3, -0.05, 0.4],
-  'av-node': [0.05, -0.05, 0.2],
-  'bundle-of-his': [0.0, 0.0, 0.15],
+  // Conduction system — anatomically corrected positions
+  // SA node: junction of SVC and right atrium (superior, right-lateral, posterior)
+  'sa-node': [0.38, 0.05, 0.55],
+  // AV node: Koch's triangle at base of interatrial septum, near coronary sinus
+  'av-node': [0.1, 0.0, 0.25],
+  'bundle-of-his': [0.02, 0.05, 0.18],
   'right-bundle-branch': [0.12, 0.1, -0.1],
   'left-bundle-branch': [-0.1, 0.0, -0.1],
   'left-anterior-fascicle': [-0.15, 0.1, -0.3],
   'left-posterior-fascicle': [-0.1, -0.1, -0.3],
   'purkinje-network-rv': [0.15, 0.15, -0.45],
   'purkinje-network-lv': [-0.15, -0.05, -0.45],
+  // Additional anatomy — commonly tested at paramedic level
+  'right-ventricular-outflow-tract': [0.15, 0.15, 0.35],
+  'left-ventricular-outflow-tract': [-0.1, 0.0, 0.35],
+  'coronary-sinus': [0.12, -0.15, 0.15],
+  'eustachian-valve': [0.22, -0.12, -0.45],
+  'chordae-tendineae': [-0.18, 0.0, -0.2],
+  'pulmonary-veins': [-0.4, -0.1, 0.45],
+  'descending-aorta': [-0.2, -0.15, 0.75],
+  'right-coronary-ostium': [0.08, 0.08, 0.48],
+  'left-coronary-ostium': [-0.1, 0.08, 0.48],
+  'trabeculae-carneae': [0.18, 0.1, -0.4],
+  'bachmanns-bundle': [0.15, -0.05, 0.48],
 };
 
 // Proper display names for all structures (used for labels)
@@ -326,6 +340,18 @@ const STRUCTURE_NAMES: Record<string, string> = {
   'left-posterior-fascicle': 'Left Posterior Fascicle',
   'purkinje-network-rv': 'Purkinje Network (RV)',
   'purkinje-network-lv': 'Purkinje Network (LV)',
+  // Additional anatomy
+  'right-ventricular-outflow-tract': 'Right Ventricular Outflow Tract (RVOT)',
+  'left-ventricular-outflow-tract': 'Left Ventricular Outflow Tract (LVOT)',
+  'coronary-sinus': 'Coronary Sinus',
+  'eustachian-valve': 'Eustachian Valve',
+  'chordae-tendineae': 'Chordae Tendineae',
+  'pulmonary-veins': 'Pulmonary Veins',
+  'descending-aorta': 'Descending Aorta',
+  'right-coronary-ostium': 'Right Coronary Ostium',
+  'left-coronary-ostium': 'Left Coronary Ostium',
+  'trabeculae-carneae': 'Trabeculae Carneae',
+  'bachmanns-bundle': "Bachmann's Bundle",
 };
 
 // Best camera angle to view each structure region
@@ -1767,32 +1793,33 @@ function SectionalClipPlane() {
 // within cycleProgress that maps to the corresponding EKG feature.
 const CONDUCTION_PATHWAYS = [
   // SA node → Right atrial spread (P wave)
+  // SA node at SVC-RA junction, spreads down through right atrium to AV node
   { name: 'SA → RA',
-    points: [[0.55, 0.7, 0.35], [0.45, 0.6, 0.38], [0.3, 0.5, 0.35], [0.15, 0.35, 0.35]] as [number,number,number][],
+    points: [[0.38, 0.05, 0.55], [0.35, 0.0, 0.45], [0.25, -0.02, 0.35], [0.1, 0.0, 0.25]] as [number,number,number][],
     startTime: 0.10, endTime: 0.18, color: new THREE.Color('#fbbf24') },
-  // SA node → Left atrial spread (P wave, slightly later)
+  // SA node → Left atrial spread (P wave, via Bachmann's bundle)
   { name: 'SA → LA',
-    points: [[0.55, 0.7, 0.35], [0.35, 0.72, 0.25], [0.0, 0.65, 0.18], [-0.3, 0.55, 0.22]] as [number,number,number][],
+    points: [[0.38, 0.05, 0.55], [0.2, 0.0, 0.5], [0.0, -0.05, 0.4], [-0.25, -0.1, 0.3]] as [number,number,number][],
     startTime: 0.11, endTime: 0.20, color: new THREE.Color('#fbbf24') },
   // AV node → Bundle of His (PR interval delay)
   { name: 'AV → His',
-    points: [[0.15, 0.35, 0.35], [0.1, 0.28, 0.32], [0.05, 0.2, 0.3], [0.0, 0.12, 0.3]] as [number,number,number][],
+    points: [[0.1, 0.0, 0.25], [0.08, 0.02, 0.22], [0.05, 0.04, 0.2], [0.02, 0.05, 0.18]] as [number,number,number][],
     startTime: 0.22, endTime: 0.28, color: new THREE.Color('#f59e0b') },
-  // His → Right Bundle Branch (QRS)
+  // His → Right Bundle Branch (QRS) — travels along the right side of the interventricular septum
   { name: 'RBB',
-    points: [[0.0, 0.12, 0.3], [0.08, 0.0, 0.3], [0.18, -0.15, 0.28], [0.25, -0.35, 0.25], [0.2, -0.55, 0.2]] as [number,number,number][],
+    points: [[0.02, 0.05, 0.18], [0.08, 0.08, 0.1], [0.12, 0.1, -0.1], [0.15, 0.1, -0.3], [0.2, 0.08, -0.5]] as [number,number,number][],
     startTime: 0.28, endTime: 0.35, color: new THREE.Color('#ef4444') },
-  // His → Left Bundle Branch (QRS)
+  // His → Left Bundle Branch (QRS) — travels along the left side of the interventricular septum
   { name: 'LBB',
-    points: [[0.0, 0.12, 0.3], [-0.06, 0.0, 0.28], [-0.12, -0.15, 0.25], [-0.18, -0.35, 0.22], [-0.15, -0.55, 0.18]] as [number,number,number][],
+    points: [[0.02, 0.05, 0.18], [-0.04, 0.02, 0.1], [-0.1, 0.0, -0.1], [-0.12, -0.05, -0.3], [-0.15, -0.05, -0.5]] as [number,number,number][],
     startTime: 0.28, endTime: 0.35, color: new THREE.Color('#ef4444') },
   // RBB → Purkinje spread (RV wall, QRS)
   { name: 'Purkinje RV',
-    points: [[0.25, -0.35, 0.25], [0.35, -0.25, 0.3], [0.4, -0.1, 0.28]] as [number,number,number][],
+    points: [[0.15, 0.1, -0.3], [0.25, 0.12, -0.25], [0.35, 0.1, -0.15]] as [number,number,number][],
     startTime: 0.32, endTime: 0.36, color: new THREE.Color('#f87171') },
   // LBB → Purkinje spread (LV wall, QRS)
   { name: 'Purkinje LV',
-    points: [[-0.18, -0.35, 0.22], [-0.3, -0.25, 0.15], [-0.35, -0.1, 0.1]] as [number,number,number][],
+    points: [[-0.12, -0.05, -0.3], [-0.25, -0.1, -0.2], [-0.35, -0.1, -0.1]] as [number,number,number][],
     startTime: 0.32, endTime: 0.36, color: new THREE.Color('#f87171') },
 ];
 
@@ -1918,10 +1945,11 @@ function ConductionOverlay() {
     })),
   []);
 
-  // Conduction node positions for labels
+  // Conduction node positions for labels — must match STRUCTURE_CENTERS and pathway starts
   const nodes = [
-    { label: 'SA', pos: [0.55, 0.7, 0.35] as [number,number,number] },
-    { label: 'AV', pos: [0.15, 0.35, 0.35] as [number,number,number] },
+    { label: 'SA Node', pos: [0.38, 0.05, 0.55] as [number,number,number] },
+    { label: 'AV Node', pos: [0.1, 0.0, 0.25] as [number,number,number] },
+    { label: 'Bundle of His', pos: [0.02, 0.05, 0.18] as [number,number,number] },
   ];
 
   return (
@@ -2012,13 +2040,33 @@ function AnimationTick() {
 // ─── Camera controller ─────────────────────────────────────────────────
 // Animates camera to a target on selection, then stops so OrbitControls can work freely.
 function CameraController() {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const preset = useSceneStore((s) => s.cameraPreset);
+  const setCameraPreset = useSceneStore((s) => s.setCameraPreset);
   const selectedStructureId = useSceneStore((s) => s.selectedStructureId);
   const prevSelectedRef = useRef<string | null>(null);
   const targetRef = useRef<{ position: THREE.Vector3; lookAt: THREE.Vector3 } | null>(null);
   const animatingRef = useRef(false);
   const frameCountRef = useRef(0);
+  const presetFrameRef = useRef(0);
+
+  // Clear preset when user starts dragging/interacting with the canvas
+  // so that manual manipulation overrides any preset view
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleInteraction = () => {
+      if (preset) {
+        setCameraPreset(null);
+      }
+      animatingRef.current = false;
+    };
+    canvas.addEventListener('pointerdown', handleInteraction);
+    canvas.addEventListener('wheel', handleInteraction);
+    return () => {
+      canvas.removeEventListener('pointerdown', handleInteraction);
+      canvas.removeEventListener('wheel', handleInteraction);
+    };
+  }, [gl, preset, setCameraPreset]);
 
   useFrame(() => {
     // Detect new selection
@@ -2037,10 +2085,17 @@ function CameraController() {
       animatingRef.current = false;
     }
 
-    // Camera preset takes priority
+    // Camera preset: lerp toward target then auto-clear so OrbitControls resumes
     if (preset) {
-      camera.position.lerp(new THREE.Vector3(...preset.position), 0.05);
+      camera.position.lerp(new THREE.Vector3(...preset.position), 0.08);
       camera.lookAt(new THREE.Vector3(...preset.target));
+      presetFrameRef.current++;
+      // After ~40 frames (~0.7s) the camera is close enough — clear preset
+      // so OrbitControls takes over and user can drag freely
+      if (presetFrameRef.current > 40) {
+        presetFrameRef.current = 0;
+        setCameraPreset(null);
+      }
       return;
     }
 
@@ -2077,7 +2132,7 @@ export default function HeartScene() {
   return (
     <div className="w-full h-full" style={{ background: '#0a0a0f' }}>
       <Canvas
-        camera={{ position: [0, 0, 3.8], fov: 40 }}
+        camera={{ position: [0, -3.8, 0.5], fov: 40 }}
         shadows
         gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
         style={{ background: '#0a0a0f' }}

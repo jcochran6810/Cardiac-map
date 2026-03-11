@@ -10,13 +10,13 @@ const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr:
 export default function BottomDock() {
   const {
     playing, togglePlay, heartRate, setHeartRate,
-    speed, setSpeed, frozen, freeze, unfreeze,
-    currentPhase, cycleProgress,
+    speed, setSpeed,
+    currentPhase,
   } = useTimelineStore();
 
   const {
-    displayMode, setDisplayMode, gain, setGain, sweepSpeed, setSweepSpeed,
-    showBeatMarkers, toggleBeatMarkers, showAnnotations, toggleAnnotations,
+    displayMode, setDisplayMode, gain, setGain,
+    showAnnotations, toggleAnnotations,
     caliperMode, toggleCalipers, activeProfileId,
   } = useECGStore();
 
@@ -24,7 +24,7 @@ export default function BottomDock() {
 
   return (
     <div className={`bg-cardiac-panel border-t border-slate-700 flex flex-col shrink-0 transition-all ${
-      expanded ? 'h-64' : 'h-10'
+      expanded ? 'h-96' : 'h-10'
     }`}>
       {/* Control bar */}
       <div className="h-10 flex items-center px-3 gap-3 shrink-0 border-b border-slate-700/50">
@@ -43,15 +43,6 @@ export default function BottomDock() {
           {playing ? '⏸' : '▶'}
         </button>
 
-        <button
-          onClick={frozen ? unfreeze : freeze}
-          className={`px-2 py-1 text-xs rounded ${
-            frozen ? 'bg-red-900/50 text-red-400' : 'bg-cardiac-surface text-slate-400 hover:text-white'
-          }`}
-        >
-          {frozen ? 'FROZEN' : 'Freeze'}
-        </button>
-
         {/* Heart rate */}
         <div className="flex items-center gap-1">
           <span className="text-[10px] text-slate-500">HR:</span>
@@ -66,7 +57,7 @@ export default function BottomDock() {
           <span className="text-xs text-cardiac-red font-mono w-8">{heartRate}</span>
         </div>
 
-        {/* Speed */}
+        {/* Speed — only 0.25x and 0.5x */}
         <div className="flex items-center gap-1">
           <span className="text-[10px] text-slate-500">Speed:</span>
           <select
@@ -76,8 +67,6 @@ export default function BottomDock() {
           >
             <option value={0.25}>0.25x</option>
             <option value={0.5}>0.5x</option>
-            <option value={1}>1x</option>
-            <option value={2}>2x</option>
           </select>
         </div>
 
@@ -91,11 +80,10 @@ export default function BottomDock() {
         <div className="flex items-center gap-1 ml-auto">
           <select
             value={displayMode}
-            onChange={(e) => setDisplayMode(e.target.value as any)}
+            onChange={(e) => setDisplayMode(e.target.value as 'scrolling' | 'scrub' | 'compare')}
             className="bg-cardiac-surface text-[10px] text-slate-300 rounded px-1 py-0.5"
           >
             <option value="scrolling">Scroll</option>
-            <option value="frozen">Freeze</option>
             <option value="scrub">Scrub</option>
             <option value="compare">Compare</option>
           </select>
@@ -137,10 +125,13 @@ export default function BottomDock() {
         </div>
       </div>
 
-      {/* ECG display */}
+      {/* ECG display — drag hint shown */}
       {expanded && (
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 relative">
           <ECGRenderer compact={false} />
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[8px] text-slate-600 pointer-events-none">
+            Click and drag left/right to scroll through the ECG strip
+          </div>
         </div>
       )}
     </div>

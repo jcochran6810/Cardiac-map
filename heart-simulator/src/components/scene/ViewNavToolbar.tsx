@@ -75,8 +75,8 @@ export default function ViewNavToolbar() {
 
   const handleReset = () => {
     resetView();
-    // Reset camera to default anterior position
-    setCameraPreset({ position: [0, 0, 3.8], target: [0, 0, 0], fov: 40, label: 'Default' });
+    // Reset camera to default anterior position (looking from -Y toward heart's front)
+    setCameraPreset({ position: [0, -3.8, 0], target: [0, 0, 0], fov: 40, label: 'Default' });
   };
 
   return (
