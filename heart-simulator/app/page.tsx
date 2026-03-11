@@ -25,12 +25,12 @@ const HeartScene = dynamic(() => import('@/components/scene/HeartScene'), {
   ),
 });
 
-type DragTarget = 'left' | 'bottom' | 'ecg' | null;
+type DragTarget = 'left' | 'info' | 'ecg' | null;
 
 export default function HomePage() {
-  const [leftWidth, setLeftWidth] = useState(256);   // px, was w-64
-  const [bottomHeight, setBottomHeight] = useState(224); // px, was h-56
-  const [ecgWidth, setEcgWidth] = useState(320);     // px, was w-80
+  const [leftWidth, setLeftWidth] = useState(240);
+  const [infoWidth, setInfoWidth] = useState(300);
+  const [ecgHeight, setEcgHeight] = useState(280);
 
   const dragTarget = useRef<DragTarget>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,7 +38,7 @@ export default function HomePage() {
   const onMouseDown = useCallback((target: DragTarget) => (e: React.MouseEvent) => {
     e.preventDefault();
     dragTarget.current = target;
-    document.body.style.cursor = target === 'bottom' ? 'row-resize' : 'col-resize';
+    document.body.style.cursor = target === 'ecg' ? 'row-resize' : 'col-resize';
     document.body.style.userSelect = 'none';
   }, []);
 
@@ -49,19 +49,18 @@ export default function HomePage() {
 
       switch (dragTarget.current) {
         case 'left': {
-          const newW = Math.max(140, Math.min(480, e.clientX - rect.left));
+          const newW = Math.max(140, Math.min(400, e.clientX - rect.left));
           setLeftWidth(newW);
           break;
         }
-        case 'bottom': {
-          // bottomHeight is measured from the bottom of the center column
-          const newH = Math.max(80, Math.min(rect.height - 120, rect.bottom - e.clientY));
-          setBottomHeight(newH);
+        case 'info': {
+          const newW = Math.max(180, Math.min(500, e.clientX - rect.left - leftWidth - 4));
+          setInfoWidth(newW);
           break;
         }
         case 'ecg': {
-          const newW = Math.max(180, Math.min(600, rect.right - e.clientX));
-          setEcgWidth(newW);
+          const newH = Math.max(150, Math.min(rect.height - 150, rect.bottom - e.clientY));
+          setEcgHeight(newH);
           break;
         }
       }
@@ -79,7 +78,7 @@ export default function HomePage() {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, []);
+  }, [leftWidth]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -87,20 +86,29 @@ export default function HomePage() {
       <TopBar />
 
       {/* Main Content */}
-      <div ref={containerRef} className="flex-1 flex min-h-0">
-        {/* Left Panel */}
-        <LeftPanel style={{ width: leftWidth }} />
+      <div ref={containerRef} className="flex-1 flex flex-col min-h-0">
+        {/* ─── Top row: Left Panel | Info Panel | 3D Scene ─── */}
+        <div className="flex-1 flex min-h-0">
+          {/* Left Panel (navigation) */}
+          <LeftPanel style={{ width: leftWidth }} />
 
-        {/* Left resize handle */}
-        <div
-          className="w-1 cursor-col-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
-          onMouseDown={onMouseDown('left')}
-        />
+          {/* Left resize handle */}
+          <div
+            className="w-1 cursor-col-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
+            onMouseDown={onMouseDown('left')}
+          />
 
-        {/* Center: 3D Scene + Info Panel (bottom) */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* 3D Scene */}
-          <div className="flex-1 relative min-h-0">
+          {/* Info / Education Panel (vertical, beside left panel) */}
+          <RightPanel style={{ width: infoWidth }} />
+
+          {/* Info resize handle */}
+          <div
+            className="w-1 cursor-col-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
+            onMouseDown={onMouseDown('info')}
+          />
+
+          {/* 3D Heart Scene (takes remaining space, top-right) */}
+          <div className="flex-1 relative min-w-0 min-h-0">
             <HeartScene />
             <DissectionControls />
             <ViewNavToolbar />
@@ -112,25 +120,16 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-
-          {/* Bottom resize handle */}
-          <div
-            className="h-1 cursor-row-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
-            onMouseDown={onMouseDown('bottom')}
-          />
-
-          {/* Info Panel (bottom) */}
-          <RightPanel style={{ height: bottomHeight }} />
         </div>
 
-        {/* ECG resize handle */}
+        {/* ─── ECG resize handle ─── */}
         <div
-          className="w-1 cursor-col-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
+          className="h-1 cursor-row-resize bg-slate-700 hover:bg-cardiac-accent/50 active:bg-cardiac-accent transition-colors shrink-0"
           onMouseDown={onMouseDown('ecg')}
         />
 
-        {/* ECG Panel (right side) */}
-        <BottomDock style={{ width: ecgWidth }} />
+        {/* ─── Bottom: Full-width 12-lead ECG + controls ─── */}
+        <BottomDock style={{ height: ecgHeight }} />
       </div>
 
       {/* Tutor overlay */}

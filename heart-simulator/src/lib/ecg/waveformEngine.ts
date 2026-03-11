@@ -136,64 +136,71 @@ export function generateECGStrip(
  * Condition modifier presets
  */
 export const CONDITION_MODIFIERS: Record<string, Partial<WaveformParams>> = {
-  'anterior-stemi': {
-    stDeviation: 0.4,
-    tAmplitude: 0.5,
-  },
-  'inferior-stemi': {
-    stDeviation: 0.3,
-    tAmplitude: 0.4,
-  },
-  'rbbb': {
-    rDuration: 0.06,
-    sDuration: 0.05,
-    sAmplitude: -0.3,
-  },
-  'lbbb': {
-    rDuration: 0.08,
-    qAmplitude: 0,
-    sAmplitude: -0.4,
-    tAmplitude: -0.3,
-  },
-  'hyperkalemia': {
-    tAmplitude: 0.6,
-    tDuration: 0.06,
-    pAmplitude: 0.05,
-    rDuration: 0.06,
-  },
-  'afib': {
-    pAmplitude: 0,
-    noiseLevel: 0.04,
-    baselineWander: 0.03,
-  },
-  'aflutter': {
-    pAmplitude: -0.2,
-    pDuration: 0.04,
-    noiseLevel: 0.01,
-  },
-  'first-degree-avb': {
-    pOffset: 0.10, // earlier P wave to create longer PR
-  },
-  'vt': {
-    pAmplitude: 0,
-    rDuration: 0.08,
-    rAmplitude: 1.2,
-    sAmplitude: -0.5,
-    tAmplitude: -0.4,
-  },
-  'pericarditis': {
-    stDeviation: 0.15,
-    tAmplitude: 0.35,
-  },
-  'lvh': {
-    rAmplitude: 1.5,
-    sAmplitude: -0.4,
-    tAmplitude: -0.2,
-  },
-  'wellens': {
-    tAmplitude: -0.3,
-    stDeviation: -0.05,
-  },
+  // ─── Normal / Sinus variants ──────────────────────────────────
+  'normal-sinus': {},
+  'sinus-bradycardia': {},
+  'sinus-tachycardia': {},
+
+  // ─── Atrial arrhythmias ───────────────────────────────────────
+  'atrial-fibrillation': { pAmplitude: 0, noiseLevel: 0.04, baselineWander: 0.03 },
+  'afib': { pAmplitude: 0, noiseLevel: 0.04, baselineWander: 0.03 },
+  'atrial-flutter': { pAmplitude: -0.2, pDuration: 0.04, noiseLevel: 0.01 },
+  'aflutter': { pAmplitude: -0.2, pDuration: 0.04, noiseLevel: 0.01 },
+  'avnrt': { pAmplitude: 0, rAmplitude: 0.9, noiseLevel: 0.01 },
+  'wpw': { pOffset: 0.20, rOffset: 0.28, rDuration: 0.06, qAmplitude: 0.08, qDuration: 0.04, qOffset: 0.24 },
+
+  // ─── AV blocks ────────────────────────────────────────────────
+  'first-degree-avb': { pOffset: 0.10 },
+  'mobitz-i': { pOffset: 0.10 },
+  'mobitz-ii': { pOffset: 0.12 },
+  'third-degree-avb': { pAmplitude: 0.12, rAmplitude: 0.6, rDuration: 0.06, sAmplitude: -0.25 },
+
+  // ─── Bundle branch blocks ────────────────────────────────────
+  'rbbb': { rDuration: 0.06, sDuration: 0.05, sAmplitude: -0.3 },
+  'lbbb': { rDuration: 0.08, qAmplitude: 0, sAmplitude: -0.4, tAmplitude: -0.3 },
+  'bifascicular': { rDuration: 0.06, sDuration: 0.05, sAmplitude: -0.3 },
+
+  // ─── Ventricular arrhythmias ──────────────────────────────────
+  'pvcs': { pAmplitude: 0, rDuration: 0.07, rAmplitude: 1.1, sAmplitude: -0.4, tAmplitude: -0.35 },
+  'vt': { pAmplitude: 0, rDuration: 0.08, rAmplitude: 1.2, sAmplitude: -0.5, tAmplitude: -0.4 },
+  'ventricular-fibrillation': {},
+  'vfib': {},
+  'torsades': { pAmplitude: 0, rDuration: 0.07, rAmplitude: 0.8, sAmplitude: -0.3, tAmplitude: -0.3, noiseLevel: 0.06 },
+
+  // ─── Ischemia / MI ────────────────────────────────────────────
+  'anterior-stemi': { stDeviation: 0.4, tAmplitude: 0.5 },
+  'inferior-stemi': { stDeviation: 0.3, tAmplitude: 0.4 },
+  'lateral-stemi': { stDeviation: 0.25, tAmplitude: 0.35 },
+  'nstemi': { stDeviation: -0.15, tAmplitude: -0.25 },
+  'wellens': { tAmplitude: -0.3, stDeviation: -0.05 },
+
+  // ─── Cardiomyopathies ────────────────────────────────────────
+  'dcm': { rAmplitude: 0.5, qAmplitude: -0.1, tAmplitude: -0.15, rDuration: 0.06 },
+  'hcm': { rAmplitude: 1.4, sAmplitude: -0.35, tAmplitude: -0.2, qAmplitude: -0.15 },
+  'takotsubo': { stDeviation: 0.2, tAmplitude: -0.3 },
+
+  // ─── Heart failure ────────────────────────────────────────────
+  'hfref': { rAmplitude: 0.6, rDuration: 0.06, tAmplitude: -0.15, noiseLevel: 0.01 },
+  'hfpef': { pAmplitude: 0.2, pDuration: 0.10, rAmplitude: 1.2 },
+  'cardiogenic-shock': { rAmplitude: 0.5, stDeviation: -0.1, tAmplitude: -0.2, noiseLevel: 0.02 },
+
+  // ─── Valvular ────────────────────────────────────────────────
+  'aortic-stenosis': { rAmplitude: 1.5, sAmplitude: -0.4, tAmplitude: -0.2 },
+  'mitral-regurgitation': { pAmplitude: 0.2, pDuration: 0.10, rAmplitude: 1.1 },
+  'mitral-stenosis': { pAmplitude: 0.2, pDuration: 0.11 },
+
+  // ─── Pericardial ─────────────────────────────────────────────
+  'pericarditis': { stDeviation: 0.15, tAmplitude: 0.35 },
+  'cardiac-tamponade': { rAmplitude: 0.4, pAmplitude: 0.06, noiseLevel: 0.015 },
+
+  // ─── Congenital ──────────────────────────────────────────────
+  'asd': { rDuration: 0.06, sDuration: 0.04, sAmplitude: -0.25 },
+  'vsd': { rAmplitude: 1.3, sAmplitude: -0.35 },
+  'pfo': {},
+
+  // ─── Metabolic ───────────────────────────────────────────────
+  'hyperkalemia': { tAmplitude: 0.6, tDuration: 0.06, pAmplitude: 0.05, rDuration: 0.06 },
+  'lvh': { rAmplitude: 1.5, sAmplitude: -0.4, tAmplitude: -0.2 },
 };
 
 /**

@@ -6,8 +6,66 @@ import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
 import { useCaseStore } from '@/store/useCaseStore';
+import { useECGStore } from '@/store/useECGStore';
+import { useTimelineStore } from '@/store/useTimelineStore';
 
 type PanelTab = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'cases';
+
+// Maps condition panel IDs → ECG waveform engine profile IDs
+const CONDITION_TO_ECG_PROFILE: Record<string, string> = {
+  'normal-sinus-rhythm': 'normal-sinus',
+  'sinus-bradycardia': 'sinus-bradycardia',
+  'sinus-tachycardia': 'sinus-tachycardia',
+  'atrial-fibrillation': 'atrial-fibrillation',
+  'atrial-flutter': 'atrial-flutter',
+  'avnrt': 'avnrt',
+  'wpw-syndrome': 'wpw',
+  'first-degree-av-block': 'first-degree-avb',
+  'mobitz-type-i': 'mobitz-i',
+  'mobitz-type-ii': 'mobitz-ii',
+  'third-degree-av-block': 'third-degree-avb',
+  'right-bundle-branch-block': 'rbbb',
+  'left-bundle-branch-block': 'lbbb',
+  'bifascicular-block': 'bifascicular',
+  'pvcs': 'pvcs',
+  'monomorphic-vt': 'vt',
+  'ventricular-fibrillation': 'ventricular-fibrillation',
+  'torsades-de-pointes': 'torsades',
+  'anterior-stemi': 'anterior-stemi',
+  'inferior-stemi': 'inferior-stemi',
+  'lateral-stemi': 'lateral-stemi',
+  'nstemi': 'nstemi',
+  'wellens-pattern': 'wellens',
+  'dilated-cardiomyopathy': 'dcm',
+  'hcm': 'hcm',
+  'takotsubo': 'takotsubo',
+  'hfref': 'hfref',
+  'hfpef': 'hfpef',
+  'cardiogenic-shock': 'cardiogenic-shock',
+  'aortic-stenosis': 'aortic-stenosis',
+  'mitral-regurgitation': 'mitral-regurgitation',
+  'mitral-stenosis': 'mitral-stenosis',
+  'acute-pericarditis': 'pericarditis',
+  'cardiac-tamponade': 'cardiac-tamponade',
+  'asd': 'asd',
+  'vsd': 'vsd',
+  'pfo': 'pfo',
+};
+
+// Default heart rate overrides for conditions that have characteristic rates
+const CONDITION_HR_PRESETS: Record<string, number> = {
+  'sinus-bradycardia': 48,
+  'sinus-tachycardia': 120,
+  'atrial-fibrillation': 110,
+  'atrial-flutter': 150,
+  'avnrt': 170,
+  'wpw-syndrome': 160,
+  'third-degree-av-block': 38,
+  'monomorphic-vt': 160,
+  'ventricular-fibrillation': 0,
+  'torsades-de-pointes': 200,
+  'cardiogenic-shock': 110,
+};
 
 // Anatomical structure tree (simplified for initial render; full data loaded from JSON)
 const ANATOMY_TREE = [
@@ -160,6 +218,20 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const { selectCondition, selectedConditionId } = useConditionStore();
   const { selectProcedure, selectedProcedureId } = useProcedureStore();
   const { startCase, activeCaseId } = useCaseStore();
+  const { setActiveProfile } = useECGStore();
+  const { setHeartRate } = useTimelineStore();
+
+  const handleSelectCondition = (id: string) => {
+    selectCondition(id);
+    // Sync ECG profile to the selected condition
+    const ecgProfile = CONDITION_TO_ECG_PROFILE[id] || 'normal-sinus';
+    setActiveProfile(ecgProfile);
+    // Set characteristic heart rate if defined
+    const hrPreset = CONDITION_HR_PRESETS[id];
+    if (hrPreset !== undefined && hrPreset > 0) {
+      setHeartRate(hrPreset);
+    }
+  };
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Chambers']));
 
@@ -308,7 +380,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
                       .map((id) => (
                         <button
                           key={id}
-                          onClick={() => selectCondition(id)}
+                          onClick={() => handleSelectCondition(id)}
                           className={`w-full text-left px-2 py-1 rounded transition-colors capitalize ${
                             selectedConditionId === id
                               ? 'bg-cardiac-accent/20 text-cardiac-accent'

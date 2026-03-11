@@ -268,7 +268,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   const condContent = getConditionContent();
 
   return (
-    <aside style={style} className="bg-cardiac-panel border-t border-slate-700 flex flex-col shrink-0 overflow-hidden">
+    <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden">
       {/* Tabs */}
       <div className="flex flex-wrap border-b border-slate-700 px-1 py-1 gap-0.5 shrink-0">
         {TABS.map((tab) => (

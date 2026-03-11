@@ -19,8 +19,8 @@ const TRACE_COLOR = '#10B981';
 const COMPARE_COLOR = '#3B82F6';
 const SELECTED_BG = 'rgba(245, 158, 11, 0.08)';
 const SELECTED_BORDER = 'rgba(245, 158, 11, 0.6)';
-const PLAYHEAD_COLOR = 'rgba(245, 158, 11, 0.9)';
-const PLAYHEAD_GLOW = 'rgba(245, 158, 11, 0.3)';
+const PLAYHEAD_COLOR = 'rgba(245, 158, 11, 0.35)';
+const PLAYHEAD_GLOW = 'rgba(245, 158, 11, 0.12)';
 
 // Playhead offset: 3 major grid squares (75px) from left edge of each cell
 const PLAYHEAD_OFFSET = 75;
@@ -191,6 +191,11 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
 
       if (activeProfileId === 'ventricular-fibrillation' || activeProfileId === 'vfib') {
         sample = generateVFibSample(t);
+      } else if (activeProfileId === 'torsades') {
+        // Torsades: sinusoidal amplitude modulation (twisting) with wide QRS
+        const modulationFreq = 0.15;
+        const envelope = 0.3 + 0.7 * Math.abs(Math.sin(2 * Math.PI * modulationFreq * (px + scrollOffset) * 0.01));
+        sample = generateBeatSample(t, params) * envelope;
       } else if (activeProfileId === 'atrial-fibrillation' || activeProfileId === 'afib') {
         sample = generateAFibSample(t, params);
       } else if (activeProfileId === 'atrial-flutter' || activeProfileId === 'aflutter') {
@@ -346,8 +351,8 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     ctx.textAlign = 'left'; // reset
 
     // ─── Draw solid dividing lines between lead cells ─────────────
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
+    ctx.lineWidth = 2.5;
     for (let c = 1; c < cols; c++) {
       const x = c * cellW;
       ctx.beginPath();
