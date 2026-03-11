@@ -188,12 +188,12 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
 
     const leads = compact ? visibleLeads.slice(0, 4) : visibleLeads;
 
-    // When verticalStack is true, force single column with all leads stacked
+    // When verticalStack is true, use 2 columns x 6 rows layout
     let rows: number;
     let cols: number;
     if (verticalStack) {
-      rows = leads.length;
-      cols = 1;
+      cols = 2;
+      rows = Math.ceil(leads.length / cols);
     } else {
       rows = compact ? Math.min(leads.length, 4) : Math.ceil(leads.length / (leads.length > 6 ? 3 : 2));
       cols = compact ? 1 : (leads.length > 6 ? 3 : leads.length > 3 ? 2 : 1);
