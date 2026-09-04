@@ -5,6 +5,8 @@ export type LearningLevel = 1 | 2 | 3 | 4 | 5;
 export type ViewMode = 'external' | 'internal' | 'cutaway' | 'sectional' | 'dissection' | 'coronary' | 'conduction' | 'perfusion' | 'wall-motion' | 'procedure-overlay' | 'imaging-correlation';
 export type DetailLevel = 'low' | 'standard' | 'high';
 
+export type MobileView = 'heart' | 'ecg' | 'browse' | 'info';
+
 export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cases';
 
 interface AppState {
@@ -21,6 +23,8 @@ interface AppState {
   rightPanelOpen: boolean;
   rightPanelTab: string;
   activePanelCategory: PanelCategory;
+  /** Which screen is shown in the single-column mobile layout. */
+  mobileView: MobileView;
   highContrastMode: boolean;
   reducedMotion: boolean;
 
@@ -38,6 +42,7 @@ interface AppState {
   toggleRightPanel: () => void;
   setRightPanelTab: (tab: string) => void;
   setActivePanelCategory: (cat: PanelCategory) => void;
+  setMobileView: (view: MobileView) => void;
   resetView: () => void;
 }
 
@@ -55,6 +60,7 @@ export const useAppStore = create<AppState>((set) => ({
   rightPanelOpen: true,
   rightPanelTab: 'overview',
   activePanelCategory: 'anatomy',
+  mobileView: 'heart',
   highContrastMode: false,
   reducedMotion: false,
 
@@ -73,6 +79,7 @@ export const useAppStore = create<AppState>((set) => ({
   setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
   // Reset the info tab when switching categories so an irrelevant tab is never shown
   setActivePanelCategory: (activePanelCategory) => set({ activePanelCategory, rightPanelTab: 'overview' }),
+  setMobileView: (mobileView) => set({ mobileView }),
   resetView: () => set({
     viewMode: 'external',
     labelsVisible: true,

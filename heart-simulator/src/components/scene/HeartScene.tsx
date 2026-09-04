@@ -2277,13 +2277,6 @@ function BloodFlowParticles() {
   );
 }
 
-// ─── Animation tick ────────────────────────────────────────────────────
-function AnimationTick() {
-  const tick = useTimelineStore((s) => s.tick);
-  useFrame((_, dt) => tick(dt * 1000));
-  return null;
-}
-
 // ─── Camera controller ─────────────────────────────────────────────────
 // Animates camera to a target on selection, then stops so OrbitControls can work freely.
 function CameraController() {
@@ -2402,14 +2395,17 @@ function SafeEnvironment() {
 }
 
 // ─── Main scene ────────────────────────────────────────────────────────
-export default function HeartScene() {
+export default function HeartScene({ mobile = false }: { mobile?: boolean }) {
   return (
     <div className="w-full h-full" style={{ background: '#0a0a0f' }}>
       <Canvas
-        camera={{ position: [0, -3.8, 0.5], fov: 40 }}
-        shadows
-        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
-        style={{ background: '#0a0a0f' }}
+        // Portrait phones have a narrow view: start further back so the whole heart fits
+        camera={{ position: mobile ? [0, -6.2, 0.4] : [0, -3.8, 0.5], fov: 40 }}
+        // Phones: cap the pixel ratio and skip shadow maps to keep the frame rate up
+        shadows={!mobile}
+        dpr={mobile ? [1, 1.5] : [1, 2]}
+        gl={{ antialias: !mobile, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8, powerPreference: 'high-performance' }}
+        style={{ background: '#0a0a0f', touchAction: 'none' }}
       >
         {/* Bright 3-point lighting for realistic tissue illumination */}
         <directionalLight position={[5, 6, 4]} intensity={3.0} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} color="#fff0e0" />
@@ -2421,7 +2417,6 @@ export default function HeartScene() {
         <spotLight position={[2.5, 4, 5]} angle={0.35} penumbra={0.7} intensity={1.5} color="#ffe8d0" />
         <spotLight position={[-2, 1, 4]} angle={0.5} penumbra={0.9} intensity={0.8} color="#ffd8c0" />
 
-        <AnimationTick />
         <CameraController />
         <BackgroundDeselect />
 

@@ -6,6 +6,7 @@ import { useTimelineStore } from '@/store/useTimelineStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { computeHemodynamics, getConditionParams, hasHemodynamicPreset, type HemodynamicSnapshot } from '@/lib/physiology/cardiacCycle';
 import { CONDITION_SHORT_NAMES } from '@/data/navigation';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 /**
  * Live hemodynamics overlay: pressure and volume curves for one beat with a
@@ -22,7 +23,10 @@ export default function HemodynamicsPanel() {
   const heartRate = useTimelineStore((s) => s.heartRate);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [snap, setSnap] = useState<HemodynamicSnapshot | null>(null);
+  const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
+  // Start collapsed on phones so the chart does not cover the heart
+  useEffect(() => { if (isMobile) setCollapsed(true); }, [isMobile]);
 
   const params = useMemo(() => getConditionParams(selectedConditionId, heartRate), [selectedConditionId, heartRate]);
 
@@ -115,7 +119,7 @@ export default function HemodynamicsPanel() {
   );
 
   return (
-    <div className="absolute top-2 right-2 z-10 w-56 bg-cardiac-panel/95 backdrop-blur-sm border border-slate-700 rounded-lg text-xs shadow-lg">
+    <div className="absolute top-2 right-2 z-10 w-44 sm:w-56 bg-cardiac-panel/95 backdrop-blur-sm border border-slate-700 rounded-lg text-xs shadow-lg">
       <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700/60">
         <button onClick={() => setCollapsed((c) => !c)} className="text-[10px] font-semibold text-white flex items-center gap-1">
           <span className="text-slate-500">{collapsed ? '▶' : '▼'}</span> Hemodynamics

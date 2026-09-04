@@ -13,7 +13,7 @@ const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr:
 
 const RHYTHM_OPTIONS = Object.keys(PROFILE_NAMES);
 
-export default function BottomDock({ style }: { style?: React.CSSProperties }) {
+export default function BottomDock({ style, mobile = false }: { style?: React.CSSProperties; mobile?: boolean }) {
   const {
     playing, togglePlay, heartRate, setHeartRate,
     speed, setSpeed, currentPhase, fibrillating, beatHasQRS, beatHasP, refresh,
@@ -59,7 +59,7 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
   return (
     <div style={style} className="bg-cardiac-panel border-t border-slate-700 flex flex-col shrink-0">
       {/* Horizontal control bar */}
-      <div className="flex items-center px-3 py-1.5 gap-3 shrink-0 border-b border-slate-700/50 overflow-x-auto">
+      <div className={`flex items-center px-3 py-1.5 gap-3 shrink-0 border-b border-slate-700/50 ${mobile ? 'flex-wrap gap-y-2' : 'overflow-x-auto'}`}>
         {/* Play controls */}
         <button
           onClick={togglePlay}
@@ -163,13 +163,13 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
         )}
 
         <div className="text-[10px] text-slate-600 ml-auto shrink-0 hidden lg:block">
-          drag to scrub · click a lead to select · dbl-click to resync
+          {mobile ? 'drag to scrub · tap a lead to select' : 'drag to scrub · click a lead to select · dbl-click to resync'}
         </div>
       </div>
 
       {/* Full-width 12-lead ECG display — standard 4x3 bisect layout */}
       <div className="flex-1 min-h-0 relative">
-        <ECGRenderer compact={false} verticalStack={false} inspectLead={inspectLead} />
+        <ECGRenderer compact={false} verticalStack={mobile} inspectLead={inspectLead} />
       </div>
     </div>
   );

@@ -22,6 +22,11 @@ html,
 body {
   height: 100%;
   overflow: hidden;
+  /* Stop pull-to-refresh / rubber-banding from fighting the 3D and ECG gestures */
+  overscroll-behavior: none;
+  /* Remove the 300 ms double-tap-to-zoom delay on touch devices */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   background-color: var(--cardiac-dark);
   color: #e2e8f0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -101,4 +106,25 @@ body {
 @keyframes flow-particle {
   0% { offset-distance: 0%; }
   100% { offset-distance: 100%; }
+}
+
+/* ─── Mobile helpers ─── */
+.app-shell {
+  height: 100vh;
+  height: 100dvh; /* accounts for the collapsing browser chrome on phones */
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@media (pointer: coarse) {
+  /* Comfortable touch targets for the small control widgets */
+  input[type='range'] {
+    height: 20px;
+  }
+  select, button {
+    min-height: 32px;
+  }
 }

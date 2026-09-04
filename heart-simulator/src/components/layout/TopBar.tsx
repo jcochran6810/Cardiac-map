@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore, LearningLevel } from '@/store/useAppStore';
 import { useTutorStore } from '@/store/useTutorStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useConditionStore } from '@/store/useConditionStore';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { CONDITION_IDS } from '@/data/conditionData';
 import { PROCEDURE_IDS } from '@/data/procedureData';
 import { MEDICATION_IDS } from '@/data/medicationData';
@@ -26,17 +27,31 @@ export default function TopBar() {
     learningLevel, setLearningLevel,
     labelsVisible, toggleLabels, dissectionEnabled, toggleDissection,
     compareMode, toggleCompare, hemodynamicsOpen, toggleHemodynamics,
-    searchQuery, setSearchQuery, resetView,
+    searchQuery, setSearchQuery, resetView, setMobileView,
   } = useAppStore();
   const { tutorOpen, toggleTutor } = useTutorStore();
   const { setCompareProfile } = useECGStore();
   const { setCompareCondition } = useConditionStore();
   const progress = useLearningStore((s) => s.getCompletionPercentage(CATALOGUE_SIZE));
   const seenCount = useLearningStore((s) => s.structuresViewed.length + s.conditionsStudied.length + s.proceduresReviewed.length + s.medicationsViewed.length + s.casesCompleted.length);
+  const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Close the overflow menu when tapping elsewhere
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: PointerEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    window.addEventListener('pointerdown', onDown);
+    return () => window.removeEventListener('pointerdown', onDown);
+  }, [menuOpen]);
+
+  useEffect(() => { if (searchOpen) searchRef.current?.focus(); }, [searchOpen]);
 
   const handleCompare = () => {
     if (compareMode) {
-      // Leaving compare mode clears the overlay
       setCompareProfile(null);
       setCompareCondition(null);
     }
@@ -49,35 +64,106 @@ export default function TopBar() {
     setCompareCondition(null);
   };
 
+  const onSearchChange = (value: string) => {
+    setSearchQuery(value);
+    // On phones a search always shows the browse screen so results are visible
+    if (isMobile && value) setMobileView('browse');
+  };
+
+  const toggles = (
+    <>
+      <ToggleBtn active={labelsVisible} onClick={toggleLabels} label="Labels" title="Show/hide labels on the 3D heart" />
+      <ToggleBtn active={dissectionEnabled} onClick={toggleDissection} label="Dissect" title="View modes, layers and clip planes" />
+      <ToggleBtn active={compareMode} onClick={handleCompare} label="Compare" title="Overlay a second condition's ECG (select two conditions)" />
+      <ToggleBtn active={hemodynamicsOpen} onClick={toggleHemodynamics} label="Hemo" title="Live pressure/volume hemodynamics panel" />
+      <button onClick={handleReset} className="px-2 py-1 text-xs text-slate-400 hover:text-white bg-cardiac-surface rounded transition-colors">Reset</button>
+    </>
+  );
+
+  // ─── Phone header: logo · level · search · tutor · ⋯ menu ───
+  if (isMobile) {
+    return (
+      <header className="safe-top bg-cardiac-panel border-b border-slate-700 shrink-0 z-50">
+        <div className="h-11 flex items-center px-2 gap-2">
+          <div className="w-6 h-6 rounded-full bg-cardiac-red flex items-center justify-center text-white text-[10px] font-bold shrink-0">♥</div>
+          {!searchOpen && (
+            <select
+              value={learningLevel}
+              onChange={(e) => setLearningLevel(Number(e.target.value) as LearningLevel)}
+              className="bg-cardiac-surface text-xs text-slate-200 rounded px-2 py-1 border border-slate-600 focus:outline-none shrink-0"
+            >
+              {LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </select>
+          )}
+          {searchOpen ? (
+            <div className="flex-1 relative">
+              <input
+                ref={searchRef}
+                type="search"
+                placeholder="Search anatomy, conditions, drugs..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full bg-cardiac-dark text-sm text-slate-200 rounded px-3 py-1.5 border border-slate-600 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
+              />
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center gap-1.5 min-w-0" title={`${seenCount} of ${CATALOGUE_SIZE} topics opened`}>
+              <div className="flex-1 h-1.5 bg-cardiac-dark rounded-full overflow-hidden max-w-[80px]">
+                <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+              </div>
+              <span className="text-[10px] text-slate-500">{progress}%</span>
+            </div>
+          )}
+          <button
+            onClick={() => { if (searchOpen) { setSearchQuery(''); } setSearchOpen((o) => !o); }}
+            className={`w-9 h-9 flex items-center justify-center rounded text-base ${searchOpen ? 'text-cardiac-accent' : 'text-slate-300'}`}
+            aria-label={searchOpen ? 'Close search' : 'Search'}
+          >
+            {searchOpen ? '×' : '⌕'}
+          </button>
+          <button
+            onClick={toggleTutor}
+            className={`w-9 h-9 flex items-center justify-center rounded text-base ${tutorOpen ? 'bg-cardiac-accent/20 text-cardiac-accent' : 'text-slate-300'}`}
+            aria-label="AI tutor"
+          >
+            🎓
+          </button>
+          <div className="relative" ref={menuRef}>
+            <button onClick={() => setMenuOpen((o) => !o)} className="w-9 h-9 flex items-center justify-center rounded text-slate-300 text-lg" aria-label="More options">⋯</button>
+            {menuOpen && (
+              <div className="absolute right-0 top-10 z-50 bg-cardiac-panel border border-slate-700 rounded-lg shadow-xl p-2 flex flex-col gap-1.5 min-w-[150px]">
+                {toggles}
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // ─── Desktop header ───
   return (
     <header className="h-10 bg-cardiac-panel border-b border-slate-700 flex items-center px-3 gap-3 shrink-0 z-50">
-      {/* Logo */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="w-6 h-6 rounded-full bg-cardiac-red flex items-center justify-center text-white text-[10px] font-bold">
-          ♥
-        </div>
+        <div className="w-6 h-6 rounded-full bg-cardiac-red flex items-center justify-center text-white text-[10px] font-bold">♥</div>
         <span className="text-xs font-semibold text-white hidden lg:block">CardioSim</span>
       </div>
 
-      {/* Learning Level */}
       <select
         value={learningLevel}
         onChange={(e) => setLearningLevel(Number(e.target.value) as LearningLevel)}
         title="Learning level — content depth and tab order adapt to it"
         className="bg-cardiac-surface text-xs text-slate-200 rounded px-2 py-1 border border-slate-600 focus:outline-none focus:border-cardiac-accent shrink-0"
       >
-        {LEVELS.map((l) => (
-          <option key={l.value} value={l.value}>{l.label}</option>
-        ))}
+        {LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
       </select>
 
-      {/* Search — full-width */}
       <div className="flex-1 max-w-2xl relative">
         <input
           type="text"
           placeholder="Search anatomy, conditions, procedures, medications, cases..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => onSearchChange(e.target.value)}
           className="w-full bg-cardiac-dark text-xs text-slate-200 rounded px-3 py-1.5 border border-slate-600 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
         />
         {searchQuery && (
@@ -85,7 +171,6 @@ export default function TopBar() {
         )}
       </div>
 
-      {/* Progress */}
       <div className="hidden md:flex items-center gap-1.5 shrink-0" title={`${seenCount} of ${CATALOGUE_SIZE} topics opened — progress is saved in this browser`}>
         <div className="w-16 h-1.5 bg-cardiac-dark rounded-full overflow-hidden">
           <div className="h-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
@@ -93,19 +178,9 @@ export default function TopBar() {
         <span className="text-[10px] text-slate-400">{progress}%</span>
       </div>
 
-      {/* Quick toggles */}
       <div className="flex gap-1 ml-auto shrink-0">
-        <ToggleBtn active={labelsVisible} onClick={toggleLabels} label="Labels" title="Show/hide labels on the 3D heart" />
-        <ToggleBtn active={dissectionEnabled} onClick={toggleDissection} label="Dissect" title="View modes, layers and clip planes" />
-        <ToggleBtn active={compareMode} onClick={handleCompare} label="Compare" title="Overlay a second condition's ECG (select two conditions)" />
-        <ToggleBtn active={hemodynamicsOpen} onClick={toggleHemodynamics} label="Hemo" title="Live pressure/volume hemodynamics panel" />
+        {toggles}
         <ToggleBtn active={tutorOpen} onClick={toggleTutor} label="🎓 Tutor" title="Open the AI tutor" />
-        <button
-          onClick={handleReset}
-          className="px-2 py-1 text-xs text-slate-400 hover:text-white bg-cardiac-surface rounded transition-colors"
-        >
-          Reset
-        </button>
       </div>
     </header>
   );

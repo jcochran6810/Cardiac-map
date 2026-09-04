@@ -163,7 +163,7 @@ export default function ViewNavToolbar() {
       </div>
 
       {/* Interaction hint */}
-      <div className="text-[8px] text-slate-600 text-right leading-tight">
+      <div className="hidden sm:block text-[8px] text-slate-600 text-right leading-tight">
         Drag to rotate &middot; Scroll to zoom &middot; Right-drag to pan
       </div>
     </div>

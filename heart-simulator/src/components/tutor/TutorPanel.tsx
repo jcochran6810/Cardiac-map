@@ -134,7 +134,7 @@ export default function TutorPanel() {
   };
 
   return (
-    <div className="fixed right-0 top-10 bottom-0 w-96 bg-cardiac-panel border-l border-slate-700 flex flex-col z-40 shadow-2xl">
+    <div className="fixed right-0 top-10 bottom-0 w-full sm:w-96 bg-cardiac-panel border-l border-slate-700 flex flex-col z-40 shadow-2xl">
       {/* Header */}
       <div className="h-10 flex items-center justify-between px-3 border-b border-slate-700 shrink-0">
         <div className="flex items-center gap-2 min-w-0">

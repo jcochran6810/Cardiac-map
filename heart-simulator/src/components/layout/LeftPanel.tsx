@@ -10,6 +10,7 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { CASE_DATA } from '@/data/caseData';
 import { CONDITION_DATA } from '@/data/conditionData';
 import { PROCEDURE_DATA, PROCEDURES_BY_CATEGORY } from '@/data/procedureData';
@@ -31,7 +32,9 @@ const TABS: { value: PanelCategory; label: string }[] = [
 const matches = (name: string, q: string) => !q || name.toLowerCase().includes(q);
 
 export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
-  const { leftPanelOpen, searchQuery, activePanelCategory, setActivePanelCategory, compareMode, setViewMode } = useAppStore();
+  const { leftPanelOpen, searchQuery, activePanelCategory, setActivePanelCategory, compareMode, setViewMode, setMobileView } = useAppStore();
+  const isMobile = useIsMobile();
+  const showInfo = () => { if (isMobile) setMobileView('info'); };
   const activeTab = activePanelCategory;
   const { selectStructure, selectedStructureId, setMultiSelect, setCameraPresetByLabel } = useSceneStore();
   const { selectCondition, selectedConditionId, setCompareCondition, compareConditionId } = useConditionStore();
@@ -62,6 +65,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
     selectStructure(id);
     setMultiSelect([]);
     learning.markStructureViewed(id);
+    showInfo();
   };
 
   const handleSelectCondition = (id: string) => {
@@ -83,6 +87,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
     }
     refresh();
     learning.markConditionStudied(id);
+    showInfo();
   };
 
   const handleSelectProcedure = (id: string) => {
@@ -97,11 +102,13 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       if (firstView) setCameraPresetByLabel(firstView);
     }
     learning.markProcedureReviewed(id);
+    showInfo();
   };
 
   const handleSelectMedication = (id: string) => {
     selectMedication(id);
     learning.markMedicationViewed(id);
+    showInfo();
   };
 
   const handleSelectCase = (id: string) => {
@@ -114,6 +121,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       refresh();
     }
     setMultiSelect([]);
+    showInfo();
   };
 
   const filteredConditionGroups = useMemo(() => CONDITION_CATEGORIES.map((g) => ({
@@ -155,7 +163,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       key={item.id}
       onClick={onClick}
       title={item.name}
-      className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+      className={`w-full text-left px-2 py-1.5 sm:py-1 min-h-[32px] sm:min-h-0 rounded transition-colors flex items-center gap-1 ${
         selected ? activeClass : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
       }`}
     >

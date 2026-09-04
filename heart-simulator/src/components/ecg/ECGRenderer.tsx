@@ -61,24 +61,29 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const onMouseDown = (e: MouseEvent) => {
+    // Pointer events cover mouse, pen and touch with one code path
+    const onMouseDown = (e: PointerEvent) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
       isDraggingRef.current = true;
       dragStartXRef.current = e.clientX;
       lastDragXRef.current = e.clientX;
       canvas.style.cursor = 'grabbing';
+      try { canvas.setPointerCapture(e.pointerId); } catch { /* not supported */ }
     };
 
-    const onMouseMove = (e: MouseEvent) => {
+    const onMouseMove = (e: PointerEvent) => {
       if (!isDraggingRef.current) return;
       const dx = e.clientX - lastDragXRef.current;
       dragOffsetRef.current -= dx * 2;
       lastDragXRef.current = e.clientX;
     };
 
-    const onMouseUp = (e: MouseEvent) => {
-      const wasDrag = Math.abs(e.clientX - dragStartXRef.current) > 5;
+    const onMouseUp = (e: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      const wasDrag = Math.abs(e.clientX - dragStartXRef.current) > 8;
       isDraggingRef.current = false;
       canvas.style.cursor = 'grab';
+      try { canvas.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
 
       // If it was a click (not a drag), detect which lead was clicked
       if (!wasDrag) {
@@ -108,17 +113,18 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     };
 
     canvas.style.cursor = 'grab';
-    canvas.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    canvas.addEventListener('mouseleave', onMouseLeave);
+    canvas.style.touchAction = 'none'; // scrubbing must not scroll the page
+    canvas.addEventListener('pointerdown', onMouseDown);
+    canvas.addEventListener('pointermove', onMouseMove);
+    canvas.addEventListener('pointerup', onMouseUp);
+    canvas.addEventListener('pointercancel', onMouseLeave);
     canvas.addEventListener('dblclick', onDoubleClick);
 
     return () => {
-      canvas.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      canvas.removeEventListener('mouseleave', onMouseLeave);
+      canvas.removeEventListener('pointerdown', onMouseDown);
+      canvas.removeEventListener('pointermove', onMouseMove);
+      canvas.removeEventListener('pointerup', onMouseUp);
+      canvas.removeEventListener('pointercancel', onMouseLeave);
       canvas.removeEventListener('dblclick', onDoubleClick);
     };
   }, [selectLead]);
@@ -212,7 +218,7 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const isInspecting = inspectLead && visibleLeads.includes(inspectLead as ECGLead);
 
     // Use standard 12-lead bisect order when showing all 12 leads
-    const useStandard12 = !isInspecting && visibleLeads.length === 12;
+    const useStandard12 = !isInspecting && !verticalStack && visibleLeads.length === 12;
     const leads = isInspecting
       ? [inspectLead as ECGLead]
       : compact
