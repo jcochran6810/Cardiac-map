@@ -5,310 +5,46 @@ import { useAppStore, PanelCategory } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
+import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
+import { useLearningStore } from '@/store/useLearningStore';
 import { CASE_DATA } from '@/data/caseData';
+import { CONDITION_DATA } from '@/data/conditionData';
+import { PROCEDURE_DATA, PROCEDURES_BY_CATEGORY } from '@/data/procedureData';
+import { MEDICATION_DATA, MEDICATIONS_BY_CLASS } from '@/data/medicationData';
+import {
+  ANATOMY_TREE, CORONARY_TREE, CONDUCTION_TREE, CONDITION_CATEGORIES, CONDITION_SHORT_NAMES, CASE_LIST, NavItem,
+} from '@/data/navigation';
 
-// Maps condition panel IDs → ECG waveform engine profile IDs
-const CONDITION_TO_ECG_PROFILE: Record<string, string> = {
-  'normal-sinus-rhythm': 'normal-sinus',
-  'sinus-bradycardia': 'sinus-bradycardia',
-  'sinus-tachycardia': 'sinus-tachycardia',
-  'atrial-fibrillation': 'atrial-fibrillation',
-  'atrial-flutter': 'atrial-flutter',
-  'avnrt': 'avnrt',
-  'wpw-syndrome': 'wpw',
-  'first-degree-av-block': 'first-degree-avb',
-  'mobitz-type-i': 'mobitz-i',
-  'mobitz-type-ii': 'mobitz-ii',
-  'third-degree-av-block': 'third-degree-avb',
-  'right-bundle-branch-block': 'rbbb',
-  'left-bundle-branch-block': 'lbbb',
-  'bifascicular-block': 'bifascicular',
-  'pvcs': 'pvcs',
-  'monomorphic-vt': 'vt',
-  'ventricular-fibrillation': 'ventricular-fibrillation',
-  'torsades-de-pointes': 'torsades',
-  'anterior-stemi': 'anterior-stemi',
-  'inferior-stemi': 'inferior-stemi',
-  'lateral-stemi': 'lateral-stemi',
-  'nstemi': 'nstemi',
-  'wellens-pattern': 'wellens',
-  'dilated-cardiomyopathy': 'dcm',
-  'hcm': 'hcm',
-  'takotsubo': 'takotsubo',
-  'hfref': 'hfref',
-  'hfpef': 'hfpef',
-  'cardiogenic-shock': 'cardiogenic-shock',
-  'aortic-stenosis': 'aortic-stenosis',
-  'mitral-regurgitation': 'mitral-regurgitation',
-  'mitral-stenosis': 'mitral-stenosis',
-  'acute-pericarditis': 'pericarditis',
-  'cardiac-tamponade': 'cardiac-tamponade',
-  'asd': 'asd',
-  'vsd': 'vsd',
-  'pfo': 'pfo',
-};
-
-// Default heart rate overrides for conditions that have characteristic rates
-const CONDITION_HR_PRESETS: Record<string, number> = {
-  'sinus-bradycardia': 48,
-  'sinus-tachycardia': 120,
-  'atrial-fibrillation': 110,
-  'atrial-flutter': 150,
-  'avnrt': 170,
-  'wpw-syndrome': 160,
-  'third-degree-av-block': 38,
-  'monomorphic-vt': 160,
-  'ventricular-fibrillation': 0,
-  'torsades-de-pointes': 200,
-  'cardiogenic-shock': 110,
-};
-
-// Anatomical structure tree (simplified for initial render; full data loaded from JSON)
-const ANATOMY_TREE = [
-  {
-    category: 'Chambers',
-    items: [
-      { id: 'right-atrium', name: 'Right Atrium' },
-      { id: 'left-atrium', name: 'Left Atrium' },
-      { id: 'right-ventricle', name: 'Right Ventricle' },
-      { id: 'left-ventricle', name: 'Left Ventricle' },
-      { id: 'right-atrial-appendage', name: 'Right Atrial Appendage' },
-      { id: 'left-atrial-appendage', name: 'Left Atrial Appendage' },
-    ],
-  },
-  {
-    category: 'Septa & Landmarks',
-    items: [
-      { id: 'interatrial-septum', name: 'Interatrial Septum' },
-      { id: 'interventricular-septum', name: 'Interventricular Septum' },
-      { id: 'fossa-ovalis', name: 'Fossa Ovalis' },
-      { id: 'apex', name: 'Apex' },
-      { id: 'base-of-heart', name: 'Base of Heart' },
-    ],
-  },
-  {
-    category: 'Valves',
-    items: [
-      { id: 'mitral-annulus', name: 'Mitral Valve' },
-      { id: 'aortic-valve-rcc', name: 'Aortic Valve' },
-      { id: 'tricuspid-annulus', name: 'Tricuspid Valve' },
-      { id: 'pulmonary-valve-cusps', name: 'Pulmonary Valve' },
-    ],
-  },
-  {
-    category: 'Great Vessels',
-    items: [
-      { id: 'ascending-aorta', name: 'Ascending Aorta' },
-      { id: 'aortic-arch', name: 'Aortic Arch' },
-      { id: 'pulmonary-trunk', name: 'Pulmonary Trunk' },
-      { id: 'svc', name: 'Superior Vena Cava' },
-      { id: 'ivc', name: 'Inferior Vena Cava' },
-    ],
-  },
-  {
-    category: 'Pericardium & Layers',
-    items: [
-      { id: 'fibrous-pericardium', name: 'Fibrous Pericardium' },
-      { id: 'epicardium', name: 'Epicardium' },
-      { id: 'myocardium', name: 'Myocardium' },
-      { id: 'endocardium', name: 'Endocardium' },
-    ],
-  },
-  {
-    category: 'Subvalvular',
-    items: [
-      { id: 'anterolateral-papillary-muscle', name: 'AL Papillary Muscle' },
-      { id: 'posteromedial-papillary-muscle', name: 'PM Papillary Muscle' },
-      { id: 'moderator-band', name: 'Moderator Band' },
-      { id: 'crista-terminalis', name: 'Crista Terminalis' },
-    ],
-  },
+const TABS: { value: PanelCategory; label: string }[] = [
+  { value: 'anatomy', label: 'Anatomy' },
+  { value: 'coronary', label: 'Coronary' },
+  { value: 'conduction', label: 'Conduct.' },
+  { value: 'conditions', label: 'Conditions' },
+  { value: 'procedures', label: 'Procedures' },
+  { value: 'medications', label: 'Meds' },
+  { value: 'cases', label: 'Cases' },
 ];
 
-const CORONARY_TREE = [
-  {
-    category: 'Left Coronary',
-    items: [
-      { id: 'lmca', name: 'Left Main' },
-      { id: 'lad-proximal', name: 'LAD Proximal' },
-      { id: 'lad-mid', name: 'LAD Mid' },
-      { id: 'lad-distal', name: 'LAD Distal' },
-      { id: 'd1', name: 'First Diagonal' },
-      { id: 'd2', name: 'Second Diagonal' },
-      { id: 'lcx-proximal', name: 'LCx Proximal' },
-      { id: 'om1', name: 'OM1' },
-      { id: 'om2', name: 'OM2' },
-    ],
-  },
-  {
-    category: 'Right Coronary',
-    items: [
-      { id: 'rca-proximal', name: 'RCA Proximal' },
-      { id: 'rca-mid', name: 'RCA Mid' },
-      { id: 'rca-distal', name: 'RCA Distal' },
-      { id: 'pda', name: 'PDA' },
-      { id: 'am-branch', name: 'Acute Marginal' },
-    ],
-  },
-];
-
-const CONDUCTION_TREE = [
-  { id: 'sa-node', name: 'SA Node' },
-  { id: 'av-node', name: 'AV Node' },
-  { id: 'bundle-of-his', name: 'Bundle of His' },
-  { id: 'right-bundle-branch', name: 'Right Bundle' },
-  { id: 'left-bundle-branch', name: 'Left Bundle' },
-  { id: 'left-anterior-fascicle', name: 'Left Anterior Fascicle' },
-  { id: 'left-posterior-fascicle', name: 'Left Posterior Fascicle' },
-  { id: 'purkinje-network-rv', name: 'Purkinje (RV)' },
-  { id: 'purkinje-network-lv', name: 'Purkinje (LV)' },
-];
-
-const CONDITION_CATEGORIES = [
-  { cat: 'Rhythm Disorders', ids: ['normal-sinus-rhythm', 'sinus-bradycardia', 'sinus-tachycardia', 'atrial-fibrillation', 'atrial-flutter', 'avnrt', 'wpw-syndrome'] },
-  { cat: 'AV Block', ids: ['first-degree-av-block', 'mobitz-type-i', 'mobitz-type-ii', 'third-degree-av-block'] },
-  { cat: 'Bundle Branch Blocks', ids: ['right-bundle-branch-block', 'left-bundle-branch-block', 'bifascicular-block'] },
-  { cat: 'Ventricular', ids: ['pvcs', 'monomorphic-vt', 'ventricular-fibrillation', 'torsades-de-pointes'] },
-  { cat: 'Ischemia / MI', ids: ['anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'nstemi', 'wellens-pattern'] },
-  { cat: 'Cardiomyopathies', ids: ['dilated-cardiomyopathy', 'hcm', 'takotsubo'] },
-  { cat: 'Heart Failure', ids: ['hfref', 'hfpef', 'cardiogenic-shock'] },
-  { cat: 'Valvular', ids: ['aortic-stenosis', 'mitral-regurgitation', 'mitral-stenosis'] },
-  { cat: 'Pericardial', ids: ['acute-pericarditis', 'cardiac-tamponade'] },
-  { cat: 'Congenital', ids: ['asd', 'vsd', 'pfo'] },
-];
-
-const PROCEDURE_CATEGORIES = [
-  {
-    cat: 'Cath Lab',
-    items: [
-      { id: 'coronary-angiography', name: 'Coronary Angiography' },
-      { id: 'ffr-ifr', name: 'FFR / iFR Assessment' },
-      { id: 'iabp-placement', name: 'IABP Placement' },
-      { id: 'impella-placement', name: 'Impella Placement' },
-      { id: 'intravascular-lithotripsy', name: 'Intravascular Lithotripsy (IVL)' },
-      { id: 'ivus-oct', name: 'IVUS / OCT Imaging' },
-      { id: 'left-heart-cath', name: 'Left Heart Catheterization' },
-      { id: 'pci-stent', name: 'PCI / Stent Placement' },
-      { id: 'right-heart-cath', name: 'Right Heart Catheterization' },
-      { id: 'rotational-atherectomy', name: 'Rotational Atherectomy' },
-    ],
-  },
-  {
-    cat: 'Electrophysiology',
-    items: [
-      { id: 'catheter-ablation', name: 'Catheter Ablation' },
-      { id: 'crt-implantation', name: 'CRT Implantation' },
-      { id: 'ep-study', name: 'EP Study' },
-      { id: 'his-bundle-pacing', name: 'His Bundle Pacing' },
-      { id: 'icd-implantation', name: 'ICD Implantation' },
-      { id: 'lead-extraction', name: 'Lead Extraction' },
-      { id: 'leadless-pacemaker', name: 'Leadless Pacemaker (Micra)' },
-      { id: 'pacemaker-implantation', name: 'Pacemaker Implantation' },
-    ],
-  },
-  {
-    cat: 'Structural Heart',
-    items: [
-      { id: 'alcohol-septal-ablation', name: 'Alcohol Septal Ablation' },
-      { id: 'asd-closure', name: 'ASD Closure' },
-      { id: 'bav', name: 'Balloon Aortic Valvuloplasty' },
-      { id: 'bmv', name: 'Balloon Mitral Valvuloplasty' },
-      { id: 'laa-occlusion', name: 'LAA Occlusion (Watchman)' },
-      { id: 'mitraclip-teer', name: 'MitraClip / TEER' },
-      { id: 'paravalvular-leak-closure', name: 'Paravalvular Leak Closure' },
-      { id: 'pfo-closure', name: 'PFO Closure' },
-      { id: 'tavr', name: 'TAVR' },
-    ],
-  },
-  {
-    cat: 'Interventional / Vascular',
-    items: [
-      { id: 'carotid-stenting', name: 'Carotid Artery Stenting' },
-      { id: 'catheter-directed-thrombolysis', name: 'Catheter-Directed Thrombolysis' },
-      { id: 'ivc-filter', name: 'IVC Filter Placement' },
-      { id: 'peripheral-angiography', name: 'Peripheral Angiography' },
-      { id: 'peripheral-intervention', name: 'Peripheral PTA / Stenting' },
-    ],
-  },
-  {
-    cat: 'Surgical',
-    items: [
-      { id: 'cabg', name: 'CABG' },
-      { id: 'heart-transplant', name: 'Heart Transplantation' },
-      { id: 'lvad-implantation', name: 'LVAD Implantation' },
-      { id: 'valve-surgery', name: 'Valve Repair / Replacement' },
-    ],
-  },
-  {
-    cat: 'Emergency',
-    items: [
-      { id: 'cardioversion', name: 'Cardioversion' },
-      { id: 'defibrillation', name: 'Defibrillation' },
-      { id: 'ecmo-cannulation', name: 'ECMO Cannulation' },
-      { id: 'endomyocardial-biopsy', name: 'Endomyocardial Biopsy' },
-      { id: 'pericardiocentesis', name: 'Pericardiocentesis' },
-      { id: 'temporary-pacing', name: 'Temporary Transvenous Pacing' },
-    ],
-  },
-];
-
-const CASE_LIST = [
-  { id: 'chest-pain-acs', name: 'Chest Pain / ACS', diff: 'beginner' },
-  { id: 'stemi-activation', name: 'STEMI Activation', diff: 'intermediate' },
-  { id: 'unstable-svt', name: 'Unstable SVT', diff: 'intermediate' },
-  { id: 'bradycardia-with-shock', name: 'Bradycardia with Shock', diff: 'advanced' },
-  { id: 'vt-storm', name: 'VT Storm', diff: 'expert' },
-  { id: 'tamponade', name: 'Cardiac Tamponade', diff: 'advanced' },
-  { id: 'pe-presentation', name: 'Pulmonary Embolism', diff: 'intermediate' },
-  { id: 'aortic-dissection', name: 'Aortic Dissection', diff: 'advanced' },
-  { id: 'cardiogenic-shock', name: 'Cardiogenic Shock', diff: 'expert' },
-];
+const matches = (name: string, q: string) => !q || name.toLowerCase().includes(q);
 
 export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
-  const { leftPanelOpen, searchQuery, activePanelCategory, setActivePanelCategory } = useAppStore();
+  const { leftPanelOpen, searchQuery, activePanelCategory, setActivePanelCategory, compareMode, setViewMode } = useAppStore();
   const activeTab = activePanelCategory;
-  const setActiveTab = setActivePanelCategory;
-  const { selectStructure, selectedStructureId } = useSceneStore();
-  const { selectCondition, selectedConditionId } = useConditionStore();
+  const { selectStructure, selectedStructureId, setMultiSelect, setCameraPresetByLabel } = useSceneStore();
+  const { selectCondition, selectedConditionId, setCompareCondition, compareConditionId } = useConditionStore();
   const { selectProcedure, selectedProcedureId } = useProcedureStore();
-  const { startCase, activeCaseId, resetCase } = useCaseStore();
-  const { setActiveProfile } = useECGStore();
-  const { setHeartRate } = useTimelineStore();
+  const { selectMedication, selectedMedicationId } = usePharmacologyStore();
+  const { startCase, activeCaseId } = useCaseStore();
+  const { setActiveProfile, setCompareProfile } = useECGStore();
+  const { setHeartRate, refresh } = useTimelineStore();
+  const learning = useLearningStore();
 
-  const handleSelectStructure = (id: string) => {
-    selectStructure(id);
-    resetCase(); // Clear active case when browsing anatomy
-  };
+  const q = searchQuery.trim().toLowerCase();
 
-  const handleSelectCondition = (id: string) => {
-    selectCondition(id);
-    resetCase(); // Clear active case when selecting a condition
-    // Sync ECG profile to the selected condition
-    const ecgProfile = CONDITION_TO_ECG_PROFILE[id] || 'normal-sinus';
-    setActiveProfile(ecgProfile);
-    // Set characteristic heart rate if defined
-    const hrPreset = CONDITION_HR_PRESETS[id];
-    if (hrPreset !== undefined && hrPreset > 0) {
-      setHeartRate(hrPreset);
-    }
-  };
-
-  const handleSelectCase = (id: string) => {
-    startCase(id, 'initial');
-    selectCondition(null); // Clear condition selection
-    selectStructure(null); // Clear structure selection
-    // Sync ECG and HR from case data
-    const caseInfo = CASE_DATA[id];
-    if (caseInfo) {
-      setActiveProfile(caseInfo.ecgProfile);
-      setHeartRate(caseInfo.heartRate);
-    }
-  };
-
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Chambers']));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Chambers', 'Left Coronary', 'Rhythm Disorders', 'Cath Lab', 'Antiplatelet']));
 
   const toggleCategory = (cat: string) => {
     setExpandedCategories((prev) => {
@@ -318,26 +54,124 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       return next;
     });
   };
+  // While searching, every group is expanded so matches are visible
+  const isExpanded = (cat: string) => q.length > 0 || expandedCategories.has(cat);
+
+  // ─── Selection handlers: each one syncs the 3D scene, the ECG and progress ───
+  const handleSelectStructure = (id: string) => {
+    selectStructure(id);
+    setMultiSelect([]);
+    learning.markStructureViewed(id);
+  };
+
+  const handleSelectCondition = (id: string) => {
+    const info = CONDITION_DATA[id];
+    if (compareMode && selectedConditionId && selectedConditionId !== id) {
+      // Compare mode: overlay this condition's ECG on top of the current one
+      setCompareCondition(id);
+      setCompareProfile(info?.ecgProfile ?? null);
+      return;
+    }
+    selectCondition(id);
+    setCompareCondition(null);
+    setCompareProfile(null);
+    selectStructure(null);
+    if (info) {
+      setActiveProfile(info.ecgProfile);
+      if (info.heartRate) setHeartRate(info.heartRate);
+      setMultiSelect(info.affectedAnatomy);
+    }
+    refresh();
+    learning.markConditionStudied(id);
+  };
+
+  const handleSelectProcedure = (id: string) => {
+    const info = PROCEDURE_DATA[id];
+    selectProcedure(id);
+    selectStructure(null);
+    if (info) {
+      setMultiSelect(info.anatomyTargets);
+      if (info.viewMode) setViewMode(info.viewMode);
+      if (info.ecgProfile) { setActiveProfile(info.ecgProfile); refresh(); }
+      const firstView = info.steps.find((s) => s.view)?.view;
+      if (firstView) setCameraPresetByLabel(firstView);
+    }
+    learning.markProcedureReviewed(id);
+  };
+
+  const handleSelectMedication = (id: string) => {
+    selectMedication(id);
+    learning.markMedicationViewed(id);
+  };
+
+  const handleSelectCase = (id: string) => {
+    startCase(id, 'initial');
+    selectStructure(null);
+    const caseInfo = CASE_DATA[id];
+    if (caseInfo) {
+      setActiveProfile(caseInfo.ecgProfile);
+      setHeartRate(caseInfo.heartRate);
+      refresh();
+    }
+    setMultiSelect([]);
+  };
+
+  const filteredConditionGroups = useMemo(() => CONDITION_CATEGORIES.map((g) => ({
+    cat: g.cat,
+    ids: g.ids.filter((id) => {
+      const c = CONDITION_DATA[id];
+      return matches(CONDITION_SHORT_NAMES[id] ?? id, q) || matches(c?.title ?? '', q) || matches(c?.category ?? '', q);
+    }),
+  })).filter((g) => g.ids.length > 0), [q]);
+
+  const filteredProcedureGroups = useMemo(() => PROCEDURES_BY_CATEGORY.map((g) => ({
+    cat: g.cat,
+    items: g.items.filter((p) => matches(p.name, q) || matches(g.cat, q)),
+  })).filter((g) => g.items.length > 0), [q]);
+
+  const filteredMedicationGroups = useMemo(() => MEDICATIONS_BY_CLASS.map((g) => ({
+    cat: g.cat,
+    items: g.items.filter((m) => {
+      const med = MEDICATION_DATA[m.id];
+      return matches(m.name, q) || matches(g.cat, q) || med.brandNames.some((b) => matches(b, q));
+    }),
+  })).filter((g) => g.items.length > 0), [q]);
 
   if (!leftPanelOpen) return null;
 
-  const tabs: { value: PanelCategory; label: string }[] = [
-    { value: 'anatomy', label: 'Anatomy' },
-    { value: 'coronary', label: 'Coronary' },
-    { value: 'conduction', label: 'Conduct.' },
-    { value: 'conditions', label: 'Conditions' },
-    { value: 'procedures', label: 'Procedures' },
-    { value: 'cases', label: 'Cases' },
-  ];
+  const renderGroupHeader = (cat: string, count?: number) => (
+    <button
+      onClick={() => toggleCategory(cat)}
+      className="w-full flex items-center gap-1 px-2 py-1.5 text-slate-300 hover:text-white font-medium"
+    >
+      <span className="text-[10px]">{isExpanded(cat) ? '▼' : '▶'}</span>
+      <span className="truncate">{cat}</span>
+      {count !== undefined && <span className="ml-auto text-[10px] text-slate-600">{count}</span>}
+    </button>
+  );
+
+  const renderItem = (item: NavItem, selected: boolean, onClick: () => void, viewed: boolean, activeClass = 'bg-cardiac-accent/20 text-cardiac-accent') => (
+    <button
+      key={item.id}
+      onClick={onClick}
+      title={item.name}
+      className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+        selected ? activeClass : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
+      }`}
+    >
+      <span className="truncate flex-1">{item.name}</span>
+      {viewed && <span className="text-[9px] text-emerald-500/80 shrink-0" title="Viewed">✓</span>}
+    </button>
+  );
 
   return (
     <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden">
       {/* Tab selector */}
       <div className="flex border-b border-slate-700 overflow-x-auto">
-        {tabs.map((tab) => (
+        {TABS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
+            onClick={() => setActivePanelCategory(tab.value)}
             className={`px-2 py-2 text-xs whitespace-nowrap transition-colors ${
               activeTab === tab.value
                 ? 'text-cardiac-accent border-b-2 border-cardiac-accent'
@@ -349,188 +183,148 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
         ))}
       </div>
 
+      {/* Compare-mode hint */}
+      {activeTab === 'conditions' && compareMode && (
+        <div className="px-2 py-1.5 text-[10px] bg-blue-900/30 text-blue-300 border-b border-blue-800/40">
+          Compare mode: click a second condition to overlay its ECG in blue.
+          {compareConditionId && <span className="block text-blue-200 mt-0.5">Comparing with {CONDITION_SHORT_NAMES[compareConditionId] ?? compareConditionId}</span>}
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-2 text-xs">
         {activeTab === 'anatomy' && (
           <div className="space-y-1">
-            {ANATOMY_TREE.map((group) => (
-              <div key={group.category}>
-                <button
-                  onClick={() => toggleCategory(group.category)}
-                  className="w-full flex items-center gap-1 px-2 py-1.5 text-slate-300 hover:text-white font-medium"
-                >
-                  <span className="text-[10px]">{expandedCategories.has(group.category) ? '▼' : '▶'}</span>
-                  {group.category}
-                </button>
-                {expandedCategories.has(group.category) && (
-                  <div className="ml-3 space-y-0.5">
-                    {group.items
-                      .filter((item) => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleSelectStructure(item.id)}
-                          className={`w-full text-left px-2 py-1 rounded transition-colors ${
-                            selectedStructureId === item.id
-                              ? 'bg-cardiac-accent/20 text-cardiac-accent'
-                              : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-                          }`}
-                        >
-                          {item.name}
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            {ANATOMY_TREE.map((group) => {
+              const items = group.items.filter((i) => matches(i.name, q));
+              if (items.length === 0) return null;
+              return (
+                <div key={group.category}>
+                  {renderGroupHeader(group.category)}
+                  {isExpanded(group.category) && (
+                    <div className="ml-3 space-y-0.5">
+                      {items.map((item) => renderItem(item, selectedStructureId === item.id, () => handleSelectStructure(item.id), learning.structuresViewed.includes(item.id)))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
         {activeTab === 'coronary' && (
           <div className="space-y-1">
-            {CORONARY_TREE.map((group) => (
-              <div key={group.category}>
-                <button
-                  onClick={() => toggleCategory(group.category)}
-                  className="w-full flex items-center gap-1 px-2 py-1.5 text-slate-300 hover:text-white font-medium"
-                >
-                  <span className="text-[10px]">{expandedCategories.has(group.category) ? '▼' : '▶'}</span>
-                  {group.category}
-                </button>
-                {expandedCategories.has(group.category) && (
-                  <div className="ml-3 space-y-0.5">
-                    {group.items
-                      .filter((item) => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelectStructure(item.id)}
-                        className={`w-full text-left px-2 py-1 rounded transition-colors ${
-                          selectedStructureId === item.id
-                            ? 'bg-cardiac-red/20 text-cardiac-red'
-                            : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-                        }`}
-                      >
-                        {item.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            {CORONARY_TREE.map((group) => {
+              const items = group.items.filter((i) => matches(i.name, q));
+              if (items.length === 0) return null;
+              return (
+                <div key={group.category}>
+                  {renderGroupHeader(group.category)}
+                  {isExpanded(group.category) && (
+                    <div className="ml-3 space-y-0.5">
+                      {items.map((item) => renderItem(item, selectedStructureId === item.id, () => handleSelectStructure(item.id), learning.structuresViewed.includes(item.id), 'bg-cardiac-red/20 text-cardiac-red'))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
         {activeTab === 'conduction' && (
           <div className="space-y-0.5">
-            {CONDUCTION_TREE.filter((item) => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase())).map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleSelectStructure(item.id)}
-                className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
-                  selectedStructureId === item.id
-                    ? 'bg-cardiac-conduction/20 text-cardiac-conduction'
-                    : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-                }`}
-              >
-                {item.name}
-              </button>
-            ))}
+            {CONDUCTION_TREE.filter((i) => matches(i.name, q)).map((item) =>
+              renderItem(item, selectedStructureId === item.id, () => handleSelectStructure(item.id), learning.structuresViewed.includes(item.id), 'bg-cardiac-conduction/20 text-cardiac-conduction'),
+            )}
           </div>
         )}
 
         {activeTab === 'conditions' && (
           <div className="space-y-1">
-            {CONDITION_CATEGORIES.map((group) => (
+            {filteredConditionGroups.map((group) => (
               <div key={group.cat}>
-                <button
-                  onClick={() => toggleCategory(group.cat)}
-                  className="w-full flex items-center gap-1 px-2 py-1.5 text-slate-300 hover:text-white font-medium"
-                >
-                  <span className="text-[10px]">{expandedCategories.has(group.cat) ? '▼' : '▶'}</span>
-                  {group.cat}
-                </button>
-                {expandedCategories.has(group.cat) && (
+                {renderGroupHeader(group.cat, group.ids.length)}
+                {isExpanded(group.cat) && (
                   <div className="ml-3 space-y-0.5">
-                    {group.ids
-                      .filter((id) => !searchQuery || id.replace(/-/g, ' ').includes(searchQuery.toLowerCase()))
-                      .map((id) => (
-                        <button
-                          key={id}
-                          onClick={() => handleSelectCondition(id)}
-                          className={`w-full text-left px-2 py-1 rounded transition-colors capitalize ${
-                            selectedConditionId === id
-                              ? 'bg-cardiac-accent/20 text-cardiac-accent'
-                              : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-                          }`}
-                        >
-                          {id.replace(/-/g, ' ')}
-                        </button>
-                      ))}
+                    {group.ids.map((id) => {
+                      const isCompare = compareConditionId === id;
+                      return renderItem(
+                        { id, name: CONDITION_SHORT_NAMES[id] ?? id.replace(/-/g, ' ') },
+                        selectedConditionId === id || isCompare,
+                        () => handleSelectCondition(id),
+                        learning.conditionsStudied.includes(id),
+                        isCompare ? 'bg-blue-500/20 text-blue-300' : 'bg-cardiac-accent/20 text-cardiac-accent',
+                      );
+                    })}
                   </div>
                 )}
               </div>
             ))}
+            {filteredConditionGroups.length === 0 && <p className="text-slate-500 px-2">No conditions match “{searchQuery}”.</p>}
           </div>
         )}
 
         {activeTab === 'procedures' && (
           <div className="space-y-1">
-            {PROCEDURE_CATEGORIES.map((group) => (
+            {filteredProcedureGroups.map((group) => (
               <div key={group.cat}>
-                <button
-                  onClick={() => toggleCategory(group.cat)}
-                  className="w-full flex items-center gap-1 px-2 py-1.5 text-slate-300 hover:text-white font-medium"
-                >
-                  <span className="text-[10px]">{expandedCategories.has(group.cat) ? '▼' : '▶'}</span>
-                  {group.cat}
-                </button>
-                {expandedCategories.has(group.cat) && (
+                {renderGroupHeader(group.cat, group.items.length)}
+                {isExpanded(group.cat) && (
                   <div className="ml-3 space-y-0.5">
-                    {group.items
-                      .filter((proc) => !searchQuery || proc.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((proc) => (
-                        <button
-                          key={proc.id}
-                          onClick={() => selectProcedure(proc.id)}
-                          className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
-                            selectedProcedureId === proc.id
-                              ? 'bg-cardiac-accent/20 text-cardiac-accent'
-                              : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-                          }`}
-                        >
-                          {proc.name}
-                        </button>
-                      ))}
+                    {group.items.map((proc) => renderItem(proc, selectedProcedureId === proc.id, () => handleSelectProcedure(proc.id), learning.proceduresReviewed.includes(proc.id)))}
                   </div>
                 )}
               </div>
             ))}
+            {filteredProcedureGroups.length === 0 && <p className="text-slate-500 px-2">No procedures match “{searchQuery}”.</p>}
+          </div>
+        )}
+
+        {activeTab === 'medications' && (
+          <div className="space-y-1">
+            {filteredMedicationGroups.map((group) => (
+              <div key={group.cat}>
+                {renderGroupHeader(group.cat, group.items.length)}
+                {isExpanded(group.cat) && (
+                  <div className="ml-3 space-y-0.5">
+                    {group.items.map((med) => renderItem(med, selectedMedicationId === med.id, () => handleSelectMedication(med.id), learning.medicationsViewed.includes(med.id), 'bg-emerald-500/20 text-emerald-300'))}
+                  </div>
+                )}
+              </div>
+            ))}
+            {filteredMedicationGroups.length === 0 && <p className="text-slate-500 px-2">No medications match “{searchQuery}”.</p>}
           </div>
         )}
 
         {activeTab === 'cases' && (
           <div className="space-y-0.5">
-            {CASE_LIST.filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((c) => (
-              <button
-                key={c.id}
-                onClick={() => handleSelectCase(c.id)}
-                className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
-                  activeCaseId === c.id
-                    ? 'bg-cardiac-accent/20 text-cardiac-accent'
-                    : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-                }`}
-              >
-                <span>{c.name}</span>
-                <span className={`ml-1 text-[10px] ${
-                  c.diff === 'beginner' ? 'text-green-400' :
-                  c.diff === 'intermediate' ? 'text-yellow-400' :
-                  c.diff === 'advanced' ? 'text-orange-400' : 'text-red-400'
-                }`}>
-                  ({c.diff})
-                </span>
-              </button>
-            ))}
+            {CASE_LIST.filter((c) => matches(c.name, q) || matches(c.diff, q)).map((c) => {
+              const done = learning.casesCompleted.includes(c.id);
+              const best = learning.caseScores[c.id];
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => handleSelectCase(c.id)}
+                  className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
+                    activeCaseId === c.id
+                      ? 'bg-cardiac-accent/20 text-cardiac-accent'
+                      : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="truncate flex-1">{c.name}</span>
+                    {done && <span className="text-[9px] text-emerald-500/80" title={`Best score ${best ?? 0}`}>✓ {best}</span>}
+                  </div>
+                  <span className={`text-[10px] ${
+                    c.diff === 'beginner' ? 'text-green-400' :
+                    c.diff === 'intermediate' ? 'text-yellow-400' :
+                    c.diff === 'advanced' ? 'text-orange-400' : 'text-red-400'
+                  }`}>
+                    {c.diff}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

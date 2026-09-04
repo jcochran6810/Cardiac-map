@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
+import React, { Suspense, useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Html, Environment, ContactShadows, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -651,9 +651,8 @@ function BasalCap() {
 // ─── Heart mesh (realistic GLB model with textured surface) ───────────
 function HeartMesh() {
   const ref = useRef<THREE.Group>(null);
-  const { cycleProgress, playing } = useTimelineStore();
-  const { selectedStructureId, hoveredStructureId, selectStructure, hoverStructure } = useSceneStore();
-  const { viewMode } = useAppStore();
+  const { selectedStructureId, hoverStructure, multiSelectIds } = useSceneStore();
+  const { viewMode, labelsVisible } = useAppStore();
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
 
   const { scene } = useGLTF('/models/heart_closed.glb');
@@ -692,6 +691,11 @@ function HeartMesh() {
       if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshPhysicalMaterial) {
         child.material.onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms) => {
           shader.uniforms.uCycleProgress = { value: 0 };
+          shader.uniforms.uAtrialProgress = { value: 0 };
+          shader.uniforms.uAtriaActive = { value: 1 };
+          shader.uniforms.uVentActive = { value: 1 };
+          shader.uniforms.uFib = { value: 0 };
+          shader.uniforms.uTime = { value: 0 };
           shaderRefs.current.push(shader);
 
           // Vertex: regional contraction deformation
@@ -699,27 +703,36 @@ function HeartMesh() {
             '#include <common>',
             `#include <common>
             uniform float uCycleProgress;
+            uniform float uAtrialProgress;
+            uniform float uAtriaActive;
+            uniform float uVentActive;
+            uniform float uFib;
+            uniform float uTime;
             varying vec3 vLocalPos;`
           );
           shader.vertexShader = shader.vertexShader.replace(
             '#include <begin_vertex>',
             `#include <begin_vertex>
             vLocalPos = position;
-            // Atrial contraction during P wave (cycle 0.10-0.20)
-            float atrialMask = smoothstep(0.15, 0.45, position.y); // upper region = atria
-            float pOn  = smoothstep(0.10, 0.12, uCycleProgress);
-            float pOff = 1.0 - smoothstep(0.18, 0.22, uCycleProgress);
-            float atrialSqueeze = atrialMask * pOn * pOff * 0.045;
-            // Ventricular contraction during QRS-ST (cycle 0.28-0.50)
-            float ventMask = 1.0 - smoothstep(-0.6, 0.1, position.y); // lower region = ventricles
-            float qrsOn  = smoothstep(0.28, 0.30, uCycleProgress);
-            float qrsOff = 1.0 - smoothstep(0.42, 0.50, uCycleProgress);
-            float ventSqueeze = ventMask * qrsOn * qrsOff * 0.05;
-            // Apply squeeze: compress X/Z, elongate Y slightly
-            float squeeze = atrialSqueeze + ventSqueeze;
+            // The model's long axis is Z: base/atria at +Z, apex at -Z.
+            // Atria occupy roughly z 0.1..0.5; great vessels sit above 0.5.
+            float atrialMask = smoothstep(0.02, 0.22, position.z) * (1.0 - smoothstep(0.5, 0.72, position.z));
+            // Atrial systole follows the P wave (mechanical phase 0.14-0.28)
+            float pOn  = smoothstep(0.13, 0.17, uAtrialProgress);
+            float pOff = 1.0 - smoothstep(0.24, 0.30, uAtrialProgress);
+            float atrialSqueeze = atrialMask * pOn * pOff * 0.045 * uAtriaActive;
+            // Ventricular systole follows the QRS and lasts through the T wave (0.30-0.62)
+            float ventMask = 1.0 - smoothstep(-0.02, 0.16, position.z);
+            float qrsOn  = smoothstep(0.29, 0.34, uCycleProgress);
+            float qrsOff = 1.0 - smoothstep(0.56, 0.64, uCycleProgress);
+            float ventSqueeze = ventMask * qrsOn * qrsOff * 0.055 * uVentActive;
+            // Fibrillation: fine, disorganised quiver instead of a coordinated squeeze
+            float quiver = uFib * 0.012 * sin(uTime * 55.0 + position.x * 25.0 + position.z * 19.0);
+            // Apply squeeze: compress the short axes (X/Y), shorten the long axis (Z) toward the base
+            float squeeze = atrialSqueeze + ventSqueeze + quiver;
             transformed.x *= 1.0 - squeeze;
-            transformed.z *= 1.0 - squeeze;
-            transformed.y *= 1.0 + squeeze * 0.4;`
+            transformed.y *= 1.0 - squeeze;
+            transformed.z += ventSqueeze * 0.35 * (0.2 - position.z) + atrialSqueeze * 0.2 * (0.35 - position.z);`
           );
 
           // Fragment: activation glow overlay
@@ -727,22 +740,33 @@ function HeartMesh() {
             '#include <common>',
             `#include <common>
             uniform float uCycleProgress;
+            uniform float uAtrialProgress;
+            uniform float uAtriaActive;
+            uniform float uVentActive;
+            uniform float uFib;
+            uniform float uTime;
             varying vec3 vLocalPos;`
           );
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <emissivemap_fragment>',
             `#include <emissivemap_fragment>
-            // Atrial depolarization glow (warm yellow-orange) during P wave
-            float aGlow = smoothstep(0.15, 0.45, vLocalPos.y);
-            float pA = smoothstep(0.10, 0.13, uCycleProgress) * (1.0 - smoothstep(0.18, 0.22, uCycleProgress));
-            totalEmissiveRadiance += vec3(0.35, 0.18, 0.05) * aGlow * pA;
-            // Ventricular depolarization glow (brighter orange-red) during QRS
-            float vGlow = 1.0 - smoothstep(-0.6, 0.1, vLocalPos.y);
-            float qrsG = smoothstep(0.28, 0.30, uCycleProgress) * (1.0 - smoothstep(0.38, 0.45, uCycleProgress));
-            totalEmissiveRadiance += vec3(0.4, 0.12, 0.04) * vGlow * qrsG;
-            // Repolarization glow (subtle blue-purple) during T wave
-            float tG = smoothstep(0.48, 0.52, uCycleProgress) * (1.0 - smoothstep(0.60, 0.66, uCycleProgress));
-            totalEmissiveRadiance += vec3(0.08, 0.05, 0.25) * vGlow * tG;`
+            // Atrial depolarization glow (warm yellow-orange) during the P wave (0.12-0.20)
+            float aGlow = smoothstep(0.02, 0.22, vLocalPos.z) * (1.0 - smoothstep(0.5, 0.72, vLocalPos.z));
+            float pA = smoothstep(0.11, 0.14, uAtrialProgress) * (1.0 - smoothstep(0.19, 0.23, uAtrialProgress));
+            totalEmissiveRadiance += vec3(0.35, 0.18, 0.05) * aGlow * pA * uAtriaActive;
+            // Ventricular depolarization glow (orange-red) sweeping base→apex during the QRS (0.27-0.38)
+            float vGlow = 1.0 - smoothstep(-0.02, 0.16, vLocalPos.z);
+            float depth = clamp((0.15 - vLocalPos.z) / 0.85, 0.0, 1.0); // 0 at base, 1 at apex
+            float front = (uCycleProgress - 0.27) / 0.11;             // 0..1 across the QRS
+            float qrsG = smoothstep(front - 0.35, front, depth) * (1.0 - smoothstep(front, front + 0.35, depth));
+            qrsG *= step(0.24, uCycleProgress) * (1.0 - smoothstep(0.40, 0.46, uCycleProgress));
+            totalEmissiveRadiance += vec3(0.45, 0.13, 0.04) * vGlow * qrsG * 1.4 * uVentActive;
+            // Repolarization glow (subtle blue-purple) during the T wave (0.49-0.61)
+            float tG = smoothstep(0.48, 0.52, uCycleProgress) * (1.0 - smoothstep(0.60, 0.65, uCycleProgress));
+            totalEmissiveRadiance += vec3(0.08, 0.05, 0.25) * vGlow * tG * uVentActive;
+            // Fibrillating myocardium shimmers chaotically
+            float shimmer = uFib * (0.5 + 0.5 * sin(uTime * 40.0 + vLocalPos.x * 30.0 + vLocalPos.z * 22.0));
+            totalEmissiveRadiance += vec3(0.35, 0.08, 0.05) * vGlow * shimmer;`
           );
         };
         child.material.needsUpdate = true;
@@ -751,9 +775,15 @@ function HeartMesh() {
   }, [heartModel]);
 
   // Update shader uniforms every frame
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    const t = useTimelineStore.getState();
     for (const shader of shaderRefs.current) {
-      shader.uniforms.uCycleProgress.value = cycleProgress;
+      shader.uniforms.uCycleProgress.value = t.cycleProgress;
+      shader.uniforms.uAtrialProgress.value = t.atrialProgress;
+      shader.uniforms.uAtriaActive.value = t.beatHasP ? 1 : 0;
+      shader.uniforms.uVentActive.value = t.beatHasQRS ? 1 : 0;
+      shader.uniforms.uFib.value = t.fibrillating ? 1 : 0;
+      shader.uniforms.uTime.value = clock.elapsedTime;
     }
   });
 
@@ -820,7 +850,7 @@ function HeartMesh() {
       />
 
       {/* Yellow label with leader line - only when selected from left menu */}
-      {activeCenter && (
+      {activeCenter && labelsVisible && (
         <group position={activeCenter}>
           <HighlightRing />
           <group>
@@ -841,6 +871,24 @@ function HeartMesh() {
           </group>
         </group>
       )}
+
+      {/* Secondary highlights: anatomy affected by a condition or targeted by a procedure */}
+      {multiSelectIds.map((id) => {
+        const center = STRUCTURE_CENTERS[id];
+        if (!center || id === activeId) return null;
+        return (
+          <group key={id} position={center}>
+            <SecondaryRing />
+            {labelsVisible && (
+              <Html position={[0, 0, 0.12]} center distanceFactor={4} style={{ pointerEvents: 'none' }}>
+                <div className="bg-red-500/80 text-white text-[10px] px-1.5 py-0.5 rounded shadow whitespace-nowrap">
+                  {STRUCTURE_NAMES[id] ?? id.replace(/-/g, ' ')}
+                </div>
+              </Html>
+            )}
+          </group>
+        );
+      })}
 
       {/* Black hover tooltip - shows anatomy name on hover */}
       {hoverName && (
@@ -864,6 +912,22 @@ function HighlightRing() {
     <mesh ref={ref} rotation={[Math.PI / 2, 0, 0]}>
       <ringGeometry args={[0.08, 0.12, 32]} />
       <meshBasicMaterial color="#00ccff" transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  );
+}
+
+// Static red ring marking a secondary highlight (affected / targeted anatomy)
+function SecondaryRing() {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (ref.current) {
+      (ref.current.material as THREE.MeshBasicMaterial).opacity = 0.35 + Math.sin(clock.elapsedTime * 2) * 0.15;
+    }
+  });
+  return (
+    <mesh ref={ref} rotation={[Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.06, 0.09, 32]} />
+      <meshBasicMaterial color="#ef4444" transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
     </mesh>
   );
 }
@@ -1912,43 +1976,43 @@ const CONDUCTION_PATHWAYS = [
   // SA node at SVC-RA junction, spreads down through right atrium to AV node
   { name: 'SA → RA',
     points: [[0.38, 0.05, 0.55], [0.35, 0.0, 0.45], [0.25, -0.02, 0.35], [0.1, 0.0, 0.25]] as [number,number,number][],
-    startTime: 0.10, endTime: 0.18, color: new THREE.Color('#fbbf24') },
+    startTime: 0.12, endTime: 0.17, color: new THREE.Color('#fbbf24'), atrial: true },
   // SA node → Left atrial spread (P wave, via Bachmann's bundle)
   { name: 'SA → LA',
     points: [[0.38, 0.05, 0.55], [0.2, 0.0, 0.5], [0.0, -0.05, 0.4], [-0.25, -0.1, 0.3]] as [number,number,number][],
-    startTime: 0.11, endTime: 0.20, color: new THREE.Color('#fbbf24') },
+    startTime: 0.13, endTime: 0.20, color: new THREE.Color('#fbbf24'), atrial: true },
   // AV node → Bundle of His (PR interval delay)
   { name: 'AV → His',
     points: [[0.1, 0.0, 0.25], [0.08, 0.02, 0.22], [0.05, 0.04, 0.2], [0.02, 0.05, 0.18]] as [number,number,number][],
-    startTime: 0.22, endTime: 0.28, color: new THREE.Color('#f59e0b') },
+    startTime: 0.20, endTime: 0.27, color: new THREE.Color('#f59e0b'), atrial: false },
   // His → Right Bundle Branch (QRS) — travels along the right side of the interventricular septum
   { name: 'RBB',
     points: [[0.02, 0.05, 0.18], [0.08, 0.08, 0.1], [0.12, 0.1, -0.1], [0.15, 0.1, -0.3], [0.2, 0.08, -0.5]] as [number,number,number][],
-    startTime: 0.28, endTime: 0.35, color: new THREE.Color('#ef4444') },
+    startTime: 0.27, endTime: 0.32, color: new THREE.Color('#ef4444'), atrial: false },
   // His → Left Bundle Branch (QRS) — travels along the left side of the interventricular septum
   { name: 'LBB',
     points: [[0.02, 0.05, 0.18], [-0.04, 0.02, 0.1], [-0.1, 0.0, -0.1], [-0.12, -0.05, -0.3], [-0.15, -0.05, -0.5]] as [number,number,number][],
-    startTime: 0.28, endTime: 0.35, color: new THREE.Color('#ef4444') },
+    startTime: 0.27, endTime: 0.32, color: new THREE.Color('#ef4444'), atrial: false },
   // RBB → Purkinje spread (RV wall, QRS) — multiple branches for surface coverage
   { name: 'Purkinje RV anterior',
     points: [[0.15, 0.1, -0.3], [0.22, 0.12, -0.25], [0.30, 0.14, -0.15], [0.35, 0.12, -0.05]] as [number,number,number][],
-    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+    startTime: 0.30, endTime: 0.36, color: new THREE.Color('#f87171'), atrial: false },
   { name: 'Purkinje RV lateral',
     points: [[0.15, 0.1, -0.3], [0.25, 0.08, -0.35], [0.32, 0.05, -0.45], [0.30, 0.0, -0.55]] as [number,number,number][],
-    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+    startTime: 0.30, endTime: 0.36, color: new THREE.Color('#f87171'), atrial: false },
   { name: 'Purkinje RV inferior',
     points: [[0.20, 0.08, -0.5], [0.22, 0.0, -0.55], [0.18, -0.05, -0.6]] as [number,number,number][],
-    startTime: 0.34, endTime: 0.38, color: new THREE.Color('#fb923c') },
+    startTime: 0.33, endTime: 0.38, color: new THREE.Color('#fb923c'), atrial: false },
   // LBB → Purkinje spread (LV wall, QRS) — multiple branches for surface coverage
   { name: 'Purkinje LV anterior',
     points: [[-0.12, -0.05, -0.3], [-0.20, -0.10, -0.20], [-0.30, -0.15, -0.10], [-0.35, -0.12, 0.0]] as [number,number,number][],
-    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+    startTime: 0.30, endTime: 0.36, color: new THREE.Color('#f87171'), atrial: false },
   { name: 'Purkinje LV lateral',
     points: [[-0.12, -0.05, -0.3], [-0.22, -0.08, -0.35], [-0.30, -0.05, -0.45], [-0.28, 0.0, -0.55]] as [number,number,number][],
-    startTime: 0.32, endTime: 0.37, color: new THREE.Color('#f87171') },
+    startTime: 0.30, endTime: 0.36, color: new THREE.Color('#f87171'), atrial: false },
   { name: 'Purkinje LV apical',
     points: [[-0.15, -0.05, -0.5], [-0.12, -0.08, -0.6], [-0.05, -0.05, -0.65]] as [number,number,number][],
-    startTime: 0.34, endTime: 0.38, color: new THREE.Color('#fb923c') },
+    startTime: 0.33, endTime: 0.38, color: new THREE.Color('#fb923c'), atrial: false },
 ];
 
 // Single animated conduction arrow along a curve
@@ -2108,7 +2172,8 @@ function ConductionArrow({ curve, startTime, endTime, color, cycleProgress }: {
 }
 
 function ConductionOverlay() {
-  const { cycleProgress, playing } = useTimelineStore();
+  const { cycleProgress, atrialProgress, playing, beatHasP, beatHasQRS, fibrillating } = useTimelineStore();
+  const { labelsVisible } = useAppStore();
 
   // Build curves from pathway definitions
   const pathData = useMemo(() =>
@@ -2128,18 +2193,24 @@ function ConductionOverlay() {
   return (
     <group>
       {/* Animated arrow paths */}
-      {pathData.map((p, i) => (
-        <ConductionArrow
-          key={i}
-          curve={p.curve}
-          startTime={p.startTime}
-          endTime={p.endTime}
-          color={p.color}
-          cycleProgress={cycleProgress}
-        />
-      ))}
+      {!fibrillating && pathData.map((p, i) => {
+        // Atrial paths follow the atrial timeline; AV/His/bundle/Purkinje paths only
+        // run on beats that actually conduct to the ventricles (blocked P → no arrows).
+        if (p.atrial && !beatHasP) return null;
+        if (!p.atrial && !beatHasQRS) return null;
+        return (
+          <ConductionArrow
+            key={i}
+            curve={p.curve}
+            startTime={p.startTime}
+            endTime={p.endTime}
+            color={p.color}
+            cycleProgress={p.atrial ? atrialProgress : cycleProgress}
+          />
+        );
+      })}
       {/* Node labels */}
-      {playing && nodes.map((node, i) => (
+      {playing && labelsVisible && nodes.map((node, i) => (
         <group key={i} position={node.pos}>
           <mesh>
             <sphereGeometry args={[0.03, 12, 12]} />
@@ -2183,9 +2254,12 @@ function BloodFlowParticles() {
   useFrame((_, dt) => {
     if (!ref.current || !playing) return;
     const p = ref.current.geometry.attributes.position.array as Float32Array;
+    const ejecting = cycleProgress > 0.36 && cycleProgress < 0.6;
     for (let i = 0; i < count; i++) {
-      p[i * 3 + 1] -= dt * 0.5 * (cycleProgress > 0.16 && cycleProgress < 0.4 ? 2 : 0.5);
-      if (p[i * 3 + 1] < -1.4) p[i * 3 + 1] = 1.4;
+      // Blood is pulled toward the apex during filling and pushed toward the base during ejection
+      p[i * 3 + 2] += dt * 0.5 * (ejecting ? 2.2 : -0.6);
+      if (p[i * 3 + 2] > 1.2) p[i * 3 + 2] = -1.2;
+      if (p[i * 3 + 2] < -1.2) p[i * 3 + 2] = 1.2;
     }
     ref.current.geometry.attributes.position.needsUpdate = true;
   });
@@ -2309,6 +2383,24 @@ function BackgroundDeselect() {
   );
 }
 
+// ─── Environment map with graceful failure ─────────────────────────────
+class EnvironmentBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() { /* swallow: the scene lights are sufficient */ }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+function SafeEnvironment() {
+  return (
+    <EnvironmentBoundary>
+      <Suspense fallback={null}>
+        <Environment preset="studio" />
+      </Suspense>
+    </EnvironmentBoundary>
+  );
+}
+
 // ─── Main scene ────────────────────────────────────────────────────────
 export default function HeartScene() {
   return (
@@ -2359,7 +2451,9 @@ export default function HeartScene() {
           mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
           touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
         />
-        <Environment preset="studio" />
+        {/* The HDR environment map comes from a CDN; if it cannot be fetched
+            (offline, blocked network) fall back silently to the scene lights. */}
+        <SafeEnvironment />
       </Canvas>
     </div>
   );

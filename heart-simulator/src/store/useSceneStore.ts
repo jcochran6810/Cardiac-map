@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-interface CameraPreset {
+export interface CameraPreset {
   position: [number, number, number];
   target: [number, number, number];
   up?: [number, number, number];
@@ -11,6 +11,7 @@ interface CameraPreset {
 interface SceneState {
   selectedStructureId: string | null;
   hoveredStructureId: string | null;
+  /** Secondary highlights (e.g. anatomy affected by a condition or targeted by a procedure). */
   multiSelectIds: string[];
   visibleLayers: string[];
   transparencyMap: Record<string, number>;
@@ -23,6 +24,7 @@ interface SceneState {
   selectStructure: (id: string | null) => void;
   hoverStructure: (id: string | null) => void;
   toggleMultiSelect: (id: string) => void;
+  setMultiSelect: (ids: string[]) => void;
   clearMultiSelect: () => void;
   setLayerVisibility: (layer: string, visible: boolean) => void;
   setTransparency: (structureId: string, opacity: number) => void;
@@ -31,6 +33,8 @@ interface SceneState {
   toggleFlyThrough: () => void;
   isolateStructure: (id: string | null) => void;
   setCameraPreset: (preset: CameraPreset | null) => void;
+  /** Fly to a preset by its label (e.g. "LAO Cranial"). */
+  setCameraPresetByLabel: (label: string) => void;
 }
 
 const DEFAULT_LAYERS = [
@@ -75,6 +79,7 @@ export const useSceneStore = create<SceneState>((set) => ({
       ? s.multiSelectIds.filter((i) => i !== id)
       : [...s.multiSelectIds, id],
   })),
+  setMultiSelect: (ids) => set({ multiSelectIds: ids }),
   clearMultiSelect: () => set({ multiSelectIds: [] }),
   setLayerVisibility: (layer, visible) => set((s) => ({
     visibleLayers: visible
@@ -89,4 +94,8 @@ export const useSceneStore = create<SceneState>((set) => ({
   toggleFlyThrough: () => set((s) => ({ flyThroughMode: !s.flyThroughMode })),
   isolateStructure: (id) => set({ isolatedStructureId: id }),
   setCameraPreset: (cameraPreset) => set({ cameraPreset }),
+  setCameraPresetByLabel: (label) => {
+    const preset = CAMERA_PRESETS.find((p) => p.label === label);
+    if (preset) set({ cameraPreset: preset });
+  },
 }));

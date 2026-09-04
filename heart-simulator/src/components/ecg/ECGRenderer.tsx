@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { useECGStore, ECGLead } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { generateBeatSample, getLeadParams, CONDITION_MODIFIERS, generateVFibSample, generateAFibSample, generateFlutterBaseline } from '@/lib/ecg/waveformEngine';
+import { sampleECG, rhythmKindFor } from '@/lib/ecg/waveformEngine';
+import { ecgFeatureAt } from '@/lib/physiology/cycleTiming';
 
 // Standard 12-lead bisect layout: 4 columns × 3 rows
 // Col 0: Limb leads, Col 1: Augmented, Col 2: Right precordial, Col 3: Left precordial
@@ -22,20 +23,12 @@ const SELECTED_BORDER = 'rgba(245, 158, 11, 0.6)';
 const PLAYHEAD_COLOR = 'rgba(245, 158, 11, 0.35)';
 const PLAYHEAD_GLOW = 'rgba(245, 158, 11, 0.12)';
 
-// Playhead offset: 3 major grid squares (75px) from left edge of each cell
-const PLAYHEAD_OFFSET = 75;
+// ECG paper geometry: 1 small box = 5 px = 1 mm. 1 large box = 25 px = 5 mm.
+// At 25 mm/s one large box is 0.2 s; at 10 mm/mV one millivolt is 10 mm = 50 px.
+const PX_PER_MM = 5;
 
-// Phase label lookup for the playhead
-const PHASE_LABELS: Record<string, string> = {
-  'atrial-systole': 'P wave',
-  'isovolumetric-contraction': 'PR seg',
-  'rapid-ejection': 'QRS',
-  'reduced-ejection': 'QRS',
-  'isovolumetric-relaxation': 'ST seg',
-  'rapid-filling': 'T wave',
-  'diastasis': 'Baseline',
-  'atrial-relaxation': 'Baseline',
-};
+// Playhead offset: 3 major grid squares (75px) from the left edge of each lead cell
+const PLAYHEAD_OFFSET = 75;
 
 interface ECGRendererProps {
   width?: number;
@@ -48,28 +41,20 @@ interface ECGRendererProps {
 export default function ECGRenderer({ width, height, compact = false, verticalStack = false, inspectLead = null }: ECGRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  // dragOffsetRef holds only the manual drag offset; auto-scroll is computed from time
+  // dragOffsetRef holds only the manual drag offset (px); auto-scroll is computed from time
   const dragOffsetRef = useRef(0);
   const isDraggingRef = useRef(false);
   const dragStartXRef = useRef(0);
   const lastDragXRef = useRef(0);
 
-  const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, showBeatMarkers, showAnnotations, caliperMode, selectedLead, selectLead } = useECGStore();
-  const { time, heartRate, speed, playing, frozen, currentPhase, cycleProgress } = useTimelineStore();
+  const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, selectedLead, selectLead } = useECGStore();
+  // Timeline values change every frame; they are read directly inside the draw
+  // loop (not subscribed) so this component does not re-render 60x per second.
 
   // Track layout for click detection
   const layoutRef = useRef<{ leads: ECGLead[]; cols: number; rows: number; cellW: number; cellH: number }>({
     leads: [], cols: 1, rows: 1, cellW: 0, cellH: 0,
   });
-
-  const conditionMod = useMemo(() => {
-    return CONDITION_MODIFIERS[activeProfileId] || {};
-  }, [activeProfileId]);
-
-  const compareMod = useMemo(() => {
-    if (!compareProfileId) return null;
-    return CONDITION_MODIFIERS[compareProfileId] || {};
-  }, [compareProfileId]);
 
   // Mouse drag handlers for scrubbing + click-to-select lead
   useEffect(() => {
@@ -117,51 +102,43 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       canvas.style.cursor = 'grab';
     };
 
+    const onDoubleClick = () => {
+      // Double-click re-centres the strip on the live playhead
+      dragOffsetRef.current = 0;
+    };
+
     canvas.style.cursor = 'grab';
     canvas.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('mouseleave', onMouseLeave);
+    canvas.addEventListener('dblclick', onDoubleClick);
 
     return () => {
       canvas.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('mouseleave', onMouseLeave);
+      canvas.removeEventListener('dblclick', onDoubleClick);
     };
   }, [selectLead]);
 
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    const gridSize = 5;
+    const gridSize = PX_PER_MM;
     ctx.strokeStyle = GRID_COLOR;
     ctx.lineWidth = 0.5;
-    for (let x = 0; x < w; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y < h; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
-    const majorSize = 25;
+    ctx.beginPath();
+    for (let x = 0; x < w; x += gridSize) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (let y = 0; y < h; y += gridSize) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+
+    const majorSize = PX_PER_MM * 5;
     ctx.strokeStyle = GRID_MAJOR_COLOR;
     ctx.lineWidth = 1;
-    for (let x = 0; x < w; x += majorSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y < h; y += majorSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
+    ctx.beginPath();
+    for (let x = 0; x < w; x += majorSize) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (let y = 0; y < h; y += majorSize) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
   }, []);
 
   const drawLead = useCallback((
@@ -171,57 +148,47 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     y: number,
     w: number,
     h: number,
-    scrollOffset: number,
-    mods: Partial<Record<string, number>>,
+    scrollOffsetPx: number,
+    pxPerMs: number,
+    profileId: string,
+    heartRate: number,
     color: string,
   ) => {
-    const params = getLeadParams(lead);
-    Object.assign(params, mods);
+    const pxPerMv = gain * PX_PER_MM;       // 10 mm/mV → 50 px per mV
+    const baseline = y + h * 0.58;
 
-    const gainScale = gain * 8;
-    const baseline = y + h / 2;
-    const rrPixels = (60 / heartRate) * sweepSpeed * 4;
+    // 1 mV calibration pulse at the left edge of the cell
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + 2, baseline);
+    ctx.lineTo(x + 4, baseline);
+    ctx.lineTo(x + 4, baseline - pxPerMv);
+    ctx.lineTo(x + 10, baseline - pxPerMv);
+    ctx.lineTo(x + 10, baseline);
+    ctx.lineTo(x + 12, baseline);
+    ctx.stroke();
 
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
     ctx.beginPath();
 
-    for (let px = 0; px < w; px++) {
-      const t = ((px + scrollOffset) % rrPixels) / rrPixels;
-      let sample: number;
-
-      if (activeProfileId === 'ventricular-fibrillation' || activeProfileId === 'vfib') {
-        sample = generateVFibSample(t);
-      } else if (activeProfileId === 'torsades') {
-        // Torsades: sinusoidal amplitude modulation (twisting) with wide QRS
-        const modulationFreq = 0.15;
-        const envelope = 0.3 + 0.7 * Math.abs(Math.sin(2 * Math.PI * modulationFreq * (px + scrollOffset) * 0.01));
-        sample = generateBeatSample(t, params) * envelope;
-      } else if (activeProfileId === 'atrial-fibrillation' || activeProfileId === 'afib') {
-        sample = generateAFibSample(t, params);
-      } else if (activeProfileId === 'atrial-flutter' || activeProfileId === 'aflutter') {
-        const beat = generateBeatSample(t, params);
-        const flutter = generateFlutterBaseline(t + scrollOffset * 0.001, 300);
-        sample = beat + flutter;
-      } else {
-        sample = generateBeatSample(t, params);
-      }
-
-      const py = baseline - sample * gainScale;
-
-      if (px === 0) {
-        ctx.moveTo(x + px, py);
-      } else {
-        ctx.lineTo(x + px, py);
-      }
+    const startPx = 12;
+    for (let px = startPx; px < w; px++) {
+      const tMs = (px - PLAYHEAD_OFFSET + scrollOffsetPx) / pxPerMs;
+      const sample = tMs < 0 ? 0 : sampleECG(tMs, lead, profileId, heartRate);
+      const py = baseline - sample * pxPerMv;
+      if (px === startPx) ctx.moveTo(x + px, py);
+      else ctx.lineTo(x + px, py);
     }
     ctx.stroke();
 
     // Lead label
     ctx.fillStyle = '#94A3B8';
-    ctx.font = compact ? '9px sans-serif' : '11px sans-serif';
-    ctx.fillText(lead, x + 3, y + 12);
-  }, [gain, sweepSpeed, heartRate, activeProfileId, compact]);
+    ctx.font = compact ? '9px sans-serif' : 'bold 11px sans-serif';
+    ctx.fillText(lead, x + 14, y + 12);
+  }, [gain, compact]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -229,6 +196,8 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    const { time, heartRate, cycleProgress, beatHasQRS, beatHasP, fibrillating, frozen } = useTimelineStore.getState();
 
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.width / dpr;
@@ -256,7 +225,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       cols = 1;
       rows = 1;
     } else if (useStandard12 && !compact) {
-      // Standard 12-lead bisect: 4 columns × 3 rows
       cols = 4;
       rows = 3;
     } else if (verticalStack) {
@@ -270,18 +238,13 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     const cellW = w / cols;
     const cellH = h / rows;
 
-    // Store layout for click detection
     layoutRef.current = { leads: leads as ECGLead[], cols, rows, cellW, cellH };
 
-    // Compute scroll offset synced to timeline time so the playhead
-    // correlates exactly with the 3D model's cardiac cycle phase.
-    // pxPerMs = pixels scrolled per millisecond of timeline time
-    const rrPixels = (60 / heartRate) * sweepSpeed * 4;
-    const cycleDurationMs = (60 / heartRate) * 1000;
-    const pxPerMs = rrPixels / cycleDurationMs;
-
-    // scrollOffset: time-based auto-scroll minus playhead offset, plus any manual drag
-    const scrollOffset = (time * pxPerMs) - PLAYHEAD_OFFSET + dragOffsetRef.current;
+    // Sweep: 25 mm/s → 125 px/s → 0.125 px per ms. The strip is scrolled by
+    // simulation time so the sample under the playhead is exactly the sample
+    // the 3D model and the hemodynamics engine are showing.
+    const pxPerMs = (sweepSpeed * PX_PER_MM) / 1000;
+    const scrollOffsetPx = time * pxPerMs + dragOffsetRef.current;
 
     leads.forEach((lead, i) => {
       const col = i % cols;
@@ -289,7 +252,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       const cx = col * cellW;
       const cy = row * cellH;
 
-      // Highlight selected lead cell
       if (selectedLead === lead) {
         ctx.fillStyle = SELECTED_BG;
         ctx.fillRect(cx, cy, cellW, cellH);
@@ -298,26 +260,23 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
         ctx.strokeRect(cx + 1, cy + 1, cellW - 2, cellH - 2);
       }
 
-      drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffset, conditionMod, TRACE_COLOR);
-
-      if (compareMod) {
-        drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffset, compareMod, COMPARE_COLOR);
+      if (compareProfileId) {
+        drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffsetPx, pxPerMs, compareProfileId, heartRate, COMPARE_COLOR);
       }
+      drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffsetPx, pxPerMs, activeProfileId, heartRate, TRACE_COLOR);
     });
 
-    // ─── Draw playhead line in each cell ──────────────────────────
+    // ─── Playhead line in each cell ───────────────────────────────
     const playheadX = PLAYHEAD_OFFSET;
+    const scrubbed = Math.abs(dragOffsetRef.current) > 0.5;
     if (playheadX > 0 && playheadX < cellW) {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const idx = r * cols + c;
           if (idx >= leads.length) continue;
-
-          const cx = c * cellW;
+          const lineX = c * cellW + playheadX;
           const cy = r * cellH;
-          const lineX = cx + playheadX;
 
-          // Glow
           ctx.strokeStyle = PLAYHEAD_GLOW;
           ctx.lineWidth = 4;
           ctx.beginPath();
@@ -325,7 +284,6 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
           ctx.lineTo(lineX, cy + cellH);
           ctx.stroke();
 
-          // Solid line
           ctx.strokeStyle = PLAYHEAD_COLOR;
           ctx.lineWidth = 1.5;
           ctx.setLineDash([4, 3]);
@@ -338,58 +296,59 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
       }
     }
 
-    // ─── Playhead label (top of canvas, once) ─────────────────────
-    const phaseLabel = PHASE_LABELS[currentPhase] || currentPhase;
-    const labelX = PLAYHEAD_OFFSET;
-    // Draw phase label badge
+    // ─── Playhead label (what the live heart is doing right now) ──
+    const kind = rhythmKindFor(activeProfileId);
+    let phaseLabel: string;
+    const feature = ecgFeatureAt(cycleProgress);
+    if (fibrillating) phaseLabel = 'V-Fib';
+    else if (!beatHasQRS && (feature === 'QRS' || feature === 'ST seg' || feature === 'T wave')) phaseLabel = 'Blocked P';
+    else if (!beatHasP && (feature === 'P wave' || feature === 'PR seg')) phaseLabel = kind === 'afib' ? 'f waves' : kind === 'aflutter' ? 'F waves' : kind === 'complete-block' ? 'AV dissociation' : 'No P';
+    else phaseLabel = feature;
+    if (scrubbed) phaseLabel = `${phaseLabel} · scrubbed (dbl-click to resync)`;
+
     ctx.font = 'bold 9px sans-serif';
     const textWidth = ctx.measureText(phaseLabel).width;
     const badgeW = textWidth + 8;
     const badgeH = 14;
-    const badgeX = labelX - badgeW / 2;
-    const badgeY = 1;
-
+    const badgeX = Math.max(2, PLAYHEAD_OFFSET - badgeW / 2);
     ctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
     ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
+    ctx.roundRect(badgeX, 1, badgeW, badgeH, 3);
     ctx.fill();
-
     ctx.fillStyle = '#000';
-    ctx.textAlign = 'center';
-    ctx.fillText(phaseLabel, labelX, badgeY + 10.5);
-    ctx.textAlign = 'left'; // reset
+    ctx.textAlign = 'left';
+    ctx.fillText(phaseLabel, badgeX + 4, 11.5);
 
-    // ─── Draw solid dividing lines between lead cells ─────────────
+    // ─── Solid dividing lines between lead cells ──────────────────
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
     ctx.lineWidth = 2.5;
-    for (let c = 1; c < cols; c++) {
-      const x = c * cellW;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let r = 1; r < rows; r++) {
-      const y = r * cellH;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
+    ctx.beginPath();
+    for (let c = 1; c < cols; c++) { ctx.moveTo(c * cellW, 0); ctx.lineTo(c * cellW, h); }
+    for (let r = 1; r < rows; r++) { ctx.moveTo(0, r * cellH); ctx.lineTo(w, r * cellH); }
+    ctx.stroke();
 
-    // Heart rate display
+    // Heart rate + paper settings
     ctx.fillStyle = '#F59E0B';
     ctx.font = 'bold 14px monospace';
-    ctx.fillText(`HR: ${heartRate} bpm`, w - 120, 18);
+    ctx.textAlign = 'right';
+    ctx.fillText(`HR ${fibrillating ? '---' : heartRate} bpm`, w - 8, 18);
+    ctx.fillStyle = '#64748B';
+    ctx.font = '9px monospace';
+    ctx.fillText(`${sweepSpeed} mm/s  ${gain} mm/mV`, w - 8, 30);
+    ctx.textAlign = 'left';
 
-    if (displayMode === 'frozen') {
+    if (displayMode === 'frozen' || frozen) {
       ctx.fillStyle = 'rgba(220, 38, 38, 0.8)';
       ctx.font = 'bold 12px sans-serif';
-      ctx.fillText('FROZEN', w - 120, 36);
+      ctx.fillText('FROZEN', w - 120, 44);
     }
+  }, [drawGrid, drawLead, visibleLeads, displayMode, activeProfileId, compareProfileId, compact, verticalStack, selectedLead, sweepSpeed, gain, inspectLead]);
 
-    animRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, speed, time, currentPhase, cycleProgress, conditionMod, compareMod, compact, verticalStack, selectedLead, sweepSpeed, inspectLead]);
+  // Keep the latest render function in a ref so a single persistent
+  // requestAnimationFrame loop can call it without being re-created (and
+  // cancelled) every time the timeline advances.
+  const renderRef = useRef(render);
+  useEffect(() => { renderRef.current = render; }, [render]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -406,13 +365,17 @@ export default function ECGRenderer({ width, height, compact = false, verticalSt
     });
 
     resizeObserver.observe(canvas.parentElement!);
-    animRef.current = requestAnimationFrame(render);
+    const loop = () => {
+      renderRef.current();
+      animRef.current = requestAnimationFrame(loop);
+    };
+    animRef.current = requestAnimationFrame(loop);
 
     return () => {
       resizeObserver.disconnect();
       cancelAnimationFrame(animRef.current);
     };
-  }, [render]);
+  }, []);
 
   return (
     <div className="w-full h-full relative ecg-grid">

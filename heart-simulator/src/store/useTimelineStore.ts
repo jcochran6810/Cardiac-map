@@ -1,31 +1,35 @@
 import { create } from 'zustand';
+import { CARDIAC_PHASES, phaseAtProgress, type CardiacPhase, type PhaseConfig } from '@/lib/physiology/cycleTiming';
+import { getBeatAt } from '@/lib/ecg/waveformEngine';
+import { useECGStore } from './useECGStore';
 
-export type CardiacPhase =
-  | 'atrial-systole'
-  | 'isovolumetric-contraction'
-  | 'rapid-ejection'
-  | 'reduced-ejection'
-  | 'isovolumetric-relaxation'
-  | 'rapid-filling'
-  | 'diastasis'
-  | 'atrial-relaxation';
-
-interface PhaseConfig {
-  name: CardiacPhase;
-  label: string;
-  startFraction: number;
-  endFraction: number;
-  color: string;
-}
+export type { CardiacPhase, PhaseConfig };
 
 interface TimelineState {
   playing: boolean;
+  /** Simulation time in ms (already multiplied by the speed factor). */
   time: number;
   heartRate: number;
   speed: number;
   frozen: boolean;
   currentPhase: CardiacPhase;
+  /**
+   * Progress through the current beat's electrical/mechanical events
+   * (0 = beat start, 1 = end of the reference beat; may sit above 1 during
+   * long diastasis). Ventricular timeline — used by the ECG playhead label,
+   * the contraction shader and the hemodynamics engine.
+   */
   cycleProgress: number;
+  /** Atrial timeline (differs from cycleProgress in complete heart block / AF). */
+  atrialProgress: number;
+  /** Fraction of the actual RR interval elapsed (0..1). */
+  rrProgress: number;
+  /** Whether the current beat conducts to the ventricles / has organised atrial activity. */
+  beatHasQRS: boolean;
+  beatHasP: boolean;
+  beatWide: boolean;
+  fibrillating: boolean;
+  beatIndex: number;
   conductionProgress: number;
   phases: PhaseConfig[];
 
@@ -38,26 +42,32 @@ interface TimelineState {
   freeze: () => void;
   unfreeze: () => void;
   tick: (deltaMs: number) => void;
+  /** Recompute derived beat state for the current time (after profile/HR changes). */
+  refresh: () => void;
 }
 
-const DEFAULT_PHASES: PhaseConfig[] = [
-  { name: 'atrial-systole', label: 'Atrial Systole', startFraction: 0, endFraction: 0.11, color: '#3B82F6' },
-  { name: 'isovolumetric-contraction', label: 'Isovolumetric Contraction', startFraction: 0.11, endFraction: 0.16, color: '#EF4444' },
-  { name: 'rapid-ejection', label: 'Rapid Ejection', startFraction: 0.16, endFraction: 0.30, color: '#DC2626' },
-  { name: 'reduced-ejection', label: 'Reduced Ejection', startFraction: 0.30, endFraction: 0.40, color: '#B91C1C' },
-  { name: 'isovolumetric-relaxation', label: 'Isovolumetric Relaxation', startFraction: 0.40, endFraction: 0.47, color: '#7C3AED' },
-  { name: 'rapid-filling', label: 'Rapid Filling', startFraction: 0.47, endFraction: 0.60, color: '#2563EB' },
-  { name: 'diastasis', label: 'Diastasis', startFraction: 0.60, endFraction: 0.89, color: '#1D4ED8' },
-  { name: 'atrial-relaxation', label: 'Atrial Relaxation', startFraction: 0.89, endFraction: 1.0, color: '#1E40AF' },
-];
-
-function getPhaseAtProgress(progress: number, phases: PhaseConfig[]): CardiacPhase {
-  for (const phase of phases) {
-    if (progress >= phase.startFraction && progress < phase.endFraction) {
-      return phase.name;
-    }
-  }
-  return 'diastasis';
+function deriveBeatState(time: number, heartRate: number) {
+  const profileId = useECGStore.getState().activeProfileId;
+  const beat = getBeatAt(time, profileId, heartRate);
+  const cycleProgress = beat.progress;
+  const currentPhase: CardiacPhase = beat.fibrillating
+    ? 'diastasis'
+    : beat.hasQRS
+      ? phaseAtProgress(cycleProgress)
+      : (beat.hasP && cycleProgress >= 0.14 && cycleProgress < 0.28 ? 'atrial-systole' : 'diastasis');
+  const conductionProgress = cycleProgress < 0.4 ? cycleProgress / 0.4 : 0;
+  return {
+    cycleProgress,
+    atrialProgress: beat.atrialProgress,
+    rrProgress: beat.rrProgress,
+    beatHasQRS: beat.hasQRS,
+    beatHasP: beat.hasP,
+    beatWide: beat.wideQRS,
+    fibrillating: beat.fibrillating,
+    beatIndex: beat.index,
+    conductionProgress,
+    currentPhase,
+  };
 }
 
 export const useTimelineStore = create<TimelineState>((set, get) => ({
@@ -68,28 +78,43 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   frozen: false,
   currentPhase: 'diastasis',
   cycleProgress: 0,
+  atrialProgress: 0,
+  rrProgress: 0,
+  beatHasQRS: true,
+  beatHasP: true,
+  beatWide: false,
+  fibrillating: false,
+  beatIndex: 0,
   conductionProgress: 0,
-  phases: DEFAULT_PHASES,
+  phases: CARDIAC_PHASES,
 
   play: () => set({ playing: true }),
   pause: () => set({ playing: false }),
   togglePlay: () => set((s) => ({ playing: !s.playing })),
-  setTime: (time) => set({ time }),
-  setHeartRate: (heartRate) => set({ heartRate: Math.max(20, Math.min(300, heartRate)) }),
+  setTime: (time) => set({ time, ...deriveBeatState(time, get().heartRate) }),
+  setHeartRate: (hr) => {
+    const heartRate = Math.max(20, Math.min(300, hr));
+    const s = get();
+    // Rescale time so the beat index and the position within the beat are
+    // preserved — otherwise the heart would visibly jump when the rate changes.
+    const oldRR = (60 / s.heartRate) * 1000;
+    const newRR = (60 / heartRate) * 1000;
+    const time = (s.time / oldRR) * newRR;
+    set({ heartRate, time, ...deriveBeatState(time, heartRate) });
+  },
   setSpeed: (speed) => set({ speed: Math.max(0.1, Math.min(5, speed)) }),
   freeze: () => set({ frozen: true, playing: false }),
   unfreeze: () => set({ frozen: false }),
   tick: (deltaMs) => {
     const state = get();
     if (!state.playing || state.frozen) return;
-
-    const cycleDurationMs = (60 / state.heartRate) * 1000;
-    const adjustedDelta = deltaMs * state.speed;
-    const newTime = state.time + adjustedDelta;
-    const cycleProgress = (newTime % cycleDurationMs) / cycleDurationMs;
-    const conductionProgress = cycleProgress < 0.4 ? cycleProgress / 0.4 : 0;
-    const currentPhase = getPhaseAtProgress(cycleProgress, state.phases);
-
-    set({ time: newTime, cycleProgress, conductionProgress, currentPhase });
+    // Clamp huge deltas (tab was in the background) so the model doesn't leap ahead.
+    const clamped = Math.min(deltaMs, 100);
+    const newTime = state.time + clamped * state.speed;
+    set({ time: newTime, ...deriveBeatState(newTime, state.heartRate) });
+  },
+  refresh: () => {
+    const s = get();
+    set(deriveBeatState(s.time, s.heartRate));
   },
 }));

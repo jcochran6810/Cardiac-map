@@ -5,7 +5,7 @@ export type LearningLevel = 1 | 2 | 3 | 4 | 5;
 export type ViewMode = 'external' | 'internal' | 'cutaway' | 'sectional' | 'dissection' | 'coronary' | 'conduction' | 'perfusion' | 'wall-motion' | 'procedure-overlay' | 'imaging-correlation';
 export type DetailLevel = 'low' | 'standard' | 'high';
 
-export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'cases';
+export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cases';
 
 interface AppState {
   mode: AppMode;
@@ -15,6 +15,7 @@ interface AppState {
   labelsVisible: boolean;
   dissectionEnabled: boolean;
   compareMode: boolean;
+  hemodynamicsOpen: boolean;
   searchQuery: string;
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
@@ -30,6 +31,8 @@ interface AppState {
   toggleLabels: () => void;
   toggleDissection: () => void;
   toggleCompare: () => void;
+  setCompareMode: (on: boolean) => void;
+  toggleHemodynamics: () => void;
   setSearchQuery: (query: string) => void;
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
@@ -46,6 +49,7 @@ export const useAppStore = create<AppState>((set) => ({
   labelsVisible: true,
   dissectionEnabled: false,
   compareMode: false,
+  hemodynamicsOpen: true,
   searchQuery: '',
   leftPanelOpen: true,
   rightPanelOpen: true,
@@ -61,15 +65,14 @@ export const useAppStore = create<AppState>((set) => ({
   toggleLabels: () => set((s) => ({ labelsVisible: !s.labelsVisible })),
   toggleDissection: () => set((s) => ({ dissectionEnabled: !s.dissectionEnabled })),
   toggleCompare: () => set((s) => ({ compareMode: !s.compareMode })),
+  setCompareMode: (compareMode) => set({ compareMode }),
+  toggleHemodynamics: () => set((s) => ({ hemodynamicsOpen: !s.hemodynamicsOpen })),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
   toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
   setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
-  setActivePanelCategory: (activePanelCategory) => set((s) => {
-    // Reset right panel tab to 'overview' when switching categories
-    // to prevent showing an irrelevant tab
-    return { activePanelCategory, rightPanelTab: 'overview' };
-  }),
+  // Reset the info tab when switching categories so an irrelevant tab is never shown
+  setActivePanelCategory: (activePanelCategory) => set({ activePanelCategory, rightPanelTab: 'overview' }),
   resetView: () => set({
     viewMode: 'external',
     labelsVisible: true,
