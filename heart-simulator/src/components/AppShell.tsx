@@ -11,6 +11,7 @@ import SceneOverlay from '@/components/scene/SceneOverlay';
 import TutorPanel from '@/components/tutor/TutorPanel';
 import QuizPanel from '@/components/tutor/QuizPanel';
 import SimulationDriver from '@/components/sim/SimulationDriver';
+import { InstallBanner } from '@/components/ui/InstallApp';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore } from '@/store/useECGStore';
@@ -25,7 +26,8 @@ const HeartScene = dynamic(() => import('@/components/scene/HeartScene'), {
   loading: () => (
     <div className="w-full h-full flex items-center justify-center">
       <div className="text-center">
-        <div className="text-5xl mb-3 text-cardiac-red animate-pulse">♥</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.webp" alt="" width={44} height={64} className="mx-auto mb-3 h-16 w-auto animate-pulse" />
         <p className="text-xs text-slate-400">Loading 3D heart…</p>
       </div>
     </div>
@@ -249,6 +251,7 @@ export default function AppShell() {
       <TutorPanel />
       <QuizPanel />
       <HelpOverlay />
+      <InstallBanner />
     </div>
   );
 }

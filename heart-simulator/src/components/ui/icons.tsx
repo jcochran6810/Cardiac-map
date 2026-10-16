@@ -57,3 +57,6 @@ export const IconExpand = ({ className, size }: P) => (
 export const IconCollapse = ({ className, size }: P) => (
   <svg {...base(size)} className={className}><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></svg>
 );
+export const IconDownload = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>
+);

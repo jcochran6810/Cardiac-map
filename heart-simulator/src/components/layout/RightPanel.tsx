@@ -17,6 +17,7 @@ import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
 import type { ConditionContent, MedicationContent, ProcedureContent, StructureContent } from '@/types/content';
 import { IconCheck, IconCube, IconFlag, IconPulse } from '@/components/ui/icons';
 import ScopeCard from '@/components/ui/ScopeCard';
+import { InstallButton } from '@/components/ui/InstallApp';
 import { SCOPES } from '@/lib/scope';
 
 type TabDef = { key: string; label: string; levels?: LearningLevel[] };
@@ -578,7 +579,10 @@ function Welcome({ level }: { level: LearningLevel }) {
           </button>
         ))}
       </div>
-      <button onClick={() => setHelpOpen(true)} className="mt-3 text-[11px] text-sky-300 hover:underline">Keyboard shortcuts & tips</button>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button onClick={() => setHelpOpen(true)} className="text-[11px] text-sky-300 hover:underline">Keyboard shortcuts & tips</button>
+        <InstallButton className="text-[11px] text-emerald-300 hover:underline">Install as an app (works offline)</InstallButton>
+      </div>
       <div className="mt-3 p-2.5 bg-cardiac-dark rounded-lg">
         <p className="text-cardiac-accent text-[10px] font-semibold mb-0.5">EDUCATIONAL USE ONLY</p>
         <p className="text-slate-500 text-[10px] leading-relaxed">

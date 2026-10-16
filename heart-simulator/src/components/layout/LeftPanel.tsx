@@ -14,7 +14,8 @@ import { CASE_DATA } from '@/data/caseData';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CONDUCTION_IDS, CORONARY_IDS } from '@/lib/anatomy/categories';
-import { IconCheck, IconChevron, IconHelp, IconSearch } from '@/components/ui/icons';
+import { IconCheck, IconChevron, IconDownload, IconHelp, IconSearch } from '@/components/ui/icons';
+import { InstallButton } from '@/components/ui/InstallApp';
 
 const TABS: { value: PanelCategory; label: string; title: string }[] = [
   { value: 'anatomy', label: 'Anatomy', title: 'Chambers, valves, vessels and layers' },
@@ -242,6 +243,9 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
         })}
         {visibleGroups.length === 0 && <p className="px-2 py-4 text-slate-500 text-center">Nothing matches “{filter}”.</p>}
       </div>
+      <InstallButton className="flex items-center gap-2 px-3 py-3 border-t border-slate-700 text-xs text-emerald-300 hover:text-white shrink-0">
+        <IconDownload size={15} /> Install CardioSim on this device
+      </InstallButton>
       {/* Small phones have no room for Help in the top bar */}
       <button
         onClick={() => setHelpOpen(true)}

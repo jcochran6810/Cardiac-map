@@ -7,7 +7,8 @@ import { useTutorStore } from '@/store/useTutorStore';
 import { useContent, searchLibrary, type SearchHit } from '@/lib/content';
 import { openById } from '@/lib/actions';
 import { CASE_DATA } from '@/data/caseData';
-import { IconChevron, IconClose, IconHeart, IconHelp, IconPanelLeft, IconQuiz, IconSearch, IconTutor } from '@/components/ui/icons';
+import { IconChevron, IconClose, IconDownload, IconHelp, IconPanelLeft, IconQuiz, IconSearch, IconTutor } from '@/components/ui/icons';
+import { InstallButton } from '@/components/ui/InstallApp';
 import ScopeCard from '@/components/ui/ScopeCard';
 
 const KIND_STYLE: Record<SearchHit['kind'], string> = {
@@ -83,9 +84,8 @@ export default function TopBar() {
       </button>
 
       <div className="hidden sm:flex items-center gap-2 shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-rose-500 to-red-700 flex items-center justify-center text-white shadow-lg shadow-red-900/40">
-          <IconHeart size={15} />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.webp" alt="CardioSim" width={22} height={32} className="h-8 w-auto drop-shadow-[0_2px_6px_rgba(220,38,38,0.35)]" />
         <div className="hidden md:block leading-tight">
           <div className="text-sm font-semibold text-white">CardioSim</div>
           <div className="text-[9px] text-slate-400 -mt-0.5">Cardiac anatomy · ECG · physiology</div>
@@ -182,6 +182,9 @@ export default function TopBar() {
         <TopButton onClick={openSearch} title="Search" className="sm:hidden"><IconSearch size={17} /></TopButton>
         <TopButton onClick={() => setQuizOpen(true)} title="Quiz yourself (Q)"><IconQuiz size={15} /><span className="hidden sm:inline">Quiz</span></TopButton>
         <TopButton onClick={toggleTutor} active={tutorOpen} title="Ask the tutor (T)"><IconTutor size={15} /><span className="hidden sm:inline">Tutor</span></TopButton>
+        <InstallButton className="hidden md:flex items-center gap-1.5 px-2 py-1.5 touch:py-2 rounded-md text-xs text-emerald-300 hover:text-white hover:bg-cardiac-surface">
+          <IconDownload size={15} />Install
+        </InstallButton>
         <TopButton onClick={() => setHelpOpen(true)} title="Help & keyboard shortcuts (?)" className="hidden xs:flex"><IconHelp size={15} /></TopButton>
         <button
           onClick={toggleRightPanel}

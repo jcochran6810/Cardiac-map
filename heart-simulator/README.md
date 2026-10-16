@@ -56,6 +56,19 @@ The layout adapts to the screen (`src/lib/device.ts`, Tailwind `phone:` / `touch
 On touch screens buttons get bigger, the ECG dock has a grip bar and an enlarge (⤢) button, a double-tap on
 a lead inspects it, and Help lists the touch gestures.
 
+## Install as an app (PWA)
+
+CardioSim installs like a native app and keeps working offline after the first visit.
+
+- **Android / Chrome / Edge:** tap **Install** (banner, navigator panel, Help, or the browser menu → *Install app*).
+- **iPhone / iPad:** in Safari tap **Share → Add to Home Screen** (the app shows these steps when you tap Install).
+- **Desktop:** the **Install** button in the top bar, or the install icon in the address bar.
+
+Pieces: `public/manifest.webmanifest` (name, colours, icons, install screenshots), `public/sw.js` (offline cache:
+pages network-first, build files and 3D models cache-first, one cache per release), `src/lib/pwa.ts` +
+`src/components/ui/InstallApp.tsx` (registration and install buttons). Icons in `public/icons/`, `app/icon.png`
+and `app/apple-icon.png` are generated from `assets/logo-source.webp`.
+
 ## Keyboard shortcuts
 
 `Space` play/pause · `←/→` step · `[ ]` speed · `1–6` 3D view · `L` labels ·

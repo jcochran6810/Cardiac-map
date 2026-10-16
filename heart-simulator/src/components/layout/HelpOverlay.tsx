@@ -4,6 +4,7 @@ import React from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { IconClose } from '@/components/ui/icons';
+import { InstallButton } from '@/components/ui/InstallApp';
 
 const SHORTCUTS: [string, string][] = [
   ['Space', 'Play / pause the heartbeat'],
@@ -78,6 +79,9 @@ export default function HelpOverlay() {
             <p><b className="text-white">How accurate is it?</b> Waveforms come from a cardiac dipole model with physiological intervals (QT corrected by Fridericia), and the hemodynamics are a teaching model with representative values. It is designed to teach patterns and relationships, not to reproduce any individual patient.</p>
           </section>
         </div>
+        <InstallButton className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/25">
+          Install CardioSim on this device — full screen, works offline
+        </InstallButton>
         <div className="px-4 py-3 border-t border-slate-700 flex items-center justify-between text-[10px] text-slate-500">
           <span>Educational simulation only — not for diagnosis or treatment.</span>
           <button
