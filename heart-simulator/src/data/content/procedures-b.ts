@@ -150,7 +150,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'A TEER patient with new breathlessness, low blood pressure or groin swelling after discharge needs urgent transport',
       'Most TEER patients have heart failure; treat pulmonary edema per protocol and note a small iatrogenic ASD may remain',
       'After TEER watch for tamponade from the transseptal puncture, femoral venous bleeding and recurrent MR from single-leaflet device attachment',
-      'Secondary MR benefits only with a COAPT-like profile: optimised GDMT, LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg',
+      'Secondary MR benefits mainly with a COAPT-like profile: optimised GDMT, LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg',
       'Puncture the inferior-posterior fossa ovalis with ~3.5–4.5 cm height above the mitral annulus, and avoid iatrogenic MS (mean gradient > ~5 mmHg)',
     ],
     overview: [
@@ -276,7 +276,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     overview: [
       'About 90% of thrombi in non-valvular AF arise in the LAA',
       'Endocardial plug or plug-and-disc devices are implanted under TEE or intracardiac echo (ICE) and fluoroscopy',
-      'Randomised trials (PROTECT AF, PREVAIL, PRAGUE-17) support non-inferiority to warfarin or DOAC in selected patients',
+      'Randomised trials (PROTECT AF, PREVAIL, PRAGUE-17) broadly support non-inferiority to warfarin or DOAC in selected patients (PREVAIL missed one efficacy endpoint)',
       '2023 ACC/AHA/ACCP/HRS AF guideline: reasonable when long-term OAC is contraindicated for a nonreversible reason',
       'Not a substitute for anticoagulation in patients who can safely take it',
     ],
@@ -493,7 +493,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'A young stroke patient may have a PFO — in the field, stroke assessment, glucose and time last known well are what matter',
       'Stroke protocol applies; PFO-related stroke typically affects younger patients without usual risk factors, sometimes after straining or with leg DVT',
       'Young cryptogenic stroke workup includes bubble-contrast echo and venous thrombosis assessment; post-closure AF is the commonest early complication',
-      'Closure is recommended for ~18–60 y with non-lacunar cryptogenic embolic stroke and a high-risk PFO, using RoPE and PASCAL to estimate causal likelihood',
+      'Closure is reasonable for ~18–60 y with non-lacunar cryptogenic embolic stroke and a high-risk PFO, using RoPE and PASCAL to estimate causal likelihood',
       'Assess tunnel length, septal mobility, atrial septal aneurysm and shunt size on TEE/ICE, and confirm closure with a follow-up bubble study',
     ],
     overview: [
@@ -1115,7 +1115,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'ABI ≤ 0.90 diagnoses PAD; > 1.40 indicates non-compressible arteries',
       'Acute limb ischemia 6 Ps: pain, pallor, pulselessness, paresthesia, paralysis, poikilothermia',
       'Retroperitoneal bleeding presents with back pain and hypotension but little visible groin swelling',
-      'PAD signals high cardiovascular risk — statin and antiplatelet therapy for all',
+      'PAD signals high cardiovascular risk — statin for all, plus antiplatelet therapy for symptomatic PAD',
     ],
     targetStructures: ['descending-aorta'],
     relatedConditions: [],
@@ -1870,7 +1870,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     postCare: [
       'Warfarin to the centre target INR; antiplatelet use per device and centre',
-      'Doppler MAP monitoring with centre target ranges — hypertension raises stroke risk',
+      'Doppler MAP monitoring with centre target ranges (commonly ~60–80 mmHg) — hypertension raises stroke risk',
       'Sterile driveline dressing changes',
       'Monitor LDH, hemoglobin and pump speed, power, flow and pulsatility',
       'Patient and caregiver training; always carry backup controller and charged batteries',

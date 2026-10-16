@@ -238,7 +238,7 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     ecg: [
       'RVH: right axis deviation, R/S >1 in V1, deep S in V5–V6, often RA enlargement',
       'RV strain: ST depression/T inversion in V1–V3, often with inferior T inversion',
-      'RV infarction: ST elevation ≥1 mm in V4R; STE in III greater than II supports RCA occlusion',
+      'RV infarction: ST elevation ≥0.5 mm in V3R/V4R (≥1 mm in men <30 y); STE in III greater than II supports RCA occlusion',
       'Acute PE: sinus tachycardia is most common; S1Q3T3 and new RBBB are insensitive',
       'Epsilon waves and T inversion in V1–V3 suggest arrhythmogenic RV cardiomyopathy',
       'LBBB-morphology VT with inferior axis suggests an RVOT origin',
@@ -700,7 +700,7 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'The septum carries the bundle branches: anterior MI can cause new RBBB, bifascicular block or Mobitz II, so keep pacing pads on',
       'Post-MI VSD (new holosystolic murmur, shock, O₂ saturation step-up RA→PA) needs urgent echo, mechanical support and surgical planning',
       'HCM: wall thickness ≥15 mm (≥13 mm with family history or genotype); LVOT gradient ≥30 mmHg is obstructive, ≥50 mmHg the usual threshold for septal reduction',
-      'Septal perforator anatomy guides alcohol septal ablation; the His bundle runs along the crest, so ~10% of ASA patients need a permanent pacemaker',
+      'Septal perforator anatomy guides alcohol septal ablation; the His bundle runs along the crest, so ~10–20% of ASA patients need a permanent pacemaker',
     ],
     overview: [
       'Separates LV and RV; functionally part of the LV',
@@ -735,7 +735,7 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'ST elevation in V1–V2 reflects septal (often proximal LAD) involvement',
       'HCM: LVH voltage and deep, narrow Q waves in inferolateral leads',
       'New RBBB with LAFB in anterior STEMI implies proximal LAD occlusion and large infarct',
-      'Left bundle branch area pacing produces a narrow paced QRS with a qR/Qr pattern in V1',
+      'Left bundle branch area pacing produces a relatively narrow paced QRS with a right bundle delay pattern (qR, Qr or rSR′) in V1',
     ],
     imaging: [
       'TTE parasternal long axis: septal thickness, SAM and VSD jets on color Doppler',

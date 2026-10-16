@@ -20,7 +20,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Give 162–325 mg non-enteric-coated aspirin, chewed, for suspected ACS unless true allergy or active bleeding',
       'Before giving, screen for true allergy, active GI bleeding and features of aortic dissection; chewing speeds onset',
       'Aspirin is the backbone of DAPT; keep maintenance at 75–100 mg daily, especially with ticagrelor',
-      'Know when to shorten aspirin exposure: P2Y12 monotherapy after 1–3 months of DAPT in high-bleeding-risk PCI',
+      'Know when to shorten aspirin exposure: P2Y12 monotherapy after 1–3 months of DAPT in selected PCI patients, especially high bleeding risk',
       'Confirm aspirin loading before PCI; for true aspirin allergy consider desensitization or a P2Y12-based strategy',
     ],
     mechanism: [
@@ -99,7 +99,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'CYP2C19 loss-of-function alleles blunt its effect; consider prasugrel, ticagrelor or genotype-guided therapy',
     ],
     mechanism: [
-      'Prodrug; ~85% inactivated by esterases, the rest activated by hepatic CYP2C19 (two steps)',
+      'Prodrug; ~85% inactivated by esterases, the rest activated in two hepatic CYP steps (CYP2C19 is key)',
       'Active thiol metabolite irreversibly blocks the platelet P2Y12 ADP receptor',
       'Slower, more variable onset than prasugrel or ticagrelor (~2 h after 600 mg, ~6 h after 300 mg)',
       'Platelet function recovers only as new platelets are made (~5–7 days)',
@@ -238,7 +238,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     levelNotes: [
       'Recognize prasugrel as a potent antiplatelet; prioritize bleeding control and report it at handoff',
       'Prasugrel is usually given in the cath lab, so document any prior stroke/TIA and bleeding history for the team',
-      'Contraindicated with prior stroke/TIA; generally avoided if ≥ 75 y or < 60 kg (5 mg maintenance if used)',
+      'Contraindicated with prior stroke/TIA; generally avoided if ≥ 75 y; 5 mg maintenance if < 60 kg (or ≥ 75 y if used)',
       'TRITON-TIMI 38: fewer ischemic events and stent thrombosis than clopidogrel, but more major bleeding',
       'In NSTE-ACS, load at PCI rather than pretreating (ACCOAST); ISAR-REACT 5 favored it over ticagrelor',
     ],
@@ -647,7 +647,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     dosing: [
       'STEMI: single IV bolus, ~0.5 mg/kg, 30–50 mg by weight',
       'Weight bands: < 60 kg 30 mg; 60–69 kg 35 mg; 70–79 kg 40 mg; 80–89 kg 45 mg; ≥ 90 kg 50 mg',
-      'Age ≥ 75 y: half dose (ESC practice since ~2019, adopted after STREAM and supported by STREAM-2)',
+      'Age ≥ 75 y: half dose (adopted mid-STREAM after excess ICH; ESC-endorsed; STREAM-2 used half dose in patients ≥ 60 y)',
       'Adjuncts: aspirin, clopidogrel (300 mg, or 75 mg if > 75 y) and enoxaparin or UFH',
     ],
     contraindications: [
@@ -705,7 +705,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Assist with SL nitro only if SBP is above the protocol threshold (often ≥ 90–100) and no recent PDE5 inhibitor use',
       'Get a right-sided ECG in inferior STEMI; RV infarction is preload-dependent and drops BP with nitrates',
       'Use IV infusion for ongoing ischemia, hypertension or pulmonary edema, titrated to symptoms and BP',
-      'High-dose nitrate strategies are effective in hypertensive acute pulmonary edema (SCAPE)',
+      'High-dose nitrate strategies appear effective in hypertensive acute pulmonary edema (SCAPE; mostly observational data)',
       'Intracoronary nitroglycerin (~100–200 mcg) relieves spasm and is given before vessel sizing and IVUS/OCT',
     ],
     mechanism: [
@@ -1034,7 +1034,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Pre-excited (irregular) AF — may accelerate pathway conduction → VF',
       'Irregular or polymorphic wide-complex tachycardia',
       'Second- or third-degree AV block or sick sinus without a pacemaker',
-      'Severe active bronchospasm (relative)',
+      'Asthma or active bronchospasm — avoid or use with caution (can provoke bronchospasm)',
     ],
     adverseEffects: [
       'Flushing, chest pressure, dyspnea and a sense of doom (seconds)',

@@ -32,7 +32,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     anatomy: [
       'SYNTAX/AHA segment 5: from the ostium to the bifurcation into LAD and LCx',
       'Described in three parts: ostium, shaft (body) and distal bifurcation',
-      'Courses leftward between the pulmonary trunk (anterior) and left atrial appendage (posterior)',
+      'Courses leftward between the pulmonary trunk (anterior) and the left atrium (posterior), under the left atrial appendage',
       'Absent left main with separate LAD and LCx ostia occurs in ~0.5–1%',
       'Distal bifurcation is the most common site of LM atherosclerosis and usually extends into the LAD and/or LCx ostia',
       'Anomalous LM origin from the right sinus with an interarterial course is a recognized cause of exertional sudden death',
@@ -110,7 +110,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     ],
     anatomy: [
       'SYNTAX/AHA segment 6: from LM bifurcation to and including the origin of the first major septal branch',
-      'Courses anterior to the RVOT and pulmonary valve before entering the interventricular groove',
+      'Emerges from behind the pulmonary trunk and runs along the left side of the RVOT to enter the anterior interventricular groove',
       'Myocardial bridging is most common over the mid LAD but can begin proximally',
       'Some atlases place the proximal/mid boundary at D1 rather than S1; define the convention when reporting',
       'Territory (AHA 17-segment): basal anterior and anteroseptal, mid anterior and anteroseptal, apical anterior and septal, and the apex (segments 1, 2, 7, 8, 13, 14, 17)',
@@ -760,7 +760,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
       'Size is variable; additional marginals (OM3) may follow',
     ],
     anatomy: [
-      'SYNTAX segment 12b: second obtuse marginal branch (12c for a third)',
+      'SYNTAX segment 12b: second obtuse marginal branch',
       'Arises from the mid-to-distal LCx in the AV groove',
       'Territory: inferolateral segments 5, 11 and 16 in part',
     ],
@@ -805,7 +805,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
       'The first part of the right coronary artery, from its origin in the right aortic sinus along the right AV groove. Occlusion here typically causes inferior MI plus right ventricular infarction, with hypotension and bradycardia.',
     levelNotes: [
       'Inferior heart attack with low blood pressure may involve the right ventricle: avoid nitroglycerin, keep the patient flat if tolerated and consider small fluid boluses per protocol',
-      'Record right-sided leads (V4R) in every inferior STEMI; STE ≥ 1 mm in V4R means RV infarction and preload dependence',
+      'Record right-sided leads (V4R) in every inferior STEMI; STE ≥ 0.5 mm in V3R/V4R (≥ 1 mm in men < 30 y) means RV infarction and preload dependence',
       'RV infarction: avoid nitrates and diuretics, give cautious fluid, maintain AV synchrony, treat bradycardia (atropine, pacing) and use inotropes if fluid fails',
       'Proximal RCA occlusion: STE III > II, STD in I/aVL, RV involvement (V4R, STE V1), and SA/AV nodal ischemia with sinus bradycardia or AV block',
       'Ostial RCA is an aorto-ostial lesion: guide damping, precise stent positioning with slight aortic protrusion and imaging guidance; avoid selective conus injection',
@@ -827,7 +827,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     physiology: [
       'RV perfusion occurs in both systole and diastole because RV pressure is low',
       'The thin RV tolerates ischemia relatively well and often recovers function after reperfusion',
-      'Supplies the SA node (~55–65%) and, in right dominance, the AV node (~80–90%)',
+      'Supplies the SA node in ~55–65% and the AV node in ~80–90% of people (via the dominant RCA)',
       'Inferior wall ischemia activates vagal afferents (Bezold–Jarisch reflex), causing bradycardia and hypotension',
     ],
     clinical: [
@@ -840,7 +840,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     ecg: [
       'Inferior STE in II, III and aVF with STE III > II',
       'Reciprocal STD in aVL (often the earliest sign) and I; STD in I/aVL favors RCA over LCx',
-      'RV infarction: STE ≥ 1 mm in V4R (most useful lead) and often STE in V1',
+      'RV infarction: STE ≥ 0.5 mm in V4R (most useful lead; ≥ 1 mm in men < 30 y) and often STE in V1',
       'STE in V1 with STD in V2 (or STE V1 > V2) in inferior MI suggests RV involvement',
       'RV involvement can mask posterior STD in V1–V3; posterior extension may still be confirmed with V7–V9',
       'Sinus bradycardia, junctional rhythm and AV block (first-degree, Wenckebach or complete) are common',
@@ -908,7 +908,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     ecg: [
       'Inferior STE in II, III and aVF with STE III > II',
       'Reciprocal STD in aVL and I',
-      'STE in V4R (≥ 1 mm) if occlusion is proximal to major RV branches',
+      'STE in V4R (≥ 0.5 mm) if occlusion is proximal to major RV branches',
       'Posterior involvement: STD in V1–V3 with STE in V7–V9 if posterolateral territory is large',
     ],
     imaging: [
@@ -1152,7 +1152,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
       'RV infarction increases risk of AV block and arrhythmias when combined with proximal RCA occlusion',
     ],
     ecg: [
-      'RV injury: STE in V4R (≥ 1 mm) and V1',
+      'RV injury: STE in V4R (≥ 0.5 mm) and V1',
       'Isolated RV infarction can show STE in V1–V3 decreasing from V1 to V3, mimicking anterior STEMI',
       'In LAD occlusion, anterior STE typically increases from V1 toward V3–V4, helping to distinguish',
       'Inferior STE accompanies AM involvement when the main RCA is occluded proximally',
@@ -1384,7 +1384,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     ],
     anatomy: [
       'Crescent-shaped subepicardial structure ~10–20 mm long at the junction of the SVC and right atrium',
-      'Lies along the upper crista terminalis, lateral to the sulcus terminalis',
+      'Lies subepicardially within the sulcus terminalis, overlying the upper crista terminalis',
       'Head lies near the SVC–RA junction and the tail extends inferiorly toward the IVC',
       'Central nodal artery runs through the node, surrounded by pacemaker cells and fibrous tissue',
       'Pacemaker activity is distributed; the leading site shifts superiorly with sympathetic tone and inferiorly with vagal tone',
@@ -1542,7 +1542,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     ],
     ecg: [
       'PR interval 120–200 ms; first-degree AV block > 200 ms, usually nodal',
-      'Mobitz I: progressive PR prolongation with dropped beat and grouped beating, almost always nodal',
+      'Mobitz I: progressive PR prolongation with dropped beat and grouped beating, usually nodal (almost always when the QRS is narrow)',
       'Complete heart block at the node: AV dissociation with narrow junctional escape ~40–60 bpm',
       'Typical AVNRT: regular narrow-complex tachycardia with retrograde P buried in or just after the QRS (pseudo-r\' in V1, pseudo-S in inferior leads)',
       'Junctional rhythm: narrow QRS with absent, retrograde or dissociated P waves',
@@ -1581,7 +1581,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
       'Heart block below the AV node can suddenly drop the pulse very low: monitor closely, pads on, and be ready for pacing per protocol',
       'Mobitz II and complete heart block with a wide escape usually arise at or below the His bundle; atropine often fails, so prepare transcutaneous pacing and chronotropic infusions',
       'Infranodal (His-level or below) block is unstable and needs reliable pacing; place a transvenous wire if the escape rhythm is slow or wide',
-      'HV interval (normal ~35–55 ms) measures His–Purkinje conduction; HV ≥ 70 ms carries higher block risk and HV ≥ 100 ms supports pacing',
+      'HV interval (normal ~35–55 ms) measures His–Purkinje conduction; HV ≥ 70 ms with syncope and bundle branch block supports pacing (2018 ACC/AHA/HRS), and HV ≥ 100 ms marks high block risk even without symptoms',
       'His bundle pacing captures the native conduction system for physiologic activation; consider capture thresholds, sensing and proximity to the tricuspid annulus and aortic cusps',
     ],
     overview: [

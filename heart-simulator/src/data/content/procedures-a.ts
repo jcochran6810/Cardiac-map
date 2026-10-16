@@ -2023,7 +2023,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'A magnet over an ICD suspends shocks without affecting bradycardia pacing, so use it per protocol for inappropriate shocks while treating true VT/VF per ACLS.',
       'After any shock, get an ECG, electrolytes, troponin and device interrogation, and treat electrical storm (≥ 3 VT/VF episodes in 24 h) with sedation, beta-blockade, amiodarone and early EP input.',
       'Primary prevention: LVEF ≤ 35% with NYHA II–III on ≥ 3 months GDMT (≥ 40 days post-MI, ≥ 90 days post-revascularization) or ischemic LVEF ≤ 30% NYHA I, with life expectancy > 1 year.',
-      'Choose transvenous versus subcutaneous ICD (S-ICD when no pacing need, poor venous access or high infection risk) and program high-rate, delayed detection to cut inappropriate shocks.',
+      'Choose transvenous versus subcutaneous ICD (S-ICD when there is no pacing need, especially with poor venous access or high infection risk) and program high-rate, delayed detection to cut inappropriate shocks.',
     ],
     overview: [
       'Generator with high-voltage capacitor and a lead with shock coil(s), or a subcutaneous lead',
@@ -2131,7 +2131,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     teaching: [
       'Primary prevention ICD: LVEF ≤ 35% NYHA II–III on ≥ 3 months GDMT, ≥ 40 days post-MI, survival expected > 1 year',
       'Reassess LVEF after GDMT optimization; many patients improve above 35%',
-      'S-ICD suits younger patients without pacing needs, prior infection or limited venous access',
+      'S-ICD suits patients without pacing or ATP needs, especially younger patients and those with prior infection or limited venous access',
       'ATP painlessly terminates many monomorphic VTs and avoids shocks',
       'MADIT-RIT: high-rate or delayed detection programming reduced inappropriate therapy and mortality',
       'Deactivating shocks at end of life is ethically and legally permissible; pacing can continue',
@@ -2175,7 +2175,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     ],
     contraindications: [
       'Narrow QRS (< 130 ms) without a pacing indication; CRT may harm (EchoCRT)',
-      'NYHA I with non-LBBB and QRS < 150 ms (no benefit)',
+      'NYHA I–II with non-LBBB and QRS < 150 ms (no benefit)',
       'Life expectancy < 1 year from noncardiac causes',
       'Active infection',
       'Non-ambulatory NYHA IV unless bridging to advanced therapies',
