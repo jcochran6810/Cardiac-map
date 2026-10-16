@@ -291,7 +291,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     levelNotes: [
       'A patient with a pulmonary artery catheter is critically ill, so protect the line from tugging and report sudden breathlessness, bleeding or alarms.',
       'During transfers with a PA catheter, never leave the balloon inflated, keep the transducer leveled and watch for ventricular ectopy if the tip migrates.',
-      'Know normal values (RA 2–6, RV 15–30/2–8, PA 15–30/4–12 mean < 20, PCWP 6–12 mmHg, CI 2.5–4.0 L/min/m²) and use them to classify shock.',
+      'Know normal values (RA 2–6, RV 15–30/2–8, PA 15–30/4–12 mean ≤ 20, PCWP 6–12 mmHg, CI 2.5–4.0 L/min/m²) and use them to classify shock.',
       'Pulmonary hypertension is mPAP > 20 mmHg; it is precapillary when PCWP ≤ 15 mmHg and PVR > 2 WU, and post-capillary when PCWP > 15 mmHg.',
       'Read pressures at end-expiration, confirm true wedge by waveform and saturation, and know when thermodilution fails (severe TR, shunts, very low output) so Fick is preferred.',
     ],
@@ -408,7 +408,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Report hemoptysis, new arrhythmia or a persistently damped tracing immediately',
     ],
     teaching: [
-      'Normal: RA 2–6, RV 15–30/2–8, PA 15–30/4–12 (mean < 20), PCWP 6–12 mmHg; CI 2.5–4.0 L/min/m²',
+      'Normal: RA 2–6, RV 15–30/2–8, PA 15–30/4–12 (mean ≤ 20), PCWP 6–12 mmHg; CI 2.5–4.0 L/min/m²',
       'PH (2022 ESC/ERS): mPAP > 20 mmHg; precapillary adds PCWP ≤ 15 mmHg and PVR > 2 WU',
       'PVR (WU) = (mPAP − PCWP) / CO; SVR (dyn·s·cm⁻⁵) = 80 × (MAP − RAP) / CO',
       'Fick: CO = VO2 / (arterial − mixed venous O2 content); assumed VO2 introduces error',
@@ -541,7 +541,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     teaching: [
       'FFR = Pd/Pa at maximal hyperemia; normal is 1.0',
       'Thresholds: FFR ≤ 0.80 and iFR/RFR ≤ 0.89 are significant',
-      'FAME: FFR-guided multivessel PCI reduced death, MI and repeat revascularization vs angiography guidance',
+      'FAME: FFR-guided multivessel PCI reduced the composite of death, MI and repeat revascularization vs angiography guidance',
       'DEFER and FAME 2: deferring FFR-negative lesions is safe; PCI of FFR-positive lesions reduces urgent revascularization',
       'DEFINE-FLAIR and iFR-SWEDEHEART: iFR noninferior to FFR at 1 year with fewer symptoms',
       'Longer-term follow-up has raised some questions about iFR; FFR remains the most validated index',
@@ -687,7 +687,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'For suspected STEMI, transmit the 12-lead and go directly to a PCI center, because every delay to reperfusion increases mortality.',
       'Prehospital cath lab activation and aspirin (162–325 mg chewed, non-enteric-coated) are the key actions, with oxygen only if SpO2 < 90% and P2Y12 timing per local protocol.',
       'After PCI, monitor the access site and rhythm, and treat recurrent chest pain with new ST elevation as stent thrombosis needing immediate cath lab return.',
-      'DAPT (aspirin + P2Y12 inhibitor) is typically 12 months after ACS and 6 months after elective DES, with shorter or de-escalated regimens for high bleeding risk.',
+      'DAPT (aspirin + P2Y12 inhibitor) is typically 12 months after ACS and 6 months after elective DES, with shorter or de-escalated regimens for high bleeding risk or selected patients.',
       'Radial-first access, adequate lesion preparation, imaging-guided sizing and high-pressure post-dilation to full expansion minimize restenosis and stent thrombosis.',
     ],
     overview: [
@@ -695,7 +695,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'DES release antiproliferative drugs that markedly reduce restenosis compared with bare-metal stents',
       'Primary PCI for STEMI; urgent or early invasive PCI for NSTE-ACS; elective PCI for refractory angina',
       'STEMI with multivessel disease: complete revascularization of significant non-culprits reduces CV death/MI (COMPLETE)',
-      'Stable CAD: PCI relieves angina but does not reduce death or MI vs optimal medical therapy (ISCHEMIA)',
+      'Stable CAD: PCI relieves angina but did not reduce overall death or MI vs optimal medical therapy in ISCHEMIA (spontaneous MI was lower)',
       'Cardiogenic shock with multivessel disease: culprit-only PCI at the index procedure (CULPRIT-SHOCK)',
     ],
     indications: [
@@ -794,7 +794,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Bleeding (access site, GI), contrast-associated AKI, stroke',
     ],
     postCare: [
-      'ACS: DAPT typically 12 months, with ticagrelor or prasugrel preferred over clopidogrel',
+      'ACS: DAPT typically 12 months, with ticagrelor or prasugrel preferred over clopidogrel; stepping down to ticagrelor monotherapy after ≥ 1 month reduces bleeding in selected patients (2025 ACC/AHA)',
       'Elective DES: DAPT typically 6 months; 1–3 months then single antiplatelet in high bleeding risk',
       'Never stop DAPT early without cardiology input; premature cessation is a major cause of stent thrombosis',
       'High-intensity statin, beta-blocker and ACE inhibitor/ARB/ARNI when indicated, cardiac rehab referral',
@@ -1234,8 +1234,8 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Mechanical aortic valve',
       'Severe aortic stenosis or moderate-to-severe aortic regurgitation',
       'Severe peripheral arterial disease precluding large-bore access (consider axillary or IVL-facilitated access)',
-      'Ventricular septal rupture or LV free-wall rupture; cardiac tamponade',
-      'Significant aortic disease (dissection, aneurysm); inability to tolerate anticoagulation (relative)',
+      'Ventricular septal rupture or atrial/ventricular septal defect, LV free-wall rupture; cardiac tamponade',
+      'Significant aortic disease (dissection, aneurysm); significant RV failure without RV support; inability to tolerate anticoagulation (relative)',
     ],
     anatomy: [
       'Pump crosses the aortic valve: inlet in the LV cavity, outlet above the valve in the ascending aorta',
@@ -1456,7 +1456,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     teaching: [
       'Normal HV 35–55 ms; prolonged HV means infra-Hisian disease and higher risk of complete heart block',
       'Dual AV node physiology: AH jump ≥ 50 ms with a 10 ms shorter atrial extrastimulus',
-      'Concentric retrograde atrial activation suggests AV node conduction; eccentric suggests a left-sided pathway',
+      'Concentric retrograde atrial activation suggests AV node conduction; eccentric suggests an accessory pathway (earliest in distal CS = left-sided)',
       'Para-Hisian pacing distinguishes septal accessory pathway from AV nodal retrograde conduction',
       'Shortest pre-excited RR ≤ 250 ms during AF marks a high-risk accessory pathway',
       'Noninducibility does not fully exclude a clinical arrhythmia',
@@ -1756,7 +1756,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'A self-contained capsule pacemaker is delivered through a femoral vein catheter and fixed directly inside the right ventricle, with no pocket and no transvenous leads. It avoids pocket and lead complications but offers more limited pacing options.',
     levelNotes: [
       'A patient can have a pacemaker with no chest bump or scar, so ask about devices and look for paced complexes on the monitor.',
-      'Leadless devices show the same pacing spikes and capture patterns as conventional systems, so manage bradycardia and arrest per ACLS and defibrillate normally.',
+      'Leadless devices produce paced complexes like conventional systems (the spike may be tiny or invisible), so manage bradycardia and arrest per ACLS and defibrillate normally.',
       'Early dangers are groin bleeding or AV fistula and cardiac perforation with tamponade, so hypotension after implant needs an urgent echo.',
       'Consider leadless pacing for patients needing mainly ventricular pacing (e.g., AF with slow ventricular response), with high infection risk, dialysis, limited venous access or prior device infection.',
       'Deploy on the RV mid-septum (avoid apex and free wall), confirm fixation with a tug test and electrical parameters, and plan for retrieval or end-of-life strategy.',

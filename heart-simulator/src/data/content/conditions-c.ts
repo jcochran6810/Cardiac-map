@@ -281,7 +281,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     overview: [
       'Acute, usually reversible LV dysfunction triggered by emotional or physical stress',
-      '~90% of reported cases are postmenopausal women',
+      '~90% of reported cases are women, most of them postmenopausal',
       'Physical triggers (surgery, sepsis, critical illness, neurologic events) carry worse prognosis than emotional triggers',
       'Accounts for ~1–2% of patients presenting with suspected ACS',
       'Short-term complication and mortality rates are comparable to ACS; it is not a benign condition',
@@ -1829,7 +1829,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     levelNotes: [
       'Sudden severe tearing chest or back pain, maximal at onset, especially with a pulse or BP difference between arms, is dissection until proven otherwise: check both arms and transport fast',
       'Withhold aspirin when dissection is suspected, control pain, and remember an inferior STEMI can be caused by a dissection flap occluding the RCA',
-      'Start impulse control with an IV beta-blocker first (target HR < 60 bpm and SBP < 120 mmHg), add a vasodilator only after beta-blockade, avoid antithrombotics, and obtain CTA',
+      'Start impulse control with an IV beta-blocker first (2022 ACC/AHA targets: HR 60–80 bpm and SBP < 120 mmHg), add a vasodilator only after beta-blockade, avoid antithrombotics, and obtain CTA',
       'Classify by Stanford/DeBakey: type A needs emergency surgery, while type B is managed medically unless complicated by malperfusion, rupture or refractory pain or hypertension',
       'Pause before cath lab activation when STEMI comes with tearing pain, pulse deficit or a wide mediastinum; TEVAR with branch stenting or fenestration treats complicated type B',
     ],
@@ -1877,7 +1877,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     medications: [
       'IV beta-blocker first (esmolol, labetalol or metoprolol) to lower heart rate and dP/dt',
-      'Typical targets: HR < 60 bpm and SBP < 120 mmHg, as tolerated with adequate end-organ perfusion',
+      'Targets (2022 ACC/AHA): HR 60–80 bpm and SBP < 120 mmHg, or the lowest BP that maintains end-organ perfusion',
       'Add a vasodilator (e.g. nicardipine, clevidipine, nitroprusside) only after beta-blockade to avoid reflex tachycardia',
       'IV opioid analgesia (e.g. fentanyl) reduces sympathetic drive',
       'Avoid anticoagulants, antiplatelets and thrombolytics',

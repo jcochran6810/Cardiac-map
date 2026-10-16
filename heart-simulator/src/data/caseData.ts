@@ -345,7 +345,7 @@ export const CASE_DATA: Record<string, CaseData> = {
           {
             text: 'Aspirin alone; stop the P2Y12 inhibitor after 1 month to reduce bleeding',
             correct: false,
-            feedback: 'After ACS with stenting, default DAPT is 12 months. Shortened DAPT (usually de-escalation to P2Y12 monotherapy) is reserved for high bleeding risk or deliberate strategies — not routine aspirin alone at 1 month.',
+            feedback: 'After ACS with stenting, default DAPT is 12 months. The 2025 ACC/AHA guideline also endorses switching to ticagrelor monotherapy ≥ 1 month after PCI in patients who tolerated DAPT (to reduce bleeding), but dropping the P2Y12 inhibitor for aspirin alone at 1 month is not a routine strategy.',
           },
           {
             text: 'DAPT (aspirin + ticagrelor or prasugrel) typically for 12 months, high-intensity statin, beta-blocker, ACEi/ARB/ARNI, MRA, cardiac rehab, and repeat LVEF assessment before any ICD decision',
@@ -728,7 +728,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Electrical storm = ≥ 3 sustained VT/VF episodes or appropriate ICD therapies within 24 h',
       'Treat the triggers: ischemia, electrolytes, HF decompensation, drugs, thyroid, infection',
       'Sympatholysis (sedation, nonselective beta-blockade, stellate ganglion block) is often more effective than antiarrhythmics alone',
-      'In VANISH, catheter ablation reduced death, VT storm and appropriate shocks vs escalated antiarrhythmics in ischemic cardiomyopathy',
+      'In VANISH, catheter ablation reduced the composite of death, VT storm and appropriate ICD shocks vs escalated antiarrhythmics in ischemic cardiomyopathy (mortality alone was not significantly reduced)',
       'Scar-related re-entrant VT is monomorphic; polymorphic VT in this setting suggests active ischemia',
     ],
     decisions: [
@@ -1181,8 +1181,8 @@ export const CASE_DATA: Record<string, CaseData> = {
       '1. Suspect dissection: abrupt severe chest/back pain, pulse or BP differential, new AR murmur, focal neuro deficit, known aortic disease or connective tissue disorder',
       '2. Withhold antiplatelets, anticoagulants and fibrinolytics until dissection is excluded',
       '3. IV opioid analgesia (pain drives the catecholamine surge)',
-      '4. IV beta-blocker first (esmolol or labetalol) to HR ~60 bpm',
-      '5. Then add a vasodilator (nicardipine, clevidipine or nitroprusside) to reach SBP ≤ 120 mmHg, or the lowest level that maintains perfusion',
+      '4. IV beta-blocker first (esmolol or labetalol) to HR 60–80 bpm (2022 ACC/AHA)',
+      '5. Then add a vasodilator (nicardipine, clevidipine or nitroprusside) to reach SBP < 120 mmHg, or the lowest level that maintains perfusion',
       '6. Never start a vasodilator before beta-blockade (reflex tachycardia increases aortic wall stress)',
       '7. Imaging: CT angiography chest/abdomen/pelvis; TEE if too unstable for CT; bedside TTE for AR, effusion and flap',
       '8. Type A (ascending aorta): emergency surgery — call cardiac surgery immediately',
@@ -1281,7 +1281,7 @@ export const CASE_DATA: Record<string, CaseData> = {
             feedback: 'Dihydropyridines and other vasodilators cause reflex tachycardia, increasing the force of ejection (dP/dt) on the aortic wall. Beta-blockade must come first.',
           },
           {
-            text: 'IV opioid analgesia plus esmolol (or labetalol) to HR ~60, then add nicardipine or nitroprusside if SBP remains > 120',
+            text: 'IV opioid analgesia plus esmolol (or labetalol) to HR 60–80, then add nicardipine or nitroprusside if SBP remains ≥ 120',
             correct: true,
             feedback: 'Correct. Reducing HR and contractility first lowers aortic wall stress; vasodilators are added afterward for BP. Analgesia reduces the catecholamine drive.',
           },
@@ -1293,7 +1293,7 @@ export const CASE_DATA: Record<string, CaseData> = {
           {
             text: 'Lower BP by only 25% in the first hour, as for other hypertensive emergencies',
             correct: false,
-            feedback: 'Aortic dissection is an exception to the gradual-reduction rule: target SBP ≤ 120 mmHg (or the lowest tolerated) rapidly, ideally within the first hour.',
+            feedback: 'Aortic dissection is an exception to the gradual-reduction rule: target SBP < 120 mmHg (or the lowest tolerated) rapidly, ideally within the first hour.',
           },
         ],
       },
@@ -1304,7 +1304,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         update: 'CTA: Stanford type A dissection from the aortic root to the iliac arteries. While awaiting the OR, BP suddenly falls to 76/40 with JVD, muffled heart sounds and new pericardial fluid on echo.',
         options: [
           {
-            text: 'Continue esmolol to keep HR ~60',
+            text: 'Continue esmolol to keep HR at the 60–80 target',
             correct: false,
             feedback: 'He is now in shock; beta-blockade removes compensatory tachycardia and must be stopped.',
           },

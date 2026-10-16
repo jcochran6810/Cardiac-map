@@ -952,7 +952,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Inferior LV ischemia reduces contractility with a usually modest fall in LVEF',
       'Proximal RCA occlusion causes RV infarction: low RV output, low LV preload and hypotension despite clear lungs',
       'AV nodal ischemia and vagal reflexes (Bezold-Jarisch) cause bradycardia, AV block and hypotension',
-      'AV nodal block is usually supranodal with a narrow escape and resolves within days of reperfusion',
+      'AV block is usually within the AV node (supra-Hisian) with a narrow escape and resolves within days of reperfusion',
       'Posterior wall involvement (inferoposterior MI) enlarges the infarct',
     ],
     symptoms: [
@@ -1200,7 +1200,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     medications: [
       'Aspirin 162–325 mg chewed, then 81 mg daily',
       'P2Y12 inhibitor (ticagrelor or clopidogrel; prasugrel once anatomy is known and PCI planned); routine pretreatment before angiography is debated',
-      'Anticoagulation: UFH or enoxaparin 1 mg/kg SC every 12 h (renally adjusted); fondaparinux or bivalirudin are alternatives',
+      'Anticoagulation: UFH or enoxaparin 1 mg/kg SC every 12 h (renally adjusted); fondaparinux (add UFH at PCI to prevent catheter thrombosis) or bivalirudin are alternatives',
       'Nitroglycerin for ongoing ischemic pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor use',
       'Oral beta-blocker within 24 h if no contraindication; high-intensity statin; ACE inhibitor when indicated',
       'Fibrinolytics are not indicated in NSTE-ACS',

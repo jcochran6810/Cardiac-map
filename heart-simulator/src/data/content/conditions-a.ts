@@ -394,7 +394,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Fibrillatory (f) waves at 350–600/min, coarse or fine, best seen in V1 and II',
       'QRS usually < 120 ms; wide with bundle branch block, aberrancy or pre-excitation',
       'Ashman phenomenon: RBBB-shaped aberrant beat after a long–short RR cycle',
-      'Irregular, very fast (> 250 bpm), wide and varying QRS suggests pre-excited AF (WPW)',
+      'Irregular, very fast (often > 200 bpm), wide and varying QRS suggests pre-excited AF (WPW)',
       'Regular slow ventricular rhythm in AF implies complete heart block with an escape rhythm, classically digoxin toxicity',
     ],
     imaging: [
@@ -407,7 +407,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Rate control (no HFrEF): diltiazem 0.25 mg/kg IV over 2 min, or metoprolol 2.5–5 mg IV, repeated as needed',
       'Avoid nondihydropyridine CCBs when LVEF < 40%; use a β-blocker, digoxin or IV amiodarone instead',
       'Anticoagulate when annual stroke risk ≥ 2% (CHA2DS2-VASc ≥ 2 men, ≥ 3 women); reasonable at 1 in men, 2 in women',
-      'DOACs (e.g. apixaban) preferred over warfarin except with a mechanical valve or moderate–severe mitral stenosis',
+      'DOACs (e.g. apixaban) preferred over warfarin except with a mechanical valve or moderate–severe rheumatic mitral stenosis',
       'Aspirin is not an acceptable alternative to anticoagulation for stroke prevention',
       'Antiarrhythmics chosen by structural disease: flecainide/propafenone, sotalol, dofetilide, dronedarone, amiodarone',
     ],
@@ -416,7 +416,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Unstable (hypotension, shock, altered mentation, ischemic pain, acute HF): synchronized cardioversion per protocol',
       'Stable RVR: rate control with diltiazem or metoprolol where protocols allow; avoid diltiazem in decompensated HF',
       'Look for drivers such as sepsis, dehydration or hemorrhage; fluids may fix the rate better than drugs',
-      'Wide, very fast, irregular rhythm: no adenosine, diltiazem, β-blocker or digoxin; consider procainamide or cardioversion',
+      'Wide, very fast, irregular rhythm: no adenosine, diltiazem, β-blocker, digoxin or IV amiodarone; consider procainamide or cardioversion',
       'Perform a stroke assessment and document last known well time for any neurologic deficit',
     ],
     hospitalCare: [
@@ -461,7 +461,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     ],
     redFlags: [
       'Hypotension, shock, altered mental status, ischemic chest pain or acute pulmonary edema',
-      'Irregular wide-complex tachycardia > 250 bpm suggesting pre-excited AF',
+      'Irregular wide-complex tachycardia, often > 200 bpm, suggesting pre-excited AF',
       'New focal neurologic deficit (embolic stroke)',
       'Major bleeding while on anticoagulation',
       'Regular slow ventricular rate in known AF (complete heart block, digoxin toxicity)',
