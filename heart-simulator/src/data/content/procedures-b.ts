@@ -1233,11 +1233,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A stent is placed across a carotid bifurcation narrowing, with an embolic protection device, to lower future stroke risk. It is an alternative to carotid endarterectomy, particularly for patients at high surgical risk.',
     levelNotes: [
-      'After carotid stenting, any new facial droop, arm weakness or speech change is a stroke alert — record time last known well',
-      'Bradycardia and hypotension from carotid sinus stretch are common after CAS; treat symptomatic bradycardia per protocol',
-      'Monitor neuro status and blood pressure closely: treat hypotension from baroreflex activation and avoid hypertension (hyperperfusion syndrome)',
-      'For symptomatic severe stenosis, choose CEA, transfemoral CAS or TCAR by age, anatomy and surgical risk; CAS carries higher periprocedural stroke risk in older patients',
-      'Assess arch type and tortuosity, use distal filter or proximal flow-reversal protection, and give atropine or glycopyrrolate before post-dilation to blunt reflex bradycardia',
+      'After carotid stenting, new facial droop, arm weakness, speech change, severe headache or seizure is a stroke alert: record time last known well, check glucose where protocols allow and transport to a stroke centre',
+      'Carotid sinus stretch can cause bradycardia and hypotension for 24–48 h — treat symptomatic bradycardia per protocol (atropine, pacing) and avoid hypertension; severe headache or seizure suggests hyperperfusion syndrome or hemorrhage',
+      'Prepare the long sheath, embolic protection device, carotid stent and balloons, with atropine or glycopyrrolate drawn up on the physician’s order; record continuous arterial pressure and heart rate and call out bradycardia or asystole during post-dilation immediately',
+      'Perform baseline and serial neuro checks (speech, grip, facial symmetry) during and after the case; give atropine or vasopressors on order for bradycardia or hypotension, keep BP within the ordered range to limit hyperperfusion, and escalate any neuro change immediately',
+      'For symptomatic severe stenosis choose CEA, transfemoral CAS or TCAR by age, arch anatomy and surgical risk — CAS carries more periprocedural stroke in older patients (CREST); pretreat with DAPT and statin, use embolic protection and blunt reflex bradycardia before post-dilation',
     ],
     overview: [
       'Transfemoral CAS with embolic protection; transcarotid revascularisation (TCAR) with flow reversal is an alternative',
@@ -1342,11 +1342,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Catheters placed directly into pulmonary artery or deep vein clot deliver low-dose thrombolytic drug and/or mechanically remove thrombus. It is used for selected high-risk or deteriorating intermediate-risk PE and severe DVT when benefit outweighs bleeding risk.',
     levelNotes: [
-      'Sudden breathlessness, chest pain, fast heart rate and low oxygen after immobility or surgery may be PE — give oxygen to target, monitor and transport rapidly',
-      'In massive PE with hypotension avoid large fluid boluses that overload the failing RV; prepare for arrest and notify early',
-      'Risk-stratify PE by hemodynamics, RV dysfunction, troponin and sPESI; activate the PE response team for intermediate-high and high-risk PE',
-      'High-risk PE needs reperfusion: systemic thrombolysis first-line, with catheter or surgical therapy if contraindicated or failed; routine catheter therapy in intermediate-high risk is still under study',
-      'Infusion catheters (standard or ultrasound-facilitated) deliver a fraction of the systemic lytic dose over hours; large-bore aspiration thrombectomy avoids lytics — measure PA pressures before and after',
+      'Sudden breathlessness, chest pain, a fast pulse and low oxygen after immobility, surgery or travel may be PE: give oxygen to target, monitor closely, be ready for CPR and transport rapidly with early notification',
+      'Recognise tachycardia and RV-strain patterns (S1Q3T3, new RBBB, anterior T inversion); in massive PE give only small fluid boluses, use vasopressors per protocol, avoid intubation if possible and pre-alert for PE team activation',
+      'Prepare venous sheaths, a pigtail, and infusion or large-bore aspiration catheters; record RA, RV and PA pressures before and after treatment, watch for ectopy or VT during RV passage, and track aspirated blood loss for the operator',
+      'Verify lytic contraindication screening and orders; give alteplase and heparin exactly as ordered and monitor frequently per protocol for bleeding, access-site oozing and neuro change, with hemoglobin and fibrinogen as ordered, escalating any decline immediately',
+      'Risk-stratify by hemodynamics, RV function, troponin and sPESI; high-risk PE needs reperfusion (systemic lysis first, catheter or surgical therapy if contraindicated or failed), while routine catheter therapy in intermediate-high risk remains under study — decide with the PERT',
     ],
     overview: [
       'Includes catheter-directed thrombolysis, ultrasound-facilitated thrombolysis and mechanical or aspiration thrombectomy',
@@ -1453,11 +1453,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A metal filter placed in the inferior vena cava, usually below the renal veins, traps large clots travelling from the legs toward the lungs. It is reserved mainly for acute venous thromboembolism when anticoagulation cannot be given, and retrievable filters should be removed once no longer needed.',
     levelNotes: [
-      'A filter does not make PE impossible — treat breathlessness, chest pain and low oxygen as possible PE',
-      'Filter patients still get DVT and PE; new swelling of both legs may mean filter or IVC thrombosis',
-      'The main indication is acute proximal DVT or PE with an absolute contraindication to anticoagulation; start anticoagulation as soon as it is safe',
-      'Do not place filters routinely alongside anticoagulation (PREPIC 2) or for primary prophylaxis; arrange retrieval once anticoagulation is established',
-      'Cavography defines renal veins, IVC diameter and anomalies (duplicated IVC, megacava); position infrarenal with the apex near the lowest renal vein and plan retrieval',
+      'A filter does not make PE impossible — treat breathlessness, chest pain and low oxygen as possible PE, give oxygen to target and transport, and mention the filter at handover',
+      'Filter patients still develop DVT and PE; new swelling of both legs may mean filter or IVC thrombosis — monitor for tachycardia and hypoxia, look for RV strain on the 12-lead and treat hypotension per protocol',
+      'Prepare the filter kit and delivery sheath, a marker pigtail for cavography and the power injector as directed; record filter type, lot and position for retrieval tracking, and apply ALARA during jugular or femoral access',
+      'Confirm the indication and retrieval plan are documented; after placement check the access site and both legs, monitor for bleeding and new swelling, and teach the filter type, MRI-conditional status and the need for retrieval follow-up',
+      'Place filters only for acute proximal DVT/PE with an absolute contraindication to anticoagulation — not routinely with anticoagulation (PREPIC 2) or for primary prophylaxis; cavography defines renal veins and IVC diameter, then anticoagulate when safe and retrieve promptly',
     ],
     overview: [
       'A mechanical barrier — it does not stop clot formation',

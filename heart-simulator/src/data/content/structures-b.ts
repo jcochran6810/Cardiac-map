@@ -495,11 +495,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A variant branch that arises between the LAD and circumflex when the left main trifurcates. It supplies the high lateral wall, behaving like either a diagonal or an obtuse marginal branch.',
     levelNotes: [
-      'Lateral wall heart attacks can look subtle on the ECG; treat chest pain seriously even when the 12-lead looks borderline',
-      'Ramus occlusion can produce high lateral STE in I and aVL with inferior reciprocal STD; transmit and escalate',
-      'A lateral territory occlusion may be ECG-silent; persistent ischemic pain with rising troponin despite therapy warrants urgent angiography',
-      'The ramus is a normal variant present in roughly 15–30% and acts as a functional diagonal or OM depending on its course',
-      'A ramus turns the LM into a trifurcation, complicating distal LM PCI strategy and side-branch protection',
+      'Side-wall heart attacks can look subtle on the ECG: treat cardiac-sounding chest pain as an emergency, give aspirin per protocol, acquire and transmit a 12-lead where allowed, and transport even if the patient seems stable.',
+      'Ramus occlusion can produce high lateral STE in I and aVL with reciprocal STD in III and aVF, or no diagnostic STE; transmit, repeat 12-leads during ongoing pain and contact medical direction.',
+      'A ramus turns the LM into a trifurcation, seen best in LAO caudal (spider) and RAO caudal; expect extra wires for branch protection and IVUS, and keep shielding in place because steep caudal views raise radiation dose.',
+      'Lateral-wall ischemia may be ECG-silent, so report ongoing chest pain, hypotension or arrhythmia even when the monitor looks unchanged; give medications as ordered and keep ACT in the ordered range during complex LM-trifurcation work.',
+      'Present in ~15–30%, the ramus behaves as a high diagonal or OM. LM trifurcation PCI usually uses provisional stenting with imaging and selective branch treatment; a large ramus may justify physiology assessment or grafting in multivessel disease.',
     ],
     overview: [
       'Arises from the left main between the LAD and LCx (trifurcation)',
@@ -555,11 +555,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The first part of the circumflex artery, running from the left main into the left atrioventricular groove to the first obtuse marginal branch. Its occlusions are notoriously ECG-silent and often missed as NSTEMI.',
     levelNotes: [
-      'A heart attack in the circumflex territory may not show classic ST elevation; ongoing chest pain still needs urgent care and a transmitted 12-lead',
-      'Look for ST depression in V1–V3 with tall R waves: it may be a posterior MI from the circumflex, and posterior leads V7–V9 can confirm it',
-      'Isolated V1–V3 STD with ongoing pain is a posterior STEMI until proven otherwise; obtain V7–V9 and activate the cath lab if STE ≥ 0.5 mm',
-      'Circumflex occlusion is the classic occlusion MI that misses STEMI criteria; use posterior leads, inferior clues (II ≥ III, no STD in I) and wall motion',
-      'Angulated LCx takeoff and the left AV groove course challenge PCI; the LCx lies near the mitral annulus and coronary sinus, relevant to mitral surgery and CS-based devices',
+      'Circumflex heart attacks often lack obvious ECG changes: if chest pain continues, give aspirin and assist with the patient\'s own nitroglycerin per protocol, acquire and transmit a 12-lead where allowed, and transport promptly.',
+      'STD maximal in V1–V3 with tall R waves may be posterior STEMI: record V7–V9 (STE ≥ 0.5 mm, ≥ 1 mm in men < 40) and activate per protocol. Inferior STE with II ≥ III and no STD in I suggests the LCx.',
+      'The LCx origin is best seen in LAO caudal (spider) and RAO caudal; its angulated takeoff often needs extra guide support, so have supportive guides and support devices ready as requested, and report damping, ST change or chest pain promptly.',
+      'LCx occlusion is often ECG-silent, so take ongoing chest pain seriously and report it; monitor for signs of mitral regurgitation (new murmur, pulmonary edema), bradycardia and hypotension, and give antithrombotics and analgesia as ordered.',
+      'The classic occlusion MI that misses STEMI criteria: use V7–V9, II ≥ III, isoelectric/elevated I/aVL and wall motion. Angulated ostial PCI needs strong support and a careful LM strategy; the LCx is at risk in mitral surgery and with CS-based devices.',
     ],
     overview: [
       'Arises from the left main and turns posteriorly in the left atrioventricular groove',
@@ -626,11 +626,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The continuation of the circumflex in the posterior left atrioventricular groove beyond the first obtuse marginal. Small in right-dominant hearts, it becomes a major vessel giving the PDA and posterolateral branches when the circulation is left-dominant.',
     levelNotes: [
-      'A heart attack in the back of the heart may not show typical ST elevation; treat ongoing chest pain as an emergency and transmit the 12-lead',
-      'ST depression in V1–V3 with tall R waves suggests posterior MI; record V7–V9 and transmit to the receiving center',
-      'Posterior and inferolateral infarcts can be large in left-dominant hearts; watch for AV block, mitral regurgitation and shock',
-      'Define dominance on angiography: in left dominance, distal LCx occlusion produces inferior plus posterior MI with II ≥ III and AV nodal involvement',
-      'In left dominance the distal LCx supplies the AV nodal artery and left PDA; PCI here risks AV nodal branch loss, and the vessel lies close to the mitral annulus',
+      'A heart attack in the back of the heart may not show typical ECG changes: treat ongoing chest pain as an emergency, give aspirin per protocol, transmit a 12-lead where allowed and recheck the pulse often for slowing.',
+      'Posterior MI: STD V1–V3 with tall R waves; record V7–V9 and transmit. In left-dominant hearts the distal LCx supplies the AV node, so watch for AV block and treat symptomatic bradycardia per ACLS protocol.',
+      'Dominance is shown by injecting both coronaries; in left dominance the distal LCx and left PDA show in LAO cranial and RAO views. Have temporary pacing equipment ready during dominant LCx PCI and report new AV block at once.',
+      'With a dominant LCx, monitor for AV block, bradycardia and new mitral regurgitation (murmur, pulmonary edema); give atropine as ordered or per ACLS, support temporary pacing and escalate hemodynamic changes promptly.',
+      'In left dominance (~5–10%), distal LCx occlusion causes inferoposterior MI with II ≥ III and AV nodal involvement; PCI risks AV nodal branch loss, and proximity to the posterior mitral annulus matters for mitral surgery and CS-based devices.',
     ],
     overview: [
       'Runs in the posterior left AV groove beyond OM1',

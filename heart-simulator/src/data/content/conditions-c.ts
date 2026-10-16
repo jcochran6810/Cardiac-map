@@ -18,11 +18,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A heart muscle disease in which the left ventricle (sometimes both ventricles) enlarges and pumps weakly, without enough coronary disease or abnormal loading (hypertension, valve disease) to explain it. It is a major cause of heart failure with reduced ejection fraction and of heart transplantation.',
     levelNotes: [
-      'Recognize heart failure signs (breathlessness, crackles, leg swelling): sit the patient upright, give oxygen only if hypoxemic, and avoid fluid boluses',
-      'DCM patients are prone to VT/VF, AF and conduction block; keep pads ready, transmit a 12-lead and note any ICD or LVAD',
-      'Profile congestion and perfusion (warm/cold, wet/dry), diurese the congested patient, and spot early cardiogenic shock from rising lactate or falling urine output',
-      'Establish etiology (exclude ischemia, CMR, genetic testing, family screening), titrate all four GDMT pillars and reassess LVEF after ≥ 3 months before ICD/CRT decisions',
-      'Device and support nuance: CRT for LBBB with QRS ≥ 150 ms, earlier ICD for LMNA variants or extensive midwall LGE, and timely LVAD or transplant referral',
+      'Known weak heart with breathlessness, crackles or leg swelling: sit upright, give oxygen if SpO2 is low, use CPAP if your protocol allows, and note any ICD or LVAD. If unresponsive and pulseless, start CPR and use the AED.',
+      'Expect sinus tachycardia, LBBB, AF and ventricular ectopy; treat VT/VF and unstable rhythms per ACLS protocol. Use CPAP and nitroglycerin for pulmonary edema only if BP allows, avoid fluid boluses, and contact medical direction for hypotension.',
+      'Patients arrive with low EF and high filling pressures: zero and level transducers, record LVEDP, PCWP and cardiac output accurately, and keep defibrillator, temporary pacing and MCS equipment ready. Report VT, hypotension or a rising LVEDP to the operator at once.',
+      'Before the case assess orthopnea, JVP, weight, potassium and creatinine; a patient who cannot lie flat needs positioning support, and sedation only on order with capnography. Give diuretics as ordered and escalate hypotension, VT or desaturation immediately.',
+      'Define etiology (exclude ischemia, CMR LGE pattern, genetic testing, family screening), titrate four-pillar GDMT and reassess LVEF after ≥ 3 months before primary-prevention ICD. CRT for LBBB with QRS ≥ 150 ms; consider earlier ICD in LMNA carriers or extensive midwall LGE.',
     ],
     overview: [
       'LV or biventricular dilation with systolic dysfunction not explained by CAD or abnormal loading conditions',
@@ -80,10 +80,10 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Sit upright, apply monitor and pulse oximetry; give oxygen only if hypoxemic',
-      'CPAP for acute pulmonary edema with respiratory distress if mental status and BP allow',
-      'Nitroglycerin for hypertensive pulmonary edema per protocol; withhold if hypotensive',
-      'Avoid routine fluid boluses; small cautious boluses only if clearly hypovolemic with clear lungs',
-      'Obtain a 12-lead ECG and be ready to defibrillate; note any ICD or LVAD',
+      'CPAP per protocol for acute pulmonary edema with respiratory distress if mental status and BP allow',
+      'ALS: Nitroglycerin for hypertensive pulmonary edema per protocol; withhold if hypotensive',
+      'ALS: Avoid routine IV fluid boluses; small cautious boluses only if clearly hypovolemic with clear lungs',
+      'Acquire and transmit a 12-lead ECG per protocol; be ready to defibrillate and note any ICD or LVAD',
       'Bring the medication list: GDMT explains low baseline BP and hyperkalemia risk',
     ],
     hospitalCare: [
@@ -145,11 +145,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'An inherited heart muscle disease in which the left ventricular wall becomes abnormally thick, often obstructing blood flow out of the heart and stiffening the ventricle. It is a recognized cause of sudden cardiac death in young people, including athletes.',
     levelNotes: [
-      'A young person with exertional syncope or chest pain may have HCM: stop exertion, lay flat with legs raised if hypotensive, and do not give nitroglycerin',
-      'Treat hypotension with fluids and a pure alpha agonist (phenylephrine) rather than nitrates or inotropes, which worsen outflow obstruction; defibrillate VF early',
-      'Recognize dynamic LVOT obstruction: maintain preload and afterload, slow the heart rate, and avoid inotropes, vasodilators and aggressive diuresis',
-      'Stratify SCD risk with 2024 AHA/ACC markers and escalate obstructive therapy from beta-blocker or verapamil/diltiazem to cardiac myosin inhibitor or septal reduction',
-      'For alcohol septal ablation, target the septal perforator supplying the SAM–septal contact point (confirm with myocardial contrast echo) and anticipate RBBB or complete heart block',
+      'A young person who faints during exertion, or has a family history of sudden death, may have HCM: stop activity, lay flat with legs raised if BP is low, and use CPR and the AED if pulseless. Do not assist with nitroglycerin.',
+      'Avoid nitroglycerin and other vasodilators; treat hypotension with fluid boluses and, if a vasopressor is needed, phenylephrine where protocols include it rather than inotropes. Cardiovert unstable rapid AF or VT and defibrillate VF early.',
+      'Expect LVOT gradient studies: set up simultaneous LV and aortic pressure recording and capture the post-PVC Brockenbrough–Braunwald–Morrow response; for alcohol septal ablation, prepare temporary pacing and echo contrast as directed. Report hypotension or new heart block immediately.',
+      'Dehydration, vasodilators, sedation and tachycardia worsen outflow obstruction: maintain ordered IV fluids, clarify any nitrate or inotrope order with the physician, and report hypotension early. After alcohol septal ablation, monitor continuously for heart block and check the temporary pacing wire.',
+      'Stratify SCD risk with 2024 AHA/ACC markers (family SCD, wall ≥ 30 mm, unexplained syncope, apical aneurysm, LVEF < 50%, extensive LGE, NSVT); escalate obstructive therapy from beta-blocker to verapamil/diltiazem, myosin inhibitor or disopyramide, then septal reduction, confirming the ablation perforator with contrast echo.',
     ],
     overview: [
       'Unexplained LV wall thickness ≥ 15 mm in adults (≥ 13 mm with family history or a pathogenic variant)',

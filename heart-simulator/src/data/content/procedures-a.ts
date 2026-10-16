@@ -1617,11 +1617,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A permanent pacemaker is a battery-powered generator placed under the skin with leads into the heart; it senses the heart\'s own activity and paces when the rate is too slow or conduction fails. It is the definitive treatment for symptomatic bradycardia and high-grade AV block.',
     levelNotes: [
-      'Recognize the device bump below the clavicle and pacing spikes on the monitor, and defibrillate normally with pads not directly over the device (ideally ~8 cm away or anterior–posterior).',
-      'Identify failure to capture (spikes without a complex) and failure to sense, and use transcutaneous pacing as the bridge for unstable bradycardia.',
-      'After implant, watch for pneumothorax, pocket hematoma, lead dislodgement (loss of capture) and tamponade, and get a CXR and device interrogation.',
-      'Pacing is indicated for symptomatic sinus node dysfunction, and for Mobitz II, high-grade or complete heart block not due to reversible causes even without symptoms.',
-      'Choose venous access (cephalic, axillary, subclavian) and lead sites (RA appendage, RV septum/apex or conduction system) and confirm sensing, threshold, impedance and stability before closing.',
+      'Look for a device bump below the collarbone and ask about pacemakers. In arrest, do CPR and use the AED normally with pads not directly over the device (or anterior–posterior); dizziness or fainting in a pacemaker patient needs ALS and prompt transport.',
+      'Identify paced rhythms, failure to capture (spikes without complexes) and failure to sense, and treat unstable bradycardia with atropine and/or transcutaneous pacing per protocol. Defibrillate with pads away from the generator and bring the device ID card to the receiving team.',
+      'Prepare the sterile field, peel-away sheaths, leads, stylets and pacing system analyzer, and record sensing, capture thresholds and impedance as the operator tests each lead. Have transcutaneous pacing ready for dependent patients and report loss of capture, ectopy or hypotension.',
+      'Give prophylactic antibiotic (e.g., cefazolin) as ordered within 60 minutes of incision, verify the anticoagulant plan and monitor sedation. Afterwards watch for pocket hematoma, pneumothorax (dyspnea, falling SpO2) and loss of capture, and teach wound care and arm precautions per protocol.',
+      'Pacing is Class 1 for symptomatic sinus node dysfunction and for Mobitz II, high-grade or complete AV block without a reversible cause, regardless of symptoms (2018 ACC/AHA/HRS). Prefer cephalic or axillary access, confirm sensing, threshold, impedance and no phrenic capture, and consider CSP for high pacing burden.',
     ],
     overview: [
       'Generator in a subcutaneous (prepectoral) or submuscular pocket, usually left infraclavicular',
@@ -1755,11 +1755,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A self-contained capsule pacemaker is delivered through a femoral vein catheter and fixed directly inside the right ventricle, with no pocket and no transvenous leads. It avoids pocket and lead complications but offers more limited pacing options.',
     levelNotes: [
-      'A patient can have a pacemaker with no chest bump or scar, so ask about devices and look for paced complexes on the monitor.',
-      'Leadless devices produce paced complexes like conventional systems (the spike may be tiny or invisible), so manage bradycardia and arrest per ACLS and defibrillate normally.',
-      'Early dangers are groin bleeding or AV fistula and cardiac perforation with tamponade, so hypotension after implant needs an urgent echo.',
-      'Consider leadless pacing for patients needing mainly ventricular pacing (e.g., AF with slow ventricular response), with high infection risk, dialysis, limited venous access or prior device infection.',
-      'Deploy on the RV mid-septum (avoid apex and free wall), confirm fixation with a tug test and electrical parameters, and plan for retrieval or end-of-life strategy.',
+      'A patient can have a pacemaker with no chest bump or scar, so always ask about heart devices and look for a device card. If pulseless, do CPR and use the AED normally; leadless devices do not change BLS care.',
+      'Leadless devices give an RV-paced, LBBB-like QRS, but the spike may be tiny or invisible. Treat bradycardia and arrest per ACLS, defibrillate normally, and suspect tamponade if hypotension develops soon after implant.',
+      'Prepare the large-bore (~25–27 Fr) venous sheath, delivery catheter, contrast and programmer, with a pericardiocentesis kit on standby. Record sensing, threshold and impedance after the tug test, and alert the operator to hypotension, new effusion or loss of capture.',
+      'Give heparin and antibiotic prophylaxis as ordered; afterwards check the femoral site (figure-of-8 suture or compression) and BP closely. Report hypotension or chest pain immediately as possible tamponade needing urgent echo; no pocket care or arm restrictions are needed.',
+      'Consider leadless pacing when mainly ventricular pacing is needed (e.g., AF with slow ventricular response), with high infection risk, dialysis, limited venous access or prior device infection. Deploy on the RV mid-septum, confirm fixation (tug test) and parameters, and plan retrieval or end-of-service strategy.',
     ],
     overview: [
       'Capsule (~2.5–4 cm long) containing battery, electronics and electrode',
@@ -1885,11 +1885,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Conduction system pacing places the lead at the His bundle or the left bundle branch area so the ventricles activate through the heart\'s own wiring, giving a narrower, more physiologic QRS than RV pacing. It is used to prevent pacing-induced cardiomyopathy and as an alternative to biventricular CRT.',
     levelNotes: [
-      'Paced rhythms from these devices can look almost normal (narrow QRS), so a narrow complex does not rule out a pacemaker.',
-      'Conduction system paced ECGs may show a narrow or RBBB-like QRS after a small spike, so check for spikes and ask about devices.',
-      'A sudden change to a wider, LBBB-like paced QRS can mean loss of conduction system capture or a lead problem, so arrange device interrogation.',
-      'CSP is reasonable when substantial ventricular pacing is expected (especially with LVEF 36–50%) and as an alternative to BiV CRT when CS lead placement fails or in selected patients (2023 HRS/APHRS/LAHRS guideline).',
-      'For LBBAP, screw the lead deep into the septum ~1–2 cm distal to the His toward the apex and confirm left bundle capture by paced RBBB morphology and a short, stable V6 R-wave peak time.',
+      'Ask about pacemakers and look for a device card or chest scar. A pacemaker patient with fainting, dizziness or worsening breathlessness may have a device problem and needs prompt ALS assessment and transport; use CPR and the AED normally if pulseless.',
+      'Conduction system pacing can give a narrow or RBBB-like QRS after a small spike, so a narrow complex does not exclude pacing. A sudden change to a wider, LBBB-like paced QRS can mean loss of conduction system capture, so document it for device interrogation.',
+      'Set up the recording system with a live 12-lead, prepare the lumenless lead and delivery sheath, and record paced V1/V6 morphology, impedance and current of injury as the lead advances. Alert the operator to a sudden impedance drop or loss of injury current (possible septal perforation).',
+      'Post-implant care matches conventional pacing: antibiotic as ordered, pocket and pneumothorax checks, wound and arm-activity teaching. Record the ordered 12-lead documenting the capture pattern, and report a new wide LBBB-like paced QRS or rising thresholds.',
+      'CSP is reasonable when substantial ventricular pacing is expected (especially LVEF 36–50%) and as a CRT alternative when CS lead placement fails (2023 HRS/APHRS/LAHRS). For LBBAP, enter the septum ~1–2 cm distal to the His and confirm LBB capture by paced RBBB morphology and a short, stable V6 RWPT.',
     ],
     overview: [
       'His bundle pacing (HBP): lead at the His bundle; most physiologic and can correct some bundle branch block',

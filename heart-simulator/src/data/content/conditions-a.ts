@@ -15,11 +15,11 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     summary:
       'The heart\'s normal rhythm: each beat starts in the sinoatrial (SA) node and travels through the atria, AV node and His–Purkinje system, giving a regular adult rate of 60–100 bpm. It is the reference pattern against which every other rhythm is judged.',
     levelNotes: [
-      'Confirm a regular pulse of 60–100 bpm, but remember that a normal rhythm does not rule out a heart attack or shock, so keep assessing the patient.',
-      'Use NSR as the template for a systematic read (rate, regularity, P waves, PR, QRS, QT, ST-T) and always confirm a pulse, because an organized rhythm without a pulse is PEA.',
-      'A normal rhythm strip does not exclude ischemia, electrolyte disturbance or QT prolongation; review the full 12-lead intervals and repeat ECGs when symptoms persist.',
-      'Confirm true sinus origin by P-wave axis (upright in I, II and aVF; inverted in aVR) and scan the baseline ECG for subtle substrate such as pre-excitation, Brugada pattern or long QT.',
-      'The SA node is a subepicardial crescent at the SVC–right atrial junction along the crista terminalis; it and the right phrenic nerve are at risk during SVC isolation or ablation in this region.',
+      'A regular 60–100 bpm pulse does not rule out heart attack, bleeding or shock, so keep assessing and acquire and transmit a 12-lead where protocols allow. An unresponsive patient with no pulse needs CPR and the AED whatever the monitor shows.',
+      'Use NSR as the template for a systematic read (rate, regularity, P waves, PR, QRS, QT, ST-T) and always confirm a pulse: an organized rhythm without one is PEA, so start CPR and follow the PEA algorithm per protocol.',
+      'Record baseline rhythm, heart rate and intervals at the start of the case so changes are obvious; watch for ectopy, bradycardia or ST shifts during catheter manipulation and contrast injection, and alert the operator immediately.',
+      'Document baseline rhythm, rate, PR/QRS/QTc and vital signs before sedation or medications; a normal rhythm does not exclude ischemia, so reassess chest pain and perfusion and escalate any rhythm or ST change to the physician.',
+      'Confirm sinus origin by P-wave axis (upright in I, II, aVF; inverted in aVR) and scan for pre-excitation, Brugada pattern, long QT or conduction disease; the SA node and right phrenic nerve lie near the SVC–RA junction, at risk during SVC isolation.',
     ],
     overview: [
       'Normal adult rhythm originating in the sinoatrial (SA) node',
@@ -71,8 +71,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     fieldCare: [
       'Treat the patient, not the monitor: assess airway, breathing, circulation, perfusion and symptoms',
       'Acquire and transmit a 12-lead ECG within 10 minutes for chest pain, dyspnea, syncope or anginal equivalents',
-      'Always confirm a palpable pulse; an organized rhythm without a pulse is PEA, so start CPR',
-      'Save a baseline rhythm strip so later changes can be compared',
+      'Always confirm a palpable pulse; no pulse means CPR and the AED whatever the monitor shows (an organized rhythm without a pulse is PEA)',
+      'ALS: Save a baseline rhythm strip so later changes can be compared',
       'A normal ECG does not exclude ACS; repeat the 12-lead if symptoms change',
     ],
     hospitalCare: [
@@ -129,11 +129,11 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     summary:
       'Sinus rhythm slower than 60 bpm (the 2018 ACC/AHA/HRS bradycardia guideline uses < 50 bpm). It is often normal in athletes and during sleep, but can reflect sinus node disease, drugs, ischemia, hypothermia, hypothyroidism or raised intracranial pressure.',
     levelNotes: [
-      'Decide whether the slow pulse is causing poor perfusion (low BP, confusion, chest pain, shock); if so, call ALS early, give oxygen only if hypoxemic, and prepare for pacing.',
-      'For symptomatic bradycardia give atropine 1 mg IV every 3–5 min (max 3 mg); if ineffective, start transcutaneous pacing or a dopamine or epinephrine infusion while seeking the cause.',
-      'Hunt for reversible causes: β-blocker, calcium channel blocker or digoxin toxicity, hyperkalemia, hypothermia, hypothyroidism, inferior MI, hypoxia, raised ICP and sleep apnea.',
-      'Pace for symptomatic sinus node dysfunction once reversible causes are excluded (2018 ACC/AHA/HRS); asymptomatic sinus bradycardia does not need a pacemaker.',
-      'In sinus node dysfunction choose atrial-based (dual-chamber or atrial) pacing over single-chamber ventricular pacing, minimize unnecessary RV pacing, and use rate response for chronotropic incompetence.',
+      'Check whether the slow pulse is causing poor perfusion (low BP, confusion, chest pain, shock); if so, request ALS early, give oxygen only if hypoxemic and acquire/transmit a 12-lead per protocol. In children, ventilate first; CPR if HR < 60 with poor perfusion.',
+      'For symptomatic bradycardia give atropine 1 mg IV every 3–5 min (max 3 mg); if ineffective, start transcutaneous pacing or a dopamine or epinephrine infusion per protocol, and look for inferior STEMI, hypothermia, hyperkalemia or drug toxicity.',
+      'Expect vagal or contrast-induced slowing (especially RCA injections, sheath insertion or removal); call out rate and BP to the operator at once, coach a cough if directed, and have atropine prepared for the physician\'s order, pacing pads and a temporary pacing kit ready.',
+      'Assess perfusion and mental status, look for vasovagal triggers (pain, sheath removal, full bladder) and rate-slowing medications, and give atropine 1 mg IV or a fluid bolus as ordered; escalate persistent symptoms and keep pacing pads on.',
+      'Exclude reversible causes and correlate symptoms with rhythm; pace only symptomatic sinus node dysfunction (2018 ACC/AHA/HRS), preferring dual-chamber or atrial over single-chamber ventricular pacing, minimizing RV pacing and adding rate response for chronotropic incompetence.',
     ],
     overview: [
       'Sinus rhythm < 60 bpm traditionally; the 2018 ACC/AHA/HRS bradycardia guideline defines it as < 50 bpm',

@@ -1606,11 +1606,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A catecholamine that raises coronary and cerebral perfusion pressure during CPR via α1 vasoconstriction and increases heart rate and contractility via β1. Mainstay for cardiac arrest, anaphylaxis and refractory bradycardia or shock.',
     levelNotes: [
-      'Give IM epinephrine 0.3–0.5 mg (1 mg/mL) for anaphylaxis; in arrest focus on CPR and the AED',
-      'Arrest: 1 mg IV/IO every 3–5 min — early in non-shockable rhythms, after initial shocks in VF/pVT',
-      'Infusion 2–10 mcg/min for bradycardia or titrated for shock; double-check concentrations to avoid dosing errors',
-      'PARAMEDIC2: epinephrine improved ROSC and 30-day survival but not favorable neurologic outcome',
-      'β effects raise O2 demand and arrhythmias; in cardiogenic shock norepinephrine and MCS are often preferred',
+      'For anaphylaxis, give epinephrine by auto-injector (0.3 mg adult) into the lateral thigh per protocol, and repeat per protocol if there is no improvement. In cardiac arrest, IV epinephrine is ALS; focus on high-quality CPR and early AED use.',
+      'Arrest: 1 mg IV/IO (0.1 mg/mL) every 3–5 min, early for non-shockable rhythms and after initial shocks in VF/pVT. Infusion 2–10 mcg/min for bradycardia per protocol; double-check concentrations (1 mg/mL IM vs 0.1 mg/mL IV).',
+      'Prepare epinephrine on physician order where facility policy permits, and take part in ACLS per certification. During a lab arrest, record dose times, prompt 3–5 min intervals and read concentrations aloud.',
+      'Give arrest doses per ACLS and infusions (e.g. 2–10 mcg/min or ~0.01–0.5 mcg/kg/min) as ordered, ideally centrally. Monitor arterial BP, HR, rhythm, lactate and glucose; report tachyarrhythmias and protect the IV site from extravasation.',
+      'PARAMEDIC2: improved ROSC and 30-day survival but not favorable neurologic outcome. In cardiogenic shock its β effects raise O2 demand and arrhythmias, so norepinephrine and early consideration of MCS are often preferred.',
     ],
     mechanism: [
       'α1: vasoconstriction → ↑SVR, aortic diastolic and coronary perfusion pressure',
@@ -1684,11 +1684,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A potent α1 agonist with moderate β1 activity that raises SVR and blood pressure while largely preserving cardiac output. First-line vasopressor for septic shock and generally preferred over dopamine in cardiogenic shock.',
     levelNotes: [
-      'Recognize shock (hypotension, cool clammy skin, altered mental status) and transport rapidly',
-      'Where used, start low and titrate; short-term peripheral infusion is acceptable through a large proximal IV',
-      'Titrate to MAP ≥ 65 mmHg and judge perfusion by lactate, urine output and mentation, not BP alone',
-      'Preferred over dopamine in cardiogenic shock (SOAP II: fewer arrhythmias, lower mortality in that subgroup)',
-      'Escalating pressor needs in AMI shock should prompt invasive hemodynamics and consideration of MCS (DanGer Shock)',
+      'Norepinephrine is an ALS and hospital drug. Recognize shock (low BP, cool clammy skin, altered mental status), position the patient, give oxygen if needed, keep them warm and transport rapidly.',
+      'Where in protocol, start low and titrate to MAP ≥ 65 mmHg; a short-term peripheral infusion through a large proximal IV is acceptable. Check the IV site often and contact medical direction for escalating doses.',
+      'Prepare norepinephrine on physician order where facility policy permits. Record arterial pressure trends, cardiac output and filling pressures during the case, and report a falling MAP or rising pressor needs to the operator.',
+      'Titrate to the ordered MAP target (commonly ≥ 65 mmHg), centrally when possible, checking peripheral sites at least hourly. Monitor lactate, urine output and mentation, report rising requirements, and keep phentolamine available for extravasation per policy.',
+      'Preferred over dopamine in cardiogenic shock (SOAP II: fewer arrhythmias, lower mortality in that subgroup). Escalating needs in AMI shock should prompt invasive hemodynamics and consideration of MCS (DanGer Shock: microaxial flow pump benefit in selected STEMI shock).',
     ],
     mechanism: [
       'Strong α1 agonist → arterial and venous constriction',
@@ -1757,11 +1757,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A non-catecholamine vasoconstrictor acting on V1 receptors. Used as a second vasopressor in septic and vasodilatory shock; it is no longer part of the adult ACLS arrest algorithm.',
     levelNotes: [
-      'Not used at EMT level; focus on recognizing shock and maintaining perfusion',
-      'Removed from the adult ACLS arrest algorithm in 2015 — no advantage over epinephrine alone',
-      'Add a fixed 0.03 units/min to norepinephrine in septic shock to raise MAP and spare catecholamines',
-      'Raises SVR without β effects — useful in vasoplegia and with catecholamine-induced arrhythmias',
-      'Useful in RV failure or pulmonary hypertension because it raises PVR less than catecholamines',
+      'Vasopressin is a hospital-only drug. Recognize shock and support perfusion with positioning, oxygen if needed, warmth and rapid transport.',
+      'Removed from the adult ACLS arrest algorithm in 2015 (no advantage over epinephrine alone). On critical care or interfacility transport, keep the ordered fixed-rate infusion running, watch for skin or digit ischemia, and adjust only per orders or medical direction.',
+      'Prepare vasopressin on physician order where facility policy permits; it is dosed in units, so confirm concentration and units aloud. Record arterial pressure and report digital mottling or ischemic ECG changes to the operator.',
+      'Run as a fixed-rate infusion as ordered (commonly 0.03 units/min in septic shock), not titrated like catecholamines. Monitor MAP, sodium, urine output and skin and digit perfusion, and report ischemic ECG changes.',
+      'Add a fixed 0.03 units/min to norepinephrine in vasodilatory shock to spare catecholamines (VASST); it raises SVR without β effects. Useful in vasoplegia, with catecholamine-induced arrhythmias, and in RV failure or pulmonary hypertension because it raises PVR less.',
     ],
     mechanism: [
       'V1 agonist on vascular smooth muscle → vasoconstriction',
@@ -1826,11 +1826,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A selective α1 agonist that raises SVR and blood pressure without direct β effects, often with reflex bradycardia. Useful for anesthesia-related hypotension and when tachycardia or LVOT obstruction must be avoided.',
     levelNotes: [
-      'Ask about OTC decongestants, which contain phenylephrine-type agents that can raise BP',
-      'Push-dose phenylephrine is used in some critical care systems; reflex bradycardia is expected',
-      'Pure α tone can lower cardiac output with poor LV function; not first-line in cardiogenic shock',
-      'Agent of choice for hypotension in obstructive HCM — raises afterload and reduces the LVOT gradient',
-      'Treats hypotension from dynamic LVOT obstruction (HCM, post-TAVR "suicide ventricle") or anesthetic vasodilation',
+      'Ask about OTC decongestants; some contain phenylephrine and can raise blood pressure. IV phenylephrine is a hospital or critical care drug, not an EMT medication.',
+      'Push-dose phenylephrine appears in some critical care transport protocols; use it only per protocol and expect reflex bradycardia. It is not first-line in cardiogenic shock, because pure α tone can lower cardiac output.',
+      'Prepare phenylephrine on physician order where facility policy permits, e.g. for hypotension during HCM or TAVR cases. Record arterial pressure and LVOT gradient changes and report reflex bradycardia.',
+      'Give boluses (~40–100 mcg) or an infusion (~10–200 mcg/min) as ordered to the target BP. Expect reflex bradycardia; report falling HR or signs of low output, and watch the IV site for extravasation.',
+      'Agent of choice for hypotension in obstructive HCM or post-TAVR dynamic LVOT obstruction ("suicide ventricle"): it raises afterload and reduces the gradient. Avoid in low-output cardiogenic shock; useful for anesthetic vasodilation in severe AS to maintain coronary perfusion.',
     ],
     mechanism: [
       'Direct α1 agonist → arterial and venous constriction',
