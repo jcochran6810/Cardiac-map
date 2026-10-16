@@ -1896,11 +1896,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'An endogenous catecholamine whose effects shift with dose: dopaminergic at low doses, β1 at moderate doses and α1 at high doses. Use has declined because it causes more arrhythmias than norepinephrine.',
     levelNotes: [
-      'Recognize symptomatic bradycardia and shock; dopamine is an ALS and hospital medication',
-      'Bradycardia unresponsive to atropine: 5–20 mcg/kg/min infusion (alternative to epinephrine or pacing)',
-      '"Renal-dose" dopamine does not protect the kidneys — this practice is abandoned',
-      'SOAP II: more arrhythmias, and higher mortality in cardiogenic shock, than norepinephrine',
-      'Rarely a first choice in the lab; norepinephrine is generally preferred for procedural hypotension',
+      'Dopamine is an ALS and hospital drug. Recognize a symptomatic slow pulse or shock, give oxygen if needed and request ALS early.',
+      'Bradycardia unresponsive to atropine, per protocol: 5–20 mcg/kg/min infusion as an alternative to epinephrine or pacing. Monitor for tachyarrhythmias and protect the IV site from extravasation.',
+      'Prepare dopamine on physician order where facility policy permits; it is rarely a first choice in the lab. Report new tachyarrhythmias or ectopy on the monitor to the operator.',
+      'Infuse at the ordered weight-based rate (5–20 mcg/kg/min), centrally where possible. Monitor ECG for arrhythmias, BP and urine output; report tachyarrhythmias and treat extravasation with phentolamine per policy.',
+      'SOAP II: more arrhythmias than norepinephrine and higher mortality in the cardiogenic shock subgroup. "Renal-dose" dopamine does not protect the kidneys; reserve it mainly as an ACLS bradycardia option.',
     ],
     mechanism: [
       'Low dose (~1–3 mcg/kg/min): D1 → renal and splanchnic vasodilation',
@@ -1964,11 +1964,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A predominantly β1-agonist inotrope that raises contractility and cardiac output with mild vasodilation. Used for low-output heart failure and cardiogenic shock, often paired with a vasopressor.',
     levelNotes: [
-      'On interfacility transfers, patients on inotropes are critically ill — watch for arrhythmias and hypotension',
-      'Never bolus inotropes; keep the ordered rate and report new tachyarrhythmias immediately',
-      'Use in low-output states with adequate BP; β2 vasodilation can drop BP, so add norepinephrine if needed',
-      'An inotrope bridge in advanced HF; tolerance develops over days and chronic use is for bridge or palliation',
-      'Low-dose dobutamine separates true severe from pseudo-severe low-flow, low-gradient AS before TAVR',
+      'Dobutamine is a hospital inotrope, but some advanced HF patients receive it at home by pump. Do not stop or adjust the pump, keep the line secure, bring the pump information, and report changes in breathing, mental status or perfusion.',
+      'On interfacility transport, keep the ordered rate, never bolus, and report new tachyarrhythmias or hypotension immediately. Do not interrupt a home inotrope infusion; contact medical direction for problems.',
+      'Prepare dobutamine on physician order, e.g. for low-flow, low-gradient AS studies. Record gradients, cardiac output and valve-area calculations at each stage, and report arrhythmias or ischemic changes.',
+      'Start and titrate at the ordered rate (e.g. 2–5 mcg/kg/min, up to ~20) without boluses. Monitor ECG, arterial BP, urine output and potassium; report tachyarrhythmias, hypotension or chest pain.',
+      'Use in low-output states with adequate BP, adding norepinephrine if β2 vasodilation drops pressure; tolerance develops within days, and chronic use is for bridge or palliation. Low-dose dobutamine separates true severe from pseudo-severe low-flow, low-gradient AS before TAVR.',
     ],
     mechanism: [
       'β1 agonist → ↑contractility and ↑HR',

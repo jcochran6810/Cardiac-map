@@ -689,11 +689,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The first major branch of the circumflex, running down the obtuse (lateral) margin of the left ventricle. It is often the largest lateral wall vessel and a frequent PCI and CABG target.',
     levelNotes: [
-      'Lateral wall heart attacks can look subtle: transmit every chest pain 12-lead and do not be reassured by a nearly normal ECG',
-      'OM occlusion may show STE in I, aVL and V5–V6, or only ST depression in V1–V3 if the posterolateral wall is involved',
-      'Lateral occlusion MI often lacks STEMI criteria; refractory ischemic pain with lateral changes warrants immediate angiography under NSTE-ACS guidelines',
-      'OM1 is the dominant lateral wall vessel in many patients; its occlusion causes lateral or inferolateral MI that is ECG-silent in a substantial fraction',
-      'LCx–OM1 bifurcation PCI and OM grafting decisions depend on vessel size and territory; RAO caudal is the workhorse view',
+      'Side-wall heart attacks may give a nearly normal ECG: treat cardiac-sounding chest pain seriously, give aspirin per protocol, and acquire and transmit a 12-lead where allowed rather than being reassured by how the patient looks.',
+      'OM occlusion may show STE in I, aVL and V5–V6, or only STD in V1–V3 when the posterolateral wall is involved; record V7–V9, transmit, and contact medical direction for ongoing pain without STEMI criteria.',
+      'OM1 is best seen in RAO caudal (also AP or LAO caudal). For physiology runs, set up the FFR/iFR console, normalize pressures at the guide tip and record Pd/Pa; give hyperemic adenosine only on the physician\'s order where policy permits.',
+      'Lateral MI can be ECG-silent and cause ischemic mitral regurgitation: assess for new murmur, dyspnea and hypotension, report refractory pain, and give adenosine, heparin and antiplatelets as ordered while watching for bradycardia and bronchospasm.',
+      'OM1 is often the dominant lateral vessel and its occlusion is ECG-silent in a substantial minority, so refractory ischemia mandates immediate angiography (NSTE-ACS, Class 1). Use FFR/iFR for intermediate lesions and SVG or radial grafts when CABG is chosen.',
     ],
     overview: [
       'First branch of the LCx to the lateral (obtuse) margin of the LV',
@@ -748,11 +748,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A more distal circumflex marginal branch supplying the inferolateral (posterolateral) wall. Its occlusion typically causes a posterior or inferolateral infarct that the standard 12-lead may miss.',
     levelNotes: [
-      'A back-wall heart attack may show only ST depression in V1–V3: transmit and treat chest pain as an emergency',
-      'If V1–V3 show ST depression with tall R waves, record posterior leads V7–V9 to look for hidden ST elevation',
-      'Posterolateral occlusion often appears as NSTEMI; ongoing pain or instability mandates immediate invasive strategy',
-      'OM2 territory is inferolateral; size and the presence of OM3 or left posterolateral branches vary with dominance',
-      'Smaller distal OMs are graft or PCI targets only when large; RAO caudal and LAO caudal views show their course',
+      'A back-wall heart attack may give a normal-looking ECG: treat cardiac chest pain as an emergency, give aspirin per protocol, transmit a 12-lead where allowed and transport.',
+      'If V1–V3 show ST depression with tall R waves, record V7–V9 to look for hidden STE (≥ 0.5 mm) and activate per protocol; otherwise treat as possible NSTE-ACS and transmit serial 12-leads.',
+      'OM2 runs from the mid-to-distal LCx and is best seen in RAO caudal and LAO caudal; distal OMs are small, so have smaller balloons and stents available and report slow flow or vessel cutoff to the operator.',
+      'Posterolateral MI often appears as NSTEMI: monitor for recurrent pain, new mitral regurgitation and arrhythmias, give anti-ischemic and antithrombotic medications as ordered, and escalate any instability immediately.',
+      'OM2 supplies the inferolateral wall; size and the presence of OM3 or left PL branches vary with dominance. Posterolateral occlusion often looks like NSTEMI, and instability mandates immediate invasive strategy; treat distal OMs only when large or culprit.',
     ],
     overview: [
       'Second marginal branch arising from the LCx beyond OM1',

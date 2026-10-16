@@ -1553,11 +1553,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Surgeons attach arterial and vein grafts beyond blocked coronary arteries, usually through a sternotomy. It improves survival in left main and complex multivessel disease, especially with diabetes or reduced LV function.',
     levelNotes: [
-      'Post-CABG patients with chest pain, fever or wound drainage need evaluation; follow sternal precautions and avoid pulling on the arms',
-      'Treat a STEMI in a post-CABG patient per protocol; atrial fibrillation is common in the first week after surgery',
-      'Early post-CABG problems: bleeding, tamponade (can be localised and atypical), post-op AF (~20–40%), vasoplegia, AKI and stroke',
-      'CABG is preferred for left main disease with high SYNTAX score, multivessel disease with diabetes (FREEDOM) and ischemic cardiomyopathy with LVEF ≤ 35% (STICH); the heart team uses SYNTAX and STS scores',
-      'LIMA-to-LAD is the key survival graft (> 90% patency at 10 years); radial artery or a second IMA outperforms vein for high-grade non-LAD targets',
+      'After CABG, chest pain, fever, wound drainage or breathlessness needs evaluation: give aspirin for suspected ACS per protocol, acquire and transmit a 12-lead where allowed, avoid pulling on the arms (sternal precautions) and transport',
+      'Treat STEMI in a post-CABG patient per protocol and report prior grafts to the receiving team; post-op AF is common in the first week — treat per protocol, and suspect tamponade if hypotension and JVD follow recent surgery',
+      'For graft angiography, prepare IMA and bypass graft catheters (and left radial or femoral set-ups for LIMA access), keep the operative graft list at hand, and alert the operator to pressure damping, ST change or arrhythmia during selective injections',
+      'Coordinate ordered holds (P2Y12 inhibitors, anticoagulants) and pre-op teaching; after CABG monitor chest tube output, rhythm, pacing wires, glucose and the sternal wound, and escalate tamponade signs (falling BP, rising CVP, sudden drop in drainage)',
+      'Favour CABG for left main with high SYNTAX, multivessel disease with diabetes (FREEDOM) and ischemic cardiomyopathy with LVEF ≤ 35% (STICH); LIMA–LAD drives survival, and radial or second IMA beats vein for high-grade non-LAD targets — decide with the heart team',
     ],
     overview: [
       'Conduits: left and right internal mammary arteries, radial artery and saphenous vein',
@@ -1669,11 +1669,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Open or minimally invasive surgery repairs a diseased valve or replaces it with a mechanical or bioprosthetic valve. It remains the standard for many patients with severe valve disease, endocarditis or combined surgical problems.',
     levelNotes: [
-      'A mechanical valve click is normal; these patients take warfarin, so bleeding or head injury needs urgent assessment',
-      'Stroke symptoms in a patient on warfarin may be hemorrhagic — rapid transport to a stroke centre; fever in a valve patient may be endocarditis',
-      'Muffled valve clicks, a new murmur, emboli or heart failure suggest prosthetic thrombosis or endocarditis; DOACs are contraindicated with mechanical valves',
-      'Repair beats replacement for primary MR when durable repair is likely; choose mechanical vs bioprosthetic by age, anticoagulation tolerance and preference',
-      'Record prosthesis type, label size and true internal diameter for future valve-in-valve planning, and avoid patient–prosthesis mismatch (consider root enlargement)',
+      'A mechanical valve click is normal; these patients take warfarin, so significant bleeding or any head injury needs urgent assessment and transport, and fever in a valve patient may be endocarditis',
+      'Stroke signs on warfarin may be hemorrhagic — follow the stroke protocol and destination rules; muffled valve clicks with new heart failure or emboli suggest prosthetic thrombosis, and AF or heart block is treated per protocol',
+      'Identify the prosthesis on fluoroscopy, prepare pigtails and transducers for simultaneous gradients during pre-op angiography or prosthesis assessment, and alert the operator before any catheter approaches a mechanical valve (entrapment risk)',
+      'Verify INR and bridging orders before procedures, monitor for bleeding and tamponade after surgery, and teach warfarin adherence to the team’s INR target, that DOACs cannot replace warfarin for mechanical valves, and dental endocarditis prophylaxis',
+      'Prefer repair for degenerative MR when durable repair is likely; choose mechanical vs bioprosthetic by age, anticoagulation tolerance and preference, avoid patient–prosthesis mismatch (consider root enlargement) and record true internal diameter for future valve-in-valve',
     ],
     overview: [
       'Includes SAVR, mitral repair or replacement, tricuspid repair and the Ross procedure',

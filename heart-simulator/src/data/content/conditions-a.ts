@@ -184,11 +184,12 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Assess perfusion: BP, mental status, skin signs, chest pain, dyspnea',
-      'Stable with adequate perfusion: monitor, IV access, 12-lead ECG and transport',
+      'Stable with adequate perfusion: serial vital signs and transport; with poor perfusion, request ALS early',
+      'ALS: Stable patients still need cardiac monitoring and IV access in case they deteriorate',
       'Acquire and transmit a 12-lead ECG; inferior STEMI is a common cause',
       'Oxygen only if hypoxemic; check glucose and temperature',
-      'Symptomatic: atropine 1 mg IV every 3–5 min to 3 mg, then transcutaneous pacing or dopamine/epinephrine infusion',
-      'When pacing, give analgesia/sedation as protocol allows and confirm mechanical capture with a femoral pulse',
+      'ALS: Symptomatic: atropine 1 mg IV every 3–5 min to 3 mg, then transcutaneous pacing or dopamine/epinephrine infusion',
+      'ALS: When pacing, give analgesia/sedation as protocol allows and confirm mechanical capture with a femoral pulse',
       'Children: bradycardia is usually hypoxic; oxygenate and ventilate first, CPR if HR < 60 with poor perfusion',
     ],
     hospitalCare: [
@@ -244,11 +245,11 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     summary:
       'Sinus rhythm faster than 100 bpm. It is almost always a normal response to a stressor such as pain, fever, hypovolemia, hypoxia, sepsis, PE, anxiety or stimulants, so the priority is to find and treat the cause.',
     levelNotes: [
-      'A fast regular pulse usually means something is wrong (bleeding, dehydration, fever, low oxygen, pain); look for shock and treat the cause.',
-      'Separate sinus tachycardia (gradual onset, rate usually < 220 − age, visible P waves, varies with treatment) from SVT or flutter; never cardiovert sinus tachycardia.',
-      'Tachycardia often compensates for low stroke volume in sepsis, hemorrhage, PE or tamponade; suppressing it with β-blockers or calcium channel blockers can cause collapse.',
-      'After excluding secondary causes, consider inappropriate sinus tachycardia or POTS; β-blockers, ivabradine and exercise reconditioning are the mainstays.',
-      'Differentiate inappropriate sinus tachycardia from focal atrial tachycardia near the crista terminalis; sinus node modification has high recurrence and risks phrenic nerve injury, SVC stenosis and pacemaker need.',
+      'A fast regular pulse is usually a sign of something else (bleeding, dehydration, fever, low oxygen, pain, anxiety); look for shock, control bleeding, give oxygen if hypoxemic and request ALS if perfusion is poor.',
+      'Separate sinus tachycardia (gradual onset, visible P waves, rate usually below ~220 − age, varies with treatment) from SVT or flutter; treat the cause (oxygen, fluids, analgesia per protocol) and never cardiovert sinus tachycardia.',
+      'In the lab, sinus tachycardia often signals pain, anxiety, bleeding (including retroperitoneal), contrast reaction or tamponade; record the trend, check the pressure waveform and access site, and report a rising rate or falling BP to the operator at once.',
+      'Treat tachycardia as a clue: assess pain, anxiety, volume status, temperature and access sites for bleeding and escalate promptly; clarify any order for β-blockers or calcium channel blockers, which can cause collapse when tachycardia is compensatory.',
+      'Exclude secondary causes before diagnosing IST (resting > 100, mean 24-h > 90 bpm) or POTS (≥ 30 bpm rise on standing); IST is treated with β-blockers or ivabradine, POTS with volume expansion and reconditioning. Sinus node modification is rarely used: high recurrence, phrenic and SVC injury.',
     ],
     overview: [
       'Sinus rhythm > 100 bpm',
@@ -296,10 +297,11 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Ivabradine (If channel blocker) is reasonable for symptomatic IST',
     ],
     fieldCare: [
-      'Search for and treat the cause: airway, oxygenation, bleeding control, fluids, glucose, temperature',
-      'Acquire and transmit a 12-lead ECG to confirm sinus P waves and look for ischemia',
-      'Never cardiovert sinus tachycardia; it will not terminate and is not the problem',
-      'Resting rate > 150 with no clear P waves: consider SVT or flutter and try vagal maneuvers per protocol',
+      'Search for and treat the cause: airway, oxygenation, bleeding control, glucose, temperature',
+      'ALS: IV access and fluid resuscitation per protocol when hypovolemia or sepsis is suspected',
+      'Acquire and transmit a 12-lead ECG so it can be reviewed to confirm sinus P waves and look for ischemia',
+      'ALS: Never cardiovert sinus tachycardia; it will not terminate and is not the problem',
+      'ALS: Resting rate > 150 with no clear P waves: consider SVT or flutter and try vagal maneuvers per protocol',
       'Reassess after treatment; the rate should fall with fluids, analgesia or cooling',
     ],
     hospitalCare: [

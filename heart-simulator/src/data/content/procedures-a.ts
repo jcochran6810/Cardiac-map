@@ -2019,11 +2019,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'An implantable cardioverter-defibrillator detects life-threatening ventricular arrhythmias and treats them with antitachycardia pacing or a shock. It is used for secondary prevention after cardiac arrest or sustained VT and for primary prevention in patients at high risk of sudden death.',
     levelNotes: [
-      'In cardiac arrest with an ICD, start CPR and use the AED as usual; a shock from the ICD during compressions may be felt but is not dangerous to rescuers.',
-      'A magnet over an ICD suspends shocks without affecting bradycardia pacing, so use it per protocol for inappropriate shocks while treating true VT/VF per ACLS.',
-      'After any shock, get an ECG, electrolytes, troponin and device interrogation, and treat electrical storm (≥ 3 VT/VF episodes in 24 h) with sedation, beta-blockade, amiodarone and early EP input.',
-      'Primary prevention: LVEF ≤ 35% with NYHA II–III on ≥ 3 months GDMT (≥ 40 days post-MI, ≥ 90 days post-revascularization) or ischemic LVEF ≤ 30% NYHA I, with life expectancy > 1 year.',
-      'Choose transvenous versus subcutaneous ICD (S-ICD when there is no pacing need, especially with poor venous access or high infection risk) and program high-rate, delayed detection to cut inappropriate shocks.',
+      'In cardiac arrest with an ICD, start CPR and use the AED as usual with pads away from the device; an ICD shock during compressions may be felt but is not dangerous to rescuers. Repeated shocks need ALS and urgent transport.',
+      'After ICD shocks, interpret the rhythm, treat VT/VF per ACLS and electrical storm (≥ 3 episodes in 24 h) per protocol. For clearly inappropriate shocks (sinus tachycardia, AF, lead noise), a magnet suspends tachy therapies; use it per protocol or medical direction.',
+      'Apply pads before draping, prepare leads, programmer and analyzer, and record sensing, thresholds and impedance. If defibrillation testing is ordered, confirm the external defibrillator is ready for rescue, document induction, detection and shock outcome, and alert the operator to sustained VT/VF or hypotension.',
+      'Confirm pads are on and give antibiotic and moderate sedation as ordered (defibrillation testing needs anesthesia-provided deep sedation). After implant, check pocket, breathing and rhythm, and teach the shock plan (one shock and well: call the clinic; repeated shocks or unwell: call EMS) and driving rules.',
+      'Primary prevention: LVEF ≤ 35% NYHA II–III on ≥ 3 months GDMT (≥ 40 days post-MI, ≥ 90 days post-revascularization) or ischemic LVEF ≤ 30% NYHA I, with survival > 1 year. Choose S-ICD when no pacing or ATP is needed; program high-rate or delayed detection (MADIT-RIT).',
     ],
     overview: [
       'Generator with high-voltage capacitor and a lead with shock coil(s), or a subcutaneous lead',

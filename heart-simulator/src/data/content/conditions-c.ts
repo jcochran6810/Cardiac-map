@@ -208,11 +208,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Suspect HCM in young patients with exertional syncope or chest pain, or with a known diagnosis or family history',
-      'Treat hypotension with supine positioning, leg elevation and IV fluid bolus',
-      'Avoid nitroglycerin and other vasodilators; they can cause profound hypotension',
-      'If a vasopressor is needed and obstruction is suspected, a pure alpha agonist (phenylephrine) per protocol is preferred over inotropic agents',
-      'Cardiac arrest: standard ACLS with early defibrillation',
-      'Rapid AF is poorly tolerated (loss of atrial kick); synchronized cardioversion if unstable',
+      'Treat hypotension with supine positioning and leg elevation',
+      'Avoid nitroglycerin (including assisting with the patient’s own) and other vasodilators; they can cause profound hypotension',
+      'ALS: IV fluid bolus for hypotension; if a vasopressor is needed and obstruction is suspected, a pure alpha agonist (phenylephrine) per protocol is preferred over inotropic agents',
+      'Cardiac arrest: high-quality CPR and early defibrillation, as for any arrest',
+      'ALS: Rapid AF is poorly tolerated (loss of atrial kick); synchronized cardioversion if unstable',
     ],
     hospitalCare: [
       'Hypotension in obstructive HCM: IV fluids, phenylephrine and beta-blocker to slow HR and lengthen filling',
@@ -273,11 +273,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A sudden, usually reversible weakening of the left ventricle, typically ballooning of the apex, triggered by emotional or physical stress. It mimics a heart attack and can cause shock and dangerous arrhythmias, so it is diagnosed only after coronary angiography.',
     levelNotes: [
-      'Takotsubo looks exactly like a heart attack in the field: treat as possible STEMI, get a 12-lead and transport to a PCI center',
-      'Transmit the ECG and activate the STEMI pathway; takotsubo cannot be diagnosed prehospital, and hypotension, pulmonary edema and QT-related arrhythmias can follow',
-      'If shock develops, echo for LVOT obstruction before choosing therapy, because catecholamine inotropes can worsen both obstruction and the disease',
-      'Diagnose after angiography excludes a culprit lesion explaining the wall motion pattern; continue ACEi/ARB and follow until LVEF recovers',
-      'At angiography, apical ballooning with a hyperkinetic base and no culprit lesion is characteristic; measure LVEDP and LVOT gradient to guide fluids and MCS',
+      'Takotsubo cannot be told apart from a heart attack in the field: treat as possible ACS, give aspirin per protocol, acquire and transmit a 12-lead where allowed, and transport to a PCI center. Tell the receiving team about any emotional or physical trigger.',
+      'Interpret and transmit the 12-lead and activate the STEMI pathway per protocol; anterior ST elevation is typical and takotsubo is only diagnosed after angiography. Watch for hypotension, pulmonary edema, AV block and QT-related arrhythmias, and use nitroglycerin cautiously.',
+      'Expect no culprit lesion and, on ventriculography, apical ballooning with a hyperkinetic base: prepare the pigtail and power injector, and record LVEDP and an LV-to-aorta pullback gradient. Keep MCS and pacing equipment ready; report hypotension or arrhythmias immediately.',
+      'Monitor QTc, potassium and magnesium, replace electrolytes as ordered, and report QTc > 500 ms or pauses (torsades risk). Report hypotension promptly, since LVOT obstruction may be the cause and catecholamine inotropes can worsen it, and include the stress trigger in discharge education.',
+      'Diagnose only after angiography shows no culprit lesion explaining the wall-motion pattern (CMR if uncertain). In shock, echo for LVOT obstruction (fluids, phenylephrine, cautious beta-blocker) versus pump failure (MCS rather than catecholamines); continue ACEi/ARB until LVEF recovers.',
     ],
     overview: [
       'Acute, usually reversible LV dysfunction triggered by emotional or physical stress',
@@ -331,10 +331,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
       'Anticoagulation for LV thrombus, and consider it with extensive apical akinesis',
     ],
     fieldCare: [
-      'Treat as ACS/STEMI: 12-lead ECG, transmit and activate the PCI-center pathway early',
+      'Treat as ACS/STEMI: acquire and transmit a 12-lead ECG early and transport to a PCI center per protocol',
+      'ALS: Interpret the 12-lead, activate the STEMI pathway per protocol and monitor for VT/VF, AV block and QT prolongation',
       'Aspirin per ACS protocol unless contraindicated',
-      'Use nitroglycerin cautiously; hypotension may signal LVOT obstruction',
-      'Monitor for VT/VF, AV block and pulmonary edema; CPAP if distressed and BP allows',
+      'Use nitroglycerin cautiously and only per protocol; hypotension may signal LVOT obstruction',
+      'Watch for pulmonary edema (CPAP per protocol if BP allows) and sudden collapse (CPR and AED)',
       'Report the triggering stressor to the receiving team',
     ],
     hospitalCare: [
