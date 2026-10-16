@@ -146,7 +146,8 @@ function intentOf(q: string): string {
 }
 
 function careField(level: LearningLevel): 'fieldCare' | 'hospitalCare' | 'cardiologyCare' {
-  return level <= 2 ? 'fieldCare' : level === 3 ? 'hospitalCare' : 'cardiologyCare';
+  // EMS roles → field care; cath lab tech / nurse → in-hospital care (carried out on orders); cardiologist → specialist care
+  return level <= 2 ? 'fieldCare' : level <= 4 ? 'hospitalCare' : 'cardiologyCare';
 }
 
 export function answerQuestion(question: string, lib: ContentLibrary, ctx: TutorContext): TutorAnswer {

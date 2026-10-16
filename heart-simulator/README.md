@@ -3,7 +3,20 @@
 An interactive cardiac teaching simulator: a 3D heart, a live 12-lead ECG and a
 pressure–volume (Wiggers) model that all run from **one shared clock**, so the
 P wave, atrial contraction, valve clicks, pressures and the 3D heartbeat stay in
-step. Content is written for five learner levels, from EMT to interventional / EP.
+step.
+
+## Roles and scope of practice
+
+Pick a role in the top bar; all guidance, recommended tabs, quiz questions, case decisions and
+monitor/defibrillator permissions stay inside that role's scope (`src/lib/scope.ts`):
+
+| Role | Scope framework |
+| --- | --- |
+| EMT (NREMT, BLS) | National EMS Scope of Practice Model 2019 (NHTSA) + state/local protocols and medical direction |
+| Paramedic (NREMT, ALS) | National EMS Scope of Practice Model 2019 (NHTSA) + state/local protocols and medical direction |
+| Cath Lab Tech (RCIS) | RCIS credential, SCAI best-practices consensus (2021), state law and facility policy |
+| Cath Lab Nurse (RN) | State Nurse Practice Act, Board of Nursing rulings and facility policy |
+| Cardiologist | Licensure and hospital privileges — full technical depth |
 
 ## Run it
 

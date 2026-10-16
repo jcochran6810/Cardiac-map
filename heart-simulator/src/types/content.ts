@@ -7,7 +7,7 @@
  * learner level so the level selector changes what is emphasised.
  */
 
-/** One sentence per learner level: [EMT, Paramedic, ED/ICU, Cardiology, Interventional/EP/Structural] */
+/** One note per role, each strictly within that role's scope of practice (see lib/scope.ts): [EMT, Paramedic, Cath lab tech (RCIS), Cath lab RN, Cardiologist] */
 export type LevelNotes = [string, string, string, string, string];
 
 export type StructureGroup =
@@ -174,6 +174,8 @@ export interface CaseDecision {
   prompt: string;
   /** Optional vitals/ECG change revealed at this decision point */
   update?: string;
+  /** Role that owns this decision (1 EMT, 2 Paramedic, 3 Cath lab tech, 4 Cath lab RN, 5 Physician/cardiologist) */
+  owner?: 1 | 2 | 3 | 4 | 5;
   options: CaseDecisionOption[];
 }
 

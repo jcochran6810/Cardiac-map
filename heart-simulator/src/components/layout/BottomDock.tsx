@@ -9,6 +9,7 @@ import { PHASE_LABELS } from '@/lib/ecg/engine';
 import { sim } from '@/lib/sim/simulation';
 import { describePlacement } from '@/lib/ecg/electrodes';
 import { useDefibStore } from '@/lib/sim/defib';
+import { useAppStore } from '@/store/useAppStore';
 import { openProjector } from '@/lib/sim/projector';
 
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
@@ -36,6 +37,7 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
 
   const ecg = useECGStore();
   const trainee = useDefibStore((s) => s.trainee);
+  const role = useAppStore((s) => s.learningLevel);
   const profile = resolveProfile(ecg.activeProfileId);
   const [showInterp, setShowInterp] = useState(() => typeof window === 'undefined' || window.innerWidth >= 900);
   const [narrowDock, setNarrowDock] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
@@ -209,6 +211,11 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
         {ecg.bottomView === 'ecg' && showInterp && !ecg.electrodeLab && (
           <aside className="w-64 shrink-0 border-l border-slate-700 overflow-y-auto p-2.5 text-[11px] bg-cardiac-dark/40">
             <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Rhythm / pattern</div>
+            {role === 1 && !trainee && (
+              <p className="mb-1.5 text-[10px] leading-snug rounded bg-amber-500/10 border border-amber-500/30 text-amber-200/90 p-1.5">
+                EMT scope: acquire and transmit the 12-lead per protocol — interpretation is a paramedic / physician skill. Shown here for awareness only.
+              </p>
+            )}
             {trainee ? (
               <p className="text-slate-400 leading-snug">Hidden in trainee mode — interpret the rhythm yourself. Turn trainee mode off in Monitor / Defib to reveal it.</p>
             ) : (

@@ -51,5 +51,10 @@ trademarks of their respective owner.
 - American Heart Association ACLS guidelines (2020) and 2023 focused update (defibrillation
   energies, drug doses, CPR targets, post-ROSC targets).
 - 2018 ACC/AHA/HRS bradycardia guideline (atropine, pacing).
+- National Highway Traffic Safety Administration. *National EMS Scope of Practice Model 2019*
+  (DOT HS 813 151, including change notices 1.0 and 2.0) — EMT and Paramedic role boundaries.
+- Society for Cardiovascular Angiography & Interventions. *SCAI expert consensus update on best
+  practices in the cardiac catheterization laboratory* (2021; doi:10.1002/ccd.29744) — cath lab
+  staff roles and credentialing.
 - Weissler AM, et al. Systolic time intervals (rate dependence of LV ejection time) — used for the
   hemodynamic timing model.

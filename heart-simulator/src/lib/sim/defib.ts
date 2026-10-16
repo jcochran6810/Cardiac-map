@@ -471,7 +471,7 @@ export function setCprQuality(q: 'good' | 'poor') {
 
 // ─── Drugs ──────────────────────────────────────────────────────────────────
 
-export function giveDrug(id: string) {
+export function giveDrug(id: string, authority?: string) {
   install();
   const s = get();
   const d = DRUGS.find((x) => x.id === id);
@@ -480,7 +480,7 @@ export function giveDrug(id: string) {
   const pid = prof.id;
   const pulse = pulseNow();
   const dose = d.dose(s);
-  log(`${d.label} ${dose}`, 'drug');
+  log(`${d.label} ${dose}${authority ? ` — ${authority}` : ''}`, 'drug');
   switch (id) {
     case 'epinephrine': {
       if (pulse) log('Epinephrine 1 mg bolus is for cardiac arrest — in a patient with a pulse use an infusion (2–10 mcg/min) only if indicated', 'warn');

@@ -35,6 +35,8 @@ export interface CaseData {
   disposition: string;          // Expected outcome / disposition
   teaching: string[];           // Educational pearls
   decisions: CaseDecision[];    // Ordered decision points with feedback
+  /** What each role does in this case, within its scope: [EMT, Paramedic, Cath lab tech, Cath lab RN, Cardiologist] */
+  roleBriefs?: [string, string, string, string, string];
 }
 
 export const CASE_DATA: Record<string, CaseData> = {

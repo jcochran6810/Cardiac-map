@@ -15,12 +15,13 @@ export type ViewMode = 'external' | 'sectioned' | 'xray' | 'conduction' | 'terri
 
 export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cases';
 
+/** Learner roles — each is held strictly to its scope of practice (see lib/scope.ts) */
 export const LEVEL_LABELS: Record<LearningLevel, { short: string; long: string }> = {
-  1: { short: 'EMT', long: 'EMT / BLS' },
-  2: { short: 'Paramedic', long: 'Paramedic / ALS' },
-  3: { short: 'ED / ICU', long: 'ED / ICU / Acute care' },
-  4: { short: 'Cardiology', long: 'Cardiology / Advanced' },
-  5: { short: 'Interventional', long: 'Interventional / EP / Structural' },
+  1: { short: 'EMT', long: 'EMT (NREMT · BLS)' },
+  2: { short: 'Paramedic', long: 'Paramedic (NREMT · ALS)' },
+  3: { short: 'Cath Lab Tech', long: 'Cath Lab Tech (RCIS)' },
+  4: { short: 'Cath Lab RN', long: 'Cath Lab Nurse (RN)' },
+  5: { short: 'Cardiologist', long: 'Cardiologist (incl. interventional / EP)' },
 };
 
 interface AppState {

@@ -56,7 +56,7 @@ export default function QuizPanel() {
 
   const pool = useMemo(() => {
     if (!lib) return [];
-    return lib.quiz.filter((q) => q.level <= maxLevel && (topic === 'all' || q.topic === topic));
+    return lib.quiz.filter((q) => forRole(q.level, q.topic, maxLevel) && (topic === 'all' || q.topic === topic));
   }, [lib, maxLevel, topic]);
 
   const q = deck?.[idx] ?? null;
@@ -107,7 +107,7 @@ export default function QuizPanel() {
         {lib && !deck && (
           <div className="space-y-3">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Up to level</div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Questions for</div>
               <div className="flex flex-wrap gap-1">
                 {([1, 2, 3, 4, 5] as LearningLevel[]).map((l) => (
                   <button key={l} onClick={() => setMaxLevel(l)} className={`px-2 py-1 rounded text-[10px] border ${maxLevel === l ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'border-slate-600 text-slate-300 hover:text-white'}`}>
@@ -204,4 +204,16 @@ export default function QuizPanel() {
       </div>
     </div>
   );
+}
+
+/**
+ * Which questions suit a role. EMT and paramedic sets are cumulative (BLS ⊂ ALS). Cath lab staff
+ * get BLS plus the ACLS / rhythm questions they are certified in, but not prehospital-protocol
+ * questions; the cardiologist sees everything.
+ */
+function forRole(qLevel: number, topic: string, role: LearningLevel): boolean {
+  if (role === 5) return true;
+  if (role <= 2) return qLevel <= role;
+  if (qLevel === 1 || (qLevel >= 3 && qLevel <= role)) return true;
+  return qLevel === 2 && ['acls', 'rhythm-id', 'ecg', 'pharmacology'].includes(topic);
 }

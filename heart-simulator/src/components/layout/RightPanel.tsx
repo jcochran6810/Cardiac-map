@@ -16,6 +16,8 @@ import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
 import type { ConditionContent, MedicationContent, ProcedureContent, StructureContent } from '@/types/content';
 import { IconCheck, IconCube, IconFlag, IconPulse } from '@/components/ui/icons';
+import ScopeCard from '@/components/ui/ScopeCard';
+import { SCOPES } from '@/lib/scope';
 
 type TabDef = { key: string; label: string; levels?: LearningLevel[] };
 
@@ -30,15 +32,32 @@ const KIND_CHIP: Record<string, string> = {
 // ─── Shared building blocks ────────────────────────────────────────────────
 
 function Bullets({ items, accent = 'text-cardiac-accent' }: { items: string[]; accent?: string }) {
+  const role = useAppStore((s) => s.learningLevel);
   if (!items?.length) return <p className="text-slate-500 italic">No content for this section.</p>;
   return (
     <ul className="space-y-1.5">
-      {items.map((d, i) => (
-        <li key={i} className="flex gap-2">
-          <span className={`${accent} mt-[1px] shrink-0`}>•</span>
-          <span className="text-slate-300 leading-relaxed">{d}</span>
-        </li>
-      ))}
+      {items.map((d, i) => {
+        // Field-care bullets prefixed "ALS:" are paramedic-only skills
+        const als = /^ALS:\s*/.test(d);
+        const text = als ? d.replace(/^ALS:\s*/, '') : d;
+        const outOfScope = als && role === 1;
+        return (
+          <li key={i} className={`flex gap-2 ${outOfScope ? 'opacity-55' : ''}`}>
+            <span className={`${accent} mt-[1px] shrink-0`}>•</span>
+            <span className="text-slate-300 leading-relaxed">
+              {als && (
+                <span
+                  className="mr-1 px-1 py-px rounded text-[9px] font-semibold bg-orange-500/20 text-orange-200 align-middle"
+                  title={outOfScope ? 'Paramedic (ALS) skill — outside EMT scope' : 'Advanced life support (paramedic) skill'}
+                >
+                  ALS{outOfScope ? ' · paramedic' : ''}
+                </span>
+              )}
+              {text}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -97,12 +116,20 @@ function Header({ title, badge, badgeClass, summary, children }: { title: string
 }
 
 function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }) {
+  const [showScope, setShowScope] = useState(false);
   const note = notes?.[level - 1];
   if (!note) return null;
   return (
     <div className="mt-2 p-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
-      <div className="text-[9px] uppercase tracking-wider text-emerald-300 font-semibold mb-0.5">Focus for {LEVEL_LABELS[level].long}</div>
+      <div className="flex items-center justify-between gap-2 mb-0.5">
+        <div className="text-[9px] uppercase tracking-wider text-emerald-300 font-semibold">Focus for {LEVEL_LABELS[level].long}</div>
+        <button onClick={() => setShowScope((v) => !v)} className="text-[9px] text-emerald-300/80 hover:text-emerald-200 whitespace-nowrap" title="What this role may and may not do">
+          {showScope ? 'hide scope' : 'scope ▸'}
+        </button>
+      </div>
       <p className="text-[11px] text-slate-200 leading-relaxed">{note}</p>
+      <p className="mt-1 text-[9px] text-slate-500">Within {SCOPES[level].role} scope · {SCOPES[level].framework.split(' · ')[0]}</p>
+      {showScope && <div className="mt-2 pt-2 border-t border-emerald-500/20"><ScopeCard level={level} compact /></div>}
     </div>
   );
 }
@@ -130,12 +157,12 @@ function useTab(tabs: TabDef[], resetKey: string) {
 
 const STRUCTURE_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1, 2] },
-  { key: 'anatomy', label: 'Anatomy', levels: [3, 4, 5] },
-  { key: 'physiology', label: 'Physiology' },
-  { key: 'clinical', label: 'Clinical', levels: [1, 2, 3] },
+  { key: 'anatomy', label: 'Anatomy', levels: [3, 5] },
+  { key: 'physiology', label: 'Physiology', levels: [4] },
+  { key: 'clinical', label: 'Clinical', levels: [1, 2, 4] },
   { key: 'ecg', label: 'ECG', levels: [2, 3] },
-  { key: 'imaging', label: 'Imaging', levels: [4] },
-  { key: 'procedures', label: 'Procedures', levels: [5] },
+  { key: 'imaging', label: 'Imaging', levels: [3, 5] },
+  { key: 'procedures', label: 'Procedures', levels: [3, 4, 5] },
   { key: 'teaching', label: 'Pearls' },
 ];
 
@@ -174,16 +201,16 @@ function StructureView({ s, level }: { s: StructureContent; level: LearningLevel
 
 const CONDITION_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1] },
-  { key: 'pathophysiology', label: 'Pathophysiology', levels: [3, 4] },
-  { key: 'symptoms', label: 'Signs & symptoms', levels: [1, 2] },
-  { key: 'ecg', label: 'ECG', levels: [2, 3] },
-  { key: 'imaging', label: 'Imaging', levels: [4] },
-  { key: 'medications', label: 'Medications', levels: [2, 3] },
+  { key: 'pathophysiology', label: 'Pathophysiology', levels: [5] },
+  { key: 'symptoms', label: 'Signs & symptoms', levels: [1, 2, 4] },
+  { key: 'ecg', label: 'ECG', levels: [2, 3, 5] },
+  { key: 'imaging', label: 'Imaging', levels: [5] },
+  { key: 'medications', label: 'Medications', levels: [2, 4] },
   { key: 'fieldCare', label: 'Field care', levels: [1, 2] },
-  { key: 'hospitalCare', label: 'ED / ICU', levels: [3] },
-  { key: 'cardiologyCare', label: 'Cardiology', levels: [4, 5] },
-  { key: 'procedure', label: 'Procedures', levels: [5] },
-  { key: 'complications', label: 'Complications' },
+  { key: 'hospitalCare', label: 'ED / ICU', levels: [4] },
+  { key: 'cardiologyCare', label: 'Cardiology', levels: [5] },
+  { key: 'procedure', label: 'Procedures', levels: [3, 4, 5] },
+  { key: 'complications', label: 'Complications', levels: [3, 4] },
   { key: 'anatomy', label: 'Anatomy' },
   { key: 'teaching', label: 'Pearls' },
 ];
@@ -237,14 +264,14 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
 
 const PROCEDURE_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1, 2] },
-  { key: 'indications', label: 'Indications', levels: [3, 4] },
-  { key: 'contraindications', label: 'Contraindications' },
-  { key: 'anatomy', label: 'Anatomy & access', levels: [5] },
-  { key: 'steps', label: 'Steps', levels: [4, 5] },
-  { key: 'ecg', label: 'ECG / rhythm' },
-  { key: 'equipment', label: 'Equipment' },
-  { key: 'complications', label: 'Complications', levels: [2, 3] },
-  { key: 'postCare', label: 'Post-care', levels: [1, 2, 3] },
+  { key: 'indications', label: 'Indications', levels: [5] },
+  { key: 'contraindications', label: 'Contraindications', levels: [4, 5] },
+  { key: 'anatomy', label: 'Anatomy & access', levels: [3, 5] },
+  { key: 'steps', label: 'Steps', levels: [3, 4, 5] },
+  { key: 'ecg', label: 'ECG / rhythm', levels: [3] },
+  { key: 'equipment', label: 'Equipment', levels: [3] },
+  { key: 'complications', label: 'Complications', levels: [2, 3, 4, 5] },
+  { key: 'postCare', label: 'Post-care', levels: [1, 2, 4] },
   { key: 'teaching', label: 'Pearls' },
 ];
 
@@ -310,14 +337,14 @@ function ProcedureView({ p, level }: { p: ProcedureContent; level: LearningLevel
 // ─── Medication ────────────────────────────────────────────────────────────
 
 const MED_TABS: TabDef[] = [
-  { key: 'mechanism', label: 'Mechanism', levels: [3, 4] },
-  { key: 'indications', label: 'Indications', levels: [1, 2] },
-  { key: 'dosing', label: 'Dosing', levels: [2, 3] },
-  { key: 'contraindications', label: 'Contraindications', levels: [1, 2] },
-  { key: 'adverseEffects', label: 'Adverse effects' },
-  { key: 'ecgEffects', label: 'ECG effects' },
-  { key: 'hemodynamics', label: 'Hemodynamics' },
-  { key: 'monitoring', label: 'Monitoring' },
+  { key: 'mechanism', label: 'Mechanism', levels: [5] },
+  { key: 'indications', label: 'Indications', levels: [1, 2, 5] },
+  { key: 'dosing', label: 'Dosing', levels: [2, 4] },
+  { key: 'contraindications', label: 'Contraindications', levels: [1, 2, 4] },
+  { key: 'adverseEffects', label: 'Adverse effects', levels: [3, 4] },
+  { key: 'ecgEffects', label: 'ECG effects', levels: [2, 3] },
+  { key: 'hemodynamics', label: 'Hemodynamics', levels: [3] },
+  { key: 'monitoring', label: 'Monitoring', levels: [3, 4] },
   { key: 'interactions', label: 'Interactions', levels: [4, 5] },
   { key: 'teaching', label: 'Pearls' },
 ];
@@ -380,7 +407,7 @@ function Vitals({ c }: { c: CaseData }) {
   );
 }
 
-function CaseDecisions({ c }: { c: CaseData }) {
+function CaseDecisions({ c, level }: { c: CaseData; level: LearningLevel }) {
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState<Record<number, number>>({});
   const markCaseCompleted = useLearningStore((s) => s.markCaseCompleted);
@@ -421,6 +448,14 @@ function CaseDecisions({ c }: { c: CaseData }) {
         ))}
       </div>
       <div className="text-[9px] uppercase tracking-wider text-amber-300 font-semibold">{d.stage} · decision {idx + 1} of {decisions.length}</div>
+      {d.owner && (
+        <div className={`mt-1 text-[10px] px-2 py-1 rounded border ${d.owner === level ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-slate-600 bg-cardiac-dark/60 text-slate-300'}`}>
+          Decision owner: <b>{SCOPES[d.owner].role}</b>
+          {d.owner !== level && (
+            <span className="text-slate-400"> — outside your role as {SCOPES[level].role}{c.roleBriefs ? `. Your part: ${c.roleBriefs[level - 1]}` : '. Know what to anticipate and how to assist.'}</span>
+          )}
+        </div>
+      )}
       {d.update && (
         <div className="mt-1.5 p-2 rounded bg-sky-500/10 border border-sky-500/25 text-[11px] text-sky-100 leading-relaxed">
           <b className="text-sky-300">Update: </b>{d.update}
@@ -489,12 +524,18 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
         {tab === 'scenario' && (
           <>
             <p className="text-slate-200 leading-relaxed">{c.presentation}</p>
+            {c.roleBriefs && (
+              <div className="p-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
+                <div className="text-[9px] uppercase tracking-wider text-emerald-300 font-semibold mb-0.5">Your role: {LEVEL_LABELS[level].long}</div>
+                <p className="text-[11px] text-slate-200 leading-relaxed">{c.roleBriefs[level - 1]}</p>
+              </div>
+            )}
             <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">History</div><p className="text-slate-300 leading-relaxed">{c.history}</p></div>
             <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Examination</div><p className="text-slate-300 leading-relaxed">{c.physicalExam}</p></div>
             <p className="text-[10px] text-slate-500">Look at the live ECG below, then open <b>Decisions</b>.</p>
           </>
         )}
-        {tab === 'decisions' && <CaseDecisions c={c} />}
+        {tab === 'decisions' && <CaseDecisions c={c} level={level} />}
         {tab === 'management' && (<><Bullets items={c.guidelines} /><div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1 mt-2">Key interventions</div><Bullets items={c.keyInterventions} accent="text-emerald-400" /></div></>)}
         {tab === 'medications' && <Bullets items={c.medications} />}
         {tab === 'pitfalls' && <Bullets items={c.pitfalls} accent="text-red-400" />}
@@ -527,7 +568,7 @@ function Welcome({ level }: { level: LearningLevel }) {
       <h2 className="text-base font-semibold text-white">Welcome to CardioSim</h2>
       <p className="text-xs text-slate-400 mt-1 leading-relaxed">
         An interactive heart where the anatomy, ECG, conduction system and hemodynamics all run from one beat-by-beat model.
-        Pick anything in the navigator, click the heart, or start below. Content is tuned for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> — change it in the top bar.
+        Pick anything in the navigator, click the heart, or start below. Guidance is written for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> and stays within that role&apos;s scope of practice — change your role in the top bar.
       </p>
       <div className="grid gap-2 mt-3">
         {cards.map((c) => (

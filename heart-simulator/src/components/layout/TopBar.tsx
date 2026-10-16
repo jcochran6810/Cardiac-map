@@ -7,6 +7,7 @@ import { useContent, searchLibrary, type SearchHit } from '@/lib/content';
 import { openById } from '@/lib/actions';
 import { CASE_DATA } from '@/data/caseData';
 import { IconHeart, IconHelp, IconPanelLeft, IconQuiz, IconSearch, IconTutor } from '@/components/ui/icons';
+import ScopeCard from '@/components/ui/ScopeCard';
 
 const KIND_STYLE: Record<SearchHit['kind'], string> = {
   structure: 'bg-sky-500/15 text-sky-300',
@@ -35,6 +36,7 @@ export default function TopBar() {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [scopeOpen, setScopeOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q) : []), [lib, q]);
@@ -78,19 +80,35 @@ export default function TopBar() {
         </div>
       </div>
 
-      <label className="flex items-center gap-1.5 shrink-0" title="Choose your training level — content emphasis changes to match">
-        <span className="text-[10px] text-slate-400 hidden lg:inline">Level</span>
+      <div className="relative flex items-center gap-1 shrink-0">
+      <label className="flex items-center gap-1.5 shrink-0" title="Choose your role — guidance stays within that role's scope of practice">
+        <span className="text-[10px] text-slate-400 hidden lg:inline">Role</span>
         <select
           value={learningLevel}
           onChange={(e) => setLearningLevel(Number(e.target.value) as LearningLevel)}
           className="bg-cardiac-surface text-xs text-slate-100 rounded-md px-2 py-1 border border-slate-600 focus:outline-none focus:ring-1 focus:ring-cardiac-accent"
-          aria-label="Learner level"
+          aria-label="Learner role"
         >
           {([1, 2, 3, 4, 5] as LearningLevel[]).map((l) => (
             <option key={l} value={l}>{compact ? LEVEL_LABELS[l].short : LEVEL_LABELS[l].long}</option>
           ))}
         </select>
       </label>
+      <button
+        onClick={() => setScopeOpen((v) => !v)}
+        className={`px-1.5 py-1 rounded text-[10px] border ${scopeOpen ? 'border-cardiac-accent text-cardiac-accent' : 'border-slate-600 text-slate-300 hover:text-white'}`}
+        title="What this role may and may not do"
+        aria-expanded={scopeOpen}
+      >
+        Scope
+      </button>
+      {scopeOpen && (
+        <div className="absolute left-0 top-full mt-1 w-[min(92vw,560px)] z-[70] rounded-lg border border-slate-600 bg-cardiac-panel shadow-2xl p-3">
+          <ScopeCard level={learningLevel} />
+          <button onClick={() => setScopeOpen(false)} className="absolute top-2 right-2 text-slate-500 hover:text-white text-xs" aria-label="Close scope">✕</button>
+        </div>
+      )}
+      </div>
 
       {/* Global search */}
       <div className="relative flex-1 max-w-xl min-w-0">

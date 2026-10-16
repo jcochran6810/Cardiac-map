@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   DRUGS, ENERGIES, SCENARIOS, analyze, charge, checkPulse, dumpCharge, fmt, forceRosc, giveDrug, instructorRhythm, loadScenario,
   measureNibp, resetCode, setBaseline, setCprQuality, setEnergy, setMode, setPacer, setSound, setTrainee, setVitals, shock,
@@ -10,6 +10,17 @@ import { ECG_PROFILES, resolveProfile, type HemoProfile } from '@/lib/ecg/profil
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { sim } from '@/lib/sim/simulation';
+import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
+
+/** Device functions and drug authority by role (scope of practice) */
+const MANUAL_OK = new Set([2, 3, 4, 5]);
+const DRUG_AUTHORITY: Record<number, string | null> = {
+  1: null,
+  2: 'per protocol / medical direction',
+  3: "on the physician's order (where state law and facility policy permit)",
+  4: "on the physician's order / ACLS protocol",
+  5: '',
+};
 
 const MODES: { v: DefibMode; l: string }[] = [
   { v: 'monitor', l: 'Monitor' },
@@ -33,6 +44,12 @@ const BASELINES: { v: HemoProfile | 'default'; l: string }[] = [
 
 export default function DefibPanel({ onProjector }: { onProjector?: () => void }) {
   const d = useDefibStore();
+  const role = useAppStore((s) => s.learningLevel);
+  const manualOk = MANUAL_OK.has(role);
+  const drugAuthority = DRUG_AUTHORITY[role];
+  useEffect(() => {
+    if (!manualOk && (useDefibStore.getState().mode === 'manual' || useDefibStore.getState().mode === 'pacer')) setMode('aed');
+  }, [manualOk]);
   const profileId = useECGStore((s) => s.activeProfileId);
   const heartRate = useTimelineStore((s) => s.heartRate);
   const [instructor, setInstructor] = useState(false);
@@ -43,10 +60,31 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
     <div className="h-full overflow-y-auto p-2 space-y-2 text-[11px]">
       {/* Mode */}
       <div className="grid grid-cols-4 gap-0.5 rounded-md bg-cardiac-dark p-0.5 border border-slate-700">
-        {MODES.map((m) => (
-          <button key={m.v} onClick={() => setMode(m.v)} className={`py-1 rounded ${d.mode === m.v ? 'bg-cardiac-accent/25 text-cardiac-accent font-semibold' : 'text-slate-300 hover:text-white'}`}>{m.l}</button>
-        ))}
+        {MODES.map((m) => {
+          const locked = !manualOk && (m.v === 'manual' || m.v === 'pacer');
+          return (
+            <button
+              key={m.v}
+              onClick={() => !locked && setMode(m.v)}
+              disabled={locked}
+              title={locked ? 'ALS skill — outside EMT scope (National EMS Scope of Practice Model)' : undefined}
+              className={`py-1 rounded ${d.mode === m.v ? 'bg-cardiac-accent/25 text-cardiac-accent font-semibold' : locked ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:text-white'}`}
+            >
+              {locked ? '🔒 ' : ''}{m.l}
+            </button>
+          );
+        })}
       </div>
+      {role === 1 && (
+        <p className="text-[10px] text-amber-200/90 leading-snug rounded bg-amber-500/10 border border-amber-500/30 p-1.5">
+          EMT scope: CPR and AED. Manual defibrillation, cardioversion, pacing, rhythm interpretation and ACLS drugs are paramedic (ALS) skills.
+        </p>
+      )}
+      {(role === 3 || role === 4) && (
+        <p className="text-[10px] text-slate-400 leading-snug">
+          {LEVEL_LABELS[role].short}: device use per ACLS certification, facility policy and physician direction; medications {DRUG_AUTHORITY[role]}.
+        </p>
+      )}
 
       {/* Defibrillation / cardioversion */}
       {(d.mode === 'manual' || d.mode === 'aed') && (
@@ -122,15 +160,21 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
 
       {/* Drugs */}
       <section className="rounded-md border border-slate-700 p-2">
-        <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Medications</div>
-        <div className="grid grid-cols-2 gap-1">
-          {DRUGS.map((drug) => (
-            <button key={drug.id} onClick={() => giveDrug(drug.id)} title={`${drug.dose(d)} — ${drug.indication}`} className="px-1.5 py-1 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight">
-              {drug.label}
-              <span className="block text-[9px] text-sky-300/80 truncate">{drug.dose(d)}</span>
-            </button>
-          ))}
-        </div>
+        <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Medications{drugAuthority ? ` · ${drugAuthority}` : ''}</div>
+        {drugAuthority === null ? (
+          <p className="text-[10px] text-slate-400 leading-snug">
+            🔒 ACLS medications are outside EMT scope. Within EMT scope (per protocol): aspirin for suspected ACS, assisting with the patient&apos;s own nitroglycerin, oxygen — none are given during cardiac arrest.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-1">
+            {DRUGS.map((drug) => (
+              <button key={drug.id} onClick={() => giveDrug(drug.id, drugAuthority || undefined)} title={`${drug.dose(d)} — ${drug.indication}`} className="px-1.5 py-1 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight">
+                {drug.label}
+                <span className="block text-[9px] text-sky-300/80 truncate">{drug.dose(d)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Options */}

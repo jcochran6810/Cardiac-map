@@ -5,6 +5,7 @@ import { sim } from '@/lib/sim/simulation';
 import { useDefibStore, vitalsAt, plethAt, capnoAt, fmt, type Vitals } from '@/lib/sim/defib';
 import { useECGStore } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
+import { useAppStore } from '@/store/useAppStore';
 
 const WINDOW = 6000; // ms across the screen
 const COLORS = { ecg: '#3cff7a', pleth: '#45d4ff', co2: '#ffd43b', grid: 'rgba(255,255,255,0.05)', text: '#9aa4b2' };
@@ -17,6 +18,7 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
   const d = useDefibStore();
   const profileId = useECGStore((s) => s.activeProfileId);
   const profile = resolveProfile(profileId);
+  const role = useAppStore((s) => s.learningLevel);
   const [blink, setBlink] = useState(false);
 
   // numerics at 4 Hz
@@ -183,7 +185,7 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
       <div className="relative flex-1 min-w-0" ref={wrapRef}>
         <canvas ref={canvasRef} className="absolute inset-0" />
         <div className="absolute left-2 top-1 text-[10px] font-mono" style={{ color: COLORS.ecg }}>
-          II ×1 {!d.trainee && <span className="text-slate-400 ml-2">{profile.name}</span>}
+          II ×1 {!d.trainee && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
           {d.sync && d.mode === 'manual' && <span className="ml-2 px-1 rounded bg-white text-black font-bold">SYNC</span>}
         </div>
         <div className="absolute left-2 text-[10px] font-mono" style={{ top: '34%', color: COLORS.pleth }}>Pleth</div>
