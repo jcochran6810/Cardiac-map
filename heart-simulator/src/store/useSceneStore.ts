@@ -27,7 +27,7 @@ export const CAMERA_PRESETS: CameraPreset[] = [
   { label: 'Superior', short: 'Top', dir: n(0, 1, 0.35), group: 'anatomic', description: 'Great vessels and the base from above' },
   { label: 'Inferior', short: 'Bottom', dir: n(0, -1, 0.35), group: 'anatomic', description: 'Diaphragmatic surface: inferior wall, PDA' },
   { label: 'RAO 30°', short: 'RAO', dir: angio(-30, 0), group: 'angio', description: 'Ventriculogram view; LAD and LCx separated' },
-  { label: 'LAO 45°', short: 'LAO', dir: angio(45, 0), group: 'angio', description: 'RCA "C" shape; septum en face' },
+  { label: 'LAO 45°', short: 'LAO', dir: angio(45, 0), group: 'angio', description: 'RCA "C" shape; septum in profile (separates LV from RV)' },
   { label: 'RAO Cranial', short: 'RAO Cr', dir: angio(-30, 25), group: 'angio', description: 'Mid/distal LAD and diagonals' },
   { label: 'LAO Cranial', short: 'LAO Cr', dir: angio(40, 25), group: 'angio', description: 'LAD with diagonals; distal RCA/PDA' },
   { label: 'RAO Caudal', short: 'RAO Ca', dir: angio(-25, -25), group: 'angio', description: 'LCx and obtuse marginals; proximal LAD' },

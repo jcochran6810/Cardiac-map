@@ -496,7 +496,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'hfref', name: 'HFrEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 92, ...STD,
     pr: 200, p: 'mitrale', qrs: 'ivcd', qtc: 460, hemo: 'hfref',
     headline: 'Sinus rhythm, LAE, LBBB-pattern QRS',
-    findings: ['LBBB with QRS ≥ 150 ms identifies CRT candidates (LVEF ≤ 35%)', 'Left atrial enlargement', 'Q waves if ischaemic cardiomyopathy; AF common'],
+    findings: ['LBBB with QRS ≥ 150 ms identifies CRT candidates (LVEF ≤ 35%, NYHA II–ambulatory IV despite GDMT)', 'Left atrial enlargement', 'Q waves if ischaemic cardiomyopathy; AF common'],
   },
   hfpef: {
     id: 'hfpef', name: 'HFpEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 78, ...STD,
@@ -511,7 +511,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     pr: 150, p: 'normal', qrs: 'anterior-mi', qrsScale: 0.85, qtc: 450, hemo: 'shock',
     injury: scale(norm([0.25, -0.92, 0.22]), 0.2),
     headline: 'Sinus tachycardia with evolving anterior STEMI',
-    findings: ['Sinus tachycardia (compensatory)', 'Anterior ST elevation with Q waves — large territory infarction', 'Most cardiogenic shock is caused by acute MI: emergent revascularisation'],
+    findings: ['Sinus tachycardia (compensatory)', 'Anterior ST elevation with Q waves — large territory infarction', 'Acute MI is a leading cause of cardiogenic shock (with decompensated chronic HF): AMI-shock needs emergent culprit-vessel revascularisation'],
     keyLeads: ['V1', 'V2', 'V3', 'V4'],
   },
   'aortic-stenosis': {
@@ -551,7 +551,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     pr: 150, p: 'normal', qrs: 'normal', qrsScale: 0.42, qtc: 420, alternans: 0.35, hemo: 'tamponade',
     t: { dir: [0.62, -0.25, -0.65], mag: 0.16 },
     headline: 'Sinus tachycardia, low voltage, electrical alternans',
-    findings: ['Sinus tachycardia', 'Low QRS voltage (< 5 mm in all limb leads, < 10 mm in precordials)', 'Electrical alternans: QRS amplitude alternates beat to beat as the heart swings in the effusion', 'Clinical: Beck\'s triad, pulsus paradoxus > 10 mmHg'],
+    findings: ['Sinus tachycardia', 'Low QRS voltage (< 5 mm in all limb leads or < 10 mm in all precordial leads)', 'Electrical alternans: QRS amplitude alternates beat to beat as the heart swings in the effusion', 'Clinical: Beck\'s triad, pulsus paradoxus > 10 mmHg'],
     keyLeads: ['II', 'V3', 'V4'],
   },
   asd: {

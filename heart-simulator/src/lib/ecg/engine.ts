@@ -746,12 +746,12 @@ export const PHASE_LABELS: Record<CyclePhase, string> = {
 };
 
 export const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
-  'atrial-systole': 'Atria contract after the P wave, topping up ventricular filling (~15–25% of EDV). AV valves open, semilunar valves closed.',
+  'atrial-systole': 'Atria contract after the P wave, topping up ventricular filling (~15–25% of filling volume). AV valves open, semilunar valves closed.',
   'isovolumetric-contraction': 'Begins at S1 (mitral/tricuspid closure) just after the QRS. All four valves closed; pressure rises with no change in volume.',
   'rapid-ejection': 'LV pressure exceeds aortic pressure and the aortic valve opens. Most of the stroke volume is ejected. Corresponds to the ST segment.',
   'reduced-ejection': 'Ejection slows as ventricular repolarisation (T wave) begins. Aortic pressure starts to fall.',
   'isovolumetric-relaxation': 'Starts at S2 (aortic/pulmonic closure, ~end of T wave). All valves closed; pressure falls with no change in volume.',
-  'rapid-filling': 'Ventricular pressure drops below atrial pressure, the AV valves open and blood rushes in (an S3 occurs here in volume overload).',
+  'rapid-filling': 'Ventricular pressure drops below atrial pressure, the AV valves open and blood rushes in (an S3 here is normal in the young, pathological in HF / volume overload).',
   diastasis: 'Slow filling as atrial and ventricular pressures equalise. Shortens first when heart rate rises.',
   fibrillation: 'Disorganised electrical activity: the ventricles quiver, no stroke volume, no pulse. CPR + defibrillation.',
   arrest: 'No electrical activity and no contraction. CPR, epinephrine, reversible causes.',

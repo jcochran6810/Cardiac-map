@@ -148,7 +148,7 @@ export default function SceneOverlay() {
           )}
           {culprit && (
             <div className="flex items-center gap-1.5 mt-1 text-fuchsia-300">
-              <span className="w-3 h-2 rounded-sm bg-fuchsia-700 animate-pulse" /> Ischaemic territory (pulsing): {culprit} occlusion
+              <span className="w-3 h-2 rounded-sm bg-fuchsia-700 animate-pulse" /> Ischaemic territory (pulsing): {culprit} culprit lesion
             </div>
           )}
         </div>

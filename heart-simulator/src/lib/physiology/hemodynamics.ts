@@ -56,7 +56,7 @@ export const HEMO_PROFILES: Record<HemoProfile, HemoParams> = {
   hcm: { ...BASE, label: 'Obstructive HCM', edv: 100, esv: 28, sbp: 118, dbp: 74, lvedp: 18, laMean: 16, gradient: 55, gradientType: 'dynamic', mr: 0.08, tauRelax: 70, s4: true, murmur: 'hcm', kick: 0.3 },
   shock: { ...BASE, label: 'Cardiogenic shock', edv: 190, esv: 155, sbp: 80, dbp: 52, lvedp: 28, laMean: 26, tauRelax: 65, s3: true, kick: 0.12 },
   tamponade: { ...BASE, label: 'Cardiac tamponade', edv: 72, esv: 32, sbp: 88, dbp: 68, lvedp: 19, laMean: 19, respVar: 0.22, kick: 0.1 },
-  pe: { ...BASE, label: 'Massive PE (underfilled LV)', edv: 88, esv: 38, sbp: 96, dbp: 66, lvedp: 5, laMean: 5 },
+  pe: { ...BASE, label: 'Acute PE with RV strain (underfilled LV)', edv: 88, esv: 38, sbp: 96, dbp: 66, lvedp: 5, laMean: 5 },
   stemi: { ...BASE, label: 'Acute MI (reduced EF)', edv: 135, esv: 76, sbp: 126, dbp: 80, lvedp: 18, laMean: 16, tauRelax: 55, s4: true, kick: 0.25 },
   'no-output': { ...BASE, label: 'No effective output', edv: 140, esv: 140, sbp: 20, dbp: 12, lvedp: 12, laMean: 12, noOutput: true, kick: 0 },
 };
