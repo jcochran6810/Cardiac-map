@@ -21,10 +21,23 @@ monitor/defibrillator permissions stay inside that role's scope (`src/lib/scope.
 ## Run it
 
 ```bash
-npm install
+npm ci
 npm run dev        # http://localhost:3000
 npm run build && npm start   # production build
 ```
+
+Checks (run before committing — `npm run check` runs all four):
+
+```bash
+npm run typecheck  # TypeScript
+npm run lint       # ESLint (next lint)
+npm test           # Vitest unit tests in tests/ — ECG lead maths, electrodes, rhythms, engine, hemodynamics, anatomy, scope
+npm run build      # production build
+```
+
+Working with Claude Code: the repo root has `CLAUDE.md` (start/end-session protocol), `fix_list.md`
+(open items and owner actions) and `SESSION_LOG.md` (what each session shipped). Production is the
+`claude/create-heart-3d-model-6mtrW` branch, live at https://cardiacmap.stationinsight.com.
 
 ## What's inside
 
