@@ -8,6 +8,7 @@ import { openById } from '@/lib/actions';
 import { CASE_DATA } from '@/data/caseData';
 import { IconHeart, IconHelp, IconPanelLeft, IconQuiz, IconSearch, IconTutor } from '@/components/ui/icons';
 import ScopeCard from '@/components/ui/ScopeCard';
+import { Button, IconButton } from '@/components/ui/Button';
 
 const KIND_STYLE: Record<SearchHit['kind'], string> = {
   structure: 'bg-sky-500/15 text-sky-300',
@@ -38,6 +39,8 @@ export default function TopBar() {
   const [active, setActive] = useState(0);
   const [scopeOpen, setScopeOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scopeButtonRef = useRef<HTMLButtonElement>(null);
+  const resultsOpen = open && q.trim().length >= 2;
 
   const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q) : []), [lib, q]);
 
@@ -52,6 +55,10 @@ export default function TopBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  useEffect(() => {
+    if (resultsOpen) document.getElementById(`library-result-${active}`)?.scrollIntoView({ block: 'nearest' });
+  }, [active, resultsOpen]);
+
   const choose = (h: SearchHit) => {
     openById(h.id);
     setQ('');
@@ -60,126 +67,89 @@ export default function TopBar() {
   };
 
   return (
-    <header className="h-12 bg-cardiac-panel/95 border-b border-slate-700/80 flex items-center px-2 sm:px-3 gap-2 sm:gap-3 shrink-0 z-50">
-      <button
-        onClick={toggleLeftPanel}
-        className={`p-1.5 rounded hover:bg-cardiac-surface ${leftPanelOpen ? 'text-slate-200' : 'text-slate-500'}`}
-        title="Toggle navigator panel"
-        aria-label="Toggle navigator panel"
-      >
-        <IconPanelLeft />
-      </button>
-
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-rose-500 to-red-700 flex items-center justify-center text-white shadow-lg shadow-red-900/40">
-          <IconHeart size={15} />
-        </div>
-        <div className="hidden md:block leading-tight">
-          <div className="text-sm font-semibold text-white">CardioSim</div>
-          <div className="text-[9px] text-slate-400 -mt-0.5">Cardiac anatomy · ECG · physiology</div>
+    <header className="workspace-header" aria-label="Simulator tools">
+      <div className="workspace-brand">
+        <IconButton onClick={toggleLeftPanel} active={leftPanelOpen} aria-pressed={leftPanelOpen} aria-label="Toggle navigator panel" title="Toggle navigator panel"><IconPanelLeft size={18} /></IconButton>
+        <div className="workspace-brandmark" aria-hidden="true"><IconHeart size={20} /></div>
+        <div className="leading-tight">
+          <div className="text-sm font-semibold tracking-tight text-ui-text">CardioSim</div>
+          <div className="hidden lg:block text-xs text-ui-muted mt-0.5">Anatomy · ECG · physiology</div>
         </div>
       </div>
 
-      <div className="relative flex items-center gap-1 shrink-0">
-      <label className="flex items-center gap-1.5 shrink-0" title="Choose your role — guidance stays within that role's scope of practice">
-        <span className="text-[10px] text-slate-400 hidden lg:inline">Role</span>
-        <select
-          value={learningLevel}
-          onChange={(e) => setLearningLevel(Number(e.target.value) as LearningLevel)}
-          className="bg-cardiac-surface text-xs text-slate-100 rounded-md px-2 py-1 border border-slate-600 focus:outline-none focus:ring-1 focus:ring-cardiac-accent"
-          aria-label="Learner role"
-        >
+      <div className="workspace-role" onKeyDown={(e) => {
+        if (e.key === 'Escape' && scopeOpen) { e.stopPropagation(); setScopeOpen(false); scopeButtonRef.current?.focus(); }
+      }}>
+        <label htmlFor="learner-role" className="sr-only">Learner role</label>
+        <select id="learner-role" value={learningLevel} onChange={(e) => setLearningLevel(Number(e.target.value) as LearningLevel)}>
           {([1, 2, 3, 4, 5] as LearningLevel[]).map((l) => (
             <option key={l} value={l}>{compact ? LEVEL_LABELS[l].short : LEVEL_LABELS[l].long}</option>
           ))}
         </select>
-      </label>
-      <button
-        onClick={() => setScopeOpen((v) => !v)}
-        className={`px-1.5 py-1 rounded text-[10px] border ${scopeOpen ? 'border-cardiac-accent text-cardiac-accent' : 'border-slate-600 text-slate-300 hover:text-white'}`}
-        title="What this role may and may not do"
-        aria-expanded={scopeOpen}
-      >
-        Scope
-      </button>
-      {scopeOpen && (
-        <div className="absolute left-0 top-full mt-1 w-[min(92vw,560px)] z-[70] rounded-lg border border-slate-600 bg-cardiac-panel shadow-2xl p-3">
-          <ScopeCard level={learningLevel} />
-          <button onClick={() => setScopeOpen(false)} className="absolute top-2 right-2 text-slate-500 hover:text-white text-xs" aria-label="Close scope">✕</button>
-        </div>
-      )}
+        <Button ref={scopeButtonRef} variant="outline" active={scopeOpen} onClick={() => setScopeOpen((v) => !v)} aria-expanded={scopeOpen} aria-controls={scopeOpen ? 'role-scope' : undefined} title="What this role may and may not do">Scope</Button>
+        {scopeOpen && (
+          <section id="role-scope" className="workspace-scope" aria-label="Scope of practice">
+            <ScopeCard level={learningLevel} />
+            <IconButton onClick={() => { setScopeOpen(false); scopeButtonRef.current?.focus(); }} className="absolute top-2 right-2" aria-label="Close scope">✕</IconButton>
+          </section>
+        )}
       </div>
 
       {/* Global search */}
-      <div className="relative flex-1 max-w-xl min-w-0">
+      <div className="workspace-search">
         <IconSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
         <input
           ref={inputRef}
           type="search"
-          placeholder="Search anatomy, conditions, procedures, drugs, cases…  ( / )"
+          placeholder="Search anatomy, conditions, drugs…"
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); setActive(0); }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(hits.length - 1, a + 1)); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.max(0, Math.min(hits.length - 1, a + 1))); }
             if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
             if (e.key === 'Enter' && hits[active]) choose(hits[active]);
-            if (e.key === 'Escape') { setQ(''); inputRef.current?.blur(); }
+            if (e.key === 'Escape') { e.stopPropagation(); setQ(''); setOpen(false); inputRef.current?.blur(); }
           }}
-          className="w-full bg-cardiac-dark text-xs text-slate-100 rounded-md pl-8 pr-3 py-1.5 border border-slate-600 focus:outline-none focus:ring-1 focus:ring-cardiac-accent placeholder-slate-500"
+          role="combobox"
+          aria-expanded={resultsOpen}
+          aria-controls={resultsOpen ? "library-results" : undefined}
+          aria-activedescendant={resultsOpen && hits[active] ? `library-result-${active}` : undefined}
           aria-label="Search"
           aria-autocomplete="list"
         />
-        {open && q.trim().length >= 2 && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-cardiac-panel border border-slate-600 rounded-lg shadow-2xl overflow-hidden max-h-[60vh] overflow-y-auto z-50" role="listbox">
+        {resultsOpen && (
+          <div id="library-results" className="workspace-results" role="listbox" aria-label="Library results">
             {!lib && <div className="px-3 py-2 text-xs text-slate-400">Loading library…</div>}
             {lib && hits.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">No matches for “{q}”.</div>}
             {hits.map((h, i) => (
               <button
                 key={`${h.kind}-${h.id}`}
-                onMouseDown={(e) => { e.preventDefault(); choose(h); }}
+                id={`library-result-${i}`}
+                tabIndex={-1}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(h)}
                 onMouseEnter={() => setActive(i)}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs ${i === active ? 'bg-cardiac-surface' : ''}`}
+                className="workspace-result"
                 role="option"
                 aria-selected={i === active}
               >
-                <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{h.kind}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{h.kind}</span>
                 <span className="text-slate-100 truncate">{h.name}</span>
-                <span className="ml-auto text-[10px] text-slate-500 truncate capitalize">{h.sub}</span>
+                <span className="ml-auto hidden sm:block text-xs text-ui-muted truncate capitalize">{h.sub}</span>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-1 ml-auto shrink-0">
-        <TopButton onClick={() => setQuizOpen(true)} title="Quiz yourself (Q)"><IconQuiz size={15} /><span className="hidden sm:inline">Quiz</span></TopButton>
-        <TopButton onClick={toggleTutor} active={tutorOpen} title="Ask the tutor (T)"><IconTutor size={15} /><span className="hidden sm:inline">Tutor</span></TopButton>
-        <TopButton onClick={() => setHelpOpen(true)} title="Help & keyboard shortcuts (?)"><IconHelp size={15} /></TopButton>
-        <button
-          onClick={toggleRightPanel}
-          className={`p-1.5 rounded hover:bg-cardiac-surface ${rightPanelOpen ? 'text-slate-200' : 'text-slate-500'}`}
-          title="Toggle info panel"
-          aria-label="Toggle info panel"
-        >
-          <IconPanelLeft className="scale-x-[-1]" />
-        </button>
-      </div>
+      <nav className="workspace-actions" aria-label="Learning tools">
+        <Button onClick={() => setQuizOpen(true)} aria-label="Quiz yourself" title="Quiz yourself (Q)"><IconQuiz size={18} /><span className="hidden sm:inline">Quiz</span></Button>
+        <Button onClick={toggleTutor} active={tutorOpen} aria-pressed={tutorOpen} aria-label="Ask the tutor" title="Ask the tutor (T)"><IconTutor size={18} /><span className="hidden sm:inline">Tutor</span></Button>
+        <IconButton onClick={() => setHelpOpen(true)} aria-label="Help and keyboard shortcuts" title="Help & keyboard shortcuts (?)"><IconHelp size={18} /></IconButton>
+        <IconButton onClick={toggleRightPanel} active={rightPanelOpen} aria-pressed={rightPanelOpen} aria-label="Toggle info panel" title="Toggle info panel"><IconPanelLeft size={18} className="scale-x-[-1]" /></IconButton>
+      </nav>
     </header>
-  );
-}
-
-function TopButton({ children, onClick, title, active }: { children: React.ReactNode; onClick: () => void; title: string; active?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs transition-colors ${
-        active ? 'bg-cardiac-accent/20 text-cardiac-accent' : 'text-slate-300 hover:text-white hover:bg-cardiac-surface'
-      }`}
-    >
-      {children}
-    </button>
   );
 }

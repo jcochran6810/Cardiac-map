@@ -140,6 +140,11 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
       dot.style.opacity = String(alpha);
       pill.style.transform = `translateY(${dy}px)`;
       pill.style.pointerEvents = alpha > 0.3 ? 'auto' : 'none';
+      const tabIndex = alpha > 0.3 ? 0 : -1;
+      if (pill.tabIndex !== tabIndex) {
+        pill.tabIndex = tabIndex;
+        pill.setAttribute('aria-hidden', String(alpha <= 0.3));
+      }
     }
   });
 

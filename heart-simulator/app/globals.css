@@ -3,6 +3,15 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: dark;
+  --ui-bg: 15 23 42;
+  --ui-panel: 22 33 51;
+  --ui-raised: 36 51 72;
+  --ui-text: 241 245 249;
+  --ui-muted: 185 200 218;
+  --ui-border: 81 101 126;
+  --ui-focus: 125 211 252;
+  --ui-selected: 186 230 253;
   --cardiac-red: #DC2626;
   --cardiac-blue: #2563EB;
   --cardiac-dark: #0F172A;
@@ -10,6 +19,70 @@
   --cardiac-surface: #334155;
   --cardiac-accent: #F59E0B;
   --cardiac-conduction: #FBBF24;
+}
+
+/* UI colors are independent of physiological and mapping palettes. */
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(var(--ui-muted));
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  flex-shrink: 0;
+}
+.ui-button:hover:not(:disabled) { background: rgb(var(--ui-raised)); color: rgb(var(--ui-text)); }
+.ui-button--outline { border-color: rgb(var(--ui-border)); }
+.ui-button--active { background: rgb(14 165 233 / 0.12); color: rgb(var(--ui-selected)); border-color: rgb(56 189 248 / 0.5); }
+.ui-button:disabled { opacity: 0.45; cursor: not-allowed; }
+.ui-button--icon { width: 40px; padding: 8px; }
+.ui-button:focus-visible, .workspace-header :focus-visible { outline: 2px solid rgb(var(--ui-focus)); outline-offset: 3px; }
+.ui-button svg { flex-shrink: 0; }
+.workspace-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+  z-index: 50;
+  background: rgb(var(--ui-panel));
+  border-bottom: 1px solid rgb(var(--ui-border) / 0.6);
+}
+.workspace-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.workspace-brandmark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: #fda4af; background: #3b2233; border: 1px solid #754052; }
+.workspace-role { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.workspace-role select { max-width: 270px; min-width: 0; height: 40px; background: rgb(var(--ui-bg)); border: 1px solid rgb(var(--ui-border)); border-radius: 8px; padding: 0 8px; color: rgb(var(--ui-text)); font-size: 12px; }
+.workspace-search { position: relative; flex: 1; min-width: 180px; }
+.workspace-search input { width: 100%; height: 40px; border-radius: 8px; border: 1px solid rgb(var(--ui-border)); padding: 0 40px 0 36px; background: rgb(var(--ui-bg)); color: rgb(var(--ui-text)); font-size: 13px; }
+.workspace-search input::placeholder { color: rgb(var(--ui-muted)); }
+.workspace-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.workspace-scope { position: absolute; left: 0; top: calc(100% + 8px); width: min(560px, calc(100vw - 32px)); z-index: 70; border: 1px solid rgb(var(--ui-border)); border-radius: 12px; background: rgb(var(--ui-panel)); padding: 16px 48px 16px 16px; box-shadow: 0 16px 40px #0006; }
+.workspace-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; max-height: 50dvh; overflow-y: auto; border: 1px solid rgb(var(--ui-border)); border-radius: 12px; background: rgb(var(--ui-panel)); box-shadow: 0 16px 40px #0006; }
+.workspace-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; text-align: left; font-size: 13px; color: rgb(var(--ui-text)); }
+.workspace-result[aria-selected="true"] { background: rgb(var(--ui-raised)); box-shadow: inset 3px 0 rgb(var(--ui-focus)); }
+@media (max-width: 1279px) {
+  .workspace-role { order: 3; }
+  .workspace-search { order: 4; }
+}
+@media (max-width: 639px) {
+  .workspace-header { gap: 8px; padding: 8px; }
+  .workspace-brand { gap: 6px; }
+  .workspace-brandmark { display: none; }
+  .workspace-role { flex: 1; }
+  .workspace-role select { flex: 1; max-width: none; }
+  .workspace-search { flex-basis: 100%; }
+  .workspace-actions { gap: 0; }
+  .ui-button { min-height: 44px; }
+  .ui-button--icon { width: 36px; }
+  .workspace-actions .ui-button { padding: 8px; }
 }
 
 * {
@@ -50,9 +123,10 @@ body {
 /* 3D stage backdrop: soft vignette behind the transparent WebGL canvas */
 .heart-stage {
   background:
-    radial-gradient(ellipse at 50% 42%, rgba(80, 30, 40, 0.35) 0%, rgba(15, 23, 42, 0) 60%),
-    radial-gradient(ellipse at 50% 120%, rgba(30, 41, 59, 0.9) 0%, rgba(8, 11, 18, 1) 70%);
+    radial-gradient(ellipse at 50% 44%, #253449 0%, #121e30 52%, #090f1b 100%);
 }
+
+.scene-panel { background: rgb(15 23 42 / 0.94); border: 1px solid #52647c; box-shadow: 0 4px 16px #0003; }
 
 /* Hide scrollbars on horizontal toolbars while keeping them scrollable */
 .no-scrollbar { scrollbar-width: none; }
