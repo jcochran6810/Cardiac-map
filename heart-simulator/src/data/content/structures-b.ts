@@ -804,11 +804,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The first part of the right coronary artery, from its origin in the right aortic sinus along the right AV groove. Occlusion here typically causes inferior MI plus right ventricular infarction, with hypotension and bradycardia.',
     levelNotes: [
-      'Inferior heart attack with low blood pressure may involve the right ventricle: avoid nitroglycerin, keep the patient flat if tolerated and consider small fluid boluses per protocol',
-      'Record right-sided leads (V4R) in every inferior STEMI; STE ≥ 0.5 mm in V3R/V4R (≥ 1 mm in men < 30 y) means RV infarction and preload dependence',
-      'RV infarction: avoid nitrates and diuretics, give cautious fluid, maintain AV synchrony, treat bradycardia (atropine, pacing) and use inotropes if fluid fails',
-      'Proximal RCA occlusion: STE III > II, STD in I/aVL, RV involvement (V4R, STE V1), and SA/AV nodal ischemia with sinus bradycardia or AV block',
-      'Ostial RCA is an aorto-ostial lesion: guide damping, precise stent positioning with slight aortic protrusion and imaging guidance; avoid selective conus injection',
+      'Chest pain with low blood pressure may involve the right ventricle: do not assist with nitroglycerin if BP is below your protocol threshold, give aspirin per protocol, keep the patient supine if tolerated, transmit a 12-lead where allowed and watch for a slow pulse.',
+      'Record V4R in every inferior STEMI before nitrates: STE ≥ 0.5 mm in V3R/V4R (≥ 1 mm in men < 30) means RV infarction. Withhold nitrates, give fluid boluses per protocol, and treat symptomatic bradycardia with atropine and pacing per ACLS.',
+      'The RCA is engaged with JR4 or AR catheters and seen in LAO (C-shape) and RAO; report damping or ventricularization (ostial disease or conus engagement) at once, and have temporary pacing and the defibrillator ready for reperfusion bradycardia or VF.',
+      'RV infarction is preload-dependent: clarify any nitrate or diuretic order with the physician, give fluids and atropine as ordered, monitor BP, JVP, lungs and rhythm, and be ready to support temporary pacing and vasopressor or inotrope infusions.',
+      'Proximal RCA: STE III > II, STD I/aVL, RV involvement (V4R, STE V1) and SA/AV nodal ischemia. Treat RV infarction with preload, AV synchrony, inotropes and RV MCS if refractory; ostial lesions need precise ~1 mm aortic protrusion with imaging.',
     ],
     overview: [
       'Arises from the right coronary (right aortic) sinus and runs in the right AV groove',
@@ -878,11 +878,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The middle portion of the RCA running in the right AV groove down to the acute margin of the heart. It gives right ventricular and acute marginal branches; occlusion causes inferior MI with variable RV involvement.',
     levelNotes: [
-      'Inferior heart attacks can drop the heart rate and blood pressure: monitor closely and check for low pressure before giving nitroglycerin',
-      'Record V4R: mid RCA occlusion may or may not involve the RV depending on where the RV branches arise',
-      'Inferior STEMI from the mid RCA needs primary PCI; anticipate bradyarrhythmias and vagal reactions during reperfusion',
-      'Occlusion location relative to the RV and acute marginal branches determines whether RV infarction accompanies the inferior MI',
-      'The mid RCA is a classic CTO segment; septal or epicardial collaterals from the LAD often fill the distal RCA',
+      'Heart attacks in the right coronary territory often cause nausea, sweating, a slow pulse and low BP: recheck vital signs often, give aspirin per protocol, assist with nitroglycerin only if BP meets protocol, and transmit a 12-lead where allowed.',
+      'Mid RCA occlusion causes inferior STEMI (STE III > II, STD in aVL), with RV involvement only if proximal to the RV branches; record V4R, activate the cath lab per protocol and anticipate bradycardia and hypotension.',
+      'The mid RCA lays out in RAO and LAO; it is a common CTO site, so have a dual-injection setup, microcatheters and CTO wires available as the operator requests. Alert the operator to bradycardia, hypotension or AIVR on reperfusion.',
+      'RCA reperfusion often brings bradycardia, hypotension (Bezold–Jarisch reflex) or AIVR: report immediately and give atropine and fluids as ordered or per ACLS; AIVR is usually self-limited, so give antiarrhythmics only if ordered.',
+      'Occlusion site relative to the RV branches decides RV infarction. The mid RCA is a classic CTO segment: hybrid algorithm with antegrade wiring, dissection re-entry or retrograde via septal or epicardial LAD collaterals; distal RCA or PDA are usual graft targets.',
     ],
     overview: [
       'Runs from the midpoint of the proximal segment to the acute margin in the right AV groove',
@@ -939,11 +939,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The final RCA segment from the acute margin to the crux, where in right-dominant hearts it divides into the posterior descending artery and posterolateral branches and gives the AV nodal artery.',
     levelNotes: [
-      'An inferior heart attack can slow the heart dangerously: watch the monitor, treat symptomatic bradycardia per protocol and be ready to pace',
-      'Distal RCA occlusion causes inferior STEMI with AV nodal block risk but usually no RV infarction; still record V4R',
-      'AV block in inferior MI is usually nodal, narrow-complex and transient; atropine often helps but pacing is needed for persistent instability',
-      'Inferior STEMI without RV involvement plus AV block localizes to the distal RCA before or at the crux; posterior extension depends on posterolateral branch size',
-      'The crux bifurcation (PDA/PL) and the AV nodal artery at the inverted U of the RCA are key; PL branch compromise or nodal artery loss can follow distal stenting',
+      'Heart attacks in this area can slow the pulse dangerously: check pulse and BP often, give aspirin per protocol, request ALS early for a slow pulse with low BP or fainting, and start CPR and use the AED if pulseless.',
+      'Distal RCA occlusion gives inferior STEMI with AV block risk but usually a normal V4R. Nodal block is usually narrow-complex and atropine-responsive; pace transcutaneously per ACLS if bradycardia stays unstable.',
+      'The crux and PDA/PL bifurcation are best seen in LAO cranial, with PDA length in RAO; prepare the temporary pacing wire and generator, record the rhythm continuously, and report new heart block or ST change immediately.',
+      'AV block in inferior MI is usually transient: monitor rhythm continuously, give atropine as ordered or per ACLS, support temporary pacing, and listen for a new murmur in the first week, when papillary muscle rupture can cause sudden pulmonary edema.',
+      'Inferior MI with AV block and a normal V4R localizes to the distal RCA. Nodal block usually resolves: pace temporarily for instability and defer permanent pacing. Crux stenting can compromise PL branches or the AV nodal artery at the inverted U.',
     ],
     overview: [
       'Extends from the acute margin along the inferior AV groove to the crux',
@@ -1001,11 +1001,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A small artery to the right ventricular outflow tract (infundibulum), usually the first branch of the RCA but arising separately from the right aortic sinus in a substantial minority. It is an important collateral source to the LAD.',
     levelNotes: [
-      'This small vessel rarely causes a recognizable heart attack on its own; follow standard chest pain care',
-      'Know that some people have a separate conus artery; it explains why angiography reports sometimes describe an extra small vessel',
-      'Selective conus injection during angiography can cause VF; be ready to defibrillate in the cath lab',
-      'The conus forms Vieussens\' arterial ring with proximal LAD branches, a key collateral pathway in LAD occlusion',
-      'A separate conus ostium must be sought with a non-selective cusp shot; inadvertent deep engagement of the conus with a JR catheter risks VF and dissection',
+      'This small branch rarely causes a recognizable heart attack on its own, so standard chest pain care applies: aspirin per protocol, 12-lead acquisition and transmission where allowed, and CPR and AED for cardiac arrest.',
+      'Conus occlusion has no reliable ECG pattern; isolated STE in V1–V2 has been described and can mimic anterior STEMI or a Brugada pattern, so judge the whole 12-lead and consult medical direction.',
+      'A separate conus ostium needs a non-selective right cusp injection; if a JR catheter damps or a small anterior vessel fills, alert the operator before the next injection, as selective conus injection can trigger VF, and keep the defibrillator ready.',
+      'Selective conus injection can cause sudden VF: confirm defibrillator pads are on and connected before coronary injections, recognize VF immediately, and start ACLS and defibrillation per protocol while alerting the team.',
+      'The conus arises separately in ~30–50% and forms Vieussens\' ring with LAD conal branches, a key collateral in LAD occlusion and an occasional retrograde CTO route; avoid deep or wedged conus engagement, which risks VF and dissection.',
     ],
     overview: [
       'Supplies the RV outflow tract (conus arteriosus/infundibulum) and pulmonary root region',
@@ -1061,11 +1061,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The small artery that supplies the sinus node and surrounding atrial tissue. It arises from the proximal RCA in about 55–65% of people and from the proximal circumflex in about 35–45%.',
     levelNotes: [
-      'A heart attack can cause a very slow heart rate: check the pulse and monitor, and treat symptomatic bradycardia per protocol',
-      'Sinus bradycardia or sinus arrest with inferior or lateral MI may reflect SA nodal artery ischemia; atropine is often effective for sinus-level slowing',
-      'Sinus node ischemia is usually transient after reperfusion; persistent symptomatic pauses may need temporary pacing',
-      'Origin is variable (~55–65% RCA, ~35–45% LCx, a few % dual), so sinus node dysfunction occurs with either RCA or LCx occlusion',
-      'Side-branch occlusion during proximal RCA or LCx stenting can cause sinus node dysfunction; the artery is also at risk in atrial surgery and superior septal approaches',
+      'A heart attack can make the pulse very slow: count the pulse and check BP and mental status, and if the patient is pale, dizzy or hypotensive, request ALS, keep them supine and transport promptly.',
+      'Sinus bradycardia or sinus arrest during inferior or lateral MI may reflect SA nodal artery ischemia; atropine usually works for sinus-level slowing, with transcutaneous pacing per ACLS if the patient remains unstable.',
+      'The SA nodal artery is an early upward branch of the proximal RCA (LAO/RAO cranial) or LCx (caudal views); note its origin when the operator stents nearby, watch for sinus slowing or pauses, and have pacing equipment ready.',
+      'Sinus bradycardia or pauses after RCA or LCx stenting may reflect side-branch loss: assess symptoms and BP, give atropine as ordered or per ACLS, notify the physician and support temporary pacing if needed.',
+      'Origin is ~55–65% RCA, ~35–45% LCx, occasionally dual, so sinus node dysfunction occurs with either occlusion. Side-branch loss during proximal RCA/LCx stenting can cause it, and the artery is at risk in atrial surgery and superior transseptal approaches.',
     ],
     overview: [
       'Supplies the SA node and nearby right atrial myocardium',
@@ -1124,11 +1124,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A branch of the mid-to-distal RCA that runs along the acute (inferior right) margin of the heart to supply the right ventricular free wall. Its compromise contributes to right ventricular infarction.',
     levelNotes: [
-      'Right-heart attacks can cause low blood pressure: avoid nitroglycerin until RV involvement is excluded',
-      'RV involvement in inferior MI is shown by STE in V4R; isolated RV infarction can mimic anterior STEMI with STE in V1–V3',
-      'Treat RV infarction physiology: preserve preload, avoid nitrates/diuretics, restore AV synchrony and use inotropes if needed',
-      'The AM branch supplies the RV free wall; isolated AM occlusion causes limited RV infarction, often with STE V1 ± V2–V3 and V4R',
-      'AM branches are side branches during RCA stenting and occasional collateral sources to the LAD apex in CTO PCI',
+      'Heart attacks involving the right ventricle can cause low blood pressure: check BP before assisting with nitroglycerin and withhold it below your protocol threshold, keep the patient supine if tolerated and transport.',
+      'RV infarction shows STE in V4R and often V1; isolated RV infarction can show STE V1–V3 that decreases toward V3, mimicking anterior STEMI. Avoid nitrates and give fluid boluses per protocol for hypotension with clear lungs.',
+      'The AM branch runs from the mid–distal RCA toward the apex in LAO and RAO; it may be jailed during RCA stenting, so report its loss or new ST elevation, and have right heart catheter equipment ready if RV assessment is requested.',
+      'With RV infarction, maintain preload: give fluids as ordered, clarify any nitrate or diuretic order with the physician, monitor BP, JVP, lung sounds and rhythm, and report hypotension, AV block or loss of AV synchrony promptly.',
+      'The AM supplies the RV free wall; isolated AM occlusion (often a jailed side branch) causes limited RV infarction with V1/V4R STE. RV shock: optimize preload, restore AV synchrony, add inotropes, then RV MCS; AM collaterals can feed the LAD apex.',
     ],
     overview: [
       'Arises from the RCA near the acute margin of the heart',
@@ -1184,11 +1184,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The artery running in the inferior (posterior) interventricular groove that supplies the inferior wall and inferior third of the septum. Whichever artery gives the PDA and posterolateral branch defines coronary dominance.',
     levelNotes: [
-      'Inferior heart attacks can cause slow heart rates and low blood pressure: monitor, get a 12-lead with V4R if your protocol allows, and transport to a PCI center',
-      'PDA occlusion causes inferior STE in II, III and aVF; look for reciprocal STD in aVL and check for bradycardia',
-      'Inferior septal and papillary muscle complications (VSD, acute MR) can follow inferior MI; a new murmur with shock needs urgent echo',
-      'Dominance is defined by the vessel supplying the PDA and posterolateral branch: right ~70–85%, left ~5–10%, codominant ~5–10%',
-      'PDA septal branches are the classic retrograde collateral channel for LAD CTO PCI, and the PDA is a frequent graft target',
+      'Inferior heart attacks can cause a slow pulse, low BP, nausea and sweating: monitor vital signs, give aspirin per protocol, acquire and transmit a 12-lead where allowed (with right-sided leads if your protocol includes them) and transport to a PCI center.',
+      'PDA occlusion gives inferior STE in II, III and aVF with reciprocal STD in aVL; isolated PDA occlusion spares V4R. Activate per protocol, watch for bradycardia and hypotension, and report any new murmur or pulmonary edema.',
+      'Dominance is shown by injecting both coronaries; the PDA runs in RAO (± cranial), with its crux origin in LAO cranial. In CTO cases PDA septals are a retrograde route, so prepare microcatheters and a dual-injection setup as requested.',
+      'After inferior MI, a new murmur, sudden dyspnea or shock can signal papillary muscle or septal rupture: escalate immediately and prepare for urgent echo, vasoactive infusions and mechanical support as ordered.',
+      'Dominance is defined by the PDA and PL origin (right ~70–85%, left ~5–10%, codominant ~5–10%). PDA septals are the main retrograde channel for LAD and RCA CTO PCI; mechanical complications need urgent surgery or transcatheter repair with MCS bridging.',
     ],
     overview: [
       'Runs in the inferior interventricular groove toward the apex',
@@ -1249,11 +1249,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'Branches that continue beyond the crux to supply the inferolateral (posterolateral) left ventricular wall. They come from the RCA in right dominance and from the circumflex in left dominance.',
     levelNotes: [
-      'A heart attack in the back of the heart may show only ST depression in V1–V3: transmit the 12-lead and treat as an emergency',
-      'Posterior MI: STD V1–V3 with tall R and upright T; record V7–V9 where STE ≥ 0.5 mm confirms it',
-      'Isolated posterior STEMI qualifies for emergent reperfusion when V7–V9 show STE; do not label it NSTEMI by default',
-      'Right PL branches extend the RCA territory to the inferolateral wall; their size is inversely related to the size of the LCx',
-      'The AV nodal artery often arises at the RCA inverted U near the PL origin; crux bifurcation stenting can compromise PL or nodal flow',
+      'A heart attack in the back of the heart may show only subtle ECG changes: treat cardiac chest pain as an emergency, give aspirin per protocol, transmit a 12-lead where allowed and transport.',
+      'Posterior MI: STD V1–V3 (maximal V2–V3) with tall R and upright T waves; record V7–V9, where STE ≥ 0.5 mm (≥ 1 mm in men < 40) confirms posterior STEMI and warrants activation per protocol.',
+      'PL branches arise beyond the crux and are best seen in LAO cranial, with RAO for their course; during crux stenting report loss of PL flow, new AV block or bradycardia, and have temporary pacing ready.',
+      'Posterior MI is easily under-recognized, so report ongoing chest pain even when the 12-lead looks nondiagnostic; monitor rhythm for AV block, assess for mitral regurgitation and give medications only as ordered.',
+      'Isolated posterior STEMI (V7–V9 STE) warrants emergent reperfusion, not default NSTEMI care. Right PL size varies inversely with LCx size; the AV nodal artery arises near the PL origin at the inverted U, so crux stenting can compromise PL or nodal flow.',
     ],
     overview: [
       'Arise beyond the crux and run toward the posterolateral LV wall',
@@ -1306,11 +1306,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A small artery arising from the dominant coronary at the crux that runs up to supply the AV node and the proximal His bundle. Its ischemia explains the AV block that complicates inferior MI.',
     levelNotes: [
-      'Inferior heart attacks can cause heart block with very slow pulses: monitor closely, treat symptomatic bradycardia per protocol and be ready to pace',
-      'AV block in inferior MI is usually nodal with a narrow junctional escape at ~40–60 bpm and often responds to atropine',
-      'Nodal AV block after inferior MI is usually transient; use temporary pacing for instability and allow several days for recovery before permanent pacing decisions',
-      'Origin follows dominance (RCA ~80–90%, LCx ~10–20%); contrast nodal block in inferior MI with infranodal block in anterior MI',
-      'The artery can be lost during crux or dominant-LCx stenting; it runs near the coronary sinus ostium region, relevant to slow-pathway ablation and tricuspid procedures',
+      'Some heart attacks cause a very slow pulse with weakness, fainting or low BP: check pulse and BP often, request ALS early for possible pacing, keep the patient supine, and start CPR and use the AED if pulseless.',
+      'AV block in inferior MI is usually nodal, with a narrow junctional escape at ~40–60 bpm, and often responds to atropine; apply pads and pace transcutaneously per ACLS if unstable or unresponsive.',
+      'The AV nodal artery is a small upward branch at the crux seen in LAO cranial; during distal RCA or dominant LCx stenting, monitor the PR interval and rhythm, report new block immediately and have temporary pacing ready.',
+      'Nodal AV block after inferior MI is usually transient: monitor rhythm continuously, give atropine as ordered or per ACLS, check temporary pacer capture and sensing, and report persistent or worsening block to the physician.',
+      'Origin follows dominance (RCA ~80–90%, LCx ~10–20%). Inferior MI block is nodal and usually resolves, so defer permanent pacing through the recovery window; the artery runs near the CS ostium and Koch\'s triangle, relevant to slow-pathway ablation and tricuspid procedures.',
     ],
     overview: [
       'Supplies the AV node and the proximal His bundle',
@@ -1370,11 +1370,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The heart\'s natural pacemaker, a small strip of specialized tissue where the superior vena cava joins the right atrium. It fires spontaneously, normally 60–100 times a minute, and its rate is tuned by the autonomic nervous system.',
     levelNotes: [
-      'A slow pulse with dizziness, fainting, confusion or low blood pressure may mean the heart\'s pacemaker is failing: monitor, support and transport, following your bradycardia protocol',
-      'Symptomatic sinus bradycardia: atropine 1 mg IV every 3–5 min (max 3 mg) per ACLS, then transcutaneous pacing or epinephrine/dopamine infusion if ineffective',
-      'Look for reversible causes of sinus node slowing: drugs (β-blockers, CCBs, digoxin, amiodarone), hyperkalemia, hypothermia, hypothyroidism, ischemia, raised ICP and sleep apnea',
-      'Sinus node dysfunction is diagnosed by correlating symptoms with bradycardia, pauses, chronotropic incompetence or tachy–brady syndrome; pace only when symptoms are attributable (2018 ACC/AHA/HRS)',
-      'The node is subepicardial at the SVC–RA junction along the crista terminalis; it and the right phrenic nerve are at risk during SVC isolation, and SNRT/cSNRT assess it at EP study',
+      'The SA node sets the normal pulse of 60–100: a slow pulse with dizziness, fainting, confusion or low BP is an emergency, so support the patient, request ALS and transport per your bradycardia protocol; fit athletes may normally have slow pulses.',
+      'Symptomatic sinus bradycardia: atropine 1 mg IV every 3–5 min (max 3 mg) per protocol, then transcutaneous pacing or an epinephrine or dopamine infusion if ineffective; look for causes such as drugs, hyperkalemia, hypothermia and ischemia.',
+      'The sinus node lies at the SVC–RA junction; in EP studies set up stimulation protocols for sinus node recovery time as directed and record intervals, and during right-sided catheter work report sinus pauses or sudden bradycardia to the operator.',
+      'Assess symptoms with bradycardia and review medications (β-blockers, CCBs, digoxin, amiodarone) and potassium; give atropine as ordered or per ACLS, monitor the site after pacemaker implant, and teach patients to report dizziness or syncope.',
+      'Diagnose sinus node dysfunction by correlating symptoms with bradycardia, pauses, chronotropic incompetence or tachy–brady; pace only when symptoms are attributable and reversible causes are excluded (2018 ACC/AHA/HRS), favoring atrial-based or dual-chamber pacing and minimizing RV pacing.',
     ],
     overview: [
       'Primary pacemaker of the heart with intrinsic rate ~60–100 bpm',
@@ -1442,11 +1442,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A band of atrial muscle running across the roof of the atria from the right atrium near the SVC to the left atrium. It is the main and fastest route by which the sinus impulse reaches the left atrium.',
     levelNotes: [
-      'Not something you assess in the field; know that the atria have preferred electrical highways, and treat the patient\'s rhythm and symptoms',
-      'A wide, notched or biphasic P wave can reflect slowed conduction between the atria, often from atrial enlargement or scarring',
-      'Interatrial block on the ECG flags atrial disease and a higher risk of atrial fibrillation and stroke; consider it when risk-stratifying palpitations or embolic events',
-      'Advanced interatrial block (P ≥ 120 ms with biphasic P in II, III and aVF; Bayés syndrome) predicts AF and cardioembolic stroke',
-      'Bachmann\'s bundle is an epicardial interatrial connection that can bridge ablation lines; Bachmann\'s bundle (interatrial septal) pacing shortens P duration but its AF benefit is unproven',
+      'This interatrial pathway cannot be assessed in the field; what matters is the pulse: an irregular pulse may be atrial fibrillation, so check for stroke signs, acquire and transmit a 12-lead where allowed and transport.',
+      'A wide (≥ 120 ms), notched or biphasic inferior P wave suggests slowed interatrial conduction; it is not an emergency itself but flags atrial disease and AF risk, so document it and treat the presenting rhythm per protocol.',
+      'In EP studies and AF ablation, electroanatomic maps show left atrial breakthrough at the anterior roof via Bachmann\'s bundle; record conduction intervals as directed and report changes in atrial rhythm to the operator.',
+      'Patients with advanced interatrial block are at higher risk of AF and stroke: monitor rhythm, report a new irregular rhythm or neurologic change, and reinforce education on palpitations, stroke warning signs and prescribed anticoagulation.',
+      'Advanced interatrial block (P ≥ 120 ms, biphasic II/III/aVF; Bayés syndrome) predicts AF and cardioembolic stroke. Bachmann\'s bundle can bridge roof or anterior ablation lines epicardially; Bachmann region pacing shortens P duration, but AF-prevention benefit is unproven.',
     ],
     overview: [
       'Principal interatrial conduction pathway linking right and left atria',
@@ -1506,11 +1506,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The gatekeeper between atria and ventricles, located in Koch\'s triangle at the base of the atrial septum. It deliberately delays conduction so the atria finish filling the ventricles and protects the ventricles from very fast atrial rhythms.',
     levelNotes: [
-      'Vagal maneuvers can slow conduction through the AV node and stop some fast regular rhythms; for slow pulses from heart block, monitor and support while transporting',
-      'Stable regular narrow-complex SVT: vagal maneuvers then adenosine 6 mg rapid IV push, then 12 mg; never give AV nodal blockers for irregular wide-complex (pre-excited) AF',
-      'Nodal AV block (first-degree, Mobitz I, narrow-escape CHB) often responds to atropine; AV nodal blockers control rate in AF and flutter',
-      'Decremental conduction, dual AV nodal pathways (AVNRT) and drug effects explain most nodal arrhythmias; distinguish nodal from infranodal block by QRS width and escape behavior',
-      'Koch\'s triangle bounds: tendon of Todaro, septal tricuspid annulus and CS ostium; slow-pathway ablation is performed inferiorly near the CS ostium, away from the compact node at the apex',
+      'The AV node controls how fast impulses reach the ventricles: a very fast or very slow pulse with chest pain, dizziness, fainting or low BP is an emergency, so monitor vital signs, request ALS and transport promptly.',
+      'Stable regular narrow-complex SVT: vagal maneuvers, then adenosine 6 mg rapid IV push, then 12 mg per protocol. Never give AV nodal blockers for irregular wide-complex (pre-excited) AF; nodal AV block often responds to atropine.',
+      'In EP studies, catheters at the His position and CS ostium mark Koch\'s triangle; record AH and HV intervals and stimulation responses, and during ablation alert the operator at once to fast junctional rhythm with VA block, PR prolongation or AV block.',
+      'Before adenosine (given rapidly as ordered), warn the patient of brief chest discomfort and keep the monitor recording; during AVNRT ablation watch for AV block, and give moderate sedation only on order with the practitioner present.',
+      'Decremental conduction and dual pathways underlie AVNRT; distinguish nodal from infranodal block by QRS width and escape behavior. Slow-pathway ablation targets inferior Koch\'s triangle near the CS ostium (> 95% success, < ~1% AV block); cryoablation lowers block risk.',
     ],
     overview: [
       'Only normal electrical connection between atria and ventricles (fibrous annuli insulate the rest)',
@@ -1578,11 +1578,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The short bundle of conduction fibers that carries the impulse from the AV node through the heart\'s fibrous skeleton to the top of the ventricular septum, where it divides into the right and left bundle branches.',
     levelNotes: [
-      'Heart block below the AV node can suddenly drop the pulse very low: monitor closely, pads on, and be ready for pacing per protocol',
-      'Mobitz II and complete heart block with a wide escape usually arise at or below the His bundle; atropine often fails, so prepare transcutaneous pacing and chronotropic infusions',
-      'Infranodal (His-level or below) block is unstable and needs reliable pacing; place a transvenous wire if the escape rhythm is slow or wide',
-      'HV interval (normal ~35–55 ms) measures His–Purkinje conduction; HV ≥ 70 ms with syncope and bundle branch block supports pacing (2018 ACC/AHA/HRS), and HV ≥ 100 ms marks high block risk even without symptoms',
-      'His bundle pacing captures the native conduction system for physiologic activation; consider capture thresholds, sensing and proximity to the tricuspid annulus and aortic cusps',
+      'A sudden very slow pulse with fainting, confusion or low BP can mean the heart\'s wiring has failed: request ALS early for pacing, keep the patient supine, and start CPR and use the AED if pulseless.',
+      'Mobitz II and complete heart block with a wide escape usually arise at or below the His bundle; atropine often fails, so apply pads early and use transcutaneous pacing or chronotropic infusions per protocol.',
+      'During EP study the His catheter sits across the superior tricuspid annulus: record AH and HV intervals (normal HV ~35–55 ms) and report prolonged HV or block. During TAVR, have temporary pacing ready and report new conduction changes immediately.',
+      'Infranodal block can progress suddenly: keep pads on and pacing backup available, check temporary pacer capture and sensing, monitor for new block after TAVR or valve surgery, and report rhythm changes to the physician without delay.',
+      'HV ≥ 70 ms or infranodal block with syncope and BBB supports pacing (2018 ACC/AHA/HRS); HV ≥ 100 ms marks high risk. His pacing is most physiologic but has higher thresholds, so LBBAP is often used (2023 HRS/APHRS/LAHRS); the His lies under the RCC–NCC commissure.',
     ],
     overview: [
       'Continuation of the compact AV node through the central fibrous body',
@@ -1647,11 +1647,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A thin cord of conduction fibers that runs down the right side of the ventricular septum and through the moderator band to activate the right ventricle. Block causes a characteristic RBBB pattern on the ECG.',
     levelNotes: [
-      'RBBB itself is usually harmless, but a new one with chest pain or shortness of breath can signal heart attack or pulmonary embolism: transmit the 12-lead',
-      'Recognize RBBB (rsR\' in V1, wide S in I and V6); ST elevation can still be read in RBBB, so look for STEMI',
-      'New RBBB with ischemic symptoms is high risk (often LAD occlusion); also consider acute PE; RV catheter trauma in a patient with LBBB can cause complete block',
-      'RBBB plus LAFB or LPFB is bifascicular block; syncope with bifascicular block needs evaluation for intermittent high-grade AV block',
-      'The RBB is superficial and long; catheter or septal procedures (RHC, ASA, myectomy) can injure it, and LBB area pacing produces a paced RBBB-like pattern in V1',
+      'Bundle branch blocks are ECG findings with no field treatment of their own; focus on the patient, give aspirin per protocol for suspected cardiac chest pain, and acquire and transmit a 12-lead where allowed if chest pain or sudden breathlessness is present.',
+      'Recognize RBBB (rsR\' in V1, wide S in I and V6); ST elevation remains interpretable in RBBB, so look for STEMI. A new RBBB with chest pain or sudden dyspnea raises concern for LAD occlusion or pulmonary embolism.',
+      'During right heart catheterization, catheter contact with the septum can cause transient RBBB; in a patient with baseline LBBB this can produce complete heart block, so report new conduction changes at once and have pacing available.',
+      'Before right heart catheterization, confirm whether the patient has known LBBB and that pacing capability is available; monitor for new RBBB or heart block during and after septal procedures such as alcohol septal ablation, and report promptly.',
+      'New RBBB with ischemic symptoms often means proximal LAD (S1) occlusion; RBBB + LAFB/LPFB is bifascicular block, and syncope warrants evaluation for intermittent high-grade AV block. RHC and ASA can injure the RBB; LBBAP produces a paced RBBB-like V1 pattern.',
     ],
     overview: [
       'Activates the right ventricle via the right septal surface and moderator band',
@@ -1716,11 +1716,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A broad sheet of conduction fibers fanning down the left side of the ventricular septum that divides into anterior and posterior fascicles to activate the left ventricle. Block produces LBBB, which complicates MI diagnosis and causes ventricular dyssynchrony.',
     levelNotes: [
-      'LBBB makes the ECG look abnormal and can hide a heart attack: transmit the 12-lead, report symptoms and transport without delay',
-      'LBBB alone is not a STEMI; apply Sgarbossa or modified Sgarbossa criteria (concordant STE ≥ 1 mm, concordant STD V1–V3, discordant STE ≥ 25% of the S depth) and transmit',
-      'New or presumed-new LBBB alone is no longer a STEMI equivalent; ongoing ischemia, instability or positive Sgarbossa criteria warrant emergent angiography',
-      'LBBB marks structural disease and LV dyssynchrony; CRT is Class 1 for LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms and NYHA II–IV symptoms on GDMT',
-      'Left bundle branch area pacing captures the proximal LBB through a deep septal lead; confirm capture by paced V1 morphology, short LV activation time and LBB potential',
+      'LBBB can hide a heart attack on the ECG, so a patient with chest pain and known LBBB still needs aspirin per protocol, 12-lead acquisition and transmission where allowed, and prompt transport.',
+      'LBBB alone is not a STEMI; apply Sgarbossa or modified Sgarbossa criteria (concordant STE ≥ 1 mm, concordant STD V1–V3, discordant STE ≥ 25% of the S depth), transmit, and contact medical direction for unstable patients.',
+      'In LBBB, catheter trauma to the right bundle during right heart catheterization can cause complete heart block: have pacing pads or temporary pacing ready, and during TAVR report any new LBBB or AV block to the operator immediately.',
+      'After TAVR, monitor telemetry for new LBBB and delayed high-grade AV block and report promptly; before CRT or conduction system pacing implant, verify anticoagulation status, allergies and consent, and teach device-site care afterward.',
+      'New LBBB is no longer a STEMI equivalent; use (modified) Sgarbossa and instability. CRT is Class 1 for LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms and NYHA II–IV on GDMT; LBBAP is an alternative, confirmed by paced V1 morphology and short V6 RWPT.',
     ],
     overview: [
       'Activates the left ventricle via the left septal surface and fascicles',
@@ -1787,11 +1787,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The long, thin division of the left bundle that runs toward the anterolateral papillary muscle to activate the anterior and superior left ventricle. It is the most easily damaged fascicle, and its block causes marked left axis deviation.',
     levelNotes: [
-      'A fascicular block is an ECG finding, not an emergency on its own; focus on the patient\'s symptoms and transmit the 12-lead',
-      'Left anterior fascicular block shifts the axis to −45° or beyond; combined with RBBB it is bifascicular block, which can progress to complete heart block',
-      'New RBBB plus LAFB during anterior MI signals proximal LAD occlusion and high AV block risk; have pacing ready',
-      'LAFB: axis −45° to −90°, qR in aVL, rS in II/III/aVF, QRS < 120 ms; exclude inferior MI before calling it isolated LAFB',
-      'Bifascicular block with syncope warrants EP study or prolonged monitoring; HV ≥ 70 ms or infranodal block supports pacing (2018 ACC/AHA/HRS)',
+      'A fascicular block is an ECG finding, not an emergency on its own: focus on the patient\'s symptoms and vital signs, acquire and transmit a 12-lead where allowed, and transport if there is chest pain, fainting or a slow pulse.',
+      'LAFB shifts the axis to −45° or beyond; with RBBB it forms bifascicular block, and new RBBB + LAFB in anterior STEMI signals proximal LAD occlusion and high AV block risk, so apply pacing pads.',
+      'A new conduction change such as RBBB with left axis shift after TAVR or alcohol septal ablation can signal conduction injury: report it to the operator, record a rhythm strip and keep temporary pacing equipment ready.',
+      'For patients with bifascicular block or new LAFB after TAVR, monitor continuously for progression to high-grade AV block, report syncope, dizziness or bradycardia immediately, and confirm pacing backup is available.',
+      'LAFB: axis −45° to −90°, qR in aVL (R-peak time ≥ 45 ms), rS in II/III/aVF, QRS < 120 ms; exclude inferior MI. Bifascicular block with syncope warrants EP study or prolonged monitoring; HV ≥ 70 ms or infranodal block supports pacing (2018 ACC/AHA/HRS).',
     ],
     overview: [
       'Superior/anterior division of the left bundle branch',
@@ -1850,11 +1850,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The short, broad division of the left bundle that activates the inferior and posterior left ventricle. Because it is thick and has a dual blood supply, block is uncommon and usually signals extensive conduction disease.',
     levelNotes: [
-      'This is an ECG finding; focus on symptoms, vital signs and transmitting the 12-lead',
-      'Left posterior fascicular block produces right axis deviation; with RBBB it forms a high-risk bifascicular block',
-      'RBBB plus LPFB carries a substantial risk of progression to complete heart block; monitor and have pacing available',
-      'LPFB is a diagnosis of exclusion: axis +90° to +180°, rS in I/aVL, qR in III/aVF, after excluding RVH, lateral MI, PE and body habitus',
-      'Left posterior fascicular VT is the most common idiopathic fascicular VT (RBBB + left superior axis, verapamil-sensitive) and is ablated using fascicular (P1/P2) potentials',
+      'This is an ECG finding with no field treatment of its own: focus on symptoms and vital signs, acquire and transmit a 12-lead where allowed, and transport promptly if the patient has fainted or has a slow pulse.',
+      'LPFB produces right axis deviation; with RBBB it forms a high-risk bifascicular block that can progress to complete heart block, so monitor closely and have transcutaneous pacing ready per protocol.',
+      'Record baseline rhythm and intervals before septal, valve or EP procedures and report new conduction changes promptly. In fascicular VT ablation, set up the mapping system as directed to record Purkinje (P1/P2) potentials.',
+      'RBBB + LPFB carries a substantial risk of complete heart block: keep continuous monitoring and pacing backup available, report syncope or new bradycardia, and give IV verapamil for suspected fascicular VT only on the physician\'s order.',
+      'LPFB is a diagnosis of exclusion (axis +90° to +180°, rS I/aVL, qR III/aVF) after RVH, lateral MI, PE and habitus. Posterior fascicular VT (RBBB, left superior axis) is verapamil-sensitive and ablated using P1/P2 potentials.',
     ],
     overview: [
       'Inferior/posterior division of the left bundle branch',
@@ -1912,11 +1912,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A fast-conducting network spread beneath the endocardium of both ventricles that delivers the impulse to the working muscle almost simultaneously. It is also the backup pacemaker of last resort and a source of triggers for dangerous ventricular arrhythmias.',
     levelNotes: [
-      'A very slow, wide rhythm (~20–40 bpm) is the heart\'s last backup pacemaker: it is an emergency, so apply pads, support breathing and start CPR if there is no pulse',
-      'Never suppress a ventricular escape rhythm with lidocaine or amiodarone; treat the bradycardia (pacing) instead, and recognize AIVR after reperfusion as usually benign',
-      'Electrical storm after MI is often triggered by Purkinje PVCs: treat ischemia, correct K⁺/Mg²⁺, use β-blockade, amiodarone or lidocaine and sedation',
-      'QRS width reflects His–Purkinje function; class I drugs, hyperkalemia and diffuse disease slow Purkinje conduction and widen the QRS',
-      'Purkinje-triggered VF and bundle branch reentry VT are ablatable: target Purkinje potentials preceding the trigger PVCs, or ablate the RBB for BBRVT',
+      'A very slow pulse (~20–40/min) with weakness or confusion is a dire emergency: request ALS immediately, support breathing with BVM if needed, and start CPR and use the AED if there is no pulse.',
+      'Never suppress a ventricular escape rhythm with lidocaine or amiodarone; treat the bradycardia with pacing per protocol. AIVR after reperfusion is usually benign; treat VT/VF storm per ACLS and medical direction.',
+      'Expect AIVR during reperfusion and report it; for VT/VF ablation, set up mapping and stimulation as directed, record Purkinje potentials and trigger PVCs, and keep the defibrillator ready for induced or spontaneous VF.',
+      'A slow wide escape rhythm may be keeping the patient alive: report it and prepare for pacing rather than antiarrhythmics. In electrical storm, give amiodarone, lidocaine, β-blockers and sedation only as ordered (or per ACLS), keeping K⁺ ~≥ 4.0 mmol/L and Mg²⁺ ~≥ 2.0 mg/dL as ordered.',
+      'Purkinje PVCs trigger VF in idiopathic VF, post-MI storm and long QT; ablate the triggering Purkinje potentials when storm is refractory to β-blockade, antiarrhythmics and revascularization. RBB ablation cures bundle branch reentry VT, though many still need an ICD.',
     ],
     overview: [
       'Distal ramifications of the bundle branches forming a subendocardial network in both ventricles',

@@ -17,11 +17,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The thin-walled chamber that receives deoxygenated blood from the body (SVC, IVC) and the heart itself (coronary sinus) and passes it to the right ventricle. It houses the sinus node and the AV node.',
     levelNotes: [
-      'Distended neck veins mean high right atrial pressure: think heart failure, tamponade, tension pneumothorax or massive PE',
-      'The sinus node sits at the SVC–RA junction and typical flutter circles the RA: recognize sawtooth flutter waves at ~300/min with 2:1 conduction (~150 bpm)',
-      'CVP approximates mean RA pressure (normal 2–6 mmHg); use trends and waveform with other data, not a single CVP value, for fluid decisions',
-      'Read the RA waveform: cannon a waves (AV dissociation), giant a waves (TS, RV stiffness), large cv waves (TR), steep y descent (constriction), blunted y (tamponade)',
-      'Know Koch triangle, the cavotricuspid isthmus and the crista terminalis for AV-node-sparing ablation, lead positioning and transseptal navigation',
+      'The right atrium fills from the neck veins, so distended jugular veins with the patient sitting up suggest high right-heart pressure (heart failure, tamponade, tension pneumothorax, massive PE). Report it, support breathing and oxygenation, and give early notification.',
+      'Typical atrial flutter circles the right atrium: recognise sawtooth flutter waves in II, III and aVF at ~300/min, often with 2:1 conduction near 150 bpm. Use synchronised cardioversion for instability per protocol and contact medical direction when unsure.',
+      'On right heart cath, zero and level the transducer at mid-chest (phlebostatic axis) and record RA a, v and mean pressures at end-expiration (normal mean ~2–6 mmHg). Report cannon a waves, large v waves or equalised diastolic pressures to the operator.',
+      'Trend RA/CVP with other hemodynamics rather than acting on single values, and expect atrial ectopy when catheters enter the RA. Hypotension with rising RA pressure after a right-heart or transseptal procedure suggests tamponade: notify the physician immediately and bring the pericardiocentesis tray.',
+      'Read the RA waveform: cannon a waves (AV dissociation), giant a waves (TS, reduced RV compliance), large cv waves (severe TR), steep y descent (constriction), blunted y (tamponade). Know Koch triangle, the cavotricuspid isthmus and crista terminalis for CTI ablation, lead placement and transseptal navigation.',
     ],
     overview: [
       'Receives SVC, IVC and coronary sinus return and delivers it to the RV across the tricuspid valve',
@@ -105,11 +105,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The most posterior cardiac chamber, receiving oxygenated blood from the four pulmonary veins and delivering it to the left ventricle. It is the main substrate for atrial fibrillation.',
     levelNotes: [
-      'An irregularly irregular pulse suggests atrial fibrillation from the left atrium: check for stroke signs and breathing difficulty',
-      'Rising LA pressure backs up into the lungs: crackles, hypoxia and frothy sputum signal acute pulmonary edema',
-      'PCWP approximates LA pressure (normal 6–12 mmHg); rapid AF loses atrial kick and shortens filling time, raising LA pressure',
-      'LA volume index (normal ≤34 mL/m²) reflects chronic LV filling pressure and predicts AF, stroke and HF outcomes',
-      'Tailor transseptal puncture to the procedure and respect the posterior wall–esophagus relationship and PV ostial anatomy during ablation',
+      'When left-atrial pressure rises, fluid backs into the lungs: crackles, severe breathlessness and frothy sputum. Sit the patient up, give oxygen or CPAP where your protocol allows, and note an irregular pulse or new stroke signs, which can accompany atrial fibrillation.',
+      'Recognise AF and flutter on the monitor and look for pulmonary edema from high LA pressure. Unstable rapid AF: synchronised cardioversion per protocol; stable rapid AF: rate control per local protocol or medical direction; pulmonary edema: CPAP and nitroglycerin if BP allows.',
+      'For transseptal cases, prepare the sheath, needle and flushed pressure line, and record LA pressure once across (mean ~6–12 mmHg; note the v wave). Keep LA sheaths continuously flushed and alert the operator to hypotension, sudden inferior ST elevation (possible air embolism) or arrhythmia.',
+      'Verify anticoagulant history and that LA/LAA thrombus has been excluded per protocol. After transseptal access, give heparin as ordered and check ACT against the ordered target; monitor for tamponade, neuro changes and groin bleeding, and escalate promptly.',
+      'PCWP approximates LA pressure (normal ~6–12 mmHg); LA volume index >34 mL/m² reflects chronic filling pressure and predicts AF, stroke and HF. Tailor the transseptal site to the procedure and respect the posterior wall–esophagus relationship and PV ostial anatomy during ablation.',
     ],
     overview: [
       'Receives four pulmonary veins (typically RSPV, RIPV, LSPV, LIPV)',
@@ -199,11 +199,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The crescent-shaped, thin-walled pump that sends deoxygenated blood through the pulmonary valve to the lungs. It handles extra volume well but fails quickly under sudden pressure overload such as massive PE.',
     levelNotes: [
-      'In an inferior heart attack, hypotension with clear lungs and distended neck veins suggests RV involvement: avoid nitroglycerin and call for ALS',
-      'Record right-sided V4R in every inferior STEMI; RV infarction is preload-dependent, so give small fluid boluses and avoid nitrates',
-      'Acute RV failure spirals (afterload ↑ → dilation → septal shift → RV ischemia): support MAP with norepinephrine, avoid over-filling, hypoxia and hypercapnia',
-      'Normal RV pressure 15–30/2–8 mmHg; quantify RV function with TAPSE (≥17 mm), S′ (≥9.5 cm/s), FAC (≥35%) and RV/LV ratio',
-      'The RV free wall and apex are thin and perforation-prone: watch for tamponade after leads, biopsy or wires, and consider septal lead positions',
+      'A heart attack involving the right ventricle may cause low blood pressure with clear lungs and distended neck veins. Do not assist with nitroglycerin when BP is low (per protocol), acquire and transmit a 12-lead where allowed, and request ALS.',
+      'Record right-sided leads (V4R) in every inferior STEMI; STE ≥0.5–1 mm in V4R supports RV infarction. RV infarction is preload-dependent: avoid nitrates, give small fluid boluses if lungs are clear per protocol, and activate the STEMI system early.',
+      'Record RV pressures as the catheter crosses (normal ~15–30/2–8 mmHg) and expect ectopy; report sustained runs to the operator. The thin RV wall can be perforated by wires, bioptomes or pacing leads, so flag new hypotension or a damped waveform immediately.',
+      'RV infarction is preload-dependent: give fluids and vasoactives as ordered, monitor BP, rhythm (AV block) and lung sounds, and clarify any nitrate or diuretic order with the physician. After biopsy or lead placement, watch for tamponade and escalate immediately.',
+      'Quantify RV function with TAPSE (≥17 mm), S′ (≥9.5 cm/s), FAC (≥35%) and RV/LV ratio. Acute RV failure spirals (afterload rise → dilation → septal shift → ischemia): support MAP with norepinephrine, avoid over-filling, hypoxia and hypercapnia, and consider early RV mechanical support.',
     ],
     overview: [
       'Most anterior chamber, directly behind the sternum',
@@ -297,11 +297,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The thick-walled, conical main pumping chamber that ejects oxygenated blood into the aorta at systemic pressure. Its ejection fraction, wall motion and filling pressures underpin most cardiac diagnoses.',
     levelNotes: [
-      'Chest pain, breathlessness or crackles can mean the LV is ischemic or failing: get a 12-lead early and take STEMI patients to a PCI center',
-      'Match the STEMI territory to the LV wall (anterior, inferior, lateral) and anticipate cardiogenic shock, VF and pulmonary edema',
-      'Bedside echo of LV function guides shock care: hyperdynamic (hypovolemic/distributive) vs depressed (cardiogenic)',
-      'Normal LV 100–140/3–12 mmHg; classify HF by LVEF (HFrEF ≤40%, HFmrEF 41–49%, HFpEF ≥50%) to direct therapy',
-      'Measure LVEDP before contrast and correlate wall motion with the culprit territory to guide PCI, contrast strategy and mechanical support',
+      'Chest pain, breathlessness or crackles can mean the left ventricle is ischemic or failing. Give aspirin and assist with the patient’s own nitroglycerin per protocol (if BP allows), acquire and transmit a 12-lead where allowed, and transport to a PCI-capable center.',
+      'Localise LV injury on the 12-lead (anterior V1–V4, inferior II/III/aVF, lateral I/aVL/V5–V6) and activate the STEMI system. Anticipate VF, cardiogenic shock and pulmonary edema; treat per protocol and contact medical direction early.',
+      'Record LV systolic pressure and LVEDP (normal ≤12 mmHg) before ventriculography and on pullback across the aortic valve to document any gradient. Set up the pigtail and power injector as directed, and alert the operator to a high LVEDP, ectopy or VT during injection.',
+      'Assess for LV failure (crackles, SpO₂, urine output, mentation) before and after the case; a high LVEDP may change contrast and fluid orders. Monitor for VT/VF, hypotension and pulmonary edema, start ACLS when needed, notify the physician and titrate vasoactives as ordered.',
+      'Classify HF by LVEF (HFrEF ≤40%, HFmrEF 41–49%, HFpEF ≥50%) and match wall motion to the culprit territory. Use LVEDP, LVEF and SCAI shock stage to guide contrast volume, revascularization strategy and mechanical support (IABP, Impella, VA-ECMO).',
     ],
     overview: [
       'Generates systemic pressure; normal pressure 100–140/3–12 mmHg',
@@ -404,11 +404,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'A broad, triangular, muscular pouch projecting from the front of the right atrium over the aortic root. It is lined with pectinate muscles and is the usual site for atrial pacing leads.',
     levelNotes: [
-      'It cannot be assessed in the field; right atrial problems show up as distended neck veins, swelling or an irregular or fast pulse',
-      'Atrial pacing leads usually sit in the RAA: on a paced ECG an atrial pacing spike precedes each P wave',
-      'Atrial lead dislodgement or perforation after device implant can cause loss of atrial capture, pleuritic pain, effusion or tamponade',
-      'The broad triangular RAA, with pectinate muscles extending around the vestibule, defines the morphologic RA in congenital and situs assessment',
-      'The wall between pectinate muscles is paper-thin, so active-fixation leads and stiff catheters can perforate it; the RAA can also host focal AT',
+      'Many pacemaker patients have an atrial lead in this pouch: note the device (bulge below the collarbone, ID card) and avoid placing an AED pad directly over it. New chest pain, breathlessness or low BP soon after implant needs prompt transport.',
+      'On a dual-chamber paced ECG an atrial spike should precede each P wave; atrial spikes without P waves mean loss of atrial capture. Pleuritic pain or hypotension with JVD after a recent implant suggests lead perforation and tamponade: treat per protocol and transport rapidly.',
+      'On fluoroscopy an atrial J-lead in the RAA points anteriorly/leftward and swings with each beat. Record sensing, threshold and impedance values as directed, and report loss of capture, lead movement or new hypotension to the operator.',
+      'After device implant, monitor the paced rhythm for loss of atrial capture or sensing, check the pocket for hematoma, and assess for pleuritic pain, hypotension or JVD (possible perforation); notify the physician promptly. Teach the arm-movement restrictions ordered by the implanting team.',
+      'The broad triangular RAA with pectinate muscles around the vestibule defines a morphologic RA in situs assessment. Its inter-pectinate wall is paper-thin, so use care with active-fixation leads and stiff catheters; it can also host focal AT and rare appendage–ventricle pathways.',
     ],
     overview: [
       'Derived from the trabeculated primitive right atrium',
@@ -475,11 +475,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'A narrow, finger-like, trabeculated pouch off the left atrium. About 90% of left atrial thrombi in non-valvular atrial fibrillation form here, making it the target of LAA occlusion.',
     levelNotes: [
-      'A patient with AF and sudden stroke symptoms may have thrown a clot from the LAA: do a stroke scale, note last-known-well time and go to a stroke center',
-      'Record the anticoagulant (warfarin or a DOAC) and time of last dose: it drives thrombolysis, thrombectomy and reversal decisions',
-      'If AF has lasted ≥48 h (or is of unknown duration) without ≥3 weeks of therapeutic anticoagulation, image the LAA by TEE before cardioversion or anticoagulate first',
-      'Anticoagulate by stroke risk (CHA₂DS₂-VASc ≥2 men, ≥3 women), not by AF pattern; LAAO is for patients with a reason to avoid long-term anticoagulation',
-      'Size LAAO devices from TEE/CT ostium and landing-zone measurements, then check for peri-device leak and device-related thrombus at follow-up',
+      'Clots from this pouch cause many strokes in people with atrial fibrillation. For sudden facial droop, arm weakness or speech trouble, do a stroke scale, note last-known-well time and any blood thinners, and transport to a stroke center per protocol.',
+      'LAA clot is a major stroke source in AF: perform a stroke scale and large-vessel-occlusion screen and give early stroke notification. Record the anticoagulant and last-dose time (it affects thrombolysis and thrombectomy eligibility); cardiovert AF only when unstable, per protocol.',
+      'For LAA occlusion, prepare the transseptal kit, access sheath and the device size the operator selects, and record LA pressure. Keep pericardiocentesis and snare kits ready, and alert the operator immediately to hypotension, arrhythmia or a change in the pressure trace.',
+      'Before cardioversion, ablation or LAAO, verify anticoagulant type, last dose and the TEE/CT result required by the order set. After LAAO, check the access site and neuro status, monitor for tamponade, and teach the prescribed antithrombotic regimen and follow-up imaging schedule.',
+      'Anticoagulate by stroke risk (CHA₂DS₂-VASc ≥2 men, ≥3 women), not AF pattern; reserve LAAO for patients with a sound reason to avoid long-term OAC. Size from TEE/CT ostium and landing zone, and screen for peri-device leak and device-related thrombus at follow-up.',
     ],
     overview: [
       'Derived from the primitive left atrium; trabeculated with pectinate muscles',
@@ -549,11 +549,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The wall separating the right and left atria. Its central fossa ovalis is the site of PFO and secundum ASD and the usual route for transseptal access to the left heart.',
     levelNotes: [
-      'A young person with a stroke may have a hole in the atrial septum (PFO) that let a vein clot cross: treat and transport as any stroke',
-      'Paradoxical embolism: venous clots can cross a PFO/ASD to the brain; consider it in stroke with DVT, recent long travel or diving',
-      'Air or clot from venous lines can cross an atrial septal defect into the systemic circulation: de-air every IV line meticulously',
-      'Classify ASD type (secundum, primum, sinus venosus, coronary sinus) and judge significance by Qp:Qs and RV volume overload',
-      'Only the fossa ovalis floor is a true septum; punctures outside it exit the heart, so tailor puncture site to the procedure under ICE/TEE',
+      'A hole between the upper chambers (PFO or ASD) can let a vein clot or gas bubble reach the brain. Treat any sudden neuro deficit as a stroke (stroke scale, last-known-well time); a diver with neuro symptoms needs high-flow oxygen and transport per protocol.',
+      'Paradoxical embolism through a PFO/ASD can cause stroke in younger patients, especially with DVT, long travel or diving. In anyone with a known shunt, purge all air from IV tubing; an ASD ECG often shows incomplete RBBB with right axis deviation.',
+      'For shunt runs, draw oxygen saturations (SVC, IVC, RA, RV, PA, arterial) and calculate Qp:Qs. For transseptal access, prepare the sheath, needle or RF wire, record LA pressure once across, and report hypotension immediately.',
+      'For ASD/PFO closure or transseptal cases, verify allergies (including nickel for some occluders) and antithrombotic status, de-air all IV lines, and give heparin as ordered with ACT checks. Afterwards monitor for arrhythmia, effusion and neuro changes, and teach the prescribed antiplatelet plan.',
+      'Classify ASD (secundum, primum, sinus venosus, coronary sinus) and judge significance by RV volume overload and Qp:Qs ≥1.5; only secundum defects with adequate rims suit device closure. Puncture only within the fossa floor under ICE/TEE, choosing height and position for the procedure.',
     ],
     overview: [
       'Divides RA from LA; normally no flow across it after birth',
@@ -625,11 +625,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'A thin, oval depression on the right atrial side of the interatrial septum, the remnant of the fetal foramen ovale. It is the safe target for transseptal puncture and the site of PFO and secundum ASD.',
     levelNotes: [
-      'Before birth blood crosses the atrial septum through the foramen ovale; if it does not seal after birth, clots can cross to the brain',
-      'Suspect paradoxical embolism when stroke or limb ischemia occurs in a patient with DVT or PE: venous clot can cross a PFO',
-      'In hypoxemia with RV pressure overload (PE, ARDS, high PEEP), a PFO can open and cause refractory right-to-left shunting',
-      'Use the RoPE score and PASCAL classification to judge whether a PFO is likely causal in cryptogenic stroke',
-      'Confirm tenting in the fossa on ICE/TEE before crossing; choose superior-posterior (TEER) or inferior-posterior (LAAO) sites and avoid the aortic mound',
+      'Before birth, blood crosses the atrial septum through the foramen ovale; in about a quarter of adults it never fully seals (PFO). A young patient with stroke symptoms may have one: do a stroke scale, note last-known-well time and transport per stroke protocol.',
+      'Suspect paradoxical embolism when stroke or limb ischemia occurs with DVT or PE. In severe hypoxemia with RV strain (PE, high PEEP), a PFO can open and worsen shunting: oxygenate, avoid excessive PEEP when ventilating and purge air from IV lines.',
+      'The fossa is the transseptal target: on fluoroscopy the needle "jumps" into it on pullback, and ICE/TEE shows tenting. Prepare the needle, sheath and pressure line, confirm the change from RA to LA waveform, and report an aortic-looking waveform or hypotension immediately.',
+      'After PFO closure, monitor rhythm (new AF is usually early and transient), the access site and neuro status, and report palpitations or chest pain. Teach the ordered antiplatelet regimen, endocarditis-prevention advice for the first 6 months, and to call emergency services for stroke symptoms.',
+      'Use RoPE and PASCAL to judge whether a PFO is causal; closure plus antiplatelet therapy reduces recurrence in selected patients ≤60 (CLOSE, REDUCE, RESPECT). Confirm tenting on ICE/TEE, avoid the aortic mound, and puncture superior-posterior for TEER, inferior-posterior for LAAO.',
     ],
     overview: [
       'Remnant of the fetal foramen ovale',
@@ -696,11 +696,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The mostly muscular wall, with a small membranous part beneath the aortic valve, that separates the left and right ventricles. It carries the His bundle and bundle branches and contracts as part of the LV.',
     levelNotes: [
-      'Sudden shock or worsening breathlessness a few days after a heart attack can signal septal rupture: treat as time-critical and transport rapidly',
-      'The septum carries the bundle branches: anterior MI can cause new RBBB, bifascicular block or Mobitz II, so keep pacing pads on',
-      'Post-MI VSD (new holosystolic murmur, shock, O₂ saturation step-up RA→PA) needs urgent echo, mechanical support and surgical planning',
-      'HCM: wall thickness ≥15 mm (≥13 mm with family history or genotype); LVOT gradient ≥30 mmHg is obstructive, ≥50 mmHg the usual threshold for septal reduction',
-      'Septal perforator anatomy guides alcohol septal ablation; the His bundle runs along the crest, so ~10–20% of ASA patients need a permanent pacemaker',
+      'Sudden shock or worsening breathlessness several days after a heart attack can mean the wall between the ventricles has torn. Give oxygen, position for comfortable breathing, give early notification and transport rapidly to a cardiac surgical center per protocol.',
+      'The bundle branches run in the septum: anterior STEMI with new RBBB, bifascicular block or Mobitz II signals a large proximal LAD infarct, so place pacing pads per protocol. A new loud murmur with shock days after MI suggests septal rupture.',
+      'If post-MI VSD is suspected, draw a saturation run and report an RA-to-RV/PA step-up to the operator. For alcohol septal ablation, prepare the over-the-wire balloon, echo contrast and temporary pacing wire, and record the LVOT gradient before and after.',
+      'After alcohol septal ablation, keep continuous rhythm monitoring with the temporary pacing wire in place and report new AV block, VT or chest pain. In post-MI patients, a new murmur, hypotension or pulmonary edema warrants immediate physician notification.',
+      'HCM: wall thickness ≥15 mm (≥13 mm with family history or genotype); LVOT gradient ≥30 mmHg defines obstruction, and septal reduction is considered at ≥50 mmHg with refractory symptoms. Septal perforator anatomy guides ASA; ~10–20% need a permanent pacemaker.',
     ],
     overview: [
       'Separates LV and RV; functionally part of the LV',
@@ -785,11 +785,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The blunt tip of the heart, formed by the left ventricle and pointing anteriorly, inferiorly and to the left. It produces the palpable apical impulse and is a key echo window and a common site of thrombus and ballooning.',
     levelNotes: [
-      'The apex sits near the left 5th intercostal space; place the lateral defibrillator pad below the left armpit (mid-axillary line) so current crosses the heart',
-      'V4 sits over the apex region: apical STEMI from a distal or wraparound LAD shows STE in V3–V4, sometimes also inferior leads',
-      'POCUS apical 4-chamber view (probe at the apical impulse) compares LV/RV size and global function in shock',
-      'Apical akinesis or aneurysm after anterior MI raises LV thrombus risk: use contrast echo or CMR to look and anticoagulate if present',
-      'The apex is the thinnest LV region; it was the classic transapical TAVR/TMVR route and is the LVAD inflow cannula site',
+      'The apex sits near the left 5th intercostal space. Compress the lower half of the sternum, and place the lateral AED pad left of the nipple in the mid-axillary line, a few inches below the armpit, so current crosses the heart.',
+      'V3–V4 sit over the apical region: STE there (plus inferior leads with a wraparound LAD) indicates apical injury, so activate the STEMI system. For manual defibrillation or pacing, use the same anterolateral (or anteroposterior) pad positions as for the AED.',
+      'In RAO ventriculography the apex is the inferior tip of the LV silhouette; keep it in the field of view. Set up the pigtail and injector as the operator orders, record LVEDP first, and report ectopy or VT during injection.',
+      'After a large anterior MI with apical akinesis, the patient is at risk of LV thrombus and embolism: perform neuro and limb pulse checks and escalate changes immediately. Give anticoagulation as ordered with the specified monitoring and teach bleeding precautions.',
+      'Apical akinesis/aneurysm after anterior MI warrants LV thrombus screening (contrast echo or CMR) and anticoagulation if thrombus is found. Separate Takotsubo from wraparound LAD occlusion angiographically; the thin apex is the LVAD inflow site and former transapical TAVR/TMVR route.',
     ],
     overview: [
       'Formed by the left ventricle',
@@ -857,11 +857,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'Anatomically, the base is the posterior surface of the heart opposite the apex, formed mainly by the left atrium with part of the right atrium. Clinically, "basal" also refers to the region of the AV valve rings and great-vessel origins.',
     levelNotes: [
-      'The base is the back and top of the heart where the big vessels connect; the apex is the tip pointing down and to the left',
-      'Injury or dissection at the base (aortic root, great vessels) can bleed into the pericardium: watch for hypotension, JVD and muffled heart sounds',
-      'Echo wall motion is read base → mid → apex; basal vs apical patterns help separate Takotsubo variants, infarction and amyloid',
-      'Basal inferolateral (old "posterior") segments are often silent on the standard 12-lead: use V7–V9 and echo',
-      'The fibrous skeleton at the base links all four valves; TAVR, TEER and His-region work happen within a few centimeters of each other',
+      'The base is the upper back of the heart where the large vessels attach. Chest trauma or an aortic tear here can bleed into the heart sac: watch for low BP, distended neck veins and muffled heart sounds, and transport rapidly to a trauma center.',
+      'Basal inferolateral (old "posterior") MI is often silent on the standard 12-lead: ST depression with tall R waves in V1–V3 should prompt posterior leads V7–V9 (STE ≥0.5 mm) and STEMI activation per protocol.',
+      'The valve annuli and great-vessel origins at the base are the working zone for TAVR, TEER and LAAO, within a few centimeters on fluoroscopy. Record pressures and gradients before and after deployment, watch the rhythm for new AV block, and report it immediately.',
+      'Procedures at the base (TAVR, valve and septal work) can injure the AV node: monitor rhythm and PR/QRS closely afterwards, report new block or bradycardia promptly, and keep transcutaneous pacing available. Also assess for hypotension or tamponade.',
+      'Echo segments run base → mid → apex; basal versus apical patterns help separate infarction, Takotsubo variants (reverse/basal) and amyloid (apical sparing). The fibrous skeleton links all four valves and the His bundle, so TAVR, TEER and His-region work share conduction and coronary risks.',
     ],
     overview: [
       'Anatomic base = posterior surface, opposite the apex, formed mostly by the LA',
@@ -930,11 +930,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The three-leaflet valve between the right atrium and right ventricle, the largest and most apically positioned AV valve. Functional regurgitation from annular and right heart dilation is its most common disease.',
     levelNotes: [
-      'People who inject drugs with fever and breathlessness may have tricuspid endocarditis with infected clots in the lungs',
-      'Severe TR causes pulsating neck veins, a pulsatile liver, leg swelling and ascites: signs of right heart failure',
-      'Right-sided endocarditis (often S. aureus) presents with fever and septic pulmonary emboli; get blood cultures before antibiotics',
-      'Most TR is secondary (atrial or ventricular functional); severe TR: vena contracta ≥7 mm, EROA ≥0.40 cm², hepatic vein systolic reversal',
-      'The AV node/His bundle lie near the septal leaflet and RCA runs in the AV groove: annuloplasty and transcatheter TV devices risk heart block and RCA injury',
+      'A leaking right-heart valve causes pulsating neck veins, leg swelling and a swollen abdomen. In people who inject drugs, fever with breathlessness or chest pain may be a valve infection: report injection drug use and transport.',
+      'Right-sided endocarditis (often S. aureus in people who inject drugs) causes fever, septic lung emboli and hypoxia: treat sepsis per protocol and notify the receiving facility. Severe TR shows right-heart failure signs, often with AF on the monitor.',
+      'On RHC, severe TR ventricularises the RA trace with large cv waves; record and flag it for the operator. For transcatheter tricuspid repair or replacement, prepare the delivery system and temporary pacing, and report new AV block or inferior ST change immediately.',
+      'For patients who inject drugs, assess vein access, pain and withdrawal needs, and draw blood cultures as ordered before antibiotics. After transcatheter tricuspid procedures, monitor rhythm for heart block, the femoral access site and signs of right-heart congestion.',
+      'Most TR is secondary (atrial or ventricular functional); severe TR: vena contracta ≥7 mm, EROA ≥0.40 cm², hepatic vein systolic reversal. The AV node/His lie near the septal leaflet and the RCA in the AV groove, so annuloplasty and transcatheter devices risk heart block and RCA injury.',
     ],
     overview: [
       'Separates RA from RV; opens in diastole and closes in systole (contributes to S1)',

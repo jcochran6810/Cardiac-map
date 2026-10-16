@@ -1777,11 +1777,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A surgically implanted continuous-flow pump draws blood from the left ventricular apex and returns it to the ascending aorta, powered through a driveline by external batteries. It supports advanced heart failure as a bridge to transplant or as lifelong destination therapy.',
     levelNotes: [
-      'An LVAD patient may have no palpable pulse or readable cuff BP — judge perfusion by mental status and skin, listen for the pump hum, and bring the caregiver and all equipment',
-      'Use a Doppler opening pressure as the MAP; if the patient is unresponsive without signs of perfusion and the pump cannot be quickly restarted, start chest compressions and call the VAD centre',
-      'Key emergencies: GI bleeding, pump thrombosis (hemolysis, high LDH, power rise, dark urine), driveline infection, stroke, RV failure and suction events',
-      'Select patients by INTERMACS profile, RV function, comorbidity and support; HeartMate 3 reduced pump thrombosis and stroke vs older axial devices (MOMENTUM 3)',
-      'Inflow cannula orientation, RV failure prevention, de novo aortic regurgitation and outflow graft obstruction are key surgical and interventional issues',
+      'An LVAD patient may have no palpable pulse or readable cuff BP: judge perfusion by mental status and skin, listen for the pump hum, check controller alarms, bring the caregiver, backup controller and batteries, and call the VAD centre',
+      'Use a Doppler opening pressure as the MAP; patients may be awake in VT/VF — treat per protocol (defibrillation is safe), and if unresponsive, not perfusing and the pump cannot be restarted, start compressions per local LVAD protocol',
+      'During right heart cath or ramp studies, record RA, PA, PCWP and cardiac output at each pump speed the team sets, note controller speed, flow, power and PI, protect the driveline, and alert the operator to suction events or VT',
+      'Keep Doppler MAP in the centre’s target range (commonly ~60–80 mmHg), monitor LDH, hemoglobin, INR and pump parameters, do sterile driveline care, and escalate GI bleeding, pump thrombosis signs (dark urine, power rise), stroke or RV failure',
+      'Select by INTERMACS profile, RV function, end-organ status and social support; HeartMate 3 cut pump thrombosis and stroke vs axial-flow pumps (MOMENTUM 3) and ARIES-HM3 supports omitting aspirin; anticipate RV failure, aortic regurgitation and outflow graft obstruction',
     ],
     overview: [
       'Fully magnetically levitated centrifugal pumps (HeartMate 3) now dominate; the HeartWare HVAD was withdrawn in 2021',
@@ -1893,11 +1893,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A donor heart replaces the failing heart in selected patients with end-stage heart failure. Lifelong immunosuppression and rejection surveillance are required, and the transplanted heart is denervated.',
     levelNotes: [
-      'Transplant patients may feel little chest pain with ischemia, a resting rate of ~90–110 is normal, and they are immunosuppressed — take infection seriously',
-      'Atropine does not work on a denervated heart; use pacing or epinephrine for symptomatic bradycardia, and give adenosine only at a reduced dose',
-      'New arrhythmia, heart failure or hypotension in a transplant patient is rejection until proven otherwise; check tacrolimus levels and drug interactions',
-      'Surveil for cellular and antibody-mediated rejection with EMB (± gene-expression profiling or donor-derived cell-free DNA) and screen yearly for cardiac allograft vasculopathy',
-      'CAV is diffuse and concentric — IVUS detects early intimal thickening; surveillance EMB targets the RV septum via the RIJ or femoral vein',
+      'Transplant patients may feel little chest pain with ischemia, a resting pulse of ~90–110 is normal, and they are immunosuppressed — take fever seriously, acquire and transmit a 12-lead where allowed, and bring their medication list',
+      'The denervated heart ignores atropine: use TCP or an epinephrine infusion per protocol for symptomatic bradycardia, give adenosine at a reduced initial dose (3 mg) per medical direction, and treat new arrhythmia as possible rejection',
+      'Recipients return for surveillance biopsy, right heart cath and coronary angiography with IVUS: prepare the bioptome and specimen containers, record RA, PA, PCWP and cardiac output, and alert the operator to arrhythmia or heart block during RV work',
+      'Use strict asepsis; check tacrolimus timing and level, renal function and interacting drugs; after biopsy or cath monitor for tamponade, arrhythmia and access bleeding, and reinforce immunosuppression adherence and infection warning signs',
+      'Surveil for cellular (ISHLT 0R–3R) and antibody-mediated rejection by EMB ± gene-expression profiling or dd-cfDNA, screen yearly for CAV (IVUS detects early intimal thickening), and treat new arrhythmia or HF as rejection until proven otherwise',
     ],
     overview: [
       'Median survival after adult heart transplant is ~12–13 years',
@@ -2006,11 +2006,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'An unsynchronised high-energy shock depolarises a critical mass of myocardium to terminate ventricular fibrillation or pulseless ventricular tachycardia. Early defibrillation with high-quality CPR is the single most important treatment for shockable cardiac arrest.',
     levelNotes: [
-      'Attach the AED as soon as it arrives, follow the prompts, make sure no one is touching the patient, and restart compressions immediately after each shock',
-      'For VF/pVT use the manufacturer biphasic energy (often 120–200 J) or 360 J monophasic, charge during compressions and keep pre-shock pauses as short as possible',
-      'For refractory VF consider changing pad vector (anterolateral to anteroposterior) or double sequential defibrillation (DOSE-VF), along with epinephrine and amiodarone or lidocaine',
-      'Electrical storm needs reversal of ischemia, electrolyte correction, beta-blockade, sedation and early consideration of revascularisation or ablation',
-      'Place pads before high-risk lab cases so VF is shocked immediately; in device patients avoid placing pads directly over the generator and interrogate the device afterwards',
+      'Start high-quality CPR, attach the AED as soon as it arrives and follow its prompts; clear everyone and move oxygen away from the chest before the shock, then restart compressions immediately without a pulse check',
+      'Recognise VF/pVT, charge during compressions and shock at the manufacturer biphasic dose (often 120–200 J) or 360 J monophasic; give epinephrine after the second shock and amiodarone or lidocaine for refractory VF, and consider vector change or DSED where protocols allow',
+      'Place pads before high-risk cases (not over a device generator) and know the lab defibrillator; call out VF the instant it appears, shock when the operator calls for it or per your ACLS role and facility policy, and log times, energies and rhythms',
+      'Support the code per ACLS: confirm pad placement, deliver shocks as the team directs, give epinephrine and amiodarone or lidocaine per ACLS standing orders, use capnography to gauge CPR quality, and document times, energies and drugs',
+      'For refractory VF consider vector change or DSED (DOSE-VF), antiarrhythmics, reversible causes and mechanical CPR/ECPR in selected patients; electrical storm needs ischemia treatment, electrolyte correction, beta-blockade, sedation and urgent revascularisation or ablation; interrogate CIEDs after shocks',
     ],
     overview: [
       'Unsynchronised shock delivered at any point in the cardiac cycle',
@@ -2118,11 +2118,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A shock timed to the R wave terminates re-entrant tachyarrhythmias such as atrial fibrillation, flutter, SVT and VT with a pulse. It is used emergently for unstable patients and electively to restore sinus rhythm.',
     levelNotes: [
-      'Unstable tachycardia (low BP, confusion, chest pain, signs of shock) needs ALS — keep the patient lying down, give oxygen if hypoxic and transport',
-      'Turn on sync and confirm markers on each R wave, sedate when possible, use typical starting energies (narrow regular 50–100 J, AF 120–200 J biphasic, monomorphic VT ~100 J) and re-enable sync before each repeat shock',
-      'Before elective cardioversion of AF or flutter lasting ≥ 48 h or of unknown duration, give ≥ 3 weeks of therapeutic anticoagulation or exclude LAA thrombus by TEE, and continue anticoagulation ≥ 4 weeks afterwards',
-      'Plan elective cardioversion within a rhythm-control strategy: antiarrhythmic pretreatment for early recurrence and long-term stroke prevention by CHA₂DS₂-VASc',
-      'Anteroposterior pads and adequate energy improve AF cardioversion success; internal cardioversion is an option in the EP lab, and CIEDs need interrogation afterwards',
+      'Recognise unstable tachycardia (low BP, confusion, chest pain, signs of shock): request ALS, keep the patient lying down, give oxygen if hypoxic, and if they become unresponsive without normal breathing start CPR and attach the AED',
+      'Turn on SYNC and confirm markers on each R wave, sedate when possible per protocol, start at 50–100 J for narrow regular, 120–200 J biphasic for AF and ~100 J for monomorphic VT, and re-enable sync before repeat shocks',
+      'Prepare pads, the defibrillator with SYNC checked on the monitored lead, suction and airway equipment; join the time-out, record pre- and post-shock rhythm strips and energies, and alert the team if sync markers fall on T waves',
+      'Verify NPO status, consent, potassium, digoxin use and anticoagulation (≥ 3 weeks or TEE as ordered); give moderate sedation only on order with the practitioner present and capnography on; monitor rhythm, BP and airway until recovered and reinforce ongoing anticoagulation',
+      'For AF/flutter ≥ 48 h or of unknown duration, give ≥ 3 weeks of therapeutic anticoagulation or exclude LAA thrombus by TEE and continue ≥ 4 weeks after; anteroposterior pads, adequate energy and antiarrhythmic pretreatment improve success, and CIEDs need interrogation afterwards',
     ],
     overview: [
       'Delivering the shock on the R wave avoids the vulnerable period of the T wave (R-on-T can induce VF)',
@@ -2226,11 +2226,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'External pads or a wire in the right ventricle deliver electrical impulses to maintain heart rate when the heart\'s own rhythm or conduction fails. Transcutaneous pacing is a rapid bridge; transvenous pacing is more reliable until the cause resolves or a permanent device is placed.',
     levelNotes: [
-      'Recognise symptomatic bradycardia (low BP, confusion, fainting, chest pain) and request ALS early — pacing is an ALS skill',
-      'For transcutaneous pacing set the rate ~60–80, increase mA until electrical capture, confirm mechanical capture with a femoral pulse or pleth, and give analgesia/sedation',
-      'Atropine often fails in high-grade AV block with a wide escape — move promptly to pacing or a chronotrope infusion (epinephrine or dopamine) and arrange transvenous pacing',
-      'Look for reversible causes (ischemia, hyperkalemia, drug toxicity, Lyme carditis) before permanent pacing; AV block in inferior MI often resolves',
-      'Place the transvenous wire via the RIJ or left subclavian to the RV, aim for a capture threshold < ~1 mA, set output ~2–3× threshold and check sensing',
+      'Recognise a symptomatic slow pulse (low BP, confusion, fainting, chest pain) and request ALS early — pacing is an ALS skill; keep the patient lying down, give oxygen if hypoxic and start CPR if they become pulseless',
+      'For TCP choose demand mode at ~60–80/min, raise mA until electrical capture, confirm mechanical capture with a femoral pulse or pleth and give analgesia/sedation per protocol; move promptly to pacing or a chronotrope when atropine fails',
+      'Prepare the balloon-tipped lead, sheath and generator with fresh batteries; record capture threshold and sensing as the operator tests them, label final settings, and alert the operator to loss of capture, ectopy or an RBBB-pattern paced QRS',
+      'Assess perfusion and mental status, give atropine, chronotropes and analgesia/sedation on order, and confirm mechanical capture; secure the lead and generator, limit access-limb movement, check thresholds per protocol and competency, and escalate loss of capture or tamponade signs',
+      'Correct reversible causes (ischemia, hyperkalemia, drug toxicity, Lyme carditis) first — AV block in inferior MI often resolves; place the TVP via the RIJ to the RV, aim for threshold < ~1 mA, set output ~2–3× threshold and verify sensing',
     ],
     overview: [
       'Transcutaneous pacing (TCP) uses external pads — fast but painful and less reliable',
@@ -2346,11 +2346,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A needle guided by echocardiography drains fluid from the pericardial sac to relieve cardiac tamponade or obtain diagnostic fluid. A pigtail drain is usually left in place to prevent rapid reaccumulation.',
     levelNotes: [
-      'Low blood pressure, distended neck veins and muffled heart sounds (Beck triad), especially after chest trauma or with cancer, suggest tamponade — transport rapidly and pre-alert',
-      'Tamponade is preload-dependent — give fluid for hypotension, avoid positive pressure ventilation if possible, and consider tamponade as a cause of PEA',
-      'Echo shows effusion with RA systolic and RV diastolic collapse and a plethoric IVC; perform echo-guided pericardiocentesis, but call surgery for trauma or aortic dissection',
-      'Tamponade is a clinical diagnosis; drain for tamponade or diagnosis, and identify the cause (malignancy, post-procedure, uremia, infection, hypothyroidism)',
-      'Choose subxiphoid, apical or parasternal entry by echo for the largest, closest pocket, confirm position with agitated saline, and leave a pigtail drain',
+      'Low blood pressure, distended neck veins and muffled heart sounds, especially after chest trauma, with cancer or after a recent heart procedure, suggest tamponade — give oxygen, transport rapidly and pre-alert the receiving hospital',
+      'Tamponade is preload-dependent: give fluid for hypotension per protocol, avoid positive-pressure ventilation where possible, and consider tamponade in PEA or with low-voltage or alternating QRS; pre-alert for surgery if traumatic',
+      'If perforation is suspected (falling pressure, rising heart rate, reduced cardiac border motion), alert the operator, open the pericardiocentesis tray, prepare echo, agitated saline and the drainage set, and record pressures before and after drainage',
+      'Recognise tamponade (hypotension, tachycardia, pulsus paradoxus, rising RA pressure), escalate immediately and give fluids or vasopressors on order; after drainage record drain output, monitor vitals and rhythm, and keep the drain sterile and patent per protocol',
+      'Tamponade is a clinical diagnosis supported by echo (RA/RV collapse, plethoric IVC, respiratory variation); choose subxiphoid, apical or parasternal entry by echo, confirm with agitated saline and leave a pigtail — but send trauma, dissection or free-wall rupture to surgery',
     ],
     overview: [
       'Echo guidance gives high success and low complication rates',
@@ -2457,11 +2457,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Large cannulas drain venous blood to an external pump and oxygenator and return it to the arterial system, providing combined heart and lung support. It is used for refractory cardiogenic shock or cardiac arrest as a bridge to recovery, a durable device or transplant.',
     levelNotes: [
-      'High-quality CPR with minimal interruptions and early notification keep options like ECPR open for refractory VF arrest in selected systems',
-      'In ECPR-capable systems, refractory shockable arrest with a short low-flow time may trigger early transport with mechanical CPR — follow local criteria',
-      'Watch for LV distension (pulmonary edema, closed aortic valve), differential hypoxia (check right radial SpO₂ or gas), limb ischemia and bleeding on heparin',
-      'VA-ECMO is a bridge — define the exit strategy early; consider LV venting, and note ECLS-SHOCK showed no mortality benefit from routine use in AMI shock',
-      'Femoral–femoral cannulation under ultrasound and fluoroscopy, venous cannula tip at the RA–IVC junction, and a distal perfusion cannula in the SFA to protect the leg',
+      'High-quality CPR with minimal interruptions, early AED use and early notification keep advanced options like ECPR open for refractory arrest; follow local criteria for mechanical CPR and transport',
+      'In ECPR-capable systems, refractory shockable arrest with a short low-flow time may trigger early transport with mechanical CPR per local criteria — notify early, record arrest and shock times, and continue ACLS en route',
+      'Set up ultrasound, fluoroscopy, wires, dilators and cannulas, help keep connections air-free as directed, record ACT and arterial pressures, and alert the operator to falling pulse pressure, arrhythmia or limb colour change; the perfusionist or ECMO specialist runs the circuit',
+      'Give heparin on order and monitor ACT or anti-Xa; do hourly distal limb perfusion checks, right radial SpO₂ or gases for differential hypoxia and access-site bleeding checks, and escalate falling pulse pressure, pulmonary edema or a cold leg immediately',
+      'VA-ECMO is a bridge — define the exit strategy early, vent the LV for distension, place the venous tip at the RA–IVC junction and protect the leg with a distal perfusion cannula; ECLS-SHOCK showed no mortality benefit from routine use in AMI shock',
     ],
     overview: [
       'Peripheral VA-ECMO: femoral venous drainage → pump → oxygenator → femoral arterial return with retrograde aortic flow',
@@ -2569,11 +2569,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A bioptome passed through a central vein takes small samples of right ventricular septal myocardium for histology. It diagnoses heart transplant rejection and selected myocardial diseases such as giant cell myocarditis.',
     levelNotes: [
-      'New chest pain, low blood pressure or breathlessness after a heart biopsy may mean cardiac perforation — urgent transport',
-      'Post-biopsy tamponade presents with hypotension, tachycardia and distended neck veins; treat hypotension and transport rapidly',
-      'Fulminant myocarditis with shock, heart block or VT warrants early EMB to find giant cell or eosinophilic myocarditis that need immunosuppression',
-      'Key indications: transplant rejection surveillance, new HF < 2 weeks with hemodynamic compromise, or HF of 2 weeks–3 months with new ventricular arrhythmias or high-grade block',
-      'Direct the bioptome to the RV septum (not the free wall or apex) via the RIJ or femoral vein, take multiple samples (~4–6), and avoid tricuspid chordal injury',
+      'New chest pain, low blood pressure or breathlessness after a heart biopsy may mean cardiac perforation and tamponade — give oxygen, lay the patient flat if hypotensive and transport urgently with early notification',
+      'Post-biopsy tamponade presents with hypotension, tachycardia and JVD — give fluid per protocol and pre-alert; watch for new heart block or VT, and remember transplanted hearts ignore atropine and need reduced-dose adenosine',
+      'Prepare the bioptome, long sheath and labelled specimen containers (formalin and other media per pathology request), record right heart pressures if ordered, watch for PVCs, heart block or chest pain, and keep the pericardiocentesis kit immediately available',
+      'Check coagulation, anticoagulant holds and consent, and give moderate sedation on order (practitioner present); after the biopsy monitor vitals, rhythm and the jugular or femoral site, and escalate chest pain, hypotension or JVD (possible perforation) immediately',
+      'Key indications: transplant rejection surveillance, new HF < 2 weeks with hemodynamic compromise, or HF of 2 weeks–3 months with new ventricular arrhythmias or high-grade block (suspect giant cell myocarditis); target the RV septum, take ~4–6 samples and avoid the free wall',
     ],
     overview: [
       'Usually right ventricular biopsy via jugular or femoral venous access',

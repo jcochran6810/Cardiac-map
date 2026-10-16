@@ -89,11 +89,19 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Always consider ACS mimics: aortic dissection, PE, pericarditis, esophageal rupture',
       'Routine oxygen does not help normoxemic ACS patients (DETO2X-AMI) and was linked to larger infarcts in AVOID',
     ],
+    roleBriefs: [
+      'Had EMS been called: assess and take vitals, give aspirin 162–325 mg chewed per protocol, oxygen only if SpO2 < 90% or in respiratory distress, and acquire and transmit a 12-lead where protocols allow. Request ALS and transport with early notification (he has no prescribed nitroglycerin to assist with).',
+      'Interpret the 12-lead (ischemic ST depression without STEMI criteria), monitor, start IV access, and give aspirin and SL nitroglycerin per protocol (SBP ≥ 90, no PDE-5 inhibitor). Repeat the 12-lead if the pain changes and transport to the destination set by regional ACS protocol, notifying the receiving ED.',
+      'Involved once the cardiologist books angiography (here immediate, after refractory pain): prepare the room, sterile field and radial/femoral access setup with diagnostic and PCI equipment. Record pressures and ECG throughout and alert the operator at once to arrhythmias, ST change or pressure damping.',
+      'Before angiography verify consent, contrast allergy, renal function and anticoagulant/P2Y12 timing; give ordered heparin, antiplatelets and moderate sedation on the practitioner’s order with capnography. Monitor ACT, rhythm and hemodynamics, then manage the access site and post-procedure monitoring.',
+      'Diagnose NSTEMI from symptoms, dynamic ST depression and a rising hs-troponin, prescribe antiplatelet, anticoagulant and anti-ischemic therapy, and time angiography by risk. Refractory angina makes this very-high-risk NSTE-ACS: immediate (< 2 h) angiography and culprit revascularization.',
+    ],
     decisions: [
       {
         id: 'chest-pain-acs-1',
         stage: 'Initial assessment (arrival)',
-        prompt: 'He arrives by private car with ongoing 8/10 chest pressure. SpO2 96% on room air. What is your first priority?',
+        owner: 4,
+        prompt: 'He arrives by private car with ongoing 8/10 chest pressure. SpO2 96% on room air. As the nurse receiving him under the chest-pain protocol, what is your first priority?',
         options: [
           {
             text: 'Apply a non-rebreather mask at 15 L/min before anything else',
@@ -120,6 +128,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'chest-pain-acs-2',
         stage: 'Key diagnostic step (15 minutes)',
+        owner: 5,
         prompt: 'How should this presentation be classified?',
         update: 'ECG: sinus rhythm 88, 1.5 mm horizontal ST depression in V4–V6, I and aVL; no ST elevation. hs-troponin I: 48 ng/L at 0 h → 112 ng/L at 1 h (99th-percentile URL 26 ng/L).',
         options: [
@@ -148,6 +157,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'chest-pain-acs-3',
         stage: 'Treatment (20 minutes)',
+        owner: 5,
         prompt: 'Pain is now 6/10. BP 146/90, HR 86, no crackles. Which initial treatment bundle is most appropriate?',
         options: [
           {
@@ -175,6 +185,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'chest-pain-acs-4',
         stage: '45 minutes later',
+        owner: 5,
         prompt: 'What is the appropriate timing of coronary angiography now?',
         update: 'Recurrent 9/10 pain despite three SL nitroglycerin doses and an IV nitroglycerin infusion. HR 102, BP 104/68. Repeat ECG: deeper (3 mm) ST depression in V3–V6.',
         options: [
@@ -250,10 +261,46 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Wellens T waves signal a reperfused critical LAD lesion — urgent angiography, never stress testing',
       'VF within 48 h of acute MI does not by itself mandate an ICD; reassess LVEF ≥ 40 days after MI',
     ],
+    roleBriefs: [
+      'Recognize possible ACS, give aspirin 162–325 mg chewed per protocol, acquire and transmit the 12-lead where protocols allow, and request ALS. Keep the AED immediately available and support early notification and direct transport to the PCI center.',
+      'Interpret the 12-lead as anterior STEMI, transmit it, activate the cath lab from the field and bypass the non-PCI hospital. Give aspirin and SL nitroglycerin per protocol (no oxygen at SpO2 94%), start IV access, keep pads on and defibrillate VF per ACLS.',
+      'On activation, open the room and prepare the sterile field, access kit, guide catheters, wires, balloons and stents. On arrival connect the ECG and pressure transducers, apply radiation-safety practice, and alert the team immediately to VF, ST change or pressure damping.',
+      'Receive the patient, verify allergies and antithrombotic status, and give heparin and the P2Y12 load on order, checking ACT against the ordered target. If VF occurs, defibrillate per ACLS and resume CPR; after PCI, monitor the access site, rhythm and hemodynamics.',
+      'Confirm the anterior STEMI and perform primary PCI of the proximal LAD within the FMC-to-device goal, choosing the antithrombotic regimen and managing peri-procedural VF. Set secondary prevention (DAPT duration, statin, beta-blocker, ACEi/ARB/ARNI, MRA) and reassess LVEF ≥ 40 days before any ICD decision.',
+    ],
     decisions: [
+      {
+        id: 'stemi-activation-bls',
+        stage: 'First BLS unit on scene',
+        owner: 1,
+        prompt: 'You are the EMT on the first-arriving BLS ambulance; the paramedic unit is 6 minutes out. He has crushing chest pain, BP 132/84, SpO2 94%, no allergies and no regular medications. Within your scope, what do you do?',
+        options: [
+          {
+            text: 'Chewed aspirin per protocol, acquire and transmit a 12-lead where protocols allow, request ALS, notify the receiving hospital early and prepare for transport with the AED ready',
+            correct: true,
+            feedback: 'Correct. Every one of these is within the EMT scope and saves time: aspirin reduces mortality in ACS, and a transmitted 12-lead lets a physician (or the arriving paramedic) read it and activate the cath lab. Oxygen is not needed at SpO2 94%.',
+          },
+          {
+            text: 'Read the 12-lead yourself and decide whether to activate the cath lab',
+            correct: false,
+            feedback: 'EMTs may acquire and transmit a 12-lead where protocols allow, but interpretation is outside the EMT scope (National EMS Scope of Practice Model). Transmission puts the tracing in front of someone who can read it.',
+          },
+          {
+            text: 'Give sublingual nitroglycerin from the ambulance supply',
+            correct: false,
+            feedback: 'EMTs may only assist with a patient’s own prescribed nitroglycerin, per protocol and medical direction — he has none. Nitrates also need a check for hypotension, RV infarction and recent PDE-5 inhibitor use.',
+          },
+          {
+            text: 'Wait on scene for the paramedics before starting any treatment',
+            correct: false,
+            feedback: 'BLS care should not wait: aspirin per protocol, monitoring vital signs, the 12-lead and early notification all happen before ALS arrives.',
+          },
+        ],
+      },
       {
         id: 'stemi-activation-1',
         stage: 'On scene',
+        owner: 2,
         prompt: 'You are the paramedic. Your 12-lead shows ST elevation V1–V4 with reciprocal inferior ST depression. A non-PCI community hospital is 8 minutes away; a PCI center is 25 minutes away. What do you do?',
         options: [
           {
@@ -281,6 +328,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'stemi-activation-2',
         stage: 'En route',
+        owner: 2,
         prompt: 'SpO2 94% on room air, BP 132/84, HR 96, fine bibasilar crackles, ongoing 7/10 pain. Which treatment is appropriate now?',
         options: [
           {
@@ -308,7 +356,8 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'stemi-activation-3',
         stage: 'Arrival at the PCI center',
-        prompt: 'What is your immediate action?',
+        owner: 4,
+        prompt: 'As the cath lab nurse, what is your immediate action?',
         update: 'While moving onto the cath table he becomes unresponsive. Monitor: chaotic irregular waveform without discrete QRS complexes. No pulse.',
         options: [
           {
@@ -334,8 +383,38 @@ export const CASE_DATA: Record<string, CaseData> = {
         ],
       },
       {
+        id: 'stemi-activation-tech',
+        stage: 'During coronary angiography',
+        owner: 3,
+        update: 'After the defibrillation he is back in sinus rhythm with a pulse. As the operator engages the left coronary ostium with the guide catheter, the catheter-tip pressure tracing loses its dicrotic notch and the diastolic pressure falls — a damped / ventricularized waveform.',
+        prompt: 'You are the cath lab tech monitoring hemodynamics. What do you do?',
+        options: [
+          {
+            text: 'Immediately call it out to the operator: “Pressure is damped / ventricularized”',
+            correct: true,
+            feedback: 'Correct. Damping or ventricularization during engagement means the catheter tip is against the vessel wall or across an ostial lesion; injecting now risks dissection, ischemia or VF. The operator decides whether to disengage or reposition — the tech’s role is to recognise it and say so at once.',
+          },
+          {
+            text: 'Assume a transducer problem and re-zero the system before saying anything',
+            correct: false,
+            feedback: 'A sudden change at the moment of engagement is real until proven otherwise. Alert the operator first; check the setup afterwards.',
+          },
+          {
+            text: 'Flush the catheter through the manifold to clear it',
+            correct: false,
+            feedback: 'Flushing or injecting into a wedged catheter can dissect the vessel or trigger VF, and manifold or catheter handling is done only at the operator’s direction.',
+          },
+          {
+            text: 'Keep recording silently — it will be visible on the final report',
+            correct: false,
+            feedback: 'Real-time communication of pressure changes is one of the tech’s most important safety roles in the lab.',
+          },
+        ],
+      },
+      {
         id: 'stemi-activation-4',
         stage: 'After primary PCI',
+        owner: 5,
         prompt: 'Which discharge plan is most appropriate?',
         update: 'ROSC after one shock. Proximal LAD stented with TIMI 3 flow. Day 3 echo: LVEF 35% with anterior-apical hypokinesis. No further arrhythmias.',
         options: [
@@ -411,10 +490,18 @@ export const CASE_DATA: Record<string, CaseData> = {
       'AVNRT is the most common regular SVT; its circuit uses the slow and fast AV nodal pathways',
       'Always check the post-conversion ECG for delta waves (WPW)',
     ],
+    roleBriefs: [
+      'Recognize a very fast pulse with low BP and new confusion as time-critical: take vitals, position her supine, and request an ALS intercept or transport rapidly with early notification. Acquire and transmit a 12-lead only where protocols allow and only if it causes no delay.',
+      'Interpret an unstable regular narrow-complex tachycardia, apply pads and perform synchronized cardioversion per protocol (50–100 J, escalating), giving adenosine 6 then 12 mg rapid push only if it causes no delay. Use procedural sedation per protocol if time allows and record a post-conversion 12-lead.',
+      'Outside the usual cath-lab setting acutely. If she is booked for an EP study and ablation, help prepare the room and equipment, record the ECG and intracardiac signals as directed, and alert the operator at once to AV block during slow-pathway ablation.',
+      'In the ED or EP lab, give adenosine (rapid push with flush) on order and moderate sedation only on the practitioner’s order with the practitioner present, with capnography and pads on; monitor rhythm and BP after conversion. Before ablation verify consent, fasting and medication holds, and teach the modified Valsalva maneuver at discharge.',
+      'Confirm instability and direct synchronized cardioversion, then review the post-conversion ECG for pre-excitation. Recommend catheter ablation (slow-pathway modification for AVNRT, > 95% success) as first-line long-term therapy, with a beta-blocker or calcium-channel blocker as bridge or alternative.',
+    ],
     decisions: [
       {
         id: 'unstable-svt-1',
         stage: 'Initial assessment',
+        owner: 2,
         prompt: 'Regular narrow-complex tachycardia at 186, BP 86/58, intermittently confused. How do you classify her and what do you prepare?',
         options: [
           {
@@ -442,6 +529,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'unstable-svt-2',
         stage: 'While pads are applied',
+        owner: 2,
         prompt: 'A colleague suggests adenosine while setup is completed. Is that reasonable?',
         update: 'An antecubital IV is in place. The team needs about 60 seconds to finish pad placement and set up the defibrillator.',
         options: [
@@ -470,6 +558,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'unstable-svt-3',
         stage: 'Two minutes later',
+        owner: 2,
         prompt: 'What is the next step?',
         update: 'Adenosine 6 mg then 12 mg: no transient AV block or rate change on the strip. BP now 78/50 and she is drowsier.',
         options: [
@@ -498,6 +587,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'unstable-svt-4',
         stage: 'Disposition',
+        owner: 5,
         prompt: 'What is the best long-term plan?',
         update: 'Converted to sinus rhythm at 92 after one 100 J synchronized shock. Post-conversion 12-lead: PR 160 ms, no delta wave, QTc 420 ms. BP 118/74, normal mentation.',
         options: [
@@ -572,10 +662,18 @@ export const CASE_DATA: Record<string, CaseData> = {
       'BRASH: bradycardia, renal failure, AV nodal blockade, shock, hyperkalemia — synergistic causes that feed each other',
       'Transcutaneous pacing is a bridge to transvenous pacing',
     ],
+    roleBriefs: [
+      'Recognize a very slow pulse with shock (confusion, mottling, low BP): give oxygen for SpO2 88%, position supine, request an ALS intercept, and bring his medication list (metoprolol, digoxin). Be ready to start CPR and use the AED if he becomes pulseless.',
+      'Interpret complete heart block with a wide escape, place pads, obtain IV/IO access, and give atropine 1 mg per protocol without letting it delay transcutaneous pacing or an epinephrine infusion. Confirm mechanical capture with a femoral pulse and give analgesia/sedation per protocol.',
+      'If he comes to the lab for transvenous pacing, prepare the sterile field, pacing catheter and pacing generator, record capture thresholds as directed, and alert the operator to loss of capture or ectopy. A permanent pacemaker implant may follow once reversible causes are corrected.',
+      'Keep pads on and pacing running, monitor capture, BP and mentation, and give analgesia/sedation, calcium, insulin–dextrose, digoxin-specific Fab and infusions only on physician order. Hold metoprolol, digoxin and lisinopril as ordered and monitor the transvenous pacer site and rhythm.',
+      'Recognize a BRASH-type picture (AV nodal blockers, digoxin toxicity, AKI, hyperkalemia), order correction of hyperkalemia and digoxin-specific Fab, and place a transvenous pacer as a bridge. Decide on a permanent pacemaker only if block persists after reversible causes are corrected.',
+    ],
     decisions: [
       {
         id: 'bradycardia-with-shock-1',
         stage: 'Initial assessment',
+        owner: 2,
         prompt: 'Monitor: P waves regular at ~80/min; wide QRS complexes regular at 34/min; PR intervals vary with no fixed relationship. What is the rhythm and its significance?',
         options: [
           {
@@ -603,6 +701,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'bradycardia-with-shock-2',
         stage: 'Immediate treatment',
+        owner: 2,
         prompt: 'IV access is obtained and pads are on. Which approach is best?',
         options: [
           {
@@ -630,6 +729,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'bradycardia-with-shock-3',
         stage: 'Pacing started',
+        owner: 2,
         prompt: 'What does this mean, and what do you do?',
         update: 'TCP at rate 70 with output 70 mA. The monitor shows a large wide deflection after each pacer spike, but the femoral pulse is ~34/min and BP is unchanged at 72/48.',
         options: [
@@ -658,6 +758,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'bradycardia-with-shock-4',
         stage: 'One hour later',
+        owner: 5,
         prompt: 'What is the best next plan?',
         update: 'Mechanical capture at 90 mA; BP 104/62. Labs: K+ 6.2 mmol/L, creatinine 2.4 mg/dL (baseline 1.1), digoxin 2.6 ng/mL (toxic range).',
         options: [
@@ -733,10 +834,18 @@ export const CASE_DATA: Record<string, CaseData> = {
       'In VANISH, catheter ablation reduced the composite of death, VT storm and appropriate ICD shocks vs escalated antiarrhythmics in ischemic cardiomyopathy (mortality alone was not significantly reduced)',
       'Scar-related re-entrant VT is monomorphic; polymorphic VT in this setting suggests active ischemia',
     ],
+    roleBriefs: [
+      'Treat repeated ICD shocks with low BP and depressed consciousness as life-threatening: oxygen for SpO2 85%, request an ALS intercept and transport with early notification. If he becomes pulseless, start CPR and use the AED, placing pads away from the generator.',
+      'Interpret unstable monomorphic VT and perform synchronized cardioversion with pads anterior–posterior away from the ICD (sedation per protocol if time allows). After conversion give amiodarone 150 mg IV over 10 min per protocol or medical direction and transport to a center with EP services.',
+      'If he comes to the lab for urgent VT ablation or VA-ECMO cannulation, prepare the room, sterile field and catheters or cannulation supplies as directed. Record hemodynamics and rhythm and alert the operator immediately to recurrent VT or pressure loss.',
+      'Give amiodarone, lidocaine and K+/Mg2+ replacement on order, keep external defibrillation ready, and monitor rhythm, BP, lactate and urine output, escalating deterioration early. Deep sedation for sympatholysis is managed by anaesthesia/critical care; during ablation or MCS, monitor ACT, access sites and limb perfusion.',
+      'Direct cardioversion, antiarrhythmic and electrolyte therapy, interrogate and reprogram the ICD, and escalate sympatholysis (lidocaine, sedation, nonselective beta-blocker, stellate ganglion block). Decide on urgent catheter ablation and VA-ECMO as a bridge, with the advanced HF team.',
+    ],
     decisions: [
       {
         id: 'vt-storm-1',
         stage: 'Initial assessment',
+        owner: 2,
         prompt: 'Regular wide-complex tachycardia at 180, weak carotid pulse, BP 78/50, GCS 10. What is the immediate management?',
         options: [
           {
@@ -764,6 +873,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'vt-storm-2',
         stage: '20 minutes later',
+        owner: 5,
         prompt: 'What is the most important next step?',
         update: 'Sinus rhythm at 92 after one 100 J synchronized shock, then two further VT episodes terminated by ICD shocks. Labs: K+ 3.1 mmol/L, Mg 1.4 mg/dL, hs-troponin mildly elevated and flat. ECG between episodes: old anterior Q waves, no new ST elevation.',
         options: [
@@ -792,6 +902,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'vt-storm-3',
         stage: 'One hour later',
+        owner: 5,
         prompt: 'What is the best next step?',
         update: 'Despite electrolyte correction and amiodarone (two 150 mg boluses plus infusion), monomorphic VT recurs every 10–15 minutes. BP between episodes 96/60.',
         options: [
@@ -820,6 +931,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'vt-storm-4',
         stage: 'Complication',
+        owner: 5,
         prompt: 'What is the most appropriate escalation?',
         update: 'VT is now incessant. MAP 55 during brief sinus runs despite norepinephrine; lactate 6.1 mmol/L; oliguric.',
         options: [
@@ -894,10 +1006,18 @@ export const CASE_DATA: Record<string, CaseData> = {
       'RA systolic collapse is an early, sensitive sign (more specific if > 1/3 of the cycle); RV diastolic collapse is more specific',
       'Large effusions with tamponade more often have a specific cause (malignancy, TB, autoimmune) than small ones',
     ],
+    roleBriefs: [
+      'Recognize shock with distended neck veins and muffled heart sounds (Beck triad) as time-critical: position of comfort (often sitting up), oxygen as needed, request ALS, and transport rapidly with early notification to a hospital able to drain the pericardium.',
+      'Recognize suspected tamponade (hypotension, JVD, pulsus paradoxus; low voltage or electrical alternans on the ECG), start IV access and give a small fluid bolus per protocol. Avoid nitrates and diuretics, avoid positive-pressure ventilation where possible, and transport rapidly with early notification.',
+      'If pericardiocentesis is done in the cath lab, prepare the pericardiocentesis kit, pigtail drain and pressure transducer, record intrapericardial and right-heart pressures as directed, and label fluid samples. Alert the operator to bradycardia, ectopy or a falling BP during needle entry.',
+      'Monitor BP, pulsus paradoxus, rhythm and mentation, give fluids and medications only on order, and prepare for emergency drainage and ACLS. After drainage, manage the pericardial drain (output, dressing, patency) and report signs of re-accumulation.',
+      'Confirm tamponade physiology on echo, perform urgent echo-guided pericardiocentesis with a pigtail drain, and avoid intubation and diuretics before drainage. Direct the etiologic workup (malignancy, TB, autoimmune) and decide on a surgical window if the effusion recurs or is loculated.',
+    ],
     decisions: [
       {
         id: 'tamponade-1',
         stage: 'Initial assessment',
+        owner: 5,
         prompt: 'Hypotensive, tachycardic, distended neck veins, clear lungs, pulsus paradoxus 18 mmHg. What is the most useful immediate test?',
         options: [
           {
@@ -925,6 +1045,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'tamponade-2',
         stage: 'Key diagnostic step',
+        owner: 5,
         prompt: 'How do you interpret these findings?',
         update: 'Echo: large circumferential effusion (~2.5 cm), RA systolic collapse, RV early-diastolic collapse, IVC 2.4 cm without respiratory variation, mitral inflow variation 35%. ECG: sinus tachycardia 118, low voltage, electrical alternans.',
         options: [
@@ -953,6 +1074,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'tamponade-3',
         stage: 'Preparing for drainage',
+        owner: 5,
         prompt: 'What is the best interim management?',
         update: 'BP 82/66 and falling, RR 30, SpO2 91%. The pericardiocentesis kit will be ready in 10 minutes. A colleague proposes intubation for work of breathing.',
         options: [
@@ -981,6 +1103,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'tamponade-4',
         stage: 'After drainage',
+        owner: 5,
         prompt: 'Which plan is most appropriate?',
         update: 'Echo-guided subxiphoid pericardiocentesis removes 650 mL of hemorrhagic fluid; BP 124/78, HR 92. A pigtail drain is left in place. The fluid is exudative; cytology is pending.',
         options: [
@@ -1055,10 +1178,18 @@ export const CASE_DATA: Record<string, CaseData> = {
       'sPESI 0 or Hestia-negative patients can often be treated as outpatients',
       'PEITHO: systemic lysis in intermediate-high-risk PE prevented decompensation but increased major and intracranial bleeding',
     ],
+    roleBriefs: [
+      'Recognize sudden dyspnea and hypoxemia with a swollen calf as potentially serious: oxygen for SpO2 89%, position of comfort, monitor vitals and SpO2, and request ALS if she deteriorates. Report risk factors (long flight, estrogen) at handoff.',
+      'Monitor the rhythm and acquire a 12-lead (sinus tachycardia, possible right-heart strain), give oxygen, start IV access and limit fluids per protocol. Avoid advanced airway management unless unavoidable and transport with early notification.',
+      'Involved only if catheter-directed therapy is chosen: prepare venous access supplies and the thrombectomy or infusion catheters requested, record right-heart and pulmonary artery pressures, and alert the operator to arrhythmias or hemodynamic deterioration.',
+      'Give anticoagulation on order (UFH bolus and infusion titrated per the anti-Xa/aPTT protocol) and any lytic as ordered, monitoring for bleeding, worsening hypoxemia and hypotension and escalating early. For catheter-directed therapy, give moderate sedation on order with capnography and care for the access site.',
+      'As part of the PE response team, confirm the diagnosis on CTPA, risk-stratify (RV dysfunction plus troponin = intermediate-high risk) and choose anticoagulation and monitoring. Decide on rescue reperfusion (systemic lysis, catheter-directed therapy or embolectomy) when she decompensates.',
+    ],
     decisions: [
       {
         id: 'pe-presentation-1',
         stage: 'Initial assessment',
+        owner: 5,
         prompt: 'HR 112, SpO2 89%, unilateral calf swelling, BP 108/72; PE is the most likely diagnosis. What is the best diagnostic approach?',
         options: [
           {
@@ -1086,6 +1217,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'pe-presentation-2',
         stage: 'Key diagnostic step',
+        owner: 5,
         prompt: 'How do you risk-stratify this PE?',
         update: 'CTPA: bilateral main and lobar pulmonary emboli; RV/LV ratio 1.3. hs-troponin and NT-proBNP elevated. BP 106/70, HR 110, SpO2 94% on 2 L.',
         options: [
@@ -1114,6 +1246,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'pe-presentation-3',
         stage: 'Treatment',
+        owner: 5,
         prompt: 'Which management is most appropriate now?',
         options: [
           {
@@ -1141,6 +1274,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'pe-presentation-4',
         stage: '6 hours later',
+        owner: 5,
         prompt: 'What is the next step?',
         update: 'HR 134, BP 78/50 for 20 minutes, SpO2 86% on 6 L, lactate 4.1 mmol/L, new confusion. Bedside echo: severely dilated, hypokinetic RV. No bleeding risk factors.',
         options: [
@@ -1216,11 +1350,19 @@ export const CASE_DATA: Record<string, CaseData> = {
       'A normal chest X-ray does not exclude dissection',
       'Dissection can involve the coronary ostia (usually the RCA) and mimic STEMI',
     ],
+    roleBriefs: [
+      'Recognize abrupt tearing chest or back pain with unequal arm BPs or pulses as possible dissection: check BP in both arms and report the difference. Contact medical direction before aspirin (it is withheld when dissection is suspected) and transport rapidly with early notification.',
+      'Interpret the 12-lead (no STEMI here, though dissection can mimic inferior STEMI), withhold antiplatelets and nitrates, start IV access and give analgesia per protocol. Transport to a center with cardiac surgery and notify early; BP-lowering drugs only per protocol or medical direction.',
+      'Usually not involved: coronary angiography is avoided because catheter manipulation can extend the dissection. If a suspected dissection reaches the lab (e.g., as a STEMI mimic), alert the operator and prepare for emergency transfer to surgery.',
+      'Hold aspirin and heparin until dissection is excluded, give analgesia, the beta-blocker and then the vasodilator on order to the ordered HR and SBP targets, and monitor bilateral arm pressures, perfusion and neurologic status. Escalate immediately for hypotension, new JVD or muffled heart sounds.',
+      'Recognize high-risk dissection, withhold antithrombotics, and order CTA with immediate cardiac surgery consultation. Direct anti-impulse therapy (beta-blocker before vasodilator; HR 60–80, SBP < 120) and coordinate emergency surgery for type A, avoiding aggressive needle drainage of hemopericardium.',
+    ],
     decisions: [
       {
         id: 'aortic-dissection-1',
         stage: 'Triage',
-        prompt: 'Triage started the chest pain protocol and asks about giving aspirin 324 mg and heparin. What do you do?',
+        owner: 5,
+        prompt: 'Triage started the chest pain protocol and asks whether to give aspirin 324 mg and heparin. As the treating physician, what do you do?',
         options: [
           {
             text: 'Give aspirin and heparin now; the ECG will clarify things later',
@@ -1247,6 +1389,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'aortic-dissection-2',
         stage: 'Key diagnostic step',
+        owner: 5,
         prompt: 'What is the best next step for diagnosis and planning?',
         update: 'ECG: sinus tachycardia 102 with LVH, no ST elevation. Bedside TTE: aortic root 5.0 cm with a mobile intimal flap, moderate AR, no pericardial effusion. Creatinine 1.0 mg/dL.',
         options: [
@@ -1275,6 +1418,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'aortic-dissection-3',
         stage: 'Treatment',
+        owner: 5,
         prompt: 'BP 198/112, HR 102, pain 9/10. Which anti-impulse regimen is best?',
         options: [
           {
@@ -1302,6 +1446,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'aortic-dissection-4',
         stage: 'Complication',
+        owner: 5,
         prompt: 'What is the most appropriate action?',
         update: 'CTA: Stanford type A dissection from the aortic root to the iliac arteries. While awaiting the OR, BP suddenly falls to 76/40 with JVD, muffled heart sounds and new pericardial fluid on echo.',
         options: [
@@ -1378,10 +1523,18 @@ export const CASE_DATA: Record<string, CaseData> = {
       'DanGer Shock: a microaxial pump lowered 180-day mortality in selected STEMI shock patients, at the cost of more bleeding, limb ischemia and renal replacement therapy',
       'ECLS-SHOCK: routine early VA-ECMO did not reduce 30-day mortality and increased complications',
     ],
+    roleBriefs: [
+      'Recognize shock with respiratory distress and altered mentation: support airway and breathing (oxygen, BVM if ventilation is inadequate) and expedite ALS or critical-care transport. Interfacility transfer on vasopressor infusions is beyond EMT scope.',
+      'Interpret the anterior STEMI and recognize cardiogenic shock; during interfacility transfer, monitor the patient and running infusions (e.g., norepinephrine) within protocol and medical direction. Manage the airway and arrhythmias per ACLS and pre-notify the receiving cath lab.',
+      'Prepare for emergency PCI with possible mechanical support: room, large-bore access supplies and the microaxial pump or IABP console as directed. Record hemodynamics, including PA-catheter values (CI, PCWP, RAP, PAPi), and alert the operator to arrhythmias and pressure changes.',
+      'Titrate norepinephrine and dobutamine within ordered parameters, give heparin and antiplatelets on order with ACT monitoring, and track oxygenation, mentation, urine output and lactate. After MCS insertion, check limb perfusion, access-site bleeding and signs of hemolysis, escalating promptly.',
+      'Activate the shock team, perform emergency culprit-only PCI of the LAD (CULPRIT-SHOCK) and exclude mechanical complications on echo. Use PA-catheter hemodynamics to choose vasopressor/inotrope therapy and mechanical support (e.g., a microaxial pump for LV-predominant failure, per DanGer Shock).',
+    ],
     decisions: [
       {
         id: 'cardiogenic-shock-1',
         stage: 'Rural ED',
+        owner: 5,
         prompt: 'Anterior STEMI ~6 h old, BP 76/52, cold and wet, lactate 5.8 mmol/L. The nearest PCI center is 70 minutes away by air. What is the priority?',
         options: [
           {
@@ -1409,6 +1562,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'cardiogenic-shock-2',
         stage: 'Before transfer',
+        owner: 5,
         prompt: 'He has a new soft apical systolic murmur. Why does this matter, and what do you do?',
         options: [
           {
@@ -1436,6 +1590,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'cardiogenic-shock-3',
         stage: 'Cath lab',
+        owner: 5,
         prompt: 'What is the revascularization strategy?',
         update: 'Echo: LVEF ~20%, anterior/apical akinesis, mild functional MR, intact septum, no effusion, normal RV size. On norepinephrine 0.2 mcg/kg/min, BP 84/56. Angiography: occluded proximal LAD (culprit), 80% RCA and 70% LCx stenoses.',
         options: [
@@ -1464,6 +1619,7 @@ export const CASE_DATA: Record<string, CaseData> = {
       {
         id: 'cardiogenic-shock-4',
         stage: 'After PCI',
+        owner: 5,
         prompt: 'What is the best next step?',
         update: 'LAD stented with TIMI 3 flow. MAP 58 on norepinephrine plus dobutamine 5 mcg/kg/min. PA catheter: CI 1.6 L/min/m², PCWP 28 mmHg, RAP 10 mmHg (RAP/PCWP 0.36). Lactate 7.2 mmol/L and rising; urine 10 mL/h.',
         options: [

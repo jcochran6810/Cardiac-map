@@ -293,7 +293,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Interfacility moves with a PA catheter require critical care credentials and protocols: keep the balloon deflated, the transducer leveled and the PA waveform displayed. Treat ectopy or VT per ACLS and contact medical direction if the tip may have migrated.',
       'Flush all lumens, test the balloon and zero at the phlebostatic axis; record RA, RV, PA and PCWP at end-expiration, thermodilution (≥ 3 injections) or Fick saturations, and calculate CO/CI, PVR, SVR and Qp:Qs. Report damped or persistent wedge traces at once.',
       'Know normals (RA 2–6, PCWP 6–12 mmHg, CI 2.5–4.0 L/min/m²) and report trends. Keep an indwelling catheter’s balloon deflated except for brief wedge readings, watch for spontaneous wedging and ectopy, and report hemoptysis immediately as possible PA rupture.',
-      'PH (2022 ESC/ERS) is mPAP > 20 mmHg, precapillary if PCWP ≤ 15 mmHg and PVR > 2 WU. Read at end-expiration, confirm wedge by waveform ± saturation, prefer Fick when thermodilution fails (severe TR, shunts, low output), and phenotype shock with CI, PCWP and cardiac power output.',
+      'PH (2022 ESC/ERS) is mPAP > 20 mmHg, precapillary if PCWP ≤ 15 mmHg and PVR > 2 WU. Read at end-expiration, confirm wedge by waveform ± saturation, prefer Fick when thermodilution fails (severe TR, shunts, low output), and phenotype shock by CI, PCWP and power output.',
     ],
     overview: [
       'Flow-directed balloon catheter floated through RA, RV and PA into a wedge position',
@@ -1077,7 +1077,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'IABP transport requires critical care training and protocol: keep the leg straight and monitor limb perfusion, left radial pulse and alarms. In arrest, start CPR and switch to pressure trigger (internal trigger if no compressions); defibrillation is safe with the console attached.',
       'Prepare the console, helium, height-sized balloon and ECG/arterial pressure triggers. Run 1:2 strips so timing can be verified with the operator (inflate at the dicrotic notch, deflate before systole), and report blood in the helium line or loss of trigger immediately.',
       'Do hourly checks of the cannulated limb, left radial pulse, urine output and site; keep the leg straight with HOB ≤ ~30°. Give heparin as ordered, trend platelets and Hb, verify timing, and never leave the balloon static for more than ~15–30 minutes.',
-      'IABP-SHOCK II showed no mortality benefit in AMI shock with early revascularization, so routine use is not recommended, but it bridges acute MR or VSR. Size by height, exclude significant AR, dissection and severe PAD, and place the tip just distal to the left subclavian with the balloon above the renals.',
+      'IABP-SHOCK II showed no mortality benefit in AMI shock with early revascularization, so routine use is not recommended, but it bridges acute MR or VSR. Size by height, exclude significant AR, dissection and severe PAD, and keep the tip just distal to the left subclavian.',
     ],
     overview: [
       'Counterpulsation: diastolic inflation augments aortic diastolic pressure and coronary perfusion',
@@ -1889,7 +1889,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Conduction system pacing can give a narrow or RBBB-like QRS after a small spike, so a narrow complex does not exclude pacing. A sudden change to a wider, LBBB-like paced QRS can mean loss of conduction system capture, so document it for device interrogation.',
       'Set up the recording system with a live 12-lead, prepare the lumenless lead and delivery sheath, and record paced V1/V6 morphology, impedance and current of injury as the lead advances. Alert the operator to a sudden impedance drop or loss of injury current (possible septal perforation).',
       'Post-implant care matches conventional pacing: antibiotic as ordered, pocket and pneumothorax checks, wound and arm-activity teaching. Record the ordered 12-lead documenting the capture pattern, and report a new wide LBBB-like paced QRS or rising thresholds.',
-      'CSP is reasonable when substantial ventricular pacing is expected (especially LVEF 36–50%) and as a CRT alternative when CS lead placement fails (2023 HRS/APHRS/LAHRS). For LBBAP, enter the septum ~1–2 cm distal to the His and confirm LBB capture by paced RBBB morphology and a short, stable V6 RWPT.',
+      'CSP is reasonable when substantial ventricular pacing is expected (especially LVEF 36–50%) and when CS lead placement for CRT fails (2023 HRS/APHRS/LAHRS). For LBBAP, enter the septum ~1–2 cm distal to the His; confirm capture by paced RBBB morphology and a short, stable V6 RWPT.',
     ],
     overview: [
       'His bundle pacing (HBP): lead at the His bundle; most physiologic and can correct some bundle branch block',
@@ -2152,11 +2152,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Cardiac resynchronization therapy paces both ventricles (or the conduction system) to restore coordinated contraction in heart failure with a wide QRS, improving symptoms, LV function and survival. It is delivered as CRT-P (pacemaker) or CRT-D (with defibrillator).',
     levelNotes: [
-      'CRT patients have advanced heart failure with fragile hemodynamics, so support breathing, check SpO2 and transport to the implanting or heart failure center when possible.',
-      'CRT works only when the ventricles are paced nearly all the time, so rapid AF or frequent PVCs can cause loss of CRT and heart failure decompensation.',
-      'Interrogate for percent BiV pacing (goal ≥ ~98%), because AF, PVCs or LV lead dislodgement reduce delivery and can explain decompensation.',
-      'The strongest indication is LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms and NYHA II to ambulatory IV on GDMT (Class 1), with weaker benefit for non-LBBB or QRS 120–149 ms.',
-      'Cannulate the coronary sinus, map branches by venography, target a lateral or posterolateral non-scarred late-activated site, avoid phrenic stimulation, and consider LBBAP when CS anatomy fails.',
+      'CRT patients have advanced heart failure: sit them upright, give oxygen per protocol for low SpO2 or distress, assist ventilation if breathing is inadequate, and transport with early notification. Use CPR and the AED normally in arrest.',
+      'CRT works only with near-continuous biventricular pacing, so rapid AF or frequent PVCs can cause loss of CRT and decompensation. Treat pulmonary edema with CPAP and nitroglycerin per protocol, manage arrhythmias per ACLS, and report the device type.',
+      'Prepare CS delivery sheaths, subselectors, balloon venography catheter and contrast, 0.014-inch wires, the LV lead and slitters. Record LV thresholds, impedance and high-output phrenic tests, and alert the operator to hypotension, CS contrast staining or loss of LV capture during sheath removal.',
+      'These patients have little reserve: monitor SpO2, fluid and contrast load and tolerance of lying flat, giving diuretics or sedation as ordered. After implant, check the pocket and breathing, record the ordered 12-lead to confirm BiV capture, and teach daily weights and medication adherence.',
+      'Class 1: LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms, NYHA II–ambulatory IV on GDMT; weaker for non-LBBB or QRS 120–149 ms; not for QRS < 130 ms. Target a lateral/posterolateral vein, avoid phrenic capture, aim for ≥ ~98% BiV pacing, and consider LBBAP if CS fails.',
     ],
     overview: [
       'Leads in the RA, RV and LV (via a coronary sinus branch to the lateral LV wall)',
@@ -2287,11 +2287,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Transvenous lead extraction removes chronically implanted pacemaker or defibrillator leads from the veins and heart using locking stylets, powered sheaths and snares. It is essential for device infection and is performed with immediate surgical backup because of the rare but life-threatening risk of vascular tear.',
     levelNotes: [
-      'A red, swollen or draining device pocket, or fever in a device patient, may mean device infection and needs hospital evaluation rather than home antibiotics alone.',
-      'Bacteremia in a device patient may mean device endocarditis, and after extraction sudden hypotension suggests bleeding or tamponade needing rapid transport and resuscitation.',
-      'For suspected CIED infection, take ≥ 2 sets of blood cultures before antibiotics, obtain TEE and involve the device team early, because confirmed infection requires complete system removal.',
-      'Complete device and lead removal is Class I for definite CIED infection (pocket infection, CIED endocarditis or persistent bacteremia) and should not be delayed by prolonged antibiotic courses.',
-      'Extract in a hybrid OR or equipped lab with cardiac surgery immediately available, an SVC occlusion balloon ready, arterial line and TEE, because SVC/brachiocephalic tear is the most feared complication.',
+      'A red, swollen or draining device pocket, or fever in a device patient, may mean device infection needing hospital evaluation. After a lead extraction, sudden weakness, low BP or breathlessness suggests bleeding or tamponade: call for ALS and transport rapidly.',
+      'Fever or bacteremia in a device patient may mean device endocarditis, so report the device history. After extraction, hypotension or PEA suggests bleeding or tamponade: resuscitate per ACLS and protocol, pace dependent patients transcutaneously, and transport to the extracting center.',
+      'Prepare locking stylets, mechanical or laser sheaths, snares and the SVC occlusion balloon on its femoral wire, and confirm the rapid infuser and sternotomy tray are ready. Watch the arterial line continuously and announce any sudden pressure drop: it may be an SVC tear or tamponade.',
+      'For suspected CIED infection, draw ≥ 2 blood culture sets before antibiotics as ordered. Before extraction confirm crossmatched blood, arterial line and temporary pacing; afterwards monitor Hb, BP, rhythm, pocket or drain and breath sounds, escalating hypotension immediately (tamponade, hemothorax).',
+      'Complete system removal is Class I for definite CIED infection (pocket infection, CIED endocarditis or persistent bacteremia); do not delay it for prolonged antibiotics. Extract only with immediate surgical backup, arterial line, TEE and an SVC occlusion balloon ready; reimplant after negative cultures (commonly ≥ 72 h).',
     ],
     overview: [
       'Extraction = removal of a lead implanted > 1 year or requiring tools beyond simple traction',

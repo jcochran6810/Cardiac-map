@@ -2039,11 +2039,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Inhibits PDE3, raising cAMP independently of β receptors to increase contractility and dilate systemic and pulmonary vessels. Useful in low-output HF, especially with beta-blockade or pulmonary hypertension.',
     levelNotes: [
-      'On interfacility transfers, report hypotension or rhythm change immediately in inotrope patients',
-      'The long half-life means hypotension does not resolve quickly after stopping; support BP and contact medical control',
-      'Expect hypotension; most clinicians omit the bolus and reduce the dose in renal impairment',
-      'Preferred inotrope in beta-blocked patients and in RV failure with pulmonary hypertension',
-      'Used for RV support after LVAD or transplant; its long half-life complicates rapid titration',
+      'Milrinone is a hospital inotrope, but some advanced HF patients receive it at home by pump. Do not stop or adjust it, keep the line secure, and report low BP, dizziness or an irregular pulse.',
+      'On interfacility transport, keep the ordered rate and report hypotension or rhythm change immediately. Its long half-life means hypotension persists after stopping; support BP per protocol and contact medical direction.',
+      'Prepare milrinone on physician order where facility policy permits, e.g. for RV support or vasoreactivity studies. Record PA pressures, PVR and cardiac output, and report hypotension or arrhythmias to the operator.',
+      'Infuse at the ordered rate (0.125–0.75 mcg/kg/min), usually without a bolus, with lower rates in renal impairment as ordered. Monitor BP, rhythm, urine output, potassium and platelets, and use a line separate from furosemide.',
+      'Preferred inotrope with beta-blockade and in RV failure with pulmonary hypertension; omit the bolus and adjust for renal function. Its long half-life complicates titration; used for RV support after LVAD or transplant (DOREMI: no clear difference vs dobutamine).',
     ],
     mechanism: [
       'Inhibits PDE3 → ↑cAMP in myocardium and vascular smooth muscle',
@@ -2114,11 +2114,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Inhibits the Na+/K+/2Cl− cotransporter in the thick ascending limb, producing potent natriuresis. The mainstay for relieving congestion in heart failure.',
     levelNotes: [
-      'Pulmonary edema: sit the patient upright, give CPAP per protocol and transport; diuretics are not the first priority',
-      'Prehospital furosemide is often avoided — misdiagnosed pneumonia or sepsis patients are harmed; CPAP and nitrates act faster',
-      'Give an IV dose ≥ the home oral dose; check urine output and spot urine sodium within ~2–6 h and escalate if poor',
-      'Diuretics relieve congestion but do not lower mortality; pair decongestion with GDMT',
-      'Invasive hemodynamics (PCWP, RA pressure) can guide decongestion in advanced HF and before structural procedures',
+      'For suspected pulmonary edema, sit the patient upright, give oxygen, use CPAP where your protocol allows, and transport. Furosemide is not an EMT drug; bring home diuretic bottles and report missed doses.',
+      'Prehospital furosemide is often avoided because pneumonia or sepsis mimics are harmed, and CPAP and nitrates act faster. Give it only per local protocol, and report home diuretic doses to the receiving team.',
+      'Prepare IV furosemide on physician order where facility policy permits, e.g. for high filling pressures during the case. Record LVEDP or PCWP and RA pressures, and track urine output if a catheter is in place.',
+      'Give IV doses on order (in ADHF often ≥ the home oral dose), slowly at high doses. Monitor urine output, daily weights, K+, Mg2+ and creatinine; report poor response or hypotension, and keep it out of milrinone lines.',
+      'Give an IV dose ≥ the home oral dose; check urine output and spot urine sodium at ~2–6 h and escalate or add a thiazide if poor. Diuretics relieve congestion without mortality benefit; invasive filling pressures can guide decongestion in advanced HF.',
     ],
     mechanism: [
       'Blocks NKCC2 in the thick ascending limb of the loop of Henle',
@@ -2190,11 +2190,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Blocks conversion of angiotensin I to II and slows bradykinin breakdown, lowering afterload and limiting adverse remodeling. Reduces mortality in HFrEF, after MI with LV dysfunction, and in hypertension.',
     levelNotes: [
-      'ACE-inhibitor angioedema (lip or tongue swelling without hives) is an airway emergency — transport rapidly',
-      'ACEi angioedema is bradykinin-mediated; epinephrine and antihistamines often fail, so prepare for a difficult airway',
-      'Hold during AKI, hyperkalemia or hypotension and restart once stable',
-      'In HFrEF an ARNI is preferred over an ACEi; switching requires a 36-h ACEi washout',
-      'Start early after STEMI with anterior infarct, HF or LVEF ≤ 40% once hemodynamically stable',
+      'ACE-inhibitor angioedema (lip, tongue or throat swelling, often without hives) is an airway emergency, even after years on the drug. Position the patient, give oxygen, request ALS, transport rapidly and report the medication.',
+      'ACE-inhibitor angioedema is bradykinin-mediated, so epinephrine and antihistamines often fail; prepare for a difficult airway per protocol and involve medical direction early. Report home ACE-inhibitor use in hypotensive or hyperkalemic patients.',
+      'Note ACE-inhibitor use on the pre-procedure record; it can add to hypotension during sedation. Report hypotension and any facial or tongue swelling to the operator immediately.',
+      'Check BP, K+ and creatinine before giving as ordered; hold and notify per ordered parameters (e.g. SBP < 90, rising creatinine, K+ > 5.5) or if angioedema occurs. Teach that cough is common and swelling is an emergency.',
+      'Start early after STEMI with anterior infarct, HF or LVEF ≤ 40% once stable, titrating to 20–40 mg daily in HFrEF. An ARNI is preferred over an ACE inhibitor in HFrEF (36-h washout to switch); hold during AKI, hyperkalemia or hypotension.',
     ],
     mechanism: [
       'Inhibits ACE → ↓angiotensin II → vasodilation and ↓aldosterone',
@@ -2266,11 +2266,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Combines the neprilysin inhibitor sacubitril, which boosts natriuretic peptides, with the ARB valsartan. Reduced cardiovascular death and HF hospitalization compared with enalapril in HFrEF (PARADIGM-HF).',
     levelNotes: [
-      'Lip or tongue swelling may be angioedema — treat as an airway emergency',
-      'HF patients on an ARNI often run low BPs; consider medication effect when assessing hypotension',
-      'Can start in stabilized hospitalized HFrEF (PIONEER-HF); BNP rises on therapy but NT-proBNP stays reliable',
-      'First-line RAAS inhibitor in HFrEF; stop the ACE inhibitor ≥ 36 h before the first dose',
-      'Watch for hypotension around sedation and procedures; recheck renal function and K+ after contrast',
+      'Lip, tongue or throat swelling in a patient on Entresto may be angioedema; treat it as an airway emergency and transport rapidly. These patients often run low BPs; report the medication.',
+      'HF patients on an ARNI often have low baseline BPs; consider the medication effect but still treat hypotension per protocol. Angioedema is an airway emergency; report home HF medications to the receiving team.',
+      'Note ARNI use on the pre-procedure record and expect a lower baseline BP, with possible hypotension during sedation. Report hypotension or any facial swelling to the operator promptly.',
+      'Confirm no ACE inhibitor in the prior 36 h before giving the ordered dose. Check BP, K+ and creatinine and hold and notify per ordered parameters; monitor for hypotension around sedation and recheck renal function after contrast as ordered.',
+      'First-line RAAS inhibitor in HFrEF (PARADIGM-HF): start 24/26 or 49/51 mg BID and titrate to 97/103 mg BID after a 36-h ACE-inhibitor washout. Can be started in stabilized inpatients (PIONEER-HF); follow NT-proBNP, not BNP.',
     ],
     mechanism: [
       'Sacubitril (prodrug) inhibits neprilysin → ↑natriuretic peptides and bradykinin',
@@ -2344,11 +2344,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Blocks aldosterone at the mineralocorticoid receptor, reducing sodium retention, fibrosis and potassium loss. Reduced mortality in HFrEF (RALES) and is one of the four pillars of HFrEF therapy.',
     levelNotes: [
-      'An MRA plus ACEi/ARB can cause dangerous hyperkalemia — weakness, bradycardia and arrhythmias',
-      'Suspect hyperkalemia in HF or CKD patients on spironolactone with bradycardia or wide QRS; treat per protocol',
-      'Hold if K+ > 5.5 or during AKI; recheck K+ when restarting',
-      'Start in HFrEF only if eGFR > 30 and K+ < 5.0; may be considered in HFpEF (TOPCAT)',
-      'After MI with LVEF ≤ 40% plus HF or diabetes, an MRA is indicated (eplerenone, EPHESUS)',
+      'Spironolactone plus an ACE inhibitor or ARB can cause dangerous high potassium, with weakness, a slow pulse or fainting. Report the medication and any missed dialysis or vomiting, and request ALS for a slow pulse.',
+      'Suspect hyperkalemia in HF or CKD patients on spironolactone with bradycardia, peaked T waves or a wide QRS. Treat per protocol (e.g. calcium, albuterol) and contact medical direction.',
+      'Note MRA use on the pre-procedure record and check that a recent potassium result is available. Report peaked T waves, QRS widening or bradycardia on the monitor to the operator.',
+      'Check K+ and creatinine before giving as ordered; hold and notify for K+ > 5.5 (or as ordered), AKI, vomiting or diarrhea. Teach sick-day rules and avoidance of potassium supplements and salt substitutes, and report gynecomastia.',
+      'Start in HFrEF only if eGFR > 30 and K+ < 5.0, at 12.5–25 mg daily toward 25–50 mg (RALES); consider in HFpEF (TOPCAT). Indicated post-MI with LVEF ≤ 40% plus HF or diabetes (eplerenone, EPHESUS); finerenone reduced events in HFmrEF/HFpEF (FINEARTS-HF).',
     ],
     mechanism: [
       'Competitive aldosterone antagonist at mineralocorticoid receptors (kidney, heart, vessels)',
@@ -2418,11 +2418,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Blocks proximal tubule glucose and sodium reabsorption, causing glycosuria and natriuresis. Reduces HF hospitalization and cardiovascular death across the LVEF spectrum, with or without diabetes.',
     levelNotes: [
-      'SGLT2 inhibitors can cause euglycemic DKA — a sick patient with near-normal glucose may still be acidotic',
-      'Glucose may be normal in SGLT2-associated DKA; report the medication and signs such as vomiting and rapid deep breathing',
-      'Hold during acute illness or fasting and ≥ 3 days before surgery; check ketones and anion gap',
-      'Recommended in HFrEF and in HFmrEF/HFpEF; can be started in hospital once stable (EMPULSE)',
-      'Post-MI: EMPACT-MI missed its primary endpoint but reduced HF hospitalizations',
+      'SGLT2 inhibitors such as Jardiance can cause ketoacidosis with near-normal blood sugar. A sick patient with vomiting and fast, deep breathing may still be in DKA, so report the medication even if glucose is normal.',
+      'Euglycemic DKA can occur: glucose may be normal despite vomiting, Kussmaul breathing and altered mentation. Report the medication, treat per protocol and notify the receiving team.',
+      'Note SGLT2-inhibitor use and the last dose on the pre-procedure record, since fasting raises ketoacidosis risk. Report post-procedure nausea, vomiting or rapid breathing to the RN or operator.',
+      'Verify the ordered hold before procedures (≥ 3 days before surgery) and during fasting or acute illness. Monitor ketones and anion gap when unwell, volume status and renal function; teach sick-day rules and genital hygiene.',
+      'Recommended across the EF spectrum (EMPEROR-Reduced, EMPEROR-Preserved) at 10 mg daily without titration; can be started in stabilized inpatients (EMPULSE). EMPACT-MI missed its post-MI primary endpoint but reduced HF hospitalizations; expect a small early eGFR dip.',
     ],
     mechanism: [
       'Inhibits SGLT2 in the proximal tubule → glycosuria and natriuresis',
@@ -2488,11 +2488,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Inhibits hepatic cholesterol synthesis, upregulating LDL receptors and lowering LDL cholesterol. High-intensity statin therapy reduces recurrent cardiovascular events and should be started early after ACS.',
     levelNotes: [
-      'A statin on the med list is a marker of known cardiovascular risk',
-      'Statins are long-term prevention, not acute therapy; muscle pain with dark urine can signal rhabdomyolysis',
-      'Start a high-intensity statin (atorvastatin 40–80 mg) before discharge in every ACS patient without contraindication',
-      'In very-high-risk patients aim for LDL-C < 55–70 mg/dL; add ezetimibe and/or a PCSK9 inhibitor if not at goal',
-      'High-dose statin loading before PCI may reduce periprocedural MI; plaque stabilization takes months',
+      'A statin on the medication list marks known cardiovascular risk, which is useful context for chest pain. Muscle pain with dark urine may signal rhabdomyolysis; report it.',
+      'Statins are long-term prevention, not acute therapy. Report home statin use as a cardiovascular risk marker; muscle pain with dark urine can signal rhabdomyolysis.',
+      'Note statin use on the pre-procedure record; a high-dose oral load may be ordered before PCI. Statins have no acute hemodynamic or rhythm effects to watch for in the lab.',
+      'Give high-intensity doses (atorvastatin 40–80 mg) as ordered after ACS and check that the statin is on the discharge orders. Teach that muscle pain with dark urine needs urgent review, and flag interacting drugs (clarithromycin, cyclosporine).',
+      'Start a high-intensity statin before discharge in every ACS patient without contraindication; in very-high-risk patients aim for LDL-C < 55–70 mg/dL, adding ezetimibe and/or a PCSK9 inhibitor if not at goal. Pre-PCI loading may reduce periprocedural MI.',
     ],
     mechanism: [
       'Inhibits HMG-CoA reductase, the rate-limiting step of cholesterol synthesis',
@@ -2558,11 +2558,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Provides ionized calcium to stabilize the cardiac membrane in hyperkalemia and to treat calcium channel blocker toxicity and hypocalcemia. Contains about three times more elemental calcium than calcium gluconate.',
     levelNotes: [
-      'Dialysis patients and missed dialysis are hyperkalemia red flags; report bradycardia or weakness',
-      'Hyperkalemia with ECG changes or arrest: 1 g IV slowly (push in arrest) through a good IV; flush before bicarbonate',
-      'Calcium only stabilizes the membrane for minutes; shift K+ with insulin/glucose and β-agonist, then remove it',
-      'Useful for hypotension from calcium channel blocker or beta-blocker toxicity and IV diltiazem/verapamil',
-      'Correct ionized hypocalcemia after massive transfusion (citrate) or bypass to support contractility',
+      'Dialysis patients, especially after a missed session, are at risk of high potassium; report weakness, a slow pulse or fainting and request ALS. In arrest, focus on CPR and the AED; calcium is an ALS drug.',
+      'Hyperkalemia with ECG changes or arrest: 1 g IV/IO per protocol (slowly with a pulse, push in arrest) through a good IV. Flush thoroughly before bicarbonate, because the two precipitate.',
+      'Prepare calcium on physician order where facility policy permits, and never mix it with bicarbonate. Record QRS width and rhythm after dosing and report bradycardia or hypotension with rapid administration.',
+      'Give 1 g over ~2–5 min as ordered via a central or large vein, flushing before and after. Monitor ECG, ionized calcium and K+, and watch for extravasation necrosis and bradycardia with a fast push.',
+      'Calcium stabilizes the membrane for only ~30–60 min; shift K+ with insulin/glucose and β-agonist, then remove it. Also used for calcium channel blocker or beta-blocker toxicity and ionized hypocalcemia after massive transfusion or bypass.',
     ],
     mechanism: [
       'Raises extracellular Ca2+ → restores the gap between resting and threshold potential',
@@ -2631,11 +2631,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Raises serum pH and delivers a sodium load. Key uses are sodium-channel blocker toxicity (e.g. tricyclic overdose) and hyperkalemia with metabolic acidosis; routine use in cardiac arrest is not recommended.',
     levelNotes: [
-      'In arrest, ventilation and high-quality CPR treat acidosis best; bicarbonate is an ALS drug',
-      'Consider 1 mEq/kg IV for tricyclic overdose with wide QRS or suspected hyperkalemic arrest per protocol',
-      'Not routine in arrest; helps hyperkalemia mainly when metabolic acidosis is present',
-      'Wide QRS with a tall terminal R in aVR after overdose suggests sodium-channel blockade — bicarbonate narrows it',
-      'Bicarbonate is no better than saline for preventing contrast-associated kidney injury (PRESERVE)',
+      'Sodium bicarbonate is an ALS drug. In arrest, high-quality CPR and effective ventilation treat acidosis best; report suspected tricyclic or other overdoses and bring the pill bottles.',
+      'Consider 1 mEq/kg IV per protocol for tricyclic overdose with a wide QRS or suspected hyperkalemic arrest; it is not routine in arrest. Flush the line before calcium or catecholamines.',
+      'Prepare bicarbonate on physician order where facility policy permits; it inactivates catecholamines and precipitates with calcium, so use separate lines or flush. Record QRS width and blood gas results and report them.',
+      'Give 1 mEq/kg IV push or an infusion as ordered via a patent line, flushing before and after. Monitor blood gas, Na+, K+, ionized Ca2+ and QRS width, and check the IV site for extravasation.',
+      'Not routine in arrest; helps hyperkalemia mainly with metabolic acidosis. Wide QRS with a tall terminal R in aVR after overdose suggests sodium-channel blockade, which bicarbonate narrows; it is no better than saline for contrast-associated AKI (PRESERVE).',
     ],
     mechanism: [
       'Buffers H+ → CO2 + H2O (ventilation must clear the CO2)',
@@ -2703,11 +2703,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Inhibits microtubule assembly in neutrophils, damping inflammasome-driven inflammation. First-line adjunct for acute and recurrent pericarditis and, at low dose, reduces events in chronic coronary disease.',
     levelNotes: [
-      'Pericarditis pain is sharp, pleuritic and better sitting forward, but treat it as possible ACS until an ECG is done',
-      'Pericarditis gives diffuse ST elevation with PR depression; still transmit the ECG when STEMI cannot be excluded',
-      'Acute pericarditis: 0.5 mg BID (0.5 mg once daily if < 70 kg) for ~3 months with an NSAID or aspirin',
-      'Roughly halves pericarditis recurrence (COPE, ICAP); 0.5 mg daily lowers events in chronic CAD (LoDoCo2)',
-      'Routine colchicine after MI is uncertain: COLCOT was positive but CLEAR SYNERGY was neutral',
+      'Sharp chest pain that eases when sitting forward may be pericarditis, but treat it as possible ACS: give aspirin per protocol unless contraindicated, and acquire and transmit a 12-lead where protocols allow. Colchicine itself is not an EMT drug.',
+      'Pericarditis gives diffuse ST elevation with PR depression, but transmit the ECG and follow the STEMI protocol when STEMI cannot be excluded. Colchicine is outpatient therapy; report it and any recent diarrhea or muscle weakness.',
+      'Colchicine is not a lab drug; note it on the pre-procedure record. Pericarditis can follow MI or procedures, so report new positional or pleuritic chest pain after the case to the operator.',
+      'Give 0.5 mg as ordered (once or twice daily) and check renal function, CBC and interacting drugs (clarithromycin, azoles, verapamil, statins). Teach patients to report diarrhea or muscle weakness and to keep tablets away from children.',
+      'Acute pericarditis: 0.5 mg BID (once daily if < 70 kg) for ~3 months with an NSAID or aspirin, roughly halving recurrence (COPE, ICAP). 0.5 mg daily lowers events in chronic CAD (LoDoCo2); post-MI use is uncertain (COLCOT positive, CLEAR SYNERGY neutral).',
     ],
     mechanism: [
       'Binds tubulin → inhibits microtubule polymerization',

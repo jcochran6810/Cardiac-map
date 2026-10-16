@@ -39,7 +39,7 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
     framework: 'National EMS Scope of Practice Model (NHTSA 2019) · state licensure · local protocols · medical direction',
     can: [
       'Scene safety, primary and secondary assessment, vital signs',
-      'High-quality CPR, AED use, airway adjuncts and bag-valve-mask ventilation, oxygen',
+      'High-quality CPR, AED use, airway adjuncts and bag-valve-mask ventilation, oxygen, CPAP per protocol',
       'Aspirin for suspected acute coronary syndrome, per protocol',
       "Assist with the patient's own prescribed nitroglycerin, per protocol and medical direction",
       'Epinephrine auto-injector (anaphylaxis), naloxone, oral glucose, per protocol',
@@ -64,7 +64,7 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
       'Cardiac monitoring, rhythm and 12-lead ECG interpretation, STEMI recognition and activation',
       'Manual defibrillation, synchronised cardioversion and transcutaneous pacing',
       'IV/IO access and ACLS medications per protocol (e.g. epinephrine, amiodarone, lidocaine, adenosine, atropine)',
-      'Advanced airway management, CPAP, needle decompression, per protocol',
+      'Advanced airway management, needle decompression, per protocol',
       'Interfacility transport monitoring within protocol and medical direction',
     ],
     mustNot: [

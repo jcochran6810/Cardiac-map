@@ -396,11 +396,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'Heart failure in which the left ventricle pumps weakly, with an ejection fraction of 40% or less. Four medication classes used together substantially reduce death and hospitalization, and devices add further benefit in selected patients.',
     levelNotes: [
-      'In acute pulmonary edema, sit the patient upright, support breathing with CPAP if available, and do not give IV fluids',
-      'Use CPAP and nitroglycerin for hypertensive pulmonary edema, but recognize hypotension with cool skin as cardiogenic shock, where nitrates are harmful',
-      'Decongest with adequately dosed IV loop diuretics, use NIPPV for respiratory failure, and continue or start GDMT before discharge unless in shock',
-      'Start all four GDMT pillars early and uptitrate rapidly, then reassess LVEF after ≥ 3 months for ICD and CRT eligibility',
-      'Device nuance: CRT for LBBB with QRS ≥ 150 ms, TEER for severe secondary MR meeting COAPT-like criteria, and timely LVAD or transplant referral',
+      'Acute pulmonary edema (severe breathlessness, crackles, frothy sputum): sit upright, give oxygen if SpO2 is low, use CPAP if your protocol allows, and request ALS. Low BP with cool, clammy skin is shock: do not assist with nitroglycerin.',
+      'Hypertensive pulmonary edema: CPAP plus nitroglycerin per protocol. Hypotension with cool skin means cardiogenic shock: withhold nitrates, avoid fluid boluses into wet lungs and contact medical direction for vasopressor support; LVAD patients may lack a palpable pulse.',
+      'HFrEF patients come for right heart cath, ischemic evaluation or device implants: zero and level transducers, record RA, PA, PCWP and thermodilution or Fick output accurately, and remember they may not tolerate lying flat. Alert the operator to hypotension, desaturation or VT.',
+      'Before the procedure verify potassium, creatinine, weight and which home medications were held per orders, and assess orthopnea for positioning. Track intake/output after contrast, give diuretics as ordered, and escalate hypoxemia, hypotension or arrhythmia.',
+      'Start all four GDMT pillars early and uptitrate every 1–2 weeks; reassess LVEF after ≥ 3 months for ICD (LVEF ≤ 35%, NYHA II–III) and CRT (LBBB, QRS ≥ 150 ms). Consider TEER for COAPT-like secondary MR; refer stage D for LVAD or transplant.',
     ],
     overview: [
       'HF with LVEF ≤ 40% (2022 AHA/ACC/HFSA)',
@@ -457,9 +457,9 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Sit upright, monitor SpO2 and ECG; oxygen if hypoxemic',
-      'CPAP for moderate-to-severe respiratory distress if alert and BP adequate',
-      'Nitroglycerin per protocol when hypertensive; higher-dose nitrates for sympathetic crashing acute pulmonary edema',
-      'No IV fluid boluses for pulmonary edema',
+      'CPAP per protocol for moderate-to-severe respiratory distress if alert and BP adequate',
+      'ALS: Nitroglycerin per protocol when hypertensive; higher-dose nitrates for sympathetic crashing acute pulmonary edema',
+      'ALS: No IV fluid boluses for pulmonary edema',
       'Recognize shock (SBP < 90 mmHg, cool, confused): nitrates and CPAP may worsen hypotension',
       'Note ICD or LVAD; LVAD patients may have no palpable pulse and unreliable automated BP',
     ],
@@ -523,11 +523,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'Heart failure in which the ejection fraction is 50% or higher but the ventricle is stiff, so filling pressures rise and cause congestion and breathlessness. It is common in older adults with hypertension, obesity, diabetes and atrial fibrillation.',
     levelNotes: [
-      'Older patients with high blood pressure and sudden breathlessness often have HFpEF flash pulmonary edema: sit upright, apply CPAP if trained, and avoid fluids',
-      'Hypertensive acute pulmonary edema responds rapidly to CPAP plus nitroglycerin; afterload reduction works faster than diuretics in the field',
-      'A normal EF does not exclude HF: control BP and heart rate, decongest, and treat triggers such as AF, ischemia, hypertension and infection',
-      'Confirm elevated filling pressures (natriuretic peptides, echo, exercise testing), screen for mimics such as ATTR amyloidosis, and start an SGLT2 inhibitor',
-      'Invasive exercise hemodynamics (PCWP ≥ 25 mmHg with exercise) confirm HFpEF when noninvasive testing is equivocal; interatrial shunt devices remain investigational',
+      'An older patient with high blood pressure and sudden severe breathlessness often has flash pulmonary edema: sit upright, give oxygen if SpO2 is low, use CPAP if your protocol allows, and request ALS early. Acquire and transmit a 12-lead where allowed.',
+      'Hypertensive flash pulmonary edema responds faster to CPAP and nitroglycerin (higher doses where protocols allow) than to diuretics; avoid fluids. Look for triggers on the 12-lead, such as AF with rapid ventricular response or ischemia, and treat unstable tachyarrhythmias per ACLS.',
+      'HFpEF is often confirmed in the lab: zero at the phlebostatic axis, record end-expiratory PCWP with RA, PA and cardiac output, and for exercise studies set up the ergometer and record pressures at each stage. Report desaturation or hypotension.',
+      'A normal EF does not mean a normal heart: these patients are preload-sensitive, so monitor BP closely after nitrates or diuretics given on order and report hypotension or falling urine output. Teach daily weights, BP control and sodium restriction.',
+      'Confirm elevated filling pressures (H2FPEF/HFA-PEFF, natriuretic peptides, diastolic stress echo or exercise PCWP ≥ 25 mmHg), screen for ATTR amyloidosis and other mimics, and start an SGLT2 inhibitor; consider MRA/ARNI toward the lower EF range, finerenone, and GLP-1 therapy in obesity.',
     ],
     overview: [
       'HF symptoms and signs with LVEF ≥ 50% plus evidence of elevated LV filling pressures',
@@ -581,10 +581,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Upright position, cardiac monitor; oxygen if hypoxemic',
-      'CPAP for respiratory distress',
-      'Nitroglycerin (repeated or higher dose per protocol) for hypertensive pulmonary edema',
-      'Avoid IV fluids; in flash edema afterload reduction acts faster than diuretics',
-      '12-lead ECG to identify AF with rapid ventricular response or ischemic triggers',
+      'CPAP per protocol for respiratory distress',
+      'ALS: Nitroglycerin (repeated or higher dose per protocol) for hypertensive pulmonary edema',
+      'ALS: Avoid IV fluids; in flash edema afterload reduction acts faster than diuretics',
+      'Acquire and transmit a 12-lead ECG per protocol',
+      'ALS: Interpret the 12-lead for AF with rapid ventricular response or ischemic triggers',
     ],
     hospitalCare: [
       'NIPPV and IV nitrates for hypertensive acute pulmonary edema',
@@ -640,11 +641,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A state in which the heart cannot pump enough blood to meet the body\'s needs, causing low blood pressure and organ hypoperfusion. It is most often caused by a large heart attack or advanced heart failure and carries high mortality without rapid, coordinated treatment.',
     levelNotes: [
-      'Recognize shock after chest pain (low BP, cold clammy skin, confusion), get a 12-lead early and transport rapidly to a PCI-capable center',
-      'Avoid nitrates, morphine and beta-blockers in suspected cardiogenic shock; support BP with norepinephrine or push-dose pressor per protocol and pre-alert the cath lab',
-      'Stage with SCAI A–E, use norepinephrine as first-line vasopressor, add an inotrope for low output, and activate the shock team for revascularization and MCS decisions',
-      'Phenotype with invasive hemodynamics (CI, CPO, PCWP, RAP, PAPi) to define LV, RV or biventricular failure and guide escalation or weaning',
-      'Revascularize the culprit only (CULPRIT-SHOCK) and consider a microaxial flow pump in selected STEMI shock (DanGer Shock); IABP and routine VA-ECMO did not lower mortality',
+      'Chest pain or breathlessness with low BP, cold clammy skin and confusion suggests cardiogenic shock: give oxygen if SpO2 is low, request ALS, acquire and transmit a 12-lead where allowed, and transport rapidly to a PCI center. Do not assist with nitroglycerin.',
+      'Withhold nitrates, morphine and beta-blockers; give small fluid boluses only with clear lungs (e.g., RV infarction) and start a vasopressor such as norepinephrine or push-dose epinephrine per protocol. Interpret and transmit the 12-lead, pre-alert the PCI center and keep pads on.',
+      'Expect a shock-team case: prepare for emergent angiography and PCI plus PA catheter, IABP, microaxial flow pump or VA-ECMO setup, record cardiac output, CPO, PCWP and RA pressure, and keep pads on. Report pressure drops or arrhythmias immediately.',
+      'Titrate vasopressors and inotropes as ordered to the prescribed MAP target (often ~65 mmHg), trend lactate, urine output and mentation, and check MCS access sites for bleeding and distal limb perfusion. Escalate rising pressor needs or new arrhythmia immediately.',
+      'Stage with SCAI A–E and phenotype with invasive hemodynamics (CI, CPO < 0.6 W, PCWP, RAP, PAPi); norepinephrine first, inotrope for low output. Revascularize the culprit only (CULPRIT-SHOCK); a microaxial flow pump helped selected STEMI-CS (DanGer Shock), routine IABP and VA-ECMO did not.',
     ],
     overview: [
       'Primary cardiac dysfunction causing hypotension and end-organ hypoperfusion',
@@ -697,11 +698,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Recognize shock: SBP < 90 mmHg, cool/clammy skin, altered mentation with chest pain or dyspnea',
-      'Early 12-lead ECG; transmit and transport to a PCI center (ideally with MCS capability)',
-      'Small fluid boluses only if lungs are clear (e.g. RV infarction); avoid in pulmonary edema',
-      'Vasopressor per protocol (norepinephrine infusion or push-dose epinephrine)',
+      'Early 12-lead ECG (acquire and transmit per protocol); transport to a PCI center (ideally with MCS capability)',
+      'ALS: Small IV fluid boluses only if lungs are clear (e.g. RV infarction); avoid in pulmonary edema',
+      'ALS: Vasopressor per protocol (norepinephrine infusion or push-dose epinephrine)',
       'Avoid nitroglycerin, morphine and beta-blockers',
-      'Pads on: be ready for VT/VF and cardiac arrest',
+      'Be ready for VT/VF and cardiac arrest: defibrillator or AED at hand, CPR immediately if pulseless',
     ],
     hospitalCare: [
       'Activate a multidisciplinary shock team early',
@@ -761,11 +762,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'Narrowing of the aortic valve that obstructs blood flow out of the left ventricle, most often from age-related calcification or a bicuspid valve. Once chest pain, fainting or heart failure appear, outcomes are poor unless the valve is replaced.',
     levelNotes: [
-      'An older patient with exertional chest pain, fainting or breathlessness and a loud murmur may have severe AS: keep them at rest and avoid nitroglycerin unless directed',
-      'Severe AS is preload- and afterload-dependent: nitrates, sedatives and hypovolemia can cause sudden collapse, so treat hypotension with careful fluids and vasopressors',
-      'Avoid vasodilators and tachycardia, maintain sinus rhythm, use phenylephrine or norepinephrine for hypotension, and refer decompensated severe AS for urgent valve intervention',
-      'Confirm severity (Vmax ≥ 4 m/s, mean gradient ≥ 40 mmHg, AVA ≤ 1.0 cm²), resolve discordant low-gradient cases with DSE or CT calcium score, and refer symptomatic patients for AVR',
-      'Choose TAVR vs SAVR by age, life expectancy, anatomy and surgical risk, and anticipate conduction injury, paravalvular leak, coronary obstruction and annular rupture',
+      'An older patient with exertional fainting, chest pain or breathlessness and a known “tight” heart valve may have severe AS: keep them at rest and do not assist with nitroglycerin unless medical direction approves, because sudden severe hypotension can follow.',
+      'Severe AS is preload-dependent: nitrates, sedatives, opioids and volume loss can cause collapse, so minimize or withhold nitroglycerin, treat hypotension with careful fluids and vasopressor per protocol, and cardiovert unstable tachyarrhythmias. Expect LVH with strain and conduction block on the 12-lead.',
+      'Record simultaneous LV and aortic pressures for the mean gradient, with cardiac output for the Gorlin valve area; for TAVR or BAV, prepare the rapid-pacing setup, valve system and large-bore access supplies. Report hypotension or new heart block to the operator at once.',
+      'Severe AS tolerates sedation, vasodilators and dehydration poorly: give sedation only on order with the practitioner present, monitor BP closely and report hypotension early. After TAVR, monitor for new heart block, access-site bleeding, limb ischemia and neurologic change.',
+      'Confirm severity (Vmax ≥ 4 m/s, mean gradient ≥ 40 mmHg, AVA ≤ 1.0 cm²), resolve low-gradient discordance with DSE or CT calcium score, and refer symptomatic severe AS for AVR. Choose TAVR vs SAVR by age, life expectancy, anatomy and risk; anticipate conduction injury, PVL and coronary obstruction.',
     ],
     overview: [
       'Narrowing of the aortic valve orifice causing fixed LV outflow obstruction',
@@ -821,9 +822,9 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Suspect severe AS in an older patient with exertional syncope, angina or dyspnea and a loud systolic murmur',
-      'Avoid nitroglycerin or use it only with great caution per protocol',
-      'Treat hypotension with fluid if lungs are clear and vasopressor per protocol',
-      'Avoid tachycardia; cardiovert unstable tachyarrhythmias',
+      'Avoid nitroglycerin (including assisting with the patient’s own) unless protocol or medical direction allows, and then only with great caution',
+      'ALS: Treat hypotension with IV fluid if lungs are clear and vasopressor per protocol',
+      'ALS: Avoid tachycardia; synchronized cardioversion for unstable tachyarrhythmias',
       'Keep the patient at rest and transport to a center with structural heart capability when feasible',
     ],
     hospitalCare: [
@@ -885,11 +886,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'Leakage of blood backward through the mitral valve into the left atrium during each heartbeat. It can develop slowly from valve or ventricular disease, or suddenly (for example from papillary muscle rupture after a heart attack), when it causes pulmonary edema and shock.',
     levelNotes: [
-      'Sudden severe breathlessness days after a heart attack may be acute MR from papillary muscle rupture: sit upright, support breathing and transport urgently',
-      'Acute severe MR causes flash pulmonary edema and shock with a soft or absent murmur; use CPAP and afterload reduction only if BP allows',
-      'Distinguish acute from chronic MR, stabilize acute severe MR with afterload reduction, IABP or other MCS, and call cardiac surgery early',
-      'Classify MR as primary or secondary, quantify severity (EROA ≥ 0.40 cm², regurgitant volume ≥ 60 mL), and time intervention by symptoms, LVEF ≤ 60% or LVESD ≥ 40 mm',
-      'Select repair vs replacement vs TEER from TEE anatomy, and apply COAPT-like criteria to secondary MR only after GDMT and CRT are optimized',
+      'Sudden severe breathlessness or collapse a few days after a heart attack may be a ruptured heart valve: sit upright, give oxygen if SpO2 is low, use CPAP if your protocol allows and BP is adequate, request ALS and transport urgently to a cardiac surgery center.',
+      'Acute severe MR causes flash pulmonary edema and shock, often with a soft or absent murmur; use CPAP and nitroglycerin per protocol only if BP allows, avoid fluid boluses, and look for recent inferior or posterior MI on the 12-lead. Pre-alert a surgical center.',
+      'Large v waves on the PCWP or LA tracing suggest significant MR: record and report them. For TEER, prepare the transseptal kit, steerable guide and clip delivery system, and record LA pressure and v-wave height before and after each clip.',
+      'In acute MR, titrate nitroprusside or nitroglycerin as ordered with arterial-line monitoring and report hypotension, worsening hypoxemia or a new murmur promptly. After TEER, monitor the femoral venous site, rhythm and signs of tamponade or a sudden return of breathlessness.',
+      'Separate primary from secondary MR and quantify severity (EROA ≥ 0.40 cm², regurgitant volume ≥ 60 mL); operate on severe primary MR when symptomatic or LVEF ≤ 60% / LVESD ≥ 40 mm, favoring repair. For secondary MR, optimize GDMT/CRT, then consider TEER if COAPT-like criteria are met.',
     ],
     overview: [
       'Systolic backflow from LV to LA',
@@ -943,9 +944,9 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Suspect acute MR with sudden pulmonary edema days after MI or in endocarditis',
-      'Upright position, CPAP, oxygen if hypoxemic',
-      'Nitroglycerin per protocol if BP is adequate; withhold if hypotensive',
-      'No fluid boluses in pulmonary edema',
+      'Upright position, oxygen if hypoxemic, CPAP per protocol',
+      'ALS: Nitroglycerin per protocol if BP is adequate; withhold if hypotensive',
+      'ALS: No IV fluid boluses in pulmonary edema',
       'Rapid transport to a center with cardiac surgery',
     ],
     hospitalCare: [
@@ -1003,11 +1004,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'Narrowing of the mitral valve that obstructs blood flow from the left atrium into the left ventricle, usually from rheumatic heart disease. Pressure backs up into the lungs, and fast heart rates, atrial fibrillation or pregnancy can trigger sudden pulmonary edema.',
     levelNotes: [
-      'A young adult (often from a region where rheumatic fever is common) or pregnant woman with sudden breathlessness, coughing blood or an irregular pulse may have MS: sit upright and transport',
-      'Tachycardia is the enemy in MS: AF with rapid ventricular response can cause abrupt pulmonary edema, so slow the rate and avoid fluid loading',
-      'Control heart rate to lengthen diastolic filling, diurese cautiously, anticoagulate AF with warfarin, and cardiovert if unstable',
-      'Grade severity by planimetry or pressure half-time (severe MVA ≤ 1.5 cm²), assess Wilkins score and MR, and refer symptomatic severe rheumatic MS for PMBC',
-      'Before PMBC, exclude LA/LAA thrombus on TEE and ≥ moderate MR; use transseptal access and stepwise balloon inflation while monitoring gradient and MR',
+      'A young adult (often raised where rheumatic fever is common) or a pregnant woman with sudden breathlessness, coughing blood or an irregular pulse may have MS: sit upright, give oxygen if SpO2 is low, use CPAP per protocol and transport. Protect the airway in massive hemoptysis.',
+      'Tachycardia is the enemy in MS: AF with rapid ventricular response can trigger abrupt pulmonary edema, so identify it on the monitor, avoid fluid loading, cardiovert if unstable and use rate control per protocol or medical direction.',
+      'Record simultaneous PCWP (or LA) and LV pressures for the mean mitral gradient, with heart rate and cardiac output for the Gorlin valve area. For balloon commissurotomy, prepare the transseptal kit and balloon, and report hypotension or rising LA pressure immediately.',
+      'Before balloon commissurotomy, confirm anticoagulation status (INR) and that TEE has excluded LA appendage thrombus; give rate-control drugs and diuretics as ordered. Report rising heart rate, hemoptysis or neurologic change, and monitor afterward for tamponade and new MR symptoms.',
+      'Grade severity (planimetry, pressure half-time; severe MVA ≤ 1.5 cm²), assess Wilkins score and MR, and offer PMBC for symptomatic severe rheumatic MS once TEE excludes LA thrombus and ≥ moderate MR. Use warfarin, not a DOAC, for AF in rheumatic MS (INVICTUS).',
     ],
     overview: [
       'Obstruction to LV inflow at the mitral valve',
@@ -1061,10 +1062,10 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
       'Secondary prophylaxis against rheumatic fever (penicillin) per guidelines',
     ],
     fieldCare: [
-      'Sit upright; oxygen if hypoxemic; CPAP if in respiratory distress',
-      'Obtain a 12-lead ECG: AF with rapid ventricular response is a common trigger',
-      'Avoid fluid boluses unless clearly hypovolemic',
-      'Synchronized cardioversion for unstable tachyarrhythmia',
+      'Sit upright; oxygen if hypoxemic; CPAP per protocol if in respiratory distress',
+      'Acquire and transmit a 12-lead ECG per protocol',
+      'ALS: Avoid IV fluid boluses unless clearly hypovolemic',
+      'ALS: AF with rapid ventricular response is a common trigger; synchronized cardioversion for unstable tachyarrhythmia',
       'Massive hemoptysis: protect the airway and position bleeding side down if known',
     ],
     hospitalCare: [
@@ -1122,11 +1123,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'Inflammation of the sac around the heart, usually viral or idiopathic, causing sharp chest pain that improves when sitting forward. It is treated with anti-inflammatory drugs plus colchicine and must be distinguished from a heart attack on the ECG.',
     levelNotes: [
-      'Sharp chest pain worse lying flat and better sitting forward suggests pericarditis, but treat all chest pain as possible ACS and obtain a 12-lead',
-      'Distinguish diffuse concave ST elevation with PR depression (and PR elevation/ST depression in aVR) from territorial STEMI with reciprocal change; transmit when in doubt',
-      'Diagnose with ≥ 2 of 4 criteria, check troponin, CRP and echo, admit high-risk features, and treat with NSAID or aspirin plus colchicine',
-      'Prevent recurrence with colchicine for ~3 months, avoid first-line corticosteroids, and use IL-1 blockade for colchicine-resistant, steroid-dependent recurrence',
-      'Recognize post-procedure pericarditis and effusion after PCI, ablation or device implant, and be ready for echo-guided pericardiocentesis if tamponade develops',
+      'Sharp chest pain that is worse lying flat and eased by sitting forward suggests pericarditis, but treat all chest pain as possible ACS: aspirin per protocol, acquire and transmit a 12-lead where allowed, and watch for low BP with distended neck veins (tamponade).',
+      'Distinguish diffuse concave ST elevation with PR depression (PR elevation and ST depression in aVR) from territorial STEMI with reciprocal change; when in doubt, transmit and follow the STEMI protocol. Watch for tamponade: hypotension, JVD, tachycardia, electrical alternans.',
+      'Pericarditis patients may come to the lab to exclude STEMI or for pericardiocentesis: prepare the pericardiocentesis tray, drain and pressure transducer, and record pericardial and RA pressures before and after drainage. Label fluid samples and report hypotension or arrhythmia.',
+      'Assess pain pattern, temperature and vital signs; give NSAID or aspirin with gastroprotection and colchicine as ordered, and teach completion of the full colchicine course and activity restriction. Report hypotension, rising heart rate, JVD or pulsus paradoxus (possible tamponade).',
+      'Diagnose with ≥ 2 of 4 criteria, check troponin, CRP and echo, and admit high-risk features (fever > 38 °C, large effusion, tamponade, myopericarditis, anticoagulation). Treat with NSAID or aspirin plus colchicine (~3 months), avoid first-line steroids, and reserve IL-1 blockade for colchicine-resistant, steroid-dependent recurrence.',
     ],
     overview: [
       'Inflammation of the pericardium; ~5% of ED chest pain not due to MI',
@@ -1178,11 +1179,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
       'IL-1 antagonists (anakinra, rilonacept) for recurrent pericarditis that is colchicine-resistant and steroid-dependent',
     ],
     fieldCare: [
-      'Treat as possible ACS until proven otherwise: 12-lead ECG and transmit if ST elevation',
+      'Treat as possible ACS until proven otherwise: acquire and transmit a 12-lead ECG per protocol',
       'Position of comfort (often sitting forward)',
       'Assess for tamponade: hypotension, JVD, tachycardia, muffled heart sounds',
       'Aspirin per chest pain protocol is reasonable unless contraindicated',
-      'Monitor for arrhythmias',
+      'ALS: Monitor for arrhythmias; differentiate pericarditis from STEMI on the 12-lead and follow the STEMI protocol when in doubt',
     ],
     hospitalCare: [
       'Troponin, CRP, CBC, renal function and echo',
@@ -1237,11 +1238,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A life-threatening compression of the heart by fluid or blood in the pericardial sac, which prevents the chambers from filling and causes obstructive shock. Treatment is urgent drainage of the pericardium.',
     levelNotes: [
-      'Low blood pressure, distended neck veins and fast heart rate after chest trauma, cancer, a recent heart procedure or missed dialysis can be tamponade: rapid transport with pre-alert',
-      'Look for Beck\'s triad, pulsus paradoxus and electrical alternans; give a fluid bolus as a bridge and avoid positive-pressure ventilation if possible',
-      'Confirm with POCUS (RA/RV diastolic collapse, plethoric IVC) and arrange urgent pericardiocentesis; avoid intubation, diuretics and vasodilators before drainage',
-      'Tamponade is a clinical and hemodynamic diagnosis: integrate echo signs with physiology, drain urgently and determine the cause from fluid analysis',
-      'Recognize procedural tamponade (perforation during PCI, ablation, TAVR or lead placement) and perform echo-guided subxiphoid or apical drainage while reversing anticoagulation',
+      'Low BP, distended neck veins and a fast pulse after chest trauma, cancer, a recent heart procedure or missed dialysis may be tamponade: request ALS and transport rapidly with early notification. If ventilation is needed, use gentle, low-volume breaths.',
+      'Look for Beck’s triad, pulsus paradoxus and low voltage or electrical alternans; give a fluid bolus per protocol as a bridge and avoid positive-pressure ventilation where possible. Consider tamponade in PEA; pericardial decompression only if protocol and medical direction authorize it.',
+      'Procedural perforation (PCI, ablation, TAVR, lead placement) shows as falling BP, rising RA pressure and reduced cardiac border motion on fluoroscopy: alert the operator at once and open the pericardiocentesis tray and drainage set, with protamine ready for use on order.',
+      'Recognize hypotension, tachycardia, rising RA pressure or restlessness during or after a procedure and escalate immediately; give fluids and anticoagulant reversal (e.g., protamine) as ordered. After drainage, monitor drain output, vital signs and signs of reaccumulation.',
+      'Tamponade is a clinical and hemodynamic diagnosis supported by echo (RA/RV collapse, plethoric IVC, respiratory inflow variation): drain urgently, preferring surgery for type A dissection, free wall rupture and trauma. For procedural perforation, drain under echo guidance, reverse anticoagulation and keep surgical backup.',
     ],
     overview: [
       'Pericardial fluid raises intrapericardial pressure, compressing chambers and impairing filling',
@@ -1296,9 +1297,9 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     fieldCare: [
       'Recognize hypotension, tachycardia, JVD and muffled heart sounds after trauma or in high-risk patients',
       'Rapid transport with early notification of the receiving facility',
-      'IV fluid bolus for hypotension per protocol',
+      'ALS: IV fluid bolus for hypotension per protocol',
       'Avoid positive-pressure ventilation if possible; if BVM is needed, use gentle, low-volume breaths',
-      'Traumatic arrest with suspected tamponade: pericardial decompression or resuscitative thoracotomy only where within scope and protocol',
+      'ALS: Traumatic arrest with suspected tamponade: needle pericardial decompression only where protocol and medical direction authorize it',
     ],
     hospitalCare: [
       'Urgent echo-guided pericardiocentesis or surgical drainage',
@@ -1356,11 +1357,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A hole in the wall between the two upper chambers that lets blood shunt from the left atrium to the right, overloading the right heart. Many are found in adulthood and can be closed with a catheter device or surgery.',
     levelNotes: [
-      'Most ASD patients are stable; focus on breathlessness, palpitations and stroke signs, because an ASD can let clots cross to the brain',
-      'Adults with unrepaired ASD often present with AF/flutter or right heart failure; treat arrhythmias per ACLS and keep IV lines free of air (paradoxical air embolism)',
-      'Use air filters on IV lines, consider paradoxical embolism in stroke, and with pulmonary hypertension avoid hypoxia and acidosis that increase right-to-left shunting',
-      'Recognize wide fixed split S2 and RV volume overload, define the defect type and Qp:Qs, and close when Qp:Qs ≥ 1.5 with RV enlargement and PVR < 1/3 systemic',
-      'Device closure suits secundum defects with adequate rims; primum, sinus venosus and coronary sinus defects need surgery, and careful TEE/ICE sizing reduces erosion risk',
+      'Most ASD patients are stable; watch for breathlessness, palpitations or stroke signs, because an ASD can let clots cross to the brain. Do a stroke assessment, note last-known-well time and transport to a stroke center per protocol.',
+      'Adults with unrepaired ASD often develop atrial flutter, AF or right heart failure: treat unstable arrhythmias per ACLS protocol and keep IV lines free of air (paradoxical air embolism). A low baseline SpO2 can be normal in cyanotic patients.',
+      'For ASD closure, prepare the sizing balloon, delivery sheath and occluder, support TEE or ICE imaging, and draw the saturation run (SVC, IVC, RA, RV, PA, arterial) for Qp:Qs. De-air every line meticulously and report arrhythmia or device instability.',
+      'Use air filters and meticulous de-airing on IV lines; after closure monitor rhythm and the access site and give antiplatelet therapy as ordered. Teach patients to report chest pain, fainting or breathlessness after device closure (possible erosion or effusion).',
+      'Close for RA/RV enlargement with Qp:Qs ≥ 1.5, PASP < 50% and PVR < 1/3 systemic; never close an Eisenmenger ASD. Device closure suits secundum defects with adequate rims (careful TEE/ICE sizing limits erosion); primum, sinus venosus and coronary sinus defects need surgery.',
     ],
     overview: [
       'An opening in the interatrial septum allowing an atrial-level shunt',
@@ -1417,11 +1418,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
       'Endocarditis prophylaxis for 6 months after closure with prosthetic material',
     ],
     fieldCare: [
-      'Standard assessment; 12-lead ECG for atrial arrhythmias',
+      'Standard assessment; acquire and transmit a 12-lead ECG per protocol',
       'Stroke assessment: consider paradoxical embolism',
-      'Keep IV lines free of air',
+      'ALS: Keep IV lines free of air (paradoxical air embolism)',
       'Oxygen for hypoxemia; cyanotic patients may have a low baseline SpO2',
-      'Treat unstable arrhythmias per ACLS',
+      'ALS: Treat unstable arrhythmias per ACLS',
     ],
     hospitalCare: [
       'Air filters on IV lines in known intracardiac shunt',
@@ -1478,11 +1479,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A hole in the wall between the two ventricles that lets blood shunt from the left ventricle to the right, either present from birth or, rarely, from rupture after a heart attack. Small defects are often harmless, while large ones can cause heart failure and pulmonary hypertension.',
     levelNotes: [
-      'A new loud murmur with shock days after a heart attack can be a septal rupture: rapid transport to a cardiac surgery center is life-saving',
-      'Post-MI ventricular septal rupture presents with sudden hypotension and pulmonary edema; avoid nitrates if hypotensive and pre-alert for surgery and MCS',
-      'Confirm septal rupture with echo color Doppler or an O2 saturation step-up from RA to PA, reduce afterload with IABP or MCS, and arrange emergency surgery',
-      'Classify congenital VSD by location and size, follow outlet and perimembranous defects for AR, and close if Qp:Qs ≥ 1.5 with LV volume overload and acceptable PVR',
-      'Perimembranous defects lie next to the His bundle and aortic valve, so device closure risks heart block and AR; post-MI rupture closure is usually a bridge or salvage option',
+      'Sudden shock and severe breathlessness a few days after a heart attack can be a ruptured septum: give oxygen, request ALS and transport rapidly to a center with cardiac surgery. Adults with known congenital heart disease may have a low baseline SpO2.',
+      'Post-MI septal rupture presents with a new harsh murmur, hypotension and pulmonary edema; avoid nitrates if hypotensive, use CPAP only if BP allows, and pre-alert a center with surgery and MCS. Look for anterior or inferior infarction and conduction block on the 12-lead.',
+      'On right heart catheterization, an oxygen saturation step-up from RA to RV or PA identifies a ventricular-level shunt: draw and run samples promptly for Qp:Qs. In post-MI rupture, have IABP or microaxial pump consoles ready; during device closure, watch for heart block.',
+      'In post-MI septal rupture, titrate vasoactive and afterload-reducing infusions as ordered, monitor MAP, urine output, MCS function and limb perfusion, and escalate deterioration immediately. After surgical or device closure, monitor for heart block and a recurrent murmur.',
+      'Confirm post-MI rupture by color Doppler or saturation step-up, unload with IABP or MCS and arrange surgical repair (percutaneous closure as bridge or salvage). Close congenital VSD if Qp:Qs ≥ 1.5 with LV overload and acceptable PVR; perimembranous device closure risks heart block and AR.',
     ],
     overview: [
       'Opening in the interventricular septum; the most common congenital heart defect at birth',
@@ -1534,8 +1535,8 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Suspect septal rupture with a new murmur and shock after recent MI',
-      'CPAP for pulmonary edema if BP allows',
-      'Avoid nitrates if hypotensive',
+      'CPAP per protocol for pulmonary edema if BP allows',
+      'Avoid nitrates (including assisting with the patient’s own nitroglycerin) if hypotensive',
       'Transport to a center with cardiac surgery and MCS capability',
       'Known congenital VSD: standard care, noting baseline SpO2 in cyanotic patients',
     ],
@@ -1594,11 +1595,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A flap-like opening between the upper chambers that normally seals after birth but stays open in about one in four adults. It is usually harmless but can let clots or gas bubbles pass to the brain, causing stroke in selected patients.',
     levelNotes: [
-      'A PFO causes no symptoms by itself: recognize stroke signs in young patients and transport to a stroke center, and suspect decompression illness in divers',
-      'In young stroke or diving-related neurologic symptoms, think paradoxical embolism; prevent IV air entry and route divers toward hyperbaric capability when indicated',
-      'Treat acute stroke per protocol; in young cryptogenic stroke ensure a bubble study and venous imaging for a DVT source when paradoxical embolism is suspected',
-      'Use the RoPE score and PASCAL classification with neurology to identify PFO-associated stroke (age 18–60) in which closure reduces recurrence',
-      'Assess tunnel length, atrial septal aneurysm and shunt size on TEE/ICE, and counsel on post-closure AF (usually transient in the first weeks)',
+      'A PFO causes no symptoms by itself: recognize stroke signs (stroke scale, glucose, last-known-well time) and transport to a stroke center per protocol. For a diver with neurologic symptoms, give high-flow oxygen and notify early about hyperbaric treatment.',
+      'In young stroke or neurologic symptoms after diving, think paradoxical embolism: follow your stroke protocol, keep IV lines free of air, give high-flow oxygen and contact medical direction about a hyperbaric-capable destination.',
+      'For PFO closure, prepare the femoral venous sheath, delivery system and occluder, support TEE or ICE imaging, and prepare agitated saline for bubble studies as directed. De-air every flush and report arrhythmia (especially AF) or a new effusion.',
+      'Before closure, verify antiplatelet status and allergies (including nickel), and de-air IV lines meticulously. Afterward, monitor the femoral site and rhythm, give antiplatelet therapy as ordered, and teach patients to report palpitations, chest pain or neurologic symptoms.',
+      'With neurology, attribute stroke to a PFO using the RoPE score and PASCAL classification; closure reduces recurrence in non-lacunar embolic stroke aged 18–60 with high-risk features (large shunt, atrial septal aneurysm). Assess tunnel and septal anatomy on TEE/ICE and counsel on early post-closure AF.',
     ],
     overview: [
       'A persistent flap opening between septum primum and septum secundum at the fossa ovalis',
@@ -1647,7 +1648,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     fieldCare: [
       'Stroke scale, glucose and last-known-well time; transport to a stroke center',
       'Divers with neurologic symptoms: high-flow oxygen and early hyperbaric consultation',
-      'Keep IV lines free of air',
+      'ALS: Keep IV lines free of air',
       'PFO itself requires no field treatment',
     ],
     hospitalCare: [
@@ -1702,11 +1703,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'Blockage of the pulmonary arteries, usually by a blood clot from the leg veins, which strains the right ventricle and impairs oxygenation. Severity ranges from small clots treated with oral anticoagulants to massive PE causing shock and cardiac arrest.',
     levelNotes: [
-      'Sudden breathlessness, pleuritic chest pain, fainting or a swollen leg with risk factors suggests PE: oxygen for hypoxemia and prompt transport',
-      'Sinus tachycardia is the most common ECG finding (S1Q3T3 is insensitive); treat hypotension with small fluid boluses and vasopressors rather than large fluid loads',
-      'Risk-stratify (Wells/PERC, D-dimer, CTPA, sPESI, RV function, troponin), anticoagulate early, and give systemic thrombolysis for high-risk PE without contraindication',
-      'Recognize RV failure (RV/LV ratio > 1, McConnell sign), involve a PE response team for intermediate-high and high-risk PE, and plan anticoagulation duration and CTEPH follow-up',
-      'Catheter-directed thrombolysis or mechanical thrombectomy is an option when systemic lysis is contraindicated or fails; avoid intubation-induced RV collapse and keep VA-ECMO available',
+      'Sudden breathlessness, pleuritic chest pain, fainting or a swollen leg with risk factors (recent surgery, immobility, cancer, pregnancy) suggests PE: oxygen if SpO2 is low, request ALS and transport promptly. If pulseless, start high-quality CPR, use the AED and notify the hospital early.',
+      'Sinus tachycardia is the most common ECG finding (S1Q3T3 is insensitive); RV strain and new RBBB support the suspicion. Treat hypotension with small fluid boluses and vasopressor per protocol, avoid intubation if possible, and pre-notify for possible thrombolysis in arrest.',
+      'For catheter-directed therapy or thrombectomy, prepare venous access, pulmonary angiography and the aspiration or infusion system, and record PA and RV pressures before and after. Report hypotension, desaturation, bradycardia or arrhythmia immediately.',
+      'Give anticoagulants and thrombolytics only as ordered with weight-based dose checks, minimize punctures, and after lysis monitor closely for bleeding and neurologic change. Report hypotension, worsening hypoxemia or rising heart rate, which may signal RV decompensation.',
+      'Risk-stratify (sPESI, RV/LV ratio > 1, troponin), anticoagulate early and give systemic thrombolysis for high-risk PE without contraindication; involve a PE response team for intermediate-high risk. Use catheter-directed therapy when lysis is contraindicated or fails; avoid intubation-induced RV collapse and keep VA-ECMO available.',
     ],
     overview: [
       'Obstruction of the pulmonary arteries, usually by thrombus from deep leg or pelvic veins',
@@ -1764,11 +1765,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Oxygen for hypoxemia; position of comfort',
-      'Cardiac monitor and 12-lead ECG',
-      'IV access; small cautious fluid boluses for hypotension',
-      'Vasopressor per protocol for persistent hypotension',
+      'Cardiac monitor; acquire and transmit a 12-lead ECG per protocol',
+      'ALS: IV access; small cautious fluid boluses for hypotension',
+      'ALS: Vasopressor per protocol for persistent hypotension',
       'Cardiac arrest with suspected PE: high-quality CPR and early notification for possible thrombolysis',
-      'Avoid intubation if possible; if required, anticipate hemodynamic collapse',
+      'ALS: Avoid intubation if possible; if required, anticipate hemodynamic collapse',
     ],
     hospitalCare: [
       'Start anticoagulation while awaiting imaging if clinical probability is high and bleeding risk is low',
@@ -1828,11 +1829,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     summary:
       'A tear in the inner lining of the aorta lets blood split the wall layers, creating a false channel that can rupture or block branch arteries. Dissection of the ascending aorta (type A) is a surgical emergency, and antithrombotic drugs given for a mistaken heart attack can be fatal.',
     levelNotes: [
-      'Sudden severe tearing chest or back pain, maximal at onset, especially with a pulse or BP difference between arms, is dissection until proven otherwise: check both arms and transport fast',
-      'Withhold aspirin when dissection is suspected, control pain, and remember an inferior STEMI can be caused by a dissection flap occluding the RCA',
-      'Start impulse control with an IV beta-blocker first (2022 ACC/AHA targets: HR 60–80 bpm and SBP < 120 mmHg), add a vasodilator only after beta-blockade, avoid antithrombotics, and obtain CTA',
-      'Classify by Stanford/DeBakey: type A needs emergency surgery, while type B is managed medically unless complicated by malperfusion, rupture or refractory pain or hypertension',
-      'Pause before cath lab activation when STEMI comes with tearing pain, pulse deficit or a wide mediastinum; TEVAR with branch stenting or fenestration treats complicated type B',
+      'Sudden severe tearing chest or back pain, maximal at onset, especially with a pulse or BP difference between arms, is dissection until proven otherwise: check BP in both arms, request ALS and transport rapidly. Do not give aspirin when dissection is suspected.',
+      'Withhold aspirin, give analgesia per protocol and treat severe hypertension only with protocol-directed agents. An inferior STEMI with tearing pain or a pulse deficit may be a dissection flap involving the RCA: report it when transmitting so antithrombotics can be held.',
+      'Dissection can masquerade as STEMI: report tearing pain, an arm BP difference or a wide mediastinum to the operator before access. A flap or false lumen may appear on aortic root injection; for complicated type B, prepare TEVAR and branch-stenting equipment.',
+      'Titrate the IV beta-blocker first, then any vasodilator, as ordered to the prescribed targets (2022 ACC/AHA: HR 60–80 bpm, SBP < 120 mmHg), using an arterial line in the higher-pressure arm. Monitor pain, pulses, neurologic status and urine output, and clarify any antithrombotic order.',
+      'Classify by Stanford/DeBakey: type A needs emergency surgery (do not delay for coronary angiography); type B is managed medically unless complicated by malperfusion, rupture or refractory pain or hypertension (TEVAR). Pause before cath lab activation when STEMI comes with tearing pain, pulse deficit or wide mediastinum.',
     ],
     overview: [
       'An intimal tear lets blood enter the media, creating true and false lumens',
@@ -1887,10 +1888,10 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     fieldCare: [
       'Measure BP in both arms and compare radial and femoral pulses',
       'Withhold aspirin when dissection is suspected (follow protocol)',
-      'Pain control per protocol',
-      'Avoid hypotension; treat severe hypertension only with protocol-directed agents',
+      'ALS: Pain control per protocol',
+      'ALS: Avoid hypotension; treat severe hypertension only with protocol-directed agents',
       'Rapid transport to a facility with cardiothoracic surgery and pre-alert',
-      'Hypotension: consider tamponade or rupture; cautious fluid resuscitation',
+      'ALS: Hypotension: consider tamponade or rupture; cautious fluid resuscitation',
     ],
     hospitalCare: [
       'Arterial line in the arm with the higher BP',
