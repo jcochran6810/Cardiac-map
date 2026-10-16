@@ -5,7 +5,7 @@ import { STANDARD_PLACEMENT, type Placement } from '@/lib/ecg/electrodes';
 export type ECGLead = StandardLead;
 export type ECGLayout = 'standard' | 'simultaneous' | 'monitor';
 export type ECGTheme = 'monitor' | 'paper';
-export type BottomView = 'ecg' | 'wiggers';
+export type BottomView = 'ecg' | 'wiggers' | 'defib';
 
 interface ECGState {
   activeProfileId: string;

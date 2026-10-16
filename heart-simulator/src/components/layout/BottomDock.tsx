@@ -8,9 +8,13 @@ import { resolveProfile } from '@/lib/ecg/profiles';
 import { PHASE_LABELS } from '@/lib/ecg/engine';
 import { sim } from '@/lib/sim/simulation';
 import { describePlacement } from '@/lib/ecg/electrodes';
+import { useDefibStore } from '@/lib/sim/defib';
+import { openProjector } from '@/lib/sim/projector';
 
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
 const ElectrodeLab = dynamic(() => import('@/components/ecg/ElectrodeLab'), { ssr: false });
+const MonitorDisplay = dynamic(() => import('@/components/monitor/MonitorDisplay'), { ssr: false });
+const DefibPanel = dynamic(() => import('@/components/monitor/DefibPanel'), { ssr: false });
 const WiggersPanel = dynamic(() => import('@/components/physiology/WiggersPanel'), { ssr: false });
 
 const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
@@ -31,8 +35,15 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
   const atrialRate = useTimelineStore((s) => s.atrialRate);
 
   const ecg = useECGStore();
+  const trainee = useDefibStore((s) => s.trainee);
   const profile = resolveProfile(ecg.activeProfileId);
   const [showInterp, setShowInterp] = useState(() => typeof window === 'undefined' || window.innerWidth >= 900);
+  const [narrowDock, setNarrowDock] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
+  useEffect(() => {
+    const onResize = () => setNarrowDock(window.innerWidth < 760);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [intervals, setIntervals] = useState(() => sim.engine.intervals(sim.time));
 
   useEffect(() => {
@@ -119,9 +130,9 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
 
         <div className="ml-auto flex items-center gap-1 shrink-0">
           <Seg
-            options={[{ v: 'ecg', l: 'ECG' }, { v: 'wiggers', l: 'Wiggers / PV' }]}
+            options={[{ v: 'ecg', l: 'ECG' }, { v: 'wiggers', l: 'Wiggers / PV' }, { v: 'defib', l: 'Monitor / Defib', t: 'Monitor-defibrillator trainer: defibrillation, cardioversion, pacing, CPR, drugs (M)' }]}
             value={ecg.bottomView}
-            onChange={(v) => ecg.setBottomView(v as 'ecg' | 'wiggers')}
+            onChange={(v) => ecg.setBottomView(v as 'ecg' | 'wiggers' | 'defib')}
           />
         </div>
       </div>
@@ -179,10 +190,17 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
       )}
 
       {/* ── Main area ──────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 flex">
-        <div className="flex-1 min-w-0 relative">
-          {ecg.bottomView === 'ecg' ? <ECGRenderer /> : <WiggersPanel />}
+      <div className={`flex-1 min-h-0 flex ${ecg.bottomView === 'defib' && narrowDock ? 'flex-col' : ''}`}>
+        <div className={`min-w-0 relative ${ecg.bottomView === 'defib' && narrowDock ? 'h-[46%] shrink-0' : 'flex-1'}`}>
+          {ecg.bottomView === 'ecg' ? <ECGRenderer /> : ecg.bottomView === 'wiggers' ? <WiggersPanel /> : (
+            <div className="absolute inset-0 p-1.5"><MonitorDisplay /></div>
+          )}
         </div>
+        {ecg.bottomView === 'defib' && (
+          <aside className={narrowDock ? 'flex-1 min-h-0 border-t border-slate-700 bg-cardiac-dark/40' : 'w-72 shrink-0 border-l border-slate-700 bg-cardiac-dark/40'}>
+            <DefibPanel onProjector={narrowDock ? undefined : openProjector} />
+          </aside>
+        )}
         {ecg.bottomView === 'ecg' && ecg.electrodeLab && (
           <aside className="w-64 shrink-0 border-l border-slate-700 overflow-y-auto p-2.5 bg-cardiac-dark/40">
             <ElectrodeLab />
@@ -191,6 +209,10 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
         {ecg.bottomView === 'ecg' && showInterp && !ecg.electrodeLab && (
           <aside className="w-64 shrink-0 border-l border-slate-700 overflow-y-auto p-2.5 text-[11px] bg-cardiac-dark/40">
             <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Rhythm / pattern</div>
+            {trainee ? (
+              <p className="text-slate-400 leading-snug">Hidden in trainee mode — interpret the rhythm yourself. Turn trainee mode off in Monitor / Defib to reveal it.</p>
+            ) : (
+            <>
             <h4 className="text-xs font-semibold text-white leading-snug">{profile.headline}</h4>
             <ul className="mt-2 space-y-1">
               {profile.findings.map((f) => (
@@ -213,6 +235,8 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
                   </button>
                 ))}
               </div>
+            )}
+            </>
             )}
             <p className="mt-3 text-[10px] text-slate-500 leading-snug">
               Synthesised from a cardiac dipole model for teaching. Real tracings vary; never use for clinical decisions.

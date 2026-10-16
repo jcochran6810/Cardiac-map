@@ -208,7 +208,8 @@ function UniformSync({ viewMode }: { viewMode: ViewMode }) {
     const seg = sim.engine.segmentAt(t);
     const U = heartUniforms;
     U.uTime.value = t / 1000;
-    U.uVent.value = m.ventContraction;
+    // Pulseless rhythms (PEA, pulseless VT) show electrical activity without effective contraction
+    U.uVent.value = m.ventContraction * (seg.profile.hemo === 'no-output' && seg.profile.rhythm !== 'vf' ? 0.12 : 1);
     U.uAtria.value = m.fibrillating === 'atria' ? 0 : m.atrialContraction;
     U.uAtriaFib.value = m.fibrillating === 'atria' || seg.profile.rhythm === 'flutter' ? 1 : 0;
     U.uVentFib.value = m.fibrillating === 'ventricles' ? 1 : seg.profile.rhythm === 'torsades' ? 0.6 : 0;

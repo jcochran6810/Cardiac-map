@@ -306,6 +306,25 @@ export class ECGEngine {
         };
       }
 
+      case 'vpaced': {
+        // Fixed-rate ventricular pacing (transcutaneous) with independent atrial activity
+        const atrialRR = 60000 / 74;
+        let nextP = aReady + rng() * 300;
+        let nextV = Math.max(vReady, seg.start + 300);
+        return {
+          get cursor() { return Math.min(nextP, nextV); },
+          step() {
+            if (nextP <= nextV) {
+              atrial.push(buildAtrial(nextP, profile, 'sinus', false));
+              nextP += atrialRR * (1 + 0.02 * Math.sin(nextP / 2900));
+            } else {
+              pushV(buildVent(nextV, 'paced', profile, 'paced', rrNominal, { spike: true, useProfileT: false }));
+              nextV += rrNominal;
+            }
+          },
+        };
+      }
+
       case 'vt': {
         const atrialRR = 60000 / 82;
         let nextP = aReady + rng() * 400;
@@ -516,13 +535,16 @@ export class ECGEngine {
   /** Voltage in mV for a lead at time t (includes realistic baseline wander and noise) */
   voltage(lead: AnyLead, t: number): number {
     const v = dot(this.dipole(t), this.leads[lead]);
-    return v + this.artifact(lead, t);
+    return v + this.artifact(lead, t) + (this.external ? this.external(t, lead) : 0);
   }
 
   /** Project a precomputed dipole */
   project(d: Vec3, lead: AnyLead, t: number): number {
-    return dot(d, this.leads[lead]) + this.artifact(lead, t);
+    return dot(d, this.leads[lead]) + this.artifact(lead, t) + (this.external ? this.external(t, lead) : 0);
   }
+
+  /** Extra signal on the recording (CPR compressions, non-capturing pacer spikes, shock artefact) */
+  external: ((t: number, lead: AnyLead) => number) | null = null;
 
   /** Effective lead vectors (changed by electrode misplacement); defaults to correct placement */
   private leads: Record<AnyLead, Vec3> = LEAD_VECTORS;
@@ -575,7 +597,7 @@ export class ECGEngine {
     const i = this.lastVentIndex(t);
     const v = i >= 0 ? this.vent[i] : null;
     const rr = this.heartRate(t) > 0 ? 60000 / this.heartRate(t) : 1000;
-    const hasP = !['af', 'flutter', 'vf', 'asystole', 'torsades', 'svt', 'junctional', 'vt', 'chb'].includes(p.rhythm);
+    const hasP = !['af', 'flutter', 'vf', 'asystole', 'torsades', 'svt', 'junctional', 'vt', 'chb', 'vpaced'].includes(p.rhythm);
     const qt = v ? v.qt : qtForRR(p.qtc, rr);
     let pr: number | null = hasP ? (p.rhythm === 'paced' ? 160 : prForRate(p.pr, seg.hr)) : null;
     if (p.rhythm === 'wenckebach') pr = null;

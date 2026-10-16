@@ -24,7 +24,8 @@ export type RhythmKind =
   | 'vf'
   | 'torsades'
   | 'asystole'
-  | 'paced';
+  | 'paced'
+  | 'vpaced';
 
 /** What the heart-rate slider controls for a rhythm */
 export type RateControl = 'sinus' | 'ventricular' | 'none';
@@ -604,6 +605,41 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     headline: 'Atrial-sensed, ventricular-paced rhythm',
     findings: ['Sinus P waves tracked; pacing spike after a programmed AV delay', 'RV apical pacing: wide QRS with LBBB-like morphology and left axis deviation', 'Discordant ST-T is expected; use Smith-modified Sgarbossa for ischaemia', 'Check capture: every spike should be followed by a QRS'],
     keyLeads: ['II', 'V1'],
+  },
+  pea: {
+    id: 'pea', name: 'Pulseless Electrical Activity', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 48, minHR: 20, maxHR: 140,
+    pr: 200, p: 'normal', qrs: 'ivcd', qtc: 460, hemo: 'no-output',
+    headline: 'Pulseless electrical activity (PEA)',
+    findings: [
+      'Organised electrical activity on the monitor but no palpable pulse',
+      'Any organised rhythm can be PEA — the diagnosis is made by the pulse check, not the ECG',
+      'Non-shockable: high-quality CPR, epinephrine as soon as possible, and search for reversible causes (Hs & Ts)',
+      'Slow and wide favours metabolic causes (hyperkalaemia, acidosis, hypoxia); narrow and fast favours mechanical causes (tamponade, PE, hypovolaemia, tension pneumothorax)',
+    ],
+    keyLeads: ['II'],
+  },
+  pvt: {
+    id: 'pvt', name: 'Pulseless Ventricular Tachycardia', rhythm: 'vt', rateControl: 'ventricular', defaultHR: 200, minHR: 150, maxHR: 260,
+    pr: 0, p: 'normal', qrs: 'vt', qtc: 440, hemo: 'no-output',
+    headline: 'Pulseless ventricular tachycardia',
+    findings: [
+      'Regular wide-complex tachycardia with no pulse',
+      'Shockable: defibrillate (unsynchronised) and follow the VF / pulseless VT algorithm',
+      'Synchronised cardioversion is for VT with a pulse',
+    ],
+    keyLeads: ['II', 'V1'],
+  },
+  tcp: {
+    id: 'tcp', name: 'Transcutaneous Pacing with Capture', rhythm: 'vpaced', rateControl: 'ventricular', defaultHR: 70, minHR: 30, maxHR: 180,
+    pr: 0, p: 'normal', qrs: 'paced', qtc: 460, hemo: 'normal',
+    headline: 'Transcutaneous pacing with electrical capture',
+    findings: [
+      'Every pacing spike is followed by a wide QRS and a T wave (electrical capture)',
+      'The underlying P waves continue independently',
+      'Confirm mechanical capture with a femoral pulse or a pulse-oximetry waveform at the paced rate — muscle twitching can mimic a carotid pulse',
+      'Set the output a little above the capture threshold (~10%) and give analgesia / sedation',
+    ],
+    keyLeads: ['II'],
   },
 };
 

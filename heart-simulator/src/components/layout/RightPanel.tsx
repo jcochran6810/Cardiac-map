@@ -517,7 +517,10 @@ function Welcome({ level }: { level: LearningLevel }) {
     { title: 'Read a STEMI', text: 'Anterior STEMI: ST elevation V1–V4 with reciprocal inferior change, and the LAD territory pulsing on the heart.', go: () => openCondition('anterior-stemi') },
     { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { ecg.setBottomView('wiggers'); openCondition('aortic-stenosis'); } },
     { title: 'Run a case', text: 'Make time-critical decisions with feedback in an unstable SVT scenario.', go: () => openCase('unstable-svt') },
-    { title: 'Quiz yourself', text: '60 questions across all levels, including live rhythm identification.', go: () => setQuizOpen(true) },
+    { title: 'Run a code', text: 'Monitor-defibrillator trainer: AED, defibrillation, synchronised cardioversion, pacing, CPR and ACLS drugs on a live patient. Open Instructor for scenarios.', go: () => ecg.setBottomView('defib') },
+    { title: 'Map the activation', text: 'See the order in which the ventricles activate, like an EP mapping system — compare normal conduction, LBBB and WPW.', go: () => { setViewMode('activation'); openCondition('left-bundle-branch-block'); } },
+    { title: 'Swap the electrodes', text: 'Reverse the ECG cables and learn the tell-tale patterns, or take the mystery-reversal challenge.', go: () => { ecg.setBottomView('ecg'); ecg.setElectrodeLab(true); } },
+    { title: 'Quiz yourself', text: '66 questions across all levels, including live rhythm identification.', go: () => setQuizOpen(true) },
   ];
   return (
     <div className="flex-1 overflow-y-auto p-3">

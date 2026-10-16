@@ -23,6 +23,7 @@ export async function GET() {
       { level: 4, label: 'Cardiology / Advanced' },
       { level: 5, label: 'Interventional / EP / Structural' },
     ],
-    viewModes: ['external', 'sectioned', 'xray', 'conduction', 'territories'],
+    viewModes: ['external', 'sectioned', 'xray', 'conduction', 'territories', 'activation'],
+    tools: ['12-lead ECG', 'electrode lab', 'Wiggers / PV loop', 'monitor-defibrillator trainer', 'projector monitor (/monitor)'],
   });
 }

@@ -17,19 +17,28 @@ npm run build && npm start   # production build
 
 | Area | Where | Notes |
 | --- | --- | --- |
-| ECG engine | `src/lib/ecg/` | Vector (dipole) model projected onto all 12 leads + right-sided/posterior leads, so axis, reciprocal ST change and R-wave progression come out of the physics rather than being drawn per lead. 43 rhythm/condition profiles, Fridericia QTc. |
+| ECG engine | `src/lib/ecg/` | Vector (dipole) model projected onto all 12 leads + right-sided/posterior leads, so axis, reciprocal ST change and R-wave progression come out of the physics rather than being drawn per lead. 46 rhythm/condition profiles (incl. PEA, pulseless VT, transcutaneous pacing), Fridericia QTc. |
 | Hemodynamics | `src/lib/physiology/hemodynamics.ts` | Beat-by-beat LV/aortic/LA pressure, LV volume and heart sounds (Frank–Starling filling, atrial kick, Windkessel aorta). Drives the Wiggers chart and PV loop. |
 | Simulation clock | `src/lib/sim/simulation.ts`, `src/components/sim/SimulationDriver.tsx` | Single animation loop; pause, scrub and 0.1–1× speed. |
 | 3D heart | `src/components/scene/` | Exterior, four-chamber section with blood flow, x-ray, conduction system and coronary territories. Contraction, depolarization wave and ischemia are shaded on the GPU from the live ECG. |
 | Anatomy map | `src/lib/anatomy/landmarks.ts` | Landmarks snapped to the model surface; clicking the heart opens the matching structure. |
-| Teaching content | `src/data/content/`, `src/data/caseData.ts` | 62 structures, 42 conditions, 42 procedures, 38 medications, 9 branching cases, 60 quiz questions. Loaded on demand. |
+| Teaching content | `src/data/content/`, `src/data/caseData.ts` | 62 structures, 42 conditions, 42 procedures, 38 medications, 9 branching cases, 66 quiz questions. Loaded on demand. |
 | UI | `src/components/layout/`, `src/components/ecg/`, `src/components/physiology/` | Navigator, info panel, ECG (12-lead, monitor, paper, inspect, calipers), Wiggers/PV loop, tutor, quiz. |
+| Electrode lab | `src/lib/ecg/electrodes.ts`, `src/components/ecg/ElectrodeLab.tsx` | 10 electrodes → 12 leads (Einthoven / Goldberger / Wilson). Swap cables or try a "mystery reversal" and watch the live 12-lead change. |
+| Activation map | `src/lib/anatomy/activation.ts` | Epicardial isochronal map of each beat (normal per Durrer 1970, LBBB, RBBB, WPW, pacing, PVC/VT), like an EP mapping system. The 3D wavefront follows it in every view. |
+| Coronary territories | `src/lib/anatomy/aha17.ts`, `src/components/anatomy/Bullseye.tsx` | AHA 17-segment bull's-eye linked to the culprit artery; the angio panel shows the C-arm angle (LAO/RAO, CRA/CAU) of any view. |
+| Monitor / defibrillator trainer | `src/lib/sim/defib.ts`, `src/components/monitor/` | Generic monitor with ECG, SpO₂ pleth, capnography and NIBP. Includes AED, manual defibrillation, synchronised cardioversion, transcutaneous pacing, CPR, ACLS drugs, a code record, scenarios, and trainee/instructor modes. Press **Projector** to mirror it at `/monitor` on a second screen. |
 
 ## Keyboard shortcuts
 
-`Space` play/pause · `←/→` step · `[ ]` speed · `1–5` 3D view · `L` labels ·
-`F` blood flow · `V` ECG vector · `E` ECG/Wiggers · `Q` quiz · `T` tutor ·
-`/` search · `?` help · `Esc` close.
+`Space` play/pause · `←/→` step · `[ ]` speed · `1–6` 3D view · `L` labels ·
+`F` blood flow · `V` ECG vector · `E` ECG/Wiggers · `M` monitor/defib · `Q` quiz ·
+`T` tutor · `/` search · `?` help · `Esc` close.
+
+## Credits
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the open-source projects and publications
+used to check accuracy, and for their licences.
 
 ## Accuracy note
 

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { sim } from '@/lib/sim/simulation';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore } from '@/store/useECGStore';
+import { tickDefib } from '@/lib/sim/defib';
 
 /**
  * Single animation loop that advances simulation time, keeps the rhythm engine
@@ -25,6 +26,7 @@ export default function SimulationDriver() {
       sim.engine.setRhythm(ecg.activeProfileId, tl.heartRate, sim.time);
       if (tl.playing) sim.time += dt * tl.speed;
       sim.engine.ensure(sim.time + 4000);
+      tickDefib(sim.time);
 
       if (now - lastPublish > 120) {
         lastPublish = now;

@@ -1,7 +1,7 @@
 /**
  * Multiple-choice quiz bank for CardioSim.
  *
- * 60 questions spanning every QuizTopic and all five learner levels
+ * 66 questions spanning every QuizTopic and all five learner levels
  * (1 = EMT/BLS … 5 = interventional/EP/structural). Questions with
  * `ecgProfile` switch the live monitor to that rhythm while shown.
  *
@@ -816,5 +816,69 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     level: 5,
     topic: 'congenital',
     relatedIds: ['asd', 'asd-closure', 'interatrial-septum', 'ascending-aorta'],
+  },
+  {
+    id: 'quiz-ecg-electrode-01',
+    question: 'A 12-lead shows a negative P wave, QRS and T wave in lead I and an upright aVR, but normal R-wave progression from V1 to V6. What is the most likely explanation?',
+    options: ['Dextrocardia', 'Left arm / right arm electrode reversal', 'Extensive lateral myocardial infarction', 'Left posterior fascicular block'],
+    correctIndex: 1,
+    explanation: 'LA/RA reversal inverts lead I, swaps aVR with aVL and II with III, but leaves the precordial leads untouched. Dextrocardia also inverts lead I but additionally loses the normal R-wave progression across V1–V6. Try it in the Electrode lab (ECG → Electrodes).',
+    level: 2,
+    topic: 'ecg',
+    relatedIds: ['normal-sinus-rhythm'],
+  },
+  {
+    id: 'quiz-ecg-electrode-02',
+    question: 'One limb lead looks almost like a flat line while the rest of the 12-lead looks plausible. What should you suspect first?',
+    options: ['Asystole', 'Reversal of the right-leg (neutral) cable with an arm cable', 'Hyperkalaemia', 'Low-voltage QRS from a pericardial effusion'],
+    correctIndex: 1,
+    explanation: 'If the right-leg (ground) cable is swapped with an arm cable, that arm cable ends up on a leg. A lead whose two electrodes are then both on the legs records almost nothing: lead II with RA/RL reversal, lead III with LA/RL reversal. Asystole would affect every lead, and pericardial effusion lowers the voltage in all limb leads.',
+    level: 3,
+    topic: 'ecg',
+  },
+  {
+    id: 'quiz-acls-cardioversion-01',
+    question: 'A patient with new atrial fibrillation at 160/min is hypotensive with pulmonary oedema. With a biphasic defibrillator, how should you deliver the shock?',
+    options: ['Unsynchronised 360 J', 'Synchronised 120–200 J', 'Synchronised 50 J', 'Unsynchronised 50–100 J'],
+    correctIndex: 1,
+    explanation: 'Unstable tachycardia with a pulse needs synchronised cardioversion: the shock is timed to the R wave so it does not land on the vulnerable T wave. For AF the initial biphasic energy is 120–200 J; narrow regular SVT and flutter usually convert with 50–100 J, and monomorphic VT with about 100 J. Turn SYNC on before every synchronised shock — many devices revert to unsynchronised after each discharge.',
+    level: 2,
+    topic: 'acls',
+    ecgProfile: 'atrial-fibrillation',
+    heartRate: 160,
+    relatedIds: ['atrial-fibrillation', 'cardioversion'],
+  },
+  {
+    id: 'quiz-acls-pacing-01',
+    question: 'During transcutaneous pacing for complete heart block, every pacing spike is now followed by a wide QRS. How do you confirm mechanical capture?',
+    options: ['Palpate the carotid pulse', 'Feel a femoral pulse (or see a pulse-oximetry waveform) at the paced rate', 'Watch for chest-wall muscle twitching', 'Look for a pacing spike before each QRS'],
+    correctIndex: 1,
+    explanation: 'A spike followed by a wide QRS and T wave shows electrical capture only. Mechanical capture means the heart is actually pumping: check a femoral pulse or a pulse-oximetry waveform at the paced rate. Skeletal-muscle twitching from the pads can be mistaken for a carotid pulse. Then set the output slightly above the capture threshold and give analgesia and sedation.',
+    level: 2,
+    topic: 'acls',
+    ecgProfile: 'tcp',
+    heartRate: 70,
+    relatedIds: ['third-degree-av-block', 'temporary-pacing'],
+  },
+  {
+    id: 'quiz-coronary-aha17-01',
+    question: 'In the AHA 17-segment model, which coronary artery typically supplies the basal and mid inferolateral segments (5 and 11)?',
+    options: ['Left anterior descending', 'Left circumflex', 'Right coronary artery', 'Left main only'],
+    correctIndex: 1,
+    explanation: 'In the standard AHA assignment the LAD supplies segments 1, 2, 7, 8, 13, 14 and 17; the RCA supplies 3, 4, 9, 10 and 15; and the LCx supplies 5, 6, 11, 12 and 16. Coronary anatomy varies, especially at the apex and inferolateral wall depending on dominance. See the bull’s-eye in the Territories view.',
+    level: 3,
+    topic: 'coronary',
+    relatedIds: ['lcx-proximal', 'om1', 'lateral-stemi'],
+  },
+  {
+    id: 'quiz-conduction-activation-01',
+    question: 'On an activation map of a patient with left bundle branch block, where is the latest-activated region of the left ventricle usually found?',
+    options: ['The interventricular septum', 'The LV apex', 'The lateral / posterolateral LV base', 'The RV outflow tract'],
+    correctIndex: 2,
+    explanation: 'In LBBB the RV activates first through the intact right bundle, the impulse crosses the septum slowly, and the LV free wall activates last, usually laterally or posterolaterally near the base. That late site is the preferred target for the LV lead in cardiac resynchronisation therapy. Compare the Activation view (key 6) for LBBB and normal conduction.',
+    level: 4,
+    topic: 'conduction',
+    ecgProfile: 'lbbb',
+    relatedIds: ['left-bundle-branch-block', 'crt-implantation'],
   },
 ];

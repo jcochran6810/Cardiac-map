@@ -132,6 +132,11 @@ export default function AppShell() {
           ecg.setBottomView(ecg.bottomView === 'ecg' ? 'wiggers' : 'ecg');
           break;
         }
+        case 'm': case 'M': {
+          const ecg = useECGStore.getState();
+          ecg.setBottomView(ecg.bottomView === 'defib' ? 'ecg' : 'defib');
+          break;
+        }
         case 'q': case 'Q': app.setQuizOpen(!app.quizOpen); break;
         case 't': case 'T': useTutorStore.getState().toggleTutor(); break;
         case '?': app.setHelpOpen(!app.helpOpen); break;

@@ -148,10 +148,24 @@ function nominalDiastole(hr: number, stenotic: boolean): number {
 
 export class HemoModel {
   private cache = new WeakMap<VentEvent, BeatHemo>();
+  /** Patient's underlying heart (e.g. reduced EF) overriding the rhythm profile's default; never overrides no-output rhythms */
+  private override: HemoProfile | null = null;
   constructor(private engine: ECGEngine) {}
 
+  setOverride(h: HemoProfile | null) {
+    if (h === this.override) return;
+    this.override = h;
+    this.cache = new WeakMap();
+  }
+
+  get baseline(): HemoProfile | null {
+    return this.override;
+  }
+
   private paramsAt(t: number): HemoParams {
-    return HEMO_PROFILES[this.engine.segmentAt(t).profile.hemo] ?? BASE;
+    const base = HEMO_PROFILES[this.engine.segmentAt(t).profile.hemo] ?? BASE;
+    if (base.noOutput || !this.override) return base;
+    return HEMO_PROFILES[this.override] ?? base;
   }
 
   private beat(i: number): BeatHemo | null {
