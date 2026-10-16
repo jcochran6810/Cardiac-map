@@ -39,11 +39,16 @@ You may change:
   colours, camera framing, overlays — **not** the timing or physiology that drives them.
 - Images and icons in `heart-simulator/public/` (except `sw.js` and `manifest.webmanifest`).
 - Accessibility (focus, contrast, labels, keyboard and touch use).
+- Shared styles live in `app/globals.css` inside `@layer components` (`.ui-button`, `.workspace-*`)
+  so Tailwind utilities such as `hidden` / `md:hidden` still override them — keep new shared classes
+  there, and write class names out in full (Tailwind drops classes it can't find, e.g. ones built
+  with `${…}`).
 
 Claude's lane — **don't change these; ask instead** (add a "Request for Claude" in `fix_list.md`):
 
 - What the simulation computes: `heart-simulator/src/lib/**` (ECG engine, hemodynamics, sim clock,
-  anatomy maps, scope rules, tutor logic, PWA registration).
+  anatomy maps, scope rules, tutor logic, PWA registration) — clinical calculations and algorithms,
+  data contracts and how actions change app state, any backend, authentication or database.
 - Clinical and teaching content: `heart-simulator/src/data/**` and any medical wording.
 - App state: `heart-simulator/src/store/**`; API routes `heart-simulator/app/api/**`.
 - Offline/installable app: `public/sw.js`, `public/manifest.webmanifest`, `app/layout.tsx` metadata.
@@ -87,7 +92,8 @@ When the owner says **"end session"** (or "ship it", "merge this"…):
 
 ## Rules you share with Claude
 
-All of CLAUDE.md → "Safety rules" apply. In particular: never claim a check, preview or deployment
+All of CLAUDE.md → "Safety rules" apply (including: this repository is public — never copy another
+project's private history, credentials or deployment details into it). In particular: never claim a check, preview or deployment
 passed unless you ran or saw it; say clearly what you could not verify (e.g. a real phone); keep
 changes focused; and record dashboard-only steps for the owner in `fix_list.md` instead of claiming
 they were done.

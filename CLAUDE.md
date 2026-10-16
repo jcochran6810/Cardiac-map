@@ -50,9 +50,11 @@ See "Working with Codex" below.
 
 Codex is the UI / graphics agent. Its lane, and what it must leave to Claude, are defined once, in
 `AGENTS.md` → "Your lane". In short: Codex owns how things look (components' markup and styling,
-`globals.css`, Tailwind config, icons, 3D materials / lighting / labels); Claude owns what things do
-(simulation and physics in `src/lib`, clinical content in `src/data`, stores, API routes, the PWA,
-dependencies, tests, the protocol and deployment) and has the final say on everything.
+`globals.css`, Tailwind config, icons, 3D materials / lighting / labels, accessibility); Claude owns
+what things do (simulation, physics and clinical algorithms in `src/lib`, clinical content in
+`src/data`, stores and data contracts, API routes, any backend, auth or database, the PWA,
+dependencies, tests, the protocol and deployment) and has the final say on everything. Codex
+records changes it needs from Claude as "Requests for Claude" in `fix_list.md` instead of making them.
 
 Lead duties, every Claude session:
 
@@ -331,6 +333,8 @@ the previous one's deploy actually failed, it says so in its own entry.
 8. Confirm the branch contains the latest production before trusting any audit or "does X exist" result.
 9. Never rewrite or force-push shared history, even if a tool (e.g. a stop hook flagging "unverified
    commits") suggests it.
+10. This repository is public: never copy another project's private session history, credentials,
+    configuration or deployment details into it (the protocol came from the owner's private repos).
 
 ## How this differs from the sibling repos
 

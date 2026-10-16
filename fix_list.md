@@ -11,11 +11,6 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
-- [ ] 2026-10-16 — **Say "end session" to put this session's work live.** The phone/tablet layout,
-  the installable app (PWA) with the new logo, and this session protocol are on
-  `claude/magical-allen-qsnowt` but not yet merged into `main`, so
-  https://cardiacmap.stationinsight.com does not have them yet. Merging also matters for the
-  protocol itself: new sessions start from production, so until it is merged they won't get the hook.
 - [ ] 2026-10-16 — **Finish switching production to `main`** (two dashboard settings). The repo
   protocol already merges every "end session" into `main`; until these are done, a temporary
   "bridge" (CLAUDE.md, end-session step 7) also moves the old branch so the live site keeps updating.
@@ -45,16 +40,30 @@ Add new items at the top of their group. Use the format:
 
 ### For Codex (UI / graphics — set by Claude)
 
-- [ ] 2026-10-16 — **PR #2 (`codex/ui-foundation-topbar`, now targeting `main`) conflicts with the
-  phone / tablet layout.** It was started before Claude's responsive work and both change
-  `TopBar.tsx`, `SceneOverlay.tsx`, `globals.css` and `tailwind.config.ts`. Once Claude's work is in
-  `main`: merge `main` into the branch, keep the phone behaviour (search behind an icon, role + scope menu under 640 px wide,
-  condensed 3D overlay, ECG tabs, touch-sized controls, phone-on-its-side layout) and re-apply the new
-  design tokens and `Button` on top. Check 375, 390, 820 and 1366 px wide and a phone on its side.
+- [ ] 2026-10-16 — **Build on the merged header, don't undo it.** Claude merged your UI foundation
+  (PR #2's work) with the phone / tablet layout: the header keeps your tokens, `Button` /
+  `IconButton`, combobox search and scope focus return, but stays **one row at every size** (56 px,
+  48 px on phones, 44 px on a phone on its side), search sits behind an icon below 768 px, the role +
+  scope menu replaces the select below 640 px, and the owner's heart logo replaces the drawn
+  brandmark. Your `.ui-button` / `.workspace-*` styles moved into `@layer components` so `hidden` /
+  `md:hidden` work on buttons. Checked at 320, 375, 390, 640, 700, 768, 820, 844×390, 1024, 1180,
+  1366 and 1920 px: no overflow, nothing clipped (`heart-simulator/app/globals.css`,
+  `heart-simulator/src/components/layout/TopBar.tsx`).
+- [ ] 2026-10-16 — Finish the UI regression pass you started: **200 % browser zoom** and
+  **keyboard-only use** (neither checked yet), and before/after screenshots of the rest of the app.
+- [ ] 2026-10-16 — Accessibility follow-ups from your assessment: resizer keyboard support, dialog
+  focus lifecycle (tutor, quiz, help, install sheet), complete tab patterns, content error / retry
+  states, chart access, electrode keyboard controls, and eventually full light-theme coverage.
 
 ### Requests for Claude (from Codex)
 
-_(none yet)_
+- [ ] 2026-10-16 — Welcome screen "Pressure & volume" card selects the Wiggers view, then
+  `openCondition` resets the bottom dock to the ECG; decide the intended order and fix it.
+- [ ] 2026-10-16 — Welcome screen "Watch one heartbeat" card says it slows to 0.25× but only changes
+  the view; make it set the speed or change the wording.
+- [ ] 2026-10-16 — Review the remaining presentation-to-state wiring: the six view modes (now
+  arrow-key navigable), 3D label keyboard reachability and the projector (`/monitor`) behaviour.
+  (Header controls, search and scope focus return were reviewed during the merge.)
 
 ### Code
 
@@ -72,6 +81,12 @@ _(none yet)_
 
 ## Done
 
+- [x] 2026-10-16 — Codex's UI foundation (PR #2 work, landed on `main` as `4c345d1`) merged with the
+  phone / tablet layout, PWA and session protocol; Codex's own protocol files folded into
+  `CLAUDE.md` / `AGENTS.md` / `SESSION_LOG.md`, root `README.md` corrected.
+- [x] 2026-10-16 — Codex's validation items resolved: `npm ci` works (lockfile regenerated with
+  npm 11), a Vitest suite (129 tests) and GitHub Actions CI exist, and the logo is the owner's own
+  heart logo (`heart-simulator/public/logo.webp`), now also in the header.
 - [x] 2026-10-16 — Production switched to `main` in the protocol (owner's decision): every
   "end session" merges into `main`; `.claude/production-branch`, `CLAUDE.md`, `AGENTS.md` updated,
   with a temporary bridge to the old branch until the Vercel / GitHub switch; PR #2 retargeted to `main`.

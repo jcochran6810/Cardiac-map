@@ -90,7 +90,7 @@ export default function QuizPanel() {
   const topics = Array.from(new Set(lib?.quiz.map((x) => x.topic) ?? [])) as QuizTopic[];
 
   return (
-    <div className="fixed right-2 top-14 z-40 w-[min(30rem,calc(100vw-1rem))] max-h-[calc(100dvh-var(--dock-h,340px)-4.5rem)] min-h-[280px] bg-cardiac-panel/95 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur phone:inset-x-0 phone:top-12 short:top-11 phone:bottom-0 phone:w-full phone:max-h-none phone:min-h-0 phone:rounded-none phone:border-x-0 phone:border-b-0 phone:animate-slide-in-up" role="dialog" aria-label="Quiz">
+    <div className="fixed right-2 top-16 z-40 w-[min(30rem,calc(100vw-1rem))] max-h-[calc(100dvh-var(--dock-h,340px)-5rem)] min-h-[280px] bg-cardiac-panel/95 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur phone:inset-x-0 phone:top-12 short:top-11 phone:bottom-0 phone:w-full phone:max-h-none phone:min-h-0 phone:rounded-none phone:border-x-0 phone:border-b-0 phone:animate-slide-in-up" role="dialog" aria-label="Quiz">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-violet-500/20 text-violet-300 flex items-center justify-center"><IconQuiz size={14} /></div>

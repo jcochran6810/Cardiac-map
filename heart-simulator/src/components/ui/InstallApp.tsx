@@ -80,7 +80,7 @@ export function InstallBanner() {
     try { window.localStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
   };
   return (
-    <div className="fixed left-2 right-2 top-14 short:top-12 z-[45] mx-auto max-w-md flex items-center gap-3 rounded-xl border border-slate-600 bg-cardiac-panel/95 backdrop-blur shadow-2xl p-2.5 animate-fade-in" role="status">
+    <div className="fixed left-2 right-2 top-16 phone:top-14 short:top-12 z-[45] mx-auto max-w-md flex items-center gap-3 rounded-xl border border-slate-600 bg-cardiac-panel/95 backdrop-blur shadow-2xl p-2.5 animate-fade-in" role="status">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.webp" alt="" className="w-8 h-auto shrink-0" />
       <div className="flex-1 min-w-0 leading-tight">

@@ -10,6 +10,7 @@ import { CASE_DATA } from '@/data/caseData';
 import { IconChevron, IconClose, IconDownload, IconHelp, IconPanelLeft, IconQuiz, IconSearch, IconTutor } from '@/components/ui/icons';
 import { InstallButton } from '@/components/ui/InstallApp';
 import ScopeCard from '@/components/ui/ScopeCard';
+import { Button, IconButton } from '@/components/ui/Button';
 
 const KIND_STYLE: Record<SearchHit['kind'], string> = {
   structure: 'bg-sky-500/15 text-sky-300',
@@ -39,9 +40,11 @@ export default function TopBar() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [scopeOpen, setScopeOpen] = useState(false);
-  // Phones: the search field is hidden behind an icon and opens over the whole bar
+  // Phones and small tablets: the search field is hidden behind an icon and opens over the whole bar
   const [searchOpen, setSearchOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scopeButtonRef = useRef<HTMLButtonElement>(null);
+  const resultsOpen = open && q.trim().length >= 2;
 
   const openSearch = () => {
     flushSync(() => setSearchOpen(true));
@@ -60,6 +63,8 @@ export default function TopBar() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === '/' || (e.key === 'k' && (e.metaKey || e.ctrlKey))) && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
+        // Below 768 px the field is behind the search icon, so open it first
+        if (window.matchMedia('(max-width: 767px)').matches) flushSync(() => setSearchOpen(true));
         inputRef.current?.focus();
       }
     };
@@ -67,150 +72,120 @@ export default function TopBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  useEffect(() => {
+    if (resultsOpen) document.getElementById(`library-result-${active}`)?.scrollIntoView({ block: 'nearest' });
+  }, [active, resultsOpen]);
+
   const choose = (h: SearchHit) => {
     openById(h.id);
     closeSearch();
   };
 
   return (
-    <header className="relative h-12 short:h-11 bg-cardiac-panel/95 border-b border-slate-700/80 flex items-center px-1.5 sm:px-3 gap-1 sm:gap-3 shrink-0 z-50">
-      <button
-        onClick={toggleLeftPanel}
-        className={`p-1.5 max-sm:p-2 touch:p-2 rounded hover:bg-cardiac-surface ${leftPanelOpen ? 'text-slate-200' : 'text-slate-500'}`}
-        title="Toggle navigator panel"
-        aria-label="Toggle navigator panel"
-      >
-        <IconPanelLeft />
-      </button>
-
-      <div className="hidden sm:flex items-center gap-2 shrink-0">
+    <header className="workspace-header" aria-label="Simulator tools">
+      <div className="workspace-brand">
+        <IconButton onClick={toggleLeftPanel} active={leftPanelOpen} aria-pressed={leftPanelOpen} aria-label="Toggle navigator panel" title="Toggle navigator panel"><IconPanelLeft size={18} /></IconButton>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.webp" alt="CardioSim" width={22} height={32} className="h-8 w-auto drop-shadow-[0_2px_6px_rgba(220,38,38,0.35)]" />
-        <div className="hidden md:block leading-tight">
-          <div className="text-sm font-semibold text-white">CardioSim</div>
-          <div className="text-[9px] text-slate-400 -mt-0.5">Cardiac anatomy · ECG · physiology</div>
+        <img src="/logo.webp" alt="" width={22} height={32} className="hidden sm:block h-8 w-auto drop-shadow-[0_2px_6px_rgba(220,38,38,0.35)]" />
+        <div className="hidden lg:block leading-tight">
+          <div className="text-sm font-semibold tracking-tight text-ui-text">CardioSim</div>
+          <div className="hidden xl:block text-xs text-ui-muted mt-0.5">Anatomy · ECG · physiology</div>
         </div>
       </div>
 
       <RoleMenu level={learningLevel} onChange={setLearningLevel} />
 
-      <div className="relative hidden sm:flex items-center gap-1 shrink-0">
-      <label className="flex items-center gap-1.5 shrink-0" title="Choose your role — guidance stays within that role's scope of practice">
-        <span className="text-[10px] text-slate-400 hidden lg:inline">Role</span>
-        <select
-          value={learningLevel}
-          onChange={(e) => setLearningLevel(Number(e.target.value) as LearningLevel)}
-          className="bg-cardiac-surface text-xs text-slate-100 rounded-md px-2 py-1 border border-slate-600 focus:outline-none focus:ring-1 focus:ring-cardiac-accent"
-          aria-label="Learner role"
-        >
+      <div
+        className="workspace-role hidden sm:flex"
+        title="Choose your role — guidance stays within that role's scope of practice"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && scopeOpen) { e.stopPropagation(); setScopeOpen(false); scopeButtonRef.current?.focus(); }
+        }}
+      >
+        <label htmlFor="learner-role" className="sr-only">Learner role</label>
+        <select id="learner-role" value={learningLevel} onChange={(e) => setLearningLevel(Number(e.target.value) as LearningLevel)}>
           {([1, 2, 3, 4, 5] as LearningLevel[]).map((l) => (
             <option key={l} value={l}>{compact ? LEVEL_LABELS[l].short : LEVEL_LABELS[l].long}</option>
           ))}
         </select>
-      </label>
-      <button
-        onClick={() => setScopeOpen((v) => !v)}
-        className={`px-1.5 py-1 touch:py-1.5 rounded text-[10px] border ${scopeOpen ? 'border-cardiac-accent text-cardiac-accent' : 'border-slate-600 text-slate-300 hover:text-white'}`}
-        title="What this role may and may not do"
-        aria-expanded={scopeOpen}
-      >
-        Scope
-      </button>
-      {scopeOpen && (
-        <div className="fixed left-1/2 -translate-x-1/2 top-[3.25rem] lg:absolute lg:left-0 lg:top-full lg:translate-x-0 lg:mt-1 w-[min(calc(100vw-1rem),560px)] max-h-[calc(100dvh-4rem)] overflow-y-auto z-[70] rounded-lg border border-slate-600 bg-cardiac-panel shadow-2xl p-3">
-          <ScopeCard level={learningLevel} />
-          <button onClick={() => setScopeOpen(false)} className="absolute top-2 right-2 text-slate-500 hover:text-white text-xs" aria-label="Close scope">✕</button>
-        </div>
-      )}
+        <Button ref={scopeButtonRef} variant="outline" active={scopeOpen} onClick={() => setScopeOpen((v) => !v)} aria-expanded={scopeOpen} aria-controls={scopeOpen ? 'role-scope' : undefined} title="What this role may and may not do">Scope</Button>
+        {scopeOpen && (
+          <section id="role-scope" className="workspace-scope" aria-label="Scope of practice">
+            <ScopeCard level={learningLevel} />
+            <IconButton onClick={() => { setScopeOpen(false); scopeButtonRef.current?.focus(); }} className="absolute top-2 right-2" aria-label="Close scope">✕</IconButton>
+          </section>
+        )}
       </div>
 
-      {/* Global search — inline on tablets and up; on phones it opens over the whole bar */}
+      {/* Global search — inline from 768 px; below that it opens over the whole bar */}
       <div
-        className={`relative flex-1 max-w-xl min-w-0 ${
-          searchOpen ? 'max-sm:absolute max-sm:inset-0 max-sm:z-[60] max-sm:max-w-none max-sm:flex max-sm:items-center max-sm:gap-2 max-sm:px-2 max-sm:bg-cardiac-panel' : 'max-sm:hidden'
+        className={`workspace-search ${
+          searchOpen ? 'max-md:absolute max-md:inset-0 max-md:z-[60] max-md:max-w-none max-md:min-w-0 max-md:flex max-md:items-center max-md:gap-2 max-md:px-2 max-md:bg-ui-panel' : 'max-md:hidden'
         }`}
       >
         <div className="relative flex-1 min-w-0">
-        <IconSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input
-          ref={inputRef}
-          type="search"
-          placeholder="Search anatomy, conditions, procedures, drugs, cases…  ( / )"
-          value={q}
-          onChange={(e) => { setQ(e.target.value); setOpen(true); setActive(0); }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => { setOpen(false); setSearchOpen(false); }, 150)}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(hits.length - 1, a + 1)); }
-            if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
-            if (e.key === 'Enter' && hits[active]) choose(hits[active]);
-            if (e.key === 'Escape') closeSearch();
-          }}
-          className="w-full bg-cardiac-dark text-xs text-slate-100 rounded-md pl-8 pr-3 py-1.5 touch:py-2 border border-slate-600 focus:outline-none focus:ring-1 focus:ring-cardiac-accent placeholder-slate-500"
-          aria-label="Search"
-          aria-autocomplete="list"
-        />
+          <IconSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            ref={inputRef}
+            type="search"
+            placeholder="Search anatomy, conditions, drugs…  ( / )"
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setOpen(true); setActive(0); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => { setOpen(false); setSearchOpen(false); }, 150)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.max(0, Math.min(hits.length - 1, a + 1))); }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+              if (e.key === 'Enter' && hits[active]) choose(hits[active]);
+              if (e.key === 'Escape') { e.stopPropagation(); closeSearch(); }
+            }}
+            role="combobox"
+            aria-expanded={resultsOpen}
+            aria-controls={resultsOpen ? 'library-results' : undefined}
+            aria-activedescendant={resultsOpen && hits[active] ? `library-result-${active}` : undefined}
+            aria-label="Search"
+            aria-autocomplete="list"
+          />
         </div>
         {searchOpen && (
-          <button onClick={closeSearch} className="sm:hidden p-2 text-slate-300 hover:text-white shrink-0" aria-label="Close search">
-            <IconClose size={18} />
-          </button>
+          <IconButton onClick={closeSearch} className="md:hidden" aria-label="Close search"><IconClose size={18} /></IconButton>
         )}
-        {open && q.trim().length >= 2 && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-cardiac-panel border border-slate-600 rounded-lg shadow-2xl overflow-hidden max-h-[60vh] overflow-y-auto z-50" role="listbox">
+        {resultsOpen && (
+          <div id="library-results" className="workspace-results" role="listbox" aria-label="Library results">
             {!lib && <div className="px-3 py-2 text-xs text-slate-400">Loading library…</div>}
             {lib && hits.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">No matches for “{q}”.</div>}
             {hits.map((h, i) => (
               <button
                 key={`${h.kind}-${h.id}`}
-                onMouseDown={(e) => { e.preventDefault(); choose(h); }}
+                id={`library-result-${i}`}
+                tabIndex={-1}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(h)}
                 onMouseEnter={() => setActive(i)}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 touch:py-3 text-left text-xs ${i === active ? 'bg-cardiac-surface' : ''}`}
+                className="workspace-result"
                 role="option"
                 aria-selected={i === active}
               >
-                <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{h.kind}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{h.kind}</span>
                 <span className="text-slate-100 truncate min-w-0">{h.name}</span>
-                <span className="hidden sm:block ml-auto text-[10px] text-slate-500 truncate capitalize max-w-[45%]">{h.sub}</span>
+                <span className="ml-auto hidden sm:block text-xs text-ui-muted truncate capitalize max-w-[45%]">{h.sub}</span>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-0.5 sm:gap-1 ml-auto shrink-0">
-        <TopButton onClick={openSearch} title="Search" className="sm:hidden"><IconSearch size={17} /></TopButton>
-        <TopButton onClick={() => setQuizOpen(true)} title="Quiz yourself (Q)"><IconQuiz size={15} /><span className="hidden sm:inline">Quiz</span></TopButton>
-        <TopButton onClick={toggleTutor} active={tutorOpen} title="Ask the tutor (T)"><IconTutor size={15} /><span className="hidden sm:inline">Tutor</span></TopButton>
-        <InstallButton className="hidden md:flex items-center gap-1.5 px-2 py-1.5 touch:py-2 rounded-md text-xs text-emerald-300 hover:text-white hover:bg-cardiac-surface">
-          <IconDownload size={15} />Install
+      <nav className="workspace-actions" aria-label="Learning tools">
+        <IconButton onClick={openSearch} className="md:hidden" aria-label="Search" title="Search ( / )"><IconSearch size={18} /></IconButton>
+        <Button onClick={() => setQuizOpen(true)} aria-label="Quiz yourself" title="Quiz yourself (Q)"><IconQuiz size={18} /><span className="hidden xl:inline">Quiz</span></Button>
+        <Button onClick={toggleTutor} active={tutorOpen} aria-pressed={tutorOpen} aria-label="Ask the tutor" title="Ask the tutor (T)"><IconTutor size={18} /><span className="hidden xl:inline">Tutor</span></Button>
+        <InstallButton className="ui-button ui-button--quiet hidden md:inline-flex text-emerald-300">
+          <IconDownload size={18} /><span className="hidden xl:inline">Install</span>
         </InstallButton>
-        <TopButton onClick={() => setHelpOpen(true)} title="Help & keyboard shortcuts (?)" className="hidden xs:flex"><IconHelp size={15} /></TopButton>
-        <button
-          onClick={toggleRightPanel}
-          className={`p-1.5 max-sm:p-2 touch:p-2 rounded hover:bg-cardiac-surface ${rightPanelOpen ? 'text-slate-200' : 'text-slate-500'}`}
-          title="Toggle info panel"
-          aria-label="Toggle info panel"
-        >
-          <IconPanelLeft className="scale-x-[-1]" />
-        </button>
-      </div>
+        <IconButton onClick={() => setHelpOpen(true)} className="hidden xs:inline-flex" aria-label="Help and keyboard shortcuts" title="Help & keyboard shortcuts (?)"><IconHelp size={18} /></IconButton>
+        <IconButton onClick={toggleRightPanel} active={rightPanelOpen} aria-pressed={rightPanelOpen} aria-label="Toggle info panel" title="Toggle info panel"><IconPanelLeft size={18} className="scale-x-[-1]" /></IconButton>
+      </nav>
     </header>
-  );
-}
-
-function TopButton({ children, onClick, title, active, className = '' }: { children: React.ReactNode; onClick: () => void; title: string; active?: boolean; className?: string }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      aria-label={title}
-      className={`flex items-center justify-center gap-1.5 px-2 py-1.5 max-sm:w-9 max-sm:h-9 max-sm:px-0 touch:py-2 rounded-md text-xs transition-colors ${
-        active ? 'bg-cardiac-accent/20 text-cardiac-accent' : 'text-slate-300 hover:text-white hover:bg-cardiac-surface'
-      } ${className}`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -218,24 +193,26 @@ function TopButton({ children, onClick, title, active, className = '' }: { child
 function RoleMenu({ level, onChange }: { level: LearningLevel; onChange: (l: LearningLevel) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="sm:hidden shrink-0">
-      <button
+    <div className="sm:hidden shrink-0 min-w-0">
+      <Button
+        variant="outline"
+        active={open}
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 h-9 pl-2.5 pr-1.5 rounded-md text-xs border ${open ? 'border-cardiac-accent text-cardiac-accent' : 'border-slate-600 text-slate-100 bg-cardiac-surface'}`}
+        className="px-2.5 gap-1 text-ui-text"
         aria-expanded={open}
         aria-haspopup="dialog"
         title="Choose your role — guidance stays within that role's scope of practice"
       >
         {LEVEL_LABELS[level].short}
         <IconChevron size={13} className={`transition-transform ${open ? '-rotate-90' : 'rotate-90'}`} />
-      </button>
+      </Button>
       {open && (
         <>
           <div className="fixed inset-0 z-[65] bg-black/40 animate-fade-in" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div className="fixed left-2 right-2 top-[3.25rem] z-[70] max-h-[calc(100dvh-4rem)] overflow-y-auto rounded-xl border border-slate-600 bg-cardiac-panel shadow-2xl" role="dialog" aria-label="Choose your role">
+          <div className="absolute left-2 right-2 top-[calc(100%+4px)] z-[70] max-h-[calc(100dvh-4rem)] overflow-y-auto rounded-xl border border-ui-border bg-ui-panel shadow-2xl" role="dialog" aria-label="Choose your role">
             <div className="flex items-center justify-between px-3 pt-2.5">
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">Your role</div>
-              <button onClick={() => setOpen(false)} className="p-1.5 -mr-1.5 text-slate-400 hover:text-white" aria-label="Close"><IconClose size={16} /></button>
+              <div className="text-[11px] uppercase tracking-wider text-ui-muted">Your role</div>
+              <IconButton onClick={() => setOpen(false)} className="-mr-1.5" aria-label="Close"><IconClose size={16} /></IconButton>
             </div>
             <div className="px-2 pb-2 grid gap-1" role="radiogroup">
               {([1, 2, 3, 4, 5] as LearningLevel[]).map((l) => (
@@ -244,14 +221,14 @@ function RoleMenu({ level, onChange }: { level: LearningLevel; onChange: (l: Lea
                   onClick={() => onChange(l)}
                   role="radio"
                   aria-checked={l === level}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm ${l === level ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : 'text-slate-200 hover:bg-cardiac-surface'}`}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm ${l === level ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : 'text-slate-200 hover:bg-ui-raised'}`}
                 >
                   <span className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 ${l === level ? 'border-cardiac-accent bg-cardiac-accent' : 'border-slate-500'}`} />
                   {LEVEL_LABELS[l].long}
                 </button>
               ))}
             </div>
-            <div className="border-t border-slate-700 p-3">
+            <div className="border-t border-ui-border/60 p-3">
               <ScopeCard level={level} />
             </div>
           </div>
