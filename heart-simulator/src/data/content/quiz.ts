@@ -391,7 +391,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
   },
   {
     id: 'quiz-rhythm-10',
-    question: 'A patient on haloperidol and azithromycin has recurrent runs of polymorphic wide-complex tachycardia whose QRS axis twists around the baseline. The baseline QTc was 590 ms. Which treatment is first-line while the runs are self-terminating with a pulse?',
+    question: 'A patient on haloperidol and azithromycin has recurrent runs of polymorphic wide-complex tachycardia whose QRS axis twists around the baseline (one run is shown). Each run stops on its own within seconds and he is awake with a pulse in between; the baseline QTc was 590 ms. Which treatment is first-line?',
     options: ['Amiodarone 150 mg IV over 10 minutes', 'Procainamide infusion', 'Magnesium sulfate 2 g IV', 'Adenosine 6 mg rapid IV push'],
     correctIndex: 2,
     explanation: 'This is torsades de pointes — polymorphic VT with a long QT. IV magnesium (1–2 g) is first-line even when serum magnesium is normal; stop QT-prolonging drugs, replete potassium (commonly to ~4.5–5.0 mmol/L), and consider overdrive pacing or isoproterenol for pause-dependent recurrences. Amiodarone and procainamide further prolong the QT and can worsen torsades. Sustained or pulseless torsades requires unsynchronized defibrillation.',
