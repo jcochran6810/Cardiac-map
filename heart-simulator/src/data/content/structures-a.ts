@@ -1917,11 +1917,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The visceral layer of the serous pericardium covering the heart surface. Beneath it, epicardial fat carries the epicardial coronary arteries, cardiac veins and autonomic nerves.',
     levelNotes: [
-      'This thin outer skin of the heart can become inflamed (pericarditis), causing sharp chest pain that is worse lying flat and better leaning forward',
-      'Diffuse ST elevation with PR depression in a young patient with pleuritic pain suggests pericarditis, but still transmit the ECG: STEMI must be excluded',
-      'The major coronary arteries run on the epicardial surface; occlusion causes transmural injury with ST elevation facing the territory',
-      'Subepicardial or midwall LGE suggests myocarditis or non-ischemic disease, whereas infarction starts subendocardially',
-      'Epicardial VT substrate (e.g., arrhythmogenic or non-ischemic cardiomyopathy) may need subxiphoid epicardial access; map coronaries and phrenic nerve before ablating',
+      'Inflammation of the heart’s outer lining (pericarditis) causes sharp chest pain that worsens lying flat and eases leaning forward. Still treat it as a possible heart attack: acquire and transmit a 12-lead where allowed, give aspirin per protocol and transport.',
+      'Diffuse concave ST elevation with PR depression (and PR elevation in aVR) suggests pericarditis, but exclude STEMI: look for reciprocal ST depression and territorial patterns, transmit the ECG and contact medical direction when unsure.',
+      'Angiography shows the epicardial coronaries. For epicardial VT ablation via subxiphoid access, prepare the epicardial needle, sheath and pericardial drain, and anticipate coronary angiography before ablation; report bloody return, hypotension or ST change to the operator immediately.',
+      'After subxiphoid epicardial access, monitor drain output, hemodynamics and pain (post-procedure pericarditis is common), and report rising drainage or hypotension promptly. Give anti-inflammatory medications as ordered and teach pericarditis patients about activity restriction and recurrence symptoms.',
+      'Subepicardial or midwall LGE suggests myocarditis or non-ischemic disease, whereas infarction starts subendocardially. Epicardial VT substrate (ARVC, non-ischemic cardiomyopathy, Brugada RVOT) may need subxiphoid access; delineate the coronaries and phrenic nerve before ablating.',
     ],
     overview: [
       'The serous pericardium reflected onto the heart surface',
@@ -1988,11 +1988,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The muscular middle layer of the heart wall, made of branching cardiomyocytes linked by intercalated discs that contract in synchrony. Its thickness, perfusion and scar burden determine pump function and arrhythmia risk.',
     levelNotes: [
-      'Heart muscle starved of blood dies over minutes to hours ("time is muscle"): early 12-lead, aspirin per protocol and rapid transport',
-      'Ischemic or scarred myocardium is electrically unstable: monitor continuously and be ready to defibrillate VT/VF in any ACS patient',
-      'Troponin rise means myocardial injury; MI requires ischemia plus a rise/fall pattern, so also consider myocarditis, PE, sepsis and demand',
-      'CMR tissue characterization (LGE pattern, T1/T2 mapping, ECV) separates ischemic, inflammatory, infiltrative and genetic cardiomyopathies',
-      'Viability matters: LGE <50% transmural predicts functional recovery after revascularization; scar borders form VT re-entry circuits for ablation',
+      'Heart muscle starved of blood dies over minutes to hours ("time is muscle"). For a suspected heart attack give aspirin per protocol, acquire and transmit a 12-lead where allowed and transport promptly; if the patient becomes unresponsive and pulseless, start CPR and use the AED.',
+      'Ischemic or scarred myocardium is electrically unstable: monitor continuously, keep pads on in STEMI and treat VT/VF with defibrillation and antiarrhythmics per ACLS protocol. Interpret the 12-lead and activate the STEMI system from the field.',
+      'Ischemic myocardium shows as ST change: watch the monitor during balloon inflation and injections and report ST shifts, ectopy or VT/VF to the operator immediately. Keep the defibrillator ready with pads on high-risk patients and participate in ACLS as certified.',
+      'After PCI, monitor for reperfusion arrhythmias, recurrent chest pain and ST changes and report them promptly; follow ACLS for VT/VF. Give antiplatelets, anticoagulants and vasoactives as ordered, and teach medication adherence and cardiac rehabilitation.',
+      'Troponin rise = myocardial injury; MI needs ischemia plus a rise/fall (4th UDMI), so consider myocarditis, PE, sepsis and demand. CMR (LGE, T1/T2 mapping, ECV) separates ischemic, inflammatory, infiltrative and genetic cardiomyopathies; LGE <50% transmural predicts recovery after revascularization.',
     ],
     overview: [
       'Middle and thickest layer of the heart wall',
