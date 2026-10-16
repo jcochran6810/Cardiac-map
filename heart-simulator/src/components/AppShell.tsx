@@ -32,7 +32,7 @@ const HeartScene = dynamic(() => import('@/components/scene/HeartScene'), {
 });
 
 type DragTarget = 'left' | 'info' | 'ecg' | null;
-const VIEW_KEYS: Record<string, ViewMode> = { '1': 'external', '2': 'sectioned', '3': 'xray', '4': 'conduction', '5': 'territories' };
+const VIEW_KEYS: Record<string, ViewMode> = { '1': 'external', '2': 'sectioned', '3': 'xray', '4': 'conduction', '5': 'territories', '6': 'activation' };
 const SPEEDS = [0.1, 0.25, 0.5, 1];
 
 function useCompact() {

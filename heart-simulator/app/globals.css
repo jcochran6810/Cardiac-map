@@ -67,3 +67,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* AHA bull's-eye: culprit territory pulses like the ischaemic shading on the 3D heart */
+@keyframes bullseye-pulse {
+  0%, 100% { fill: #86198f; }
+  50% { fill: #e879f9; }
+}
+.bullseye-culprit { animation: bullseye-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .bullseye-culprit { animation: none; fill: #c026d3; } }

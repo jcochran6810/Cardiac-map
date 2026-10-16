@@ -515,13 +515,20 @@ export class ECGEngine {
 
   /** Voltage in mV for a lead at time t (includes realistic baseline wander and noise) */
   voltage(lead: AnyLead, t: number): number {
-    const v = dot(this.dipole(t), LEAD_VECTORS[lead]);
+    const v = dot(this.dipole(t), this.leads[lead]);
     return v + this.artifact(lead, t);
   }
 
   /** Project a precomputed dipole */
   project(d: Vec3, lead: AnyLead, t: number): number {
-    return dot(d, LEAD_VECTORS[lead]) + this.artifact(lead, t);
+    return dot(d, this.leads[lead]) + this.artifact(lead, t);
+  }
+
+  /** Effective lead vectors (changed by electrode misplacement); defaults to correct placement */
+  private leads: Record<AnyLead, Vec3> = LEAD_VECTORS;
+
+  setLeadField(field: Partial<Record<AnyLead, Vec3>> | null) {
+    this.leads = field ? { ...LEAD_VECTORS, ...field } : LEAD_VECTORS;
   }
 
   private artifact(lead: AnyLead, t: number): number {

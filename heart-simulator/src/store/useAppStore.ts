@@ -9,8 +9,9 @@ export type LearningLevel = 1 | 2 | 3 | 4 | 5;
  *  xray        – translucent heart revealing internal landmarks
  *  conduction  – translucent heart with the conduction system animated from the live ECG
  *  territories – coronary perfusion territories (LAD / LCx / RCA) painted on the surface
+ *  activation  – epicardial activation-time (isochronal) map of the current beat
  */
-export type ViewMode = 'external' | 'sectioned' | 'xray' | 'conduction' | 'territories';
+export type ViewMode = 'external' | 'sectioned' | 'xray' | 'conduction' | 'territories' | 'activation';
 
 export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cases';
 

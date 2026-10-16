@@ -7,8 +7,10 @@ import { useECGStore, ECGLayout } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { PHASE_LABELS } from '@/lib/ecg/engine';
 import { sim } from '@/lib/sim/simulation';
+import { describePlacement } from '@/lib/ecg/electrodes';
 
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
+const ElectrodeLab = dynamic(() => import('@/components/ecg/ElectrodeLab'), { ssr: false });
 const WiggersPanel = dynamic(() => import('@/components/physiology/WiggersPanel'), { ssr: false });
 
 const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
@@ -156,6 +158,16 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
             {ecg.inspectLead ? `Inspecting ${ecg.inspectLead} ✕` : `Inspect ${ecg.selectedLead ?? 'II'}`}
           </Toggle>
           <Toggle active={ecg.caliperMode} onClick={ecg.toggleCalipers} title="Click two points on a lead to measure time, rate and voltage">Calipers</Toggle>
+          <Toggle active={ecg.electrodeLab} onClick={() => ecg.setElectrodeLab(!ecg.electrodeLab)} title="Electrode placement, lead derivation and cable-reversal practice">Electrodes</Toggle>
+          {!ecg.placementHidden && describePlacement(ecg.placement) && (
+            <button
+              onClick={() => ecg.setElectrodeLab(true)}
+              className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 whitespace-nowrap"
+              title="ECG cables are deliberately misplaced — open the electrode lab"
+            >
+              ⚠ {describePlacement(ecg.placement)}
+            </button>
+          )}
           <span className="text-slate-500 whitespace-nowrap hidden lg:inline">Click a lead to show its axis on the heart · double-click to inspect · drag to scrub</span>
           <button
             onClick={() => setShowInterp((v) => !v)}
@@ -171,7 +183,12 @@ export default function BottomDock({ style }: { style?: React.CSSProperties }) {
         <div className="flex-1 min-w-0 relative">
           {ecg.bottomView === 'ecg' ? <ECGRenderer /> : <WiggersPanel />}
         </div>
-        {ecg.bottomView === 'ecg' && showInterp && (
+        {ecg.bottomView === 'ecg' && ecg.electrodeLab && (
+          <aside className="w-64 shrink-0 border-l border-slate-700 overflow-y-auto p-2.5 bg-cardiac-dark/40">
+            <ElectrodeLab />
+          </aside>
+        )}
+        {ecg.bottomView === 'ecg' && showInterp && !ecg.electrodeLab && (
           <aside className="w-64 shrink-0 border-l border-slate-700 overflow-y-auto p-2.5 text-[11px] bg-cardiac-dark/40">
             <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Rhythm / pattern</div>
             <h4 className="text-xs font-semibold text-white leading-snug">{profile.headline}</h4>

@@ -42,24 +42,40 @@ interface SceneState {
   cameraPreset: CameraPreset | null;
   /** increments to request the camera to frame the current selection */
   focusNonce: number;
+  /** Equivalent C-arm projection of the current 3D view (degrees): LAO + / RAO −, cranial + / caudal − */
+  carm: { primary: number; secondary: number };
+  /** Activation patterns currently shown (keys into VENT_PATTERNS / ATRIAL_PATTERNS) and their durations */
+  activation: { vent: string | null; atria: string | null; qrsMs: number; pMs: number; vFirstMs: number; aFirstMs: number };
 
   selectStructure: (id: string | null) => void;
   hoverStructure: (id: string | null) => void;
   setHighlights: (ids: string[]) => void;
   setCameraPreset: (preset: CameraPreset | null) => void;
   requestFocus: () => void;
+  setCarm: (primary: number, secondary: number) => void;
+  setActivation: (a: SceneState['activation']) => void;
 }
 
-export const useSceneStore = create<SceneState>((set) => ({
+export const useSceneStore = create<SceneState>((set, get) => ({
   selectedStructureId: null,
   hoveredStructureId: null,
   highlightIds: [],
   cameraPreset: null,
   focusNonce: 0,
+  carm: { primary: 0, secondary: 0 },
+  activation: { vent: 'normal', atria: 'sinus', qrsMs: 92, pMs: 100, vFirstMs: 20, aFirstMs: 0 },
 
   selectStructure: (id) => set((s) => ({ selectedStructureId: id, focusNonce: id ? s.focusNonce + 1 : s.focusNonce })),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
   setHighlights: (highlightIds) => set({ highlightIds }),
   setCameraPreset: (cameraPreset) => set({ cameraPreset }),
   requestFocus: () => set((s) => ({ focusNonce: s.focusNonce + 1 })),
+  setActivation: (activation) => {
+    const a = get().activation;
+    if (a.vent !== activation.vent || a.atria !== activation.atria || a.qrsMs !== activation.qrsMs || a.pMs !== activation.pMs || a.vFirstMs !== activation.vFirstMs || a.aFirstMs !== activation.aFirstMs) set({ activation });
+  },
+  setCarm: (primary, secondary) => {
+    const c = get().carm;
+    if (c.primary !== primary || c.secondary !== secondary) set({ carm: { primary, secondary } });
+  },
 }));

@@ -28,6 +28,7 @@ export const LABEL_SETS: Record<ViewMode, string[]> = {
     'sa-node', 'bachmanns-bundle', 'av-node', 'bundle-of-his', 'right-bundle-branch', 'left-bundle-branch',
     'left-anterior-fascicle', 'left-posterior-fascicle', 'purkinje-fibers',
   ],
+  activation: ['right-ventricle', 'left-ventricle', 'apex', 'right-atrial-appendage', 'left-atrial-appendage', 'pulmonary-trunk', 'coronary-sinus'],
   territories: [
     'lad-proximal', 'lad-mid', 'lad-distal', 'd1', 'lcx-proximal', 'om1', 'om2', 'rca-proximal', 'rca-mid', 'rca-distal', 'pda',
     'posterolateral-branch', 'am-branch',
@@ -44,6 +45,7 @@ function relevant(l: Landmark, mode: ViewMode): boolean {
   switch (mode) {
     case 'external':
     case 'territories':
+    case 'activation':
       return l.surface;
     case 'sectioned':
       return !!l.section;
@@ -94,7 +96,7 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
   useFrame(({ camera }) => {
     const g = g3.current;
     if (!g) return;
-    const occluding = mode === 'external' || mode === 'territories';
+    const occluding = mode === 'external' || mode === 'territories' || mode === 'activation';
     const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
     for (const { l, kind } of items) {
       const dot = dotRefs.current[l.id];

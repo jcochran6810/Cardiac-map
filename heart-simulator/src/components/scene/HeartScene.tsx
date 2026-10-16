@@ -17,6 +17,10 @@ import LeadVector from './LeadVector';
 import { FRAME_EULER, TILT_EULER, modelToWorld } from '@/lib/anatomy/frames';
 import { HEART_CENTER, LANDMARK_BY_ID, LANDMARKS, PROFILE_TERRITORY, SURFACE_REGIONS } from '@/lib/anatomy/landmarks';
 import { structureCategory } from '@/lib/anatomy/categories';
+import CArmTracker from '@/components/scene/CArmTracker';
+import {
+  ATRIAL_PATTERNS, VENT_PATTERNS, buildGraph, computeActivation, ventPatternKey, type MeshGraph, type Region,
+} from '@/lib/anatomy/activation';
 
 const CLOSED_URL = '/models/heart_closed.glb';
 const OPEN_URL = '/models/heart_open.glb';
@@ -90,13 +94,91 @@ function usePreparedModels() {
     const omap = (om.material as THREE.MeshStandardMaterial).map ?? null;
     if (cmap) cmap.anisotropy = 8;
     if (omap) omap.anisotropy = 8;
+    // Surface graph for activation-time maps (exterior mesh only)
+    const index = cg.index ? cg.index.array : Array.from({ length: cg.attributes.position.count }, (_, i) => i);
+    const graph = buildGraph(cg.attributes.position.array, index, ATRIAL_REFS);
+    const nv = cg.attributes.position.count;
+    cg.setAttribute('aLatV', new THREE.BufferAttribute(new Float32Array(nv).fill(-1), 1));
+    cg.setAttribute('aLatA', new THREE.BufferAttribute(new Float32Array(nv).fill(-1), 1));
     return {
       closedGeo: cg,
       openGeo: og,
-      closedMat: createHeartMaterial(cmap),
+      graph,
+      closedMat: createHeartMaterial(cmap, { lat: true }),
       openMat: createHeartMaterial(omap, { interior: true }),
     };
   }, [closed.scene, open.scene]);
+}
+
+// ─── Activation-time maps ───────────────────────────────────────────────────
+
+const ATRIAL_REGION: Record<string, Region> = {
+  'right-atrium': 3, 'right-atrial-appendage': 3, 'left-atrium': 4, 'left-atrial-appendage': 4, 'pulmonary-veins': 4,
+};
+const ATRIAL_REFS = SURFACE_REGIONS.filter((r) => [
+  'right-atrium', 'right-atrial-appendage', 'left-atrium', 'left-atrial-appendage', 'pulmonary-veins', 'pulmonary-trunk',
+  'ascending-aorta', 'aortic-arch', 'descending-aorta', 'svc', 'ivc', 'coronary-sinus',
+].includes(r.id)).flatMap((r) => r.pts.map((p) => ({ p, r: (ATRIAL_REGION[r.id] ?? 0) as Region })));
+
+/** Keeps the per-vertex activation-time attributes matched to the beat being shown */
+function ActivationSync({ geometry, graph }: { geometry: THREE.BufferGeometry; graph: MeshGraph }) {
+  const cache = useRef(new Map<string, { data: Float32Array; min: number }>());
+  const current = useRef({ v: '', a: '' });
+  const fill = (key: string, chamber: 'v' | 'a'): { data: Float32Array; min: number } | null => {
+    const id = `${chamber}:${key}`;
+    const hit = cache.current.get(id);
+    if (hit) return hit;
+    const pattern = chamber === 'v' ? VENT_PATTERNS[key] : ATRIAL_PATTERNS[key];
+    if (!pattern) return null;
+    const map = computeActivation(graph, pattern);
+    const nv = graph.vertNode.length;
+    const out = new Float32Array(nv);
+    let min = 1;
+    for (let i = 0; i < nv; i++) {
+      const t = map.t[graph.vertNode[i]];
+      out[i] = Number.isFinite(t) && map.maxT > 0 ? t / map.maxT : -1;
+      if (out[i] >= 0 && out[i] < min) min = out[i];
+    }
+    const entry = { data: out, min };
+    cache.current.set(id, entry);
+    return entry;
+  };
+  const apply = (name: 'aLatV' | 'aLatA', entry: { data: Float32Array; min: number } | null) => {
+    const attr = geometry.getAttribute(name) as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    if (entry) arr.set(entry.data); else arr.fill(-1);
+    attr.needsUpdate = true;
+    if (name === 'aLatV') heartUniforms.uLatVMin.value = entry?.min ?? 0;
+    else heartUniforms.uLatAMin.value = entry?.min ?? 0;
+  };
+  useFrame(() => {
+    const t = sim.time;
+    const m = sim.engine.mechanics(t);
+    const v = m.lastVent;
+    const vKey = !v || m.fibrillating === 'ventricles' ? null : ventPatternKey(v.conduction, v.kind);
+    const a = m.lastAtrial;
+    const rhythm = sim.engine.segmentAt(t).profile.rhythm;
+    const aKey = !a || m.fibrillating === 'atria' || rhythm === 'flutter' || rhythm === 'af' ? null : a.kind;
+    if ((vKey ?? '-') !== current.current.v) {
+      current.current.v = vKey ?? '-';
+      apply('aLatV', vKey ? fill(vKey, 'v') : null);
+    }
+    if ((aKey ?? '-') !== current.current.a) {
+      current.current.a = aKey ?? '-';
+      apply('aLatA', aKey ? fill(aKey, 'a') : null);
+    }
+    const qrsMs = v ? Math.round(v.qrsDur) : 0;
+    const pMs = a ? Math.round(a.template.duration) : 0;
+    useSceneStore.getState().setActivation({
+      vent: vKey,
+      atria: aKey,
+      qrsMs,
+      pMs,
+      vFirstMs: Math.round(heartUniforms.uLatVMin.value * qrsMs),
+      aFirstMs: Math.round(heartUniforms.uLatAMin.value * pMs),
+    });
+  });
+  return null;
 }
 
 // ─── Per-frame uniform sync with the rhythm engine ─────────────────────────
@@ -139,7 +221,8 @@ function UniformSync({ viewMode }: { viewMode: ViewMode }) {
       const o = v.conduction === 'ectopic' ? ECTOPIC[v.kind] ?? ECTOPIC.pvc : V_ORIGINS[v.conduction] ?? V_ORIGINS.normal;
       U.uVOrigin.value.set(...o);
     }
-    U.uGlow.value = viewMode === 'conduction' ? 1.1 : viewMode === 'xray' ? 0.9 : viewMode === 'territories' ? 0.25 : 0.55;
+    U.uGlow.value = viewMode === 'conduction' ? 1.1 : viewMode === 'xray' ? 0.9 : viewMode === 'territories' ? 0.25 : viewMode === 'activation' ? 1.0 : 0.55;
+    U.uLatMap.value = viewMode === 'activation' ? 1 : 0;
     U.uTerritory.value = viewMode === 'territories' ? 1 : 0;
     const terr = PROFILE_TERRITORY[seg.profile.id];
     U.uCulprit.value.set(terr === 'LAD' ? 1 : 0, terr === 'LCx' ? 1 : 0, terr === 'RCA' ? 1 : 0);
@@ -161,7 +244,7 @@ function HeartModel({ viewMode, onHover, onPick }: {
   onHover: (id: string | null, e?: ThreeEvent<PointerEvent>) => void;
   onPick: (id: string) => void;
 }) {
-  const { closedGeo, openGeo, closedMat, openMat } = usePreparedModels();
+  const { closedGeo, openGeo, closedMat, openMat, graph } = usePreparedModels();
   const xray = viewMode === 'xray' || viewMode === 'conduction';
   const sectioned = viewMode === 'sectioned';
 
@@ -209,6 +292,7 @@ function HeartModel({ viewMode, onHover, onPick }: {
 
   return (
     <>
+      <ActivationSync geometry={closedGeo} graph={graph} />
       <mesh
         geometry={closedGeo}
         material={closedMat}
@@ -334,6 +418,7 @@ function SceneContents({ onHover }: { onHover: (id: string | null, e?: ThreeEven
         </group>
       </group>
       <LeadVector center={CENTER_WORLD} lead={selectedLead} showVector={showVector || !!selectedLead} />
+      <CArmTracker />
       <OrbitControls
         makeDefault
         target={CENTER_WORLD}

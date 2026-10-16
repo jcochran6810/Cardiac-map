@@ -3,8 +3,9 @@
  *  - beat-synchronised contraction (atria and ventricles separately, with longitudinal
  *    shortening, radial thickening and a little LV twist)
  *  - fibrillatory quiver (AF: atria; VF: ventricles)
- *  - depolarisation wavefront glow (P wave from the SA node, QRS from the activation origin)
- *    and a faint repolarisation glow (T wave)
+ *  - depolarisation wavefront glow (P wave and QRS) that follows the per-vertex activation-time
+ *    map when one is attached (see lib/anatomy/activation), and a faint repolarisation glow (T wave)
+ *  - an isochronal activation ("LAT") colour map for the Activation view
  *  - coronary territory painting and pulsing ischaemic territory
  *  - X-ray (fresnel) transparency
  * All positions are in the heart MODEL frame (+x left, +y posterior, +z superior).
@@ -28,6 +29,10 @@ export const heartUniforms = {
   uXray: { value: 0 },
   uSelect: { value: new THREE.Vector3(0, 0, 0) },
   uSelectOn: { value: 0 },
+  uLatMap: { value: 0 },
+  /** earliest activation (fraction of the QRS / P duration) so colours span earliest → latest */
+  uLatVMin: { value: 0 },
+  uLatAMin: { value: 0 },
 };
 
 const VERT_HEAD = /* glsl */ `
@@ -37,10 +42,20 @@ uniform float uVentFib;
 uniform float uAtriaFib;
 uniform float uTime;
 varying vec3 vModelPos;
+#ifdef USE_LAT
+attribute float aLatV;
+attribute float aLatA;
+varying float vLatV;
+varying float vLatA;
+#endif
 `;
 
 const VERT_BODY = /* glsl */ `
 vModelPos = position;
+#ifdef USE_LAT
+vLatV = aLatV;
+vLatA = aLatA;
+#endif
 float zav = -0.1 - 0.095 * position.y;
 float atrM = smoothstep(zav - 0.04, zav + 0.12, position.z) * (1.0 - smoothstep(0.32, 0.5, position.z));
 float venM = 1.0 - smoothstep(zav - 0.12, zav + 0.04, position.z);
@@ -81,7 +96,20 @@ uniform float uXray;
 uniform float uTime;
 uniform vec3 uSelect;
 uniform float uSelectOn;
+uniform float uLatMap;
+uniform float uLatVMin;
+uniform float uLatAMin;
 varying vec3 vModelPos;
+#ifdef USE_LAT
+varying float vLatV;
+varying float vLatA;
+#endif
+// Activation-map colour scale: red (earliest) → yellow → green → blue → purple (latest)
+vec3 latColor(float x) {
+  float h = 0.78 * clamp(x, 0.0, 1.0);
+  vec3 p = abs(fract(vec3(h) + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+  return mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), 0.88);
+}
 float arcW(float th, float a, float b) {
   return smoothstep(a - 9.0, a + 9.0, th) * (1.0 - smoothstep(b - 9.0, b + 9.0, th));
 }
@@ -92,20 +120,60 @@ const FRAG_BODY = /* glsl */ `
   float zav = -0.1 - 0.095 * vModelPos.y;
   float atrM = smoothstep(zav - 0.04, zav + 0.12, vModelPos.z) * (1.0 - smoothstep(0.32, 0.55, vModelPos.z));
   float venM = 1.0 - smoothstep(zav - 0.12, zav + 0.04, vModelPos.z);
-  // Depolarisation wavefronts
+  float latV = -1.0;
+  float latA = -1.0;
+#ifdef USE_LAT
+  latV = vLatV;
+  latA = vLatA;
+#endif
+  // Activation map: colour each myocardial region by its local activation time
+  if (uLatMap > 0.0) {
+    float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+    float lat = latV >= 0.0 ? (latV - uLatVMin) / max(0.05, 1.0 - uLatVMin) : latA >= 0.0 ? (latA - uLatAMin) / max(0.05, 1.0 - uLatAMin) : -1.0;
+    if (lat >= 0.0) {
+      // isochrone lines every 10% of the activation window
+      float iso = 1.0 - smoothstep(0.0, 0.01, abs(fract(lat * 10.0 + 0.5) - 0.5) / 10.0);
+      vec3 c = latColor(lat);
+      diffuseColor.rgb = c * (0.42 + 0.35 * lum) * (1.0 - 0.45 * iso);
+      totalEmissiveRadiance = c * 0.2 * (1.0 - 0.6 * iso);
+    } else {
+      diffuseColor.rgb = vec3(0.32) * (0.5 + 0.6 * lum);
+      totalEmissiveRadiance = vec3(0.02);
+    }
+  }
+  // Depolarisation wavefronts: follow the per-vertex activation map when attached,
+  // otherwise (sectioned specimen) expand from the activation origin
   if (uActA >= 0.0) {
+#ifdef USE_LAT
+    if (latA >= 0.0) {
+      float band = 1.0 - smoothstep(0.0, 0.08, abs(latA - uActA));
+      float done = step(latA, uActA);
+      vec3 col = uLatMap > 0.0 ? vec3(1.0) : vec3(1.0, 0.72, 0.18);
+      totalEmissiveRadiance += col * uGlow * (0.8 * band + 0.12 * done * (1.0 - uLatMap));
+    }
+#else
     float d = distance(vModelPos, uAOrigin);
     float front = uActA * 1.05;
     float edge = smoothstep(front - 0.28, front, d) * (1.0 - smoothstep(front, front + 0.05, d));
     float done = 1.0 - smoothstep(front - 0.02, front + 0.03, d);
     totalEmissiveRadiance += vec3(1.0, 0.72, 0.18) * atrM * uGlow * (0.75 * edge + 0.12 * done);
+#endif
   }
   if (uActV >= 0.0) {
+#ifdef USE_LAT
+    if (latV >= 0.0) {
+      float band = 1.0 - smoothstep(0.0, 0.07, abs(latV - uActV));
+      float done = step(latV, uActV);
+      vec3 col = uLatMap > 0.0 ? vec3(1.0) : vec3(1.0, 0.42, 0.12);
+      totalEmissiveRadiance += col * uGlow * (0.85 * band + 0.14 * done * (1.0 - uLatMap));
+    }
+#else
     float d = distance(vModelPos, uVOrigin);
     float front = uActV * 1.25;
     float edge = smoothstep(front - 0.3, front, d) * (1.0 - smoothstep(front, front + 0.06, d));
     float done = 1.0 - smoothstep(front - 0.02, front + 0.04, d);
     totalEmissiveRadiance += vec3(1.0, 0.42, 0.12) * venM * uGlow * (0.8 * edge + 0.14 * done);
+#endif
   }
   if (uRepol > 0.0) {
     totalEmissiveRadiance += vec3(0.25, 0.35, 1.0) * venM * uGlow * 0.22 * sin(3.14159 * clamp(uRepol, 0.0, 1.0));
@@ -149,7 +217,7 @@ const FRAG_BODY = /* glsl */ `
 }
 `;
 
-export function createHeartMaterial(map: THREE.Texture | null, opts: { interior?: boolean } = {}): THREE.MeshPhysicalMaterial {
+export function createHeartMaterial(map: THREE.Texture | null, opts: { interior?: boolean; lat?: boolean } = {}): THREE.MeshPhysicalMaterial {
   const mat = new THREE.MeshPhysicalMaterial({
     map: map ?? undefined,
     color: new THREE.Color(1.12, 1.06, 1.04),
@@ -165,6 +233,7 @@ export function createHeartMaterial(map: THREE.Texture | null, opts: { interior?
     emissiveIntensity: opts.interior ? 0.42 : 0.14,
     side: opts.interior ? THREE.DoubleSide : THREE.FrontSide,
   });
+  if (opts.lat) mat.defines = { ...(mat.defines ?? {}), USE_LAT: '' };
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, heartUniforms);
     shader.vertexShader = shader.vertexShader

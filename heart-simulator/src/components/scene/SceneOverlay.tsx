@@ -8,6 +8,9 @@ import { sim } from '@/lib/sim/simulation';
 import { PHASE_DESCRIPTIONS, PHASE_LABELS, type CyclePhase } from '@/lib/ecg/engine';
 import { PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
 import { IconHome, IconRotate, IconZoomIn, IconZoomOut } from '@/components/ui/icons';
+import Bullseye from '@/components/anatomy/Bullseye';
+import { formatCarm } from '@/components/scene/CArmTracker';
+import { ATRIAL_PATTERNS, VENT_PATTERNS } from '@/lib/anatomy/activation';
 
 const MODES: { value: ViewMode; label: string; key: string; title: string }[] = [
   { value: 'external', label: 'Exterior', key: '1', title: 'Photoreal exterior with coronary vessels' },
@@ -15,6 +18,7 @@ const MODES: { value: ViewMode; label: string; key: string; title: string }[] = 
   { value: 'xray', label: 'X-ray', key: '3', title: 'Translucent heart showing internal structures' },
   { value: 'conduction', label: 'Conduction', key: '4', title: 'Electrical conduction system firing in sync with the ECG' },
   { value: 'territories', label: 'Territories', key: '5', title: 'Coronary perfusion territories (right-dominant)' },
+  { value: 'activation', label: 'Activation', key: '6', title: 'Epicardial activation-time (isochronal) map of the current beat, like an EP mapping system' },
 ];
 
 interface HudState { phase: CyclePhase; mitral: number; aortic: number; atria: number; s1: boolean; s2: boolean }
@@ -69,6 +73,7 @@ export default function SceneOverlay() {
   }, []);
 
   const culprit = PROFILE_TERRITORY[activeProfileId];
+  const carm = useSceneStore((s) => s.carm);
   const zoom = (dir: 1 | -1) => {
     const canvas = document.querySelector('.heart-stage canvas');
     canvas?.dispatchEvent(new WheelEvent('wheel', { deltaY: dir * -240, bubbles: true, cancelable: true }));
@@ -136,21 +141,27 @@ export default function SceneOverlay() {
       </div>
 
       {/* Territory legend */}
-      {(viewMode === 'territories' || culprit) && (
-        <div className="absolute bottom-9 left-2 z-10 rounded-lg border border-slate-600/60 bg-black/60 backdrop-blur-sm p-2 text-[10px] text-slate-200 shadow-xl">
-          {viewMode === 'territories' && (
-            <>
-              <div className="text-[9px] uppercase tracking-wider text-slate-400 mb-1">Perfusion territory</div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#26d973]" /> LAD — anterior wall, anterior septum, apex</div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#4d8cff]" /> LCx — lateral &amp; posterolateral LV</div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#ff8c1f]" /> RCA — inferior LV, RV free wall</div>
-            </>
-          )}
-          {culprit && (
-            <div className="flex items-center gap-1.5 mt-1 text-fuchsia-300">
-              <span className="w-3 h-2 rounded-sm bg-fuchsia-700 animate-pulse" /> Ischaemic territory (pulsing): {culprit} culprit lesion
-            </div>
-          )}
+      {viewMode === 'activation' && <ActivationLegend narrow={narrow} />}
+
+      {(viewMode === 'territories' || (culprit && viewMode !== 'activation')) && (
+        <div className="absolute bottom-9 left-2 z-10 rounded-lg border border-slate-600/60 bg-black/60 backdrop-blur-sm p-2 text-[10px] text-slate-200 shadow-xl flex items-end gap-2">
+          <div>
+            {viewMode === 'territories' && (
+              <>
+                <div className="text-[9px] uppercase tracking-wider text-slate-400 mb-1">Perfusion territory</div>
+                <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#26d973]" /> LAD — anterior wall, anterior septum, apex</div>
+                <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#4d8cff]" /> LCx — lateral &amp; posterolateral LV</div>
+                <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#ff8c1f]" /> RCA — inferior LV, RV free wall</div>
+                <div className="mt-1 text-[9px] text-slate-500">Right-dominant pattern; real anatomy varies</div>
+              </>
+            )}
+            {culprit && (
+              <div className="flex items-center gap-1.5 mt-1 text-fuchsia-300">
+                <span className="w-3 h-2 rounded-sm bg-fuchsia-700 animate-pulse" /> Ischaemic territory (pulsing): {culprit} culprit lesion
+              </div>
+            )}
+          </div>
+          {viewMode === 'territories' && !narrow && <Bullseye culprit={culprit} size={118} />}
         </div>
       )}
 
@@ -167,7 +178,10 @@ export default function SceneOverlay() {
       <div className={`absolute right-2 z-10 flex-col items-end gap-1.5 ${narrow ? (showViews ? 'flex top-11' : 'hidden') : 'flex bottom-9'}`}>
         {showAngio && (
           <div className="rounded-lg border border-slate-600/60 bg-black/70 backdrop-blur-sm p-1.5 shadow-xl">
-            <div className="text-[9px] uppercase tracking-wider text-slate-400 px-1 mb-1">Angiographic projections</div>
+            <div className="text-[9px] uppercase tracking-wider text-slate-400 px-1">Angiographic projections</div>
+            <div className="px-1 mb-1 text-[10px] text-slate-400" title="C-arm angulation equivalent to the current 3D view (detector position)">
+              This view: <b className="font-mono text-sky-300">{formatCarm(carm.primary, carm.secondary)}</b>
+            </div>
             <div className="grid grid-cols-2 gap-0.5">
               {CAMERA_PRESETS.filter((p) => p.group === 'angio').map((p) => (
                 <button key={p.label} onClick={() => setCameraPreset(p)} title={p.description} className="px-2 py-1 text-[10px] text-slate-200 hover:bg-white/10 rounded text-left whitespace-nowrap">
@@ -229,5 +243,46 @@ function IconBtn({ onClick, title, children }: { onClick: () => void; title: str
     <button onClick={onClick} title={title} aria-label={title} className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded">
       {children}
     </button>
+  );
+}
+
+const LAT_GRADIENT = 'linear-gradient(90deg, hsl(0 90% 55%), hsl(60 90% 55%), hsl(120 80% 45%), hsl(180 80% 50%), hsl(240 80% 60%), hsl(281 80% 60%))';
+
+function ActivationLegend({ narrow }: { narrow: boolean }) {
+  const a = useSceneStore((s) => s.activation);
+  const vp = a.vent ? VENT_PATTERNS[a.vent] : null;
+  const ap = a.atria ? ATRIAL_PATTERNS[a.atria] : null;
+  return (
+    <div className={`absolute bottom-9 left-2 z-10 rounded-lg border border-slate-600/60 bg-black/70 backdrop-blur-sm p-2 text-[10px] text-slate-200 shadow-xl ${narrow ? 'w-52' : 'w-72'}`}>
+      <div className="text-[9px] uppercase tracking-wider text-slate-400">Activation map · local activation time</div>
+      <div className="mt-1 h-2 rounded-sm" style={{ background: LAT_GRADIENT }} />
+      <div className="flex justify-between text-[9px] text-slate-400 mt-0.5">
+        <span>earliest</span>
+        <span>{vp ? `ventricles ${a.vFirstMs}–${a.qrsMs} ms` : ''}{vp && ap ? ' · ' : ''}{ap ? `atria ${a.aFirstMs}–${a.pMs} ms` : ''}</span>
+        <span>latest</span>
+      </div>
+      {vp ? (
+        <div className="mt-1.5 space-y-0.5 leading-snug">
+          <div className="text-white font-semibold">{vp.label}</div>
+          {!narrow && (
+            <>
+              <div><span className="text-red-300">Earliest:</span> {vp.earliest}</div>
+              <div><span className="text-violet-300">Latest:</span> {vp.latest}</div>
+              <div className="text-slate-400">{vp.note}</div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="mt-1.5 text-amber-200">No organised ventricular activation sequence (fibrillation / polymorphic VT) — nothing to map.</div>
+      )}
+      {!ap && (
+        <div className="mt-1 text-slate-400">Atria: no organised activation to map (AF / flutter / no P wave).</div>
+      )}
+      {!narrow && (
+        <div className="mt-1.5 text-[9px] text-slate-500 leading-snug">
+          Times from QRS / P onset. White band = the wavefront now. Epicardial surface only; septal activation (first ~20 ms) is hidden inside. Normal sequence after Durrer et al., Circulation 1970.
+        </div>
+      )}
+    </div>
   );
 }

@@ -9,7 +9,7 @@ const SHORTCUTS: [string, string][] = [
   ['Space', 'Play / pause the heartbeat'],
   ['← / →', 'Step 10 ms while paused (Shift = 100 ms)'],
   ['[ / ]', 'Slower / faster simulation'],
-  ['1 – 5', 'Exterior · Sectioned · X-ray · Conduction · Territories'],
+  ['1 – 6', 'Exterior · Sectioned · X-ray · Conduction · Territories · Activation map'],
   ['L', 'Toggle 3D labels'],
   ['F', 'Toggle blood flow (sectioned view)'],
   ['V', 'Toggle cardiac vector'],
