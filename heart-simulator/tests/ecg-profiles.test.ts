@@ -7,11 +7,16 @@ describe('QT correction (Fridericia)', () => {
     expect(qtForRR(420, 1000)).toBeCloseTo(420, 9);
   });
 
+  it('applies Fridericia: QT = QTc × ∛(RR in seconds)', () => {
+    expect(qtForRR(400, 500)).toBeCloseTo(400 * Math.cbrt(0.5), 6);
+    expect(qtForRR(440, 1600)).toBeCloseTo(440 * Math.cbrt(1.6), 6);
+  });
+
   it('lengthens QT as the RR interval grows', () => {
     let last = 0;
-    for (const rr of [300, 500, 700, 900, 1200, 1600, 2000]) {
+    for (const rr of [400, 600, 800, 1000, 1300, 1600, 2000]) {
       const qt = qtForRR(440, rr);
-      expect(qt).toBeGreaterThanOrEqual(last);
+      expect(qt).toBeGreaterThan(last);
       last = qt;
     }
   });

@@ -43,9 +43,20 @@ describe('beat scheduling', () => {
 });
 
 describe('monitor readouts', () => {
-  it.each([50, 72, 110, 150])('sinus rhythm at %i bpm reads back within 3%%', (hr) => {
+  it.each([50, 72, 110, 150])('sinus rhythm at %i bpm reads back within 3 percent', (hr) => {
     const e = engine('normal-sinus', hr);
     expect(Math.abs(e.heartRate(T - 100) - hr) / hr).toBeLessThanOrEqual(0.03);
+  });
+
+  it('measures the ventricular rate rather than echoing the setting (Mobitz I drops beats)', () => {
+    const e = engine('mobitz-i', 80);
+    expect(e.heartRate(T - 100)).toBeLessThan(80);
+  });
+
+  it('shows a varying rate in atrial fibrillation', () => {
+    const e = engine('atrial-fibrillation', 110);
+    const rates = new Set([12_000, 16_000, 20_000, 24_000, 28_000].map((t) => e.heartRate(t)));
+    expect(rates.size).toBeGreaterThan(1);
   });
 
   it.each(['vf', 'asystole'])('%s shows no heart rate and no QT', (id) => {

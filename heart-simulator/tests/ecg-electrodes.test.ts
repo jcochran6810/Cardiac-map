@@ -9,7 +9,14 @@ describe('electrode → lead derivation', () => {
     for (const lead of ALL_LEADS) expectVec(field[lead], LEAD_VECTORS[lead]);
   });
 
-  it("keeps Einthoven's and Goldberger's identities for every possible cable swap", () => {
+  it('a chest-cable swap leaves all six limb leads unchanged', () => {
+    const f = leadField(swapCables(STANDARD_PLACEMENT, 'V1', 'V2'));
+    for (const lead of ['I', 'II', 'III', 'aVR', 'aVL', 'aVF'] as const) expectVec(f[lead], LEAD_VECTORS[lead]);
+    expectVec(f.V1, LEAD_VECTORS.V2);
+    expectVec(f.V2, LEAD_VECTORS.V1);
+  });
+
+  it("derives leads with Einthoven's and Goldberger's formulas for every cable placement", () => {
     for (const a of ELECTRODES) {
       for (const b of ELECTRODES) {
         if (a === b) continue;

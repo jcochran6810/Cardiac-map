@@ -35,9 +35,10 @@ npm test           # Vitest unit tests in tests/ — ECG lead maths, electrodes,
 npm run build      # production build
 ```
 
-Working with Claude Code: the repo root has `CLAUDE.md` (start/end-session protocol), `fix_list.md`
-(open items and owner actions) and `SESSION_LOG.md` (what each session shipped). Production is the
-`claude/create-heart-3d-model-6mtrW` branch, live at https://cardiacmap.stationinsight.com.
+Working with AI agents: the repo root has `CLAUDE.md` (the start/end-session protocol; Claude Code is
+the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open items, owner actions and
+"For Codex" priorities) and `SESSION_LOG.md` (what each session shipped). Production is the
+`main` branch ("end session" merges into it), live at https://cardiacmap.stationinsight.com.
 
 ## What's inside
 

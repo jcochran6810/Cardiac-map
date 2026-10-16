@@ -55,10 +55,10 @@ commit_local() {
   (cd "$WORK/clone" && printf 'local %s\n' "$1" > "local-$1.txt" && git add -A && git commit -qm "local $1")
 }
 
-# Runs the hook; sets OUT (raw stdout) and CTX (additionalContext)
+# Runs the hook; sets OUT (raw stdout) and CTX (additionalContext). Args: source, remote, agent
 run_hook() {
-  local source="${1:-startup}" remote="${2:-true}"
-  OUT="$(cd "$WORK/clone" && printf '{"source":"%s"}' "$source" | CLAUDE_PROJECT_DIR="$WORK/clone" CLAUDE_CODE_REMOTE="$remote" SESSION_START_SKIP_CHECKS=1 bash "$HOOK" 2>/dev/null)"
+  local source="${1:-startup}" remote="${2:-true}" agent="${3:-claude}"
+  OUT="$(cd "$WORK/clone" && printf '{"source":"%s"}' "$source" | PATH="${HOOK_PATH:-$PATH}" CLAUDE_PROJECT_DIR="$WORK/clone" CLAUDE_CODE_REMOTE="$remote" SESSION_START_AGENT="$agent" SESSION_START_SKIP_CHECKS=1 "$BASH" "$HOOK" 2>/dev/null)"
   CTX="$(printf '%s' "$OUT" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["hookSpecificOutput"]["hookEventName"]=="SessionStart"; print(d["hookSpecificOutput"]["additionalContext"])' 2>/dev/null)" || CTX="__INVALID_JSON__"
 }
 
@@ -169,6 +169,179 @@ if grep -q "keep me" "$WORK/clone/fix_list.md"; then ok "existing fix_list.md no
 rm "$WORK/clone/fix_list.md"
 run_hook startup false
 if grep -q "^## Open" "$WORK/clone/fix_list.md"; then ok "missing fix_list.md recreated"; else bad "fix_list.md not recreated"; fi
+
+echo "Codex on a fresh copy of production → no blocker, told to branch"
+setup
+git -C "$WORK/clone" checkout -q "$PROD"
+run_hook startup true codex
+expect_no_ctx "SESSION-START BLOCKER" "no blocker for Codex on production"
+expect_ctx "create your branch before changing anything" "tells Codex to branch"
+expect_ctx "1. AGENTS.md" "Codex reading list starts with AGENTS.md"
+expect_ctx "Agent: codex" "reports the agent"
+
+echo "Codex without internet → compares with its local copy of production, no blocker"
+setup; commit_local 1
+git -C "$WORK/clone" remote set-url origin "$WORK/does-not-exist.git"
+run_hook startup true codex
+expect_no_ctx "SESSION-START BLOCKER" "no blocker when GitHub is unreachable"
+expect_ctx "GitHub was not reachable" "says the comparison may be stale"
+git -C "$WORK/clone" remote remove origin
+git -C "$WORK/clone" update-ref -d "refs/remotes/origin/$PROD"
+run_hook startup true codex
+expect_ctx "Could not reach GitHub and this checkout has no copy of production" "handles a checkout with no remote at all"
+expect_no_ctx "SESSION-START BLOCKER" "still no blocker"
+
+echo "other agents' unmerged branches"
+setup
+(cd "$WORK/seed" && git checkout -q -b codex/ui-polish && printf 'codex\n' >> shared.txt && printf 'new\n' > codex-only.txt && git add -A && git commit -qm "codex polish" && git push -q origin codex/ui-polish && git checkout -q "$PROD")
+(cd "$WORK/seed" && git checkout -q -b claude/old-idea && printf 'old\n' > old.txt && git add -A && GIT_COMMITTER_DATE="2020-01-01T00:00:00Z" git commit -qm "old idea" && git push -q origin claude/old-idea && git checkout -q "$PROD")
+run_hook startup
+expect_ctx "\`codex/ui-polish\` (Codex, 1 unmerged commit(s)" "lists Codex's unmerged branch"
+expect_ctx "\`codex-only.txt\`" "lists the files it touches"
+expect_no_ctx "claude/old-idea" "skips branches untouched for 14+ days"
+expect_no_ctx "also changed on this branch" "no overlap warning when files differ"
+(cd "$WORK/clone" && printf 'mine\n' >> shared.txt && git commit -qam "claude edits shared")
+run_hook resume
+expect_ctx "also changed on this branch: \`shared.txt\`" "flags files changed on both branches"
+expect_ctx "SESSION-START NOTICE" "raises a notice for the overlap"
+git -C "$WORK/seed" push -q origin --delete codex/ui-polish
+run_hook resume
+expect_no_ctx "codex/ui-polish" "drops branches deleted on GitHub"
+
+echo "scripts/session-start.sh (Codex entry point) prints plain text"
+setup
+mkdir -p "$WORK/clone/scripts" "$WORK/clone/.claude/hooks"
+cp "$HOOK" "$WORK/clone/.claude/hooks/session-start.sh"
+cp "$(dirname "$HOOK")/../../scripts/session-start.sh" "$WORK/clone/scripts/session-start.sh"
+PLAIN="$(cd "$WORK/clone" && SESSION_START_SKIP_CHECKS=1 bash scripts/session-start.sh 2>/dev/null)"
+if [[ "$PLAIN" == *"Agent: codex"* && "$PLAIN" != *'"hookSpecificOutput"'* ]]; then ok "prints the Codex report as plain text"; else bad "wrapper output wrong: ${PLAIN:0:200}"; fi
+
+# Replace the clone with one made by `git clone <args>` and put it on claude/test
+reclone() {
+  rm -rf "$WORK/clone"
+  git clone -q "$@" "file://$WORK/origin.git" "$WORK/clone" 2>/dev/null
+}
+push_session_branch() { git -C "$WORK/clone" push -q origin claude/test; }
+
+echo "single-branch clone of the session branch → still compared with real production"
+setup; push_session_branch; advance_prod 1
+reclone --single-branch -b claude/test
+run_hook startup
+expect_ctx "fast-forwarded to production" "fast-forwards instead of a false ✅"
+expect_head "$(git -C "$WORK/origin.git" rev-parse "$PROD")" "HEAD is production HEAD"
+
+echo "shallow clone of an ahead-only session branch → not mistaken for diverged"
+setup; commit_local 1; commit_local 2; commit_local 3; push_session_branch
+reclone --depth 1 -b claude/test
+run_hook resume
+expect_ctx "plus 3 unmerged commit(s)" "counts the real 3 unmerged commits"
+expect_no_ctx "SESSION-START BLOCKER" "no false divergence"
+
+echo "uncommitted changes already there at a fresh start → notice (ask the user)"
+setup
+printf 'someone else\n' >> "$WORK/clone/shared.txt"
+run_hook startup
+expect_ctx "already in the working tree at session start" "asks before touching changes it didn't make"
+
+echo "blocked fast-forward → git's reason and working advice"
+setup
+(cd "$WORK/seed" && printf 'prod edit\n' >> shared.txt && git commit -qam "prod edits shared" && git push -q origin "$PROD")
+printf 'local edit\n' >> "$WORK/clone/shared.txt"
+run_hook resume
+expect_ctx "git stash push -u && git merge --ff-only" "suggests stash -u then fast-forward"
+expect_ctx "git merge origin/$PROD" "or commit and merge"
+
+echo "untracked file that production adds → blocker that names the real reason"
+setup
+(cd "$WORK/seed" && printf 'prod\n' > newfile.txt && git add newfile.txt && git commit -qm "prod adds newfile" && git push -q origin "$PROD")
+printf 'mine\n' > "$WORK/clone/newfile.txt"
+run_hook resume
+expect_ctx "untracked working tree files would be overwritten" "quotes git's reason"
+if grep -q mine "$WORK/clone/newfile.txt"; then ok "untracked file kept"; else bad "untracked file lost"; fi
+
+echo "diverged with uncommitted changes → mentioned, and option (b) never discards them"
+setup; commit_local 1; advance_prod 1
+printf 'precious\n' >> "$WORK/clone/shared.txt"
+run_hook compact
+expect_ctx "Uncommitted changes are present" "mentions the uncommitted change"
+expect_ctx "start fresh from production" "option (b) starts a fresh branch"
+expect_no_ctx "reset --hard" "no destructive reset offered"
+
+echo "merge left in progress → notice, nothing touched"
+setup
+(cd "$WORK/clone" && printf 'mine\n' >> shared.txt && git commit -qam "mine")
+(cd "$WORK/seed" && printf 'theirs\n' >> shared.txt && git commit -qam "theirs" && git push -q origin "$PROD")
+git -C "$WORK/clone" fetch -q origin
+git -C "$WORK/clone" merge -q "origin/$PROD" >/dev/null 2>&1
+run_hook compact
+expect_ctx "A git merge is in progress" "reports the merge in progress"
+expect_no_ctx "SESSION-START BLOCKER" "no blocker for its own unfinished merge"
+if [ -f "$WORK/clone/.git/MERGE_HEAD" ]; then ok "merge state untouched"; else bad "merge state changed"; fi
+
+echo "interrupted end-session merge on production → finish it (notice), blocker only on a fresh start"
+setup; commit_local 1
+(cd "$WORK/clone" && git checkout -q "$PROD" && git merge -q --no-ff claude/test -m "Merge claude/test into $PROD")
+run_hook compact
+expect_ctx "end-session merge was interrupted" "explains the unpushed merge"
+expect_no_ctx "SESSION-START BLOCKER" "no blocker mid end-session"
+run_hook startup
+expect_ctx "SESSION-START BLOCKER" "still a blocker on a fresh start on production"
+
+echo "production renamed → an older branch follows the name recorded on production"
+setup
+(cd "$WORK/seed" && printf 'new-prod\n' > .claude/production-branch && git commit -qam "production is new-prod" && git push -q origin "$PROD" \
+  && git checkout -q -b new-prod && printf 'newer\n' > newer.txt && git add newer.txt && git commit -qm "newer" && git push -q origin new-prod)
+run_hook resume
+expect_ctx "Production is now \`new-prod\`" "notices the rename"
+expect_head "$(git -C "$WORK/origin.git" rev-parse new-prod)" "fast-forwarded to the new production branch"
+
+echo "no python3 → still valid JSON (node fallback)"
+setup
+NOPY="$WORK/nopy-bin"; rm -rf "$NOPY"; mkdir -p "$NOPY"
+for c in git node cat grep sed tr awk timeout date sort comm head sha256sum cut dirname mkdir; do
+  p="$(command -v "$c")" && ln -sf "$p" "$NOPY/$c"
+done
+HOOK_PATH="$NOPY" run_hook startup
+expect_json
+expect_ctx "is at production HEAD" "full report without python3"
+
+echo "SESSION_LOG.md parsing"
+setup
+printf '# Log\n\n### 2026-02-01 — top\nline one\n#### a sub-heading\nline two\n~~~\n### inside tilde fence\n~~~\nline three\n\n### 2026-01-01 — next\nnext body\n' > "$WORK/clone/SESSION_LOG.md"
+run_hook resume
+expect_ctx "line two" "keeps #### sub-headings inside an entry"
+expect_ctx "line three" "skips headings inside ~~~ fences"
+expect_no_ctx "next body" "stops at the next entry"
+{ printf '# Log\n\n### top\n```\n'; for i in $(seq 1 400); do printf 'leak %s\n' "$i"; done; printf '### older\nolder body\n'; } > "$WORK/clone/SESSION_LOG.md"
+run_hook resume
+expect_ctx "entry truncated" "caps an entry with an unclosed fence"
+expect_no_ctx "leak 300" "does not flood the context"
+
+echo "SESSION_LOG.md: earlier entries listed; conflict markers ignored"
+setup
+run_hook resume
+expect_ctx "- 2026-01-01 — older (first)" "lists the heading of the earlier entry"
+printf '# Log\n\n<<<<<<< HEAD\n### mine\nmine body\n=======\n### theirs\ntheirs body\n>>>>>>> other\n' > "$WORK/clone/SESSION_LOG.md"
+run_hook resume
+expect_ctx "newest body" "reads the committed log while the file has conflict markers"
+expect_no_ctx "<<<<<<<" "never injects conflict markers"
+
+echo "stalled network → gives up quickly"
+setup
+git -C "$WORK/clone" config protocol.ext.allow always
+git -C "$WORK/clone" remote set-url origin 'ext::sleep 120'
+START="$(date +%s)"
+GIT_NET_TIMEOUT=3 run_hook startup
+if [ $(( $(date +%s) - START )) -lt 30 ]; then ok "finished within the time limit"; else bad "hook hung on the network"; fi
+expect_ctx "failed (or timed out)" "reports the fetch failure"
+
+echo "settings.json command works from a folder with a space in its name"
+setup
+SP="$WORK/with space"; rm -rf "$SP"; mkdir -p "$SP/.claude/hooks"
+cp "$HOOK" "$SP/.claude/hooks/session-start.sh"
+CMD="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["hooks"]["SessionStart"][0]["hooks"][0]["command"])' "$(dirname "$HOOK")/../settings.json")"
+SOUT="$(printf '{"source":"startup"}' | CLAUDE_PROJECT_DIR="$SP" CLAUDE_CODE_REMOTE=false sh -c "$CMD" 2>/dev/null)"
+if [[ "$SOUT" == *'"hookSpecificOutput"'* ]]; then ok "hook starts from a path with a space"; else bad "hook did not start from a path with a space"; fi
 
 echo
 echo "$PASS passed, $FAIL failed"

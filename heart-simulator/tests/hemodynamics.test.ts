@@ -4,13 +4,14 @@ import { HEMO_PROFILES, HemoModel } from '@/lib/physiology/hemodynamics';
 
 const T = 20_000;
 
-function summary(profile: string, hr = 0, override?: Parameters<HemoModel['setOverride']>[0]) {
+function run(profile: string, hr = 0, override?: Parameters<HemoModel['setOverride']>[0]) {
   const engine = new ECGEngine(profile, hr);
   engine.ensure(T + 2_000);
   const model = new HemoModel(engine);
   if (override !== undefined) model.setOverride(override);
-  return model.summary(T);
+  return { engine, s: model.summary(T) };
 }
+const summary = (...args: Parameters<typeof run>) => run(...args).s;
 
 describe('hemodynamic summary', () => {
   it('gives a physiological picture in normal sinus rhythm', () => {
@@ -38,13 +39,24 @@ describe('hemodynamic summary', () => {
     expect(s.co).toBe(0);
   });
 
+  it.each([60, 100])('computes cardiac output from stroke volume × measured rate at %i bpm', (hr) => {
+    const { engine, s } = run('normal-sinus', hr);
+    expect(s.co).toBeCloseTo((s.sv * engine.heartRate(T)) / 1000, 1);
+  });
+
+  it('never gives a pulseless rhythm output, even with a heart-failure override', () => {
+    const s = summary('vf', 0, 'hfref');
+    expect(s.noOutput).toBe(true);
+    expect(s.co).toBe(0);
+  });
+
   it('lowers the ejection fraction when the patient has HFrEF', () => {
     expect(summary('normal-sinus', 72, 'hfref').ef).toBeLessThan(summary('normal-sinus', 72).ef);
   });
 });
 
 describe('hemodynamic profiles', () => {
-  it.each(Object.entries(HEMO_PROFILES))('%s has systolic ≥ diastolic pressure and EDV ≥ ESV', (_, p) => {
+  it.each(Object.entries(HEMO_PROFILES))('%s has systolic > diastolic pressure and EDV ≥ ESV', (_, p) => {
     expect(p.sbp).toBeGreaterThan(p.dbp);
     expect(p.edv).toBeGreaterThanOrEqual(p.esv);
   });
