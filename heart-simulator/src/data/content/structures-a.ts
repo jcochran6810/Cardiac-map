@@ -1479,11 +1479,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The short, wide artery that carries deoxygenated blood from the right ventricle and divides into the right and left pulmonary arteries. Its pressure and size are central to diagnosing pulmonary hypertension and pulmonary embolism.',
     levelNotes: [
-      'A large clot in the pulmonary arteries (PE) causes sudden breathlessness, chest pain, fainting or arrest: support oxygenation and transport rapidly',
-      'Massive PE presents with shock, hypoxia, distended neck veins and often PEA arrest; alert the receiving hospital early',
-      'High-risk PE (shock) warrants systemic thrombolysis unless contraindicated; on CTPA look at RV/LV ratio and risk-stratify with troponin/BNP',
-      'Pulmonary hypertension = mean PAP >20 mmHg at rest; precapillary PH also needs PAWP ≤15 mmHg and PVR >2 WU',
-      'Catheter-directed thrombolysis or thrombectomy targets main/lobar clot; never over-wedge a PA catheter balloon (PA rupture)',
+      'A large clot blocking the pulmonary arteries (PE) causes sudden breathlessness, chest pain, fainting or cardiac arrest. Give oxygen, monitor closely, start CPR and use the AED if pulseless, and transport rapidly with early notification.',
+      'Massive PE presents with shock, hypoxia, distended neck veins and often PEA arrest; the ECG may show sinus tachycardia, RV strain or new RBBB. Support oxygenation, give pressors per protocol, avoid large fluid boluses and alert the receiving hospital early.',
+      'During RHC, record PA pressures and PCWP at end-expiration plus cardiac output, then calculate PVR in Wood units. Watch for a persistent wedge trace after balloon deflation and report it, or any hemoptysis, to the operator at once (PA rupture risk).',
+      'For catheter-directed PE therapy, give anticoagulant and lytic infusions only as ordered, monitor for bleeding (access sites, neuro checks, GI/urine) and respiratory status, and report changes at once. With a PA catheter, never leave the balloon wedged; report hemoptysis immediately.',
+      'PH = mean PAP >20 mmHg; precapillary PH also needs PAWP ≤15 mmHg and PVR >2 WU (2022 ESC/ERS). High-risk PE warrants systemic thrombolysis unless contraindicated; use catheter-directed therapy or surgical embolectomy when lysis is contraindicated or fails, and VA-ECMO for refractory shock.',
     ],
     overview: [
       'Arises from the RV outflow tract via the pulmonary valve',
@@ -1551,11 +1551,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'Usually four veins (two right, two left) that carry oxygenated blood from the lungs into the left atrium. Muscle sleeves at their ostia are the main triggers of atrial fibrillation, making them the target of pulmonary vein isolation.',
     levelNotes: [
-      'Pulmonary veins return oxygen-rich blood to the left heart; when left heart pressure rises, fluid floods the lungs (crackles, frothy sputum)',
-      'Acute pulmonary edema reflects high pulmonary venous pressure: sit up, CPAP and nitroglycerin per protocol if blood pressure allows',
-      'New cough, hemoptysis or dyspnea weeks to months after AF ablation can be pulmonary vein stenosis: CT confirms',
-      'PV Doppler (S/D ratio, systolic reversal) helps grade MR and filling pressures; PVI is a first-line rhythm option in selected symptomatic paroxysmal AF',
-      'Durable antral isolation is the goal; protect the esophagus (posterior), right phrenic nerve (right PVs) and avoid ostial lesions that cause stenosis',
+      'Pulmonary veins carry oxygen-rich blood to the left heart; when pressure backs up, fluid floods the lungs (crackles, frothy sputum). Sit the patient up, give oxygen or CPAP where protocols allow, and report any recent AF ablation.',
+      'Cardiogenic pulmonary edema reflects high pulmonary venous pressure: sit up, apply CPAP and give nitroglycerin per protocol if BP allows. After recent AF ablation, new chest pain, fever or neuro symptoms can signal a rare but serious complication (atrio-esophageal fistula): transport promptly.',
+      'During PVI, prepare the RF, cryoballoon or pulsed-field system, mapping and ICE as directed, and help monitor phrenic capture during right-vein lesions. Report loss of diaphragm movement, esophageal temperature alarms or hypotension to the operator immediately.',
+      'During AF ablation, give heparin as ordered and keep ACT at the ordered target (often >300 s), monitor sedation and watch for tamponade. Before discharge, teach patients to report fever, chest pain, trouble swallowing, hemoptysis or neuro symptoms in the following weeks.',
+      'PV Doppler (S/D ratio, systolic reversal) helps grade MR and filling pressures. PVI is first-line rhythm control in selected symptomatic paroxysmal AF (2023 ACC/AHA/HRS); aim for durable antral isolation and protect the esophagus, right phrenic nerve and PV ostia (stenosis).',
     ],
     overview: [
       'Usually four: right superior, right inferior, left superior and left inferior',
@@ -1622,11 +1622,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The first segment of the aorta, from the aortic valve (root and sinuses of Valsalva, which give rise to the coronary arteries) to the origin of the brachiocephalic trunk. Aneurysm and type A dissection here are surgical emergencies.',
     levelNotes: [
-      'Sudden tearing chest or back pain, fainting or arm pulse differences suggests aortic dissection: transport urgently and tell medical control before giving aspirin',
-      'Dissection can mimic or cause STEMI (usually inferior, via the RCA ostium): screen for dissection features before antiplatelets or anticoagulants',
-      'Type A dissection needs emergency surgery; meanwhile target HR ≤60 and SBP <120 mmHg with IV beta-blocker first, then a vasodilator',
-      'Ascending aorta size varies with age, sex and body size; repair is usually advised at ≥5.5 cm, earlier with Marfan, bicuspid-related risk or rapid growth',
-      'Know coronary heights, sinus and sinotubular dimensions before TAVR; catheters and cannulas can cause iatrogenic ascending dissection',
+      'Sudden tearing chest or back pain, fainting, or different pulses or BP between the arms can mean aortic dissection. Check pulses and BP in both arms, transport urgently, and consult medical direction before giving aspirin if dissection is suspected.',
+      'Dissection can mimic or cause STEMI (usually inferior, via the RCA ostium): check for bilateral BP or pulse differences and contact medical direction before antiplatelets when dissection features are present. Control pain, avoid hypotension and notify the receiving center early.',
+      'On aortography the root and sinuses sit just above the valve; anticipate root injections for AR grading and TAVR. Catheters and wires can dissect the root or coronary ostia: report contrast staining, new chest pain, ST change or hypotension to the operator at once.',
+      'For suspected type A dissection, establish large-bore IV access and arterial monitoring as ordered, and titrate the ordered IV beta-blocker, then vasodilator, to the HR and SBP targets (commonly HR ~60, SBP <120 mmHg). Clarify any antithrombotic order before giving it.',
+      'Type A dissection needs emergency surgery; meanwhile give IV beta-blocker first (then a vasodilator) to HR ~60 and SBP <120 mmHg. Repair the ascending aorta at ≥5.5 cm, earlier with Marfan, Loeys–Dietz, bicuspid risk features or rapid growth; know coronary heights and STJ dimensions before TAVR.',
     ],
     overview: [
       'Begins at the aortic annulus and ends at the brachiocephalic trunk origin',
@@ -1694,11 +1694,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The curved segment of the aorta that gives rise to the brachiocephalic trunk, left common carotid and left subclavian arteries before continuing as the descending aorta at the isthmus.',
     levelNotes: [
-      'Unequal arm pulses or blood pressures can mean dissection or blockage near the arch: check both arms in chest pain patients',
-      'High-speed deceleration can tear the aorta at the isthmus just beyond the left subclavian artery: keep suspicion high and go to a trauma center',
-      'Chest pain with neurologic deficits or pulse deficits suggests arch branch involvement; CTA chest and strict BP/HR control',
-      'Know arch variants (common brachiocephalic–left carotid origin in roughly 10–25%) and coarctation signs (arm hypertension, radio-femoral delay)',
-      'Arch type (I–III) and variants determine catheter choice for carotid work and TAVR embolic protection; complex arch atheroma is an embolic stroke source',
+      'Unequal arm pulses or blood pressures can mean dissection or blockage near the arch: check pulses and BP in both arms in chest-pain patients. High-speed deceleration can tear the aorta just beyond the arch; transport to a trauma center per triage protocol.',
+      'Chest pain with a neurologic or pulse deficit suggests dissection involving the arch branches; record BP in both arms and use the higher reading for treatment decisions. In blunt deceleration trauma, use permissive hypotension per protocol and transport to a trauma center.',
+      'Arch type (I–III) and variants such as a common brachiocephalic–left carotid origin affect catheter choice: have the Judkins, Simmons and other shapes the operator may request ready. During carotid stenting, watch for bradycardia, hypotension or neuro change and report immediately.',
+      'During carotid or arch procedures, perform baseline and serial neuro checks and report any change at once. Carotid stenting can cause bradycardia and hypotension, so have atropine and vasopressors ready to give as ordered, and monitor BP in the arm the team specifies.',
+      'Know arch variants (common brachiocephalic–left carotid origin in ~10–25%, aberrant right subclavian) and coarctation signs (arm hypertension, radio-femoral delay). Arch type guides catheter selection for carotid work and TAVR embolic protection; complex arch atheroma (≥4 mm or mobile) is an embolic stroke source.',
     ],
     overview: [
       'Lies in the superior mediastinum; begins and ends at about the level of the sternal angle (T4/T5)',
@@ -1764,11 +1764,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The aorta from the isthmus beyond the left subclavian artery down through the chest (thoracic) and diaphragm (abdominal) to the iliac bifurcation. It is the site of type B dissection and abdominal aortic aneurysm.',
     levelNotes: [
-      'Sudden tearing back or abdominal pain in an older person with hypertension may be dissection or a leaking aneurysm: rapid transport',
-      'Ruptured AAA: back/flank pain, pulsatile mass, hypotension; use permissive hypotension per protocol and go to a vascular-capable center',
-      'Type B dissection: anti-impulse therapy (HR ≤60, SBP <120 mmHg) and vigilance for malperfusion (bowel, kidneys, legs) or rupture',
-      'Uncomplicated type B dissection is managed medically; repair thresholds: descending thoracic ~5.5–6.0 cm, AAA ≥5.5 cm in men and ~5.0 cm in women',
-      'TEVAR planning needs adequate (~2 cm) landing zones, access vessel size and a left subclavian strategy; spinal cord ischemia is a key risk',
+      'Sudden tearing back or abdominal pain, especially in an older person with high blood pressure, may be dissection or a leaking abdominal aneurysm. Look for a pulsatile abdominal mass and low BP, keep the patient still and transport rapidly per protocol.',
+      'Suspected ruptured AAA: back or flank pain, pulsatile mass and hypotension. Use permissive hypotension per protocol (avoid over-resuscitation), establish large-bore IV access and transport to a vascular-capable center with early notification.',
+      'The IABP sits in the descending thoracic aorta: on fluoroscopy the radiopaque tip should be ~1–2 cm below the left subclavian origin (near the carina). Set timing on the console as directed, and report poor augmentation, alarms or limb ischemia to the operator.',
+      'With an IABP or large-bore femoral device, check distal pulses, leg colour and temperature, urine output (renal compromise if the balloon migrates) and left radial pulse (subclavian occlusion), and keep the leg straight. Report limb ischemia, bleeding or falling urine output promptly.',
+      'Uncomplicated type B dissection: medical anti-impulse therapy; complicated (rupture, malperfusion, refractory pain or hypertension): TEVAR. Repair thresholds: descending thoracic ~5.5–6.0 cm, AAA ≥5.5 cm (men) or ~5.0 cm (women); TEVAR needs ~2 cm landing zones and spinal-cord protection planning.',
     ],
     overview: [
       'Thoracic segment: isthmus (~T4) to the aortic hiatus (T12)',
@@ -1842,11 +1842,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The double-walled sac around the heart: a tough outer fibrous layer lined by the serous parietal layer, which reflects onto the heart surface as the visceral layer (epicardium). The pericardial space between the serous layers normally holds ~15–50 mL of lubricating fluid.',
     levelNotes: [
-      'Fluid or blood in the pericardial sac can squeeze the heart (tamponade): low BP, distended neck veins, muffled heart sounds, so transport rapidly',
-      'Penetrating chest trauma with hypotension and JVD suggests tamponade: alert the trauma center early, give fluids per protocol and avoid delays on scene',
-      'Tamponade is a clinical and echo diagnosis: effusion with RA systolic collapse, RV diastolic collapse, plethoric IVC and exaggerated respiratory inflow variation',
-      'Distinguish tamponade, effusive-constrictive and constrictive pericarditis; constriction shows septal bounce, respirophasic septal shift and annulus reversus',
-      'Echo-guided pericardiocentesis (subxiphoid, apical or parasternal) is standard, but tamponade from type A dissection or free-wall rupture needs surgery',
+      'Fluid or blood in the heart sac can squeeze the heart (tamponade): low BP, distended neck veins and muffled heart sounds. In penetrating chest trauma with these signs, minimise scene time, give oxygen and transport to a trauma center with early notification.',
+      'Tamponade: Beck triad, pulsus paradoxus and tachycardia, sometimes low voltage or electrical alternans; it can present as PEA. Give fluids per protocol as a bridge, avoid positive-pressure ventilation where possible and transport rapidly; pericardiocentesis only if your system’s protocol authorises it.',
+      'Sudden hypotension during a procedure may be perforation and tamponade: alert the operator and bring the pericardiocentesis tray (needle, wire, sheath, pigtail drain, pressure tubing). Record pericardial pressure and drained volume, and flag equalised diastolic pressures on a right-heart run.',
+      'Recognise tamponade early (hypotension, tachycardia, rising RA pressure, falling SpO₂) and notify the operator immediately; give fluids and vasopressors as ordered while the pericardiocentesis tray is prepared. Afterwards monitor drain output, hemodynamics and rhythm, and keep the drain patent per protocol.',
+      'Tamponade is a clinical/echo diagnosis (RA systolic and RV diastolic collapse, plethoric IVC, exaggerated respiratory inflow variation); distinguish effusive-constrictive and constrictive physiology. Echo-guided pericardiocentesis is standard, but tamponade from type A dissection or free-wall rupture needs surgery.',
     ],
     overview: [
       'Fibrous pericardium: dense outer collagen layer that limits acute cardiac dilation',

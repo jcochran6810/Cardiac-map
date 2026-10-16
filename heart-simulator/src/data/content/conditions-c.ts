@@ -766,7 +766,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
       'Severe AS is preload-dependent: nitrates, sedatives, opioids and volume loss can cause collapse, so minimize or withhold nitroglycerin, treat hypotension with careful fluids and vasopressor per protocol, and cardiovert unstable tachyarrhythmias. Expect LVH with strain and conduction block on the 12-lead.',
       'Record simultaneous LV and aortic pressures for the mean gradient, with cardiac output for the Gorlin valve area; for TAVR or BAV, prepare the rapid-pacing setup, valve system and large-bore access supplies. Report hypotension or new heart block to the operator at once.',
       'Severe AS tolerates sedation, vasodilators and dehydration poorly: give sedation only on order with the practitioner present, monitor BP closely and report hypotension early. After TAVR, monitor for new heart block, access-site bleeding, limb ischemia and neurologic change.',
-      'Confirm severity (Vmax ≥ 4 m/s, mean gradient ≥ 40 mmHg, AVA ≤ 1.0 cm²), resolve low-gradient discordance with DSE or CT calcium score, and refer symptomatic severe AS for AVR. Choose TAVR vs SAVR by age, life expectancy, anatomy and risk; anticipate conduction injury, PVL and coronary obstruction.',
+      'Confirm severity (Vmax ≥ 4 m/s, mean gradient ≥ 40 mmHg, AVA ≤ 1.0 cm²), resolve low-gradient discordance with DSE or CT calcium score, and refer symptomatic severe AS for AVR. Choose TAVR or SAVR by age, anatomy and risk; anticipate conduction injury, PVL and coronary obstruction.',
     ],
     overview: [
       'Narrowing of the aortic valve orifice causing fixed LV outflow obstruction',
