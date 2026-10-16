@@ -108,7 +108,7 @@ export const VENT_PATTERNS: Record<string, ActivationPattern> = {
       { sources: NORMAL_SOURCES.map((s) => ({ p: s.p, t: s.t + 40 })), cv: { RV: FAST, LV: FAST } },
     ],
     earliest: 'Lateral LV just below the mitral annulus — the accessory-pathway insertion (delta wave)',
-    latest: 'RV and septal regions, reached by the normal conduction system (fusion)',
+    latest: 'RV free wall and outflow tract, reached via the normal AV node–His–Purkinje system (fusion)',
     note: 'Ablation targets the earliest site on the annulus.',
   },
   paced: {
@@ -130,7 +130,7 @@ export const VENT_PATTERNS: Record<string, ActivationPattern> = {
     groups: [{ sources: [{ p: [0.45, 0.28, -0.55], t: 0 }], cv: { RV: SLOW, LV: SLOW } }],
     earliest: 'Inferolateral LV (scar exit site)',
     latest: 'RV free wall and outflow tract',
-    note: 'Mapping the earliest site guides VT ablation.',
+    note: 'In scar re-entry the QRS-onset site is only the exit; ablation targets the diastolic isthmus behind it.',
   },
   escape: {
     id: 'escape', label: 'Ventricular escape rhythm', chamber: 'ventricles',
@@ -154,8 +154,8 @@ export const ATRIAL_PATTERNS: Record<string, ActivationPattern> = {
   },
   retrograde: {
     id: 'retrograde', label: 'Retrograde (junctional / AVNRT)', chamber: 'atria',
-    groups: [{ sources: [{ p: [-0.2, 0.42, -0.08], t: 0 }, { p: [0.02, 0.5, -0.06], t: 8 }], cv: { RA: 0.01, LA: 0.009 } }],
-    earliest: 'Low septum near the coronary sinus ostium',
+    groups: [{ sources: [{ p: [-0.15, 0.4, 0.02], t: 0 }, { p: [0.02, 0.48, 0.04], t: 6 }], cv: { RA: 0.01, LA: 0.009 } }],
+    earliest: 'Atrial septum around the AV node (near the His bundle in typical AVNRT; near the CS ostium in atypical AVNRT)',
     latest: 'High RA and both appendages — inverted P waves in II, III, aVF',
     note: 'Activation runs bottom-to-top, the reverse of sinus rhythm.',
   },

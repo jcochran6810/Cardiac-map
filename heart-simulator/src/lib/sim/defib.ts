@@ -66,7 +66,8 @@ export const SCENARIOS: Scenario[] = [
   { id: 'svt-unstable', label: 'Unstable SVT', profile: 'avnrt', hr: 190, baseline: 'shock', spo2: 94, rr: 24, etco2: 31, arrest: false, story: '64-year-old with ischaemic cardiomyopathy: palpitations, chest pain, confusion, clammy. Regular narrow tachycardia.' },
   { id: 'svt-stable', label: 'Stable SVT', profile: 'avnrt', hr: 180, baseline: null, spo2: 98, rr: 18, etco2: 36, arrest: false, story: '28-year-old with sudden palpitations at rest, alert and well perfused.' },
   { id: 'af-unstable', label: 'Unstable AF', profile: 'atrial-fibrillation', hr: 160, baseline: 'shock', spo2: 92, rr: 26, etco2: 30, arrest: false, story: '70-year-old with new irregular tachycardia, hypotension and acute pulmonary oedema.' },
-  { id: 'vt-pulse', label: 'VT with a pulse', profile: 'vt', hr: 170, baseline: null, spo2: 95, rr: 22, etco2: 33, arrest: false, story: '61-year-old with prior MI: wide regular tachycardia, chest pain, pale, has a weak radial pulse.' },
+  { id: 'vt-pulse', label: 'Unstable VT (pulse)', profile: 'vt', hr: 170, baseline: null, spo2: 95, rr: 22, etco2: 33, arrest: false, story: '61-year-old with prior MI: wide regular tachycardia, hypotension, chest pain and confusion; weak radial pulse.' },
+  { id: 'vt-stable', label: 'Stable VT', profile: 'vt', hr: 150, baseline: 'normal', spo2: 97, rr: 18, etco2: 36, arrest: false, story: '48-year-old with palpitations; alert, no chest pain or breathlessness, normal blood pressure. Regular wide-complex tachycardia.' },
   { id: 'chb', label: 'Symptomatic CHB', profile: 'third-degree-avb', hr: 34, baseline: 'hfref', spo2: 95, rr: 20, etco2: 34, arrest: false, story: '79-year-old with syncope and dizziness; pale and clammy. Slow wide escape rhythm.' },
   { id: 'brady', label: 'Sinus bradycardia', profile: 'sinus-bradycardia', hr: 38, baseline: 'hfref', spo2: 96, rr: 18, etco2: 35, arrest: false, story: '67-year-old with light-headedness and hypotension after starting a new medication.' },
 ];
@@ -92,6 +93,8 @@ export interface DefibState {
   lidoDoses: number;
   adenosineDoses: number;
   atropineMg: number;
+  magnesiumGiven: boolean;
+  calciumGiven: boolean;
   shocks: number;
   antiarrhythmicBonus: number;
   log: LogEntry[];
@@ -124,6 +127,8 @@ const initial = (): DefibState => ({
   lidoDoses: 0,
   adenosineDoses: 0,
   atropineMg: 0,
+  magnesiumGiven: false,
+  calciumGiven: false,
   shocks: 0,
   antiarrhythmicBonus: 0,
   log: [],
@@ -315,8 +320,12 @@ function deliver(t: number, synced: boolean) {
     if (rand < p) {
       after(2200, () => {
         const o = Math.random();
-        if (o < 0.55) roscNow('Shock terminated VF/VT — organised rhythm WITH a pulse (ROSC)');
-        else if (o < 0.8) changeRhythm('pea', 50, 'Shock terminated VF/VT — organised rhythm but NO pulse (PEA)');
+        if (o < 0.55) {
+          roscNow('Shock terminated VF/VT — organised rhythm WITH a pulse (ROSC)');
+          if (r === 'torsades' && !get().magnesiumGiven) after(25000, () => {
+            if (!get().magnesiumGiven && Math.random() < 0.5) changeRhythm('torsades', undefined, 'Torsades recurred — give magnesium, stop QT-prolonging drugs, correct K⁺; consider overdrive pacing');
+          });
+        } else if (o < 0.8) changeRhythm('pea', 50, 'Shock terminated VF/VT — organised rhythm but NO pulse (PEA)');
         else changeRhythm('asystole', undefined, 'Shock terminated VF/VT — asystole');
       });
     } else {
@@ -369,7 +378,7 @@ export function startPacing() {
   if (s.pacer.on) return;
   set({ pacer: { ...get().pacer, on: true } });
   log(`Pacer ON: ${s.pacer.rate} ppm, ${s.pacer.mA} mA (${s.pacer.demand ? 'demand' : 'fixed'})`, 'pacing');
-  if (isArrestRhythm(useECGStore.getState().activeProfileId)) log('Transcutaneous pacing is not recommended for asystole or PEA', 'warn');
+  if (isArrestRhythm(useECGStore.getState().activeProfileId)) log('Transcutaneous pacing is not recommended in cardiac arrest (asystole / PEA); VF / pulseless VT needs defibrillation', 'warn');
   evaluatePacing();
 }
 
@@ -444,7 +453,8 @@ function stopCPR(silent: boolean) {
   if (!silent) log(`CPR paused after ${fmt(dur)} — rhythm / pulse check (≤ 10 s)`, 'cpr');
   // Simulation: non-shockable arrest may regain a pulse after a full cycle of CPR with epinephrine
   const id = useECGStore.getState().activeProfileId;
-  if (!silent && dur >= 110000 && (id === 'pea' || id === 'asystole') && s.lastEpi !== null && now() - s.lastEpi < 300000 && Math.random() < 0.25) {
+  const odds = id === 'pea' && s.scenario?.id === 'pea' ? (s.calciumGiven ? 0.5 : 0.1) : 0.25;
+  if (!silent && dur >= 110000 && (id === 'pea' || id === 'asystole') && s.lastEpi !== null && now() - s.lastEpi < 300000 && Math.random() < odds) {
     roscNow('Pulse check: palpable pulse — ROSC');
   }
 }
@@ -478,21 +488,26 @@ export function giveDrug(id: string) {
       break;
     }
     case 'amiodarone': {
-      if (!pulse && (prof.rhythm === 'vf' || prof.rhythm === 'vt' || prof.rhythm === 'torsades')) {
+      set({ amioDoses: s.amioDoses + 1 });
+      if (prof.rhythm === 'torsades') { log('Amiodarone prolongs the QT — avoid in torsades; give magnesium and defibrillate if pulseless', 'warn'); break; }
+      if (!pulse && (prof.rhythm === 'vf' || prof.rhythm === 'vt')) {
+        if (s.amioDoses >= 2) { log('Arrest dosing is 300 mg then one 150 mg dose — no further boluses', 'warn'); break; }
         if (s.shocks < 3 && s.amioDoses === 0) log('Amiodarone is usually given after the 3rd shock for refractory VF/pVT', 'info');
-        set({ amioDoses: s.amioDoses + 1, antiarrhythmicBonus: Math.min(0.15, s.antiarrhythmicBonus + 0.1) });
+        set({ antiarrhythmicBonus: Math.min(0.15, s.antiarrhythmicBonus + 0.1) });
       } else if (pulse && prof.rhythm === 'vt') {
-        set({ amioDoses: s.amioDoses + 1 });
-        after(60000, () => { if (currentProfile().rhythm === 'vt' && Math.random() < 0.35) changeRhythm('normal-sinus', 84, 'VT terminated after amiodarone'); else log('VT persists after amiodarone — consider synchronised cardioversion / expert consult', 'rhythm'); });
+        if (sim.hemo.summary(sim.time).sbp < 90) log('Hypotension = unstable VT: synchronised cardioversion is indicated; drugs are for stable VT', 'warn');
+        after(60000, () => { if (currentProfile().rhythm === 'vt' && Math.random() < 0.35) changeRhythm('normal-sinus', 84, 'VT terminated after amiodarone'); else log('VT persists after amiodarone — consider synchronised cardioversion / expert consultation', 'rhythm'); });
+      } else if (pulse && (prof.rhythm === 'af' || prof.rhythm === 'flutter')) {
+        log('IV amiodarone can slow the rate in critically ill or HFrEF patients (it may also cardiovert — consider anticoagulation status)', 'info');
+        after(90000, () => { if (currentProfile().id === pid) changeRhythm(pid, prof.rhythm === 'flutter' ? 100 : 98, 'Ventricular rate slowing after amiodarone'); });
       } else {
-        set({ amioDoses: s.amioDoses + 1 });
         log('No clear indication for amiodarone in this rhythm', 'warn');
       }
-      if (prof.rhythm === 'torsades') log('Amiodarone prolongs the QT — avoid in torsades; give magnesium', 'warn');
       break;
     }
     case 'lidocaine': {
       set({ lidoDoses: s.lidoDoses + 1 });
+      if (s.lidoDoses >= 3) { log('Lidocaine: cumulative maximum ~3 mg/kg reached', 'warn'); break; }
       if (!pulse && (prof.rhythm === 'vf' || prof.rhythm === 'vt')) set({ antiarrhythmicBonus: Math.min(0.15, s.antiarrhythmicBonus + 0.08) });
       break;
     }
@@ -527,12 +542,13 @@ export function giveDrug(id: string) {
       if (!pulse) { log('Atropine is no longer recommended in cardiac arrest', 'warn'); break; }
       if (pid === 'sinus-bradycardia') after(20000, () => changeRhythm('normal-sinus', 76, 'Heart rate rising after atropine'));
       else if (pid === 'junctional' || pid === 'mobitz-i' || pid === 'first-degree-avb') after(20000, () => { if (Math.random() < 0.7) changeRhythm('normal-sinus', 78, 'Improved AV-nodal conduction after atropine'); else log('Little response to atropine', 'rhythm'); });
-      else if (pid === 'mobitz-ii' || pid === 'third-degree-avb') after(15000, () => log('No response: infranodal block (wide escape) rarely responds to atropine — pace or start a chronotropic infusion', 'rhythm'));
+      else if (pid === 'mobitz-ii' || pid === 'third-degree-avb') after(15000, () => log('No response: block below the AV node with a wide escape rarely responds to atropine (a narrow junctional escape sometimes does) — pace or start a chronotropic infusion', 'rhythm'));
       else log('No bradycardia to treat', 'warn');
       break;
     }
     case 'magnesium': {
-      if (prof.rhythm === 'torsades') after(20000, () => { if (Math.random() < 0.7) changeRhythm('sinus-bradycardia', 56, 'Torsades suppressed after magnesium — long-QT sinus rhythm; stop QT-prolonging drugs, replace K⁺'); else log('Torsades persists — defibrillate if pulseless; consider overdrive pacing / isoproterenol', 'rhythm'); });
+      set({ magnesiumGiven: true });
+      if (prof.rhythm === 'torsades') log('Magnesium helps prevent recurrence, but pulseless torsades must be defibrillated now', 'info');
       break;
     }
     case 'diltiazem': {
@@ -542,7 +558,8 @@ export function giveDrug(id: string) {
       break;
     }
     case 'calcium': {
-      if (pid === 'hyperkalemia') log('Calcium stabilises the myocardium within minutes but does not lower K⁺ — add insulin/glucose, β-agonist, and remove K⁺', 'info');
+      set({ calciumGiven: true });
+      if (pid === 'hyperkalemia' || s.scenario?.id === 'pea') log('Calcium stabilises the myocardium within minutes but does not lower K⁺ — add insulin/glucose, β-agonist and K⁺ removal (dialysis)', 'info');
       break;
     }
   }
@@ -666,7 +683,7 @@ export function tickDefib(t: number) {
       } else {
         set({ aed: { phase: 'no-shock', until: t } });
         log('AED: no shock advised', 'info');
-        prompt('No shock advised — check for a pulse; if none, resume CPR');
+        prompt('No shock advised — resume CPR immediately, starting with compressions (pulse check ≤ 10 s only if an organised rhythm is seen)');
       }
     }
   }

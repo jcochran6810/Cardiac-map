@@ -637,7 +637,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
       'Every pacing spike is followed by a wide QRS and a T wave (electrical capture)',
       'The underlying P waves continue independently',
       'Confirm mechanical capture with a femoral pulse or a pulse-oximetry waveform at the paced rate — muscle twitching can mimic a carotid pulse',
-      'Set the output a little above the capture threshold (~10%) and give analgesia / sedation',
+      'Set the output just above the capture threshold (small safety margin) and give analgesia / sedation',
     ],
     keyLeads: ['II'],
   },

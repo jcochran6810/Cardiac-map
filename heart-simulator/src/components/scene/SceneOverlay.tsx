@@ -276,7 +276,7 @@ function ActivationLegend({ narrow }: { narrow: boolean }) {
         <div className="mt-1.5 text-amber-200">No organised ventricular activation sequence (fibrillation / polymorphic VT) — nothing to map.</div>
       )}
       {!ap && (
-        <div className="mt-1 text-slate-400">Atria: no organised activation to map (AF / flutter / no P wave).</div>
+        <div className="mt-1 text-slate-400">Atria: not mapped (AF, flutter macro-re-entry with no single earliest site, or no P wave).</div>
       )}
       {!narrow && (
         <div className="mt-1.5 text-[9px] text-slate-500 leading-snug">
