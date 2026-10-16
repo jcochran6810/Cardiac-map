@@ -2126,10 +2126,11 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Identify the device (bulge, ID card) and note the manufacturer',
-      'Confirm mechanical capture by palpating a pulse, not just by the monitor',
+      'Confirm a palpable pulse (mechanical capture) rather than trusting the monitor alone',
       'Do not place pads directly over the generator (~8 cm away or anterior–posterior placement)',
-      'Transcutaneous pacing for symptomatic bradycardia from device failure',
-      'Repeated ICD shocks need urgent evaluation; magnet use only per protocol',
+      'ALS: Transcutaneous pacing for symptomatic bradycardia from device failure',
+      'Repeated ICD shocks need urgent evaluation and transport; bring the device card',
+      'ALS: Treat the underlying rhythm per ACLS; magnet use only per protocol and medical direction',
     ],
     hospitalCare: [
       'Interrogate the device after syncope, shocks, defibrillation or suspected malfunction',

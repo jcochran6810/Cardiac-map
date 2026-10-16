@@ -1080,11 +1080,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The two-leaflet valve between the left atrium and left ventricle, supported by chordae and two papillary muscles. Mitral regurgitation is the most prevalent significant valve lesion; mitral stenosis is usually rheumatic.',
     levelNotes: [
-      'A failing mitral valve backs blood into the lungs: sit the patient up, support oxygenation and breathing (CPAP per protocol) and transport',
-      'Acute severe MR (e.g., papillary muscle rupture after MI) causes flash pulmonary edema and shock, often with a soft or absent murmur',
-      'MS needs slow heart rates (longer diastole); acute MR benefits from afterload reduction or IABP/Impella while awaiting definitive repair',
-      'Separate primary from secondary MR; severe MR: EROA ≥0.40 cm², regurgitant volume ≥60 mL, RF ≥50%, vena contracta ≥0.7 cm',
-      'TEER suitability depends on leaflet anatomy (baseline MVA ≥4 cm², low gradient, grasping length, flail gap/width) and a transseptal height ~3.5–4.5 cm',
+      'A failing mitral valve backs blood into the lungs: severe breathlessness, crackles and frothy sputum. Sit the patient up, give oxygen (CPAP where your protocol allows), assist with the patient’s own nitroglycerin per protocol if BP allows, and transport.',
+      'Acute severe MR (papillary muscle or chordal rupture after MI) causes flash pulmonary edema and shock, often with a soft or absent murmur. Use CPAP and nitroglycerin if BP allows, or pressors for shock per protocol, and transport to a center with cardiac surgery.',
+      'A large v wave on the PCWP trace suggests significant MR: record it and alert the operator. For TEER or balloon mitral valvotomy, prepare the transseptal set and delivery system, and record LA pressure and mean mitral gradient before and after each step.',
+      'Before mitral procedures, verify anticoagulation (INR or DOAC hold), renal function and allergies. During TEER or valvotomy, keep ACT at the ordered target and monitor for tamponade, stroke and arrhythmia; afterwards watch for heart-failure signs and access-site bleeding.',
+      'Separate primary from secondary MR; severe MR: EROA ≥0.40 cm², RVol ≥60 mL, RF ≥50%, VC ≥0.7 cm. TEER suitability depends on leaflet anatomy (MVA ≥4 cm², low gradient, grasping length, flail gap/width) and a transseptal height of ~3.5–4.5 cm.',
     ],
     overview: [
       'Two leaflets: anterior (aortic) and posterior (mural), described as scallops A1–A3 and P1–P3',
@@ -1167,11 +1167,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The three-cusp semilunar valve between the left ventricle and ascending aorta, with the coronary arteries arising from the sinuses above it. Calcific aortic stenosis is the most common valve lesion requiring intervention in high-income countries.',
     levelNotes: [
-      'People with aortic stenosis may faint on exertion and drop their blood pressure easily: give nitroglycerin only as your protocol allows and with caution',
-      'Severe AS is a fixed obstruction: nitrates and vasodilators can cause profound hypotension; the classic triad is angina, syncope and heart failure',
-      'In decompensated severe AS, maintain preload and SVR (phenylephrine or norepinephrine), avoid tachycardia and consider urgent BAV/TAVR',
-      'Severe AS = Vmax ≥4 m/s, mean gradient ≥40 mmHg or AVA ≤1.0 cm²; recognize low-flow, low-gradient AS (dobutamine echo, CT calcium score)',
-      'Plan TAVR on CT: annulus area/perimeter, coronary heights (<~10 mm is high risk), sinus width, calcium and access; anticipate conduction block',
+      'People with aortic stenosis may faint on exertion and drop their blood pressure easily. Assist with nitroglycerin only as your protocol allows and never when BP is low; lay a fainting patient flat, give oxygen as needed and transport.',
+      'Severe AS is a fixed obstruction: nitrates and vasodilators can cause profound hypotension, so use them cautiously or not at all per protocol. Avoid tachycardia, treat hypotension with small fluid boluses and pressors per protocol, and contact medical direction early.',
+      'For AS, record simultaneous LV and aortic pressures (or a careful pullback) for peak-to-peak and mean gradients, plus cardiac output for the Gorlin valve area. During TAVR, set up rapid-pacing equipment and the valve system the operator selects, and report new AV block immediately.',
+      'Patients with severe AS tolerate sedation, vasodilators and volume loss poorly: monitor arterial pressure closely, give vasopressors as ordered for hypotension and report it promptly. After TAVR, monitor for new LBBB or heart block, access-site bleeding, neuro changes and kidney function.',
+      'Severe AS = Vmax ≥4 m/s, mean gradient ≥40 mmHg or AVA ≤1.0 cm²; confirm low-flow, low-gradient AS with dobutamine echo or CT calcium score. Plan TAVR on CT: annulus, coronary heights (<~10 mm high risk), sinus dimensions, calcium and access; anticipate conduction disease.',
     ],
     overview: [
       'Three cusps: right coronary (RCC), left coronary (LCC) and non-coronary (NCC)',
@@ -1253,11 +1253,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The large vein returning blood from the head, neck, upper limbs and chest wall to the right atrium. It is the main route for central lines, pacing leads and PA catheters.',
     levelNotes: [
-      'Facial and arm swelling with distended neck and chest-wall veins suggests SVC obstruction: sit the patient up and transport',
-      'SVC syndrome can threaten the airway (laryngeal edema, stridor) or cause cerebral edema; position upright and prefer lower-limb IV access',
-      'A central line tip belongs in the lower SVC/cavoatrial junction: confirm position by imaging before use',
-      'Device leads traverse the SVC; lead-related SVC stenosis or occlusion complicates upgrades and extraction',
-      'SVC tear is the most feared lead-extraction complication: have an occlusion balloon and surgical backup; SVC isolation can treat AF triggers but risks phrenic and sinus node injury',
+      'Swelling of the face, neck and arms with distended neck and chest-wall veins suggests a blocked SVC. Sit the patient upright, give oxygen and transport urgently if there is noisy breathing (stridor), confusion or fainting.',
+      'SVC syndrome can threaten the airway (laryngeal edema, stridor) or cause cerebral edema: keep upright, prepare for a difficult airway and prefer lower-limb IV/IO access per protocol. Treat stridor as impending airway compromise and contact medical direction early.',
+      'Central lines, PA catheters, pacing wires and leads pass through the SVC; the ideal central-line tip sits at the lower SVC/cavoatrial junction on fluoroscopy. For lead extraction, confirm the occlusion balloon and surgical backup are ready and report sudden hypotension immediately.',
+      'In SVC syndrome, avoid arm IVs and monitor airway, mental status and swelling. During lead extraction, have arterial monitoring, large-bore access and blood products ready as ordered; sudden hypotension suggests SVC tear or tamponade, so call the operator and surgical team immediately.',
+      'Lead-related SVC stenosis or occlusion complicates upgrades and extraction (venography first). SVC tear is the most feared extraction complication: have a compliant occlusion balloon and surgical standby. SVC isolation for AF triggers risks phrenic and sinus-node injury.',
     ],
     overview: [
       'Formed by the right and left brachiocephalic veins behind the right 1st costal cartilage',
