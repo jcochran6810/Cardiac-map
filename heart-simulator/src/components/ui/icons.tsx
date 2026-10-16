@@ -51,3 +51,9 @@ export const IconZoomOut = ({ className, size }: P) => (
 export const IconFlag = ({ className, size }: P) => (
   <svg {...base(size)} className={className}><path d="M4 22V4M4 4h12l-2 4 2 4H4" /></svg>
 );
+export const IconExpand = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+);
+export const IconCollapse = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></svg>
+);

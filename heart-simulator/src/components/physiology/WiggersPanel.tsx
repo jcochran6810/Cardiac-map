@@ -206,22 +206,23 @@ export default function WiggersPanel() {
   }, []);
 
   return (
-    <div className="absolute inset-0 flex">
-      <div className="flex-1 min-w-0 relative">
+    <div className="absolute inset-0 flex phone:flex-col">
+      <div className="flex-1 min-w-0 min-h-0 relative">
         <canvas ref={chartRef} className="absolute inset-0 w-full h-full" aria-label="Wiggers diagram" role="img" />
       </div>
-      <div className="w-[260px] shrink-0 border-l border-slate-700 flex flex-col">
-        <div className="relative flex-1 min-h-0">
+      {/* PV loop + numbers: a column beside the chart, or a strip under it on phones */}
+      <div className="w-[260px] shrink-0 border-l border-slate-700 flex flex-col phone:w-auto phone:h-[44%] phone:flex-row phone:border-l-0 phone:border-t">
+        <div className="relative flex-1 min-h-0 min-w-0">
           <canvas ref={loopRef} className="absolute inset-0 w-full h-full" aria-label="Pressure-volume loop" role="img" />
         </div>
-        <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1 text-[10px] border-t border-slate-700 bg-cardiac-dark/50">
+        <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1 text-[10px] border-t border-slate-700 bg-cardiac-dark/50 phone:w-[11.5rem] phone:shrink-0 phone:grid-cols-2 phone:content-start phone:border-t-0 phone:border-l phone:overflow-y-auto">
           <Stat label="BP" value={summary.noOutput ? 'no pulse' : `${summary.sbp}/${summary.dbp}`} warn={summary.noOutput || summary.sbp < 90} />
           <Stat label="MAP" value={`${summary.map}`} warn={summary.map < 65} />
           <Stat label="CO L/min" value={summary.co.toFixed(1)} warn={summary.co < 3} />
           <Stat label="EDV / ESV" value={`${summary.edv}/${summary.esv}`} />
           <Stat label="Fwd SV mL" value={`${summary.sv}`} />
           <Stat label="EF" value={`${summary.ef}%`} warn={summary.ef < 40} />
-          <div className="col-span-3 text-slate-400 truncate" title={summary.label}>Model: <span className="text-slate-200">{summary.label}</span> · LVEDP ~{summary.lvedp}</div>
+          <div className="col-span-3 phone:col-span-2 text-slate-400 truncate" title={summary.label}>Model: <span className="text-slate-200">{summary.label}</span> · LVEDP ~{summary.lvedp}</div>
         </div>
       </div>
     </div>

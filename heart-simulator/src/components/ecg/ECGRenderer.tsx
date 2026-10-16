@@ -506,6 +506,9 @@ export default function ECGRenderer() {
     if (!canvas) return;
     let down: { x: number; y: number; t: number } | null = null;
     let dragging = false;
+    // Touch screens get no reliable dblclick, so double-taps are detected here
+    let pointerType = 'mouse';
+    let lastTap: { at: number; strip: number } | null = null;
 
     const stripAt = (x: number, y: number) => {
       const L = layoutRef.current;
@@ -513,7 +516,15 @@ export default function ECGRenderer() {
       return L.strips.findIndex((s) => x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h);
     };
 
+    const toggleInspect = (idx: number) => {
+      const L = layoutRef.current;
+      const ecg = useECGStore.getState();
+      if (ecg.inspectLead) ecg.setInspectLead(null);
+      else if (idx >= 0 && L) ecg.setInspectLead(L.strips[idx].lead);
+    };
+
     const onDown = (e: PointerEvent) => {
+      pointerType = e.pointerType;
       const r = canvas.getBoundingClientRect();
       down = { x: e.clientX - r.left, y: e.clientY - r.top, t: sim.time };
       dragging = false;
@@ -541,6 +552,16 @@ export default function ECGRenderer() {
         const idx = stripAt(x, y);
         const L = layoutRef.current;
         const ecg = useECGStore.getState();
+        if (e.pointerType !== 'mouse' && !ecg.caliperMode) {
+          const now = performance.now();
+          if (lastTap && now - lastTap.at < 350 && lastTap.strip === idx) {
+            lastTap = null;
+            toggleInspect(idx);
+            down = null;
+            return;
+          }
+          lastTap = { at: now, strip: idx };
+        }
         if (idx >= 0 && L) {
           const s = L.strips[idx];
           if (ecg.caliperMode) {
@@ -560,22 +581,26 @@ export default function ECGRenderer() {
       down = null;
       dragging = false;
     };
+    const onCancel = () => {
+      if (dragging) setHint(null);
+      down = null;
+      dragging = false;
+    };
     const onDbl = (e: MouseEvent) => {
+      if (pointerType !== 'mouse') return; // handled as a double-tap in onUp
       const r = canvas.getBoundingClientRect();
-      const idx = stripAt(e.clientX - r.left, e.clientY - r.top);
-      const L = layoutRef.current;
-      const ecg = useECGStore.getState();
-      if (ecg.inspectLead) ecg.setInspectLead(null);
-      else if (idx >= 0 && L) ecg.setInspectLead(L.strips[idx].lead);
+      toggleInspect(stripAt(e.clientX - r.left, e.clientY - r.top));
     };
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointercancel', onCancel);
     canvas.addEventListener('dblclick', onDbl);
     return () => {
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onCancel);
       canvas.removeEventListener('dblclick', onDbl);
     };
   }, []);
@@ -585,7 +610,7 @@ export default function ECGRenderer() {
       <canvas
         ref={canvasRef}
         className="block w-full h-full cursor-crosshair touch-none"
-        aria-label="12-lead ECG. Click a lead to select it, double-click to inspect, drag to scrub through time."
+        aria-label="12-lead ECG. Click or tap a lead to select it, double-click or double-tap to inspect, drag to scrub through time."
         role="img"
       />
       {hint && (

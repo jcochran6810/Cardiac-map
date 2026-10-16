@@ -42,6 +42,20 @@ npm run build && npm start   # production build
 | Coronary territories | `src/lib/anatomy/aha17.ts`, `src/components/anatomy/Bullseye.tsx` | AHA 17-segment bull's-eye linked to the culprit artery; the angio panel shows the C-arm angle (LAO/RAO, CRA/CAU) of any view. |
 | Monitor / defibrillator trainer | `src/lib/sim/defib.ts`, `src/components/monitor/` | Generic monitor with ECG, SpO₂ pleth, capnography and NIBP. Includes AED, manual defibrillation, synchronised cardioversion, transcutaneous pacing, CPR, ACLS drugs, a code record, scenarios, and trainee/instructor modes. Press **Projector** to mirror it at `/monitor` on a second screen. |
 
+## Phones, tablets and desktops
+
+The layout adapts to the screen (`src/lib/device.ts`, Tailwind `phone:` / `touch:` / `short:` variants):
+
+| Screen | Layout |
+| --- | --- |
+| Desktop / laptop (≥ 1024 px) | Navigator, info panel, 3D heart and ECG dock side by side; drag the dividers to resize |
+| Tablet | Navigator and info panel slide over the heart (tap outside to close); rarer ECG options under **More** |
+| Phone, upright | Compact top bar (search and role/scope behind icons), ECG / Wiggers / Monitor tabs, interpretation and electrode lab slide over the tracing, quiz / tutor / help open full screen |
+| Phone, on its side | Heart and ECG dock side by side |
+
+On touch screens buttons get bigger, the ECG dock has a grip bar and an enlarge (⤢) button, a double-tap on
+a lead inspects it, and Help lists the touch gestures.
+
 ## Keyboard shortcuts
 
 `Space` play/pause · `←/→` step · `[ ]` speed · `1–6` 3D view · `L` labels ·

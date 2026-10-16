@@ -90,7 +90,7 @@ export default function QuizPanel() {
   const topics = Array.from(new Set(lib?.quiz.map((x) => x.topic) ?? [])) as QuizTopic[];
 
   return (
-    <div className="fixed right-2 top-14 z-40 w-[min(30rem,calc(100vw-1rem))] max-h-[calc(100vh-var(--dock-h,340px)-4.5rem)] min-h-[280px] bg-cardiac-panel/98 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur" role="dialog" aria-label="Quiz">
+    <div className="fixed right-2 top-14 z-40 w-[min(30rem,calc(100vw-1rem))] max-h-[calc(100dvh-var(--dock-h,340px)-4.5rem)] min-h-[280px] bg-cardiac-panel/95 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur phone:inset-x-0 phone:top-12 short:top-11 phone:bottom-0 phone:w-full phone:max-h-none phone:min-h-0 phone:rounded-none phone:border-x-0 phone:border-b-0 phone:animate-slide-in-up" role="dialog" aria-label="Quiz">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-violet-500/20 text-violet-300 flex items-center justify-center"><IconQuiz size={14} /></div>
@@ -99,7 +99,7 @@ export default function QuizPanel() {
             <div className="text-[10px] text-slate-400">{accuracy !== null ? `Recent accuracy ${accuracy}% (${recent.length} answered)` : 'Test yourself — rhythm questions play on the live monitor'}</div>
           </div>
         </div>
-        <button onClick={() => setQuizOpen(false)} className="p-1 text-slate-400 hover:text-white" aria-label="Close quiz"><IconClose size={16} /></button>
+        <button onClick={() => setQuizOpen(false)} className="p-1 touch:p-2 text-slate-400 hover:text-white" aria-label="Close quiz"><IconClose size={16} /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 text-xs min-h-0">
@@ -110,7 +110,7 @@ export default function QuizPanel() {
               <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Questions for</div>
               <div className="flex flex-wrap gap-1">
                 {([1, 2, 3, 4, 5] as LearningLevel[]).map((l) => (
-                  <button key={l} onClick={() => setMaxLevel(l)} className={`px-2 py-1 rounded text-[10px] border ${maxLevel === l ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'border-slate-600 text-slate-300 hover:text-white'}`}>
+                  <button key={l} onClick={() => setMaxLevel(l)} className={`px-2 py-1 touch:py-2 touch:px-3 rounded text-[10px] border ${maxLevel === l ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'border-slate-600 text-slate-300 hover:text-white'}`}>
                     {LEVEL_LABELS[l].short}
                   </button>
                 ))}
@@ -119,9 +119,9 @@ export default function QuizPanel() {
             <div>
               <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Topic</div>
               <div className="flex flex-wrap gap-1">
-                <button onClick={() => setTopic('all')} className={`px-2 py-1 rounded text-[10px] border ${topic === 'all' ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'border-slate-600 text-slate-300 hover:text-white'}`}>All topics</button>
+                <button onClick={() => setTopic('all')} className={`px-2 py-1 touch:py-2 touch:px-3 rounded text-[10px] border ${topic === 'all' ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'border-slate-600 text-slate-300 hover:text-white'}`}>All topics</button>
                 {topics.map((t) => (
-                  <button key={t} onClick={() => setTopic(t)} className={`px-2 py-1 rounded text-[10px] border ${topic === t ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'border-slate-600 text-slate-300 hover:text-white'}`}>
+                  <button key={t} onClick={() => setTopic(t)} className={`px-2 py-1 touch:py-2 touch:px-3 rounded text-[10px] border ${topic === t ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'border-slate-600 text-slate-300 hover:text-white'}`}>
                     {TOPIC_LABEL[t] ?? t}
                   </button>
                 ))}
@@ -156,7 +156,7 @@ export default function QuizPanel() {
                     key={i}
                     onClick={() => pick(i)}
                     disabled={answered}
-                    className={`w-full text-left p-2 rounded-md border leading-snug transition-colors ${
+                    className={`w-full text-left p-2 touch:p-3 rounded-md border leading-snug transition-colors ${
                       !answered ? 'bg-cardiac-dark/70 border-slate-600 hover:border-violet-400/60 text-slate-200'
                         : correct ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-100'
                           : choice === i ? 'bg-red-500/15 border-red-500/50 text-red-100' : 'bg-cardiac-dark/40 border-slate-700 text-slate-500'
@@ -174,14 +174,14 @@ export default function QuizPanel() {
                 {q.relatedIds && q.relatedIds.filter((id) => kindOf(id)).length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {q.relatedIds.filter((id) => kindOf(id)).map((id) => (
-                      <button key={id} onClick={() => openById(id)} className="px-1.5 py-0.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] hover:bg-sky-500/20">{nameOf(id)}</button>
+                      <button key={id} onClick={() => openById(id)} className="px-1.5 py-0.5 touch:px-2.5 touch:py-1.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] hover:bg-sky-500/20">{nameOf(id)}</button>
                     ))}
                   </div>
                 )}
                 <div className="flex justify-end mt-2">
                   <button
                     onClick={() => { setIdx((i) => i + 1); setChoice(null); }}
-                    className="px-3 py-1 rounded bg-violet-500 text-white text-[11px] font-semibold hover:bg-violet-400"
+                    className="px-3 py-1 touch:px-4 touch:py-2 rounded bg-violet-500 text-white text-[11px] font-semibold hover:bg-violet-400"
                   >
                     {idx + 1 >= deck.length ? 'See results' : 'Next →'}
                   </button>
