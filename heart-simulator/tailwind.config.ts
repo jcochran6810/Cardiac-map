@@ -9,6 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        ui: {
+          background: 'rgb(var(--ui-bg) / <alpha-value>)',
+          panel: 'rgb(var(--ui-panel) / <alpha-value>)',
+          raised: 'rgb(var(--ui-raised) / <alpha-value>)',
+          text: 'rgb(var(--ui-text) / <alpha-value>)',
+          muted: 'rgb(var(--ui-muted) / <alpha-value>)',
+          border: 'rgb(var(--ui-border) / <alpha-value>)',
+          focus: 'rgb(var(--ui-focus) / <alpha-value>)',
+        },
         cardiac: {
           red: '#DC2626',
           blue: '#2563EB',
