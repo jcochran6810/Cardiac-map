@@ -17,11 +17,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'Conduction down the right bundle branch is blocked, so the right ventricle is activated late by slow spread from the left ventricle, giving a wide QRS with an rsR′ pattern in V1. It is often benign in isolation but can signal right heart strain, structural disease or acute ischemia when new.',
     levelNotes: [
-      'Acquire and transmit a 12-lead early for chest pain, dyspnea or syncope; a wide QRS is a finding to report, not a rhythm to treat on its own',
-      'Recognize rsR′ in V1–V2 with a wide slurred S in I and V6; RBBB does not hide STEMI, so ST elevation still counts and should trigger cath lab activation',
-      'New RBBB with chest pain, hypoxia or shock: think proximal LAD occlusion or massive PE; RBBB plus fascicular block or alternating BBB signals risk of high-grade AV block',
-      'Separate complete vs incomplete RBBB and its mimics (Brugada pattern, ASD, WPW, lead misplacement); echo for new RBBB and know pacing indications such as alternating BBB',
-      'Catheter contact (PA catheter, RV lead, TAVR) can injure the conduction system; baseline RBBB is the strongest ECG predictor of permanent pacemaker need after TAVR',
+      'RBBB is an ECG finding, not something you treat; treat the patient. For chest pain, syncope or dyspnea, acquire and transmit a 12-lead where protocols allow, give aspirin per protocol for suspected ACS, and request ALS for syncope or a slow pulse.',
+      'Recognize rsR′ in V1–V2 with a wide slurred S in I and V6; RBBB does not mask STEMI, so ST elevation still triggers activation per protocol. New RBBB with syncope or axis deviation: monitor closely with pacing pads ready.',
+      'With baseline RBBB, trauma to the left bundle (LV catheter, wire or TAVR valve) can cause complete heart block. Note the baseline QRS, have temporary pacing equipment prepared, and alert the operator immediately to new AV block or bradycardia.',
+      'Document baseline rhythm and QRS before the procedure; RBBB raises heart-block risk during left-heart work and TAVR. Monitor for bradycardia, AV block and hypotension, keep transcutaneous pacing pads available, and escalate new conduction changes to the physician.',
+      'Separate complete vs incomplete RBBB and mimics (Brugada type 1, ASD, WPW, lead misplacement); evaluate new RBBB with echo for PE, RV strain or ischemia. Alternating BBB is a Class I pacing indication; baseline RBBB strongly predicts pacemaker need after TAVR.',
     ],
     overview: [
       'Defined by QRS ≥ 120 ms with late rightward, anterior forces from delayed RV activation',
@@ -71,10 +71,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Acquire and transmit a 12-lead for chest pain, syncope or dyspnea',
-      'Report a new wide QRS to the receiving facility and compare with prior ECGs when available',
-      'Apply STEMI criteria normally: ST elevation with RBBB still indicates infarction',
-      'Monitor for bradycardia or AV block, especially with syncope or RBBB plus axis deviation',
-      'Treat a regular wide-complex tachycardia as VT if unsure, per ACLS',
+      'Request ALS early for syncope, a slow pulse or hypotension',
+      'ALS: Report a new wide QRS to the receiving facility and compare with prior ECGs when available',
+      'ALS: Apply STEMI criteria normally: ST elevation with RBBB still indicates infarction',
+      'ALS: Monitor for bradycardia or AV block, especially with syncope or RBBB plus axis deviation',
+      'ALS: Treat a regular wide-complex tachycardia as VT if unsure, per ACLS and local protocol',
     ],
     hospitalCare: [
       'Compare with prior tracings; new RBBB warrants a search for PE, ischemia or myocarditis',
@@ -129,11 +130,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'Conduction through the left bundle branch is blocked, so the left ventricle is activated late and slowly from the right side, giving a wide QRS with broad notched R waves in the lateral leads. LBBB usually signals underlying heart disease, causes LV dyssynchrony and makes ischemia harder to read on the ECG.',
     levelNotes: [
-      'A wide QRS can hide a heart attack: still acquire and transmit the 12-lead, give aspirin per protocol for suspected ACS, and transport to a PCI-capable center when indicated',
-      'LBBB alone is not a STEMI; look for concordant ST changes (Sgarbossa) and treat instability or refractory ischemic pain as possible coronary occlusion',
-      'Apply Smith-modified Sgarbossa plus clinical context; positive criteria, shock or refractory ischemic pain with LBBB warrant emergent angiography',
-      'LBBB signals structural disease and dyssynchrony: obtain an echo, optimize GDMT and recognize CRT indications (LVEF ≤ 35%, LBBB with QRS ≥ 150 ms, NYHA II–IV)',
-      'Pre-existing LBBB plus right heart catheterization risks complete heart block; conduction system pacing (His or left bundle branch area) can correct LBBB as an alternative to biventricular CRT',
+      'Some baseline ECG patterns (bundle branch block, pacemaker) can hide a heart attack, so treat the symptoms: acquire and transmit the 12-lead where protocols allow, give aspirin per protocol for suspected ACS, and give early notification for shock or ongoing pain.',
+      'LBBB alone is not a STEMI; apply Sgarbossa (concordant ST elevation, or ST depression in V1–V3) and activate or contact medical direction per protocol. Shock, acute heart failure or refractory ischemic pain with LBBB warrants early notification as possible coronary occlusion.',
+      'In pre-existing LBBB, a right heart catheter bumping the right bundle can cause complete heart block; prepare temporary pacing equipment before right heart work and alert the operator immediately to bradycardia. During TAVR, report new QRS widening or AV block.',
+      'Confirm baseline rhythm and QRS, and place pacing-capable pads when ordered for right heart catheterization or TAVR. For suspected ACS, administer aspirin, anticoagulant and P2Y12 inhibitor as ordered; monitor for bradycardia, heart block and hypotension and escalate immediately.',
+      'Use Smith-modified Sgarbossa plus clinical context: positive criteria, shock or refractory ischemia warrant emergent angiography regardless of LBBB age. CRT is Class I for LVEF ≤ 35%, LBBB, QRS ≥ 150 ms, NYHA II–IV on GDMT; conduction system pacing is an emerging alternative.',
     ],
     overview: [
       'Defined by QRS ≥ 120 ms with delayed, right-to-left septal activation and slow LV activation',
