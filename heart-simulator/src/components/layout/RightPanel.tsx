@@ -1,547 +1,578 @@
 'use client';
 
-import React from 'react';
-import { useAppStore, PanelCategory } from '@/store/useAppStore';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
+import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
-import { CASE_DATA } from '@/data/caseData';
+import { useECGStore } from '@/store/useECGStore';
+import { useLearningStore } from '@/store/useLearningStore';
+import { useContent } from '@/lib/content';
+import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm } from '@/lib/actions';
+import { CASE_DATA, type CaseData } from '@/data/caseData';
+import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
+import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
+import type { ConditionContent, MedicationContent, ProcedureContent, StructureContent } from '@/types/content';
+import { IconCheck, IconCube, IconFlag, IconPulse } from '@/components/ui/icons';
 
-// ─── Context-sensitive tab configuration ─────────────────────────────
-// Each left panel category maps to which tabs are relevant in the right panel
-const TABS_BY_CATEGORY: Record<PanelCategory, string[]> = {
-  anatomy: ['overview', 'anatomy', 'physiology', 'symptoms', 'ecg', 'imaging', 'medications', 'teaching'],
-  coronary: ['overview', 'anatomy', 'physiology', 'symptoms', 'ecg', 'imaging', 'medications', 'teaching'],
-  conduction: ['overview', 'anatomy', 'physiology', 'symptoms', 'ecg', 'imaging', 'medications', 'teaching'],
-  conditions: ['overview', 'anatomy', 'pathophysiology', 'symptoms', 'ecg', 'imaging', 'medications', 'field-care', 'hospital-care', 'cardiology-care', 'procedure', 'complications', 'teaching'],
-  procedures: ['overview', 'indications', 'anatomy', 'procedure', 'ecg', 'equipment', 'complications', 'teaching'],
-  cases: ['overview', 'symptoms', 'ecg', 'medications', 'field-care', 'hospital-care', 'cardiology-care', 'procedure', 'complications', 'teaching'],
+type TabDef = { key: string; label: string; levels?: LearningLevel[] };
+
+const KIND_CHIP: Record<string, string> = {
+  structure: 'bg-sky-500/10 text-sky-300 border-sky-500/30 hover:bg-sky-500/20',
+  condition: 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20',
+  procedure: 'bg-violet-500/10 text-violet-300 border-violet-500/30 hover:bg-violet-500/20',
+  medication: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20',
+  case: 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20',
 };
 
-// ─── Tab-specific content for anatomy structures ────────────────────────
-interface StructureTabData {
-  title: string;
-  overview: string[];
-  anatomy: string[];
-  physiology: string[];
-  symptoms: string[];
-  ecg: string[];
-  imaging: string[];
-  medications: string[];
-  'field-care': string[];
-  'hospital-care': string[];
-  'cardiology-care': string[];
-  procedure: string[];
-  complications: string[];
-  teaching: string[];
-}
+// ─── Shared building blocks ────────────────────────────────────────────────
 
-const STRUCTURE_DATA: Record<string, StructureTabData> = {
-  'right-atrium': {
-    title: 'Right Atrium',
-    overview: ['Thin-walled chamber receiving venous return', 'Contains the SA node (primary pacemaker)', 'Crista terminalis divides smooth from trabeculated portions', 'Coronary sinus drains into the posterior floor', 'Eustachian valve guards the IVC ostium'],
-    anatomy: ['Wall thickness: 2-3mm', 'Receives SVC superiorly and IVC inferiorly', 'Koch triangle: AV node landmark bounded by coronary sinus, tendon of Todaro, and tricuspid annulus', 'Pectinate muscles line the anterior wall and appendage', 'Sinus venarum: smooth posterior wall derived from sinus venosus'],
-    physiology: ['Reservoir function: stores venous return during ventricular systole', 'Conduit function: passive filling of RV in early diastole', 'Booster pump: atrial contraction (atrial kick) contributes 15-25% of ventricular filling', 'RA pressure normally 2-6 mmHg (CVP)', 'A, C, and V waves visible on RA pressure tracing'],
-    symptoms: ['RA enlargement may cause no direct symptoms', 'Elevated RA pressure: JVD, peripheral edema, hepatic congestion', 'RA thrombus: can cause PE, may be seen on echo as mobile mass', 'Atrial flutter: sawtooth pattern, often originates from RA isthmus'],
-    ecg: ['P wave represents atrial depolarization', 'RA enlargement: peaked P waves >2.5mm in leads II, III, aVF (P pulmonale)', 'Best seen in lead V1 (initial positive deflection of biphasic P wave)', 'RA rhythm: inverted P waves in inferior leads suggest low atrial focus'],
-    imaging: ['Echo: subcostal and apical 4-chamber views', 'Normal RA area: 10-18 cm\u00B2', 'CT/MRI: excellent for RA masses, thrombus, and congenital anomalies', 'TEE: superior for interatrial septum and appendage evaluation'],
-    medications: ['Anticoagulation for RA thrombus (heparin, warfarin, DOACs)', 'Diuretics for RA congestion (furosemide, bumetanide)', 'Rate control for atrial arrhythmias (beta-blockers, CCBs, digoxin)', 'Antiarrhythmics for rhythm control (amiodarone, flecainide, sotalol)'],
-    'field-care': ['Assess JVP for RA pressure estimation', 'Right-sided ECG leads for RV/RA pathology', 'Fluid resuscitation cautiously if RA pressure low', 'Recognize signs of right heart failure: JVD, hepatomegaly, edema'],
-    'hospital-care': ['Central venous catheter for CVP monitoring', 'PA catheter for RA pressure measurement', 'Echocardiography for RA size, function, and masses', 'IV diuretics for decompensated right heart failure'],
-    'cardiology-care': ['Electrophysiology study: RA mapping for atrial flutter', 'CTI ablation for typical atrial flutter (RA isthmus)', 'TEE-guided cardioversion for atrial arrhythmias', 'RA lead placement for pacemaker/ICD'],
-    procedure: ['Right heart catheterization: measures RA pressure', 'EP study: diagnostic catheters placed in RA', 'CTI ablation: linear lesion across cavotricuspid isthmus', 'Pacemaker lead: screwed into RA appendage or septum'],
-    complications: ['RA perforation during catheter placement', 'RA thrombus with chronic indwelling catheters', 'Atrial flutter from surgical scarring (incisional reentry)', 'RA dilation with chronic volume overload (ASD, TR)'],
-    teaching: ['The RA is the first chamber to receive deoxygenated blood returning from the body', 'The SA node in the RA sets the normal heart rhythm at 60-100 bpm', 'Koch triangle is the key landmark for understanding AV node location', 'RA pressure (CVP) is a critical hemodynamic parameter accessible via neck veins'],
-  },
-  'left-atrium': {
-    title: 'Left Atrium',
-    overview: ['Smooth-walled posterior chamber', 'Receives 4 pulmonary veins (RS, RI, LS, LI)', 'Left atrial appendage is a common site for thrombus in AF', 'Posterior wall is adjacent to esophagus (TEE window)', 'Important target for AF ablation (pulmonary vein isolation)'],
-    anatomy: ['Wall thickness: 3mm', 'Four pulmonary veins enter posteriorly', 'LAA: trabeculated pouch with variable morphology', 'Posterior wall adjacent to esophagus', 'Mitral valve annulus forms the floor'],
-    physiology: ['Reservoir: stores pulmonary venous return during LV systole', 'Conduit: passive LV filling in early diastole (E wave)', 'Booster pump: LA contraction (A wave) adds 15-25% filling', 'Normal LA pressure: 6-12 mmHg', 'Elevated LA pressure transmits to pulmonary veins causing congestion'],
-    symptoms: ['Dyspnea from elevated LA pressure (pulmonary congestion)', 'Palpitations from atrial fibrillation', 'Stroke/TIA from LAA thrombus embolization', 'Hoarseness from LA compression of recurrent laryngeal nerve (Ortner syndrome)'],
-    ecg: ['LA enlargement: wide, notched P wave >120ms in lead II (P mitrale)', 'Deep negative terminal portion of P wave in V1 (>1mm deep, >40ms wide)', 'Atrial fibrillation: absent P waves, irregularly irregular RR', 'LA origin focus: positive P in V1'],
-    imaging: ['Echo: parasternal long axis and apical 4-chamber views', 'Normal LA diameter: 2.0-4.0 cm (parasternal)', 'Normal LA volume index: <34 mL/m\u00B2', 'TEE: gold standard for LAA thrombus detection', 'Cardiac MRI: LA fibrosis mapping for AF substrate'],
-    medications: ['Anticoagulation for AF stroke prevention (DOACs preferred)', 'Antiarrhythmics: flecainide, propafenone, amiodarone, dofetilide', 'Rate control: beta-blocker, diltiazem, digoxin', 'Diuretics for LA pressure reduction'],
-    'field-care': ['Assess for irregular pulse (AF)', 'Acute pulmonary edema management: upright positioning, O2, CPAP', 'Stroke assessment if suspected cardioembolic event', '12-lead ECG for rhythm identification'],
-    'hospital-care': ['TEE to rule out LAA thrombus before cardioversion', 'IV amiodarone or ibutilide for pharmacologic cardioversion', 'Anticoagulation initiation (heparin bridge to DOAC)', 'Heart failure management with IV diuretics if congested'],
-    'cardiology-care': ['Pulmonary vein isolation (PVI) ablation for AF', 'LAA occlusion device (Watchman) for stroke prevention', 'LA appendage ligation (surgical)', 'LA pressure monitoring (CardioMEMS in HF)'],
-    procedure: ['PVI ablation: circumferential lesions around PV ostia', 'Cardioversion: synchronized shock for AF/flutter', 'TEE: probe in esophagus for LA/LAA visualization', 'Watchman device: catheter-delivered LAA occluder'],
-    complications: ['Thromboembolism (stroke) from LAA thrombus', 'Pulmonary vein stenosis after ablation', 'Atrial-esophageal fistula (rare but fatal ablation complication)', 'LA roof perforation during transseptal access'],
-    teaching: ['The LA is the most posterior cardiac chamber, explaining why TEE provides excellent views', 'AF is the most common sustained arrhythmia; LA is the primary source', '>90% of cardioembolic strokes in AF originate from the LAA', 'LA volume is a powerful predictor of cardiovascular outcomes'],
-  },
-  'right-ventricle': {
-    title: 'Right Ventricle',
-    overview: ['Crescent-shaped chamber wrapping around the LV', 'Thinner wall than LV (lower pressure system)', 'Contains moderator band with RBB conduction', 'RVOT leads to pulmonary valve', 'Vulnerable to pressure overload in PE / pulmonary HTN'],
-    anatomy: ['Wall thickness: 3-5mm', 'Three portions: inlet, trabecular body, outlet (infundibulum)', 'Moderator band crosses from septum to anterior wall', 'Tricuspid valve forms the inlet', 'Conus arteriosus (infundibulum) leads to pulmonary valve'],
-    physiology: ['Low-pressure pump: systolic 20-30 mmHg', 'Thin-walled, compliant: tolerates volume overload better than pressure overload', 'RV output = LV output (series circulation)', 'RV contraction: peristaltic pattern from apex to RVOT', 'RV is afterload-sensitive; acute PE can cause RV failure'],
-    symptoms: ['RV failure: JVD, peripheral edema, ascites, hepatomegaly', 'Exercise intolerance from reduced cardiac output', 'Syncope in severe pulmonary hypertension', 'Chest pain from RV ischemia in RV infarction'],
-    ecg: ['RV hypertrophy: right axis deviation, tall R in V1, deep S in V5-V6', 'RV strain: ST depression and T wave inversion in V1-V4 (right precordial)', 'RBBB: indicates conduction delay through RV', 'RV infarction: ST elevation in V4R'],
-    imaging: ['Echo: RV focused apical view, parasternal views', 'TAPSE: tricuspid annular plane systolic excursion (normal >17mm)', 'RV fractional area change (normal >35%)', 'Cardiac MRI: gold standard for RV volumes and EF', 'CT: RV enlargement ratio >1.0 (RV/LV) suggests RV strain'],
-    medications: ['Pulmonary vasodilators for pulmonary HTN (sildenafil, bosentan, epoprostenol)', 'Inotropes for acute RV failure (dobutamine, milrinone)', 'Diuretics for RV congestion', 'Avoid excessive fluid and vasodilators that drop preload'],
-    'field-care': ['Right-sided ECG (V4R) for suspected RV infarction', 'Fluid bolus for RV infarction (preload-dependent)', 'Avoid nitroglycerin in RV infarction (drops preload)', 'Assess JVP and peripheral edema'],
-    'hospital-care': ['Hemodynamic monitoring with PA catheter', 'Mechanical support: Impella RP or ECMO for refractory RV failure', 'Thrombolysis or catheter-directed therapy for massive PE', 'Vasopressors to maintain coronary perfusion (norepinephrine)'],
-    'cardiology-care': ['Right heart catheterization for hemodynamic assessment', 'Pulmonary vasodilator testing in pulmonary HTN', 'RVAD (right ventricular assist device) for end-stage RV failure', 'Pericardiocentesis if tamponade contributing to RV failure'],
-    procedure: ['Right heart cath: measures RV pressures directly', 'Catheter-directed thrombolysis for PE', 'EP study: RV mapping for RVOT tachycardia', 'Endomyocardial biopsy: taken from RV septum'],
-    complications: ['RV free wall rupture (rare, post-MI)', 'Arrhythmogenic RV cardiomyopathy (ARVC): fibrofatty replacement', 'RVOT tachycardia: benign VT from RV outflow tract', 'Paradoxical septal motion in RV pressure/volume overload'],
-    teaching: ['The RV is the most anterior chamber and forms most of the sternocostal surface', 'The RV is designed for volume work (low pressure, high compliance)', 'Acute RV failure from PE is a common and life-threatening emergency', 'The moderator band is a key landmark distinguishing the morphologic RV'],
-  },
-  'left-ventricle': {
-    title: 'Left Ventricle',
-    overview: ['Thick-walled (8-12mm) conical chamber', 'Generates systemic arterial pressure', 'Papillary muscles anchor mitral leaflets via chordae', 'Normal EF: 55-70%', 'AHA 17-segment model used for wall motion assessment', 'Apex is the most distal point, often supplied by LAD'],
-    anatomy: ['Wall thickness: 8-12mm (2-3x RV)', 'Conical shape with smooth endocardial surface', 'Two papillary muscles: anterolateral and posteromedial', 'Chordae tendineae prevent mitral valve prolapse', 'LVOT between anterior mitral leaflet and septum'],
-    physiology: ['High-pressure pump: systolic 100-140 mmHg', 'EF = (EDV - ESV) / EDV \u00D7 100; normal 55-70%', 'Frank-Starling mechanism: increased preload increases stroke volume', 'Diastolic function: relaxation, compliance, and filling', 'Cardiac output = HR \u00D7 stroke volume (normal 4-8 L/min)'],
-    symptoms: ['LV failure: dyspnea, orthopnea, PND, pulmonary edema', 'Reduced cardiac output: fatigue, exercise intolerance, dizziness', 'Angina from myocardial ischemia', 'Palpitations from ventricular arrhythmias'],
-    ecg: ['LV hypertrophy: tall R in V5-V6, deep S in V1-V2 (Sokolow-Lyon: SV1 + RV5 >35mm)', 'LV strain: ST depression with T wave inversion in lateral leads', 'Q waves: evidence of prior MI transmural necrosis', 'ST elevation: acute STEMI with transmural ischemia'],
-    imaging: ['Echo: parasternal and apical views', 'Simpson biplane method for EF calculation', 'Speckle tracking for global longitudinal strain (GLS, normal < -18%)', 'Cardiac MRI: gold standard for LV volumes, mass, and scar', 'Nuclear perfusion: identifies ischemia and viability'],
-    medications: ['ACEi/ARB for LV remodeling prevention', 'Beta-blocker for HF (carvedilol, metoprolol, bisoprolol)', 'ARNI (sacubitril/valsartan) for HFrEF', 'SGLT2 inhibitor (dapagliflozin, empagliflozin) for HF', 'MRA (spironolactone, eplerenone) for HFrEF'],
-    'field-care': ['12-lead ECG for STEMI identification', 'Aspirin 325mg for suspected ACS', 'Nitroglycerin for chest pain (if no RV infarction)', 'STEMI alert and direct transport to PCI center', 'CPAP/BiPAP for acute pulmonary edema'],
-    'hospital-care': ['Troponin for myocardial injury detection', 'Echocardiography for LV function assessment', 'Coronary angiography for ACS', 'IV diuretics for acute decompensated HF', 'Inotropes/vasopressors for cardiogenic shock'],
-    'cardiology-care': ['PCI for coronary revascularization', 'CABG for multivessel or left main disease', 'CRT for LBBB with HFrEF (EF \u226435%)', 'ICD for primary prevention of sudden cardiac death (EF \u226435%)', 'LVAD as bridge to transplant or destination therapy'],
-    procedure: ['Left heart catheterization: coronary angiography + LV pressures', 'PCI: stent placement for coronary stenosis', 'Endomyocardial biopsy for cardiomyopathy workup', 'CRT implantation: LV lead via coronary sinus'],
-    complications: ['Myocardial infarction: necrosis from coronary occlusion', 'Heart failure: systolic (HFrEF) or diastolic (HFpEF)', 'Ventricular aneurysm post-MI', 'LV thrombus: risk of systemic embolization', 'Cardiogenic shock: pump failure'],
-    teaching: ['The LV is the main systemic pump and the thickest chamber', 'EF is the most widely used measure of LV systolic function', 'GDMT for HFrEF: ACEi/ARNI + BB + MRA + SGLT2i (4 pillars)', 'The 17-segment model standardizes communication about wall motion'],
-  },
-};
-
-// Fallback tab content generator for structures not in STRUCTURE_DATA
-function getGenericStructureTab(tab: string, structId: string, info: { title: string; summary: string; details: string[] }): string[] {
-  switch (tab) {
-    case 'overview': return [info.summary, ...info.details];
-    case 'anatomy': return info.details;
-    case 'physiology': return [`${info.title} plays a role in cardiac physiology as described in the overview.`];
-    case 'symptoms': return [`Pathology of the ${info.title.toLowerCase()} may present with structure-specific symptoms.`];
-    case 'ecg': return [`ECG changes associated with ${info.title.toLowerCase()} pathology vary by condition.`];
-    case 'imaging': return [`${info.title} can be visualized with echocardiography, CT, MRI, and/or angiography.`];
-    case 'medications': return [`Medications targeting the ${info.title.toLowerCase()} depend on the specific pathology.`];
-    case 'field-care': return [`Prehospital assessment should include relevant physical exam findings.`];
-    case 'hospital-care': return [`Inpatient evaluation includes imaging and laboratory workup.`];
-    case 'cardiology-care': return [`Subspecialty evaluation may include advanced imaging and invasive assessment.`];
-    case 'procedure': return [`Procedures involving the ${info.title.toLowerCase()} are condition-specific.`];
-    case 'complications': return [`Complications depend on the underlying pathology and any interventions performed.`];
-    case 'teaching': return [info.summary, ...info.details.slice(0, 2)];
-    default: return [info.summary];
-  }
-}
-
-// ─── Legacy anatomy info (for structures not yet in STRUCTURE_DATA) ──────
-const ANATOMY_INFO: Record<string, { title: string; summary: string; details: string[] }> = {
-  'right-atrial-appendage': { title: 'Right Atrial Appendage', summary: 'A small, ear-shaped pouch extending from the right atrium.', details: ['Trabeculated muscular pouch (auricle)', 'Contains pectinate muscles', 'Less prone to thrombus than LAA', 'Landmark for identifying the morphologic right atrium', 'Can be used for temporary pacing lead placement'] },
-  'left-atrial-appendage': { title: 'Left Atrial Appendage', summary: 'A small pouch arising from the left atrium, clinically significant as a common site for thrombus formation.', details: ['Primary site of thrombus formation in atrial fibrillation (>90%)', 'Variable morphology: chicken wing, cactus, windsock, cauliflower', 'Target for LAA occlusion devices (Watchman, Amulet)', 'Produces atrial natriuretic peptide (ANP)', 'Surgical ligation or exclusion performed during cardiac surgery'] },
-  'interatrial-septum': { title: 'Interatrial Septum', summary: 'The wall dividing the right and left atria, containing the fossa ovalis.', details: ['Separates the two atrial chambers', 'Contains the fossa ovalis (thinnest region)', 'Site for transseptal puncture in left-sided interventions', 'ASDs and PFOs occur in this structure', 'Best visualized on subcostal echocardiographic views'] },
-  'interventricular-septum': { title: 'Interventricular Septum', summary: 'The muscular and membranous wall separating the right and left ventricles.', details: ['Muscular portion: thick, contracts with systole', 'Membranous portion: thin fibrous tissue near AV valves', 'Contains the bundle of His and proximal bundle branches', 'VSDs most commonly occur in membranous portion', 'Dual blood supply from LAD (anterior) and PDA (posterior)'] },
-  'fossa-ovalis': { title: 'Fossa Ovalis', summary: 'An oval depression in the interatrial septum, remnant of the foramen ovale.', details: ['Thinnest portion of the interatrial septum', 'Remnant of the embryonic foramen ovale', 'PFO occurs when it fails to close completely', 'Target site for transseptal catheterization', 'Important landmark in structural heart interventions'] },
-  'apex': { title: 'Apex', summary: 'The most inferior and lateral tip of the left ventricle.', details: ['Formed primarily by the left ventricle', 'Located at 5th intercostal space, midclavicular line', 'Point of maximal impulse (PMI) palpable here', 'Supplied by the distal LAD artery', 'Common site for apical ballooning in Takotsubo'] },
-  'base-of-heart': { title: 'Base of Heart', summary: 'The superior broad portion of the heart where the great vessels attach.', details: ['Formed primarily by the left atrium posteriorly', 'Great vessels enter and exit at the base', 'Contains the fibrous skeleton and valve annuli'] },
-  'mitral-annulus': { title: 'Mitral Valve', summary: 'A bicuspid valve between the left atrium and left ventricle.', details: ['Two leaflets: anterior (aortic) and posterior (mural)', 'Annulus is saddle-shaped', 'Supported by anterolateral and posteromedial papillary muscles', 'Most common valve affected by rheumatic disease', 'Target for MitraClip/TEER, surgical repair, or replacement'] },
-  'aortic-valve-rcc': { title: 'Aortic Valve', summary: 'A trileaflet semilunar valve between the LV and ascending aorta.', details: ['Three cusps: RCC, LCC, NCC', 'Coronary ostia arise from sinuses of Valsalva', 'No chordae tendineae', 'Aortic stenosis is most common valvular disease', 'TAVR has revolutionized treatment'] },
-  'tricuspid-annulus': { title: 'Tricuspid Valve', summary: 'A three-leaflet valve between the right atrium and right ventricle.', details: ['Three leaflets: anterior, posterior, and septal', 'Largest valve annulus', 'AV node near septal leaflet (Koch triangle)', 'Functional TR common with RV dilation'] },
-  'pulmonary-valve-cusps': { title: 'Pulmonary Valve', summary: 'A trileaflet semilunar valve between the RV and pulmonary trunk.', details: ['Three cusps: anterior, right, and left', 'Lowest pressure valve', 'PS often congenital; balloon valvuloplasty', 'PR common after TOF repair'] },
-  'ascending-aorta': { title: 'Ascending Aorta', summary: 'The first segment of the aorta.', details: ['Contains sinuses of Valsalva and coronary ostia', 'Normal diameter: 2.1-3.5 cm', 'Type A dissection is a surgical emergency'] },
-  'aortic-arch': { title: 'Aortic Arch', summary: 'The curved portion giving rise to head and arm vessels.', details: ['Three major branches', 'Aortic isthmus: coarctation site', 'Ligamentum arteriosum connects to PA'] },
-  'pulmonary-trunk': { title: 'Pulmonary Trunk', summary: 'The large artery carrying deoxygenated blood from the RV to the lungs.', details: ['Bifurcates into right and left PA', 'Low-pressure system (25/10 mmHg)', 'Saddle PE at bifurcation'] },
-  'svc': { title: 'Superior Vena Cava', summary: 'Large vein returning blood from the upper body.', details: ['Formed by brachiocephalic veins', 'SVC syndrome: obstruction causes facial edema', 'Common site for central lines'] },
-  'ivc': { title: 'Inferior Vena Cava', summary: 'Large vein returning blood from the lower body.', details: ['Guarded by Eustachian valve', 'IVC diameter estimates RA pressure on echo', 'IVC filters for PE prophylaxis'] },
-  'fibrous-pericardium': { title: 'Fibrous Pericardium', summary: 'The tough outer layer of the pericardial sac.', details: ['Limits acute cardiac dilation', 'Pericardial space: 15-50 mL fluid', 'Rapid accumulation causes tamponade'] },
-  'epicardium': { title: 'Epicardium', summary: 'Outermost layer (visceral pericardium).', details: ['Contains coronary arteries and veins', 'Inflammation causes pericarditis', 'Epicardial ablation for refractory VT'] },
-  'myocardium': { title: 'Myocardium', summary: 'The muscular layer responsible for contraction.', details: ['LV 8-12mm, RV 3-5mm', 'MI: irreversible necrosis', 'Target for cardiac MRI LGE'] },
-  'endocardium': { title: 'Endocardium', summary: 'Smooth inner lining of heart chambers.', details: ['Continuous with vascular endothelium', 'Endocarditis: infection of this surface', 'Subendocardial ischemia occurs first'] },
-  'anterolateral-papillary-muscle': { title: 'AL Papillary Muscle', summary: 'A muscular projection in the LV.', details: ['Dual blood supply (LAD and LCx)', 'Less commonly ruptured', 'Anchors mitral chordae'] },
-  'posteromedial-papillary-muscle': { title: 'PM Papillary Muscle', summary: 'More vulnerable to ischemia.', details: ['Single blood supply (PDA/RCA)', 'Rupture: acute severe MR (surgical emergency)', 'Mechanical complication of inferior MI'] },
-  'moderator-band': { title: 'Moderator Band', summary: 'A muscular band in the RV carrying conduction.', details: ['Carries RBB to RV free wall', 'Key RV landmark', 'Can mimic thrombus on imaging'] },
-  'crista-terminalis': { title: 'Crista Terminalis', summary: 'Ridge in RA separating smooth from trabeculated.', details: ['Corresponds to sulcus terminalis externally', 'Source of crista terminalis tachycardia', 'Can simulate mass on imaging'] },
-  'lmca': { title: 'LMCA', summary: 'Short trunk bifurcating into LAD and LCx.', details: ['Supplies ~75% of LV', 'Left main disease: high-risk, often CABG', 'Stenosis >50% significant'] },
-  'lad-proximal': { title: 'Proximal LAD', summary: 'Before the first septal perforator.', details: ['Supplies anterior wall and septum', 'Occlusion: extensive anterior STEMI', 'ST elevation V1-V4'] },
-  'lad-mid': { title: 'Mid LAD', summary: 'Coursing in the anterior IV groove.', details: ['Gives off diagonal branches', 'Wellens pattern: critical mid-LAD stenosis'] },
-  'lad-distal': { title: 'Distal LAD', summary: 'Terminal segment wrapping around apex.', details: ['Supplies apical segments', 'Target for LIMA graft in CABG'] },
-  'd1': { title: 'First Diagonal (D1)', summary: 'First major diagonal branch.', details: ['Supplies anterolateral wall', 'Occlusion: lateral ST changes (I, aVL)'] },
-  'd2': { title: 'Second Diagonal (D2)', summary: 'Smaller diagonal branch.', details: ['Variable anatomy, may be absent'] },
-  'lcx-proximal': { title: 'LCx', summary: 'Courses in left AV groove.', details: ['Gives off OM branches', 'May be dominant in ~15%', 'Occlusion: lateral STEMI'] },
-  'om1': { title: 'OM1', summary: 'First obtuse marginal.', details: ['Supplies lateral LV wall', 'ECG changes in I, aVL, V5-V6'] },
-  'om2': { title: 'OM2', summary: 'Second obtuse marginal.', details: ['Supplies posterolateral wall'] },
-  'rca-proximal': { title: 'Proximal RCA', summary: 'First segment exiting right aortic sinus.', details: ['Gives off SA nodal artery', 'Proximal lesions cause inferior STEMI'] },
-  'rca-mid': { title: 'Mid RCA', summary: 'Along the acute margin.', details: ['Gives off acute marginal branch', 'Most common RCA disease site', 'Inferior STEMI: II, III, aVF'] },
-  'rca-distal': { title: 'Distal RCA', summary: 'At the crux of the heart.', details: ['Gives rise to PDA (85%)', 'Supplies AV node', 'Occlusion: AV block'] },
-  'pda': { title: 'PDA', summary: 'Posterior descending artery.', details: ['From RCA in 85%', 'Determines dominance', 'Supplies inferior septum'] },
-  'am-branch': { title: 'Acute Marginal', summary: 'RCA branch to RV free wall.', details: ['RV infarction when compromised'] },
-  'sa-node': { title: 'SA Node', summary: 'Primary pacemaker.', details: ['Intrinsic rate: 60-100 bpm', 'Located at SVC-RA junction', 'Dysfunction: sick sinus syndrome'] },
-  'av-node': { title: 'AV Node', summary: 'Secondary pacemaker with conduction delay.', details: ['Intrinsic rate: 40-60 bpm', 'In Koch triangle', 'AV block from disease or ischemia'] },
-  'bundle-of-his': { title: 'Bundle of His', summary: 'Connects AV node to bundle branches.', details: ['Penetrates central fibrous body', 'His bundle pacing alternative'] },
-  'right-bundle-branch': { title: 'Right Bundle Branch', summary: 'Conducts to RV.', details: ['Via moderator band to RV wall', 'RBBB: rsR\' in V1'] },
-  'left-bundle-branch': { title: 'Left Bundle Branch', summary: 'Splits into anterior and posterior fascicles.', details: ['LBBB: broad R in I, V5-V6', 'New LBBB may indicate MI'] },
-  'left-anterior-fascicle': { title: 'Left Anterior Fascicle', summary: 'Anterior division of LBB.', details: ['LAFB: left axis deviation', 'Most common fascicular block'] },
-  'left-posterior-fascicle': { title: 'Left Posterior Fascicle', summary: 'Posterior division of LBB.', details: ['Dual blood supply', 'LPFB: right axis deviation'] },
-  'purkinje-network-rv': { title: 'Purkinje Network (RV)', summary: 'Terminal conduction fibers in RV.', details: ['Fastest conduction (2-4 m/s)', 'Can source arrhythmias'] },
-  'purkinje-network-lv': { title: 'Purkinje Network (LV)', summary: 'Terminal conduction fibers in LV.', details: ['Extensive subendocardial distribution', 'Tertiary pacemaker (20-40 bpm)'] },
-};
-
-// ─── Dynamic imports for data files (may not exist yet) ──────────────
-// Condition and procedure data are imported directly once their data files exist.
-// These will be populated by the data file imports below.
-import { CONDITION_DATA as CONDITION_DATA_IMPORT } from '@/data/conditionData';
-import { PROCEDURE_DATA as PROCEDURE_DATA_IMPORT } from '@/data/procedureData';
-
-const CONDITION_DATA_EXT: Record<string, Record<string, string>> = CONDITION_DATA_IMPORT || {};
-const PROCEDURE_DATA_EXT: Record<string, Record<string, unknown>> = PROCEDURE_DATA_IMPORT || {};
-
-export default function RightPanel({ style }: { style?: React.CSSProperties }) {
-  const { rightPanelOpen, rightPanelTab, setRightPanelTab, learningLevel, activePanelCategory } = useAppStore();
-  const { selectedStructureId } = useSceneStore();
-  const { selectedConditionId } = useConditionStore();
-  const { selectedProcedureId } = useProcedureStore();
-  const { activeCaseId } = useCaseStore();
-
-  if (!rightPanelOpen) return null;
-
-  const caseData = activeCaseId ? CASE_DATA[activeCaseId] : null;
-
-  // Resolve structure info from detailed data or legacy fallback
-  const structureTabData = selectedStructureId ? STRUCTURE_DATA[selectedStructureId] : null;
-  const legacyInfo = selectedStructureId ? ANATOMY_INFO[selectedStructureId] : null;
-
-  // Get condition data from external data file
-  const conditionData = selectedConditionId ? CONDITION_DATA_EXT[selectedConditionId] : null;
-
-  // Get procedure data from external data file
-  const procedureData = selectedProcedureId ? PROCEDURE_DATA_EXT[selectedProcedureId] : null;
-
-  // Determine which tabs to show based on the active left panel category
-  const activeTabs = TABS_BY_CATEGORY[activePanelCategory] || TABS_BY_CATEGORY.anatomy;
-
-  // Get content for current tab (structures)
-  const getStructureContent = (): string[] => {
-    if (structureTabData) {
-      return (structureTabData as unknown as Record<string, string[]>)[rightPanelTab] || structureTabData.overview;
-    }
-    if (legacyInfo) {
-      return getGenericStructureTab(rightPanelTab, selectedStructureId!, legacyInfo);
-    }
-    return [];
-  };
-
-  // Get condition content for current tab
-  const getConditionContent = (): string | null => {
-    if (!conditionData) return null;
-    // Map right panel tab names to condition data field names
-    const tabFieldMap: Record<string, string> = {
-      'overview': 'overview',
-      'anatomy': 'anatomy',
-      'pathophysiology': 'pathophysiology',
-      'physiology': 'pathophysiology',
-      'symptoms': 'symptoms',
-      'ecg': 'ecg',
-      'imaging': 'imaging',
-      'medications': 'medications',
-      'field-care': 'fieldCare',
-      'hospital-care': 'hospitalCare',
-      'cardiology-care': 'cardiologyCare',
-      'procedure': 'procedure',
-      'complications': 'complications',
-      'teaching': 'teaching',
-    };
-    const fieldName = tabFieldMap[rightPanelTab] || 'overview';
-    return (conditionData[fieldName] as string) || conditionData['overview'] || null;
-  };
-
-  // Get procedure content for current tab
-  const getProcedureContent = (): { type: 'text'; content: string } | { type: 'steps'; steps: { step: number; title: string; description: string }[] } | { type: 'list'; items: string[] } | null => {
-    if (!procedureData) return null;
-    const tabFieldMap: Record<string, string> = {
-      'overview': 'overview',
-      'indications': 'indications',
-      'anatomy': 'anatomy',
-      'procedure': 'steps',
-      'ecg': 'ecgConsiderations',
-      'equipment': 'equipment',
-      'complications': 'complications',
-      'teaching': 'teaching',
-    };
-    const fieldName = tabFieldMap[rightPanelTab] || 'overview';
-    const data = procedureData[fieldName];
-    if (!data) return { type: 'text', content: (procedureData['overview'] as string) || 'Select a tab to view procedure details.' };
-    if (fieldName === 'steps' && Array.isArray(data)) {
-      return { type: 'steps', steps: data as { step: number; title: string; description: string }[] };
-    }
-    if (Array.isArray(data)) {
-      return { type: 'list', items: data as string[] };
-    }
-    return { type: 'text', content: String(data) };
-  };
-
-  const structTitle = structureTabData?.title || legacyInfo?.title;
-  const structContent = getStructureContent();
-  const condContent = getConditionContent();
-  const procContent = getProcedureContent();
-
+function Bullets({ items, accent = 'text-cardiac-accent' }: { items: string[]; accent?: string }) {
+  if (!items?.length) return <p className="text-slate-500 italic">No content for this section.</p>;
   return (
-    <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden">
-      {/* Context-sensitive Tabs */}
-      <div className="flex flex-wrap border-b border-slate-700 px-1 py-1 gap-0.5 shrink-0">
-        {activeTabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setRightPanelTab(tab)}
-            className={`px-2 py-1 text-[10px] rounded capitalize transition-colors ${
-              rightPanelTab === tab
-                ? 'bg-cardiac-accent/20 text-cardiac-accent'
-                : 'text-slate-500 hover:text-white'
-            }`}
-          >
-            {tab.replace(/-/g, ' ')}
+    <ul className="space-y-1.5">
+      {items.map((d, i) => (
+        <li key={i} className="flex gap-2">
+          <span className={`${accent} mt-[1px] shrink-0`}>•</span>
+          <span className="text-slate-300 leading-relaxed">{d}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Chips({ ids, label }: { ids: string[]; label: string }) {
+  const valid = ids.filter((id) => kindOf(id));
+  if (!valid.length) return null;
+  return (
+    <div className="mt-3">
+      <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">{label}</div>
+      <div className="flex flex-wrap gap-1">
+        {valid.map((id) => (
+          <button key={id} onClick={() => openById(id)} className={`px-1.5 py-0.5 rounded border text-[10px] transition-colors ${KIND_CHIP[kindOf(id)!]}`}>
+            {nameOf(id)}
           </button>
         ))}
       </div>
+    </div>
+  );
+}
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3 text-xs text-slate-300 space-y-3">
-        {/* Welcome / empty state */}
-        {!structTitle && !conditionData && !procedureData && !caseData && (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-3">{'\u2665'}</div>
-            <h3 className="text-sm font-semibold text-white mb-2">Cardiac Education Platform</h3>
-            <p className="text-slate-400 text-xs leading-relaxed">
-              Select a structure, condition, or procedure from the left panel to view detailed information.
-            </p>
-            <div className="mt-4 p-3 bg-cardiac-dark rounded-lg text-left">
-              <p className="text-cardiac-accent text-[10px] font-semibold mb-1">EDUCATIONAL DISCLAIMER</p>
-              <p className="text-slate-500 text-[10px] leading-relaxed">
-                This is an educational simulation only. Not intended for diagnosis or treatment.
-              </p>
-            </div>
-            <div className="mt-3 text-slate-500 text-[10px]">
-              Current Level: {['', 'EMT', 'Paramedic', 'ED/ICU', 'Cardiology', 'Interventional'][learningLevel]}
-            </div>
+function Tabs({ tabs, active, onChange, level }: { tabs: TabDef[]; active: string; onChange: (k: string) => void; level: LearningLevel }) {
+  return (
+    <div className="flex flex-wrap gap-0.5 px-2 py-1.5 border-b border-slate-700 shrink-0 bg-cardiac-panel" role="tablist">
+      {tabs.map((t) => {
+        const rec = t.levels?.includes(level);
+        return (
+          <button
+            key={t.key}
+            onClick={() => onChange(t.key)}
+            role="tab"
+            aria-selected={active === t.key}
+            title={rec ? `Recommended for ${LEVEL_LABELS[level].long}` : undefined}
+            className={`relative px-2 py-1 text-[10px] rounded transition-colors ${
+              active === t.key ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : 'text-slate-400 hover:text-white hover:bg-cardiac-surface/70'
+            }`}
+          >
+            {t.label}
+            {rec && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Header({ title, badge, badgeClass, summary, children }: { title: string; badge?: string; badgeClass?: string; summary?: string; children?: React.ReactNode }) {
+  return (
+    <div className="px-3 pt-3 pb-2 border-b border-slate-700/60 shrink-0">
+      {badge && <span className={`inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded mb-1 ${badgeClass ?? 'bg-slate-700 text-slate-300'}`}>{badge}</span>}
+      <h2 className="text-base font-semibold text-white leading-tight">{title}</h2>
+      {summary && <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{summary}</p>}
+      {children}
+    </div>
+  );
+}
+
+function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }) {
+  const note = notes?.[level - 1];
+  if (!note) return null;
+  return (
+    <div className="mt-2 p-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
+      <div className="text-[9px] uppercase tracking-wider text-emerald-300 font-semibold mb-0.5">Focus for {LEVEL_LABELS[level].long}</div>
+      <p className="text-[11px] text-slate-200 leading-relaxed">{note}</p>
+    </div>
+  );
+}
+
+function ActionBtn({ onClick, children, title }: { onClick: () => void; children: React.ReactNode; title?: string }) {
+  return (
+    <button onClick={onClick} title={title} className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] bg-cardiac-surface/70 text-slate-200 hover:bg-cardiac-surface hover:text-white border border-slate-600/60">
+      {children}
+    </button>
+  );
+}
+
+function useTab(tabs: TabDef[], resetKey: string) {
+  const tab = useAppStore((s) => s.rightPanelTab);
+  const setTab = useAppStore((s) => s.setRightPanelTab);
+  const valid = tabs.some((t) => t.key === tab) ? tab : tabs[0].key;
+  useEffect(() => {
+    if (!tabs.some((t) => t.key === tab)) setTab(tabs[0].key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
+  return [valid, setTab] as const;
+}
+
+// ─── Structure ─────────────────────────────────────────────────────────────
+
+const STRUCTURE_TABS: TabDef[] = [
+  { key: 'overview', label: 'Overview', levels: [1, 2] },
+  { key: 'anatomy', label: 'Anatomy', levels: [3, 4, 5] },
+  { key: 'physiology', label: 'Physiology' },
+  { key: 'clinical', label: 'Clinical', levels: [1, 2, 3] },
+  { key: 'ecg', label: 'ECG', levels: [2, 3] },
+  { key: 'imaging', label: 'Imaging', levels: [4] },
+  { key: 'procedures', label: 'Procedures', levels: [5] },
+  { key: 'teaching', label: 'Pearls' },
+];
+
+function StructureView({ s, level }: { s: StructureContent; level: LearningLevel }) {
+  const [tab, setTab] = useTab(STRUCTURE_TABS, s.id);
+  const l = LANDMARK_BY_ID[s.id];
+  const viewMode = useAppStore((st) => st.viewMode);
+  const setViewMode = useAppStore((st) => st.setViewMode);
+  const body = (s as unknown as Record<string, string[]>)[tab] ?? s.overview;
+  return (
+    <>
+      <Header title={s.name} badge={s.group.replace('-', ' ')} badgeClass="bg-sky-500/15 text-sky-300" summary={s.summary}>
+        {s.synonyms.length > 0 && <p className="text-[10px] text-slate-500 mt-1">Also: {s.synonyms.join(', ')}</p>}
+        <LevelFocus notes={s.levelNotes} level={level} />
+        <div className="flex flex-wrap gap-1 mt-2">
+          {l && <ActionBtn onClick={() => openStructure(s.id)} title="Frame this structure in the 3D view"><IconCube size={11} /> Show in 3D</ActionBtn>}
+          {l?.section && viewMode !== 'sectioned' && <ActionBtn onClick={() => { setViewMode('sectioned'); openStructure(s.id); }}>Sectioned view</ActionBtn>}
+        </div>
+      </Header>
+      <Tabs tabs={STRUCTURE_TABS} active={tab} onChange={setTab} level={level} />
+      <div className="flex-1 overflow-y-auto p-3 text-xs">
+        {tab === 'anatomy' && s.bloodSupply && (
+          <div className="mb-2 p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px]">
+            <span className="text-red-300 font-semibold">Blood supply: </span><span className="text-slate-200">{s.bloodSupply}</span>
           </div>
         )}
+        <Bullets items={body} />
+        {(tab === 'clinical' || tab === 'overview') && <Chips ids={s.relatedConditions} label="Related conditions" />}
+        {(tab === 'procedures' || tab === 'overview') && <Chips ids={s.relatedProcedures} label="Related procedures" />}
+      </div>
+    </>
+  );
+}
 
-        {/* Structure detail */}
-        {structTitle && structContent.length > 0 && (
+// ─── Condition ─────────────────────────────────────────────────────────────
+
+const CONDITION_TABS: TabDef[] = [
+  { key: 'overview', label: 'Overview', levels: [1] },
+  { key: 'pathophysiology', label: 'Pathophysiology', levels: [3, 4] },
+  { key: 'symptoms', label: 'Signs & symptoms', levels: [1, 2] },
+  { key: 'ecg', label: 'ECG', levels: [2, 3] },
+  { key: 'imaging', label: 'Imaging', levels: [4] },
+  { key: 'medications', label: 'Medications', levels: [2, 3] },
+  { key: 'fieldCare', label: 'Field care', levels: [1, 2] },
+  { key: 'hospitalCare', label: 'ED / ICU', levels: [3] },
+  { key: 'cardiologyCare', label: 'Cardiology', levels: [4, 5] },
+  { key: 'procedure', label: 'Procedures', levels: [5] },
+  { key: 'complications', label: 'Complications' },
+  { key: 'anatomy', label: 'Anatomy' },
+  { key: 'teaching', label: 'Pearls' },
+];
+
+function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel }) {
+  const [tab, setTab] = useTab(CONDITION_TABS, c.id);
+  const setViewMode = useAppStore((s) => s.setViewMode);
+  const ecg = useECGStore();
+  const profile = resolveProfile(CONDITION_TO_PROFILE[c.id]);
+  const territory = PROFILE_TERRITORY[profile.id];
+  const body = (c as unknown as Record<string, string[]>)[tab] ?? c.overview;
+  const showsHemo = profile.hemo !== 'normal' && profile.hemo !== 'stemi';
+  return (
+    <>
+      <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={c.summary}>
+        <LevelFocus notes={c.levelNotes} level={level} />
+        <div className="flex flex-wrap gap-1 mt-2">
+          <ActionBtn onClick={() => { setRhythm(profile.id); ecg.setBottomView('ecg'); }} title="Load this pattern on the ECG"><IconPulse size={11} /> Replay ECG</ActionBtn>
+          {profile.keyLeads?.[0] && (
+            <ActionBtn onClick={() => { ecg.setBottomView('ecg'); ecg.setInspectLead(profile.keyLeads![0] as never); }}>Inspect lead {profile.keyLeads[0]}</ActionBtn>
+          )}
+          {showsHemo && <ActionBtn onClick={() => ecg.setBottomView('wiggers')}>Hemodynamics</ActionBtn>}
+          {territory && <ActionBtn onClick={() => setViewMode('territories')}>Culprit territory ({territory})</ActionBtn>}
+        </div>
+      </Header>
+      <Tabs tabs={CONDITION_TABS} active={tab} onChange={setTab} level={level} />
+      <div className="flex-1 overflow-y-auto p-3 text-xs space-y-3">
+        {tab === 'overview' && c.redFlags.length > 0 && (
+          <div className="p-2 rounded-md bg-red-500/10 border border-red-500/30">
+            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-red-300 font-semibold mb-1"><IconFlag size={11} /> Red flags</div>
+            <Bullets items={c.redFlags} accent="text-red-400" />
+          </div>
+        )}
+        <Bullets items={body} />
+        {tab === 'ecg' && (
+          <div className="p-2 rounded-md bg-cardiac-dark border border-slate-700">
+            <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">On the live monitor now</div>
+            <p className="text-[11px] text-white font-medium mb-1">{profile.headline}</p>
+            <Bullets items={profile.findings} accent="text-emerald-400" />
+          </div>
+        )}
+        {(tab === 'medications' || tab === 'overview') && <Chips ids={c.relatedMedications} label="Drug cards" />}
+        {(tab === 'procedure' || tab === 'cardiologyCare' || tab === 'overview') && <Chips ids={c.relatedProcedures} label="Procedures" />}
+        {(tab === 'anatomy' || tab === 'overview') && <Chips ids={c.affectedStructures} label="Anatomy involved (highlighted in 3D)" />}
+      </div>
+    </>
+  );
+}
+
+// ─── Procedure ─────────────────────────────────────────────────────────────
+
+const PROCEDURE_TABS: TabDef[] = [
+  { key: 'overview', label: 'Overview', levels: [1, 2] },
+  { key: 'indications', label: 'Indications', levels: [3, 4] },
+  { key: 'contraindications', label: 'Contraindications' },
+  { key: 'anatomy', label: 'Anatomy & access', levels: [5] },
+  { key: 'steps', label: 'Steps', levels: [4, 5] },
+  { key: 'ecg', label: 'ECG / rhythm' },
+  { key: 'equipment', label: 'Equipment' },
+  { key: 'complications', label: 'Complications', levels: [2, 3] },
+  { key: 'postCare', label: 'Post-care', levels: [1, 2, 3] },
+  { key: 'teaching', label: 'Pearls' },
+];
+
+function ProcedureView({ p, level }: { p: ProcedureContent; level: LearningLevel }) {
+  const [tab, setTab] = useTab(PROCEDURE_TABS, p.id);
+  const [step, setStep] = useState(0);
+  useEffect(() => setStep(0), [p.id]);
+  const body = (p as unknown as Record<string, string[]>)[tab];
+  return (
+    <>
+      <Header title={p.name} badge={p.category} badgeClass="bg-violet-500/15 text-violet-300" summary={p.summary}>
+        <LevelFocus notes={p.levelNotes} level={level} />
+      </Header>
+      <Tabs tabs={PROCEDURE_TABS} active={tab} onChange={setTab} level={level} />
+      <div className="flex-1 overflow-y-auto p-3 text-xs">
+        {tab === 'anatomy' && (
+          <div className="mb-2 p-2 rounded bg-violet-500/10 border border-violet-500/25 text-[11px]">
+            <span className="text-violet-300 font-semibold">Access: </span><span className="text-slate-200">{p.accessSite}</span>
+          </div>
+        )}
+        {tab === 'steps' ? (
           <div>
-            <h3 className="text-sm font-semibold text-white mb-1">{structTitle}</h3>
-            <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 capitalize">
-              {rightPanelTab.replace(/-/g, ' ')}
-            </h4>
-            <ul className="space-y-1">
-              {structContent.map((d, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span>
-                  <span className="text-slate-400 leading-relaxed">{d}</span>
-                </li>
+            <div className="flex items-center gap-1 mb-2">
+              {p.steps.map((_, i) => (
+                <button key={i} onClick={() => setStep(i)} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-violet-400' : 'bg-slate-700'}`} aria-label={`Step ${i + 1}`} />
               ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Condition detail */}
-        {conditionData && condContent && (
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-1">{conditionData['title'] || selectedConditionId?.replace(/-/g, ' ')}</h3>
-            <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 capitalize">
-              {rightPanelTab.replace(/-/g, ' ')}
-            </h4>
-            <div className="p-2 bg-cardiac-dark rounded">
-              <p className="text-slate-400 leading-relaxed">{condContent}</p>
             </div>
-          </div>
-        )}
-
-        {/* Condition fallback: show condition name if no external data */}
-        {selectedConditionId && !conditionData && !structTitle && !caseData && (
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-1 capitalize">
-              {selectedConditionId.replace(/-/g, ' ')}
-            </h3>
-            <div className="p-2 bg-cardiac-dark rounded">
-              <p className="text-slate-400 leading-relaxed">
-                Detailed condition information is loading. Select tabs above to explore different aspects of this condition.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Procedure detail */}
-        {procedureData && !conditionData && !structTitle && !caseData && (
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-1">
-              {(procedureData['name'] as string) || selectedProcedureId?.replace(/-/g, ' ')}
-            </h3>
-            {procedureData['category'] ? (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-cardiac-accent/15 text-cardiac-accent mb-2 inline-block">
-                {String(procedureData['category'])}
-              </span>
-            ) : null}
-            <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2 mt-2 capitalize">
-              {rightPanelTab.replace(/-/g, ' ')}
-            </h4>
-
-            {procContent?.type === 'text' && (
-              <div className="p-2 bg-cardiac-dark rounded">
-                <p className="text-slate-400 leading-relaxed">{procContent.content}</p>
-              </div>
-            )}
-
-            {procContent?.type === 'steps' && (
-              <div className="space-y-2">
-                {procContent.steps.map((s) => (
-                  <div key={s.step} className="p-2 bg-cardiac-dark rounded">
+            <ol className="space-y-1.5">
+              {p.steps.map((s, i) => (
+                <li key={i}>
+                  <button
+                    onClick={() => setStep(i)}
+                    className={`w-full text-left p-2 rounded-md border transition-colors ${i === step ? 'bg-violet-500/10 border-violet-500/40' : 'bg-cardiac-dark/60 border-transparent hover:border-slate-600'}`}
+                  >
                     <div className="flex items-start gap-2">
-                      <span className="text-cardiac-accent font-bold text-sm shrink-0 w-5 h-5 rounded-full bg-cardiac-accent/20 flex items-center justify-center text-[10px]">
-                        {s.step}
+                      <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold ${i < step ? 'bg-violet-500 text-white' : 'bg-violet-500/20 text-violet-300'}`}>
+                        {i < step ? <IconCheck size={10} /> : i + 1}
                       </span>
                       <div>
-                        <h5 className="text-white font-medium text-xs mb-0.5">{s.title}</h5>
-                        <p className="text-slate-400 leading-relaxed">{s.description}</p>
+                        <div className="text-white font-medium">{s.title}</div>
+                        {i === step && <p className="text-slate-300 leading-relaxed mt-0.5">{s.description}</p>}
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {procContent?.type === 'list' && (
-              <ul className="space-y-1">
-                {procContent.items.map((item, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span>
-                    <span className="text-slate-400 leading-relaxed">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {/* Procedure fallback: show name if no external data */}
-        {selectedProcedureId && !procedureData && !conditionData && !structTitle && !caseData && (
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-1 capitalize">
-              {selectedProcedureId.replace(/-/g, ' ')}
-            </h3>
-            <p className="text-slate-400 mb-3">
-              Select tabs above to explore different aspects of this procedure.
-            </p>
-          </div>
-        )}
-
-        {/* Case detail */}
-        {caseData && (
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-1">{caseData.title}</h3>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                caseData.difficulty === 'beginner' ? 'bg-green-900/40 text-green-400' :
-                caseData.difficulty === 'intermediate' ? 'bg-yellow-900/40 text-yellow-400' :
-                caseData.difficulty === 'advanced' ? 'bg-orange-900/40 text-orange-400' : 'bg-red-900/40 text-red-400'
-              }`}>
-                {caseData.difficulty}
-              </span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <div className="flex justify-between mt-2">
+              <ActionBtn onClick={() => setStep((s) => Math.max(0, s - 1))}>← Previous</ActionBtn>
+              <ActionBtn onClick={() => setStep((s) => Math.min(p.steps.length - 1, s + 1))}>Next →</ActionBtn>
             </div>
-
-            {/* Vitals display */}
-            <div className="bg-cardiac-dark rounded-lg p-2">
-              <h4 className="text-[10px] font-semibold text-cardiac-red uppercase tracking-wider mb-1.5">Vitals</h4>
-              <div className="grid grid-cols-2 gap-1">
-                <div className="flex items-center gap-1">
-                  <span className="text-cardiac-red font-bold text-sm">{caseData.vitals.hr}</span>
-                  <span className="text-[10px] text-slate-500">bpm</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-blue-400 font-bold text-sm">{caseData.vitals.bp}</span>
-                  <span className="text-[10px] text-slate-500">mmHg</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className={`font-bold text-sm ${caseData.vitals.spo2 < 92 ? 'text-red-400' : 'text-green-400'}`}>{caseData.vitals.spo2}%</span>
-                  <span className="text-[10px] text-slate-500">SpO2</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-yellow-400 font-bold text-sm">{caseData.vitals.rr}</span>
-                  <span className="text-[10px] text-slate-500">RR</span>
-                </div>
-                {caseData.vitals.temp && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-300 font-bold text-sm">{caseData.vitals.temp}</span>
-                    <span className="text-[10px] text-slate-500">Temp</span>
-                  </div>
-                )}
-                {caseData.vitals.gcs && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-purple-400 font-bold text-sm">{caseData.vitals.gcs}</span>
-                    <span className="text-[10px] text-slate-500">GCS</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Tab-specific case content */}
-            {rightPanelTab === 'overview' && (
-              <div className="space-y-2">
-                <div className="p-2 bg-cardiac-dark rounded"><p className="text-slate-400 leading-relaxed">{caseData.presentation}</p></div>
-                <div><h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">History</h4><p className="text-slate-400 leading-relaxed">{caseData.history}</p></div>
-                <div><h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Physical Exam</h4><p className="text-slate-400 leading-relaxed">{caseData.physicalExam}</p></div>
-              </div>
-            )}
-
-            {(rightPanelTab === 'field-care' || rightPanelTab === 'hospital-care' || rightPanelTab === 'cardiology-care' || rightPanelTab === 'procedure') && (
-              <div>
-                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Management Guidelines</h4>
-                <ul className="space-y-1">
-                  {caseData.guidelines.map((g, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400 leading-relaxed">{g}</span></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {rightPanelTab === 'medications' && (
-              <div>
-                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Medications</h4>
-                <ul className="space-y-1">
-                  {caseData.medications.map((m, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400">{m}</span></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {rightPanelTab === 'complications' && (
-              <div>
-                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Common Pitfalls</h4>
-                <ul className="space-y-1">
-                  {caseData.pitfalls.map((p, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-red-400 mt-0.5 shrink-0">!</span><span className="text-slate-400">{p}</span></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {rightPanelTab === 'teaching' && (
-              <div>
-                <h4 className="text-[10px] font-semibold text-cardiac-accent uppercase tracking-wider mb-2">Teaching Points</h4>
-                <ul className="space-y-1">
-                  {caseData.teaching.map((t, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400 leading-relaxed">{t}</span></li>
-                  ))}
-                </ul>
-                <div className="mt-2 p-2 bg-cardiac-dark rounded">
-                  <h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Disposition</h4>
-                  <p className="text-slate-400">{caseData.disposition}</p>
-                </div>
-              </div>
-            )}
-
-            {rightPanelTab === 'symptoms' && (
-              <div className="p-2 bg-cardiac-dark rounded">
-                <h4 className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Key Interventions</h4>
-                <ul className="space-y-1">
-                  {caseData.keyInterventions.map((k, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-cardiac-accent mt-0.5 shrink-0">{'\u2022'}</span><span className="text-slate-400">{k}</span></li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
+        ) : (
+          <Bullets items={body ?? p.overview} />
         )}
+        {tab === 'overview' && <Chips ids={p.relatedConditions} label="Used for" />}
+        {(tab === 'anatomy' || tab === 'overview') && <Chips ids={p.targetStructures} label="Target anatomy (highlighted in 3D)" />}
       </div>
+    </>
+  );
+}
+
+// ─── Medication ────────────────────────────────────────────────────────────
+
+const MED_TABS: TabDef[] = [
+  { key: 'mechanism', label: 'Mechanism', levels: [3, 4] },
+  { key: 'indications', label: 'Indications', levels: [1, 2] },
+  { key: 'dosing', label: 'Dosing', levels: [2, 3] },
+  { key: 'contraindications', label: 'Contraindications', levels: [1, 2] },
+  { key: 'adverseEffects', label: 'Adverse effects' },
+  { key: 'ecgEffects', label: 'ECG effects' },
+  { key: 'hemodynamics', label: 'Hemodynamics' },
+  { key: 'monitoring', label: 'Monitoring' },
+  { key: 'interactions', label: 'Interactions', levels: [4, 5] },
+  { key: 'teaching', label: 'Pearls' },
+];
+
+function MedicationView({ m, level }: { m: MedicationContent; level: LearningLevel }) {
+  const [tab, setTab] = useTab(MED_TABS, m.id);
+  const body = (m as unknown as Record<string, string[]>)[tab] ?? m.mechanism;
+  return (
+    <>
+      <Header title={m.name} badge={m.drugClass} badgeClass="bg-emerald-500/15 text-emerald-300" summary={m.summary}>
+        {m.brandNames.length > 0 && <p className="text-[10px] text-slate-500 mt-1">Brand names: {m.brandNames.join(', ')}</p>}
+        <LevelFocus notes={m.levelNotes} level={level} />
+      </Header>
+      <Tabs tabs={MED_TABS} active={tab} onChange={setTab} level={level} />
+      <div className="flex-1 overflow-y-auto p-3 text-xs">
+        {tab === 'dosing' && (
+          <div className="mb-2 p-2 rounded bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-200 leading-snug">
+            Typical adult doses for education only. Always follow current guidelines, local protocols and medical direction.
+          </div>
+        )}
+        <Bullets items={body} />
+        {(tab === 'indications' || tab === 'teaching') && <Chips ids={m.relatedConditions} label="Related conditions" />}
+      </div>
+    </>
+  );
+}
+
+// ─── Case ──────────────────────────────────────────────────────────────────
+
+const CASE_TABS: TabDef[] = [
+  { key: 'scenario', label: 'Scenario' },
+  { key: 'decisions', label: 'Decisions', levels: [1, 2, 3, 4, 5] },
+  { key: 'management', label: 'Management' },
+  { key: 'medications', label: 'Medications' },
+  { key: 'pitfalls', label: 'Pitfalls' },
+  { key: 'debrief', label: 'Debrief' },
+];
+
+function Vitals({ c }: { c: CaseData }) {
+  const v = c.vitals;
+  const sbp = Number(v.bp.split('/')[0]);
+  const cells: [string, string, string, boolean][] = [
+    ['HR', String(v.hr), 'bpm', v.hr < 50 || v.hr > 120],
+    ['BP', v.bp, 'mmHg', sbp < 90 || sbp > 180],
+    ['SpO₂', `${v.spo2}%`, '', v.spo2 < 92],
+    ['RR', String(v.rr), '/min', v.rr > 24 || v.rr < 10],
+  ];
+  if (v.temp) cells.push(['Temp', v.temp, '', false]);
+  if (v.gcs) cells.push(['GCS', String(v.gcs), '', v.gcs < 14]);
+  if (v.etco2) cells.push(['EtCO₂', String(v.etco2), 'mmHg', v.etco2 < 20]);
+  return (
+    <div className="grid grid-cols-4 gap-1 mt-2 p-1.5 rounded-md bg-black/50 border border-slate-700 font-mono">
+      {cells.map(([k, val, unit, bad]) => (
+        <div key={k} className="px-1">
+          <div className="text-[9px] text-slate-500">{k}</div>
+          <div className={`text-sm font-bold leading-none ${bad ? 'text-red-400' : 'text-emerald-300'}`}>{val}<span className="text-[9px] text-slate-500 ml-0.5">{unit}</span></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CaseDecisions({ c }: { c: CaseData }) {
+  const [idx, setIdx] = useState(0);
+  const [picked, setPicked] = useState<Record<number, number>>({});
+  const markCaseCompleted = useLearningStore((s) => s.markCaseCompleted);
+  useEffect(() => { setIdx(0); setPicked({}); }, [c.id]);
+  const decisions = c.decisions ?? [];
+  if (!decisions.length) return <p className="text-slate-500">No decision points for this case.</p>;
+  const done = idx >= decisions.length;
+  const correctCount = decisions.reduce((n, d, i) => n + (picked[i] !== undefined && d.options[picked[i]]?.correct ? 1 : 0), 0);
+
+  if (done) {
+    return (
+      <div className="space-y-2">
+        <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-center">
+          <div className="text-2xl font-bold text-white">{correctCount}/{decisions.length}</div>
+          <div className="text-[11px] text-emerald-200">correct on first attempt</div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Disposition</div>
+          <p className="text-slate-300 leading-relaxed">{c.disposition}</p>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Teaching points</div>
+          <Bullets items={c.teaching} />
+        </div>
+        <ActionBtn onClick={() => { setIdx(0); setPicked({}); }}>Restart case</ActionBtn>
+      </div>
+    );
+  }
+
+  const d = decisions[idx];
+  const choice = picked[idx];
+  const answered = choice !== undefined;
+  return (
+    <div>
+      <div className="flex items-center gap-1 mb-2">
+        {decisions.map((_, i) => (
+          <div key={i} className={`h-1.5 flex-1 rounded-full ${i < idx ? 'bg-amber-400' : i === idx ? 'bg-amber-400/50' : 'bg-slate-700'}`} />
+        ))}
+      </div>
+      <div className="text-[9px] uppercase tracking-wider text-amber-300 font-semibold">{d.stage} · decision {idx + 1} of {decisions.length}</div>
+      {d.update && (
+        <div className="mt-1.5 p-2 rounded bg-sky-500/10 border border-sky-500/25 text-[11px] text-sky-100 leading-relaxed">
+          <b className="text-sky-300">Update: </b>{d.update}
+        </div>
+      )}
+      <p className="text-white font-medium mt-2 leading-relaxed">{d.prompt}</p>
+      <div className="mt-2 space-y-1.5">
+        {d.options.map((o, i) => {
+          const isPicked = choice === i;
+          const reveal = answered && (isPicked || o.correct);
+          return (
+            <div key={i}>
+              <button
+                disabled={answered}
+                onClick={() => setPicked((p) => ({ ...p, [idx]: i }))}
+                className={`w-full text-left p-2 rounded-md border text-[11px] leading-snug transition-colors ${
+                  !answered ? 'bg-cardiac-dark/70 border-slate-600 hover:border-amber-400/60 text-slate-200'
+                    : o.correct ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-100'
+                      : isPicked ? 'bg-red-500/15 border-red-500/50 text-red-100' : 'bg-cardiac-dark/40 border-slate-700 text-slate-500'
+                }`}
+              >
+                {o.text}
+              </button>
+              {reveal && <p className={`mt-1 ml-2 text-[11px] leading-relaxed ${o.correct ? 'text-emerald-200' : 'text-red-200'}`}>{o.feedback}</p>}
+            </div>
+          );
+        })}
+      </div>
+      {answered && (
+        <div className="flex justify-end mt-2">
+          <ActionBtn
+            onClick={() => {
+              const next = idx + 1;
+              if (next >= decisions.length) {
+                const correct = decisions.reduce((n, dd, i) => n + (picked[i] !== undefined && dd.options[picked[i]]?.correct ? 1 : 0), 0);
+                markCaseCompleted(c.id, correct, decisions.length);
+              }
+              setIdx(next);
+            }}
+          >
+            {idx + 1 >= decisions.length ? 'Finish & debrief →' : 'Next decision →'}
+          </ActionBtn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
+  const [tab, setTab] = useTab(CASE_TABS, c.id);
+  const diff: Record<string, string> = {
+    beginner: 'bg-emerald-500/15 text-emerald-300', intermediate: 'bg-yellow-500/15 text-yellow-300',
+    advanced: 'bg-orange-500/15 text-orange-300', expert: 'bg-red-500/15 text-red-300',
+  };
+  return (
+    <>
+      <Header title={c.title} badge={`${c.difficulty} case`} badgeClass={diff[c.difficulty]}>
+        <Vitals c={c} />
+        <div className="flex flex-wrap gap-1 mt-2">
+          <ActionBtn onClick={() => setTab('decisions')}>Work the case →</ActionBtn>
+          <ActionBtn onClick={() => openCase(c.id)} title="Restart and reload the monitor"><IconPulse size={11} /> Reload monitor</ActionBtn>
+        </div>
+      </Header>
+      <Tabs tabs={CASE_TABS} active={tab} onChange={setTab} level={level} />
+      <div className="flex-1 overflow-y-auto p-3 text-xs space-y-3">
+        {tab === 'scenario' && (
+          <>
+            <p className="text-slate-200 leading-relaxed">{c.presentation}</p>
+            <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">History</div><p className="text-slate-300 leading-relaxed">{c.history}</p></div>
+            <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Examination</div><p className="text-slate-300 leading-relaxed">{c.physicalExam}</p></div>
+            <p className="text-[10px] text-slate-500">Look at the live ECG below, then open <b>Decisions</b>.</p>
+          </>
+        )}
+        {tab === 'decisions' && <CaseDecisions c={c} />}
+        {tab === 'management' && (<><Bullets items={c.guidelines} /><div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1 mt-2">Key interventions</div><Bullets items={c.keyInterventions} accent="text-emerald-400" /></div></>)}
+        {tab === 'medications' && <Bullets items={c.medications} />}
+        {tab === 'pitfalls' && <Bullets items={c.pitfalls} accent="text-red-400" />}
+        {tab === 'debrief' && (<><Bullets items={c.teaching} /><div className="p-2 rounded bg-cardiac-dark"><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Disposition</div><p className="text-slate-300">{c.disposition}</p></div></>)}
+      </div>
+    </>
+  );
+}
+
+// ─── Welcome ───────────────────────────────────────────────────────────────
+
+function Welcome({ level }: { level: LearningLevel }) {
+  const setQuizOpen = useAppStore((s) => s.setQuizOpen);
+  const setViewMode = useAppStore((s) => s.setViewMode);
+  const setHelpOpen = useAppStore((s) => s.setHelpOpen);
+  const ecg = useECGStore();
+  const cards: { title: string; text: string; go: () => void }[] = [
+    { title: 'Watch one heartbeat', text: 'Slow the simulation to 0.25× and watch the P wave light the atria, the QRS spread through the ventricles and the valves open in the sectioned view.', go: () => { setViewMode('sectioned'); } },
+    { title: 'Conduction system', text: 'See SA → AV node → His → bundles → Purkinje fire in time with the ECG. Try Mobitz II or complete heart block.', go: () => { setViewMode('conduction'); openCondition('third-degree-av-block'); } },
+    { title: 'Read a STEMI', text: 'Anterior STEMI: ST elevation V1–V4 with reciprocal inferior change, and the LAD territory pulsing on the heart.', go: () => openCondition('anterior-stemi') },
+    { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { ecg.setBottomView('wiggers'); openCondition('aortic-stenosis'); } },
+    { title: 'Run a case', text: 'Make time-critical decisions with feedback in an unstable SVT scenario.', go: () => openCase('unstable-svt') },
+    { title: 'Quiz yourself', text: '60 questions across all levels, including live rhythm identification.', go: () => setQuizOpen(true) },
+  ];
+  return (
+    <div className="flex-1 overflow-y-auto p-3">
+      <h2 className="text-base font-semibold text-white">Welcome to CardioSim</h2>
+      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+        An interactive heart where the anatomy, ECG, conduction system and hemodynamics all run from one beat-by-beat model.
+        Pick anything in the navigator, click the heart, or start below. Content is tuned for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> — change it in the top bar.
+      </p>
+      <div className="grid gap-2 mt-3">
+        {cards.map((c) => (
+          <button key={c.title} onClick={c.go} className="text-left p-2.5 rounded-lg bg-cardiac-dark/70 border border-slate-700 hover:border-cardiac-accent/60 transition-colors">
+            <div className="text-xs font-semibold text-white">{c.title} →</div>
+            <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">{c.text}</div>
+          </button>
+        ))}
+      </div>
+      <button onClick={() => setHelpOpen(true)} className="mt-3 text-[11px] text-sky-300 hover:underline">Keyboard shortcuts & tips</button>
+      <div className="mt-3 p-2.5 bg-cardiac-dark rounded-lg">
+        <p className="text-cardiac-accent text-[10px] font-semibold mb-0.5">EDUCATIONAL USE ONLY</p>
+        <p className="text-slate-500 text-[10px] leading-relaxed">
+          CardioSim is a teaching simulation. Waveforms and hemodynamics are idealised models, and doses are typical adult values for
+          education. It is not a medical device and must not be used for diagnosis or treatment.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Panel ─────────────────────────────────────────────────────────────────
+
+export default function RightPanel({ style }: { style?: React.CSSProperties }) {
+  const category = useAppStore((s) => s.activePanelCategory);
+  const level = useAppStore((s) => s.learningLevel);
+  const selectedStructureId = useSceneStore((s) => s.selectedStructureId);
+  const selectedConditionId = useConditionStore((s) => s.selectedConditionId);
+  const selectedProcedureId = useProcedureStore((s) => s.selectedProcedureId);
+  const selectedMedicationId = usePharmacologyStore((s) => s.selectedMedicationId);
+  const activeCaseId = useCaseStore((s) => s.activeCaseId);
+  const lib = useContent();
+
+  const view = useMemo(() => {
+    if (!lib) return <div className="flex-1 flex items-center justify-center text-xs text-slate-500">Loading library…</div>;
+    if ((category === 'anatomy' || category === 'coronary' || category === 'conduction') && selectedStructureId && lib.structures[selectedStructureId]) {
+      return <StructureView s={lib.structures[selectedStructureId]} level={level} />;
+    }
+    if (category === 'conditions' && selectedConditionId && lib.conditions[selectedConditionId]) return <ConditionView c={lib.conditions[selectedConditionId]} level={level} />;
+    if (category === 'procedures' && selectedProcedureId && lib.procedures[selectedProcedureId]) return <ProcedureView p={lib.procedures[selectedProcedureId]} level={level} />;
+    if (category === 'medications' && selectedMedicationId && lib.medications[selectedMedicationId]) return <MedicationView m={lib.medications[selectedMedicationId]} level={level} />;
+    if (category === 'cases' && activeCaseId && CASE_DATA[activeCaseId]) return <CaseView c={CASE_DATA[activeCaseId]} level={level} />;
+    return <Welcome level={level} />;
+  }, [lib, category, level, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, activeCaseId]);
+
+  return (
+    <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden min-h-0" aria-label="Information">
+      {view}
     </aside>
   );
 }

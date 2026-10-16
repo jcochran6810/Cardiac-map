@@ -1,92 +1,65 @@
 import { create } from 'zustand';
 
-interface CameraPreset {
-  position: [number, number, number];
-  target: [number, number, number];
-  up?: [number, number, number];
-  fov: number;
+export interface CameraPreset {
+  /** camera direction from the heart centre (world frame: +x patient's left, +y superior, +z anterior) */
+  dir: [number, number, number];
+  distance?: number;
   label: string;
+  short: string;
+  group: 'anatomic' | 'angio';
+  description?: string;
 }
+
+const n = (x: number, y: number, z: number): [number, number, number] => {
+  const l = Math.hypot(x, y, z);
+  return [x / l, y / l, z / l];
+};
+const deg = Math.PI / 180;
+/** Angiographic projection: rotation (LAO + / RAO −) and angulation (cranial + / caudal −) */
+const angio = (lao: number, cranial: number): [number, number, number] =>
+  n(Math.sin(lao * deg) * Math.cos(cranial * deg), Math.sin(cranial * deg), Math.cos(lao * deg) * Math.cos(cranial * deg));
+
+export const CAMERA_PRESETS: CameraPreset[] = [
+  { label: 'Anterior', short: 'Front', dir: [0, 0, 1], group: 'anatomic', description: 'Sternocostal surface: RV, LAD, RA appendage' },
+  { label: 'Posterior', short: 'Back', dir: [0, 0, -1], group: 'anatomic', description: 'Base: LA, pulmonary veins, coronary sinus, PDA' },
+  { label: 'Left Lateral', short: 'Left', dir: [1, 0, 0], group: 'anatomic', description: "Patient's left: LV lateral wall, LAA, circumflex / OMs" },
+  { label: 'Right Lateral', short: 'Right', dir: [-1, 0, 0], group: 'anatomic', description: "Patient's right: RA, SVC/IVC, RCA in the AV groove" },
+  { label: 'Superior', short: 'Top', dir: n(0, 1, 0.35), group: 'anatomic', description: 'Great vessels and the base from above' },
+  { label: 'Inferior', short: 'Bottom', dir: n(0, -1, 0.35), group: 'anatomic', description: 'Diaphragmatic surface: inferior wall, PDA' },
+  { label: 'RAO 30°', short: 'RAO', dir: angio(-30, 0), group: 'angio', description: 'Ventriculogram view; LAD and LCx separated' },
+  { label: 'LAO 45°', short: 'LAO', dir: angio(45, 0), group: 'angio', description: 'RCA "C" shape; septum en face' },
+  { label: 'RAO Cranial', short: 'RAO Cr', dir: angio(-30, 25), group: 'angio', description: 'Mid/distal LAD and diagonals' },
+  { label: 'LAO Cranial', short: 'LAO Cr', dir: angio(40, 25), group: 'angio', description: 'LAD with diagonals; distal RCA/PDA' },
+  { label: 'RAO Caudal', short: 'RAO Ca', dir: angio(-25, -25), group: 'angio', description: 'LCx and obtuse marginals; proximal LAD' },
+  { label: 'LAO Caudal', short: 'Spider', dir: angio(45, -30), group: 'angio', description: '"Spider" view: left main bifurcation' },
+];
 
 interface SceneState {
   selectedStructureId: string | null;
   hoveredStructureId: string | null;
-  multiSelectIds: string[];
-  visibleLayers: string[];
-  transparencyMap: Record<string, number>;
-  clipPlane: { axis: 'x' | 'y' | 'z'; value: number } | null;
-  explodedMode: boolean;
-  flyThroughMode: boolean;
-  isolatedStructureId: string | null;
+  /** extra structures to emphasise (e.g. a condition's affected anatomy, a procedure's targets) */
+  highlightIds: string[];
   cameraPreset: CameraPreset | null;
+  /** increments to request the camera to frame the current selection */
+  focusNonce: number;
 
   selectStructure: (id: string | null) => void;
   hoverStructure: (id: string | null) => void;
-  toggleMultiSelect: (id: string) => void;
-  clearMultiSelect: () => void;
-  setLayerVisibility: (layer: string, visible: boolean) => void;
-  setTransparency: (structureId: string, opacity: number) => void;
-  setClipPlane: (plane: { axis: 'x' | 'y' | 'z'; value: number } | null) => void;
-  toggleExploded: () => void;
-  toggleFlyThrough: () => void;
-  isolateStructure: (id: string | null) => void;
+  setHighlights: (ids: string[]) => void;
   setCameraPreset: (preset: CameraPreset | null) => void;
+  requestFocus: () => void;
 }
-
-const DEFAULT_LAYERS = [
-  'fibrous-pericardium', 'epicardium', 'myocardium', 'endocardium',
-  'chambers', 'valves', 'great-vessels', 'coronary-arteries',
-  'coronary-veins', 'conduction', 'landmarks',
-];
-
-// Heart model orientation: Z axis = superior-inferior (base at +Z, apex at -Z),
-// Y axis = anterior-posterior (anterior face at -Y), X axis = left-right.
-// Most views use up=[0,0,1] (Z-up) so the heart appears upright (base on top, apex on bottom).
-// Superior/Inferior views look along Z, so they use up=[0,-1,0] (anterior faces viewer's bottom).
-export const CAMERA_PRESETS: CameraPreset[] = [
-  { position: [0, -5, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Anterior' },
-  { position: [0, 5, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Posterior' },
-  { position: [5, 0, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Right Lateral' },
-  { position: [-5, 0, 0], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'Left Lateral' },
-  { position: [0, 0, 5], target: [0, 0, 0], up: [0, -1, 0], fov: 50, label: 'Superior' },
-  { position: [0, 0, -5], target: [0, 0, 0], up: [0, -1, 0], fov: 50, label: 'Inferior' },
-  { position: [3, -3, 3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'RAO Cranial' },
-  { position: [-3, -3, 3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'LAO Cranial' },
-  { position: [3, -3, -3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'RAO Caudal' },
-  { position: [-3, -3, -3], target: [0, 0, 0], up: [0, 0, 1], fov: 50, label: 'LAO Caudal' },
-];
 
 export const useSceneStore = create<SceneState>((set) => ({
   selectedStructureId: null,
   hoveredStructureId: null,
-  multiSelectIds: [],
-  visibleLayers: DEFAULT_LAYERS,
-  transparencyMap: {},
-  clipPlane: null,
-  explodedMode: false,
-  flyThroughMode: false,
-  isolatedStructureId: null,
+  highlightIds: [],
   cameraPreset: null,
+  focusNonce: 0,
 
-  selectStructure: (id) => set({ selectedStructureId: id }),
+  selectStructure: (id) => set((s) => ({ selectedStructureId: id, focusNonce: id ? s.focusNonce + 1 : s.focusNonce })),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
-  toggleMultiSelect: (id) => set((s) => ({
-    multiSelectIds: s.multiSelectIds.includes(id)
-      ? s.multiSelectIds.filter((i) => i !== id)
-      : [...s.multiSelectIds, id],
-  })),
-  clearMultiSelect: () => set({ multiSelectIds: [] }),
-  setLayerVisibility: (layer, visible) => set((s) => ({
-    visibleLayers: visible
-      ? [...s.visibleLayers, layer]
-      : s.visibleLayers.filter((l) => l !== layer),
-  })),
-  setTransparency: (structureId, opacity) => set((s) => ({
-    transparencyMap: { ...s.transparencyMap, [structureId]: opacity },
-  })),
-  setClipPlane: (clipPlane) => set({ clipPlane }),
-  toggleExploded: () => set((s) => ({ explodedMode: !s.explodedMode })),
-  toggleFlyThrough: () => set((s) => ({ flyThroughMode: !s.flyThroughMode })),
-  isolateStructure: (id) => set({ isolatedStructureId: id }),
+  setHighlights: (highlightIds) => set({ highlightIds }),
   setCameraPreset: (cameraPreset) => set({ cameraPreset }),
+  requestFocus: () => set((s) => ({ focusNonce: s.focusNonce + 1 })),
 }));

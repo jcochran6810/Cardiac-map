@@ -1,80 +1,105 @@
 import { create } from 'zustand';
 
-export type AppMode = 'explore' | 'physiology' | 'pathology' | 'imaging' | 'procedure' | 'case' | 'tutor';
 export type LearningLevel = 1 | 2 | 3 | 4 | 5;
-export type ViewMode = 'external' | 'internal' | 'cutaway' | 'sectional' | 'dissection' | 'coronary' | 'conduction' | 'perfusion' | 'wall-motion' | 'procedure-overlay' | 'imaging-correlation';
-export type DetailLevel = 'low' | 'standard' | 'high';
 
-export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'cases';
+/**
+ * 3D view modes:
+ *  external    – photoreal exterior with coronary vessels
+ *  sectioned   – four-chamber cut specimen showing valves, chordae, septum, with blood flow
+ *  xray        – translucent heart revealing internal landmarks
+ *  conduction  – translucent heart with the conduction system animated from the live ECG
+ *  territories – coronary perfusion territories (LAD / LCx / RCA) painted on the surface
+ */
+export type ViewMode = 'external' | 'sectioned' | 'xray' | 'conduction' | 'territories';
+
+export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cases';
+
+export const LEVEL_LABELS: Record<LearningLevel, { short: string; long: string }> = {
+  1: { short: 'EMT', long: 'EMT / BLS' },
+  2: { short: 'Paramedic', long: 'Paramedic / ALS' },
+  3: { short: 'ED / ICU', long: 'ED / ICU / Acute care' },
+  4: { short: 'Cardiology', long: 'Cardiology / Advanced' },
+  5: { short: 'Interventional', long: 'Interventional / EP / Structural' },
+};
 
 interface AppState {
-  mode: AppMode;
   learningLevel: LearningLevel;
   viewMode: ViewMode;
-  detailLevel: DetailLevel;
   labelsVisible: boolean;
-  dissectionEnabled: boolean;
-  compareMode: boolean;
+  showFlow: boolean;
+  showVector: boolean;
+  autoRotate: boolean;
   searchQuery: string;
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
   rightPanelTab: string;
   activePanelCategory: PanelCategory;
-  highContrastMode: boolean;
-  reducedMotion: boolean;
+  helpOpen: boolean;
+  quizOpen: boolean;
+  /** small-screen layout: side panels become mutually exclusive drawers */
+  compact: boolean;
 
-  setMode: (mode: AppMode) => void;
   setLearningLevel: (level: LearningLevel) => void;
   setViewMode: (mode: ViewMode) => void;
-  setDetailLevel: (level: DetailLevel) => void;
   toggleLabels: () => void;
-  toggleDissection: () => void;
-  toggleCompare: () => void;
+  toggleFlow: () => void;
+  toggleVector: () => void;
+  toggleAutoRotate: () => void;
   setSearchQuery: (query: string) => void;
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
   setRightPanelTab: (tab: string) => void;
   setActivePanelCategory: (cat: PanelCategory) => void;
+  setHelpOpen: (open: boolean) => void;
+  setQuizOpen: (open: boolean) => void;
+  setCompact: (compact: boolean) => void;
+  setPanels: (left: boolean, right: boolean) => void;
   resetView: () => void;
 }
 
+function loadLevel(): LearningLevel {
+  if (typeof window === 'undefined') return 2;
+  try {
+    const v = Number(window.localStorage.getItem('cardiosim.level'));
+    return v >= 1 && v <= 5 ? (v as LearningLevel) : 2;
+  } catch {
+    return 2;
+  }
+}
+
 export const useAppStore = create<AppState>((set) => ({
-  mode: 'explore',
-  learningLevel: 1,
+  learningLevel: loadLevel(),
   viewMode: 'external',
-  detailLevel: 'standard',
   labelsVisible: true,
-  dissectionEnabled: false,
-  compareMode: false,
+  showFlow: true,
+  showVector: false,
+  autoRotate: false,
   searchQuery: '',
   leftPanelOpen: true,
   rightPanelOpen: true,
   rightPanelTab: 'overview',
   activePanelCategory: 'anatomy',
-  highContrastMode: false,
-  reducedMotion: false,
+  helpOpen: false,
+  quizOpen: false,
+  compact: false,
 
-  setMode: (mode) => set({ mode }),
-  setLearningLevel: (learningLevel) => set({ learningLevel }),
+  setLearningLevel: (learningLevel) => {
+    try { window.localStorage.setItem('cardiosim.level', String(learningLevel)); } catch { /* storage unavailable */ }
+    set({ learningLevel });
+  },
   setViewMode: (viewMode) => set({ viewMode }),
-  setDetailLevel: (detailLevel) => set({ detailLevel }),
   toggleLabels: () => set((s) => ({ labelsVisible: !s.labelsVisible })),
-  toggleDissection: () => set((s) => ({ dissectionEnabled: !s.dissectionEnabled })),
-  toggleCompare: () => set((s) => ({ compareMode: !s.compareMode })),
+  toggleFlow: () => set((s) => ({ showFlow: !s.showFlow })),
+  toggleVector: () => set((s) => ({ showVector: !s.showVector })),
+  toggleAutoRotate: () => set((s) => ({ autoRotate: !s.autoRotate })),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
-  toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
+  toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen, rightPanelOpen: s.compact && !s.leftPanelOpen ? false : s.rightPanelOpen })),
+  toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen, leftPanelOpen: s.compact && !s.rightPanelOpen ? false : s.leftPanelOpen })),
   setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
-  setActivePanelCategory: (activePanelCategory) => set((s) => {
-    // Reset right panel tab to 'overview' when switching categories
-    // to prevent showing an irrelevant tab
-    return { activePanelCategory, rightPanelTab: 'overview' };
-  }),
-  resetView: () => set({
-    viewMode: 'external',
-    labelsVisible: true,
-    dissectionEnabled: false,
-    compareMode: false,
-    searchQuery: '',
-  }),
+  setActivePanelCategory: (activePanelCategory) => set({ activePanelCategory, rightPanelTab: 'overview' }),
+  setHelpOpen: (helpOpen) => set({ helpOpen }),
+  setQuizOpen: (quizOpen) => set({ quizOpen }),
+  setCompact: (compact) => set({ compact }),
+  setPanels: (leftPanelOpen, rightPanelOpen) => set({ leftPanelOpen, rightPanelOpen }),
+  resetView: () => set({ viewMode: 'external', labelsVisible: true, searchQuery: '' }),
 }));

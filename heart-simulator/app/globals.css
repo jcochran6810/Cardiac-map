@@ -47,58 +47,23 @@ body {
   background: #475569;
 }
 
-/* ECG canvas */
-.ecg-canvas {
-  image-rendering: pixelated;
+/* 3D stage backdrop: soft vignette behind the transparent WebGL canvas */
+.heart-stage {
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(80, 30, 40, 0.35) 0%, rgba(15, 23, 42, 0) 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(30, 41, 59, 0.9) 0%, rgba(8, 11, 18, 1) 70%);
 }
 
-/* Panel transitions */
-.panel-transition {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* Hide scrollbars on horizontal toolbars while keeping them scrollable */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Visible keyboard focus for accessibility */
+:focus-visible {
+  outline: 2px solid var(--cardiac-accent);
+  outline-offset: 1px;
 }
 
-/* Tooltip */
-.tooltip-content {
-  @apply bg-cardiac-panel text-sm text-slate-200 px-3 py-2 rounded-lg shadow-xl border border-slate-600;
-  max-width: 300px;
-}
-
-/* Structure highlight pulse */
-@keyframes pulse-highlight {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-.structure-highlight {
-  animation: pulse-highlight 1.5s ease-in-out infinite;
-}
-
-/* ECG grid pattern */
-.ecg-grid {
-  background-image:
-    linear-gradient(rgba(220, 38, 38, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(220, 38, 38, 0.1) 1px, transparent 1px),
-    linear-gradient(rgba(220, 38, 38, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(220, 38, 38, 0.2) 1px, transparent 1px);
-  background-size: 5px 5px, 5px 5px, 25px 25px, 25px 25px;
-}
-
-/* Loading spinner */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-/* Conduction animation */
-@keyframes conduction-pulse {
-  0% { stroke-dashoffset: 100; opacity: 0; }
-  20% { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 0; }
-}
-
-/* Blood flow particle */
-@keyframes flow-particle {
-  0% { offset-distance: 0%; }
-  100% { offset-distance: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
