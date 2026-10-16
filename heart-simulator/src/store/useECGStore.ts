@@ -1,70 +1,76 @@
 import { create } from 'zustand';
+import type { StandardLead } from '@/lib/ecg/vector';
+import { STANDARD_PLACEMENT, type Placement } from '@/lib/ecg/electrodes';
 
-export type ECGDisplayMode = 'scrolling' | 'frozen' | 'scrub' | 'compare';
-export type ECGLead = 'I' | 'II' | 'III' | 'aVR' | 'aVL' | 'aVF' | 'V1' | 'V2' | 'V3' | 'V4' | 'V5' | 'V6';
+export type ECGLead = StandardLead;
+export type ECGLayout = 'standard' | 'simultaneous' | 'monitor';
+export type ECGTheme = 'monitor' | 'paper';
+export type BottomView = 'ecg' | 'wiggers' | 'defib';
 
 interface ECGState {
   activeProfileId: string;
-  compareProfileId: string | null;
-  displayMode: ECGDisplayMode;
-  visibleLeads: ECGLead[];
-  gain: number;
-  sweepSpeed: number;
-  showBeatMarkers: boolean;
+  layout: ECGLayout;
+  theme: ECGTheme;
+  /** mm/mV */
+  gain: 5 | 10 | 20;
+  /** mm/s */
+  sweepSpeed: 25 | 50;
+  showKeyLeads: boolean;
   showAnnotations: boolean;
   caliperMode: boolean;
-  caliperPoints: { x: number; lead: ECGLead }[];
   selectedLead: ECGLead | null;
   inspectLead: ECGLead | null;
+  bottomView: BottomView;
+  /** Which cable is attached to which electrode site (misplacement teaching) */
+  placement: Placement;
+  /** Mystery mode: the misplacement is not disclosed */
+  placementHidden: boolean;
+  electrodeLab: boolean;
 
   setActiveProfile: (id: string) => void;
-  setCompareProfile: (id: string | null) => void;
-  setDisplayMode: (mode: ECGDisplayMode) => void;
-  toggleLead: (lead: ECGLead) => void;
-  setGain: (gain: number) => void;
-  setSweepSpeed: (speed: number) => void;
-  toggleBeatMarkers: () => void;
+  setLayout: (layout: ECGLayout) => void;
+  setTheme: (theme: ECGTheme) => void;
+  setGain: (gain: 5 | 10 | 20) => void;
+  setSweepSpeed: (speed: 25 | 50) => void;
+  toggleKeyLeads: () => void;
   toggleAnnotations: () => void;
   toggleCalipers: () => void;
-  addCaliperPoint: (x: number, lead: ECGLead) => void;
-  clearCalipers: () => void;
   selectLead: (lead: ECGLead | null) => void;
   setInspectLead: (lead: ECGLead | null) => void;
+  setBottomView: (v: BottomView) => void;
+  setPlacementState: (p: Placement, hidden: boolean) => void;
+  revealPlacement: () => void;
+  setElectrodeLab: (open: boolean) => void;
 }
-
-const ALL_LEADS: ECGLead[] = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
 
 export const useECGStore = create<ECGState>((set) => ({
   activeProfileId: 'normal-sinus',
-  compareProfileId: null,
-  displayMode: 'scrolling',
-  visibleLeads: ALL_LEADS,
+  layout: 'standard',
+  theme: 'monitor',
   gain: 10,
   sweepSpeed: 25,
-  showBeatMarkers: true,
+  showKeyLeads: true,
   showAnnotations: true,
   caliperMode: false,
-  caliperPoints: [],
   selectedLead: null,
   inspectLead: null,
+  bottomView: 'ecg',
+  placement: STANDARD_PLACEMENT,
+  placementHidden: false,
+  electrodeLab: false,
 
-  setActiveProfile: (id) => set({ activeProfileId: id }),
-  setCompareProfile: (id) => set({ compareProfileId: id }),
-  setDisplayMode: (mode) => set({ displayMode: mode }),
-  toggleLead: (lead) => set((s) => ({
-    visibleLeads: s.visibleLeads.includes(lead)
-      ? s.visibleLeads.filter((l) => l !== lead)
-      : [...s.visibleLeads, lead],
-  })),
+  setActiveProfile: (activeProfileId) => set({ activeProfileId }),
+  setLayout: (layout) => set({ layout }),
+  setTheme: (theme) => set({ theme }),
   setGain: (gain) => set({ gain }),
   setSweepSpeed: (sweepSpeed) => set({ sweepSpeed }),
-  toggleBeatMarkers: () => set((s) => ({ showBeatMarkers: !s.showBeatMarkers })),
+  toggleKeyLeads: () => set((s) => ({ showKeyLeads: !s.showKeyLeads })),
   toggleAnnotations: () => set((s) => ({ showAnnotations: !s.showAnnotations })),
-  toggleCalipers: () => set((s) => ({ caliperMode: !s.caliperMode, caliperPoints: [] })),
-  addCaliperPoint: (x, lead) => set((s) => ({
-    caliperPoints: s.caliperPoints.length >= 2 ? [{ x, lead }] : [...s.caliperPoints, { x, lead }],
-  })),
-  clearCalipers: () => set({ caliperPoints: [] }),
+  toggleCalipers: () => set((s) => ({ caliperMode: !s.caliperMode })),
   selectLead: (lead) => set((s) => ({ selectedLead: s.selectedLead === lead ? null : lead })),
-  setInspectLead: (lead) => set({ inspectLead: lead }),
+  setInspectLead: (inspectLead) => set({ inspectLead }),
+  setBottomView: (bottomView) => set({ bottomView }),
+  setPlacementState: (placement, placementHidden) => set({ placement, placementHidden }),
+  revealPlacement: () => set({ placementHidden: false }),
+  setElectrodeLab: (electrodeLab) => set({ electrodeLab }),
 }));

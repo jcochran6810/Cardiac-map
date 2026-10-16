@@ -1,426 +1,598 @@
 'use client';
 
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
-import { useECGStore, ECGLead } from '@/store/useECGStore';
+import React, { useEffect, useRef, useState } from 'react';
+import { sim, scrubTo } from '@/lib/sim/simulation';
+import { useECGStore, ECGLead, ECGLayout } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { generateBeatSample, getLeadParams, CONDITION_MODIFIERS, generateVFibSample, generateAFibSample, generateFlutterBaseline } from '@/lib/ecg/waveformEngine';
+import { resolveProfile } from '@/lib/ecg/profiles';
 
-// Standard 12-lead bisect layout: 4 columns × 3 rows
-// Col 0: Limb leads, Col 1: Augmented, Col 2: Right precordial, Col 3: Left precordial
-const STANDARD_12_ORDER: ECGLead[] = [
-  'I',   'aVR', 'V1', 'V4',
-  'II',  'aVL', 'V2', 'V5',
-  'III', 'aVF', 'V3', 'V6',
+/**
+ * Calibrated, sweeping 12-lead ECG.
+ *
+ * - Grid is true ECG paper: 1 mm minor / 5 mm major boxes, 25 (or 50) mm/s, 5/10/20 mm/mV.
+ * - Standard layout prints sequential 2.5 s columns (I-II-III | aVR-aVL-aVF | V1-V3 | V4-V6)
+ *   with a continuous lead II rhythm strip, exactly like a 12-lead printout.
+ * - A sweep cursor with an erase bar moves left→right; the cursor is "now", which is the
+ *   same instant the 3D heart is showing.
+ * - Each strip is drawn incrementally into its own offscreen canvas, so per-frame cost is tiny.
+ */
+
+const STANDARD_COLUMNS: ECGLead[][] = [
+  ['I', 'II', 'III'],
+  ['aVR', 'aVL', 'aVF'],
+  ['V1', 'V2', 'V3'],
+  ['V4', 'V5', 'V6'],
 ];
+const MONITOR_LEADS: ECGLead[] = ['II', 'V1', 'V5'];
 
-const GRID_COLOR = 'rgba(220, 38, 38, 0.15)';
-const GRID_MAJOR_COLOR = 'rgba(220, 38, 38, 0.3)';
-const TRACE_COLOR = '#10B981';
-const COMPARE_COLOR = '#3B82F6';
-const SELECTED_BG = 'rgba(245, 158, 11, 0.08)';
-const SELECTED_BORDER = 'rgba(245, 158, 11, 0.6)';
-const PLAYHEAD_COLOR = 'rgba(245, 158, 11, 0.35)';
-const PLAYHEAD_GLOW = 'rgba(245, 158, 11, 0.12)';
-
-// Playhead offset: 3 major grid squares (75px) from left edge of each cell
-const PLAYHEAD_OFFSET = 75;
-
-// Phase label lookup for the playhead
-const PHASE_LABELS: Record<string, string> = {
-  'atrial-systole': 'P wave',
-  'isovolumetric-contraction': 'PR seg',
-  'rapid-ejection': 'QRS',
-  'reduced-ejection': 'QRS',
-  'isovolumetric-relaxation': 'ST seg',
-  'rapid-filling': 'T wave',
-  'diastasis': 'Baseline',
-  'atrial-relaxation': 'Baseline',
+const THEMES = {
+  monitor: {
+    bg: '#04070c', minor: 'rgba(255,70,70,0.09)', major: 'rgba(255,70,70,0.26)', trace: '#3ef08a',
+    label: '#a8b8cc', cursor: 'rgba(255,255,255,0.85)', cal: '#3ef08a', sep: 'rgba(148,163,184,0.45)',
+    key: 'rgba(245,158,11,0.07)', keyLabel: '#f59e0b', sel: 'rgba(56,189,248,0.9)', annot: '#fbbf24',
+  },
+  paper: {
+    bg: '#fff6f4', minor: 'rgba(235,90,90,0.22)', major: 'rgba(215,45,45,0.5)', trace: '#111827',
+    label: '#1f2937', cursor: 'rgba(30,64,175,0.8)', cal: '#111827', sep: 'rgba(30,41,59,0.6)',
+    key: 'rgba(245,158,11,0.12)', keyLabel: '#b45309', sel: 'rgba(37,99,235,0.9)', annot: '#b45309',
+  },
 };
 
-interface ECGRendererProps {
-  width?: number;
-  height?: number;
-  compact?: boolean;
-  verticalStack?: boolean;
-  inspectLead?: string | null;
+interface Strip {
+  lead: ECGLead;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  offset: number;
+  dur: number;
+  page: number;
+  canvas: HTMLCanvasElement;
+  overflow: number;
+  lastT: number;
+  lastX: number;
+  lastY: number;
+  hasLast: boolean;
 }
 
-export default function ECGRenderer({ width, height, compact = false, verticalStack = false, inspectLead = null }: ECGRendererProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-  // dragOffsetRef holds only the manual drag offset; auto-scroll is computed from time
-  const dragOffsetRef = useRef(0);
-  const isDraggingRef = useRef(false);
-  const dragStartXRef = useRef(0);
-  const lastDragXRef = useRef(0);
+interface Layout {
+  key: string;
+  W: number;
+  H: number;
+  dpr: number;
+  pxPerMm: number;
+  pxPerMs: number;
+  pxPerMv: number;
+  calMargin: number;
+  strips: Strip[];
+  grid: HTMLCanvasElement;
+  cellStrips: Strip[];
+}
 
-  const { activeProfileId, compareProfileId, displayMode, visibleLeads, gain, sweepSpeed, showBeatMarkers, showAnnotations, caliperMode, selectedLead, selectLead } = useECGStore();
-  const { time, heartRate, speed, playing, frozen, currentPhase, cycleProgress } = useTimelineStore();
+type Caliper = { t: number; v: number; strip: number };
 
-  // Track layout for click detection
-  const layoutRef = useRef<{ leads: ECGLead[]; cols: number; rows: number; cellW: number; cellH: number }>({
-    leads: [], cols: 1, rows: 1, cellW: 0, cellH: 0,
+function buildLayout(
+  W: number, H: number, dpr: number, layout: ECGLayout, inspect: ECGLead | null,
+  speed: number, gain: number, themeKey: keyof typeof THEMES,
+): Layout {
+  const theme = THEMES[themeKey];
+  const key = `${W}x${H}@${dpr}|${layout}|${inspect}|${speed}|${gain}|${themeKey}`;
+  const strips: Omit<Strip, 'canvas' | 'overflow' | 'lastT' | 'lastX' | 'lastY' | 'hasLast'>[] = [];
+  let pxPerMm: number;
+
+  if (inspect) {
+    pxPerMm = Math.max(3, Math.min(10, H / 26));
+    const cal = 7 * pxPerMm;
+    let dur = ((W - cal) / (pxPerMm * speed)) * 1000;
+    if (dur < 3000) {
+      pxPerMm = (W - 7 * pxPerMm) / (3 * speed);
+      dur = 3000;
+    }
+    const calM = 7 * pxPerMm;
+    strips.push({ lead: inspect, label: inspect, x: calM, y: 0, w: W - calM, h: H, offset: 0, dur, page: dur });
+  } else if (layout === 'monitor') {
+    const rowH = H / 3;
+    pxPerMm = Math.max(2, Math.min(8, rowH / 20));
+    const calM = 7 * pxPerMm;
+    const dur = ((W - calM) / (pxPerMm * speed)) * 1000;
+    MONITOR_LEADS.forEach((lead, r) => {
+      strips.push({ lead, label: lead, x: calM, y: r * rowH, w: W - calM, h: rowH, offset: 0, dur, page: dur });
+    });
+  } else {
+    const rowH = H / 4;
+    const est = Math.min((W * 0.96) / 4 / (2.5 * speed), rowH / 17);
+    pxPerMm = Math.max(2, est);
+    const calM = 7 * pxPerMm;
+    const colW = (W - calM) / 4;
+    const dur = (colW / (pxPerMm * speed)) * 1000;
+    const page = layout === 'standard' ? dur * 4 : dur;
+    STANDARD_COLUMNS.forEach((col, c) => {
+      col.forEach((lead, r) => {
+        strips.push({
+          lead, label: lead, x: calM + c * colW, y: r * rowH, w: colW, h: rowH,
+          offset: layout === 'standard' ? c * dur : 0, dur, page,
+        });
+      });
+    });
+    strips.push({ lead: 'II', label: 'II', x: calM, y: 3 * rowH, w: W - calM, h: rowH, offset: 0, dur: dur * 4, page: dur * 4 });
+  }
+
+  const calMargin = strips[0].x;
+  const pxPerMs = (pxPerMm * speed) / 1000;
+  const pxPerMv = pxPerMm * gain;
+
+  // Grid canvas (static)
+  const grid = document.createElement('canvas');
+  grid.width = Math.max(1, Math.round(W * dpr));
+  grid.height = Math.max(1, Math.round(H * dpr));
+  const g = grid.getContext('2d')!;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = theme.bg;
+  g.fillRect(0, 0, W, H);
+  const minorOk = pxPerMm >= 3;
+  for (let i = 0, x = 0; x <= W; i++, x = i * pxPerMm) {
+    if (i % 5 !== 0 && !minorOk) continue;
+    g.strokeStyle = i % 5 === 0 ? theme.major : theme.minor;
+    g.lineWidth = i % 5 === 0 ? 0.9 : 0.5;
+    g.beginPath(); g.moveTo(Math.round(x) + 0.5, 0); g.lineTo(Math.round(x) + 0.5, H); g.stroke();
+  }
+  for (let i = 0, y = 0; y <= H; i++, y = i * pxPerMm) {
+    if (i % 5 !== 0 && !minorOk) continue;
+    g.strokeStyle = i % 5 === 0 ? theme.major : theme.minor;
+    g.lineWidth = i % 5 === 0 ? 0.9 : 0.5;
+    g.beginPath(); g.moveTo(0, Math.round(y) + 0.5); g.lineTo(W, Math.round(y) + 0.5); g.stroke();
+  }
+  // Calibration pulses (1 mV × 200 ms) at the start of each row
+  const rowsDone = new Set<number>();
+  g.strokeStyle = theme.cal;
+  g.lineWidth = 1.4;
+  for (const s of strips) {
+    if (rowsDone.has(s.y)) continue;
+    rowsDone.add(s.y);
+    const base = s.y + s.h * 0.62;
+    const x0 = 1.5 * pxPerMm;
+    const pw = 0.2 * 1000 * pxPerMs;
+    g.beginPath();
+    g.moveTo(x0 - pxPerMm, base);
+    g.lineTo(x0, base);
+    g.lineTo(x0, base - pxPerMv);
+    g.lineTo(x0 + pw, base - pxPerMv);
+    g.lineTo(x0 + pw, base);
+    g.lineTo(x0 + pw + pxPerMm, base);
+    g.stroke();
+  }
+
+  const full: Strip[] = strips.map((s) => {
+    const overflow = Math.round(s.h * 0.55);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(s.w * dpr));
+    c.height = Math.max(1, Math.round((s.h + overflow * 2) * dpr));
+    return { ...s, canvas: c, overflow, lastT: 0, lastX: 0, lastY: 0, hasLast: false };
   });
 
-  const conditionMod = useMemo(() => {
-    return CONDITION_MODIFIERS[activeProfileId] || {};
-  }, [activeProfileId]);
+  return { key, W, H, dpr, pxPerMm, pxPerMs, pxPerMv, calMargin, strips: full, grid, cellStrips: full };
+}
 
-  const compareMod = useMemo(() => {
-    if (!compareProfileId) return null;
-    return CONDITION_MODIFIERS[compareProfileId] || {};
-  }, [compareProfileId]);
+/** Map time → x for a strip, or null if that time is not displayed in that strip */
+function xFor(s: Strip, t: number, pxPerMs: number): number | null {
+  const rel = (((t - s.offset) % s.page) + s.page) % s.page;
+  if (rel > s.dur) return null;
+  return rel * pxPerMs;
+}
 
-  // Mouse drag handlers for scrubbing + click-to-select lead
+export default function ECGRenderer() {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const layoutRef = useRef<Layout | null>(null);
+  const caliperRef = useRef<Caliper[]>([]);
+  const [hint, setHint] = useState<string | null>(null);
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const ctx = canvas.getContext('2d')!;
+    let raf = 0;
+    let size = { W: 0, H: 0 };
+    let lastT = -1;
+    let lastEpoch = -1;
+    let lastProfile = '';
 
-    const onMouseDown = (e: MouseEvent) => {
-      isDraggingRef.current = true;
-      dragStartXRef.current = e.clientX;
-      lastDragXRef.current = e.clientX;
-      canvas.style.cursor = 'grabbing';
-    };
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0].contentRect;
+      size = { W: Math.floor(r.width), H: Math.floor(r.height) };
+    });
+    ro.observe(wrap);
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current) return;
-      const dx = e.clientX - lastDragXRef.current;
-      dragOffsetRef.current -= dx * 2;
-      lastDragXRef.current = e.clientX;
-    };
+    const engine = sim.engine;
 
-    const onMouseUp = (e: MouseEvent) => {
-      const wasDrag = Math.abs(e.clientX - dragStartXRef.current) > 5;
-      isDraggingRef.current = false;
-      canvas.style.cursor = 'grab';
-
-      // If it was a click (not a drag), detect which lead was clicked
-      if (!wasDrag) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const layout = layoutRef.current;
-        if (layout.cellW > 0 && layout.cellH > 0) {
-          const col = Math.floor(x / layout.cellW);
-          const row = Math.floor(y / layout.cellH);
-          const idx = row * layout.cols + col;
-          if (idx >= 0 && idx < layout.leads.length) {
-            selectLead(layout.leads[idx]);
-          }
+    const drawRange = (L: Layout, s: Strip, u: number, v: number, color: string) => {
+      const c = s.canvas.getContext('2d')!;
+      c.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
+      const base = s.overflow + s.h * 0.62;
+      const step = 0.5 / L.pxPerMs;
+      // Collect pacing spikes so they are never skipped by the sampler
+      const spikes: number[] = [];
+      const vi0 = engine.lastVentIndex(u - 2);
+      for (let k = Math.max(0, vi0); k < engine.vent.length && engine.vent[k].t <= v + 2; k++) {
+        if (engine.vent[k].spike && engine.vent[k].t >= u) spikes.push(engine.vent[k].t - 1.5);
+      }
+      c.strokeStyle = color;
+      c.lineWidth = 1.35;
+      c.lineJoin = 'round';
+      c.beginPath();
+      let first = true;
+      let si = 0;
+      const plot = (t: number) => {
+        const x = xFor(s, t, L.pxPerMs);
+        if (x === null) return;
+        const y = base - engine.voltage(s.lead, t) * L.pxPerMv;
+        if (first) {
+          if (s.hasLast && Math.abs(s.lastT - t) <= step * 2.5 && x >= s.lastX) c.moveTo(s.lastX, s.lastY);
+          else c.moveTo(x, y);
+          first = false;
         }
+        c.lineTo(x, y);
+        s.lastT = t; s.lastX = x; s.lastY = y; s.hasLast = true;
+      };
+      for (let t = u; t <= v; t += step) {
+        while (si < spikes.length && spikes[si] < t) { plot(spikes[si]); si++; }
+        plot(t);
+      }
+      plot(v);
+      c.stroke();
+    };
+
+    const clearRange = (L: Layout, s: Strip, x0: number, x1: number) => {
+      const c = s.canvas.getContext('2d')!;
+      c.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
+      c.clearRect(Math.max(0, x0 - 0.5), 0, Math.min(s.w, x1) - Math.max(0, x0 - 0.5) + 1, s.h + s.overflow * 2);
+    };
+
+    /** Draw times (a, b] into strip s, erasing a short gap ahead of the cursor */
+    const advance = (L: Layout, s: Strip, a: number, b: number, color: string, gapPx: number) => {
+      // Visible windows are [k*page + offset, k*page + offset + dur]
+      const k0 = Math.floor((a - s.offset) / s.page);
+      const k1 = Math.floor((b - s.offset) / s.page);
+      for (let k = k0; k <= k1; k++) {
+        const ws = k * s.page + s.offset;
+        const we = ws + s.dur;
+        const u = Math.max(a, ws);
+        const v = Math.min(b, we);
+        if (v <= u) continue;
+        const xu = (u - ws) * L.pxPerMs;
+        const xv = (v - ws) * L.pxPerMs;
+        if (u === ws) s.hasLast = false;
+        clearRange(L, s, xu, xv + gapPx);
+        drawRange(L, s, u, v, color);
       }
     };
 
-    const onMouseLeave = () => {
-      isDraggingRef.current = false;
-      canvas.style.cursor = 'grab';
+    const fullRedraw = (L: Layout, T: number, color: string) => {
+      const gapMs = 14 / L.pxPerMs;
+      for (const s of L.strips) {
+        const c = s.canvas.getContext('2d')!;
+        c.setTransform(1, 0, 0, 1, 0, 0);
+        c.clearRect(0, 0, s.canvas.width, s.canvas.height);
+        s.hasLast = false;
+        const k = Math.floor((T - s.offset) / s.page);
+        const ws = k * s.page + s.offset;
+        const we = ws + s.dur;
+        // previous page portion (to the right of the cursor)
+        const prevStart = Math.max(Math.min(T, we) + gapMs, ws) - s.page;
+        const prevEnd = we - s.page;
+        if (prevEnd > prevStart && prevEnd > 0) {
+          drawRange(L, s, Math.max(0, prevStart), prevEnd, color);
+          s.hasLast = false;
+        }
+        // current page up to the cursor
+        const curEnd = Math.min(T, we);
+        if (curEnd > ws) drawRange(L, s, Math.max(0, ws), curEnd, color);
+      }
     };
 
-    canvas.style.cursor = 'grab';
-    canvas.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    canvas.addEventListener('mouseleave', onMouseLeave);
+    const render = () => {
+      raf = requestAnimationFrame(render);
+      const { W, H } = size;
+      if (W < 20 || H < 20) return;
+      const ecg = useECGStore.getState();
+      const dpr = window.devicePixelRatio || 1;
+      const key = `${W}x${H}@${dpr}|${ecg.layout}|${ecg.inspectLead}|${ecg.sweepSpeed}|${ecg.gain}|${ecg.theme}`;
+      let L = layoutRef.current;
+      const theme = THEMES[ecg.theme];
+      const T = sim.time;
+      let needFull = false;
+      if (!L || L.key !== key) {
+        if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+          canvas.width = Math.round(W * dpr);
+          canvas.height = Math.round(H * dpr);
+        }
+        L = buildLayout(W, H, dpr, ecg.layout, ecg.inspectLead, ecg.sweepSpeed, ecg.gain, ecg.theme);
+        layoutRef.current = L;
+        caliperRef.current = [];
+        needFull = true;
+      }
+      if (sim.epoch !== lastEpoch || T < lastT || T - lastT > 1500) needFull = true;
+      lastEpoch = sim.epoch;
 
+      if (needFull) {
+        fullRedraw(L, T, theme.trace);
+      } else if (T > lastT) {
+        const gapPx = 14;
+        for (const s of L.strips) advance(L, s, lastT, T, theme.trace, gapPx);
+      }
+      lastT = T;
+
+      // ── Composite ─────────────────────────────────────────────
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(L.grid, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const profile = resolveProfile(engine.segmentAt(T).profile.id);
+      if (profile.id !== lastProfile) lastProfile = profile.id;
+      const keyLeads = ecg.showKeyLeads && !ecg.inspectLead ? new Set(profile.keyLeads ?? []) : new Set<string>();
+
+      L.strips.forEach((s, i) => {
+        const isRhythm = !ecg.inspectLead && ecg.layout !== 'monitor' && i === L!.strips.length - 1;
+        if (keyLeads.has(s.lead) && !isRhythm) {
+          ctx.fillStyle = theme.key;
+          ctx.fillRect(s.x, s.y, s.w, s.h);
+        }
+        ctx.drawImage(s.canvas, s.x, s.y - s.overflow, s.w, s.h + s.overflow * 2);
+      });
+
+      // Separators + labels
+      ctx.strokeStyle = theme.sep;
+      ctx.lineWidth = 1;
+      ctx.font = `600 ${Math.max(10, Math.min(13, L.pxPerMm * 2.4))}px ui-sans-serif, system-ui, sans-serif`;
+      L.strips.forEach((s, i) => {
+        const isRhythm = !ecg.inspectLead && ecg.layout !== 'monitor' && i === L!.strips.length - 1;
+        if (s.x > L!.calMargin + 1) {
+          ctx.beginPath();
+          ctx.moveTo(s.x + 0.5, s.y + s.h * 0.35);
+          ctx.lineTo(s.x + 0.5, s.y + s.h * 0.85);
+          ctx.stroke();
+        }
+        const highlight = keyLeads.has(s.lead) && !isRhythm;
+        ctx.fillStyle = highlight ? theme.keyLabel : theme.label;
+        ctx.fillText(isRhythm ? `${s.label} (rhythm strip)` : s.label, s.x + 5, s.y + 14);
+        if (ecg.selectedLead === s.lead && !isRhythm) {
+          ctx.strokeStyle = theme.sel;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(s.x + 1, s.y + 1, s.w - 2, s.h - 2);
+          ctx.strokeStyle = theme.sep;
+          ctx.lineWidth = 1;
+        }
+      });
+
+      // Sweep cursor
+      ctx.strokeStyle = theme.cursor;
+      ctx.lineWidth = 1.2;
+      for (const s of L.strips) {
+        const k = Math.floor((T - s.offset) / s.page);
+        const ws = k * s.page + s.offset;
+        if (T >= ws && T <= ws + s.dur) {
+          const x = s.x + (T - ws) * L.pxPerMs;
+          ctx.beginPath();
+          ctx.moveTo(x, s.y + 3);
+          ctx.lineTo(x, s.y + s.h - 3);
+          ctx.stroke();
+        }
+      }
+
+      // Inspect-mode annotations: label the waves and intervals of the last complete beat
+      if (ecg.inspectLead && ecg.showAnnotations) drawAnnotations(ctx, L, T, theme.annot);
+
+      // Calipers
+      if (caliperRef.current.length) drawCalipers(ctx, L, caliperRef.current, theme.sel);
+
+      // Footer
+      ctx.font = '10px ui-monospace, monospace';
+      ctx.fillStyle = theme.label;
+      ctx.textAlign = 'right';
+      ctx.fillText(`${ecg.sweepSpeed} mm/s · ${ecg.gain} mm/mV`, W - 6, H - 5);
+      ctx.textAlign = 'left';
+    };
+
+    const drawAnnotations = (c: CanvasRenderingContext2D, L: Layout, T: number, color: string) => {
+      const s = L.strips[0];
+      const k = Math.floor((T - s.offset) / s.page);
+      const ws = k * s.page + s.offset;
+      // last ventricular beat whose T wave is complete and on screen
+      let vi = engine.lastVentIndex(T);
+      while (vi >= 0 && engine.vent[vi].t + engine.vent[vi].qt > T) vi--;
+      if (vi < 0) return;
+      const v = engine.vent[vi];
+      if (v.t < ws) return;
+      const X = (t: number) => s.x + (t - ws) * L.pxPerMs;
+      const base = s.y + s.h * 0.62;
+      const yBr = s.y + s.h - 26;
+      c.strokeStyle = color;
+      c.fillStyle = color;
+      c.lineWidth = 1;
+      c.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+      const bracket = (t0: number, t1: number, y: number, label: string) => {
+        const x0 = X(t0), x1 = X(t1);
+        c.beginPath();
+        c.moveTo(x0, y - 4); c.lineTo(x0, y); c.lineTo(x1, y); c.lineTo(x1, y - 4);
+        c.stroke();
+        c.textAlign = 'center';
+        c.fillText(label, (x0 + x1) / 2, y + 12);
+        c.textAlign = 'left';
+      };
+      const markAt = (t: number, label: string) => {
+        const y = base - engine.voltage(s.lead, t) * L.pxPerMv;
+        const ly = Math.min(y, base) - 10;
+        c.textAlign = 'center';
+        c.fillText(label, X(t), Math.max(s.y + 26, ly));
+        c.textAlign = 'left';
+      };
+      // P wave + PR interval if this beat was conducted from a visible P
+      const ai = v.pTime !== undefined ? engine.atrial.findIndex((a) => a.t === v.pTime) : -1;
+      const a = ai >= 0 ? engine.atrial[ai] : null;
+      if (a && a.t >= ws) {
+        markAt(a.t + a.template.duration * 0.45, 'P');
+        bracket(a.t, v.t, yBr - 44, `PR ${Math.round(v.t - a.t)} ms`);
+      }
+      // QRS
+      let rT = v.t;
+      let rV = -1e9;
+      for (let t = v.t; t < v.t + v.qrsDur; t += 2) {
+        const y = engine.voltage(s.lead, t);
+        if (y > rV) { rV = y; rT = t; }
+      }
+      markAt(rT, 'QRS');
+      bracket(v.t, v.t + v.qrsDur, yBr - 22, `QRS ${Math.round(v.qrsDur)} ms`);
+      // T wave + QT
+      markAt(v.t + v.tw.tp, 'T');
+      const rr = vi > 0 ? v.t - engine.vent[vi - 1].t : 60000 / Math.max(1, engine.heartRate(T));
+      const qtc = v.qt / Math.cbrt(rr / 1000);
+      bracket(v.t, v.t + v.qt, yBr, `QT ${Math.round(v.qt)} ms (QTcF ${Math.round(qtc)})`);
+      // ST measurement point (J + 60 ms)
+      const jx = X(v.t + v.qrsDur + 60);
+      c.setLineDash([3, 3]);
+      c.beginPath(); c.moveTo(jx, s.y + 20); c.lineTo(jx, s.y + s.h - 50); c.stroke();
+      c.setLineDash([]);
+      const stv = engine.voltage(s.lead, v.t + v.qrsDur + 60) - engine.voltage(s.lead, v.t - 15);
+      c.fillText(`ST ${stv >= 0 ? '+' : ''}${(stv * 10).toFixed(1)} mm`, jx + 4, s.y + 30);
+    };
+
+    const drawCalipers = (c: CanvasRenderingContext2D, L: Layout, pts: Caliper[], color: string) => {
+      const s = L.strips[pts[0].strip] ?? L.strips[0];
+      const T = sim.time;
+      const k = Math.floor((T - s.offset) / s.page);
+      const ws = k * s.page + s.offset;
+      const base = s.y + s.h * 0.62;
+      const toXY = (p: Caliper) => {
+        let x = xFor(s, p.t, L.pxPerMs);
+        if (x === null) x = (p.t - ws) * L.pxPerMs;
+        return { x: s.x + x, y: base - p.v * L.pxPerMv };
+      };
+      c.strokeStyle = color;
+      c.fillStyle = color;
+      c.lineWidth = 1.2;
+      const xy = pts.map(toXY);
+      xy.forEach((p) => {
+        c.beginPath(); c.moveTo(p.x, s.y + 4); c.lineTo(p.x, s.y + s.h - 4); c.stroke();
+      });
+      if (pts.length === 2) {
+        const dt = Math.abs(pts[1].t - pts[0].t);
+        const dv = pts[1].v - pts[0].v;
+        const midX = (xy[0].x + xy[1].x) / 2;
+        c.beginPath(); c.moveTo(xy[0].x, s.y + 24); c.lineTo(xy[1].x, s.y + 24); c.stroke();
+        const txt = `${Math.round(dt)} ms · ${dt > 0 ? Math.round(60000 / dt) : '–'} bpm · Δ ${dv >= 0 ? '+' : ''}${dv.toFixed(2)} mV`;
+        c.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+        const tw = c.measureText(txt).width;
+        c.fillStyle = 'rgba(2,6,23,0.85)';
+        c.fillRect(midX - tw / 2 - 6, s.y + 28, tw + 12, 18);
+        c.fillStyle = color;
+        c.textAlign = 'center';
+        c.fillText(txt, midX, s.y + 41);
+        c.textAlign = 'left';
+      }
+    };
+
+    raf = requestAnimationFrame(render);
     return () => {
-      canvas.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      canvas.removeEventListener('mouseleave', onMouseLeave);
+      cancelAnimationFrame(raf);
+      ro.disconnect();
     };
-  }, [selectLead]);
-
-  const drawGrid = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    const gridSize = 5;
-    ctx.strokeStyle = GRID_COLOR;
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x < w; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y < h; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
-    const majorSize = 25;
-    ctx.strokeStyle = GRID_MAJOR_COLOR;
-    ctx.lineWidth = 1;
-    for (let x = 0; x < w; x += majorSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y < h; y += majorSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
   }, []);
 
-  const drawLead = useCallback((
-    ctx: CanvasRenderingContext2D,
-    lead: ECGLead,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    scrollOffset: number,
-    mods: Partial<Record<string, number>>,
-    color: string,
-  ) => {
-    const params = getLeadParams(lead);
-    Object.assign(params, mods);
-
-    const gainScale = gain * 8;
-    const baseline = y + h / 2;
-    const rrPixels = (60 / heartRate) * sweepSpeed * 4;
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-
-    for (let px = 0; px < w; px++) {
-      const t = ((px + scrollOffset) % rrPixels) / rrPixels;
-      let sample: number;
-
-      if (activeProfileId === 'ventricular-fibrillation' || activeProfileId === 'vfib') {
-        sample = generateVFibSample(t);
-      } else if (activeProfileId === 'torsades') {
-        // Torsades: sinusoidal amplitude modulation (twisting) with wide QRS
-        const modulationFreq = 0.15;
-        const envelope = 0.3 + 0.7 * Math.abs(Math.sin(2 * Math.PI * modulationFreq * (px + scrollOffset) * 0.01));
-        sample = generateBeatSample(t, params) * envelope;
-      } else if (activeProfileId === 'atrial-fibrillation' || activeProfileId === 'afib') {
-        sample = generateAFibSample(t, params);
-      } else if (activeProfileId === 'atrial-flutter' || activeProfileId === 'aflutter') {
-        const beat = generateBeatSample(t, params);
-        const flutter = generateFlutterBaseline(t + scrollOffset * 0.001, 300);
-        sample = beat + flutter;
-      } else {
-        sample = generateBeatSample(t, params);
-      }
-
-      const py = baseline - sample * gainScale;
-
-      if (px === 0) {
-        ctx.moveTo(x + px, py);
-      } else {
-        ctx.lineTo(x + px, py);
-      }
-    }
-    ctx.stroke();
-
-    // Lead label
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = compact ? '9px sans-serif' : '11px sans-serif';
-    ctx.fillText(lead, x + 3, y + 12);
-  }, [gain, sweepSpeed, heartRate, activeProfileId, compact]);
-
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
-
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, w, h);
-
-    drawGrid(ctx, w, h);
-
-    // Inspect mode: show only one lead, full size
-    const isInspecting = inspectLead && visibleLeads.includes(inspectLead as ECGLead);
-
-    // Use standard 12-lead bisect order when showing all 12 leads
-    const useStandard12 = !isInspecting && visibleLeads.length === 12;
-    const leads = isInspecting
-      ? [inspectLead as ECGLead]
-      : compact
-        ? visibleLeads.slice(0, 4)
-        : (useStandard12 ? STANDARD_12_ORDER : visibleLeads);
-
-    let rows: number;
-    let cols: number;
-    if (isInspecting) {
-      cols = 1;
-      rows = 1;
-    } else if (useStandard12 && !compact) {
-      // Standard 12-lead bisect: 4 columns × 3 rows
-      cols = 4;
-      rows = 3;
-    } else if (verticalStack) {
-      cols = 2;
-      rows = Math.ceil(leads.length / cols);
-    } else {
-      rows = compact ? Math.min(leads.length, 4) : Math.ceil(leads.length / (leads.length > 6 ? 3 : 2));
-      cols = compact ? 1 : (leads.length > 6 ? 3 : leads.length > 3 ? 2 : 1);
-    }
-
-    const cellW = w / cols;
-    const cellH = h / rows;
-
-    // Store layout for click detection
-    layoutRef.current = { leads: leads as ECGLead[], cols, rows, cellW, cellH };
-
-    // Compute scroll offset synced to timeline time so the playhead
-    // correlates exactly with the 3D model's cardiac cycle phase.
-    // pxPerMs = pixels scrolled per millisecond of timeline time
-    const rrPixels = (60 / heartRate) * sweepSpeed * 4;
-    const cycleDurationMs = (60 / heartRate) * 1000;
-    const pxPerMs = rrPixels / cycleDurationMs;
-
-    // scrollOffset: time-based auto-scroll minus playhead offset, plus any manual drag
-    const scrollOffset = (time * pxPerMs) - PLAYHEAD_OFFSET + dragOffsetRef.current;
-
-    leads.forEach((lead, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const cx = col * cellW;
-      const cy = row * cellH;
-
-      // Highlight selected lead cell
-      if (selectedLead === lead) {
-        ctx.fillStyle = SELECTED_BG;
-        ctx.fillRect(cx, cy, cellW, cellH);
-        ctx.strokeStyle = SELECTED_BORDER;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(cx + 1, cy + 1, cellW - 2, cellH - 2);
-      }
-
-      drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffset, conditionMod, TRACE_COLOR);
-
-      if (compareMod) {
-        drawLead(ctx, lead as ECGLead, cx, cy, cellW, cellH, scrollOffset, compareMod, COMPARE_COLOR);
-      }
-    });
-
-    // ─── Draw playhead line in each cell ──────────────────────────
-    const playheadX = PLAYHEAD_OFFSET;
-    if (playheadX > 0 && playheadX < cellW) {
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const idx = r * cols + c;
-          if (idx >= leads.length) continue;
-
-          const cx = c * cellW;
-          const cy = r * cellH;
-          const lineX = cx + playheadX;
-
-          // Glow
-          ctx.strokeStyle = PLAYHEAD_GLOW;
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(lineX, cy);
-          ctx.lineTo(lineX, cy + cellH);
-          ctx.stroke();
-
-          // Solid line
-          ctx.strokeStyle = PLAYHEAD_COLOR;
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([4, 3]);
-          ctx.beginPath();
-          ctx.moveTo(lineX, cy);
-          ctx.lineTo(lineX, cy + cellH);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-    }
-
-    // ─── Playhead label (top of canvas, once) ─────────────────────
-    const phaseLabel = PHASE_LABELS[currentPhase] || currentPhase;
-    const labelX = PLAYHEAD_OFFSET;
-    // Draw phase label badge
-    ctx.font = 'bold 9px sans-serif';
-    const textWidth = ctx.measureText(phaseLabel).width;
-    const badgeW = textWidth + 8;
-    const badgeH = 14;
-    const badgeX = labelX - badgeW / 2;
-    const badgeY = 1;
-
-    ctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
-    ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
-    ctx.fill();
-
-    ctx.fillStyle = '#000';
-    ctx.textAlign = 'center';
-    ctx.fillText(phaseLabel, labelX, badgeY + 10.5);
-    ctx.textAlign = 'left'; // reset
-
-    // ─── Draw solid dividing lines between lead cells ─────────────
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
-    ctx.lineWidth = 2.5;
-    for (let c = 1; c < cols; c++) {
-      const x = c * cellW;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let r = 1; r < rows; r++) {
-      const y = r * cellH;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
-
-    // Heart rate display
-    ctx.fillStyle = '#F59E0B';
-    ctx.font = 'bold 14px monospace';
-    ctx.fillText(`HR: ${heartRate} bpm`, w - 120, 18);
-
-    if (displayMode === 'frozen') {
-      ctx.fillStyle = 'rgba(220, 38, 38, 0.8)';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillText('FROZEN', w - 120, 36);
-    }
-
-    animRef.current = requestAnimationFrame(render);
-  }, [drawGrid, drawLead, visibleLeads, displayMode, playing, frozen, heartRate, speed, time, currentPhase, cycleProgress, conditionMod, compareMod, compact, verticalStack, selectedLead, sweepSpeed, inspectLead]);
-
+  // ── Pointer interaction: click = select lead / caliper, drag = scrub time ──
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    let down: { x: number; y: number; t: number } | null = null;
+    let dragging = false;
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width: w, height: h } = entry.contentRect;
-        canvas.width = w * window.devicePixelRatio;
-        canvas.height = h * window.devicePixelRatio;
-        const ctx = canvas.getContext('2d');
-        if (ctx) ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      }
-    });
-
-    resizeObserver.observe(canvas.parentElement!);
-    animRef.current = requestAnimationFrame(render);
-
-    return () => {
-      resizeObserver.disconnect();
-      cancelAnimationFrame(animRef.current);
+    const stripAt = (x: number, y: number) => {
+      const L = layoutRef.current;
+      if (!L) return -1;
+      return L.strips.findIndex((s) => x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h);
     };
-  }, [render]);
+
+    const onDown = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      down = { x: e.clientX - r.left, y: e.clientY - r.top, t: sim.time };
+      dragging = false;
+      canvas.setPointerCapture(e.pointerId);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!down) return;
+      const r = canvas.getBoundingClientRect();
+      const dx = e.clientX - r.left - down.x;
+      if (!dragging && Math.abs(dx) > 5) {
+        dragging = true;
+        useTimelineStore.getState().pause();
+        setHint('Scrubbing — the 3D heart follows the cursor');
+      }
+      if (dragging && layoutRef.current) {
+        scrubTo(down.t + dx / layoutRef.current.pxPerMs);
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!down) return;
+      const r = canvas.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      if (!dragging) {
+        const idx = stripAt(x, y);
+        const L = layoutRef.current;
+        const ecg = useECGStore.getState();
+        if (idx >= 0 && L) {
+          const s = L.strips[idx];
+          if (ecg.caliperMode) {
+            const k = Math.floor((sim.time - s.offset) / s.page);
+            let t = k * s.page + s.offset + (x - s.x) / L.pxPerMs;
+            if (t > sim.time) t -= s.page;
+            const v = (s.y + s.h * 0.62 - y) / L.pxPerMv;
+            const pts = caliperRef.current;
+            caliperRef.current = pts.length >= 2 ? [{ t, v, strip: idx }] : [...pts, { t, v, strip: idx }];
+          } else {
+            ecg.selectLead(s.lead);
+          }
+        }
+      } else {
+        setHint(null);
+      }
+      down = null;
+      dragging = false;
+    };
+    const onDbl = (e: MouseEvent) => {
+      const r = canvas.getBoundingClientRect();
+      const idx = stripAt(e.clientX - r.left, e.clientY - r.top);
+      const L = layoutRef.current;
+      const ecg = useECGStore.getState();
+      if (ecg.inspectLead) ecg.setInspectLead(null);
+      else if (idx >= 0 && L) ecg.setInspectLead(L.strips[idx].lead);
+    };
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('dblclick', onDbl);
+    return () => {
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('dblclick', onDbl);
+    };
+  }, []);
 
   return (
-    <div className="w-full h-full relative ecg-grid">
+    <div ref={wrapRef} className="absolute inset-0 overflow-hidden">
       <canvas
         ref={canvasRef}
-        className="w-full h-full ecg-canvas"
-        style={{ width: width || '100%', height: height || '100%' }}
+        className="block w-full h-full cursor-crosshair touch-none"
+        aria-label="12-lead ECG. Click a lead to select it, double-click to inspect, drag to scrub through time."
+        role="img"
       />
+      {hint && (
+        <div className="absolute top-1 left-1/2 -translate-x-1/2 text-[10px] px-2 py-0.5 rounded bg-black/70 text-sky-200 pointer-events-none">
+          {hint}
+        </div>
+      )}
     </div>
   );
 }

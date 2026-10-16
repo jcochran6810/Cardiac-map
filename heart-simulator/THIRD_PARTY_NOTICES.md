@@ -1,0 +1,60 @@
+# Third-party notices and sources
+
+CardioSim's code is original. The projects and publications below informed specific
+features. No source code, data files, images or other assets from them are included.
+They are credited here, and their licences are noted where their ideas or published
+formulas were reimplemented.
+
+## Open-source projects reviewed
+
+### SlicerHeart — BSD 3-Clause License
+Copyright (c) 2021, SlicerHeart Contributors (https://github.com/SlicerHeart/SlicerHeart).
+
+- **Used for:** the C-arm angle convention in the 3D view's angiographic panel (LAO/RAO primary
+  angle = atan2(left, anterior), CRA/CAU secondary angle = asin(superior)). This was independently
+  re-derived and checked against SlicerHeart's Virtual Cath Lab `PositionerAngleViewWidget`.
+- **Used for:** a cross-check of valve nomenclature (mitral anterolateral/posteromedial
+  commissures; tricuspid anteroseptal, posteroseptal and anteroposterior commissures).
+- Reference: Lasso A, et al. *SlicerHeart: An open-source computing platform for cardiac image
+  analysis and modeling.* Front Cardiovasc Med 2022;9:886549. doi:10.3389/fcvm.2022.886549.
+- Reference: Barak-Corren Y, et al. *Virtual Cath Lab.* JSCAI 2025;4:103937.
+  doi:10.1016/j.jscai.2025.103937.
+
+### cardiac_challenge (LLNL Data Science Challenge) — MIT License
+Copyright (c) 2018, Lawrence Livermore National Security, LLC (LLNL-CODE-849487).
+
+- **Used for:** the standard 10-electrode → 12-lead derivation (Einthoven, Goldberger and Wilson
+  central terminal) that drives the Electrode lab. These are textbook definitions; the code here is
+  an independent implementation of a dipole model at the electrode level.
+- **Used for:** the idea of activation-time maps on the heart, which inspired the Activation view.
+  CardioSim's maps are rule-based (published breakthrough sites plus surface propagation) and use
+  none of the simulated dataset.
+- Reference: Landajuela M, Anirudh R, Loscazo J, Blake R. *Intracardiac Electrical Imaging Using
+  the 12-Lead ECG: A Machine Learning Approach Using Synthetic Data.* Computing in Cardiology 2022.
+  doi:10.22489/CinC.2022.026.
+
+### Patient-Simulator-with-Zoll-X-Defibrillator (EMSDojo)
+No licence is published, so all rights are reserved by its authors. The repository contains a README
+and screenshots only. Only the general idea was taken: an instructor-driven monitor/defibrillator
+for paramedic practice with live vitals and trainee/instructor roles. CardioSim's Monitor / Defib
+trainer was designed and written independently. It is a generic, unbranded device that does not
+reproduce any manufacturer's interface, artwork, sounds or trade dress. "Zoll" and "X Series" are
+trademarks of their respective owner.
+
+## Clinical and scientific sources used for accuracy
+- Durrer D, et al. *Total excitation of the isolated human heart.* Circulation 1970;41:899–912
+  (normal ventricular activation sequence).
+- Cerqueira MD, et al. *Standardized myocardial segmentation and nomenclature for tomographic
+  imaging of the heart.* Circulation 2002;105:539–542 (AHA 17-segment model).
+- Batchvarov VN, Malik M, Camm AJ. *Incorrect electrode cable connection during
+  electrocardiographic recording.* Europace 2007;9:1081–1090 (lead-reversal patterns).
+- American Heart Association ACLS guidelines (2020) and 2023 focused update (defibrillation
+  energies, drug doses, CPR targets, post-ROSC targets).
+- 2018 ACC/AHA/HRS bradycardia guideline (atropine, pacing).
+- National Highway Traffic Safety Administration. *National EMS Scope of Practice Model 2019*
+  (DOT HS 813 151, including change notices 1.0 and 2.0) — EMT and Paramedic role boundaries.
+- Society for Cardiovascular Angiography & Interventions. *SCAI expert consensus update on best
+  practices in the cardiac catheterization laboratory* (2021; doi:10.1002/ccd.29744) — cath lab
+  staff roles and credentialing.
+- Weissler AM, et al. Systolic time intervals (rate dependence of LV ejection time) — used for the
+  hemodynamic timing model.

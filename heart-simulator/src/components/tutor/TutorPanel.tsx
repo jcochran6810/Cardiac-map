@@ -1,214 +1,144 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTutorStore } from '@/store/useTutorStore';
-import { useAppStore } from '@/store/useAppStore';
+import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
-
-const SUGGESTED_QUESTIONS = [
-  'Explain the cardiac cycle',
-  'What happens during a STEMI?',
-  'How does the conduction system work?',
-  'Explain the difference between systole and diastole',
-  'What is ejection fraction?',
-  'How do beta-blockers work?',
-  'Walk me through a right heart catheterization',
-  'What is the significance of ST elevation?',
-  'Explain preload and afterload',
-  'What causes atrial fibrillation?',
-];
-
-const TUTOR_RESPONSES: Record<string, string> = {
-  'cardiac cycle': `The cardiac cycle consists of two main phases:
-
-**Systole** (contraction): The ventricles contract, ejecting blood into the aorta and pulmonary artery. This has sub-phases:
-- Isovolumetric contraction (all valves closed, pressure building)
-- Rapid ejection (aortic/pulmonary valves open)
-- Reduced ejection (pressure gradient decreasing)
-
-**Diastole** (relaxation): The ventricles relax and fill with blood:
-- Isovolumetric relaxation (all valves closed, pressure dropping)
-- Rapid filling (AV valves open, passive filling)
-- Diastasis (slow filling)
-- Atrial systole (atrial kick, final ~20% of filling)
-
-The whole cycle takes about 0.8 seconds at 75 bpm.`,
-
-  'stemi': `A **STEMI** (ST-Elevation Myocardial Infarction) occurs when a coronary artery is completely occluded, usually by a ruptured atherosclerotic plaque with overlying thrombus.
-
-**What happens:**
-1. Complete coronary artery occlusion
-2. Transmural ischemia (full-thickness) of the supplied territory
-3. Without reperfusion, myocardial necrosis begins within 20 minutes
-4. "Time is muscle" — every minute of delay loses cardiac tissue
-
-**ECG findings:** ST elevation in contiguous leads corresponding to the affected territory:
-- Anterior: V1-V4 (LAD)
-- Inferior: II, III, aVF (RCA)
-- Lateral: I, aVL, V5-V6 (LCx)
-
-**Treatment:** Emergent reperfusion via primary PCI (preferred) or fibrinolysis.`,
-
-  'conduction': `The cardiac conduction system ensures coordinated electrical activation:
-
-1. **SA Node** (right atrium) — the "pacemaker" fires at 60-100 bpm
-2. **Atrial conduction** — wave spreads across atria (P wave on ECG)
-3. **AV Node** — deliberate delay (PR interval) to allow atrial emptying
-4. **Bundle of His** — crosses the fibrous skeleton
-5. **Bundle branches** — right and left (left splits into anterior and posterior fascicles)
-6. **Purkinje fibers** — rapid spread through ventricles (QRS complex)
-
-The delay at the AV node is critical — it allows the atria to finish contracting before the ventricles begin.`,
-
-  'default': `That's a great question! In this educational simulation, I can help you understand cardiac anatomy, physiology, ECG interpretation, conditions, medications, and procedures.
-
-Try selecting a structure or condition from the left panel, and I'll provide context-aware explanations at your learning level.
-
-You can also ask me about specific topics like:
-- "Explain aortic stenosis"
-- "What does this ECG show?"
-- "Walk me through a PCI procedure"`,
-};
+import { useProcedureStore } from '@/store/useProcedureStore';
+import { usePharmacologyStore } from '@/store/usePharmacologyStore';
+import { useECGStore } from '@/store/useECGStore';
+import { useContent } from '@/lib/content';
+import { answerQuestion } from '@/lib/tutor';
+import { kindOf, nameOf, openById } from '@/lib/actions';
+import { IconClose, IconTutor } from '@/components/ui/icons';
 
 export default function TutorPanel() {
-  const { tutorOpen, toggleTutor, messages, addMessage, isTyping, setTyping } = useTutorStore();
-  const { learningLevel } = useAppStore();
-  const { selectedStructureId } = useSceneStore();
-  const { selectedConditionId } = useConditionStore();
+  const { tutorOpen, setTutorOpen, messages, addMessage, clearMessages } = useTutorStore();
+  const level = useAppStore((s) => s.learningLevel);
+  const selectedStructureId = useSceneStore((s) => s.selectedStructureId);
+  const selectedConditionId = useConditionStore((s) => s.selectedConditionId);
+  const selectedProcedureId = useProcedureStore((s) => s.selectedProcedureId);
+  const selectedMedicationId = usePharmacologyStore((s) => s.selectedMedicationId);
+  const profileId = useECGStore((s) => s.activeProfileId);
+  const lib = useContent();
   const [input, setInput] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { if (tutorOpen) setTimeout(() => inputRef.current?.focus(), 50); }, [tutorOpen]);
+
+  const suggestions = useMemo(() => {
+    const s: string[] = ['What does this ECG show?'];
+    const focus = selectedConditionId ?? selectedStructureId ?? selectedProcedureId ?? selectedMedicationId;
+    if (focus && lib) {
+      const n = nameOf(focus);
+      if (selectedConditionId) s.push(`How is ${n} treated?`, `What causes ${n}?`);
+      else if (selectedProcedureId) s.push(`Walk me through ${n}`, `What are the complications of ${n}?`);
+      else if (selectedMedicationId) s.push(`What is the dose of ${n}?`, `What are the contraindications to ${n}?`);
+      else s.push(`Tell me about the ${n.toLowerCase()}`, `What is the blood supply of the ${n.toLowerCase()}?`);
+    }
+    s.push('Explain the cardiac cycle', 'How do I localise a STEMI?', 'Explain preload and afterload', 'How does the conduction system work?');
+    return s.slice(0, 6);
+  }, [lib, selectedConditionId, selectedStructureId, selectedProcedureId, selectedMedicationId]);
 
   if (!tutorOpen) return null;
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-
-    addMessage({
-      role: 'learner',
-      content: input,
-      timestamp: Date.now(),
-      references: [],
-    });
-
-    setTyping(true);
-    const query = input.toLowerCase();
+  const ask = (text: string) => {
+    const q = text.trim();
+    if (!q) return;
+    addMessage({ role: 'learner', content: q, timestamp: Date.now() });
     setInput('');
-
-    // Simulate AI response
-    setTimeout(() => {
-      let response = TUTOR_RESPONSES['default'];
-      for (const [key, val] of Object.entries(TUTOR_RESPONSES)) {
-        if (query.includes(key)) {
-          response = val;
-          break;
-        }
-      }
-
-      const levelLabel = ['', 'EMT', 'Paramedic', 'ED/ICU', 'Cardiology', 'Interventional'][learningLevel];
-      response = `*[Explaining at ${levelLabel} level]*\n\n${response}`;
-
-      addMessage({
-        role: 'tutor',
-        content: response,
-        timestamp: Date.now(),
-        references: selectedStructureId ? [selectedStructureId] : [],
-      });
-      setTyping(false);
-    }, 800);
+    if (!lib) {
+      addMessage({ role: 'tutor', content: 'The library is still loading — try again in a moment.', timestamp: Date.now() });
+      return;
+    }
+    const answer = answerQuestion(q, lib, { level, profileId, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId });
+    setTimeout(() => addMessage({ role: 'tutor', content: answer.title, answer, timestamp: Date.now() }), 180);
   };
 
   return (
-    <div className="fixed right-0 top-12 bottom-0 w-96 bg-cardiac-panel border-l border-slate-700 flex flex-col z-40 shadow-2xl">
-      {/* Header */}
-      <div className="h-10 flex items-center justify-between px-3 border-b border-slate-700">
+    <div className="fixed right-2 top-14 z-40 w-[min(26rem,calc(100vw-1rem))] max-h-[calc(100vh-var(--dock-h,340px)-4.5rem)] min-h-[260px] bg-cardiac-panel/98 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur" role="dialog" aria-label="Tutor">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-cardiac-accent flex items-center justify-center text-xs">🎓</div>
-          <span className="text-sm font-semibold text-white">AI Tutor</span>
-          <span className="text-[10px] text-slate-500">
-            ({['', 'EMT', 'Paramedic', 'ED/ICU', 'Cardiology', 'Interventional'][learningLevel]})
-          </span>
+          <div className="w-7 h-7 rounded-full bg-cardiac-accent/20 text-cardiac-accent flex items-center justify-center"><IconTutor size={14} /></div>
+          <div className="leading-tight">
+            <div className="text-sm font-semibold text-white">Tutor</div>
+            <div className="text-[10px] text-slate-400">Answers from the CardioSim library · {LEVEL_LABELS[level].long}</div>
+          </div>
         </div>
-        <button onClick={toggleTutor} className="text-slate-400 hover:text-white text-lg">×</button>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && <button onClick={clearMessages} className="text-[10px] text-slate-400 hover:text-white px-1.5">Clear</button>}
+          <button onClick={() => setTutorOpen(false)} className="p-1 text-slate-400 hover:text-white" aria-label="Close tutor"><IconClose size={16} /></button>
+        </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
         {messages.length === 0 && (
-          <div className="text-center py-6">
-            <p className="text-sm text-slate-400 mb-4">
-              Welcome! Ask me anything about cardiac anatomy, physiology, or conditions.
-            </p>
-            <div className="space-y-1">
-              {SUGGESTED_QUESTIONS.slice(0, 5).map((q) => (
-                <button
-                  key={q}
-                  onClick={() => {
-                    setInput(q);
-                  }}
-                  className="block w-full text-left text-xs text-cardiac-accent/80 hover:text-cardiac-accent px-2 py-1 rounded hover:bg-cardiac-surface transition-colors"
-                >
-                  → {q}
-                </button>
-              ))}
-            </div>
+          <div className="text-xs text-slate-400">
+            <p className="mb-2">Ask about any structure, rhythm, condition, procedure or drug. I know what is on the monitor and what you have selected.</p>
           </div>
         )}
-
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === 'learner' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
-                msg.role === 'learner'
-                  ? 'bg-cardiac-accent/20 text-cardiac-accent'
-                  : 'bg-cardiac-dark text-slate-300'
-              }`}
-            >
-              <div className="whitespace-pre-wrap">{msg.content}</div>
-            </div>
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'learner' ? 'justify-end' : 'justify-start'}`}>
+            {m.role === 'learner' ? (
+              <div className="max-w-[85%] rounded-lg px-3 py-2 text-xs bg-cardiac-accent/20 text-amber-100">{m.content}</div>
+            ) : (
+              <div className="max-w-[95%] rounded-lg px-3 py-2 text-xs bg-cardiac-dark text-slate-300 border border-slate-700">
+                <div className="font-semibold text-white mb-1">{m.answer?.title ?? m.content}</div>
+                {m.answer?.text && <p className="leading-relaxed mb-1.5 text-slate-300">{m.answer.text}</p>}
+                {m.answer && m.answer.bullets.length > 0 && (
+                  <ul className="space-y-1">
+                    {m.answer.bullets.map((b, k) => (
+                      <li key={k} className="flex gap-1.5 leading-relaxed"><span className="text-cardiac-accent shrink-0">•</span><span>{b}</span></li>
+                    ))}
+                  </ul>
+                )}
+                {m.answer && m.answer.links.filter((id) => kindOf(id)).length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {Array.from(new Set(m.answer.links)).filter((id) => kindOf(id)).map((id) => (
+                      <button key={id} onClick={() => openById(id)} className="px-1.5 py-0.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] hover:bg-sky-500/20">
+                        Open {nameOf(id)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {m.answer && m.answer.followUps.length > 0 && i === messages.length - 1 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {m.answer.followUps.slice(0, 3).map((f) => (
+                      <button key={f} onClick={() => ask(f)} className="px-1.5 py-0.5 rounded-full border border-slate-600 text-slate-300 text-[10px] hover:text-white hover:border-cardiac-accent/60">
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
-
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-cardiac-dark rounded-lg px-3 py-2 text-xs text-slate-400">
-              <span className="inline-flex gap-1">
-                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+        <div ref={endRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-3 border-t border-slate-700">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about anatomy, conditions, ECG..."
-            className="flex-1 bg-cardiac-dark text-xs text-slate-200 rounded-lg px-3 py-2 border border-slate-600 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
-          />
-          <button
-            onClick={handleSend}
-            className="px-3 py-2 bg-cardiac-accent text-cardiac-dark text-xs font-semibold rounded-lg hover:bg-cardiac-accent/80 transition-colors"
-          >
-            Send
+      <div className="px-3 pt-1 pb-1 flex flex-wrap gap-1 border-t border-slate-700/60">
+        {suggestions.map((s) => (
+          <button key={s} onClick={() => ask(s)} className="px-1.5 py-0.5 rounded-full bg-cardiac-dark border border-slate-700 text-[10px] text-slate-300 hover:text-white hover:border-cardiac-accent/50">
+            {s}
           </button>
-        </div>
+        ))}
       </div>
+      <form className="p-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); ask(input); }}>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setTutorOpen(false); }}
+          placeholder="e.g. “amiodarone dose”, “why does RBBB widen the QRS?”"
+          className="flex-1 bg-cardiac-dark text-xs text-slate-100 rounded-lg px-3 py-2 border border-slate-600 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
+          aria-label="Ask the tutor"
+        />
+        <button type="submit" className="px-3 py-2 bg-cardiac-accent text-slate-950 text-xs font-semibold rounded-lg hover:bg-amber-400">Ask</button>
+      </form>
     </div>
   );
 }

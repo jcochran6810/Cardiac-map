@@ -1,0 +1,241 @@
+'use client';
+
+import React, { useEffect, useRef, useState } from 'react';
+import { sim } from '@/lib/sim/simulation';
+import { useDefibStore, vitalsAt, plethAt, capnoAt, fmt, type Vitals } from '@/lib/sim/defib';
+import { useECGStore } from '@/store/useECGStore';
+import { resolveProfile } from '@/lib/ecg/profiles';
+import { useAppStore } from '@/store/useAppStore';
+
+const WINDOW = 6000; // ms across the screen
+const COLORS = { ecg: '#3cff7a', pleth: '#45d4ff', co2: '#ffd43b', grid: 'rgba(255,255,255,0.05)', text: '#9aa4b2' };
+
+/** Bedside monitor-defibrillator display: ECG lead II, SpO₂ plethysmogram and capnogram. */
+export default function MonitorDisplay({ large = false }: { large?: boolean }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [vit, setVit] = useState<Vitals>(() => vitalsAt(sim.time));
+  const d = useDefibStore();
+  const profileId = useECGStore((s) => s.activeProfileId);
+  const profile = resolveProfile(profileId);
+  const role = useAppStore((s) => s.learningLevel);
+  const [blink, setBlink] = useState(false);
+
+  // numerics at 4 Hz
+  useEffect(() => {
+    const id = window.setInterval(() => { setVit(vitalsAt(sim.time)); setBlink((b) => !b); }, 250);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // sweep drawing
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const ctx = canvas.getContext('2d')!;
+    let raf = 0;
+    let W = 0, H = 0, dpr = 1;
+    let lastT = -1;
+    let lastEpoch = -1;
+    let audio: AudioContext | null = null;
+    let lastBeepV = -1;
+    const rows = () => {
+      const h = H / 3;
+      return { ecg: [0, h], pleth: [h, 2 * h], co2: [2 * h, 3 * h] } as const;
+    };
+    const resize = () => {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = wrap.clientWidth;
+      H = wrap.clientHeight;
+      canvas.width = Math.max(1, Math.floor(W * dpr));
+      canvas.height = Math.max(1, Math.floor(H * dpr));
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lastT = -1;
+    };
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrap);
+    resize();
+
+    const xOf = (t: number) => ((((t % WINDOW) + WINDOW) % WINDOW) / WINDOW) * W;
+    const sample = (t: number, cache: { v?: Vitals; vt?: number }) => {
+      if (!cache.v || Math.abs((cache.vt ?? 0) - t) > 400) { cache.v = vitalsAt(t); cache.vt = t; }
+      const v = cache.v;
+      const r = rows();
+      const ecgMid = r.ecg[0] + (r.ecg[1] - r.ecg[0]) * 0.6;
+      const pxPerMv = (r.ecg[1] - r.ecg[0]) * 0.36;
+      const yE = ecgMid - Math.max(-2.2, Math.min(2.6, sim.engine.voltage('II', t))) * pxPerMv;
+      const pl = plethAt(t, v.pulse, v.sbp, v.dbp);
+      const yP = r.pleth[1] - 8 - pl * (r.pleth[1] - r.pleth[0] - 18);
+      const c = capnoAt(t, v.rr, v.etco2);
+      const yC = r.co2[1] - 6 - (c / 50) * (r.co2[1] - r.co2[0] - 16);
+      return [yE, yP, yC];
+    };
+    const drawRange = (t0: number, t1: number) => {
+      const step = WINDOW / Math.max(100, W);
+      const cache: { v?: Vitals; vt?: number } = {};
+      let prev: number[] | null = null;
+      let prevX = 0;
+      ctx.lineWidth = large ? 2.2 : 1.6;
+      ctx.lineJoin = 'round';
+      for (let t = t0; t <= t1 + 1e-6; t += step) {
+        const x = xOf(t);
+        const cur = sample(t, cache);
+        if (prev && x >= prevX) {
+          const cols = [COLORS.ecg, COLORS.pleth, COLORS.co2];
+          for (let k = 0; k < 3; k++) {
+            ctx.strokeStyle = cols[k];
+            ctx.beginPath();
+            ctx.moveTo(prevX, prev[k]);
+            ctx.lineTo(x, cur[k]);
+            ctx.stroke();
+          }
+        }
+        prev = cur;
+        prevX = x;
+      }
+      // SYNC markers on each detected R wave
+      const s = useDefibStore.getState();
+      if (s.sync && s.mode === 'manual') {
+        const e = sim.engine;
+        let i = e.lastVentIndex(t1);
+        const r = rows();
+        ctx.fillStyle = '#ffffff';
+        while (i >= 0 && e.vent[i].t + 15 >= t0) {
+          const v = e.vent[i];
+          if (v.t + 15 <= t1 && profile.rhythm !== 'vf') {
+            const x = xOf(v.t + 15);
+            ctx.beginPath();
+            ctx.moveTo(x - 4, r.ecg[0] + 8);
+            ctx.lineTo(x + 4, r.ecg[0] + 8);
+            ctx.lineTo(x, r.ecg[0] + 15);
+            ctx.closePath();
+            ctx.fill();
+          }
+          i--;
+        }
+      }
+    };
+    const erase = (x0: number, x1: number) => {
+      ctx.fillStyle = '#05080c';
+      if (x1 >= x0) ctx.fillRect(x0, 0, x1 - x0, H);
+      else { ctx.fillRect(x0, 0, W - x0, H); ctx.fillRect(0, 0, x1, H); }
+    };
+    const grid = () => {
+      const r = rows();
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      for (const y of [r.pleth[0], r.co2[0]]) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    };
+    const beep = (spo2: number | null) => {
+      if (!useDefibStore.getState().sound) return;
+      try {
+        audio = audio ?? new AudioContext();
+        const o = audio.createOscillator();
+        const g = audio.createGain();
+        o.frequency.value = spo2 ? 420 + (spo2 - 70) * 14 : 660; // pitch falls with saturation
+        g.gain.setValueAtTime(0.06, audio.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.09);
+        o.connect(g).connect(audio.destination);
+        o.start();
+        o.stop(audio.currentTime + 0.1);
+      } catch { /* audio unavailable */ }
+    };
+
+    const loop = () => {
+      const T = sim.time;
+      if (W > 10 && H > 10) {
+        if (lastT < 0 || sim.epoch !== lastEpoch || T < lastT || T - lastT > WINDOW * 0.8) {
+          ctx.fillStyle = '#05080c';
+          ctx.fillRect(0, 0, W, H);
+          grid();
+          drawRange(T - WINDOW + 400, T);
+          lastEpoch = sim.epoch;
+        } else if (T > lastT) {
+          const gap = 18;
+          erase(xOf(lastT) + 1, (xOf(T) + gap) % W);
+          grid();
+          drawRange(lastT, T);
+        }
+        // QRS tone
+        const i = sim.engine.lastVentIndex(T);
+        if (i >= 0 && i !== lastBeepV && T - sim.engine.vent[i].t < 120) {
+          if (lastBeepV >= 0) beep(vitalsAt(T).spo2);
+          lastBeepV = i;
+        }
+        lastT = T;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); audio?.close().catch(() => undefined); };
+  }, [large, profile.rhythm]);
+
+  const nibp = d.nibp.last;
+  const big = large ? 'text-6xl' : 'text-2xl sm:text-3xl';
+  const mid = large ? 'text-3xl' : 'text-lg sm:text-xl';
+  const shockFlash = sim.time - d.lastShock < 900;
+  const elapsed = d.codeStart !== null ? sim.time - d.codeStart : null;
+  const cprFor = d.cpr.on ? sim.time - d.cpr.cycleStart : 0;
+  const epiAgo = d.lastEpi !== null ? sim.time - d.lastEpi : null;
+
+  return (
+    <div className="relative w-full h-full bg-[#05080c] text-slate-100 select-none overflow-hidden rounded-md border border-slate-800 flex">
+      <div className="relative flex-1 min-w-0" ref={wrapRef}>
+        <canvas ref={canvasRef} className="absolute inset-0" />
+        <div className="absolute left-2 top-1 text-[10px] font-mono" style={{ color: COLORS.ecg }}>
+          II ×1 {!d.trainee && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
+          {d.sync && d.mode === 'manual' && <span className="ml-2 px-1 rounded bg-white text-black font-bold">SYNC</span>}
+        </div>
+        <div className="absolute left-2 text-[10px] font-mono" style={{ top: '34%', color: COLORS.pleth }}>Pleth</div>
+        <div className="absolute left-2 text-[10px] font-mono" style={{ top: '67.5%', color: COLORS.co2 }}>CO₂ mmHg</div>
+        {d.message && (
+          <div className={`absolute left-1/2 -translate-x-1/2 top-1 max-w-[80%] px-2 py-0.5 rounded text-center font-semibold ${large ? 'text-lg' : 'text-[11px]'} ${d.charge === 'charged' || d.aed.phase === 'shock' ? (blink ? 'bg-amber-400 text-black' : 'bg-amber-600 text-black') : 'bg-slate-800/90 text-amber-200'}`}>
+            {d.message}
+          </div>
+        )}
+        {shockFlash && <div className="absolute inset-0 bg-white/30 pointer-events-none" />}
+      </div>
+
+      {/* numerics */}
+      <div className={`shrink-0 flex flex-col justify-between border-l border-slate-800 font-mono ${large ? 'w-72 p-4' : 'w-28 sm:w-36 p-1.5 sm:p-2'}`}>
+        <div style={{ color: COLORS.ecg }}>
+          <div className="text-[10px] flex justify-between"><span>HR</span><span>bpm</span></div>
+          <div className={`${big} font-bold leading-none tabular-nums`}>{vit.hr > 0 ? vit.hr : '---'}</div>
+          {d.pacer.on && (
+            <div className="text-[10px] text-orange-300 mt-0.5">
+              PACER {d.pacer.rate} ppm · {d.pacer.mA} mA{d.pacer.inhibited ? ' · inhibited' : d.pacer.captured ? '' : ' · no capture'}
+            </div>
+          )}
+        </div>
+        <div style={{ color: COLORS.pleth }}>
+          <div className="text-[10px] flex justify-between"><span>SpO₂</span><span>%</span></div>
+          <div className={`${mid} font-bold leading-none tabular-nums`}>{vit.spo2 ?? '---'}</div>
+        </div>
+        <div style={{ color: COLORS.co2 }}>
+          <div className="text-[10px] flex justify-between"><span>EtCO₂</span><span>RR</span></div>
+          <div className="flex items-baseline justify-between">
+            <span className={`${mid} font-bold leading-none tabular-nums`}>{vit.etco2}</span>
+            <span className={`${large ? 'text-2xl' : 'text-base'} tabular-nums`}>{vit.rr}</span>
+          </div>
+        </div>
+        <div className="text-slate-200">
+          <div className="text-[10px] flex justify-between"><span>NIBP</span><span>mmHg</span></div>
+          <div className={`${large ? 'text-3xl' : 'text-base'} font-bold leading-none tabular-nums`}>
+            {d.nibp.measuring ? <span className="text-slate-400 text-xs">measuring…</span> : nibp === 'fail' ? '---/---' : nibp ? `${nibp.sbp}/${nibp.dbp}` : '--/--'}
+          </div>
+          {nibp && nibp !== 'fail' && !d.nibp.measuring && <div className="text-[10px] text-slate-400">({nibp.map})</div>}
+        </div>
+        <div className="text-[10px] text-slate-400 space-y-0.5">
+          <div className={d.charge === 'charging' ? 'text-amber-300' : d.charge === 'charged' ? 'text-amber-300 font-bold' : ''}>
+            {d.energy} J {d.charge === 'charging' ? 'charging…' : d.charge === 'charged' ? 'READY' : ''}
+          </div>
+          {elapsed !== null && <div>Code {fmt(elapsed)} · shocks {d.shocks}</div>}
+          {d.cpr.on && <div className={cprFor >= 120000 ? 'text-amber-300 font-bold' : ''}>CPR {fmt(cprFor)}{cprFor >= 120000 ? ' — rhythm check' : ''}</div>}
+          {epiAgo !== null && <div className={epiAgo >= 180000 ? 'text-amber-300' : ''}>Epi {fmt(epiAgo)} ago{epiAgo >= 180000 ? ' — due' : ''}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
