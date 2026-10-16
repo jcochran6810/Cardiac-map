@@ -1330,11 +1330,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The largest vein, returning blood from the abdomen, pelvis and legs to the right atrium. Its size and respiratory variation on ultrasound help estimate right atrial pressure.',
     levelNotes: [
-      'A heavily pregnant woman lying flat can compress her IVC and become hypotensive: tilt her or position her on her left side',
-      'In cardiac arrest with the uterus at or above the umbilicus, perform manual left uterine displacement to relieve aortocaval compression during CPR',
-      'IVC POCUS: ≤2.1 cm with >50% sniff collapse suggests RA pressure ~3 mmHg; >2.1 cm with <50% collapse ~15 mmHg (unreliable on ventilators)',
-      'A plethoric, non-collapsing IVC is a sensitive marker of elevated RA pressure in tamponade, RV failure and congestion',
-      'Femoral venous access traverses the IVC to reach the RA and septum; IVC filters are for acute VTE with a contraindication to anticoagulation',
+      'Late in pregnancy, lying flat lets the uterus compress the IVC and drop blood pressure: position her on her left side or push the uterus to her left by hand. During CPR in late pregnancy, keep manual left uterine displacement going throughout.',
+      'In maternal arrest (uterus at or above the umbilicus), maintain manual left uterine displacement and place IV/IO access above the diaphragm per protocol. Hypotension with distended neck veins points to obstructive shock: consider tension pneumothorax (needle decompression per protocol), tamponade or PE.',
+      'Femoral venous catheters travel up the IVC to the RA, just right of the spine on fluoroscopy; anticipate long sheaths for transseptal, leadless-pacemaker or ECMO cases. Record RA pressure and report ectopy, wire resistance or hypotension to the operator.',
+      'After femoral venous access, check the site and distal pulses, keep bed rest as ordered, and manage figure-of-eight sutures or manual pressure per protocol. Report leg swelling or pain (possible DVT) and back or flank pain (possible retroperitoneal bleed).',
+      'IVC POCUS: ≤2.1 cm with >50% sniff collapse ≈ RAP 3 mmHg; >2.1 cm with <50% collapse ≈ 15 mmHg (unreliable on ventilators). IVC filters are for acute VTE with a contraindication to anticoagulation; retrieve them once anticoagulation is possible.',
     ],
     overview: [
       'Formed by the common iliac veins at about L5',
@@ -1407,11 +1407,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The main venous channel of the heart, running in the posterior left AV groove and emptying into the right atrium near the tricuspid valve. It is the route for the left ventricular lead in cardiac resynchronization therapy.',
     levelNotes: [
-      'The heart has its own veins; they collect into the coronary sinus, which empties into the right atrium',
-      'Patients with biventricular (CRT) devices have a lead in a coronary sinus branch, so their paced ECG differs from standard RV pacing',
-      'A dilated coronary sinus on echo suggests persistent left SVC or high right-sided pressures; central lines can stray into it',
-      'Coronary sinus venography maps lateral/posterolateral target veins for CRT; the CS ostium is a Koch triangle landmark',
-      'The CS catheter provides LA/LV reference electrograms; the slow-pathway region for AVNRT ablation lies just anterior to the CS ostium',
+      'The heart drains its own blood through veins that collect into the coronary sinus. It cannot be assessed in the field, but patients with a biventricular (CRT) pacemaker have a lead here: note the device and its ID card and report recent implants.',
+      'Biventricular (CRT) pacing uses a coronary sinus lead, so the paced QRS is often narrower with a dominant R in V1, unlike standard RV pacing. Loss of LV capture widens the QRS; bring the device card and contact medical direction for device concerns.',
+      'For CRT, prepare the CS guide sheath, occlusion venography balloon and LV leads; in LAO the CS runs along the left AV groove. Help test for phrenic stimulation at high output as directed, and report diaphragm twitching, contrast staining or hypotension to the operator.',
+      'After CRT implant, monitor the paced ECG and pocket, and watch for hiccups or abdominal twitching (phrenic stimulation); report loss of biventricular pacing or chest pain. Teach arm restrictions, wound care and remote-monitoring follow-up as instructed.',
+      'Use CS venography to target lateral/posterolateral veins for CRT, avoiding apical and anterior sites; a dilated CS suggests persistent left SVC. The CS catheter gives LA/LV reference electrograms, and the slow-pathway region for AVNRT ablation lies just anterior to the CS ostium.',
     ],
     overview: [
       'Drains most of the venous blood from the LV myocardium',
