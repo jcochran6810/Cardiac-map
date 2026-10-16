@@ -99,7 +99,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
       'Proximal LAD occlusion: STE V1–V4 with STE in I/aVL and inferior reciprocal STD; de Winter T waves are a STEMI equivalent. Activate the cath lab per protocol; transmit pain-free Wellens T waves for urgent physician review.',
       'The proximal LAD lays out in RAO cranial and LAO cranial, with LAO caudal (spider) for the LM–LAD–LCx junction; prepare guides, wires, balloons and stents as the operator requests, and report VF, bradycardia or pressure damping immediately.',
       'Large anterior ischemia risks VF and cardiogenic shock: keep pads applied, give heparin and antiplatelet loading as ordered and track ACT, watch for hypotension, pulmonary edema and arrhythmias, and escalate recurrent chest pain or ST elevation after PCI.',
-      'STE aVR, V1 STE > 2.5 mm, new RBBB or STD V5–V6 suggest occlusion proximal to S1; aVL STE with inferior STD, proximal to D1. De Winter is an occlusion MI; Wellens needs early angiography, not stress testing. Use imaging and protect the LCx ostium and D1.',
+      'STE aVR, V1 STE > 2.5 mm, new RBBB or STD V5–V6 suggest occlusion proximal to S1; aVL STE with inferior STD, proximal to D1. De Winter is an occlusion MI; Wellens needs early angiography, not stress testing; protect the LCx ostium and D1 when stenting.',
     ],
     overview: [
       'Begins at the left main bifurcation and runs in the anterior interventricular groove',
@@ -1720,7 +1720,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
       'LBBB alone is not a STEMI; apply Sgarbossa or modified Sgarbossa criteria (concordant STE ≥ 1 mm, concordant STD V1–V3, discordant STE ≥ 25% of the S depth), transmit, and contact medical direction for unstable patients.',
       'In LBBB, catheter trauma to the right bundle during right heart catheterization can cause complete heart block: have pacing pads or temporary pacing ready, and during TAVR report any new LBBB or AV block to the operator immediately.',
       'After TAVR, monitor telemetry for new LBBB and delayed high-grade AV block and report promptly; before CRT or conduction system pacing implant, verify anticoagulation status, allergies and consent, and teach device-site care afterward.',
-      'New LBBB is no longer a STEMI equivalent; use (modified) Sgarbossa and instability. CRT is Class 1 for LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms and NYHA II–IV on GDMT; LBBAP is an alternative, confirmed by paced V1 morphology and short V6 RWPT.',
+      'New LBBB is no longer a STEMI equivalent; use modified Sgarbossa. CRT is Class 1 for LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms and NYHA II–IV on GDMT; LBBAP is an alternative, confirmed by paced V1 morphology and short V6 RWPT.',
     ],
     overview: [
       'Activates the left ventricle via the left septal surface and fascicles',
@@ -1915,7 +1915,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
       'A very slow pulse (~20–40/min) with weakness or confusion is a dire emergency: request ALS immediately, support breathing with BVM if needed, and start CPR and use the AED if there is no pulse.',
       'Never suppress a ventricular escape rhythm with lidocaine or amiodarone; treat the bradycardia with pacing per protocol. AIVR after reperfusion is usually benign; treat VT/VF storm per ACLS and medical direction.',
       'Expect AIVR during reperfusion and report it; for VT/VF ablation, set up mapping and stimulation as directed, record Purkinje potentials and trigger PVCs, and keep the defibrillator ready for induced or spontaneous VF.',
-      'A slow wide escape rhythm may be keeping the patient alive: report it and prepare for pacing rather than antiarrhythmics. In electrical storm, give amiodarone, lidocaine, β-blockers and sedation only as ordered (or per ACLS), keeping K⁺ ~≥ 4.0 mmol/L and Mg²⁺ ~≥ 2.0 mg/dL as ordered.',
+      'A slow wide escape rhythm may be keeping the patient alive: report it and prepare for pacing, not antiarrhythmics. In electrical storm, give amiodarone, lidocaine, β-blockers and sedation as ordered (or per ACLS) and keep K⁺ ~≥ 4.0 mmol/L and Mg²⁺ ~≥ 2.0 mg/dL per orders.',
       'Purkinje PVCs trigger VF in idiopathic VF, post-MI storm and long QT; ablate the triggering Purkinje potentials when storm is refractory to β-blockade, antiarrhythmics and revascularization. RBB ablation cures bundle branch reentry VT, though many still need an ICD.',
     ],
     overview: [

@@ -1007,11 +1007,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The three-cusp semilunar valve between the right ventricular outflow tract and the pulmonary trunk. It is the most anterior and superior valve; disease is usually congenital stenosis or regurgitation after tetralogy of Fallot repair.',
     levelNotes: [
-      'Adults with repaired congenital heart disease (e.g., tetralogy of Fallot) often have pulmonary valve problems and arrhythmias: ask about their history',
-      'Repaired tetralogy patients are at risk of VT and sudden death: treat a regular wide-complex tachycardia as VT',
-      'A PA catheter crosses this valve from the RVOT: expect ectopy and possible transient RBBB (dangerous with pre-existing LBBB)',
-      'Severe PS = peak velocity >4 m/s (peak gradient >64 mmHg); severe PR after tetralogy repair drives RV dilation and timing of valve replacement',
-      'Balloon valvuloplasty is first-line for dome-shaped valvar PS; before transcatheter pulmonary valve replacement, test for coronary compression',
+      'Adults with repaired congenital heart disease (such as tetralogy of Fallot) often have pulmonary valve problems and a higher risk of sudden cardiac arrest. Ask about their history and devices, and start CPR and apply the AED immediately if they collapse.',
+      'Repaired tetralogy patients are at risk of VT and sudden death: treat a regular wide-complex tachycardia as VT per protocol (synchronised cardioversion if unstable). Expect baseline RBBB, and bring prior ECGs or cardiology letters if available.',
+      'The PA catheter crosses this valve from the RVOT: record the RV-to-PA pullback to document any gradient, and expect ectopy. Warn the operator if the patient has pre-existing LBBB, because catheter-induced RBBB can cause complete heart block; have pacing ready.',
+      'After pulmonary valvuloplasty or transcatheter valve replacement, monitor rhythm, SpO₂ and the femoral site, and report chest pain, hemoptysis or hypotension immediately (possible coronary compression or conduit injury). Reinforce endocarditis warning signs and the prevention advice given by the cardiology team.',
+      'Severe PS: peak velocity >4 m/s (peak gradient >64 mmHg); balloon valvuloplasty is first-line for dome-shaped valvar PS. After tetralogy repair, severe PR drives RV dilation and valve-replacement timing (CMR volumes, symptoms, QRS ≥180 ms); test for coronary compression before TPVR.',
     ],
     overview: [
       'Separates the RVOT (infundibulum) from the pulmonary trunk',
