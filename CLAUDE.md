@@ -120,3 +120,35 @@ protocol does not grant permission to rewrite medical logic or deployment settin
 ## Session log
 
 <!-- Newest first. Commit a dated entry on every end-session request. -->
+
+### 2026-10-16 — codex/ui-foundation-topbar
+
+- Assessed the frontend architecture, all presentation components/routes and
+  cardiac visualization dependencies; prepared the phased modernization plan.
+- UI foundation: semantic UI tokens and shared Button/IconButton; responsive
+  header, explicit names/toggle states, searchable-library combobox associations
+  and active-result scrolling; scope dismissal/focus return and native Space
+  activation isolated from the playback shortcut (`globals.css`, `TopBar.tsx`,
+  `Button.tsx`, `tailwind.config.ts`).
+- Graphics/access: neutral heart-stage background, clearer scene panels/text,
+  arrow/Home/End view selection, and hidden anatomy labels removed from tab order
+  (`SceneOverlay.tsx`, `Labels3D.tsx`). Clinical logic, model geometry and mapping
+  palettes remain unchanged.
+- UI validation completed: lint without warnings, TypeScript, production build,
+  diff whitespace checks, and HTTP 200 for both page routes, health and both GLBs.
+  Browser attachment failed twice: screenshots and visual/device/interactive
+  checks remain outstanding. No automated test suite exists. `fix_list.md` records
+  these gaps and the pre-existing npm lockfile problem.
+- Opened PR #2. The owner subsequently directed adopting Pressure-washing's
+  start/end protocol, including completing the session merge, and explicitly
+  approved creating main from the former default at `6033603`.
+- Added repository `CLAUDE.md`, `AGENTS.md`, root `README.md`, and `fix_list.md`.
+  Added a local workspace AGENTS entry point so projectless Codex sessions find
+  the checkout. Both agents must read the protocol, verify fresh main at session
+  start, and commit/log/push/validate/merge/push/return on end-session requests.
+- Reconciled identical local/remote UI trees, preserving the original local
+  commit on `codex/ui-foundation-local-backup`. Shell push authentication failed;
+  the GitHub connector is used for publication with tree verification.
+- main is the integration branch; GitHub default-branch and hosting production
+  configuration were not changed. No automatic SessionStart hook is installed;
+  manual enforcement is mandatory. Keep session branches after the merge.
