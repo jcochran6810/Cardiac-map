@@ -17,11 +17,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Irreversibly blocks platelet COX-1, cutting thromboxane A2–driven platelet aggregation for the life of the platelet. Given early in suspected ACS and continued long-term for secondary prevention.',
     levelNotes: [
-      'Give 162–325 mg non-enteric-coated aspirin, chewed, for suspected ACS unless true allergy or active bleeding',
-      'Before giving, screen for true allergy, active GI bleeding and features of aortic dissection; chewing speeds onset',
-      'Aspirin is the backbone of DAPT; keep maintenance at 75–100 mg daily, especially with ticagrelor',
-      'Know when to shorten aspirin exposure: P2Y12 monotherapy after 1–3 months of DAPT in selected PCI patients, especially high bleeding risk',
-      'Confirm aspirin loading before PCI; for true aspirin allergy consider desensitization or a P2Y12-based strategy',
+      'For suspected ACS, give 162–325 mg non-enteric-coated aspirin to chew, per protocol, after screening for true allergy, active bleeding and signs of aortic dissection. Document the dose and time and report it at handoff.',
+      'Give or confirm chewed aspirin 162–325 mg per local protocol for suspected ACS, including STEMI activations. If there is true allergy, active GI bleeding or features of aortic dissection, withhold it and contact medical direction.',
+      'Confirm the aspirin load is documented at the pre-procedure check and time-out, and flag any omission to the operator. If it is ordered and facility policy permits, provide the dose; report access-site oozing or hematoma on DAPT.',
+      'Verify aspirin was given (162–325 mg chewed load or daily 81 mg) and give it on order if missed. Clarify reported allergies (GI upset vs true anaphylaxis), report true allergy to the physician, and monitor access sites and hemoglobin on DAPT.',
+      'Load 162–325 mg, then 75–100 mg daily (≤ 100 mg with ticagrelor). In selected high-bleeding-risk PCI patients consider P2Y12 monotherapy after 1–3 months of DAPT; for true allergy use desensitization or a P2Y12-based strategy.',
     ],
     mechanism: [
       'Irreversibly acetylates platelet COX-1, blocking thromboxane A2 synthesis',
@@ -92,11 +92,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'An irreversible P2Y12 ADP-receptor blocker that needs two-step hepatic activation. It is the P2Y12 inhibitor used with fibrinolysis, with oral anticoagulants, and when bleeding risk is high.',
     levelNotes: [
-      'Recognize clopidogrel as a "blood thinner"; note it on the medication list and report it at handoff',
-      'Some STEMI systems give a prehospital P2Y12 load; follow local protocol and document exactly what was given',
-      'Load 600 mg before PCI; with fibrinolysis load 300 mg (75 mg without load if > 75 y)',
-      'Preferred P2Y12 inhibitor when combined with oral anticoagulation and after fibrinolytic therapy',
-      'CYP2C19 loss-of-function alleles blunt its effect; consider prasugrel, ticagrelor or genotype-guided therapy',
+      'Recognize clopidogrel (Plavix) as an antiplatelet "blood thinner" that makes bleeding after falls or trauma harder to control. Apply direct pressure, record it on the medication list and report it at handoff; it is not an EMT drug.',
+      'Some STEMI systems include a prehospital P2Y12 load; give it only per local protocol or medical direction and document drug, dose and time. Otherwise record home use and report it to the receiving team.',
+      'If ordered and facility policy permits, prepare the oral load (often 600 mg before PCI) and record the time given. Onset takes ~2–6 h, so note the timing for the operator and report access-site oozing or hematoma.',
+      'Give the ordered load (300 or 600 mg) and 75 mg daily, documenting time and whether crushed. Check for planned CABG or surgery (usual hold ~5 days), monitor access sites, hemoglobin and platelets, and teach DAPT adherence.',
+      'Load 600 mg before PCI, or 300 mg with fibrinolysis (75 mg, no load, if > 75 y), then 75 mg daily. Preferred P2Y12 inhibitor with oral anticoagulation and after lysis; CYP2C19 loss-of-function alleles blunt it, so consider prasugrel, ticagrelor or genotype-guided therapy.',
     ],
     mechanism: [
       'Prodrug; ~85% inactivated by esterases, the rest activated in two hepatic CYP steps (CYP2C19 is key)',
@@ -162,11 +162,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A direct-acting, reversibly binding P2Y12 inhibitor with faster and more consistent platelet inhibition than clopidogrel. In PLATO it reduced death and MI versus clopidogrel at the cost of more non-CABG bleeding.',
     levelNotes: [
-      'Recognize ticagrelor as a potent antiplatelet; bleeding after trauma may be hard to control',
-      'Patients may report breathlessness from ticagrelor, but always assess for heart failure or ischemia first',
-      'Load 180 mg then 90 mg twice daily, paired with aspirin ≤ 100 mg/day',
-      'Preferred over clopidogrel in ACS (PLATO); 60 mg BID beyond 12 months in high-ischemic-risk post-MI (PEGASUS)',
-      'Ticagrelor monotherapy after 1–3 months of DAPT reduces bleeding (TWILIGHT) in selected PCI patients',
+      'Recognize ticagrelor (Brilinta) as a potent antiplatelet: bleeding after trauma may be hard to control, so use direct pressure and report it. Shortness of breath in these patients still needs full assessment and oxygen per protocol.',
+      'Where a STEMI system protocol includes a prehospital P2Y12 load (e.g. ticagrelor 180 mg), give it only per protocol and document the time. In patients already taking it, assess for heart failure or ischemia before attributing dyspnea to the drug.',
+      'Prepare the oral load (180 mg) only on physician order where facility policy permits and record the time given. Watch the monitor for bradycardia or ventricular pauses, check access sites for bleeding, and report either to the operator.',
+      'Give 180 mg load, then 90 mg BID as ordered, and confirm aspirin is ≤ 100 mg/day. Monitor rhythm for pauses, access sites and new dyspnea and report them; stress twice-daily adherence, as missed doses lose effect faster than with clopidogrel.',
+      'Preferred over clopidogrel in ACS (PLATO): 180 mg load, 90 mg BID with aspirin ≤ 100 mg, then 60 mg BID beyond 12 months in high-ischemic-risk patients (PEGASUS). Monotherapy after 1–3 months of DAPT reduces bleeding (TWILIGHT); ISAR-REACT 5 favored prasugrel.',
     ],
     mechanism: [
       'Binds P2Y12 reversibly at a site distinct from ADP (allosteric)',
@@ -236,11 +236,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A potent, irreversible P2Y12 inhibitor with efficient one-step hepatic activation. Used in ACS patients undergoing PCI, typically once coronary anatomy is known; contraindicated after stroke or TIA.',
     levelNotes: [
-      'Recognize prasugrel as a potent antiplatelet; prioritize bleeding control and report it at handoff',
-      'Prasugrel is usually given in the cath lab, so document any prior stroke/TIA and bleeding history for the team',
-      'Contraindicated with prior stroke/TIA; generally avoided if ≥ 75 y; 5 mg maintenance if < 60 kg (or ≥ 75 y if used)',
-      'TRITON-TIMI 38: fewer ischemic events and stent thrombosis than clopidogrel, but more major bleeding',
-      'In NSTE-ACS, load at PCI rather than pretreating (ACCOAST); ISAR-REACT 5 favored it over ticagrelor',
+      'Recognize prasugrel (Effient) as a potent antiplatelet with high bleeding risk after trauma; control bleeding with direct pressure and report the medication. Note any history of stroke or TIA for the receiving team.',
+      'Prasugrel is a hospital and cath lab drug, not a prehospital one. Document home use, prior stroke/TIA, age and bleeding history and pass them to the STEMI team, because they affect eligibility.',
+      'Prasugrel is usually loaded in the lab once anatomy is known; prepare the 60 mg load only on physician order where facility policy permits and record the time. Report access-site bleeding promptly.',
+      'Before giving the ordered 60 mg load, check for prior stroke/TIA, age ≥ 75 y and weight < 60 kg and alert the physician if present. Give 10 mg daily (5 mg if < 60 kg) as ordered and monitor bleeding and hemoglobin.',
+      'In NSTE-ACS load 60 mg at PCI rather than pretreating (ACCOAST). Contraindicated after stroke/TIA, generally avoided ≥ 75 y, 5 mg maintenance if < 60 kg; TRITON-TIMI 38 showed fewer ischemic events but more bleeding vs clopidogrel, and ISAR-REACT 5 favored it over ticagrelor.',
     ],
     mechanism: [
       'Prodrug with a single CYP-dependent activation step (CYP3A4, CYP2B6)',
@@ -298,11 +298,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Binds antithrombin to inactivate thrombin (IIa) and factor Xa. Its short half-life, titratability and full reversal with protamine make it the workhorse anticoagulant for ACS, PCI and PE.',
     levelNotes: [
-      'On interfacility transports, recognize heparin drips, watch for bleeding, and never adjust without orders',
-      'Some STEMI protocols give a prehospital heparin bolus; screen for bleeding risk and dose by weight',
-      'Use weight-based nomograms with aPTT or anti-Xa monitoring, and watch platelets for HIT',
-      'Know the dosing difference: ACS 60 U/kg then 12 U/kg/h vs VTE 80 U/kg then 18 U/kg/h',
-      'Titrate PCI heparin to ACT (~250–300 s alone, ~200–250 s with GP IIb/IIIa) and reverse with protamine if needed',
+      'Heparin is a hospital and ALS IV anticoagulant, not an EMT drug. Patients recently given it bleed easily, so watch for oozing, bruising, blood in urine or stool and neurologic change, and report them.',
+      'Some STEMI systems give a weight-based heparin bolus prehospital; give it only per local protocol after screening for bleeding risk. On interfacility transport, keep the infusion at the ordered rate, monitor for bleeding and never adjust without orders or medical direction.',
+      'Prepare heparin on physician order where facility policy permits and label syringes clearly. Run ACTs when requested, record results and dose times, and tell the operator when ACT is below target or bleeding occurs.',
+      'Give weight-based boluses on order and check ACT per protocol (PCI target ~250–300 s, ~200–250 s with GP IIb/IIIa). Watch for bleeding and falling platelets (HIT), and confirm ACT is below the protocol threshold before sheath removal.',
+      'ACS: 60 U/kg (max 4000 U), then 12 U/kg/h; VTE: 80 U/kg, then 18 U/kg/h. In PCI give 70–100 U/kg titrated to ACT (50–70 U/kg with GP IIb/IIIa); reverse with protamine ~1 mg per 100 U and stop all heparin if HIT is suspected.',
     ],
     mechanism: [
       'Pentasaccharide sequence binds antithrombin, accelerating it ~1000-fold',
@@ -368,11 +368,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A low-molecular-weight heparin with predictable weight-based dosing and more anti-Xa than anti-IIa activity. Used for ACS, VTE treatment and prophylaxis without routine monitoring.',
     levelNotes: [
-      'Recognize subcutaneous "belly shot" anticoagulants; trauma patients on them bleed more — report it',
-      'Some STEMI fibrinolysis protocols include an IV enoxaparin bolus; know the age-based changes',
-      'Dose by actual weight and creatinine clearance; switch to once daily if CrCl < 30 mL/min',
-      'In STEMI with fibrinolysis, age ≥ 75 y means no IV bolus and 0.75 mg/kg SC with capped early doses',
-      'If the last SC dose was 8–12 h before PCI, give 0.3 mg/kg IV; ACT does not reflect enoxaparin effect',
+      'Recognize subcutaneous "belly shot" anticoagulants such as Lovenox on the medication list; these patients bleed more after falls or trauma. Control bleeding with direct pressure and report the drug and time of the last dose.',
+      'Enoxaparin is mostly a hospital drug; some fibrinolysis-capable EMS systems include it as an adjunct, given only per protocol. Otherwise record the last-dose time and report it, as it affects lysis and PCI anticoagulation.',
+      'Record the time of the last enoxaparin dose at the pre-procedure check and tell the operator, because ACT does not reflect its effect. Prepare any supplemental IV dose only on physician order where facility policy permits.',
+      'Give 1 mg/kg SC every 12 h as ordered (once daily if CrCl < 30), using actual weight; inject into the abdomen without expelling the air bubble. Verify the last-dose time before procedures and sheath removal, and monitor platelets, creatinine and bleeding.',
+      'ACS/VTE: 1 mg/kg SC q12h (daily if CrCl < 30). With lysis, < 75 y: 30 mg IV + 1 mg/kg q12h; ≥ 75 y: no bolus, 0.75 mg/kg. If the last SC dose was 8–12 h before PCI give 0.3 mg/kg IV; avoid UFH crossover (SYNERGY).',
     ],
     mechanism: [
       'Antithrombin-mediated inhibition with anti-Xa:anti-IIa ratio ~3–4:1',
@@ -436,11 +436,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A short-acting synthetic direct thrombin inhibitor used mainly during PCI. Attractive in high bleeding risk and in heparin-induced thrombocytopenia.',
     levelNotes: [
-      'Rarely seen prehospital; on transfers, report the infusion and any bleeding',
-      'During interfacility transport, maintain the infusion as ordered; its effect fades within ~1 h of stopping',
-      'A non-heparin anticoagulant for HIT; reduce the dose in significant renal impairment',
-      'Reduced bleeding vs heparin plus GP IIb/IIIa in older trials; advantage over heparin alone is debated',
-      'In STEMI, continue a post-PCI high-dose infusion (1.75 mg/kg/h for ~2–4 h) to reduce acute stent thrombosis',
+      'Bivalirudin is a hospital-only IV anticoagulant used during PCI, so EMTs rarely see it. After a recent procedure, watch the wrist or groin access site for bleeding or swelling and report it.',
+      'Hospital and cath lab drug only. On interfacility transfer, keep any infusion at the ordered rate, monitor access sites and rhythm, and contact medical direction for bleeding; its effect fades within ~1 h of stopping.',
+      'Prepare the bivalirudin bolus and infusion on physician order where facility policy permits, and label them clearly. Check ACT ~5 min after the bolus when requested, and alert the operator at once if the infusion stops, as interruption risks thrombosis.',
+      'Give 0.75 mg/kg bolus, then 1.75 mg/kg/h as ordered, with renally adjusted rates (e.g. 1 mg/kg/h if CrCl < 30). Continue any ordered post-PCI infusion, and monitor ACT or aPTT, renal function and access sites, reporting bleeding.',
+      'Non-heparin anticoagulant for PCI and HIT: 0.75 mg/kg, then 1.75 mg/kg/h, reduced in renal impairment. In STEMI continue the high-dose infusion ~2–4 h post-PCI to limit acute stent thrombosis; benefit over heparin alone is debated (MATRIX, VALIDATE-SWEDEHEART, BRIGHT-4).',
     ],
     mechanism: [
       'Binds thrombin active site and fibrin-binding exosite directly and reversibly',
@@ -493,11 +493,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'An oral direct factor Xa inhibitor used for stroke prevention in AF and for VTE. In ARISTOTLE it caused less major bleeding and fewer deaths than warfarin, without routine INR monitoring.',
     levelNotes: [
-      'Identify DOAC use in falls and head injury — high risk of intracranial bleeding; transport appropriately',
-      'Record the time of the last dose; it guides reversal, thrombolysis and procedure decisions',
-      'Life-threatening bleeding: 4-factor PCC or andexanet alfa where available; routine coagulation tests are unreliable',
-      'AF dose is 5 mg BID; reduce to 2.5 mg BID only with ≥ 2 of age ≥ 80, weight ≤ 60 kg, creatinine ≥ 1.5 mg/dL',
-      'After PCI in AF, pair apixaban with clopidogrel and drop aspirin early (AUGUSTUS); plan peri-procedural holds',
+      'Recognize apixaban (Eliquis) as a blood thinner: a fall or head strike on a DOAC carries high intracranial bleeding risk even when the patient looks well. Note the time of the last dose and transport per trauma or stroke protocol.',
+      'Document the drug and exact time of the last dose, since it guides stroke thrombolysis, reversal and procedure decisions at the hospital. Apply trauma triage criteria for anticoagulated head injury and notify early.',
+      'Confirm the time of the last apixaban dose is recorded at the pre-procedure check and tell the operator if it falls inside the planned hold window. Report access-site bleeding promptly.',
+      'Verify the last-dose time and the ordered peri-procedural hold before the case, and report if it was not held. Monitor renal function and bleeding; when it is resumed on order, teach twice-daily adherence and avoiding NSAIDs.',
+      'AF: 5 mg BID; 2.5 mg BID only with ≥ 2 of age ≥ 80 y, weight ≤ 60 kg, creatinine ≥ 1.5 mg/dL. After PCI in AF combine with clopidogrel and drop aspirin early (AUGUSTUS); reverse life-threatening bleeding with 4F-PCC or andexanet alfa.',
     ],
     mechanism: [
       'Directly and reversibly inhibits free and clot-bound factor Xa',
@@ -559,11 +559,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Inhibits vitamin K epoxide reductase, lowering functional factors II, VII, IX and X. Remains the anticoagulant of choice for mechanical valves and for AF with moderate–severe rheumatic mitral stenosis.',
     levelNotes: [
-      'Warfarin plus head injury or bleeding is high risk — transport promptly and report the medication',
-      'Ask for the most recent INR if known; even minor trauma can bleed severely',
-      'Major bleeding: stop warfarin, give IV vitamin K 5–10 mg plus 4-factor PCC',
-      'Target INR 2–3 for most indications; 2.5–3.5 for mechanical mitral or higher-risk mechanical valves',
-      'Plan interruption or uninterrupted strategies around procedures; radial access lowers bleeding when INR is raised',
+      'Warfarin (Coumadin) plus a fall, head injury or bleeding is high risk, so transport promptly per trauma protocol and report the medication. Ask about recent INR results or dose changes and apply direct pressure to bleeding.',
+      'Report warfarin use and the most recent INR if known; anticoagulated head-injury patients meet many trauma triage criteria. Reversal is a hospital decision, so notify the receiving facility early.',
+      'Make sure a pre-procedure INR is available and recorded, and alert the operator if it is above the lab’s threshold. Report access-site bleeding promptly, especially with femoral access.',
+      'Check the INR before the procedure and report values above the ordered threshold; give vitamin K or 4F-PCC only on order. Monitor access sites and neuro status, and teach consistent vitamin K intake and interaction awareness (antibiotics, amiodarone).',
+      'Target INR 2–3; 2.5–3.5 for mechanical mitral or higher-risk mechanical aortic valves. Major bleeding: IV vitamin K 5–10 mg plus 4F-PCC. Plan interrupted vs uninterrupted strategies around procedures; radial access lowers bleeding when the INR is raised.',
     ],
     mechanism: [
       'Inhibits VKORC1, blocking recycling of vitamin K',
@@ -628,11 +628,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A modified tPA with greater fibrin specificity and a longer half-life, allowing a single weight-based bolus. Used for STEMI reperfusion when timely primary PCI is not available.',
     levelNotes: [
-      'Screen for fibrinolytic contraindications (bleeding, recent stroke, surgery or head injury) and pass the checklist on',
-      'Where prehospital lysis is used, aim for drug within 30 min of first contact when PCI cannot happen within 120 min',
-      'Give within 30 min of arrival if primary PCI cannot be achieved within 120 min of first medical contact',
-      'Transfer all lysed patients to a PCI center; rescue PCI if < 50% ST resolution at 60–90 min',
-      'Pharmacoinvasive strategy: routine angiography 2–24 h after successful lysis (STREAM)',
+      'Fibrinolytics are not an EMT drug. Help by recording symptom onset time, screening for bleeding risks (recent stroke, surgery, head injury, active bleeding), and giving early STEMI notification and rapid transport per protocol.',
+      'Give only where the EMS system protocol authorizes prehospital lysis: complete the contraindication checklist and aim for drug within ~30 min of first contact when PCI cannot occur within 120 min. Otherwise transmit the 12-lead and activate the STEMI system.',
+      'Lysed patients may arrive for rescue or pharmacoinvasive PCI; record the lytic drug and time for the case log. Bleeding risk is high, so report access-site oozing, hematoma or neurologic change to the operator immediately.',
+      'On transfer from a non-PCI hospital, confirm drug, dose and time, and check neuro status often (headache, falling GCS, new deficit). Avoid non-compressible punctures and IM injections, and report bleeding or reperfusion arrhythmias at once.',
+      'Give within 30 min of arrival when primary PCI cannot be achieved within 120 min of FMC: weight-band bolus, half dose if ≥ 75 y. Transfer all lysed patients; rescue PCI if < 50% ST resolution at 60–90 min, otherwise angiography at 2–24 h (STREAM).',
     ],
     mechanism: [
       'Converts fibrin-bound plasminogen to plasmin, which degrades fibrin',
@@ -702,11 +702,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Releases nitric oxide to dilate veins more than arteries, lowering preload and myocardial oxygen demand and relieving ischemic pain. It improves symptoms but does not reduce mortality in ACS.',
     levelNotes: [
-      'Assist with SL nitro only if SBP is above the protocol threshold (often ≥ 90–100) and no recent PDE5 inhibitor use',
-      'Get a right-sided ECG in inferior STEMI; RV infarction is preload-dependent and drops BP with nitrates',
-      'Use IV infusion for ongoing ischemia, hypertension or pulmonary edema, titrated to symptoms and BP',
-      'High-dose nitrate strategies appear effective in hypertensive acute pulmonary edema (SCAPE; mostly observational data)',
-      'Intracoronary nitroglycerin (~100–200 mcg) relieves spasm and is given before vessel sizing and IVUS/OCT',
+      'Assist with the patient’s own prescribed SL nitroglycerin per protocol and medical direction, only if SBP meets the protocol threshold (often ≥ 90–100 mmHg) and no PDE5 inhibitor was taken recently. Recheck BP after each dose and report hypotension.',
+      'Give SL nitroglycerin 0.4 mg every 5 min per protocol if BP allows. Check a right-sided ECG (V4R) in inferior STEMI and avoid nitrates with RV infarction; use IV or high-dose regimens for pulmonary edema only where protocol allows.',
+      'Prepare intracoronary nitroglycerin (often ~100–200 mcg) on the operator’s order, e.g. for spasm or before vessel sizing and IVUS/OCT. Watch the arterial pressure after each dose and report hypotension or bradycardia.',
+      'Titrate IV nitroglycerin on order (start ~5–10 mcg/min, increase 5–10 mcg/min every 3–5 min) to the ordered BP and pain targets; hold and notify for SBP < 90 mmHg or as ordered. Confirm no recent PDE5 inhibitor and use non-PVC tubing.',
+      'Symptom relief only, with no mortality benefit (GISSI-3, ISIS-4); avoid in RV infarction, severe AS and after recent PDE5 inhibitors. Use IV infusion for ongoing ischemia, hypertension or pulmonary edema; intracoronary ~100–200 mcg relieves spasm before sizing and IVUS/OCT.',
     ],
     mechanism: [
       'Converted to nitric oxide → guanylate cyclase → ↑cGMP → smooth muscle relaxation',
@@ -782,11 +782,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A potent, short-acting synthetic opioid used for analgesia in ACS and during procedures. It releases less histamine and is more hemodynamically stable than morphine, but like all opioids it delays absorption of oral P2Y12 inhibitors.',
     levelNotes: [
-      'Recognize opioid toxicity (apnea, pinpoint pupils); ventilate with BVM and give naloxone per protocol',
-      'Give small titrated IV doses for ischemic pain refractory to nitrates; watch respiration and chest wall rigidity',
-      'Preferred over morphine in tenuous hemodynamics; pain unresponsive to nitro suggests ongoing infarction',
-      'Opioids delay oral P2Y12 absorption — consider crushed tablets or alternative antiplatelet strategies',
-      'Used with midazolam for procedural sedation; monitor capnography and avoid oversedation in shock',
+      'Fentanyl is an ALS drug. Recognize opioid toxicity (slow or absent breathing, pinpoint pupils, unresponsiveness): ventilate with BVM and oxygen and give naloxone per protocol.',
+      'Per protocol, give small titrated IV/IO or intranasal doses (~0.5–1 mcg/kg) for ischemic pain not relieved by nitrates. Monitor SpO2, EtCO2 and BP, keep naloxone ready, and avoid rapid large pushes (chest wall rigidity).',
+      'Prepare fentanyl only on physician order where facility policy permits; sedation is given on the physician’s order, usually by the RN. Watch SpO2, capnography and breathing pattern, and report hypoventilation or desaturation immediately.',
+      'For moderate sedation, give ordered doses (often 25–50 mcg IV, titrated) with the practitioner present, monitoring SpO2, capnography, BP and sedation score continuously. Expect lower doses in elderly or shocked patients; keep naloxone and a BVM at the bedside.',
+      'Preferred over morphine for ACS pain in tenuous hemodynamics, but all opioids delay oral P2Y12 absorption, so consider crushed tablets or cangrelor. Pain persisting despite nitrates suggests ongoing infarction; combine with midazolam for procedural sedation.',
     ],
     mechanism: [
       'μ-opioid receptor agonist in the CNS → analgesia and sedation',
@@ -856,11 +856,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A cardioselective β1 blocker that slows heart rate and AV conduction and reduces contractility and myocardial oxygen demand. Metoprolol succinate is one of three evidence-based beta-blockers for HFrEF.',
     levelNotes: [
-      'Beta-blocker overdose causes bradycardia, hypotension and sometimes hypoglycemia — check glucose and report home meds',
-      'IV metoprolol is for stable patients; avoid with hypotension, acute heart failure or high-grade AV block',
-      'Avoid early IV beta-blockade in STEMI with heart failure, low output or shock risk (COMMIT)',
-      'Use succinate (not tartrate) for HFrEF, titrated toward 200 mg daily as tolerated',
-      'Post-MI benefit is clear with LVEF ≤ 40%; with preserved EF it is debated after REDUCE-AMI and REBOOT',
+      'Recognize beta-blocker use in a patient with a slow pulse, low BP or dizziness; overdose can also cause low blood sugar. Check glucose, give oral glucose per protocol if low and able to swallow, bring the pill bottles and request ALS.',
+      'Where IV metoprolol is in protocol, use it only for stable patients after interpreting the rhythm; avoid with hypotension, acute heart failure, shock risk or high-grade AV block. For overdose bradycardia, follow protocol and contact medical direction.',
+      'Prepare IV metoprolol only on physician order where facility policy permits. After each dose, watch the monitor for bradycardia, PR prolongation or AV block and the pressure for hypotension, and report them to the operator.',
+      'Give IV metoprolol 2.5–5 mg over 2 min as ordered (max 15 mg), checking HR and BP before each dose against ordered hold parameters (e.g. HR < 60 or SBP < 100). Report signs of heart failure or AV block.',
+      'Avoid early IV beta-blockade in STEMI with HF, low output or shock risk (COMMIT); start oral therapy within 24 h if stable. Use succinate for HFrEF, titrated toward 200 mg daily; with preserved post-MI EF, benefit is debated after REDUCE-AMI and REBOOT.',
     ],
     mechanism: [
       'Competitive β1-adrenergic blockade (selectivity lost at high doses)',
@@ -937,11 +937,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'An IV β1 blocker hydrolyzed by red-cell esterases with a ~9-minute half-life. Ideal when rapid, titratable and quickly reversible beta-blockade is needed.',
     levelNotes: [
-      'Not a prehospital drug; on transfers, report the infusion rate and stop only on medical direction',
-      'Effects wear off ~10–30 min after stopping, which is useful if hypotension or bradycardia develops',
-      'First-line for heart rate and dP/dt control in aortic dissection before adding a vasodilator',
-      'Acts as a "test" beta-blocker in borderline LV function or bronchospastic patients',
-      'In the lab, gives titratable rate control and lowers LVOT gradients in obstructive HCM (with phenylephrine)',
+      'Esmolol is a hospital-only IV beta-blocker infusion. Patients on beta-blocker infusions can become bradycardic or hypotensive; report a slow pulse, low BP or dizziness and request ALS.',
+      'Not a standard prehospital drug. On critical care or interfacility transport, keep the ordered rate and stop or adjust only per orders or medical direction; its effect wears off ~10–30 min after stopping if hypotension or bradycardia develops.',
+      'Prepare esmolol on physician order where facility policy permits, e.g. for rate control or HCM gradient studies. Record HR, arterial pressure and any LVOT gradient change, and report hypotension or bradycardia promptly.',
+      'Give 500 mcg/kg over 1 min, then 50 mcg/kg/min as ordered, titrating to the ordered targets (aortic dissection: HR ≤ 60, SBP ~100–120). Hypotension is common, so stop and notify; monitor the IV site for extravasation.',
+      'First-line for HR and dP/dt control in aortic dissection before adding a vasodilator, and a titratable "test" beta-blocker in borderline LV function or bronchospasm. In obstructive HCM it lowers LVOT gradients, combined with phenylephrine for hypotension.',
     ],
     mechanism: [
       'Competitive β1 blockade',
@@ -1006,11 +1006,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'An ultra-short-acting nucleoside that briefly blocks AV nodal conduction. It terminates most AV node–dependent SVTs (AVNRT, AVRT) and can unmask atrial flutter or atrial tachycardia.',
     levelNotes: [
-      'Recognize a regular narrow tachycardia > 150; if stable, try vagal maneuvers (modified Valsalva) per protocol',
-      'Give 6 mg rapid IV push with an immediate 20 mL flush via a proximal vein; warn the patient and record a strip',
-      'Use only for regular rhythms; never for irregular wide-complex tachycardia (possible pre-excited AF)',
-      'Use diagnostically: transient AV block reveals flutter waves or atrial tachycardia; also a pharmacologic stress agent',
-      'In the EP lab, unmasks dormant pulmonary vein conduction and accessory pathways; also induces FFR hyperemia',
+      'Adenosine is an ALS drug. Recognize a very fast pulse with symptoms, check for instability (low BP, chest pain, altered mental status), give oxygen if needed, acquire and transmit a 12-lead where protocols allow, and request ALS.',
+      'For stable regular narrow-complex tachycardia, try modified Valsalva, then 6 mg rapid IV push with an immediate flush (12 mg if needed) per protocol, recording a strip. Never use it for irregular wide-complex tachycardia (possible pre-excited AF).',
+      'Prepare adenosine on physician order, e.g. for FFR hyperemia (IC bolus or IV infusion per lab protocol), and keep a continuous recording running. Expect a brief AV block or pause and flushing; report bronchospasm or a prolonged pause.',
+      'Give 6 mg, then 12 mg rapid IV push on order via a proximal IV with a 20 mL flush; warn the patient and record the strip. Expect lower first doses (e.g. 3 mg) via central line or in transplant hearts as ordered; report bronchospasm.',
+      'Terminates AV node–dependent SVT and unmasks flutter or atrial tachycardia; contraindicated in pre-excited AF. In the EP lab it unmasks dormant pulmonary vein conduction and accessory pathways; in the cath lab IC or IV adenosine induces hyperemia for FFR.',
     ],
     mechanism: [
       'Activates A1 receptors in SA/AV nodes → ↑K+ efflux and hyperpolarization',
@@ -1081,11 +1081,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Blocks L-type calcium channels in nodal tissue and myocardium, slowing AV conduction and heart rate. A common IV choice for rapid rate control of AF/flutter when LV function is preserved.',
     levelNotes: [
-      'Recognize a rapid irregular pulse; report home calcium channel blocker use in bradycardic or hypotensive patients',
-      'For stable rapid AF, 0.25 mg/kg IV over 2 min; avoid with hypotension, HFrEF or irregular wide complexes',
-      'Avoid in decompensated HF or LVEF < 40% and in pre-excited AF; choose another agent',
-      'Effective for rate control and SVT termination; negative inotropy limits use in HFrEF',
-      'Avoid IV diltiazem with IV beta-blockers in the lab; also an option for radial spasm prophylaxis',
+      'Recognize home calcium channel blockers (diltiazem, verapamil) in patients with a slow pulse or low BP; overdose can be life-threatening. Bring the medication and request ALS early.',
+      'Where in protocol, give 0.25 mg/kg IV over 2 min for stable rapid AF or flutter after interpreting the rhythm. Avoid with hypotension, HFrEF or an irregular wide-complex rhythm (possible WPW), and contact medical direction as required.',
+      'Prepare diltiazem only on physician order where facility policy permits (e.g. for rate control or radial spasm prophylaxis). Watch for hypotension, bradycardia or AV block after dosing and report them to the operator.',
+      'Give 0.25 mg/kg IV over 2 min, then 5–15 mg/h as ordered, checking BP and HR against hold parameters. Clarify any order to combine it with IV beta-blockers, and report hypotension, bradycardia or heart-failure signs.',
+      'Rate control or SVT termination when LVEF > 40%; avoid in decompensated HF, LVEF < 40% and pre-excited AF. Negative inotropy limits use in HFrEF; watch CYP3A4 interactions (DOACs, statins); also used for radial spasm prophylaxis.',
     ],
     mechanism: [
       'Blocks L-type Ca2+ channels in SA/AV nodes → slower nodal depolarization and conduction',
@@ -1159,11 +1159,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A broad-spectrum antiarrhythmic that prolongs repolarization and also blocks sodium channels, beta receptors and calcium channels. Used in shock-refractory VF/pVT, VT and AF, but chronic use carries significant organ toxicity.',
     levelNotes: [
-      'Amiodarone on a med list signals a serious arrhythmia history; prioritize CPR quality and early defibrillation',
-      'VF/pVT arrest: 300 mg IV/IO after the third shock, then 150 mg; stable VT: 150 mg over 10 min',
-      'IV loading often causes hypotension and bradycardia; maintenance 1 mg/min × 6 h then 0.5 mg/min × 18 h',
-      'Chronic use needs baseline and periodic thyroid, liver, lung and eye monitoring and an interaction review',
-      'Most effective drug for AF and VT suppression; used with ablation for electrical storm and ICD shocks',
+      'Amiodarone on a medication list signals a serious arrhythmia history. In cardiac arrest, focus on high-quality CPR and early AED use, and report the medication to ALS.',
+      'VF/pVT per protocol: 300 mg IV/IO after the third shock, then 150 mg. Stable monomorphic VT: 150 mg over 10 min per protocol or medical direction; watch for hypotension and bradycardia.',
+      'Prepare amiodarone on physician order where facility policy permits, with an in-line filter for infusions as required. Monitor for hypotension, bradycardia and QT prolongation, report changes to the operator, and keep defibrillator pads attached.',
+      'Give 150 mg over 10 min, then 1 mg/min × 6 h and 0.5 mg/min × 18 h as ordered, preferably centrally with an in-line filter. Monitor BP, HR and QTc, and report hypotension, bradycardia or QTc > 500 ms.',
+      'Most effective agent for AF and VT suppression and usable in HFrEF; adjunct to ablation in electrical storm and ICD shocks. Chronic use needs thyroid, liver, lung and eye surveillance and lower warfarin (~25–50%) and digoxin (~50%) doses.',
     ],
     mechanism: [
       'Blocks K+ channels (IKr) → prolongs action potential duration and refractoriness',
@@ -1239,11 +1239,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A sodium-channel blocker with potassium-channel effects that slows conduction and prolongs refractoriness, including in accessory pathways. Preferred for stable pre-excited AF and an option for stable monomorphic VT.',
     levelNotes: [
-      'Recognize unstable tachycardia and request ALS; procainamide is an ALS and hospital drug',
-      'Where carried, infuse 20–50 mg/min for stable wide-complex tachycardia; stop for hypotension or QRS widening > 50%',
-      'Drug of choice for stable pre-excited AF (WPW); avoid AV nodal blockers',
-      'PROCAMIO: procainamide terminated stable VT more often with fewer major adverse events than amiodarone',
-      'In the EP lab, procainamide challenge can unmask Brugada pattern and helps assess accessory pathway properties',
+      'Procainamide is an ALS and hospital drug. Recognize a fast heartbeat with symptoms, check for instability and request ALS; acquire and transmit a 12-lead where protocols allow.',
+      'Where carried, infuse 20–50 mg/min for stable wide-complex tachycardia or pre-excited AF per protocol. Stop for hypotension, QRS widening > 50%, arrhythmia suppression or 17 mg/kg; unstable patients need synchronized cardioversion instead.',
+      'In the EP lab, prepare procainamide on physician order for drug challenges (e.g. Brugada unmasking). Record serial QRS and QT measurements and report QRS widening, hypotension or new arrhythmia immediately.',
+      'Infuse at the ordered rate (20–50 mg/min) with BP every few minutes and serial QRS/QTc measurement. Stop and notify for hypotension, QRS widening > 50% or arrhythmia suppression, then start the ordered maintenance (1–4 mg/min).',
+      'Drug of choice for stable pre-excited AF (avoid AV nodal blockers); PROCAMIO favored it over amiodarone for stable VT. In the EP lab, procainamide challenge unmasks Brugada pattern and helps assess accessory pathways; reduce maintenance in renal failure (NAPA).',
     ],
     mechanism: [
       'Blocks fast Na+ channels (phase 0) → slows conduction and widens QRS',
@@ -1313,11 +1313,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'A sodium-channel blocker with fast on/off kinetics that acts preferentially on ischemic, depolarized ventricular tissue. An alternative to amiodarone in shock-refractory VF/pVT and an option for VT.',
     levelNotes: [
-      'Lidocaine toxicity can cause perioral numbness, confusion and seizures — report these after procedures',
-      'VF/pVT: 1–1.5 mg/kg IV/IO, then 0.5–0.75 mg/kg; an accepted alternative to amiodarone',
-      'Lower maintenance doses in heart failure, liver disease and the elderly; watch for neurotoxicity',
-      'Most effective for ischemic VT; less effective for scar-mediated re-entrant VT',
-      'Used in electrical storm with amiodarone; never given prophylactically in uncomplicated AMI',
+      'Lidocaine is an ALS drug. After procedures using local anesthetic, report perioral numbness, confusion, ringing in the ears or seizure as possible toxicity, and manage the airway and seizures per protocol.',
+      'VF/pVT per protocol: 1–1.5 mg/kg IV/IO, then 0.5–0.75 mg/kg (max 3 mg/kg), an accepted alternative to amiodarone. Never treat a wide ventricular escape rhythm with lidocaine; pace instead.',
+      'Prepare local lidocaine for the access site and any IV antiarrhythmic dose only on physician order. Track the total local dose given and report perioral numbness, confusion or seizure to the operator.',
+      'Give boluses and maintenance (1–4 mg/min) as ordered, expecting lower rates in HF, liver disease or the elderly. Monitor neurologic status for early toxicity and continuous ECG; report confusion, tinnitus or seizure and keep lipid emulsion available per policy.',
+      'Most effective for ischemic VT and used with amiodarone in electrical storm; less effective for scar-mediated re-entry. Never give prophylactically in uncomplicated AMI; mexiletine is the oral option for chronic VT suppression.',
     ],
     mechanism: [
       'Blocks inactivated Na+ channels with rapid kinetics (class IB)',
@@ -1385,11 +1385,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Inhibits the Na+/K+-ATPase to raise intracellular calcium and contractility, and enhances vagal tone to slow AV conduction. Used for AF rate control and symptom control in HFrEF; narrow therapeutic window.',
     levelNotes: [
-      'Toxicity: nausea, vomiting, yellow-green visual halos, confusion and bradycardia — report the medication',
-      'Toxicity can cause almost any arrhythmia; bidirectional VT and atrial tachycardia with block are classic',
-      'Severe toxicity (life-threatening arrhythmia, K+ > 5–5.5 in acute overdose): give digoxin immune Fab',
-      'Reduces HF hospitalization without mortality benefit (DIG); target low levels (~0.5–0.9 ng/mL)',
-      'Check level and potassium before elective cardioversion; toxicity raises risk of post-shock ventricular arrhythmia',
+      'Recognize possible digoxin toxicity: nausea, vomiting, confusion, yellow-green visual halos and a slow or irregular pulse. Bring the medication, report it, and request ALS for a slow or irregular pulse with symptoms.',
+      'Digoxin toxicity can cause almost any arrhythmia (classically bidirectional VT or atrial tachycardia with block). Treat per protocol, report hyperkalemic ECG changes and contact medical direction; digoxin immune Fab is a hospital therapy.',
+      'Note digoxin on the pre-procedure record and check that recent potassium and digoxin levels are available before electrical cardioversion. Report new ectopy, bradycardia or AV block on the monitor.',
+      'Check the apical pulse before giving as ordered and hold per ordered parameters (commonly HR < 60); confirm K+, Mg2+ and renal function. Report toxicity symptoms and levels above the ordered range (often ~0.5–0.9 ng/mL in HF).',
+      'Reduces HF hospitalization without mortality benefit (DIG); target low levels (~0.5–0.9 ng/mL). Severe toxicity (life-threatening arrhythmia, K+ > 5–5.5 in acute overdose) warrants digoxin Fab; check level and potassium before elective cardioversion.',
     ],
     mechanism: [
       'Inhibits Na+/K+-ATPase → ↑intracellular Na+ → ↑Ca2+ via Na+/Ca2+ exchanger → ↑contractility',
@@ -1461,11 +1461,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Stabilizes cardiac membranes and suppresses the early afterdepolarizations that trigger torsades. First-line drug for torsades de pointes and for correcting hypomagnesemia that contributes to arrhythmias.',
     levelNotes: [
-      'Recognize polymorphic VT with twisting QRS; if pulseless, start CPR and defibrillate',
-      'Torsades: 1–2 g IV/IO — push in arrest, over ~15 min if a pulse is present; defibrillate if pulseless',
-      'Stop QT-prolonging drugs, keep K+ ~4.5–5.0 and Mg normal; pace or use isoproterenol for recurrent torsades',
-      'Not recommended for routine VF/VT arrest without torsades; replace Mg in AF and after cardiac surgery',
-      'Use magnesium plus overdrive pacing for pause-dependent torsades; consider congenital LQTS evaluation',
+      'Magnesium is an ALS drug. If the patient is unresponsive without a pulse, start CPR and apply the AED immediately; the AED decides whether to shock, whatever the rhythm looks like.',
+      'For torsades per protocol, give 1–2 g IV/IO: as a push in pulseless arrest, or over ~15 min with a pulse; defibrillate pulseless torsades. It is not recommended for routine VF/VT arrest without torsades.',
+      'Prepare magnesium on physician order where facility policy permits. Record QT intervals and report pauses, a long QT or runs of polymorphic VT immediately, with the defibrillator ready.',
+      'Give 1–2 g IV diluted over the ordered time (rapidly only in pulseless torsades). Monitor BP, respiratory rate and deep tendon reflexes with repeated doses, check Mg and K+, and keep IV calcium available for toxicity.',
+      'Torsades: magnesium plus removal of QT-prolonging drugs, K+ ~4.5–5.0, and overdrive pacing or isoproterenol for pause-dependent recurrence; evaluate for congenital LQTS. Not for routine VF/VT arrest; replace Mg in AF and after cardiac surgery.',
     ],
     mechanism: [
       'Suppresses early afterdepolarizations (likely via L-type Ca2+ blockade)',
@@ -1535,11 +1535,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     summary:
       'Blocks vagal (muscarinic) effects on the SA and AV nodes, increasing heart rate and AV nodal conduction. First-line drug for symptomatic bradycardia, but often ineffective for infranodal block.',
     levelNotes: [
-      'Recognize symptomatic bradycardia (hypotension, altered mental status, chest pain, shock) and call ALS early',
-      'Give 1 mg IV every 3–5 min (max 3 mg); if ineffective, move promptly to pacing or an epinephrine/dopamine infusion',
-      'Atropine rarely works in Mobitz II or complete block with a wide escape; prepare transcutaneous or transvenous pacing',
-      'Transplanted hearts are denervated — atropine is ineffective and can cause paradoxical AV block',
-      'Treat vasovagal reactions during cath (sheath pulls, contrast) with atropine and fluids; expect bradycardia in RCA work',
+      'Atropine is an ALS drug. Recognize a symptomatic slow pulse (low BP, altered mental status, chest pain, signs of shock), give oxygen if needed and call ALS early.',
+      'Symptomatic bradycardia: 1 mg IV/IO every 3–5 min (max 3 mg) per protocol; if ineffective, move promptly to pacing or an epinephrine or dopamine infusion. Expect poor response in Mobitz II or complete block with a wide escape.',
+      'Prepare atropine on physician order for vagal reactions (sheath removal, contrast, RCA engagement). Report bradycardia with hypotension immediately and have transcutaneous or transvenous pacing equipment ready.',
+      'Recognize vasovagal reactions (bradycardia, hypotension, nausea, sweating) during the case or sheath removal; give atropine (e.g. 0.5–1 mg IV) and fluids on order and raise the legs. Flag heart-transplant patients, in whom atropine is ineffective.',
+      'Rarely helps Mobitz II or complete block with a wide escape; pace transcutaneously or transvenously. Denervated transplant hearts do not respond and may develop paradoxical AV block; expect vagal bradycardia during RCA work.',
     ],
     mechanism: [
       'Competitive antagonist at muscarinic (M2) receptors',

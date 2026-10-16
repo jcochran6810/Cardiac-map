@@ -15,11 +15,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Invasive X-ray imaging of the coronary arteries using catheters and iodinated contrast to show where and how severely they are narrowed. It remains the reference standard for coronary anatomy and guides the choice between PCI, CABG and medical therapy.',
     levelNotes: [
-      'For suspected STEMI, early recognition, a transmitted 12-lead and direct transport to a PCI-capable center shorten the time to angiography and reperfusion.',
-      'Pre-activating the cath lab from the field for STEMI, giving aspirin and placing defibrillator pads before transfer save critical minutes.',
-      'After the cath, check the access site and distal pulses, and suspect retroperitoneal bleeding (hypotension, back or flank pain, falling Hb) after femoral access.',
-      'Know the standard projections and that angiography is a lumenogram that poorly predicts lesion physiology, so intermediate lesions need FFR/iFR or intravascular imaging.',
-      'Use radial-first access, choose catheters to suit the aortic root and access route, and recognize pressure damping or ventricularization before any injection.',
+      'For suspected ACS, give aspirin per protocol, acquire and transmit a 12-lead where protocols allow, and notify a PCI-capable destination early. After a recent cath, control wrist or groin bleeding with firm direct pressure and transport if bleeding or hypotension persists.',
+      'Interpret the 12-lead and activate the cath lab from the field for STEMI per local protocol; give aspirin, establish IV access, apply defibrillator pads, and hand over the ECGs, symptom-onset and first-medical-contact times to the receiving team.',
+      'Prepare the sheath, J-wire, diagnostic catheters, manifold and contrast, and zero and level the transducer. Alert the operator at once to a damped or ventricularized pressure trace, bradycardia or VF with injection, and track contrast volume and radiation dose (ALARA).',
+      'Verify consent, contrast allergy, eGFR, anticoagulant and metformin timing, and give hydration, radial cocktail and heparin as ordered. Afterwards manage the radial band or femoral sheath per protocol and validated competency, and escalate hypotension, back/flank pain or falling Hb (retroperitoneal bleed).',
+      'Use radial-first access, match catheter shape to root anatomy and route, and never inject into a damped or ventricularized trace. Image every lesion in ≥ 2 orthogonal views; angiography is a lumenogram, so confirm intermediate lesions with FFR/iFR or IVUS/OCT before revascularization decisions.',
     ],
     overview: [
       'Selective contrast injection into the left and right coronary ostia under fluoroscopy',
@@ -156,11 +156,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Retrograde arterial catheterization of the aorta and left ventricle to measure left-sided pressures, assess the aortic valve and perform left ventriculography. It is usually performed together with coronary angiography.',
     levelNotes: [
-      'Patients after a heart cath can bleed from the wrist or groin, so apply firm direct pressure at and just above the puncture site and keep the limb still.',
-      'Post-cath hypotension, groin or back pain, or a cool pulseless limb needs urgent escalation for bleeding or vascular injury.',
-      'A high LVEDP (normal ~3–12 mmHg) signals elevated filling pressure, so watch for pulmonary edema after contrast and fluid loads.',
-      'Interpret pullback gradients: a gradient across the aortic valve indicates aortic stenosis, whereas an intracavitary gradient below the valve suggests HCM obstruction.',
-      'Use simultaneous LV and aortic pressures for valve gradients and look for the Brockenbrough–Braunwald–Morrow sign after a PVC in obstructive HCM.',
+      'After a heart cath, bleeding from the wrist or groin needs firm direct pressure at and just above the puncture site. Hypotension, back or groin pain, or a cool, pale limb means urgent transport with early notification.',
+      'Post-cath hypotension, back or flank pain, or a pulseless limb suggests bleeding or vascular injury: control external bleeding, establish IV access, give fluids per protocol and contact medical direction. Pulmonary edema after the study may need CPAP per protocol.',
+      'Prepare the pigtail, wires, dual transducers and an air-free power injector set-up. Record aortic pressure, LV systolic pressure, LVEDP at end-expiration and the pullback or simultaneous LV–Ao gradient, and alert the operator to sustained ectopy, VT or new heart block.',
+      'An LVEDP above ~12 mmHg means high filling pressure: monitor SpO2, breath sounds and work of breathing after contrast and fluids, and give diuretics as ordered. Perform neurologic checks if the aortic valve was crossed and escalate any new deficit immediately.',
+      'Use simultaneous LV–Ao pressures (mean gradient compares best with echo); a subvalvular intracavitary gradient suggests HCM, confirmed by the Brockenbrough–Braunwald–Morrow sign (post-PVC gradient rises, aortic pulse pressure falls). Cross a stenotic valve only when the data will change management.',
     ],
     overview: [
       'Catheter passed retrograde from a peripheral artery across the aortic valve into the LV',
@@ -289,11 +289,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A balloon-tipped, flow-directed pulmonary artery catheter is floated through the right heart to directly measure right-sided and pulmonary pressures, wedge pressure, cardiac output and oxygen saturations. It is the gold standard for diagnosing pulmonary hypertension and defining shock and heart failure hemodynamics.',
     levelNotes: [
-      'A patient with a pulmonary artery catheter is critically ill, so protect the line from tugging and report sudden breathlessness, bleeding or alarms.',
-      'During transfers with a PA catheter, never leave the balloon inflated, keep the transducer leveled and watch for ventricular ectopy if the tip migrates.',
-      'Know normal values (RA 2–6, RV 15–30/2–8, PA 15–30/4–12 mean ≤ 20, PCWP 6–12 mmHg, CI 2.5–4.0 L/min/m²) and use them to classify shock.',
-      'Pulmonary hypertension is mPAP > 20 mmHg; it is precapillary when PCWP ≤ 15 mmHg and PVR > 2 WU, and post-capillary when PCWP > 15 mmHg.',
-      'Read pressures at end-expiration, confirm true wedge by waveform and saturation, and know when thermodilution fails (severe TR, shunts, very low output) so Fick is preferred.',
+      'Patients with an indwelling pulmonary artery catheter need critical care transport, not BLS. If you encounter one, secure the line against tugging, apply direct pressure if it dislodges, and report sudden breathlessness, bleeding or coughing up blood immediately.',
+      'Interfacility moves with a PA catheter require critical care credentials and protocols: keep the balloon deflated, the transducer leveled and the PA waveform displayed. Treat ectopy or VT per ACLS and contact medical direction if the tip may have migrated.',
+      'Flush all lumens, test the balloon and zero at the phlebostatic axis; record RA, RV, PA and PCWP at end-expiration, thermodilution (≥ 3 injections) or Fick saturations, and calculate CO/CI, PVR, SVR and Qp:Qs. Report damped or persistent wedge traces at once.',
+      'Know normals (RA 2–6, PCWP 6–12 mmHg, CI 2.5–4.0 L/min/m²) and report trends. Keep an indwelling catheter’s balloon deflated except for brief wedge readings, watch for spontaneous wedging and ectopy, and report hemoptysis immediately as possible PA rupture.',
+      'PH (2022 ESC/ERS) is mPAP > 20 mmHg, precapillary if PCWP ≤ 15 mmHg and PVR > 2 WU. Read at end-expiration, confirm wedge by waveform ± saturation, prefer Fick when thermodilution fails (severe TR, shunts, low output), and phenotype shock with CI, PCWP and cardiac power output.',
     ],
     overview: [
       'Flow-directed balloon catheter floated through RA, RV and PA into a wedge position',
@@ -432,11 +432,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A pressure-sensor guidewire compares coronary pressure beyond a narrowing with aortic pressure to show whether the narrowing actually limits blood flow. It decides whether an intermediate stenosis should be stented or treated medically.',
     levelNotes: [
-      'Not every narrowing found at cath needs a stent; pressure testing decides, so chest pain after any cath still warrants a full ACS assessment.',
-      'Adenosine used for FFR causes the same transient flushing, chest tightness, dyspnea and AV block seen when it is pushed for SVT.',
-      'Adenosine effects resolve within ~1–2 minutes of stopping because of its seconds-long half-life, so prolonged bradycardia or bronchospasm afterwards needs another explanation.',
-      'FFR ≤ 0.80 or iFR/RFR ≤ 0.89 marks a hemodynamically significant lesion, and physiology-guided PCI avoids unnecessary stents (FAME, DEFINE-FLAIR, iFR-SWEDEHEART).',
-      'Equalize at the guide tip with the introducer removed, avoid guide damping, use pullbacks for serial or diffuse disease, and accept drift only within ~0.98–1.02 on return.',
+      'A narrowing may have been measured but not stented, so chest pain after any cath is still possible ACS: give aspirin per protocol, acquire and transmit a 12-lead where protocols allow, and transport to a PCI-capable center.',
+      'A deferred (non-stented) lesion does not exclude ACS, so interpret the 12-lead and activate per STEMI protocol. Adenosine used for FFR causes the same brief flushing, dyspnea and AV block as when pushed for SVT, resolving within ~1–2 minutes.',
+      'Set up the pressure-wire console, zero the aortic transducer and confirm equalization at the guide tip with the introducer removed. Record resting index, hyperemic FFR and pullback, check drift on return (~0.98–1.02), and report guide damping, AV block or hypotension during adenosine.',
+      'Prepare and give IV adenosine as ordered (typically 140 μg/kg/min via a large-bore line), after screening for bronchospasm and high-grade AV block. Warn the patient about flushing and chest tightness and monitor rhythm, BP and SpO2; effects fade within ~1–2 minutes of stopping.',
+      'FFR ≤ 0.80 or iFR/RFR ≤ 0.89 is significant; deferring negative lesions is safe (DEFER, FAME 2) and FFR-guided multivessel PCI outperforms angiography guidance (FAME). Avoid STEMI culprits, equalize correctly, use pullbacks for serial or diffuse disease, and repeat if drift exceeds ~0.98–1.02.',
     ],
     overview: [
       'Pressure-sensor guidewire positioned distal to a coronary stenosis',
@@ -560,11 +560,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Catheter-based imaging from inside the coronary artery, using ultrasound (IVUS) or near-infrared light (OCT), that shows the vessel wall, plaque and stent in cross-section. It is used to size and optimize stents and to find the cause of stent failure.',
     levelNotes: [
-      'Modern stenting often uses imaging from inside the artery to make stents last longer, but any new chest pain after PCI is still treated as possible ACS.',
-      'Patients after complex imaging-guided PCI still depend on antiplatelet therapy, so never advise stopping it.',
-      'For stent thrombosis or restenosis, intravascular imaging identifies the mechanism (underexpansion, malapposition, edge dissection, neoatherosclerosis).',
-      'Imaging-guided PCI reduces target vessel failure versus angiography alone, and recent guidelines strongly recommend it for left main and complex lesions.',
-      'Size stents from the EEM (IVUS) or EEL/reference lumen (OCT), plan calcium modification, and aim for full expansion (MSA ≥ ~90% of the distal reference) without major edge dissection.',
+      'An imaging-optimized stent can still clot, so treat new chest pain after PCI as possible ACS: aspirin per protocol, a 12-lead acquired and transmitted where protocols allow, and rapid transport. Never advise a patient to stop antiplatelet medicines.',
+      'After imaging-guided PCI, recurrent chest pain with ST elevation suggests stent thrombosis, so activate the cath lab per protocol. Report the stent history and any missed antiplatelet doses to the receiving team.',
+      'Prepare and flush the IVUS/OCT catheter, set up the console, automated pullback and (for OCT) contrast flush, and confirm a therapeutic ACT is documented. Report bradycardia, spasm or ST changes during pullback and archive key measurements (MLA, MSA, reference areas).',
+      'Confirm a therapeutic ACT and give heparin as ordered; have intracoronary nitroglycerin ready for the operator. Track cumulative contrast in CKD (OCT flushes add volume), watch for chest pain or ST changes during pullback, and reinforce antiplatelet adherence at discharge.',
+      'Imaging guidance lowers target-vessel failure versus angiography (RENOVATE-COMPLEX-PCI, OCTOBER) and is guideline-recommended for left main and complex PCI. Size from EEM (IVUS) or EEL/lumen (OCT), modify calcium meeting the OCT “rule of 5s”, and target MSA ≥ ~90% of distal reference without major edge dissection.',
     ],
     overview: [
       'IVUS: ultrasound (~20–60 MHz) with ~100–150 μm resolution and deep penetration through blood',
@@ -684,11 +684,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Percutaneous coronary intervention opens a narrowed or blocked coronary artery with a balloon and a drug-eluting stent delivered on a catheter. Primary PCI is the preferred reperfusion therapy for STEMI when it can be performed promptly.',
     levelNotes: [
-      'For suspected STEMI, transmit the 12-lead and go directly to a PCI center, because every delay to reperfusion increases mortality.',
-      'Prehospital cath lab activation and aspirin (162–325 mg chewed, non-enteric-coated) are the key actions, with oxygen only if SpO2 < 90% and P2Y12 timing per local protocol.',
-      'After PCI, monitor the access site and rhythm, and treat recurrent chest pain with new ST elevation as stent thrombosis needing immediate cath lab return.',
-      'DAPT (aspirin + P2Y12 inhibitor) is typically 12 months after ACS and 6 months after elective DES, with shorter or de-escalated regimens for high bleeding risk or selected patients.',
-      'Radial-first access, adequate lesion preparation, imaging-guided sizing and high-pressure post-dilation to full expansion minimize restenosis and stent thrombosis.',
+      'For suspected STEMI, give aspirin (chewed, non-enteric-coated) per protocol, acquire and transmit a 12-lead where protocols allow, give oxygen only if SpO2 < 90%, and transport directly to a PCI-capable center with early notification.',
+      'Recognize STEMI on the 12-lead and activate the cath lab from the field per protocol; give aspirin 162–325 mg chewed, establish IV access and apply pads, giving a P2Y12 inhibitor or anticoagulant only if your system protocol authorizes it. Goal: FMC-to-device ≤ 90 min.',
+      'Prepare the guide, wires, balloons and stents the operator selects, record ACT, inflation pressures and times, and keep bailout gear ready (covered stents, pericardiocentesis kit, temporary pacing). Alert the operator to ST elevation, VF, bradycardia, hypotension or contrast staining.',
+      'Give antiplatelets and heparin/bivalirudin as ordered and track ACT; pull femoral sheaths only per protocol and validated competency once ACT falls (often < ~150–180 s). New chest pain or ST elevation after PCI: obtain a stat ECG and call the interventionalist (possible stent thrombosis).',
+      'Radial-first access, imaging-guided lesion preparation and high-pressure NC post-dilation minimize restenosis and thrombosis. After ACS, DAPT ~12 months with ticagrelor or prasugrel (de-escalate in high bleeding risk), elective DES ~6 months; complete non-culprit revascularization in STEMI (COMPLETE), culprit-only in shock (CULPRIT-SHOCK).',
     ],
     overview: [
       'Balloon angioplasty followed by drug-eluting stent (DES) implantation is standard practice',
@@ -827,11 +827,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A diamond-coated burr spinning at very high speed grinds heavily calcified coronary plaque into tiny particles so that balloons and stents can cross and expand fully. It is a lesion-preparation tool used before stenting, not a stand-alone treatment.',
     levelNotes: [
-      'Patients who had complex calcified stenting carry higher complication risk, so treat any new chest pain or collapse as an emergency.',
-      'Post-procedure chest pain or new ST elevation may mean slow flow, dissection or stent thrombosis, so activate the STEMI pathway.',
-      'Watch for bradycardia or heart block (RCA or dominant LCx cases), periprocedural MI from slow flow, and delayed tamponade from perforation.',
-      'Severe calcium predicts stent underexpansion; atherectomy improves deliverability and expansion but has not reduced long-term MACE versus standard preparation (ROTAXUS, PREPARE-CALC).',
-      'Use a burr-to-artery ratio of ~0.5–0.6, ~140,000–180,000 rpm, short pecking runs (< ~20 s), avoid decelerations > 5,000 rpm, and consider temporary pacing for RCA/dominant LCx.',
+      'Patients after complex calcified stenting carry higher risk: treat new chest pain, fainting or collapse as an emergency, with aspirin per protocol for chest pain, CPR and AED if pulseless, and rapid transport with early notification.',
+      'After atherectomy, new ST elevation suggests slow flow, dissection or stent thrombosis, so activate per STEMI protocol; hypotension with JVD suggests delayed tamponade from perforation. Treat bradycardia or AV block with atropine and/or transcutaneous pacing per protocol.',
+      'Set up the console, advancer and pressurized flush (additives per the physician’s order), and have the 0.009-inch wire and temporary pacing ready for RCA or dominant LCx cases. Call out rpm, run time and decelerations > 5,000 rpm, and report bradycardia, ST elevation or hypotension immediately.',
+      'Expect bradycardia or AV block (atropine and pacing ready) and hypotension from slow flow, giving vasopressors or vasodilators as ordered and keeping ACT at target. Afterwards trend ECGs and troponin and watch for delayed tamponade (hypotension, rising JVP, pulsus paradoxus), escalating immediately.',
+      'Use a burr-to-artery ratio ~0.5–0.6, ~140,000–180,000 rpm, short pecking runs (< ~20 s) and avoid decelerations > 5,000 rpm; consider temporary pacing for RCA or dominant LCx. Atherectomy aids deliverability and expansion but has not reduced long-term MACE (ROTAXUS, PREPARE-CALC).',
     ],
     overview: [
       'Elliptical diamond-coated burr (~1.25–2.5 mm) rotating at ~140,000–180,000 rpm over a dedicated wire',
@@ -955,11 +955,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A balloon catheter with built-in emitters sends sonic pressure waves into the artery wall to crack calcium, allowing the vessel to expand fully for a stent. It works at low balloon pressure and is used for heavily calcified coronary and peripheral arteries.',
     levelNotes: [
-      'Patients treated for heavily calcified arteries follow the same post-PCI chest pain precautions, so treat new chest pain as possible ACS.',
-      'IVL can cause harmless extra beats during pulse delivery, but post-procedure arrhythmias are uncommon and should be reported.',
-      'Care after IVL-assisted PCI is the same as after PCI: access site, DAPT adherence, ECG for ischemia and vigilance for tamponade.',
-      'IVL fractures both superficial and deep calcium with high procedural success and low complication rates (Disrupt CAD studies); randomized comparisons with atherectomy show broadly similar results.',
-      'Size the IVL balloon 1:1 to the reference, inflate to ~4 atm, deliver pulse cycles, reinflate to ~6 atm, and reimage, favoring IVL for concentric or deep calcium.',
+      'Care after IVL-assisted stenting is the same as after any PCI: treat new chest pain as possible ACS, give aspirin per protocol, acquire and transmit a 12-lead where protocols allow, and transport to a PCI-capable center.',
+      'Post-IVL patients follow standard post-PCI precautions: look for new ST elevation (stent thrombosis), treat arrhythmias per ACLS, and consider tamponade with hypotension and JVD. IVL ectopy occurs only during pulse delivery, so later ectopy needs evaluation.',
+      'Connect the generator and cable, prepare the balloon with the saline–contrast mix on the inflation device, and document pulses and cycles delivered (~4 atm during pulses, ~6 atm to dilate). Report ventricular capture beats, ST changes or balloon rupture.',
+      'Monitor rhythm (pulse-synchronized ectopy is expected, more often at slow rates), BP and chest pain, and keep ACT at the ordered target. Afterwards give standard post-PCI care: access site, distal pulses after peripheral IVL, renal function and DAPT education.',
+      'IVL fractures superficial and deep calcium at low pressure with high success and low complication rates (Disrupt CAD studies); it suits concentric or deep calcium, whereas eccentric nodules and uncrossable lesions favor atherectomy. Size 1:1, pulse at ~4 atm, dilate to ~6 atm and reimage.',
     ],
     overview: [
       'Adapted from kidney-stone lithotripsy: emitters inside a fluid-filled balloon generate acoustic pressure waves',
@@ -1073,11 +1073,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A balloon placed in the descending thoracic aorta inflates in diastole and deflates just before systole, raising coronary perfusion pressure and lowering LV afterload. It gives modest support (~0.5–1 L/min) and is mainly used as a bridge in selected shock and mechanical complications of MI.',
     levelNotes: [
-      'During transport with an IABP, keep the cannulated leg straight, protect the catheter, and report bleeding, a cold or pale leg, or pump alarms.',
-      'In cardiac arrest with an IABP, start CPR and switch to pressure trigger (or internal mode) per protocol; defibrillation is safe because the console is designed for it.',
-      'Check timing (inflation at the dicrotic notch, deflation just before systole), limb perfusion, left radial pulse, urine output, platelets and tip position on CXR.',
-      'IABP-SHOCK II showed no mortality benefit in AMI cardiogenic shock with early revascularization, so routine use is not recommended, but it remains useful for acute MR or ventricular septal rupture as a bridge.',
-      'Insert via the common femoral artery with the tip just distal to the left subclavian and the balloon above the renal arteries, size by height, and avoid in significant AR, aortic dissection or severe PAD.',
+      'IABP patients travel with critical care teams. If one arrests in your care, start high-quality CPR and use the AED as usual; keep a femoral-device leg straight and apply direct pressure to any bleeding from the insertion site.',
+      'IABP transport requires critical care training and protocol: keep the leg straight and monitor limb perfusion, left radial pulse and alarms. In arrest, start CPR and switch to pressure trigger (internal trigger if no compressions); defibrillation is safe with the console attached.',
+      'Prepare the console, helium, height-sized balloon and ECG/arterial pressure triggers. Run 1:2 strips so timing can be verified with the operator (inflate at the dicrotic notch, deflate before systole), and report blood in the helium line or loss of trigger immediately.',
+      'Do hourly checks of the cannulated limb, left radial pulse, urine output and site; keep the leg straight with HOB ≤ ~30°. Give heparin as ordered, trend platelets and Hb, verify timing, and never leave the balloon static for more than ~15–30 minutes.',
+      'IABP-SHOCK II showed no mortality benefit in AMI shock with early revascularization, so routine use is not recommended, but it bridges acute MR or VSR. Size by height, exclude significant AR, dissection and severe PAD, and place the tip just distal to the left subclavian with the balloon above the renals.',
     ],
     overview: [
       'Counterpulsation: diastolic inflation augments aortic diastolic pressure and coronary perfusion',
@@ -1208,11 +1208,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'A catheter-mounted microaxial pump placed across the aortic valve draws blood from the left ventricle and ejects it into the ascending aorta, unloading the LV and supporting cardiac output. Right-sided versions support a failing right ventricle.',
     levelNotes: [
-      'During transport, keep the controller and catheter secure, avoid manipulating the femoral line, and report bleeding, alarms or a cold leg.',
-      'Chest compressions can displace the pump, so follow device guidance during CPR (reduce to a low performance level) and defibrillate as usual, expecting a position check afterwards.',
-      'Monitor for hemolysis (plasma free Hb, dark urine), limb ischemia, bleeding and suction or position alarms, and use echo to confirm inlet depth.',
-      'DanGer Shock showed lower 180-day mortality with a microaxial pump in selected STEMI cardiogenic shock (non-comatose, LV-dominant), at the cost of more bleeding, limb ischemia and renal replacement therapy.',
-      'Exclude LV thrombus, mechanical aortic valve, severe AS and severe PAD, use ultrasound-guided large-bore access with preclosure and a limb perfusion plan, and place the inlet ~3.5 cm below the aortic annulus.',
+      'Microaxial pump patients travel with critical care teams. If one arrests in your care, start CPR and use the AED as usual, keep the controller and femoral catheter secured, and apply direct pressure to any access-site bleeding.',
+      'Impella transport requires critical care training and protocol: monitor suction, position and purge alarms, the cannulated leg and access site. Defibrillate VT/VF as usual; during CPR reduce to a low performance level per device guidance and expect a position check afterwards.',
+      'Prepare the pump, large-bore sheath, preclosure sutures, 0.018-inch placement wire and controller (purge solution per order), and record the insertion ACT. Watch the placement and motor-current waveforms and alert the operator to ectopy, suction alarms, falling flow or hypotension.',
+      'Give heparin to the ordered ACT and manage the purge per protocol. Check distal pulses/Doppler, access site, urine color and output hourly, trend hemolysis labs (plasma free Hb, LDH), and report suction or position alarms, ectopy or limb ischemia; reposition only if credentialed per policy.',
+      'DanGer Shock: microaxial support lowered 180-day mortality in selected non-comatose STEMI cardiogenic shock, with more bleeding, limb ischemia and RRT. Exclude LV thrombus, mechanical aortic valve, severe AS and severe PAD, plan limb perfusion, and place the inlet ~3.5 cm below the aortic annulus.',
     ],
     overview: [
       'Inlet sits in the LV and outlet in the ascending aorta, producing continuous forward flow',
@@ -1311,7 +1311,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Pump migration, suction events, ventricular arrhythmias, acute kidney injury',
     ],
     postCare: [
-      'Daily echo and position checks; repositioning only by trained staff',
+      'Daily echo and position checks; repositioning only by the physician or credentialed staff per institutional policy',
       'Labs: hemoglobin, plasma free Hb/LDH, platelets, coagulation, renal function',
       'Monitor purge and systemic anticoagulation per protocol',
       'Hourly distal pulse/Doppler checks, urine color and output',
@@ -1343,11 +1343,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'An invasive study that places catheters inside the heart to record its electrical signals and stimulate it, revealing the mechanism and location of arrhythmias and the health of the conduction system. It is often followed immediately by catheter ablation.',
     levelNotes: [
-      'For recurrent fainting or palpitations, a rhythm strip captured during symptoms is extremely valuable, so record and hand it over.',
-      'Capture and transmit strips of any tachycardia, including its onset and response to vagal maneuvers or adenosine, because they guide EP diagnosis.',
-      'After an EP study, monitor femoral venous access sites, rhythm (induced arrhythmias, new AV block) and recovery from sedation.',
-      'Know baseline intervals (AH ~50–120 ms, HV 35–55 ms); HV ≥ 70 ms or infra-Hisian block in syncope with bundle branch block supports pacing.',
-      'Use programmed stimulation, entrainment and maneuvers such as para-Hisian pacing to separate AVNRT, AVRT and atrial tachycardia and localize ablation targets.',
+      'For recurrent fainting or palpitations, acquire a 12-lead or rhythm strip during symptoms where protocols allow and hand it over with a clear timeline (onset, duration, what ended it); this guides EP diagnosis.',
+      'Capture and transmit 12-leads of any tachycardia, including onset, termination and the response to vagal maneuvers or adenosine (record continuously while giving it). If a patient deteriorates after an EP study, consider induced arrhythmia or new AV block.',
+      'Set up the recording system and stimulator, connect the HRA, His, CS and RV catheters, and apply defibrillator pads. Measure baseline intervals, pace and annotate protocols as directed, and tell the operator immediately of sustained arrhythmia, hypotension or unexpected AV block.',
+      'Confirm antiarrhythmics were held as ordered, NPO status and the anticoagulation plan. Give moderate sedation on the practitioner’s order with the practitioner present and capnography monitoring, prepare isoproterenol or adenosine as ordered, and afterwards monitor groin sites, rhythm and sedation recovery.',
+      'Normal AH ~50–120 ms and HV 35–55 ms; HV ≥ 70 ms or infra-Hisian block in syncope with BBB supports pacing. Use programmed stimulation, entrainment and para-Hisian pacing to separate AVNRT, AVRT and AT; a shortest pre-excited RR ≤ 250 ms in AF marks a high-risk pathway.',
     ],
     overview: [
       'Multipolar catheters at high RA, His bundle, coronary sinus and RV apex, usually via femoral veins',
@@ -1477,11 +1477,11 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     summary:
       'Catheter ablation destroys or electrically isolates the small areas of heart tissue that start or sustain an arrhythmia, using radiofrequency heat, cryoenergy or pulsed field energy. It can cure most SVTs and typical flutter and reduces atrial fibrillation burden.',
     levelNotes: [
-      'After an ablation, chest pain, breathlessness, collapse or stroke symptoms can mean tamponade or stroke, so treat as time-critical.',
-      'Hypotension with distended neck veins soon after ablation suggests tamponade, and fever with neurologic signs weeks after AF ablation suggests atrioesophageal fistula, so transport urgently.',
-      'Fever, neurologic events or GI bleeding 1–6 weeks after AF ablation suggests atrioesophageal fistula, so get CT chest, avoid endoscopy (air insufflation can cause air embolism) and call cardiothoracic surgery.',
-      'Ablation is first-line for symptomatic AVNRT, AVRT/WPW and typical flutter, and a Class 1 option for selected symptomatic paroxysmal AF and AF with HFrEF (CASTLE-AF).',
-      'Know the targets (slow pathway for AVNRT, accessory pathway for WPW, bidirectional CTI block for flutter, PVI for AF by RF, cryo or pulsed field) and their specific risks.',
+      'After an ablation, chest pain, breathlessness, fainting or stroke signs may mean tamponade or stroke, and fever with neurologic symptoms weeks after AF ablation can mean an esophageal fistula. Note last-known-well time and transport urgently with early notification.',
+      'Hypotension with JVD soon after ablation suggests tamponade: treat per protocol and transport to the ablation center. Perform a stroke assessment for neurologic signs, and report fever or neurologic symptoms 1–6 weeks after AF ablation as possible atrioesophageal fistula.',
+      'Set up the mapping and recording systems, energy console (RF, cryo or PFA), ICE and esophageal temperature probe, and apply pads. Report esophageal temperature rises, fast junctional rhythm or VA block during slow-pathway ablation, falling BP and loss of diaphragm movement during cryo.',
+      'Verify the anticoagulation plan, give heparin to the ordered ACT (commonly ≥ 300 s for left-sided ablation), protamine and moderate sedation as ordered with capnography. Afterwards check groins and BP and teach red flags: fever, dysphagia, chest pain, neurologic symptoms.',
+      'Ablation is first-line for symptomatic AVNRT, AVRT/WPW and typical flutter, and Class 1 for selected symptomatic paroxysmal AF and AF with HFrEF (2023 ACC/AHA/ACCP/HRS; CASTLE-AF). Suspected atrioesophageal fistula: CT, no endoscopy, urgent surgery; PFA largely spares esophagus and phrenic nerve.',
     ],
     overview: [
       'Mapping (activation, entrainment, voltage/substrate) locates the circuit or trigger',

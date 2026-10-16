@@ -15,11 +15,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A catheter-delivered bioprosthetic valve is expanded inside the diseased native aortic valve, most often from the femoral artery, avoiding open-heart surgery. It is an established treatment for severe symptomatic aortic stenosis across surgical risk groups, with patient selection by a multidisciplinary heart team.',
     levelNotes: [
-      'A recent TAVR patient with fainting, a very slow pulse or groin bleeding needs rapid transport — heart block can appear days after the procedure',
-      'Post-TAVR bradycardia or new AV block may need transcutaneous pacing; check the groin access site for hematoma and the leg for pulses',
-      'Watch for high-grade AV block (especially with new LBBB or pre-existing RBBB), access-site bleeding, stroke and tamponade after TAVR',
-      'Heart team selection weighs age, STS risk, anatomy, frailty, life expectancy and valve durability; TAVR is favoured over SAVR above ~80 y and SAVR generally below ~65 y',
-      'Gated CT drives annular sizing, coronary heights, sinus dimensions, calcium distribution and iliofemoral suitability, which predict annular rupture, coronary obstruction and PVL',
+      'Fainting, a very slow pulse or new breathlessness after TAVR can mean delayed heart block — request ALS and transport promptly; hold firm pressure on any groin bleeding and report the new valve at handover',
+      'Post-TAVR syncope may be high-grade AV block: get pads on, acquire a 12-lead (new LBBB, complete heart block) and treat symptomatic bradycardia with atropine, a chronotrope or TCP per protocol; check the access site and distal pulses',
+      'Prepare the valve system, large-bore sheath, stiff pre-shaped LV wire, pigtail and pacing set-up; confirm rapid-pacing capture, record simultaneous LV–aortic gradients before and after deployment, and call out new AV block, hypotension or ST change immediately',
+      'Complete pre-checks (consent, allergies, renal function, anticoagulants); give heparin and moderate sedation only on order with the practitioner present, monitoring ACT and capnography; afterwards watch for new heart block, access bleeding, tamponade and neuro deficits and escalate immediately',
+      'Transfemoral TAVR is favoured > 80 y, SAVR generally < 65 y, with shared decision at 65–80 (2020 ACC/AHA); gated CT sizing, coronary heights and iliofemoral size predict annular rupture, coronary obstruction and PVL, and pre-existing RBBB plus deep implant predict PPM',
     ],
     overview: [
       'A balloon-expandable or self-expanding bioprosthesis is implanted within the calcified native valve, pushing the native leaflets aside',
@@ -147,11 +147,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Transcatheter edge-to-edge repair grasps the anterior and posterior mitral leaflets with a clip delivered from the femoral vein across the interatrial septum, reducing mitral regurgitation. It treats primary MR in patients at high surgical risk and selected secondary MR despite optimal medical therapy.',
     levelNotes: [
-      'A TEER patient with new breathlessness, low blood pressure or groin swelling after discharge needs urgent transport',
-      'Most TEER patients have heart failure; treat pulmonary edema per protocol and note a small iatrogenic ASD may remain',
-      'After TEER watch for tamponade from the transseptal puncture, femoral venous bleeding and recurrent MR from single-leaflet device attachment',
-      'Secondary MR benefits mainly with a COAPT-like profile: optimised GDMT, LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg',
-      'Puncture the inferior-posterior fossa ovalis with ~3.5–4.5 cm height above the mitral annulus, and avoid iatrogenic MS (mean gradient > ~5 mmHg)',
+      'New breathlessness, low blood pressure or groin swelling after TEER needs urgent transport: sit the patient up if breathing is hard and BP allows, give oxygen to target, press on any bleeding and request ALS',
+      'TEER patients have advanced heart failure and often AF: treat pulmonary edema with CPAP and nitrates per protocol if BP allows, identify the rhythm, and suspect tamponade if hypotension and JVD follow a recent transseptal procedure',
+      'Prepare the steerable guide, clip delivery system and transseptal needle; transduce and record LA pressure and v-waves before and after each clip, hand components only as the operator directs, and report hypotension or arrhythmia immediately',
+      'Complete pre-checks and hand over to the anesthesia team, who manage general anesthesia; give heparin on order and report ACT (commonly ≥ 250 s); afterwards monitor for tamponade, femoral venous bleeding and worsening heart failure, and teach patients to report breathlessness',
+      'Secondary MR benefits with a COAPT-like profile (optimised GDMT, LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg); puncture inferior-posterior ~3.5–4.5 cm above the annulus, and accept a post-clip mean gradient ≤ ~5 mmHg to avoid iatrogenic MS',
     ],
     overview: [
       'Percutaneous adaptation of the surgical Alfieri edge-to-edge stitch',
@@ -267,11 +267,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A self-expanding device placed through the femoral vein and a transseptal puncture seals the left atrial appendage, where most AF-related thrombi form. It is a stroke-prevention alternative for non-valvular AF patients who cannot safely take long-term anticoagulation.',
     levelNotes: [
-      'LAAO patients have AF and often a past stroke or major bleed — perform a stroke screen and mention the device at handover',
-      'These patients may be on limited antithrombotic therapy; any new neurological deficit is still a stroke alert',
-      'Early post-LAAO problems include pericardial effusion/tamponade, device embolisation and access bleeding',
-      'Indicated for non-valvular AF with elevated CHA₂DS₂-VASc and a contraindication to long-term OAC; plan the post-implant antithrombotic regimen and imaging follow-up',
-      'LAA morphology, ostial and landing-zone size and depth guide device choice; an inferior-posterior transseptal puncture gives coaxial alignment with the appendage',
+      'LAAO patients have AF and often a past stroke or major bleed: screen for stroke, record time last known well, check glucose where protocols allow, and mention the device and any blood thinner at handover',
+      'Patients may be on limited antithrombotic therapy, so any new deficit is still a stroke alert; identify AF and its rate on the monitor, and suspect tamponade with hypotension, tachycardia and JVD in the days after implant',
+      'Prepare the transseptal kit, access sheath, pigtail, contrast and occluder; record LA pressure, keep the pericardiocentesis tray ready, and alert the operator to falling pressure or inferior ST elevation (possible air embolism)',
+      'Verify consent, renal function and anticoagulant instructions; give heparin on order and track ACT (commonly ~250–350 s); post-implant monitor for tamponade, access bleeding and new neuro deficits, and teach the prescribed antithrombotic schedule and follow-up imaging',
+      'Reasonable for non-valvular AF with high CHA₂DS₂-VASc when long-term OAC is contraindicated for a nonreversible reason (2023 ACC/AHA/ACCP/HRS); size from landing zone and depth on TEE/CT, confirm PASS-type release criteria, and re-image at ~45 days–1 year for DRT and leak',
     ],
     overview: [
       'About 90% of thrombi in non-valvular AF arise in the LAA',
@@ -384,11 +384,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A double-disc occluder delivered from the femoral vein seals a secundum atrial septal defect, stopping left-to-right shunting. It avoids open surgery for most secundum defects with adequate surrounding rims.',
     levelNotes: [
-      'Sudden chest pain or collapse in someone with a septal closure device could be device erosion with tamponade — transport urgently',
-      'Atrial arrhythmias are common after ASD closure; get a 12-lead and treat per tachycardia protocol',
-      'Late device erosion presenting as pericardial effusion or tamponade is rare but lethal — echo any post-closure patient with chest pain or hypotension',
-      'Close secundum ASDs with RA/RV enlargement and Qp:Qs ≥ 1.5 when PA systolic pressure is < 50% systemic and PVR < 1/3 systemic',
-      'Assess rims on TEE/ICE (a deficient aortic rim is common; deficient IVC/posterior rims are unsuitable) and avoid oversizing to reduce erosion risk',
+      'Sudden chest pain, fainting or collapse in someone with a septal closure device could be device erosion with tamponade — treat as time-critical, request ALS and transport urgently with early notification',
+      'AF and flutter are common after closure — acquire a 12-lead and treat per tachycardia protocol; hypotension with JVD, tachycardia and chest pain suggests erosion with tamponade, so give fluid per protocol and pre-alert',
+      'Draw serial oximetry samples (SVC, IVC, PA, systemic) and calculate Qp:Qs, record RA and PA pressures, and prepare the sizing balloon, delivery sheath and occluder; flush meticulously to avoid air and alert the operator to arrhythmia or ST change',
+      'Check consent, allergies (including nickel), renal function and anticoagulants; give heparin and moderate sedation on order (practitioner present) with capnography; afterwards monitor rhythm, the venous site and tamponade signs, and teach antiplatelet adherence and 6-month endocarditis prophylaxis',
+      'Close secundum ASDs with RA/RV enlargement and Qp:Qs ≥ 1.5 if PASP < 50% systemic and PVR < 1/3 systemic; assess all rims on TEE/ICE (deficient aortic rim acceptable, deficient IVC/posterior not), avoid oversizing to limit erosion, and consider test occlusion in older adults',
     ],
     overview: [
       'Only secundum ASDs are suitable; primum, sinus venosus and coronary sinus defects need surgery',
@@ -490,11 +490,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A double-disc device delivered from the femoral vein closes a patent foramen ovale to prevent paradoxical embolism. It lowers recurrent stroke risk in carefully selected younger patients whose stroke is probably PFO-related.',
     levelNotes: [
-      'A young stroke patient may have a PFO — in the field, stroke assessment, glucose and time last known well are what matter',
-      'Stroke protocol applies; PFO-related stroke typically affects younger patients without usual risk factors, sometimes after straining or with leg DVT',
-      'Young cryptogenic stroke workup includes bubble-contrast echo and venous thrombosis assessment; post-closure AF is the commonest early complication',
-      'Closure is reasonable for ~18–60 y with non-lacunar cryptogenic embolic stroke and a high-risk PFO, using RoPE and PASCAL to estimate causal likelihood',
-      'Assess tunnel length, septal mobility, atrial septal aneurysm and shunt size on TEE/ICE, and confirm closure with a follow-up bubble study',
+      'A young adult with sudden stroke symptoms may have a PFO-related stroke: do a stroke scale, check glucose where protocols allow, record time last known well and transport to a stroke centre with early notification',
+      'Apply the stroke protocol regardless of age and report recent straining, long travel or leg swelling (possible DVT); after PFO closure, palpitations warrant a 12-lead — new AF or flutter is the most common early complication',
+      'Prepare agitated saline for bubble studies, a multipurpose catheter, exchange wire and occluder; flush and de-air the delivery system meticulously because air crosses to the systemic side, record RA pressure and alert the operator to arrhythmia or ST change',
+      'Confirm consent and that pre-procedure antiplatelet doses were given as ordered; give heparin and moderate sedation on order with the practitioner present and capnography; afterwards check the venous site and rhythm, and teach antiplatelet adherence and reporting palpitations or neuro symptoms',
+      'Reasonable for ~18–60 y with non-lacunar cryptogenic embolic stroke and a high-risk PFO (atrial septal aneurysm or large shunt) after excluding AF and other mechanisms; RoPE and PASCAL estimate causality (CLOSE, RESPECT, REDUCE), and a ~6-month bubble study confirms closure',
     ],
     overview: [
       'A PFO is present in ~25% of adults and is usually incidental',
@@ -595,11 +595,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A balloon inflated across a stenotic aortic valve fractures calcium and stretches the leaflets to temporarily enlarge the valve opening. Benefit in calcific stenosis is short-lived, so it is mainly a bridge to TAVR/SAVR or palliation.',
     levelNotes: [
-      'Severe AS can cause collapse with exertion; keep the patient at rest, lay flat if hypotensive and transport',
-      'Patients with severe AS are preload-dependent — avoid nitrates and vasodilators; after BAV watch for groin bleeding',
-      'BAV can bridge decompensated severe AS or cardiogenic shock to definitive valve replacement; watch for acute AR, stroke and access bleeding',
-      'Restenosis occurs within ~6–12 months and BAV alone does not improve long-term survival — use it as a bridge or palliation',
-      'Size the balloon to or slightly below the annulus, inflate during rapid pacing, and manage large-bore access carefully',
+      'Severe aortic stenosis can cause fainting with exertion: keep the patient at rest, lay them flat if hypotensive, give oxygen if hypoxic, consult medical direction before assisting with nitroglycerin, and transport',
+      'Severe AS is preload-dependent — avoid nitrates and vasodilators and give small fluid boluses for hypotension per protocol; after BAV check the groin for bleeding and the ECG for new LBBB or AV block',
+      'Prepare the valvuloplasty balloon (diluted contrast), stiff LV wire, pacing lead and large-bore sheath; confirm pacing capture, record simultaneous LV–aortic gradients before and after inflation, and call out sustained hypotension or VF after rapid pacing',
+      'Patients are often frail or in shock: confirm consent and renal function, give heparin, vasopressors or inotropes on order, and after BAV monitor for access bleeding, acute AR (hypotension, pulmonary edema), stroke and conduction block, escalating immediately',
+      'BAV is temporising — restenosis within ~6–12 months and no survival benefit alone — so use it to bridge unstable AS to TAVR/SAVR or as palliation; size the balloon at or slightly below the annulus, inflate under rapid pacing and reassess for severe AR',
     ],
     overview: [
       'Retrograde transfemoral balloon dilation of the aortic valve',
@@ -698,11 +698,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A balloon passed across the atrial septum is inflated in the stenotic mitral valve to split fused commissures. Percutaneous mitral balloon commissurotomy is first-line treatment for symptomatic severe rheumatic mitral stenosis with favourable valve anatomy.',
     levelNotes: [
-      'Mitral stenosis patients often have AF and pulmonary edema; a fast heart rate worsens symptoms — transport promptly',
-      'In MS, tachycardia shortens diastolic filling and raises LA pressure, so rate control helps more than inotropes',
-      'After PMBC watch for tamponade, acute severe MR and stroke; pregnant patients with severe MS may need urgent PMBC',
-      'PMBC is recommended for symptomatic severe rheumatic MS (MVA ≤ 1.5 cm²) with favourable morphology, no LA thrombus and less than moderate MR',
-      'Wilkins score ≤ 8 without commissural calcification predicts success; inflate stepwise with echo after each inflation and stop if MR increases',
+      'Mitral stenosis patients often have AF and pulmonary edema, and pregnancy can unmask it: sit them up, give oxygen to target, monitor closely and transport promptly',
+      'In MS a fast rate shortens diastolic filling and raises LA pressure — identify the rhythm, treat rapid AF per protocol (rate control helps more than inotropes) and use CPAP for pulmonary edema if BP allows',
+      'Set up transducers for simultaneous LA (or PCWP) and LV pressures, record the mean transmitral gradient and calculate MVA before and after each inflation, prepare the Inoue balloon at the size the operator chooses, and report falling BP or rising v-waves',
+      'Verify the pre-procedure TEE and anticoagulation status (and the obstetric plan if pregnant); give heparin and moderate sedation on order (practitioner present), then monitor for tamponade, acute MR (pulmonary edema, hypotension) and neuro deficits, escalating immediately',
+      'Recommended for symptomatic severe rheumatic MS (MVA ≤ 1.5 cm²) with favourable morphology, no LA thrombus and < moderate MR; Wilkins ≤ 8 without commissural calcium predicts success — inflate stepwise from below reference size and stop if MR rises ≥ 1 grade',
     ],
     overview: [
       'Percutaneous mitral balloon commissurotomy, usually with the Inoue balloon',
@@ -805,11 +805,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Dehydrated alcohol injected into a septal perforator artery creates a controlled infarct of the thickened basal septum, relieving left ventricular outflow tract obstruction in obstructive hypertrophic cardiomyopathy. It is a catheter-based alternative to surgical myectomy for patients with symptoms despite medical therapy.',
     levelNotes: [
-      'HCM patients can faint with exertion — keep them still and lying down; a slow pulse after ablation may be heart block',
-      'In obstructive HCM avoid nitrates and give fluid for hypotension; complete heart block after ablation needs pacing',
-      'After ASA, monitor for complete heart block (~10–15% need a permanent pacemaker) and ventricular arrhythmias for several days with a temporary wire in place',
-      'For obstructive HCM with gradient ≥ 50 mmHg and symptoms despite GDMT (including cardiac myosin inhibitors), choose ASA vs myectomy at an experienced HCM centre',
-      'Pick the septal perforator, usually the first, whose territory covers the SAM–septal contact point on myocardial contrast echo; seal it with an over-the-wire balloon so no alcohol refluxes into the LAD',
+      'HCM patients can faint with exertion — keep them lying down and still, and consult medical direction before assisting with nitroglycerin; fainting or a slow pulse in the days after ablation may be heart block, so request ALS',
+      'In obstructive HCM avoid nitrates and give fluid for hypotension; after ASA watch for RBBB progressing to complete heart block or VT and be ready for TCP, cardioversion or defibrillation per protocol',
+      'Prepare the coronary guide, short OTW balloon, echo contrast and temporary pacing set-up, with dehydrated ethanol drawn up and labelled only on the physician’s order; record rest and post-PVC LV–aortic gradients and alert the operator to heart block or ST change',
+      'Expect chest pain from the intended septal infarct — give analgesia and heparin on order; monitor continuously for complete heart block (temporary pacing ready), VT and hypotension for several days, trend ECGs and troponin as ordered, and escalate rhythm changes',
+      'For obstructive HCM with LVOT gradient ≥ 50 mmHg and symptoms despite GDMT (including myosin inhibitors), choose ASA vs myectomy at an experienced centre (2024 AHA/ACC); confirm the perforator territory on myocardial contrast echo and seal it with an OTW balloon to prevent LAD reflux',
     ],
     overview: [
       'Percutaneous septal reduction therapy for obstructive HCM',
@@ -918,11 +918,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Occluder devices delivered by catheter plug a channel between a prosthetic valve sewing ring and the surrounding native tissue. It treats heart failure or hemolysis from paravalvular regurgitation without redo surgery.',
     levelNotes: [
-      'A prosthetic valve patient with dark urine, yellow skin or new breathlessness may have a leaking valve — transport for assessment',
-      'Prosthetic valve patients with new heart failure need hospital evaluation; note their anticoagulant for bleeding risk',
-      'PVL hemolysis shows anemia, high LDH, low haptoglobin and schistocytes; exclude endocarditis before considering closure',
-      'Transcatheter closure is reasonable for PVL causing intractable hemolysis or NYHA III–IV HF in high-risk surgical patients with suitable anatomy at an expert centre',
-      'Localise the defect with 3D TEE and/or CT on a standard clock-face view, choose antegrade, retrograde or transapical access, and size plugs to avoid leaflet impingement',
+      'A prosthetic valve patient with dark urine, yellowing skin, unusual fatigue or new breathlessness may have a leaking valve: assess, give oxygen to target, note any blood thinner and transport for evaluation',
+      'New heart failure in a prosthetic valve patient needs hospital assessment: treat pulmonary edema per protocol, consider endocarditis if febrile, identify AF on the monitor and note warfarin use for bleeding risk',
+      'Prepare steerable sheaths, hydrophilic wires, snares, several plug sizes and an AV-rail set-up if planned; record gradients across the prosthesis before and after each plug and alert the operator to a rising gradient, arrhythmia or hypotension',
+      'Check hemoglobin, LDH, INR and the anticoagulation plan before the case; give heparin on order and track ACT; afterwards trend hemolysis labs, watch for tamponade, stroke and bleeding, and restart anticoagulation for mechanical valves promptly as ordered',
+      'Transcatheter closure is reasonable for PVL with intractable hemolysis or NYHA III–IV HF at high surgical risk with suitable anatomy at an expert centre (2020 ACC/AHA, 2a); exclude endocarditis, localise on a 3D TEE/CT clock face and size plugs to avoid leaflet impingement',
     ],
     overview: [
       'Paravalvular leak is commoner with mitral and mechanical prostheses and also occurs after TAVR',
@@ -1023,11 +1023,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Contrast angiography of the aorta and limb arteries maps the location and severity of peripheral artery disease. It is used mainly to plan revascularisation after non-invasive testing.',
     levelNotes: [
-      'A cold, pale, pulseless, painful limb is an emergency (acute limb ischemia) — transport rapidly to a vascular-capable centre',
-      'Know the 6 Ps of acute limb ischemia; groin bleeding after angiography needs firm manual pressure just above the skin puncture',
-      'After femoral access check for hematoma, retroperitoneal bleeding (back or flank pain, hypotension), pseudoaneurysm and contrast-associated AKI',
-      'ABI and duplex, CTA or MRA come first; invasive angiography is for planning revascularisation of refractory claudication or chronic limb-threatening ischemia',
-      'Choose contralateral up-and-over, antegrade femoral, radial or pedal access by lesion location; use DSA, CO₂ angiography in CKD and image runoff to the foot',
+      'A cold, pale, pulseless, painful limb is acute limb ischemia — a time-critical emergency; for bleeding after a groin or wrist puncture hold firm direct pressure just above the skin puncture, and transport rapidly to a vascular-capable centre',
+      'Document the 6 Ps plus distal pulses, colour, sensation and movement; hypotension with back or flank pain after femoral access suggests retroperitoneal bleeding — IV access, fluids per protocol and early notification',
+      'Prepare the micropuncture kit, sheaths, pigtail and selective catheters and the DSA runoff set-up (or CO₂ system in CKD); program the power injector as directed, coach breath-holds for subtraction runs and apply ALARA with collimation and shielding',
+      'Check allergies, renal function, metformin and antithrombotic instructions and baseline distal pulses; after the case perform access-site, pulse and neurovascular checks per protocol, encourage hydration as ordered, and escalate hematoma, back pain with hypotension or a cold limb',
+      'ABI and duplex, CTA or MRA come first; invasive angiography plans revascularisation of refractory claudication, CLTI or ALI — choose contralateral up-and-over, antegrade, radial or pedal access by lesion, use CO₂ in CKD and image runoff to the foot',
     ],
     overview: [
       'Invasive imaging of the aorta, iliac, femoropopliteal and infrapopliteal arteries',
@@ -1128,11 +1128,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'Balloon angioplasty, stents, drug-coated devices or atherectomy reopen narrowed or blocked limb arteries. It relieves disabling claudication and helps save limbs in chronic limb-threatening ischemia.',
     levelNotes: [
-      'After leg artery stenting, a newly cold, painful or numb leg suggests acute blockage — emergency transport',
-      'Groin bleeding needs direct firm pressure; ask about antiplatelet drugs and recent procedures',
-      'Watch for access bleeding, acute stent thrombosis and compartment syndrome or hyperkalemia after reperfusing an acutely ischemic limb',
-      'Revascularise for lifestyle-limiting claudication after exercise therapy and GDMT, or for CLTI; add statin, antiplatelet and consider low-dose rivaroxaban plus aspirin (VOYAGER PAD)',
-      'Match the tool to the segment: iliac stenting has excellent patency, femoropopliteal disease favours drug-coated devices, and tibial CLTI aims for inline flow to the wound',
+      'After leg artery stenting, a newly cold, pale, painful or numb leg suggests acute blockage — emergency transport; hold firm direct pressure on groin bleeding and ask about antiplatelet drugs and recent procedures',
+      'After reperfusion of an ischemic limb watch for hyperkalemia (peaked T waves, widening QRS, arrhythmias) and treat per protocol; a tense, painful calf suggests compartment syndrome, and access bleeding with hypotension needs IV fluids per protocol',
+      'Prepare balloons, drug-coated devices, stents, atherectomy or lithotripsy consoles and long sheaths per the operator’s plan; track ACT timing and contrast volume, record pressure gradients if requested, and alert the operator to patient pain, hemodynamic change or arrhythmia',
+      'Give heparin on order to the ACT target and antiplatelet loading as prescribed; after the case do frequent distal pulse/Doppler and neurovascular checks, watch for compartment syndrome, hyperkalemia and access bleeding, and reinforce antiplatelet, statin and smoking-cessation teaching',
+      'Revascularise for lifestyle-limiting claudication after exercise therapy and GDMT, or for CLTI; match tool to segment (iliac stents, drug-coated femoropopliteal devices, inline tibial flow to the wound), consider vein bypass (BEST-CLI) and afterwards rivaroxaban 2.5 mg bid plus aspirin (VOYAGER PAD)',
     ],
     overview: [
       'Endovascular-first strategies are common for many lesions',

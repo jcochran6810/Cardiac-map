@@ -185,11 +185,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Use AV-nodal and conduction-slowing drugs cautiously when conduction disease is advanced',
     ],
     fieldCare: [
-      'Acquire, transmit and compare the 12-lead with prior ECGs when available',
-      'Concordant ST elevation, or ST depression in V1–V3, suggests acute MI despite LBBB',
+      'Acquire and transmit the 12-lead, and bring prior ECGs for comparison when available',
+      'ALS: Concordant ST elevation, or ST depression in V1–V3, suggests acute MI despite LBBB',
       'Shock, acute heart failure or refractory ischemic pain with LBBB: early notification and transport to a PCI center',
-      'Aspirin per protocol for suspected ACS; nitroglycerin only if SBP ≥ 90 mmHg and no recent PDE-5 inhibitor',
-      'Monitor for bradycardia and AV block; apply pacing pads if syncope or instability',
+      'Aspirin per protocol for suspected ACS; nitroglycerin only if SBP ≥ 90 mmHg and no recent PDE-5 inhibitor (EMTs assist with the patient’s own, per protocol)',
+      'ALS: Monitor for bradycardia and AV block; apply pacing pads if syncope or instability',
     ],
     hospitalCare: [
       'Smith-modified Sgarbossa: concordant STE ≥ 1 mm, concordant ST depression ≥ 1 mm in V1–V3, or discordant STE ≥ 1 mm and ≥ 25% of the preceding S-wave depth',
@@ -244,11 +244,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'Bifascicular block is right bundle branch block plus block of either the left anterior or left posterior fascicle, leaving one fascicle to carry conduction to the ventricles. It marks diffuse conduction system disease and a risk of intermittent complete heart block, especially when syncope is present.',
     levelNotes: [
-      'A wide-QRS patient who has fainted can suddenly develop complete heart block; keep them on the monitor, place pads if slow or unstable, and transport',
-      'RBBB plus marked left axis deviation = RBBB + LAFB; with syncope or bradycardia apply pacing pads and expect atropine to fail if the block is infranodal',
-      'Bifascicular block with syncope is high risk for intermittent complete heart block: admit to telemetry, keep transcutaneous pacing ready and involve cardiology',
-      'Know LAFB/LPFB criteria and that trifascicular usually means bifascicular block plus first-degree AV block; pace for alternating BBB, HV ≥ 70 ms or infranodal block with syncope',
-      'EP study (HV interval, incremental atrial pacing, procainamide challenge) unmasks infra-Hisian disease; baseline RBBB is the strongest predictor of pacemaker need after TAVR',
+      'A patient who has fainted may have a conduction problem that can suddenly cause a very slow pulse. Keep them lying down, reassess pulse, blood pressure and mental status often, request ALS early, and start CPR with the AED if they become pulseless.',
+      'RBBB plus marked left axis deviation suggests RBBB + LAFB. With syncope or bradycardia keep the patient monitored with pacing pads on; infranodal block often fails atropine, so move to transcutaneous pacing or a chronotropic infusion per protocol.',
+      'Bifascicular block leaves one fascicle conducting, so catheter contact with the remaining bundle can cause complete heart block. Have a temporary pacing wire and generator ready, report dropped beats to the operator immediately, and record HV intervals accurately in the EP lab.',
+      'Ask about syncope and flag AV-nodal or conduction-slowing drugs for physician review. Keep pacing pads on per order, monitor continuously for bradycardia or AV block and escalate immediately; give atropine or chronotropic infusions only as ordered, expecting a poor atropine response.',
+      'Asymptomatic bifascicular block with 1:1 conduction needs no pacing. Syncope warrants EP study or prolonged monitoring; pace for alternating BBB, Mobitz II, high-grade AV block, or HV ≥ 70 ms/infranodal block on EP study (2018 ACC/AHA/HRS). Baseline RBBB predicts pacemaker need after TAVR.',
     ],
     overview: [
       'Most commonly RBBB + left anterior fascicular block; RBBB + left posterior fascicular block is less common',
@@ -295,10 +295,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Avoid class I antiarrhythmics that slow His-Purkinje conduction without specialist input',
     ],
     fieldCare: [
-      'Continuous ECG monitoring for any patient with syncope and a wide QRS',
-      'Apply transcutaneous pacing pads early when bradycardic, hypotensive or after syncope',
-      'Symptomatic bradycardia: atropine 1 mg IV may be tried but pacing or chronotropic infusion is often needed',
-      'Transmit the 12-lead; report new bifascicular block with chest pain as possible anterior MI',
+      'Acquire and transmit a 12-lead where protocols allow; request ALS early for syncope, a slow pulse or hypotension',
+      'ALS: Continuous ECG monitoring for any patient with syncope and a wide QRS',
+      'ALS: Apply transcutaneous pacing pads early when bradycardic, hypotensive or after syncope',
+      'ALS: Symptomatic bradycardia: atropine 1 mg IV may be tried but pacing or chronotropic infusion is often needed',
+      'ALS: Report new bifascicular block with chest pain as possible anterior MI',
     ],
     hospitalCare: [
       'Admit to telemetry when bifascicular block accompanies syncope',
@@ -353,11 +354,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'PVCs are early beats that start in the ventricles rather than the sinus node, producing a wide, bizarre QRS without a preceding P wave. They are very common and often benign, but frequent PVCs can weaken the heart and PVCs in acute ischemia can trigger dangerous rhythms.',
     levelNotes: [
-      'Skipped or irregular beats are often PVCs; assess for chest pain, syncope or dyspnea, give oxygen only if SpO2 < 90%, and report runs of wide beats',
-      'Identify PVC patterns (bigeminy, couplets, NSVT, R-on-T) and treat the patient and cause, not isolated PVCs; prophylactic lidocaine is not used',
-      'Check potassium, magnesium, ischemia, stimulants and QT interval; frequent or multiform PVCs in acute ischemia warrant close monitoring',
-      'Quantify burden with a Holter; burden > 10–15% warrants surveillance for PVC-induced cardiomyopathy, and MRI helps exclude scar',
-      'PVC morphology localizes origin (LBBB + inferior axis suggests outflow tract); activation and pace mapping guide ablation, often curative for idiopathic PVCs',
+      'An irregular pulse or “skipped beats” is common. Assess for chest pain, dyspnea, dizziness or syncope, check vitals and SpO2, give oxygen only if SpO2 < 90%, and acquire and transmit a 12-lead where protocols allow if the patient is symptomatic.',
+      'Identify PVC patterns (bigeminy, couplets, multiform, NSVT, R-on-T); treat the patient and the cause, not isolated PVCs, and give no prophylactic antiarrhythmic. Runs of VT or PVCs with chest pain warrant a 12-lead, pads on and early notification.',
+      'PVCs are common during catheter or wire manipulation in the ventricle and usually stop when the catheter is repositioned. Mark them on the record, exclude ectopic and post-ectopic beats from routine pressure measurements, and alert the operator to couplets, runs or VT.',
+      'Check potassium and magnesium, stimulant use and QT-prolonging drugs, and replace electrolytes as ordered. Report increasing frequency, couplets, runs or R-on-T PVCs promptly, especially with chest pain or after reperfusion, and keep the defibrillator ready.',
+      'Quantify burden by Holter or patch; > 10–15% warrants surveillance for PVC-induced cardiomyopathy, and MRI excludes scar. LBBB/inferior-axis morphology suggests outflow tract origin; ablation is first-line for symptomatic idiopathic RVOT PVCs (ESC 2022); avoid class IC drugs after MI (CAST).',
     ],
     overview: [
       'Premature ventricular depolarizations arising from ventricular myocardium or Purkinje fibers',
@@ -407,10 +408,10 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Correct potassium and magnesium deficits',
     ],
     fieldCare: [
-      'Isolated PVCs in a stable patient need no antiarrhythmic',
+      'ALS: Isolated PVCs in a stable patient need no antiarrhythmic',
       'Treat underlying causes: hypoxia (oxygen if SpO2 < 90%), pain, anxiety, ischemia',
-      'Obtain and transmit a 12-lead if PVCs accompany chest pain, dyspnea or syncope',
-      'Watch for runs of VT, R-on-T PVCs and polymorphic patterns; have defibrillator pads ready',
+      'Obtain and transmit a 12-lead where protocols allow if an irregular pulse or PVCs accompany chest pain, dyspnea or syncope',
+      'ALS: Watch for runs of VT, R-on-T PVCs and polymorphic patterns; have defibrillator pads ready',
     ],
     hospitalCare: [
       'Check potassium, magnesium, troponin, thyroid function and drug or stimulant exposure',
@@ -464,11 +465,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'Monomorphic VT is a fast, regular rhythm from the ventricles in which every QRS looks the same. It may be stable or cause shock and can degenerate into ventricular fibrillation, so it is treated urgently.',
     levelNotes: [
-      'A fast, wide, regular rhythm is VT until proven otherwise; check for a pulse, start CPR and use the AED if pulseless, and call ALS early',
-      'Pulse present but unstable → synchronized cardioversion (sedate if possible); stable → 12-lead, pads on and an antiarrhythmic per protocol (e.g., amiodarone 150 mg over 10 min)',
-      'Treat a wide-complex tachycardia as VT unless proven otherwise; use procainamide, amiodarone or sotalol for stable VT, avoid calcium channel blockers, and find the cause',
-      'Use AV dissociation, fusion and capture beats, precordial concordance and the Brugada and Vereckei algorithms; define substrate with echo, MRI and ischemia testing; ICD for secondary prevention',
-      'Scar-related reentry is mapped by activation, entrainment and substrate techniques to target the critical isthmus; ablation reduces recurrent VT and ICD shocks (VANISH, VANISH2)',
+      'A very fast pulse with dizziness, chest pain, dyspnea or fainting is an emergency. Request ALS immediately and keep the patient at rest; if they become unresponsive with no pulse, start CPR and use the AED (pulseless VT is shockable).',
+      'Wide, regular and fast = VT until proven otherwise. Unstable with a pulse → synchronized cardioversion (~100 J), sedating if time allows; stable → 12-lead, pads on, IV and an antiarrhythmic per protocol (e.g., amiodarone 150 mg over 10 min); pulseless → VF/pVT algorithm.',
+      'VT can occur during ventriculography, wire or catheter manipulation and reperfusion. Call it out to the operator immediately, check the arterial waveform for perfusion, have the defibrillator and pads ready, and in the EP lab record 12-lead morphology and intracardiac signals.',
+      'Assess pulse, perfusion and level of consciousness immediately; if pulseless, start CPR and ACLS. For stable VT keep pads on, administer amiodarone or procainamide as ordered, assist with synchronized cardioversion (sedation only on the practitioner’s order), and correct potassium and magnesium as ordered.',
+      'Diagnose with AV dissociation, fusion/capture beats, concordance and Brugada or Vereckei criteria; procainamide outperformed amiodarone for stable WCT (PROCAMIO). Define substrate with echo, MRI and ischemia evaluation; ICD for secondary prevention; ablation reduces recurrent VT (VANISH, VANISH2).',
     ],
     overview: [
       'Three or more consecutive ventricular beats > 100 bpm with uniform QRS morphology',
@@ -521,11 +522,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Avoid verapamil or diltiazem in wide-complex tachycardia unless SVT or fascicular VT is certain',
     ],
     fieldCare: [
-      'Check pulse; pulseless VT follows the VF/pulseless VT cardiac arrest algorithm',
-      'Unstable with a pulse (hypotension, altered mental status, shock, ischemic chest pain, acute HF): synchronized cardioversion, ~100 J initial',
-      'Sedate before cardioversion when time allows',
-      'Stable: 12-lead ECG, IV access, defibrillator pads on and antiarrhythmic per protocol',
-      'Prepare for deterioration to pulseless VT or VF at any moment',
+      'Check pulse; if pulseless, start CPR and use the AED (pulseless VT follows the VF/pulseless VT cardiac arrest algorithm)',
+      'ALS: Unstable with a pulse (hypotension, altered mental status, shock, ischemic chest pain, acute HF): synchronized cardioversion, ~100 J initial',
+      'ALS: Sedate before cardioversion when time allows',
+      'ALS: Stable: 12-lead ECG, IV access, defibrillator pads on and antiarrhythmic per protocol',
+      'Request ALS early and prepare for deterioration to pulseless VT or VF at any moment',
     ],
     hospitalCare: [
       'Obtain a 12-lead before treatment when stable; it is essential for diagnosis and ablation planning',
@@ -582,11 +583,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'In ventricular fibrillation the ventricles quiver chaotically instead of contracting, so there is no pulse and no blood flow. It is the classic shockable cardiac arrest rhythm: survival depends on immediate CPR and early defibrillation.',
     levelNotes: [
-      'Unresponsive and not breathing normally: start high-quality CPR immediately, attach the AED as soon as available, shock when advised and resume compressions right away',
-      'Shock VF as soon as possible and resume CPR immediately; epinephrine 1 mg every 3–5 min after the second shock, amiodarone or lidocaine after the third; consider vector change for refractory VF',
-      'Run the resuscitation: CPR quality metrics (ETCO2, compression fraction), reversible causes, refractory VF options, then post-ROSC care (12-lead, cath for STEMI, temperature control)',
-      'Find the substrate (acute ischemia, cardiomyopathy, channelopathy) and separate reversible causes from those needing a secondary prevention ICD',
-      'Post-arrest STEMI needs emergent PCI; refractory VF may be bridged with ECPR or mechanical support in experienced centers, and Purkinje-triggered recurrent VF can be ablated',
+      'Unresponsive and not breathing normally (gasping counts as not breathing): start high-quality CPR, attach the AED as soon as it arrives, shock when advised and resume compressions immediately. Minimize pauses and request ALS.',
+      'Defibrillate VF immediately and resume CPR for 2 min; epinephrine 1 mg IV/IO every 3–5 min after the second shock, amiodarone 300 mg or lidocaine after the third. For refractory VF consider vector change or double sequential defibrillation per protocol.',
+      'VF in the lab often follows coronary injection, ischemia or reperfusion. Call it out immediately, have the defibrillator ready (pads pre-placed in high-risk cases), participate in CPR and defibrillation per ACLS certification and facility policy, and keep recording shock times.',
+      'Lead or support ACLS: immediate defibrillation, high-quality CPR, epinephrine and amiodarone per ACLS protocol, with timed documentation. After ROSC, monitor MAP (≥ 65 mmHg), SpO2 (92–98%) and temperature, and prepare for emergent angiography or temperature control as ordered.',
+      'Post-arrest STEMI needs emergent angiography; routine immediate angiography does not benefit comatose survivors without STE or shock. ICD for VF not due to a reversible cause; evaluate channelopathies; consider ECPR or MCS for refractory VF and Purkinje-trigger ablation for storm.',
     ],
     overview: [
       'Chaotic, disorganized ventricular electrical activity with no effective cardiac output',
@@ -635,11 +636,13 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'High-quality CPR: 100–120/min, depth ≥ 5 cm (2 in), full recoil, minimal interruptions, avoid overventilation',
-      'Defibrillate as soon as possible: biphasic 120–200 J per manufacturer (maximum if unknown), monophasic 360 J',
+      'Attach the AED as soon as available and shock without delay when advised',
+      'ALS: Manual defibrillation as soon as possible: biphasic 120–200 J per manufacturer (maximum if unknown), monophasic 360 J',
       'Resume compressions immediately after each shock for 2 min before rhythm check',
       '30:2 compressions to breaths without an advanced airway; 1 breath every 6 s with one',
-      'Refractory VF: vector change (anterior-posterior pads) or double sequential defibrillation may be considered per protocol',
-      'Rotate compressors every 2 min and use ETCO2 to monitor CPR quality',
+      'ALS: Refractory VF: vector change (anterior-posterior pads) or double sequential defibrillation may be considered per protocol',
+      'Rotate compressors every 2 min to limit fatigue',
+      'ALS: Use waveform ETCO2 to monitor CPR quality; IV/IO epinephrine and amiodarone or lidocaine per protocol',
     ],
     hospitalCare: [
       'ETCO2 < 10 mmHg suggests inadequate CPR; an abrupt sustained rise suggests ROSC',
@@ -696,11 +699,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'Torsades de pointes is a polymorphic ventricular tachycardia in which the QRS axis twists around the baseline, occurring in the setting of a prolonged QT interval. It often stops on its own but can cause syncope or degenerate into ventricular fibrillation.',
     levelNotes: [
-      'Recurrent fainting or seizure-like episodes may be torsades; attach the monitor or AED early, start CPR if pulseless, and bring all medication bottles',
-      'Twisting polymorphic VT with a long QT: defibrillate if pulseless or unstable (synchronization usually impossible) and give magnesium sulfate 1–2 g IV; avoid amiodarone and procainamide',
-      'Give magnesium, correct potassium and magnesium, stop all QT-prolonging drugs, and prevent pauses with isoproterenol or overdrive pacing; keep pads on',
-      'Separate acquired from congenital long QT; manage drug-induced risk (QTc > 500 ms or rise > 60 ms) and use beta-blockers and genotype-specific therapy in congenital LQTS',
-      'Temporary transvenous overdrive pacing (~90–110 bpm) suppresses pause-dependent torsades; congenital LQTS survivors need an ICD and may benefit from left cardiac sympathetic denervation',
+      'Recurrent fainting or “seizures” can be a dangerous rhythm caused by medications or low electrolytes. Request ALS, bring all medication bottles and recent drug changes, and if the patient becomes pulseless start CPR and use the AED.',
+      'Polymorphic VT twisting around the baseline with a long QT: give magnesium sulfate 1–2 g IV per protocol, and defibrillate (unsynchronized) if pulseless or unstable. Avoid amiodarone and procainamide, keep pads on, and capture a 12-lead between episodes.',
+      'Recognize polymorphic VT on the monitor and alert the operator immediately; have the defibrillator ready and prepare temporary pacing equipment if overdrive pacing is planned. Torsades is pause-dependent, so report long pauses and frequent PVCs.',
+      'Administer magnesium sulfate as ordered or per ACLS protocol, replace potassium as ordered (target often ~4.5–5.0 mmol/L), and flag QT-prolonging drugs for physician review. Monitor QTc and telemetry for pauses and R-on-T PVCs, keep pads on, and escalate any recurrence.',
+      'Separate acquired (drugs, electrolytes, bradycardia) from congenital LQTS. Magnesium, potassium repletion, stopping culprit drugs and isoproterenol or overdrive pacing (~90–110 bpm) suppress pause-dependent torsades; congenital LQTS needs nonselective beta-blockers, genetic testing, ICD after arrest and LCSD if refractory.',
     ],
     overview: [
       'Polymorphic VT with QRS complexes twisting around the isoelectric line, in the setting of QT prolongation',
@@ -748,11 +751,12 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Common culprit drugs: class IA/III antiarrhythmics, macrolides, fluoroquinolones, haloperidol, methadone, ondansetron',
     ],
     fieldCare: [
-      'Pulseless or unstable: defibrillate (unsynchronized) and follow cardiac arrest care',
-      'Give magnesium sulfate 1–2 g IV per protocol for torsades with or without a pulse',
-      'Keep defibrillator pads on; episodes often recur',
+      'Pulseless: start CPR, attach the AED as soon as available and follow cardiac arrest care',
+      'ALS: Unstable with a pulse: defibrillate (unsynchronized; synchronization is usually unreliable)',
+      'ALS: Give magnesium sulfate 1–2 g IV per protocol for torsades with or without a pulse',
+      'Keep AED or defibrillator pads in place after an episode; episodes often recur',
       'Document and bring all medications and recent drug changes',
-      'Obtain a 12-lead between episodes to capture the QT interval',
+      'Acquire and transmit a 12-lead between episodes where protocols allow to capture the QT interval',
     ],
     hospitalCare: [
       'Magnesium bolus, then consider infusion for recurrence',
@@ -809,11 +813,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'An anterior STEMI is a heart attack caused by sudden blockage of the left anterior descending (LAD) artery, injuring the front wall and septum of the left ventricle. It threatens the largest area of heart muscle and needs immediate reperfusion, ideally by primary PCI.',
     levelNotes: [
-      'Chest pain with ST elevation on the transmitted 12-lead = activate the STEMI system early; give aspirin 162–325 mg chewed if no allergy or active bleeding, and keep the AED ready',
-      'Recognize STE in V1–V4 with reciprocal inferior ST depression; pre-alert the cath lab, bypass non-PCI centers when possible, and anticipate VF and cardiogenic shock',
-      'Target FMC-to-device ≤ 90 min (≤ 120 min if transferred); give DAPT and anticoagulation, watch for new conduction blocks and shock, and give fibrinolysis within 30 min if timely PCI is not possible',
-      'Localize proximal vs distal LAD, manage LV thrombus risk and post-MI GDMT, and reassess LVEF for ICD candidacy at ≥ 40 days (≥ 90 days after revascularization)',
-      'Radial-first primary PCI of the LAD culprit: protect diagonal and septal branches, manage no-reflow, and consider mechanical support in shock (DanGer Shock)',
+      'Chest pain with sweating or breathlessness may be a large heart attack. Acquire and transmit a 12-lead within 10 min where protocols allow, give aspirin 162–325 mg chewed per protocol, transport to a PCI-capable center when directed, and keep the AED ready for sudden VF.',
+      'Recognize STE in V1–V4 (often I/aVL) with reciprocal inferior depression, plus equivalents such as de Winter T waves; activate the cath lab from the field and bypass non-PCI centers per protocol. Anticipate VF, new bundle branch block and cardiogenic shock.',
+      'Anticipate an LAD culprit (best seen in cranial views): prepare left-system guides, workhorse wires, balloons and stents, with MCS consoles ready in shock. Watch for VF, reperfusion arrhythmias, no-reflow and hypotension, and alert the operator immediately.',
+      'Verify allergies, renal function and anticoagulants; administer aspirin, P2Y12 loading, heparin or bivalirudin and analgesia as ordered, monitoring ACT to the ordered target (often ~250–350 s with UFH alone). Watch for VF, new heart block, shock and bleeding, and escalate immediately.',
+      'Proximal LAD clues: STE in I/aVL/aVR or new RBBB with inferior reciprocal depression. Radial primary PCI; complete revascularization if stable (COMPLETE), culprit-only in shock (CULPRIT-SHOCK), microaxial flow pump in selected shock (DanGer Shock); screen for LV thrombus and reassess LVEF before ICD.',
     ],
     overview: [
       'STEMI caused by acute LAD occlusion, usually from plaque rupture or erosion with thrombus',
@@ -867,11 +871,12 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Oral beta-blocker within 24 h if no HF, low output, shock risk or AV block; high-intensity statin; ACE inhibitor (especially anterior MI or LVEF ≤ 40%)',
     ],
     fieldCare: [
-      '12-lead ECG within 10 min of first medical contact; transmit and activate the cath lab from the field',
+      '12-lead ECG within 10 min of first medical contact; transmit it for STEMI activation per protocol',
+      'ALS: Recognize STEMI on the 12-lead and activate the cath lab from the field per protocol',
       'Transport directly to a PCI-capable center when FMC-to-device ≤ 90 min is achievable',
-      'Aspirin 162–325 mg chewed; nitroglycerin for ongoing pain if SBP ≥ 90 mmHg',
+      'Aspirin 162–325 mg chewed per protocol; nitroglycerin for ongoing pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor (EMTs assist with the patient’s own, per protocol)',
       'Oxygen only if SpO2 < 90%; routine oxygen does not help normoxic patients',
-      'Pads on, IV access, and prepare for VF; treat pain per protocol (e.g., fentanyl)',
+      'ALS: Pads on, IV access, and prepare for VF; treat pain per protocol (e.g., fentanyl)',
     ],
     hospitalCare: [
       'Door-to-device ≤ 90 min; FMC-to-device ≤ 120 min if transferred (door-in-door-out ≤ 30 min)',
@@ -929,11 +934,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'An inferior STEMI is a heart attack affecting the bottom wall of the left ventricle, usually from blockage of the right coronary artery and less often the circumflex. It can involve the right ventricle and the AV node, causing low blood pressure and slow heart rhythms.',
     levelNotes: [
-      'Inferior MI may present with nausea, bradycardia and hypotension; transmit the 12-lead early and avoid nitroglycerin if hypotensive or right ventricular MI is suspected',
-      'Record V4R in every inferior STEMI; RV infarction means withhold nitrates, give cautious fluid boluses for hypotension, and use atropine for symptomatic bradycardia',
-      'Manage the preload-dependent RV: fluids, avoid nitrates and diuretics, maintain AV synchrony; watch for high-grade AV block and posterior extension',
-      'Distinguish RCA vs LCx culprit (STE III > II with ST depression in I/aVL favors RCA) and recognize papillary muscle rupture and VSR',
-      'Proximal RCA occlusion with RV involvement: reperfusion restores RV function; have temporary pacing ready for AV block and consider percutaneous RV support in refractory RV shock',
+      'Inferior heart attacks can cause nausea, a slow pulse and low blood pressure. Acquire and transmit a 12-lead where protocols allow, give aspirin per protocol, and do not assist with nitroglycerin if SBP < 90 mmHg or medical direction suspects right ventricular involvement.',
+      'Recognize STE in II, III and aVF and record V4R: RV infarction means no nitrates, cautious fluid boluses for hypotension, and atropine then transcutaneous pacing for symptomatic bradycardia per protocol. Activate the cath lab from the field per protocol.',
+      'Anticipate an RCA culprit (right-system guide) or, in left-dominant hearts, an LCx culprit. Bradycardia, AV block and hypotension are common on RCA engagement and reperfusion: watch the ECG and pressure damping, have temporary pacing ready, and alert the operator immediately.',
+      'Confirm RV involvement has been assessed and BP is adequate before giving ordered nitrates; report hypotension with clear lungs. Give fluid boluses, atropine or inotropes only as ordered, monitor for bradycardia, heart block and vagal reactions, keep pacing pads on, and escalate promptly.',
+      'STE III > II with ST depression in I/aVL favors RCA; STE ≥ 0.5 mm in V4R defines RV infarction. Manage RV shock with preload, inotropes, AV-synchronous pacing and early reperfusion (percutaneous RV support if refractory); watch for papillary muscle and septal rupture.',
     ],
     overview: [
       'STEMI from acute occlusion of the vessel supplying the inferior LV wall',
@@ -986,11 +991,12 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Avoid early IV beta-blockers in bradycardia, AV block or hypotension',
     ],
     fieldCare: [
-      'Acquire and transmit a 12-lead; add V4R for any inferior STE',
-      'Activate the STEMI system and transport to a PCI-capable center',
-      'Aspirin 162–325 mg chewed; nitroglycerin only if SBP ≥ 90 mmHg and no RV involvement',
-      'Hypotension with clear lungs: small fluid boluses with frequent reassessment',
-      'Symptomatic bradycardia: atropine, then transcutaneous pacing if ineffective; oxygen only if SpO2 < 90%',
+      'Acquire and transmit a 12-lead early',
+      'ALS: Add V4R for any inferior STE before giving nitroglycerin',
+      'Activate the STEMI system per protocol and transport to a PCI-capable center; oxygen only if SpO2 < 90%',
+      'Aspirin 162–325 mg chewed per protocol; nitroglycerin only if SBP ≥ 90 mmHg, no RV involvement and no PDE-5 inhibitor (EMTs: patient’s own, per protocol and medical direction)',
+      'ALS: Hypotension with clear lungs: small fluid boluses with frequent reassessment',
+      'ALS: Symptomatic bradycardia: atropine, then transcutaneous pacing if ineffective',
     ],
     hospitalCare: [
       'Door-to-device ≤ 90 min (≤ 120 min if transferred); fibrinolysis within 30 min if timely PCI is not possible',
@@ -1046,11 +1052,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'A lateral STEMI is a heart attack affecting the side wall of the left ventricle, usually from blockage of the circumflex artery, an obtuse marginal branch or the first diagonal branch of the LAD. ECG changes can be subtle, so it is easily missed.',
     levelNotes: [
-      'Lateral MI may show only subtle ECG changes; transmit the 12-lead for any suspected ACS and report ongoing pain even if the ECG looks minor',
-      'Look for STE in I, aVL, V5–V6 with reciprocal ST depression in III and aVF; subtle aVL elevation can be the only clue, so repeat the ECG',
-      'LCx occlusions are often electrically silent: add V7–V9, repeat ECGs every 15–30 min, and send refractory ischemic pain for emergent angiography even without STEMI criteria',
-      'Localize D1 vs OM vs LCx culprit, recognize occlusion MI without STEMI criteria and posterior involvement, and know which territories the standard 12-lead underrepresents',
-      'Dominance and LCx/OM anatomy define the territory at risk; tortuosity and left main/LCx/OM bifurcations add procedural complexity',
+      'Heart attacks of the side wall can look almost normal on the ECG, so treat the symptoms. Acquire and transmit a 12-lead, repeat it if pain persists, give aspirin per protocol, and report ongoing pain to the receiving facility.',
+      'Look for STE in I, aVL and V5–V6 with reciprocal ST depression in III/aVF; subtle aVL elevation may be the only clue. Repeat ECGs, add V7–V9 if V1–V3 show ST depression, and contact medical direction for ongoing pain with a nondiagnostic ECG.',
+      'Anticipate an LCx, OM or diagonal culprit; the LCx is best seen in caudal views and may be tortuous. Prepare left-system guides, supportive wires and bifurcation equipment (extra wire, IVUS/OCT), and report ST, rhythm or pressure changes to the operator.',
+      'Patients may arrive with a nondiagnostic ECG but ongoing pain: document pain scores, obtain serial ECGs per order and report persistent pain promptly. Administer antiplatelets and anticoagulants as ordered with ACT monitoring, and watch for arrhythmias, new murmur and hypotension.',
+      'LCx occlusion is often electrically silent; treat refractory ischemia, instability or posterior STE (≥ 0.5 mm in V7–V9) as occlusion MI needing emergent angiography. Localize D1 vs OM vs LCx (South African flag = D1) and use intravascular imaging for LM/LCx or LCx/OM bifurcations.',
     ],
     overview: [
       'STEMI from acute occlusion of a vessel supplying the lateral LV wall',
@@ -1099,9 +1105,10 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Acquire and transmit the 12-lead; repeat if pain persists and the first ECG is nondiagnostic',
-      'Activate the STEMI system for STE in I/aVL or V5–V6 with reciprocal changes',
-      'Aspirin 162–325 mg chewed; nitroglycerin if SBP ≥ 90 mmHg',
-      'Oxygen only if SpO2 < 90%; pads on and prepare for arrhythmias',
+      'ALS: Activate the STEMI system for STE in I/aVL or V5–V6 with reciprocal changes',
+      'Aspirin 162–325 mg chewed per protocol; nitroglycerin if SBP ≥ 90 mmHg and no PDE-5 inhibitor (EMTs assist with the patient’s own, per protocol)',
+      'Oxygen only if SpO2 < 90%; keep the AED ready',
+      'ALS: Pads on, continuous monitoring and IV access; prepare for arrhythmias',
     ],
     hospitalCare: [
       'Door-to-device ≤ 90 min (≤ 120 min if transferred); fibrinolysis within 30 min if timely PCI is not possible',
@@ -1153,11 +1160,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'NSTE-ACS is an acute coronary syndrome without persistent ST elevation: NSTEMI if troponin shows heart muscle injury, unstable angina if it does not. Treatment combines antithrombotic therapy, risk stratification and a timed invasive strategy.',
     levelNotes: [
-      'A normal-looking ECG does not exclude a heart attack; give aspirin per protocol, transmit the 12-lead and transport to an appropriate ED',
-      'Repeat 12-leads during transport; ST depression, T inversion or dynamic changes with ongoing pain are high risk; nitroglycerin only if SBP ≥ 90 mmHg and no PDE-5 inhibitor',
-      'Use hs-troponin 0/1-h or 0/2-h algorithms with HEART score; separate type 1 MI from type 2 MI and nonischemic myocardial injury',
-      'Risk-stratify with GRACE or TIMI to time the invasive strategy: immediate (< 2 h) for very high risk, early (< 24 h) for high risk; tailor DAPT to bleeding risk',
-      'Culprits are often non-occlusive or in the LCx (~25% totally occluded); use intravascular imaging or physiology for ambiguous lesions and a Heart Team for left main or multivessel disease',
+      'A normal-looking ECG does not rule out a heart attack. Give aspirin per protocol, assist with the patient’s nitroglycerin per protocol if SBP ≥ 90 mmHg and no PDE-5 inhibitor, acquire and transmit a 12-lead (repeat if pain persists), and transport to an appropriate ED.',
+      'Repeat 12-leads during transport: ST depression, T-wave inversion or dynamic changes with ongoing pain are high risk, and new STE means STEMI activation. Nitroglycerin if SBP ≥ 90 mmHg and no PDE-5 inhibitor; ST depression maximal in V1–V3 suggests posterior MI (record V7–V9).',
+      'NSTE-ACS patients often have multivessel, left main or LCx disease: prepare FFR/iFR and IVUS/OCT equipment, equalize the pressure wire before measurements, and alert the operator to pressure damping or ventricularization on engagement, ST changes or arrhythmias.',
+      'Verify allergies, renal function, anticoagulant timing (e.g., last enoxaparin dose) and bleeding risk; administer antiplatelets and anticoagulants as ordered. Report recurrent pain or ECG changes immediately, and after the procedure monitor the access site, bleeding and kidney function.',
+      'Use hs-troponin 0/1-h or 0/2-h algorithms; separate type 1 MI, type 2 MI and nonischemic injury. Time the invasive strategy by risk: immediate (< 2 h) if very high risk, early (< 24 h) if high risk; ~25% have an occluded culprit, often LCx.',
     ],
     overview: [
       'NSTEMI: ischemic symptoms with a troponin rise and/or fall above the 99th percentile URL, without persistent STE',
@@ -1208,10 +1215,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Acquire and transmit a 12-lead within 10 min of first medical contact; repeat during transport',
-      'Aspirin 162–325 mg chewed unless allergic or actively bleeding',
-      'Nitroglycerin for ongoing pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor use',
-      'Oxygen only if SpO2 < 90%; continuous monitoring and IV access',
-      'Upgrade to STEMI activation if STE develops',
+      'Aspirin 162–325 mg chewed per protocol unless allergic or actively bleeding',
+      'Nitroglycerin for ongoing pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor use (EMTs assist with the patient’s own, per protocol)',
+      'Oxygen only if SpO2 < 90%',
+      'ALS: Continuous cardiac monitoring and IV access',
+      'ALS: Upgrade to STEMI activation if STE develops on repeat ECGs',
     ],
     hospitalCare: [
       'hs-troponin at 0 and 1 h or 0 and 2 h per validated algorithm; a single very low value can rule out if symptoms began > 3 h earlier',
@@ -1266,11 +1274,11 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     summary:
       'Wellens syndrome is a pattern of biphasic or deeply inverted T waves in V2–V3, seen after chest pain has resolved, that signals a critical narrowing of the proximal LAD. The ECG can look reassuring, but these patients are at high risk of a large anterior heart attack and need urgent angiography rather than stress testing.',
     levelNotes: [
-      'A pain-free patient with recent chest pain can still be very high risk; transmit the 12-lead, report the recent symptoms and transport',
-      'Recognize biphasic or deep symmetric T inversion in V2–V3 after chest pain resolves; the ECG looks calm but signals a critical LAD lesion',
-      'Wellens = critical proximal LAD stenosis: do not stress test or discharge; start ACS therapy, admit and arrange urgent angiography',
-      'Apply all criteria (pain-free state, preserved R waves, no Q waves, minimal STE, normal or mildly elevated troponin) and exclude mimics such as PE, takotsubo, stimulants, LVH strain and cerebral T waves',
-      'Expect a high-grade proximal LAD stenosis, often with reperfused thrombus; define the plaque and LM ostium with intravascular imaging and consider CABG for LM or multivessel disease',
+      'A patient whose chest pain has stopped can still be about to have a large heart attack. Acquire and transmit a 12-lead even if pain-free, give aspirin per protocol, report the recent pain clearly, and transport for evaluation.',
+      'Recognize biphasic (type A) or deep symmetric (type B) T-wave inversion in V2–V3 in a now pain-free patient after chest pain; report it as possible critical LAD stenosis, transport to a PCI-capable center and repeat the ECG if pain recurs.',
+      'Expect a critical proximal LAD lesion that can occlude during engagement or wiring: prepare PCI equipment and IVUS/OCT for the LAD and left main ostium, and alert the operator immediately to chest pain, ST elevation, arrhythmias or pressure damping.',
+      'A pain-free appearance should not lower vigilance: maintain continuous ECG monitoring, give antiplatelets, anticoagulants and nitroglycerin as ordered, and report recurrent pain or ST changes immediately as possible LAD reocclusion. Stress testing is contraindicated, so query any such order.',
+      'Confirm criteria (pain-free, biphasic or deep symmetric V2–V3 T inversion, preserved R waves, no Q waves, ST < 1 mm, normal or mildly raised troponin) and exclude mimics. Avoid stress testing; perform urgent angiography, with intravascular imaging and Heart Team input for LM or multivessel disease.',
     ],
     overview: [
       'ECG pattern of critical proximal LAD stenosis described by Wellens and de Zwaan in the 1980s',
@@ -1316,8 +1324,9 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Obtain and transmit a 12-lead even if the patient is now pain-free',
-      'Report the history of recent chest pain and any T-wave changes in V2–V3',
-      'Aspirin per protocol; nitroglycerin for recurrent pain if SBP ≥ 90 mmHg',
+      'Report the history of recent chest pain even if the patient now feels well',
+      'ALS: Report biphasic or deeply inverted T waves in V2–V3 as possible Wellens pattern',
+      'Aspirin per protocol; nitroglycerin for recurrent pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor (EMTs assist with the patient’s own, per protocol)',
       'Transport to a PCI-capable center; repeat the ECG if pain recurs',
     ],
     hospitalCare: [

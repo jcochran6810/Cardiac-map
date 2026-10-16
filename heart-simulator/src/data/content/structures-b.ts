@@ -16,11 +16,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The short trunk that arises from the left aortic sinus and divides into the LAD and circumflex arteries. Because it feeds most of the left ventricle, severe disease or sudden occlusion is immediately life-threatening.',
     levelNotes: [
-      'Chest pain with shock, collapse or VF may be a left main occlusion: pads on early, transmit the 12-lead and go straight to a PCI-capable center',
-      'Recognize ST elevation in aVR with widespread ST depression as a high-risk diffuse ischemia pattern; transmit it, prepare for VF and avoid nitrates if hypotensive',
-      'STE in aVR with multilead ST depression plus ongoing pain or instability warrants an urgent cath lab discussion; plan early for shock and mechanical support',
-      'Significant LM disease (≥ 50% angiographically, IVUS MLA < ~6 mm² in Western cohorts) is prognostically major; revascularization choice is a Heart Team decision using SYNTAX score, diabetes and surgical risk',
-      'Distal LM bifurcation strategy (provisional vs. DK-crush), mandatory intravascular imaging optimization and guide-catheter pressure damping are the core procedural issues',
+      'Chest pain with shock, collapse or cardiac arrest may be a left main blockage: CPR and AED immediately if pulseless; otherwise give aspirin per protocol, acquire and transmit a 12-lead where allowed, request ALS and transport to a PCI center.',
+      'STE in aVR with ST depression in ≥ 6 leads suggests left main or 3-vessel ischemia: transmit, notify the PCI center per protocol, apply pads, anticipate VF and shock, and withhold nitrates if hypotensive.',
+      'The LM shaft shows best in AP or shallow RAO caudal and the bifurcation in LAO caudal (spider, a high-dose view); watch the guide pressure for damping or ventricularization on engagement, alert the operator, and have the defibrillator, IVUS and IABP/Impella ready.',
+      'LM ischemia can deteriorate suddenly into VF or shock: confirm pads are on, monitor rhythm, arterial pressure and ACT, give heparin and vasoactives as ordered, and report chest pain, hypotension or ST change to the operator immediately.',
+      'Significant LM disease (≥ 50%; IVUS MLA < ~6 mm² Western) goes to the Heart Team: CABG is Class 1, PCI 2a for low–intermediate complexity (2021 ACC/AHA/SCAI); plan provisional vs DK-crush bifurcation strategy, imaging-guided optimization and MCS if LV function is poor.',
     ],
     overview: [
       'Arises from the left coronary (left aortic) sinus just below the sinotubular junction',
@@ -95,11 +95,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The first part of the LAD, from the left main bifurcation to and including the first major septal branch. Occlusion here jeopardizes the entire anterior wall, septum and apex, the largest single territory supplied by one segment in most hearts.',
     levelNotes: [
-      'A big anterior heart attack can deteriorate fast into shock or VF: get a 12-lead early, keep pads on and transport to a PCI center',
-      'Know the patterns: STE V1–V4 (often I/aVL) with inferior reciprocal STD, de Winter T waves and Wellens T waves all point to the proximal LAD',
-      'Activate the cath lab for proximal LAD STEMI and de Winter; recognize pain-free Wellens as critical stenosis needing early angiography, not stress testing',
-      'Use ECG localization (STE aVR, V1 > 2.5 mm, new RBBB, STD V5–V6 or inferior leads) to predict occlusion proximal to S1/D1 and a large infarct',
-      'Proximal LAD PCI often involves the LAD–D1 bifurcation and may approach the LM; imaging guidance and protecting the LCx ostium are key',
+      'A large anterior heart attack can turn into shock or cardiac arrest within minutes: keep the AED close, give aspirin and assist with the patient\'s own nitroglycerin per protocol, transmit a 12-lead where allowed and transport early to a PCI center.',
+      'Proximal LAD occlusion: STE V1–V4 with STE in I/aVL and inferior reciprocal STD; de Winter T waves are a STEMI equivalent. Activate the cath lab per protocol; transmit pain-free Wellens T waves for urgent physician review.',
+      'The proximal LAD lays out in RAO cranial and LAO cranial, with LAO caudal (spider) for the LM–LAD–LCx junction; prepare guides, wires, balloons and stents as the operator requests, and report VF, bradycardia or pressure damping immediately.',
+      'Large anterior ischemia risks VF and cardiogenic shock: keep pads applied, give heparin and antiplatelet loading as ordered and track ACT, watch for hypotension, pulmonary edema and arrhythmias, and escalate recurrent chest pain or ST elevation after PCI.',
+      'STE aVR, V1 STE > 2.5 mm, new RBBB or STD V5–V6 suggest occlusion proximal to S1; aVL STE with inferior STD, proximal to D1. De Winter is an occlusion MI; Wellens needs early angiography, not stress testing. Use imaging and protect the LCx ostium and D1.',
     ],
     overview: [
       'Begins at the left main bifurcation and runs in the anterior interventricular groove',
@@ -171,11 +171,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The middle portion of the LAD in the anterior interventricular groove, from the first septal branch toward the apex. Occlusion causes an anterior infarct that usually spares the basal septum and high lateral wall.',
     levelNotes: [
-      'An anterior heart attack from the mid LAD is still a STEMI: early 12-lead, aspirin if no contraindication, and direct transport to a PCI center',
-      'Expect STE in V2–V5 without high-lateral (I/aVL) STE or inferior reciprocal changes; treat as STEMI and watch for arrhythmias',
-      'Mid LAD STEMI needs immediate reperfusion; monitor for anterior wall complications such as LV thrombus and heart failure',
-      'Distinguish mid from proximal LAD by sparing of V1/aVL and absence of inferior reciprocal STD; a long wrapping LAD may add inferior STE',
-      'Myocardial bridging, D2 bifurcations and long diffuse disease are typical mid-LAD PCI challenges; physiology helps avoid treating bridging',
+      'Even if the patient looks stable, chest pain from an anterior heart attack is time-critical: give aspirin and assist with the patient\'s own nitroglycerin per protocol, acquire and transmit a 12-lead where allowed, and transport to a PCI center.',
+      'Mid LAD STEMI shows STE V2–V5 without I/aVL STE or inferior reciprocal STD: activate the cath lab per protocol and monitor for VT/VF. Anterior plus inferior STE may be one wraparound LAD, not two occlusions.',
+      'The mid LAD and D2 open up in RAO cranial and LAO cranial; point out systolic narrowing that relaxes in diastole (possible bridging) to the operator, have FFR/iFR and IVUS ready, and keep collimation tight and the detector close to the patient.',
+      'Monitor for arrhythmias, hypotension and recurrent pain; give anticoagulant and antiplatelet therapy as ordered, keeping ACT in the ordered range (often ~250–300 s with heparin alone, device-dependent). Afterwards check the access site, distal pulses and rhythm, and teach DAPT adherence.',
+      'Mid occlusion spares V1/aVL and lacks inferior STD; a wraparound LAD adds inferior STE. Use FFR/iFR for intermediate lesions, avoid stenting isolated myocardial bridges (assess with physiology/IVUS, treat with β-blockers or non-DHP CCBs), and consider LIMA grafting for long diffuse disease.',
     ],
     overview: [
       'Runs from just beyond the first septal branch along the anterior interventricular groove',
@@ -238,11 +238,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The terminal LAD segment running to the cardiac apex, which in many people wraps around it onto the inferior wall. Occlusion causes an apical infarct that can also involve the inferior apex.',
     levelNotes: [
-      'Even a smaller heart attack is still an emergency: get and transmit a 12-lead and transport to a PCI center',
-      'Distal LAD occlusion may produce modest STE in V3–V6 that is easy to miss; serial 12-leads catch evolving changes',
-      'Apical infarcts carry LV thrombus risk; consider echo with contrast or CMR and assess the need for anticoagulation',
-      'Anterior plus inferior STE often means a wraparound distal LAD; distinguish from takotsubo and pericarditis by distribution and angiography',
-      'Small-caliber, tortuous distal LAD raises wire perforation risk (especially with hydrophilic or polymer-jacketed wires); keep the wire tip visible',
+      'A smaller heart attack is still an emergency: give aspirin per protocol, acquire and transmit a 12-lead where allowed and repeat it if symptoms change; ongoing chest pain with a near-normal ECG still needs transport and early notification.',
+      'Distal LAD occlusion may cause only modest STE in V3–V6, sometimes with inferior STE from a wraparound LAD; repeat and transmit serial 12-leads and contact medical direction when findings are borderline.',
+      'The distal LAD and apical wrap show in RAO cranial and AP cranial; keep the guidewire tip on screen, tell the operator if it migrates distally or contrast stains outside the vessel, and have the pericardiocentesis tray and covered stents accessible.',
+      'Watch for delayed tamponade after distal wire work: rising heart rate, falling BP, pulsus paradoxus or new chest pain need immediate escalation. Post-procedure, monitor rhythm and neuro status, since apical thrombus can embolize, and give anticoagulation only as ordered.',
+      'Apical infarcts carry LV thrombus risk: screen with contrast echo or CMR and anticoagulate if thrombus is present. Distinguish wraparound LAD occlusion from takotsubo and SCAD (often mid–distal LAD; usually conservative); hydrophilic/polymer wires in small tortuous vessels raise perforation risk.',
     ],
     overview: [
       'Terminal portion of the LAD from the mid-segment boundary to the apex and beyond',
@@ -305,11 +305,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'The first diagonal branch arises from the proximal LAD and runs over the anterolateral wall. Its occlusion causes a high lateral infarct with a characteristic ECG pattern that is easy to overlook.',
     levelNotes: [
-      'A heart attack can show only in a few leads: transmit every 12-lead in chest pain even if changes look small',
-      'Learn the high-lateral pattern: STE in I, aVL and V2 with STD in III and aVF can be a D1 occlusion (South African flag sign)',
-      'High lateral STE can be subtle (< 1 mm in aVL); inferior reciprocal STD is a strong clue that it is real and needs cath lab activation',
-      'Separate D1 from proximal LAD, OM1 and ramus occlusions by the V2 vs. V5–V6 involvement and the extent of precordial STE',
-      'LAD–D1 bifurcation PCI uses provisional stenting with side-branch protection; Medina class and side-branch size determine whether a two-stent strategy is warranted',
+      'Side-wall heart attacks can produce only small ECG changes: treat cardiac-sounding chest pain seriously, give aspirin per protocol, and acquire and transmit a 12-lead where allowed even if the patient looks well.',
+      'High lateral STEMI: STE in I, aVL and V2 with reciprocal STD in III and aVF (South African flag sign); aVL STE may be < 1 mm, and inferior reciprocal STD makes it real. Activate the cath lab per protocol.',
+      'The LAD–D1 bifurcation opens in LAO cranial and AP cranial; prepare a second workhorse wire for side-branch protection and kissing or POT balloons as the operator requests, and report side-branch loss, new ST change or chest pain.',
+      'During bifurcation PCI, new chest pain, ST change or arrhythmia may mean side-branch compromise: report it to the operator immediately. Track ACT and give medications as ordered; afterwards monitor rhythm, symptoms, ordered troponins and the access site.',
+      'D1 occlusion: STE I, aVL, V2 with III/aVF STD, sparing V3–V6. For LAD–D1 bifurcations use provisional stenting with a jailed wire and POT; reserve two-stent techniques (DK-crush, culotte) for large D1 with long ostial disease (DEFINITION complex criteria).',
     ],
     overview: [
       'First major diagonal branch of the LAD, usually from the proximal LAD',
@@ -371,11 +371,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'A diagonal branch from the mid LAD that supplies part of the anterolateral wall. It is usually smaller than D1 and is sometimes absent or replaced by several small branches.',
     levelNotes: [
-      'Small branch blockages may give a normal or near-normal ECG; ongoing chest pain still needs emergency evaluation',
-      'An occluded D2 may cause only subtle lateral changes; serial 12-leads and symptoms guide escalation',
-      'Small-branch infarcts usually present as NSTEMI; manage with standard NSTE-ACS pathways and troponin trends',
-      'Decide whether D2 disease matters by the vessel caliber and myocardial territory rather than percent stenosis alone',
-      'D2 is often a side branch during mid LAD stenting; protect it if large (≥ ~2.5 mm), otherwise accept provisional loss risk',
+      'Blockages in small branches can cause chest pain with a normal-looking ECG: a normal 12-lead never rules out a heart attack, so give aspirin per protocol, transmit the 12-lead where allowed and transport.',
+      'D2 occlusion may cause only subtle lateral STE or T-wave changes, or none; repeat 12-leads, treat as possible ACS per protocol, and transport to a PCI-capable center if ischemic pain persists.',
+      'D2 arises from the mid LAD and is best seen in LAO cranial and RAO cranial; when the operator stents the LAD across it, watch for side-branch flow loss and have a side-branch wire and small balloons prepared.',
+      'Small-branch MI often presents as NSTEMI: confirm pre-procedure labs, renal function and anticoagulant history, give medications as ordered, and after PCI report new chest pain or ECG change, since side-branch loss can raise troponin.',
+      'Judge D2 by caliber and territory, not percent stenosis: protect it during mid LAD stenting if ≥ ~2.5 mm, accept loss of small (< ~2 mm) branches, and use physiology for intermediate lesions in symptomatic patients.',
     ],
     overview: [
       'Arises from the mid LAD and courses over the anterolateral wall',
@@ -428,11 +428,11 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     summary:
       'Branches that dive from the LAD into the interventricular septum, supplying its anterior two-thirds and much of the conduction system below the AV node. They are also the target of alcohol septal ablation and a common collateral route.',
     levelNotes: [
-      'A heart attack involving the septum can suddenly cause heart block: watch the rate and rhythm closely and be ready to pace',
-      'New RBBB, LAFB or bifascicular block with anterior STEMI suggests septal branch involvement and a high-risk proximal LAD occlusion',
-      'Anterior MI with new bundle branch block carries higher mortality and risk of high-grade AV block; have transcutaneous pacing ready and consider transvenous pacing',
-      'Septal branches supply the right bundle and left anterior fascicle; alcohol septal ablation for obstructive HCM selectively infarcts a septal branch territory',
-      'Septals are key collateral channels for retrograde CTO PCI and must be mapped with contrast echo before alcohol septal ablation to avoid remote infarction',
+      'A heart attack involving the septum can suddenly cause a very slow pulse or collapse: recheck pulse and vital signs often, request ALS early, and start CPR and use the AED if the patient becomes pulseless.',
+      'New RBBB, LAFB or bifascicular block with anterior STEMI means septal involvement and risk of sudden high-grade AV block: apply pacing pads, activate the cath lab and be ready for transcutaneous pacing per protocol.',
+      'Septals hang inferiorly from the LAD in RAO cranial. For alcohol septal ablation, prepare the temporary pacing wire and generator, over-the-wire balloon and echo contrast, record LVOT gradients before and after, and alert the operator to heart block immediately.',
+      'After alcohol septal ablation, or anterior MI with new bundle branch block, monitor continuously for complete heart block (which can be delayed), check temporary pacer capture and sensing, and give analgesia as ordered for ethanol-related chest pain.',
+      'Septals supply the RBB and LAF, so S1 involvement predicts conduction block. For ASA, confirm the target branch with myocardial contrast echo, place a temporary pacer (PPM ~10–20%) and give ~1–3 mL ethanol; septals are the preferred retrograde CTO channel.',
     ],
     overview: [
       'Arise from the LAD, usually at near right angles, and penetrate the septum',
