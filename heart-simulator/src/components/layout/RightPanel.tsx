@@ -17,6 +17,7 @@ import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
 import type { ConditionContent, MedicationContent, ProcedureContent, StructureContent } from '@/types/content';
 import { IconCheck, IconCube, IconFlag, IconPulse } from '@/components/ui/icons';
 import ScopeCard from '@/components/ui/ScopeCard';
+import { InstallButton } from '@/components/ui/InstallApp';
 import { SCOPES } from '@/lib/scope';
 
 type TabDef = { key: string; label: string; levels?: LearningLevel[] };
@@ -70,7 +71,7 @@ function Chips({ ids, label }: { ids: string[]; label: string }) {
       <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">{label}</div>
       <div className="flex flex-wrap gap-1">
         {valid.map((id) => (
-          <button key={id} onClick={() => openById(id)} className={`px-1.5 py-0.5 rounded border text-[10px] transition-colors ${KIND_CHIP[kindOf(id)!]}`}>
+          <button key={id} onClick={() => openById(id)} className={`px-1.5 py-0.5 touch:px-2.5 touch:py-1.5 rounded border text-[10px] transition-colors ${KIND_CHIP[kindOf(id)!]}`}>
             {nameOf(id)}
           </button>
         ))}
@@ -91,7 +92,7 @@ function Tabs({ tabs, active, onChange, level }: { tabs: TabDef[]; active: strin
             role="tab"
             aria-selected={active === t.key}
             title={rec ? `Recommended for ${LEVEL_LABELS[level].long}` : undefined}
-            className={`relative px-2 py-1 text-[10px] rounded transition-colors ${
+            className={`relative px-2 py-1 touch:py-2 touch:px-2.5 text-[10px] rounded transition-colors ${
               active === t.key ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : 'text-slate-400 hover:text-white hover:bg-cardiac-surface/70'
             }`}
           >
@@ -123,7 +124,7 @@ function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }
     <div className="mt-2 p-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
       <div className="flex items-center justify-between gap-2 mb-0.5">
         <div className="text-[9px] uppercase tracking-wider text-emerald-300 font-semibold">Focus for {LEVEL_LABELS[level].long}</div>
-        <button onClick={() => setShowScope((v) => !v)} className="text-[9px] text-emerald-300/80 hover:text-emerald-200 whitespace-nowrap" title="What this role may and may not do">
+        <button onClick={() => setShowScope((v) => !v)} className="text-[9px] touch:text-[11px] touch:py-1 text-emerald-300/80 hover:text-emerald-200 whitespace-nowrap" title="What this role may and may not do">
           {showScope ? 'hide scope' : 'scope ▸'}
         </button>
       </div>
@@ -136,7 +137,7 @@ function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }
 
 function ActionBtn({ onClick, children, title }: { onClick: () => void; children: React.ReactNode; title?: string }) {
   return (
-    <button onClick={onClick} title={title} className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] bg-cardiac-surface/70 text-slate-200 hover:bg-cardiac-surface hover:text-white border border-slate-600/60">
+    <button onClick={onClick} title={title} className="flex items-center gap-1 px-2 py-1 touch:py-2 touch:px-3 rounded-md text-[10px] bg-cardiac-surface/70 text-slate-200 hover:bg-cardiac-surface hover:text-white border border-slate-600/60">
       {children}
     </button>
   );
@@ -296,7 +297,7 @@ function ProcedureView({ p, level }: { p: ProcedureContent; level: LearningLevel
           <div>
             <div className="flex items-center gap-1 mb-2">
               {p.steps.map((_, i) => (
-                <button key={i} onClick={() => setStep(i)} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-violet-400' : 'bg-slate-700'}`} aria-label={`Step ${i + 1}`} />
+                <button key={i} onClick={() => setStep(i)} className={`h-1.5 touch:h-2.5 flex-1 rounded-full ${i <= step ? 'bg-violet-400' : 'bg-slate-700'}`} aria-label={`Step ${i + 1}`} />
               ))}
             </div>
             <ol className="space-y-1.5">
@@ -471,7 +472,7 @@ function CaseDecisions({ c, level }: { c: CaseData; level: LearningLevel }) {
               <button
                 disabled={answered}
                 onClick={() => setPicked((p) => ({ ...p, [idx]: i }))}
-                className={`w-full text-left p-2 rounded-md border text-[11px] leading-snug transition-colors ${
+                className={`w-full text-left p-2 touch:p-3 rounded-md border text-[11px] leading-snug transition-colors ${
                   !answered ? 'bg-cardiac-dark/70 border-slate-600 hover:border-amber-400/60 text-slate-200'
                     : o.correct ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-100'
                       : isPicked ? 'bg-red-500/15 border-red-500/50 text-red-100' : 'bg-cardiac-dark/40 border-slate-700 text-slate-500'
@@ -578,7 +579,10 @@ function Welcome({ level }: { level: LearningLevel }) {
           </button>
         ))}
       </div>
-      <button onClick={() => setHelpOpen(true)} className="mt-3 text-[11px] text-sky-300 hover:underline">Keyboard shortcuts & tips</button>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button onClick={() => setHelpOpen(true)} className="text-[11px] text-sky-300 hover:underline">Keyboard shortcuts & tips</button>
+        <InstallButton className="text-[11px] text-emerald-300 hover:underline">Install as an app (works offline)</InstallButton>
+      </div>
       <div className="mt-3 p-2.5 bg-cardiac-dark rounded-lg">
         <p className="text-cardiac-accent text-[10px] font-semibold mb-0.5">EDUCATIONAL USE ONLY</p>
         <p className="text-slate-500 text-[10px] leading-relaxed">

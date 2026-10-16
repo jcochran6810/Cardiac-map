@@ -59,7 +59,7 @@ export default function TutorPanel() {
   };
 
   return (
-    <div className="fixed right-2 top-14 z-40 w-[min(26rem,calc(100vw-1rem))] max-h-[calc(100vh-var(--dock-h,340px)-4.5rem)] min-h-[260px] bg-cardiac-panel/98 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur" role="dialog" aria-label="Tutor">
+    <div className="fixed right-2 top-16 z-40 w-[min(26rem,calc(100vw-1rem))] max-h-[calc(100dvh-var(--dock-h,340px)-5rem)] min-h-[260px] bg-cardiac-panel/95 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur phone:inset-x-0 phone:top-12 short:top-11 phone:bottom-0 phone:w-full phone:max-h-none phone:min-h-0 phone:rounded-none phone:border-x-0 phone:border-b-0 phone:animate-slide-in-up" role="dialog" aria-label="Tutor">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-cardiac-accent/20 text-cardiac-accent flex items-center justify-center"><IconTutor size={14} /></div>
@@ -70,7 +70,7 @@ export default function TutorPanel() {
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && <button onClick={clearMessages} className="text-[10px] text-slate-400 hover:text-white px-1.5">Clear</button>}
-          <button onClick={() => setTutorOpen(false)} className="p-1 text-slate-400 hover:text-white" aria-label="Close tutor"><IconClose size={16} /></button>
+          <button onClick={() => setTutorOpen(false)} className="p-1 touch:p-2 text-slate-400 hover:text-white" aria-label="Close tutor"><IconClose size={16} /></button>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ export default function TutorPanel() {
                 {m.answer && m.answer.links.filter((id) => kindOf(id)).length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {Array.from(new Set(m.answer.links)).filter((id) => kindOf(id)).map((id) => (
-                      <button key={id} onClick={() => openById(id)} className="px-1.5 py-0.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] hover:bg-sky-500/20">
+                      <button key={id} onClick={() => openById(id)} className="px-1.5 py-0.5 touch:px-2.5 touch:py-1.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] hover:bg-sky-500/20">
                         Open {nameOf(id)}
                       </button>
                     ))}
@@ -107,7 +107,7 @@ export default function TutorPanel() {
                 {m.answer && m.answer.followUps.length > 0 && i === messages.length - 1 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {m.answer.followUps.slice(0, 3).map((f) => (
-                      <button key={f} onClick={() => ask(f)} className="px-1.5 py-0.5 rounded-full border border-slate-600 text-slate-300 text-[10px] hover:text-white hover:border-cardiac-accent/60">
+                      <button key={f} onClick={() => ask(f)} className="px-1.5 py-0.5 touch:px-2.5 touch:py-1.5 rounded-full border border-slate-600 text-slate-300 text-[10px] hover:text-white hover:border-cardiac-accent/60">
                         {f}
                       </button>
                     ))}
@@ -122,7 +122,7 @@ export default function TutorPanel() {
 
       <div className="px-3 pt-1 pb-1 flex flex-wrap gap-1 border-t border-slate-700/60">
         {suggestions.map((s) => (
-          <button key={s} onClick={() => ask(s)} className="px-1.5 py-0.5 rounded-full bg-cardiac-dark border border-slate-700 text-[10px] text-slate-300 hover:text-white hover:border-cardiac-accent/50">
+          <button key={s} onClick={() => ask(s)} className="px-1.5 py-0.5 touch:px-2.5 touch:py-1.5 rounded-full bg-cardiac-dark border border-slate-700 text-[10px] text-slate-300 hover:text-white hover:border-cardiac-accent/50">
             {s}
           </button>
         ))}

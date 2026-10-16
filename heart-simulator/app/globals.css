@@ -21,7 +21,9 @@
   --cardiac-conduction: #FBBF24;
 }
 
-/* UI colors are independent of physiological and mapping palettes. */
+/* UI colors are independent of physiological and mapping palettes.
+   In @layer components so Tailwind utilities (hidden, md:hidden, px-…) still override them. */
+@layer components {
 .ui-button {
   display: inline-flex;
   align-items: center;
@@ -36,6 +38,7 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 1.25;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 .ui-button:hover:not(:disabled) { background: rgb(var(--ui-raised)); color: rgb(var(--ui-text)); }
@@ -45,44 +48,52 @@
 .ui-button--icon { width: 40px; padding: 8px; }
 .ui-button:focus-visible, .workspace-header :focus-visible { outline: 2px solid rgb(var(--ui-focus)); outline-offset: 3px; }
 .ui-button svg { flex-shrink: 0; }
+/* One fixed-height row at every size (the tutor, quiz and install banner sit just below it). */
 .workspace-header {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
-  padding: 10px 16px;
+  gap: 12px;
+  height: 3.5rem;
+  padding: 0 16px;
   flex-shrink: 0;
   z-index: 50;
   background: rgb(var(--ui-panel));
   border-bottom: 1px solid rgb(var(--ui-border) / 0.6);
 }
 .workspace-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.workspace-brandmark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: #fda4af; background: #3b2233; border: 1px solid #754052; }
-.workspace-role { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.workspace-role { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; flex-shrink: 0; }
 .workspace-role select { max-width: 270px; min-width: 0; height: 40px; background: rgb(var(--ui-bg)); border: 1px solid rgb(var(--ui-border)); border-radius: 8px; padding: 0 8px; color: rgb(var(--ui-text)); font-size: 12px; }
-.workspace-search { position: relative; flex: 1; min-width: 180px; }
-.workspace-search input { width: 100%; height: 40px; border-radius: 8px; border: 1px solid rgb(var(--ui-border)); padding: 0 40px 0 36px; background: rgb(var(--ui-bg)); color: rgb(var(--ui-text)); font-size: 13px; }
+.workspace-search { position: relative; flex: 1; min-width: 160px; max-width: 36rem; }
+.workspace-search input { width: 100%; height: 40px; border-radius: 8px; border: 1px solid rgb(var(--ui-border)); padding: 0 12px 0 32px; background: rgb(var(--ui-bg)); color: rgb(var(--ui-text)); font-size: 13px; }
 .workspace-search input::placeholder { color: rgb(var(--ui-muted)); }
-.workspace-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-.workspace-scope { position: absolute; left: 0; top: calc(100% + 8px); width: min(560px, calc(100vw - 32px)); z-index: 70; border: 1px solid rgb(var(--ui-border)); border-radius: 12px; background: rgb(var(--ui-panel)); padding: 16px 48px 16px 16px; box-shadow: 0 16px 40px #0006; }
-.workspace-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; max-height: 50dvh; overflow-y: auto; border: 1px solid rgb(var(--ui-border)); border-radius: 12px; background: rgb(var(--ui-panel)); box-shadow: 0 16px 40px #0006; }
+.workspace-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; }
+.workspace-scope { position: absolute; left: 0; top: calc(100% + 8px); width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 5rem); overflow-y: auto; z-index: 70; border: 1px solid rgb(var(--ui-border)); border-radius: 12px; background: rgb(var(--ui-panel)); padding: 16px 48px 16px 16px; box-shadow: 0 16px 40px #0006; }
+.workspace-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; max-height: 50dvh; overflow-y: auto; z-index: 70; border: 1px solid rgb(var(--ui-border)); border-radius: 12px; background: rgb(var(--ui-panel)); box-shadow: 0 16px 40px #0006; }
 .workspace-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; text-align: left; font-size: 13px; color: rgb(var(--ui-text)); }
 .workspace-result[aria-selected="true"] { background: rgb(var(--ui-raised)); box-shadow: inset 3px 0 rgb(var(--ui-focus)); }
-@media (max-width: 1279px) {
-  .workspace-role { order: 3; }
-  .workspace-search { order: 4; }
+@media (max-width: 1023px) {
+  /* Tablets: centre the scope card under the whole bar so it never runs off-screen */
+  .workspace-role { position: static; }
+  .workspace-scope { left: 50%; transform: translateX(-50%); top: calc(100% + 4px); width: min(560px, calc(100vw - 16px)); }
+}
+@media (max-width: 767px) {
+  .workspace-header { gap: 8px; padding: 0 12px; }
 }
 @media (max-width: 639px) {
-  .workspace-header { gap: 8px; padding: 8px; }
-  .workspace-brand { gap: 6px; }
-  .workspace-brandmark { display: none; }
-  .workspace-role { flex: 1; }
-  .workspace-role select { flex: 1; max-width: none; }
-  .workspace-search { flex-basis: 100%; }
+  .workspace-header { gap: 6px; height: 3rem; padding: 0 6px; }
+  .workspace-brand { gap: 4px; }
   .workspace-actions { gap: 0; }
   .ui-button { min-height: 44px; }
   .ui-button--icon { width: 36px; }
   .workspace-actions .ui-button { padding: 8px; }
+}
+@media (max-height: 500px) {
+  /* Phone on its side: a slimmer bar leaves room for the heart */
+  .workspace-header { height: 2.75rem; }
+  .workspace-header .ui-button { min-height: 36px; padding-top: 4px; padding-bottom: 4px; }
+  .workspace-role select, .workspace-search input { height: 36px; }
+}
 }
 
 * {
@@ -98,6 +109,17 @@ body {
   background-color: var(--cardiac-dark);
   color: #e2e8f0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Full-screen app: no pull-to-refresh or rubber-band bounce on phones and tablets */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Finger-driven devices (phones, tablets) */
+@media (hover: none) and (pointer: coarse) {
+  html { -webkit-tap-highlight-color: transparent; }
+  /* iOS zooms the whole page into any form field whose text is smaller than 16px */
+  input, select, textarea { font-size: 16px !important; }
 }
 
 #__next {

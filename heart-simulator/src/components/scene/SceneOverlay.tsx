@@ -11,6 +11,7 @@ import { IconHome, IconRotate, IconZoomIn, IconZoomOut } from '@/components/ui/i
 import Bullseye from '@/components/anatomy/Bullseye';
 import { formatCarm } from '@/components/scene/CArmTracker';
 import { ATRIAL_PATTERNS, VENT_PATTERNS } from '@/lib/anatomy/activation';
+import { useIsTouch } from '@/lib/device';
 
 const MODES: { value: ViewMode; label: string; key: string; title: string }[] = [
   { value: 'external', label: 'Exterior', key: '1', title: 'Photoreal exterior with coronary vessels' },
@@ -55,14 +56,20 @@ export default function SceneOverlay() {
   const [hud, setHud] = useState<HudState>(readHud);
   const [showAngio, setShowAngio] = useState(false);
   const [narrow, setNarrow] = useState(false);
+  // The ECG / monitor panel can be enlarged until only a sliver of the heart shows: hide the controls then
+  const [tiny, setTiny] = useState(false);
   const [showViews, setShowViews] = useState(false);
   const probe = useRef<HTMLDivElement>(null);
+  const touch = useIsTouch();
 
-  // Condense the overlay when the 3D viewport is small (tablet / phone)
+  // Condense the overlay when the 3D viewport is small (phone, or a phone on its side)
   useEffect(() => {
     const el = probe.current?.parentElement;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < 640));
+    const ro = new ResizeObserver(([e]) => {
+      setNarrow(e.contentRect.width < 640 || e.contentRect.height < 380);
+      setTiny(e.contentRect.height < 170);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -86,12 +93,18 @@ export default function SceneOverlay() {
     </div>
   );
 
+  if (tiny) return <div ref={probe} className="hidden" />;
+
   return (
     <>
       <div ref={probe} className="hidden" />
       {/* View modes + toggles */}
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5 max-w-[calc(100%-1rem)]">
-        <div className="flex flex-wrap rounded-lg overflow-hidden border border-slate-600/60 bg-black/60 backdrop-blur-sm shadow-xl" role="radiogroup" aria-label="3D view mode">
+      <div className={`absolute top-2 left-2 z-10 flex flex-col gap-1.5 ${narrow ? 'max-w-[calc(100%-6rem)]' : 'max-w-[calc(100%-1rem)]'}`}>
+        <div
+          className={`flex rounded-lg border border-slate-600/60 bg-black/60 backdrop-blur-sm shadow-xl ${narrow ? 'overflow-x-auto no-scrollbar' : 'flex-wrap overflow-hidden'}`}
+          role="radiogroup"
+          aria-label="3D view mode"
+        >
           {MODES.map((m) => (
             <button
               key={m.value}
@@ -110,7 +123,7 @@ export default function SceneOverlay() {
                 const buttons = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
                 buttons?.[index]?.focus();
               }}
-              className={`px-3 py-2 text-xs font-medium transition-colors ${
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
                 viewMode === m.value ? 'bg-cardiac-accent text-slate-950' : 'text-slate-200 hover:bg-white/10'
               }`}
             >
@@ -118,14 +131,14 @@ export default function SceneOverlay() {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-1">
+        <div className={`flex gap-1 ${narrow ? 'overflow-x-auto no-scrollbar' : 'flex-wrap'}`}>
           <Pill active={labelsVisible} onClick={toggleLabels} title="Toggle labels (L)">Labels</Pill>
           {viewMode === 'sectioned' && <Pill active={showFlow} onClick={toggleFlow} title="Animated blood flow (F)">Blood flow</Pill>}
           <Pill active={showVector} onClick={toggleVector} title="Show the instantaneous cardiac electrical vector (V)">Cardiac vector</Pill>
           <Pill active={autoRotate} onClick={toggleAutoRotate} title="Slowly rotate the heart">Auto-rotate</Pill>
           {selectedLead && <Pill active onClick={() => selectLead(selectedLead)} title="Hide the lead axis">Lead {selectedLead} axis ✕</Pill>}
         </div>
-        {viewMode === 'conduction' && (
+        {viewMode === 'conduction' && !narrow && (
           <div className="text-[11px] text-slate-300 bg-black/55 rounded-md px-2 py-1 max-w-xs leading-snug">
             <span className="text-amber-300">●</span> atrial · <span className="text-orange-400">●</span> AV node / His · <span className="text-red-400">●</span> bundles · <span className="text-rose-300">●</span> Purkinje. Red ✕ = block. Slow to 0.25× to follow each beat.
           </div>
@@ -134,15 +147,15 @@ export default function SceneOverlay() {
 
       {/* Cardiac cycle HUD */}
       <div
-        className={`absolute right-2 z-10 scene-panel rounded-lg p-2 text-[11px] shadow-xl ${narrow ? 'bottom-9 w-44' : 'top-2 w-56'}`}
+        className={`absolute right-2 z-10 scene-panel rounded-lg text-[11px] shadow-xl ${narrow ? 'bottom-2 w-[min(10rem,42%)] p-1.5' : 'top-2 w-56 p-2'}`}
         title={PHASE_DESCRIPTIONS[hud.phase]}
       >
         {!narrow && <div className="text-[11px] uppercase tracking-wider text-slate-400">Cardiac cycle</div>}
-        <div className={`text-xs font-semibold leading-tight mt-0.5 ${hud.phase === 'fibrillation' || hud.phase === 'arrest' ? 'text-red-400' : 'text-white'}`}>{PHASE_LABELS[hud.phase]}</div>
+        <div className={`font-semibold leading-tight ${narrow ? 'text-[11px] truncate' : 'text-xs mt-0.5'} ${hud.phase === 'fibrillation' || hud.phase === 'arrest' ? 'text-red-400' : 'text-white'}`}>{PHASE_LABELS[hud.phase]}</div>
         {!narrow && <p className="text-[11px] text-slate-400 leading-snug mt-1 line-clamp-3">{PHASE_DESCRIPTIONS[hud.phase]}</p>}
-        <div className="mt-1.5 space-y-0.5">
-          {valve('Mitral / tricuspid', hud.mitral)}
-          {valve('Aortic / pulmonic', hud.aortic)}
+        <div className={`space-y-0.5 ${narrow ? 'mt-1' : 'mt-1.5'}`}>
+          {valve(narrow ? 'MV / TV' : 'Mitral / tricuspid', hud.mitral)}
+          {valve(narrow ? 'AV / PV' : 'Aortic / pulmonic', hud.aortic)}
         </div>
         <div className={`gap-1.5 mt-1.5 ${narrow ? 'hidden' : 'flex'}`}>
           <span className={`px-1.5 rounded ${hud.s1 ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-500'}`}>S1 “lub”</span>
@@ -155,7 +168,7 @@ export default function SceneOverlay() {
       {viewMode === 'activation' && <ActivationLegend narrow={narrow} />}
 
       {(viewMode === 'territories' || (culprit && viewMode !== 'activation')) && (
-        <div className="absolute bottom-9 left-2 z-10 scene-panel rounded-lg p-2 text-[11px] text-slate-200 shadow-xl flex items-end gap-2">
+        <div className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl flex items-end gap-2 ${narrow ? 'bottom-2 p-1.5 max-w-[calc(58%-1rem)] leading-snug' : 'bottom-9 p-2'}`}>
           <div>
             {viewMode === 'territories' && (
               <>
@@ -163,7 +176,7 @@ export default function SceneOverlay() {
                 <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#26d973]" /> LAD — anterior wall, anterior septum, apex</div>
                 <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#4d8cff]" /> LCx — lateral &amp; posterolateral LV</div>
                 <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#ff8c1f]" /> RCA — inferior LV, RV free wall</div>
-                <div className="mt-1 text-[11px] text-slate-500">Right-dominant pattern; real anatomy varies</div>
+                {!narrow && <div className="mt-1 text-[11px] text-slate-500">Right-dominant pattern; real anatomy varies</div>}
               </>
             )}
             {culprit && (
@@ -180,13 +193,13 @@ export default function SceneOverlay() {
       {narrow && (
         <button
           onClick={() => setShowViews((v) => !v)}
-          className="absolute top-2 right-2 z-10 px-2.5 py-1.5 rounded-lg border border-slate-600/60 bg-black/60 text-[11px] text-slate-200 backdrop-blur-sm"
+          className={`absolute top-2 right-2 z-10 px-2.5 py-1.5 touch:py-2 rounded-lg border text-[11px] backdrop-blur-sm ${showViews ? 'border-cardiac-accent/60 bg-cardiac-accent/20 text-cardiac-accent' : 'border-slate-600/60 bg-black/60 text-slate-200'}`}
           aria-expanded={showViews}
         >
           Views ▾
         </button>
       )}
-      <div className={`absolute right-2 z-10 flex-col items-end gap-1.5 ${narrow ? (showViews ? 'flex top-11' : 'hidden') : 'flex bottom-9'}`}>
+      <div className={`absolute right-2 z-20 flex-col items-end gap-1.5 ${narrow ? (showViews ? 'flex top-12 max-h-[calc(100%-3.5rem)] overflow-y-auto no-scrollbar' : 'hidden') : 'flex bottom-9'}`}>
         {showAngio && (
           <div className="scene-panel rounded-lg p-1.5 shadow-xl">
             <div className="text-[11px] uppercase tracking-wider text-slate-400 px-1">Angiographic projections</div>
@@ -195,7 +208,7 @@ export default function SceneOverlay() {
             </div>
             <div className="grid grid-cols-2 gap-0.5">
               {CAMERA_PRESETS.filter((p) => p.group === 'angio').map((p) => (
-                <button key={p.label} onClick={() => setCameraPreset(p)} title={p.description} className="px-2 py-1 text-[11px] text-slate-200 hover:bg-white/10 rounded text-left whitespace-nowrap">
+                <button key={p.label} onClick={() => setCameraPreset(p)} title={p.description} className="px-2 py-1 touch:py-2 text-[11px] text-slate-200 hover:bg-white/10 rounded text-left whitespace-nowrap">
                   {p.label}
                 </button>
               ))}
@@ -205,7 +218,7 @@ export default function SceneOverlay() {
         <div className="scene-panel rounded-lg overflow-hidden">
           <div className="grid grid-cols-3 gap-0.5 p-1">
             {CAMERA_PRESETS.filter((p) => p.group === 'anatomic').map((p) => (
-              <button key={p.label} onClick={() => setCameraPreset(p)} title={`${p.label}: ${p.description}`} className="px-2 py-1 text-[11px] font-medium text-slate-200 hover:bg-white/10 rounded">
+              <button key={p.label} onClick={() => setCameraPreset(p)} title={`${p.label}: ${p.description}`} className="px-2 py-1 touch:py-2 text-[11px] font-medium text-slate-200 hover:bg-white/10 rounded">
                 {p.short}
               </button>
             ))}
@@ -217,7 +230,7 @@ export default function SceneOverlay() {
             <IconBtn onClick={toggleAutoRotate} title="Auto-rotate"><IconRotate size={14} /></IconBtn>
             <button
               onClick={() => setShowAngio((v) => !v)}
-              className={`ml-auto px-2 py-1 text-[11px] rounded ${showAngio ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:bg-white/10'}`}
+              className={`ml-auto px-2 py-1 touch:py-2 text-[11px] rounded ${showAngio ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:bg-white/10'}`}
               title="Cath-lab projections (RAO / LAO / cranial / caudal)"
             >
               Angio
@@ -227,7 +240,7 @@ export default function SceneOverlay() {
       </div>
 
       <div className="absolute bottom-1.5 left-2 right-2 z-0 pointer-events-none flex justify-between text-[11px] text-slate-500">
-        <span className={narrow ? 'hidden' : ''}>Drag to rotate · scroll to zoom · right-drag to pan · click a structure</span>
+        <span className={narrow ? 'hidden' : ''}>{touch ? 'Drag to rotate · pinch to zoom · two-finger drag to pan · tap a structure' : 'Drag to rotate · scroll to zoom · right-drag to pan · click a structure'}</span>
         <span className="hidden md:inline">Educational simulation — not for clinical use</span>
       </div>
     </>
@@ -240,7 +253,7 @@ function Pill({ active, onClick, children, title }: { active: boolean; onClick: 
       onClick={onClick}
       title={title}
       aria-pressed={active}
-      className={`px-2 py-0.5 rounded-full text-[11px] border backdrop-blur-sm transition-colors ${
+      className={`px-2 py-0.5 touch:py-1.5 touch:px-2.5 rounded-full text-[11px] whitespace-nowrap shrink-0 border backdrop-blur-sm transition-colors ${
         active ? 'bg-sky-500/25 border-sky-400/50 text-sky-100' : 'bg-black/50 border-slate-600/60 text-slate-300 hover:text-white'
       }`}
     >
@@ -251,7 +264,7 @@ function Pill({ active, onClick, children, title }: { active: boolean; onClick: 
 
 function IconBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} title={title} aria-label={title} className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded">
+    <button onClick={onClick} title={title} aria-label={title} className="p-1.5 touch:p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded">
       {children}
     </button>
   );
@@ -264,7 +277,7 @@ function ActivationLegend({ narrow }: { narrow: boolean }) {
   const vp = a.vent ? VENT_PATTERNS[a.vent] : null;
   const ap = a.atria ? ATRIAL_PATTERNS[a.atria] : null;
   return (
-    <div className={`absolute bottom-9 left-2 z-10 scene-panel rounded-lg p-2 text-[11px] text-slate-200 shadow-xl ${narrow ? 'w-52' : 'w-72'}`}>
+    <div className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl ${narrow ? 'bottom-2 p-1.5 w-[min(13rem,calc(58%-1rem))]' : 'bottom-9 p-2 w-72'}`}>
       <div className="text-[11px] uppercase tracking-wider text-slate-400">Activation map · local activation time</div>
       <div className="mt-1 h-2 rounded-sm" style={{ background: LAT_GRADIENT }} />
       <div className="flex justify-between text-[11px] text-slate-400 mt-0.5">
@@ -286,7 +299,7 @@ function ActivationLegend({ narrow }: { narrow: boolean }) {
       ) : (
         <div className="mt-1.5 text-amber-200">No organised ventricular activation sequence (fibrillation / polymorphic VT) — nothing to map.</div>
       )}
-      {!ap && (
+      {!ap && !narrow && (
         <div className="mt-1 text-slate-400">Atria: not mapped (AF, flutter macro-re-entry with no single earliest site, or no P wave).</div>
       )}
       {!narrow && (

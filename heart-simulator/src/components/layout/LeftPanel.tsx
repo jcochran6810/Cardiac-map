@@ -14,7 +14,8 @@ import { CASE_DATA } from '@/data/caseData';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CONDUCTION_IDS, CORONARY_IDS } from '@/lib/anatomy/categories';
-import { IconCheck, IconChevron, IconSearch } from '@/components/ui/icons';
+import { IconCheck, IconChevron, IconDownload, IconHelp, IconSearch } from '@/components/ui/icons';
+import { InstallButton } from '@/components/ui/InstallApp';
 
 const TABS: { value: PanelCategory; label: string; title: string }[] = [
   { value: 'anatomy', label: 'Anatomy', title: 'Chambers, valves, vessels and layers' },
@@ -59,6 +60,7 @@ interface Group { label: string; items: Item[] }
 
 export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const activeTab = useAppStore((s) => s.activePanelCategory);
+  const setHelpOpen = useAppStore((s) => s.setHelpOpen);
   const setActiveTab = useAppStore((s) => s.setActivePanelCategory);
   const selectedStructureId = useSceneStore((s) => s.selectedStructureId);
   const selectedConditionId = useConditionStore((s) => s.selectedConditionId);
@@ -163,7 +165,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
             title={tab.title}
             role="tab"
             aria-selected={activeTab === tab.value}
-            className={`px-0.5 py-1.5 text-[10.5px] leading-none rounded transition-colors whitespace-nowrap overflow-hidden ${
+            className={`px-0.5 py-1.5 touch:py-2.5 text-[10.5px] leading-none rounded transition-colors whitespace-nowrap overflow-hidden ${
               activeTab === tab.value ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
             }`}
           >
@@ -179,7 +181,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={`Filter ${TABS.find((t) => t.value === activeTab)?.label.toLowerCase()}…`}
-            className="w-full bg-cardiac-dark text-[11px] text-slate-200 rounded pl-6 pr-2 py-1 border border-slate-700 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
+            className="w-full bg-cardiac-dark text-[11px] text-slate-200 rounded pl-6 pr-2 py-1 touch:py-1.5 border border-slate-700 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
             aria-label="Filter list"
           />
         </div>
@@ -203,7 +205,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
             <div key={g.label} className="mt-1.5">
               <button
                 onClick={() => setCollapsed((prev) => { const n = new Set(prev); if (n.has(g.label)) n.delete(g.label); else n.add(g.label); return n; })}
-                className="w-full flex items-center gap-1 px-1.5 py-1 text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300"
+                className="w-full flex items-center gap-1 px-1.5 py-1 touch:py-2 text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300"
                 aria-expanded={!isCol}
               >
                 <IconChevron size={11} className={`transition-transform ${isCol ? '' : 'rotate-90'}`} />
@@ -218,7 +220,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
                       <li key={item.id}>
                         <button
                           onClick={() => open(item.id)}
-                          className={`w-full flex items-center gap-1.5 text-left pl-5 pr-2 py-1.5 rounded transition-colors ${
+                          className={`w-full flex items-center gap-1.5 text-left pl-5 pr-2 py-1.5 touch:py-2.5 rounded transition-colors ${
                             sel ? 'bg-cardiac-accent/15 text-cardiac-accent' : 'text-slate-300 hover:text-white hover:bg-cardiac-surface/70'
                           }`}
                           aria-current={sel ? 'true' : undefined}
@@ -241,6 +243,16 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
         })}
         {visibleGroups.length === 0 && <p className="px-2 py-4 text-slate-500 text-center">Nothing matches “{filter}”.</p>}
       </div>
+      <InstallButton className="flex items-center gap-2 px-3 py-3 border-t border-slate-700 text-xs text-emerald-300 hover:text-white shrink-0">
+        <IconDownload size={15} /> Install CardioSim on this device
+      </InstallButton>
+      {/* Small phones have no room for Help in the top bar */}
+      <button
+        onClick={() => setHelpOpen(true)}
+        className="xs:hidden flex items-center gap-2 px-3 py-3 border-t border-slate-700 text-xs text-slate-300 hover:text-white shrink-0"
+      >
+        <IconHelp size={15} /> Help &amp; guide
+      </button>
     </aside>
   );
 }

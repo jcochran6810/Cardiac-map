@@ -21,10 +21,24 @@ monitor/defibrillator permissions stay inside that role's scope (`src/lib/scope.
 ## Run it
 
 ```bash
-npm install
+npm ci
 npm run dev        # http://localhost:3000
 npm run build && npm start   # production build
 ```
+
+Checks (run before committing — `npm run check` runs all four):
+
+```bash
+npm run typecheck  # TypeScript
+npm run lint       # ESLint (next lint)
+npm test           # Vitest unit tests in tests/ — ECG lead maths, electrodes, rhythms, engine, hemodynamics, anatomy, scope
+npm run build      # production build
+```
+
+Working with AI agents: the repo root has `CLAUDE.md` (the start/end-session protocol; Claude Code is
+the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open items, owner actions and
+"For Codex" priorities) and `SESSION_LOG.md` (what each session shipped). Production is the
+`main` branch ("end session" merges into it), live at https://cardiacmap.stationinsight.com.
 
 ## What's inside
 
@@ -41,6 +55,33 @@ npm run build && npm start   # production build
 | Activation map | `src/lib/anatomy/activation.ts` | Epicardial isochronal map of each beat (normal per Durrer 1970, LBBB, RBBB, WPW, pacing, PVC/VT), like an EP mapping system. The 3D wavefront follows it in every view. |
 | Coronary territories | `src/lib/anatomy/aha17.ts`, `src/components/anatomy/Bullseye.tsx` | AHA 17-segment bull's-eye linked to the culprit artery; the angio panel shows the C-arm angle (LAO/RAO, CRA/CAU) of any view. |
 | Monitor / defibrillator trainer | `src/lib/sim/defib.ts`, `src/components/monitor/` | Generic monitor with ECG, SpO₂ pleth, capnography and NIBP. Includes AED, manual defibrillation, synchronised cardioversion, transcutaneous pacing, CPR, ACLS drugs, a code record, scenarios, and trainee/instructor modes. Press **Projector** to mirror it at `/monitor` on a second screen. |
+
+## Phones, tablets and desktops
+
+The layout adapts to the screen (`src/lib/device.ts`, Tailwind `phone:` / `touch:` / `short:` variants):
+
+| Screen | Layout |
+| --- | --- |
+| Desktop / laptop (≥ 1024 px) | Navigator, info panel, 3D heart and ECG dock side by side; drag the dividers to resize |
+| Tablet | Navigator and info panel slide over the heart (tap outside to close); rarer ECG options under **More** |
+| Phone, upright | Compact top bar (search and role/scope behind icons), ECG / Wiggers / Monitor tabs, interpretation and electrode lab slide over the tracing, quiz / tutor / help open full screen |
+| Phone, on its side | Heart and ECG dock side by side |
+
+On touch screens buttons get bigger, the ECG dock has a grip bar and an enlarge (⤢) button, a double-tap on
+a lead inspects it, and Help lists the touch gestures.
+
+## Install as an app (PWA)
+
+CardioSim installs like a native app and keeps working offline after the first visit.
+
+- **Android / Chrome / Edge:** tap **Install** (banner, navigator panel, Help, or the browser menu → *Install app*).
+- **iPhone / iPad:** in Safari tap **Share → Add to Home Screen** (the app shows these steps when you tap Install).
+- **Desktop:** the **Install** button in the top bar, or the install icon in the address bar.
+
+Pieces: `public/manifest.webmanifest` (name, colours, icons, install screenshots), `public/sw.js` (offline cache:
+pages network-first, build files and 3D models cache-first, one cache per release), `src/lib/pwa.ts` +
+`src/components/ui/InstallApp.tsx` (registration and install buttons). Icons in `public/icons/`, `app/icon.png`
+and `app/apple-icon.png` are generated from `assets/logo-source.webp`.
 
 ## Keyboard shortcuts
 

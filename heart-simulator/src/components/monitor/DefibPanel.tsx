@@ -68,7 +68,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
               onClick={() => !locked && setMode(m.v)}
               disabled={locked}
               title={locked ? 'ALS skill — outside EMT scope (National EMS Scope of Practice Model)' : undefined}
-              className={`py-1 rounded ${d.mode === m.v ? 'bg-cardiac-accent/25 text-cardiac-accent font-semibold' : locked ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:text-white'}`}
+              className={`py-1 touch:py-2 rounded ${d.mode === m.v ? 'bg-cardiac-accent/25 text-cardiac-accent font-semibold' : locked ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:text-white'}`}
             >
               {locked ? '🔒 ' : ''}{m.l}
             </button>
@@ -93,32 +93,32 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
             <>
               <div className="flex flex-wrap gap-0.5">
                 {ENERGIES.map((j) => (
-                  <button key={j} onClick={() => setEnergy(j)} className={`px-1.5 py-0.5 rounded font-mono ${d.energy === j ? 'bg-amber-500/30 text-amber-200' : 'bg-cardiac-surface/70 text-slate-300'}`}>{j}J</button>
+                  <button key={j} onClick={() => setEnergy(j)} className={`px-1.5 py-0.5 touch:py-1.5 rounded font-mono ${d.energy === j ? 'bg-amber-500/30 text-amber-200' : 'bg-cardiac-surface/70 text-slate-300'}`}>{j}J</button>
                 ))}
               </div>
-              <button onClick={toggleSync} className={`w-full py-1 rounded font-semibold ${d.sync ? 'bg-white text-black' : 'bg-cardiac-surface text-slate-200'}`}>
+              <button onClick={toggleSync} className={`w-full py-1 touch:py-2 rounded font-semibold ${d.sync ? 'bg-white text-black' : 'bg-cardiac-surface text-slate-200'}`}>
                 SYNC {d.sync ? 'ON' : 'OFF'}
               </button>
             </>
           )}
           {d.mode === 'aed' && (
-            <button onClick={analyze} disabled={d.aed.phase === 'analyzing'} className="w-full py-1.5 rounded font-semibold bg-sky-600/40 text-sky-100 disabled:opacity-50">
+            <button onClick={analyze} disabled={d.aed.phase === 'analyzing'} className="w-full py-1.5 touch:py-2.5 rounded font-semibold bg-sky-600/40 text-sky-100 disabled:opacity-50">
               {d.aed.phase === 'analyzing' ? 'Analysing…' : 'ANALYZE'}
             </button>
           )}
           <div className="grid grid-cols-2 gap-1">
             {d.mode === 'manual' && (
-              <button onClick={charge} disabled={d.charge !== 'idle'} className="py-1.5 rounded font-bold bg-yellow-400 text-black disabled:opacity-40">CHARGE</button>
+              <button onClick={charge} disabled={d.charge !== 'idle'} className="py-1.5 touch:py-2.5 rounded font-bold bg-yellow-400 text-black disabled:opacity-40">CHARGE</button>
             )}
             <button
               onClick={shock}
               disabled={d.charge !== 'charged'}
-              className={`py-1.5 rounded font-bold ${d.mode === 'aed' ? 'col-span-2' : ''} ${d.charge === 'charged' ? 'bg-orange-600 text-white animate-pulse' : 'bg-orange-900/40 text-orange-200/50'}`}
+              className={`py-1.5 touch:py-2.5 rounded font-bold ${d.mode === 'aed' ? 'col-span-2' : ''} ${d.charge === 'charged' ? 'bg-orange-600 text-white animate-pulse' : 'bg-orange-900/40 text-orange-200/50'}`}
             >
               ⚡ SHOCK
             </button>
           </div>
-          {d.charge !== 'idle' && <button onClick={dumpCharge} className="w-full py-0.5 rounded text-slate-400 hover:text-white">Disarm</button>}
+          {d.charge !== 'idle' && <button onClick={dumpCharge} className="w-full py-0.5 touch:py-1.5 rounded text-slate-400 hover:text-white">Disarm</button>}
           <p className="text-[10px] text-slate-500 leading-snug">
             Biphasic defibrillation for VF / pulseless VT: device-recommended dose (typically 120–200 J; use the maximum if unknown).
             Synchronised: narrow regular 50–100 J · AF 120–200 J (many start at 200 J) · monomorphic VT 100 J. Polymorphic VT → defibrillate.
@@ -129,7 +129,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
       {/* Pacing */}
       {d.mode === 'pacer' && (
         <section className="rounded-md border border-slate-700 p-2 space-y-1.5">
-          <button onClick={d.pacer.on ? stopPacing : startPacing} className={`w-full py-1.5 rounded font-bold ${d.pacer.on ? 'bg-orange-600 text-white' : 'bg-orange-900/50 text-orange-100'}`}>
+          <button onClick={d.pacer.on ? stopPacing : startPacing} className={`w-full py-1.5 touch:py-2.5 rounded font-bold ${d.pacer.on ? 'bg-orange-600 text-white' : 'bg-orange-900/50 text-orange-100'}`}>
             {d.pacer.on ? 'STOP PACER' : 'START PACER'}
           </button>
           <Stepper label="Rate" unit="ppm" value={d.pacer.rate} step={5} min={30} max={180} onChange={(v) => setPacer({ rate: v })} />
@@ -147,13 +147,13 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
       {/* CPR + assessment */}
       <section className="rounded-md border border-slate-700 p-2 space-y-1.5">
         <div className="grid grid-cols-2 gap-1">
-          <button onClick={toggleCPR} className={`py-1.5 rounded font-bold ${d.cpr.on ? 'bg-violet-600 text-white' : 'bg-violet-900/50 text-violet-100'}`}>{d.cpr.on ? 'STOP CPR' : 'START CPR'}</button>
+          <button onClick={toggleCPR} className={`py-1.5 touch:py-2.5 rounded font-bold ${d.cpr.on ? 'bg-violet-600 text-white' : 'bg-violet-900/50 text-violet-100'}`}>{d.cpr.on ? 'STOP CPR' : 'START CPR'}</button>
           <select value={d.cpr.quality} onChange={(e) => setCprQuality(e.target.value as 'good' | 'poor')} className="rounded bg-cardiac-dark border border-slate-600 text-slate-200 px-1" aria-label="CPR quality">
             <option value="good">High-quality CPR</option>
             <option value="poor">Poor CPR</option>
           </select>
-          <button onClick={checkPulse} className="py-1 rounded bg-cardiac-surface text-slate-200">Pulse check</button>
-          <button onClick={measureNibp} className="py-1 rounded bg-cardiac-surface text-slate-200">NIBP</button>
+          <button onClick={checkPulse} className="py-1 touch:py-2 rounded bg-cardiac-surface text-slate-200">Pulse check</button>
+          <button onClick={measureNibp} className="py-1 touch:py-2 rounded bg-cardiac-surface text-slate-200">NIBP</button>
         </div>
         {d.pulseCheck && <div className="text-slate-300">Pulse: <b className="text-white">{d.pulseCheck}</b></div>}
       </section>
@@ -168,7 +168,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
         ) : (
           <div className="grid grid-cols-2 gap-1">
             {DRUGS.map((drug) => (
-              <button key={drug.id} onClick={() => giveDrug(drug.id, drugAuthority || undefined)} title={`${drug.dose(d)} — ${drug.indication}`} className="px-1.5 py-1 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight">
+              <button key={drug.id} onClick={() => giveDrug(drug.id, drugAuthority || undefined)} title={`${drug.dose(d)} — ${drug.indication}`} className="px-1.5 py-1 touch:py-2 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight">
                 {drug.label}
                 <span className="block text-[9px] text-sky-300/80 truncate">{drug.dose(d)}</span>
               </button>
@@ -191,7 +191,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
           <div className="text-[9px] uppercase tracking-wider text-amber-300">Instructor</div>
           <div className="flex flex-wrap gap-1">
             {SCENARIOS.map((sc) => (
-              <button key={sc.id} onClick={() => loadScenario(sc)} title={sc.story} className={`px-1.5 py-0.5 rounded ${d.scenario?.id === sc.id ? 'bg-amber-500/30 text-amber-100' : 'bg-cardiac-surface text-slate-200'}`}>{sc.label}</button>
+              <button key={sc.id} onClick={() => loadScenario(sc)} title={sc.story} className={`px-1.5 py-0.5 touch:py-1.5 rounded ${d.scenario?.id === sc.id ? 'bg-amber-500/30 text-amber-100' : 'bg-cardiac-surface text-slate-200'}`}>{sc.label}</button>
             ))}
           </div>
           <label className="block">
@@ -221,9 +221,9 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
           <Stepper label="Resp rate" unit="/min" value={d.vitals.rr} step={2} min={0} max={40} onChange={(v) => setVitals({ rr: v })} />
           <Stepper label="EtCO₂ (with pulse)" unit="mmHg" value={d.vitals.etco2} step={2} min={10} max={80} onChange={(v) => setVitals({ etco2: v })} />
           <div className="grid grid-cols-2 gap-1">
-            <button onClick={forceRosc} className="py-1 rounded bg-emerald-700/40 text-emerald-100">ROSC</button>
-            <button onClick={() => instructorRhythm('vf')} className="py-1 rounded bg-rose-800/40 text-rose-100">Deteriorate → VF</button>
-            <button onClick={() => resetCode()} className="col-span-2 py-1 rounded bg-cardiac-surface text-slate-200">Reset code</button>
+            <button onClick={forceRosc} className="py-1 touch:py-2 rounded bg-emerald-700/40 text-emerald-100">ROSC</button>
+            <button onClick={() => instructorRhythm('vf')} className="py-1 touch:py-2 rounded bg-rose-800/40 text-rose-100">Deteriorate → VF</button>
+            <button onClick={() => resetCode()} className="col-span-2 py-1 touch:py-2 rounded bg-cardiac-surface text-slate-200">Reset code</button>
           </div>
           <p className="text-[10px] text-slate-500 leading-snug">Pacing capture threshold this session: {d.pacer.threshold} mA. Outcome odds are teaching settings, not clinical predictions.</p>
         </section>
@@ -264,9 +264,9 @@ function Stepper({ label, unit, value, step, min, max, onChange }: { label: stri
     <div className="flex items-center justify-between gap-1">
       <span className="text-slate-400">{label}</span>
       <div className="flex items-center gap-1">
-        <button onClick={() => onChange(Math.max(min, value - step))} className="w-6 h-6 rounded bg-cardiac-surface text-slate-200" aria-label={`Decrease ${label}`}>−</button>
+        <button onClick={() => onChange(Math.max(min, value - step))} className="w-6 h-6 touch:w-9 touch:h-9 rounded bg-cardiac-surface text-slate-200" aria-label={`Decrease ${label}`}>−</button>
         <span className="w-16 text-center font-mono text-white">{value} {unit}</span>
-        <button onClick={() => onChange(Math.min(max, value + step))} className="w-6 h-6 rounded bg-cardiac-surface text-slate-200" aria-label={`Increase ${label}`}>+</button>
+        <button onClick={() => onChange(Math.min(max, value + step))} className="w-6 h-6 touch:w-9 touch:h-9 rounded bg-cardiac-surface text-slate-200" aria-label={`Increase ${label}`}>+</button>
       </div>
     </div>
   );
@@ -274,7 +274,7 @@ function Stepper({ label, unit, value, step, min, max, onChange }: { label: stri
 
 function Chip({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} title={title} className={`px-2 py-0.5 rounded-full border ${active ? 'border-cardiac-accent text-cardiac-accent bg-cardiac-accent/10' : 'border-slate-600 text-slate-300'}`}>
+    <button onClick={onClick} title={title} className={`px-2 py-0.5 touch:px-3 touch:py-1.5 rounded-full border ${active ? 'border-cardiac-accent text-cardiac-accent bg-cardiac-accent/10' : 'border-slate-600 text-slate-300'}`}>
       {children}
     </button>
   );

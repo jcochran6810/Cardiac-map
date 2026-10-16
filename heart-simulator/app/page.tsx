@@ -7,9 +7,10 @@ import dynamic from 'next/dynamic';
 const AppShell = dynamic(() => import('@/components/AppShell'), {
   ssr: false,
   loading: () => (
-    <div className="h-screen flex items-center justify-center bg-cardiac-dark">
+    <div className="h-[100dvh] flex items-center justify-center bg-cardiac-dark">
       <div className="text-center">
-        <div className="text-5xl mb-3 text-cardiac-red animate-pulse">♥</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.webp" alt="" width={66} height={96} className="mx-auto mb-3 h-24 w-auto animate-pulse" />
         <p className="text-sm text-slate-300 font-medium">CardioSim</p>
         <p className="text-xs text-slate-500 mt-1">Loading the cardiac simulator…</p>
       </div>

@@ -40,6 +40,8 @@ interface AppState {
   quizOpen: boolean;
   /** small-screen layout: side panels become mutually exclusive drawers */
   compact: boolean;
+  /** phone-sized screen (either orientation): denser controls, full-screen sheets */
+  phone: boolean;
 
   setLearningLevel: (level: LearningLevel) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -55,6 +57,7 @@ interface AppState {
   setHelpOpen: (open: boolean) => void;
   setQuizOpen: (open: boolean) => void;
   setCompact: (compact: boolean) => void;
+  setPhone: (phone: boolean) => void;
   setPanels: (left: boolean, right: boolean) => void;
   resetView: () => void;
 }
@@ -84,6 +87,7 @@ export const useAppStore = create<AppState>((set) => ({
   helpOpen: false,
   quizOpen: false,
   compact: false,
+  phone: false,
 
   setLearningLevel: (learningLevel) => {
     try { window.localStorage.setItem('cardiosim.level', String(learningLevel)); } catch { /* storage unavailable */ }
@@ -102,6 +106,7 @@ export const useAppStore = create<AppState>((set) => ({
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   setQuizOpen: (quizOpen) => set({ quizOpen }),
   setCompact: (compact) => set({ compact }),
+  setPhone: (phone) => set({ phone }),
   setPanels: (leftPanelOpen, rightPanelOpen) => set({ leftPanelOpen, rightPanelOpen }),
   resetView: () => set({ viewMode: 'external', labelsVisible: true, searchQuery: '' }),
 }));

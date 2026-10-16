@@ -478,7 +478,7 @@ export default function HeartScene() {
       </SceneErrorBoundary>
       <div
         ref={tipRef}
-        className={`absolute top-0 left-0 pointer-events-none z-20 px-2 py-1 rounded bg-black/80 text-white text-[11px] shadow whitespace-nowrap transition-opacity ${hoverName ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute top-0 left-0 pointer-events-none z-20 touch:hidden px-2 py-1 rounded bg-black/80 text-white text-[11px] shadow whitespace-nowrap transition-opacity ${hoverName ? 'opacity-100' : 'opacity-0'}`}
       >
         {hoverName}
         <span className="text-slate-400"> · click for details</span>
