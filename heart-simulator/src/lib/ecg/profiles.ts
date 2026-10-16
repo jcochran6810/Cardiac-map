@@ -312,8 +312,8 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   'atrial-fibrillation': {
     id: 'atrial-fibrillation', name: 'Atrial Fibrillation', rhythm: 'af', rateControl: 'ventricular', defaultHR: 112, minHR: 50, maxHR: 180,
     pr: 0, p: 'none', qrs: 'normal', qtc: 420, hemo: 'normal',
-    headline: 'Atrial fibrillation with rapid ventricular response',
-    findings: ['Irregularly irregular RR intervals', 'No organised P waves; fibrillatory (f) waves 350–600/min, best seen in V1', 'Narrow QRS unless aberrancy or pre-excitation', 'Beat-to-beat pulse volume varies → pulse deficit at fast rates'],
+    headline: 'Atrial fibrillation — irregularly irregular, no P waves',
+    findings: ['Irregularly irregular RR intervals; ventricular rate > 100 = rapid ventricular response (RVR)', 'No organised P waves; fibrillatory (f) waves 350–600/min, best seen in V1', 'Narrow QRS unless aberrancy or pre-excitation', 'Beat-to-beat pulse volume varies → pulse deficit at fast rates'],
     keyLeads: ['V1', 'II'],
   },
   'atrial-flutter': {
@@ -487,9 +487,10 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   takotsubo: {
     id: 'takotsubo', name: 'Takotsubo Cardiomyopathy', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 98, ...STD,
     pr: 150, p: 'normal', qrs: 'normal', qtc: 480, hemo: 'hfref',
-    injury: scale(norm([0.45, -0.85, -0.25]), 0.16),
+    // Apical/mid-ventricular injury points leftward: STE V3–V6 with little or none in V1, ST depression in aVR
+    injury: scale(norm([0.8, -0.5, -0.3]), 0.18),
     headline: 'Anterior ST elevation without reciprocal inferior change',
-    findings: ['ST elevation in V2–V5 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR', 'Evolves to deep, widespread T inversion with QT prolongation', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
+    findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favour takotsubo', 'Evolves to deep, widespread T inversion with QT prolongation', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
     keyLeads: ['V2', 'V3', 'V4', 'V5', 'aVR'],
   },
   hfref: {

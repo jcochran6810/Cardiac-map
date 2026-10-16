@@ -45,6 +45,10 @@ export interface VentEvent {
   conduction: NonNullable<QRSTemplate['conduction']>;
   /** Hemodynamic weighting: 1 = normal contraction; < 1 for ectopic/dyssynchronous beats */
   efficiency: number;
+  /** Cycle length (ms) used for rate-dependent timing (QT, ejection time) */
+  rr: number;
+  /** Isovolumic relaxation override (ms) — short when LA pressure is high (mitral stenosis) */
+  ivrt?: number;
 }
 
 interface Segment {
@@ -129,13 +133,15 @@ function buildVent(
   if (tpl.st) st = st ? [st[0] + tpl.st[0], st[1] + tpl.st[1], st[2] + tpl.st[2]] : tpl.st;
   const efficiency = kind === 'conducted' || kind === 'svt' || kind === 'junctional'
     ? (tpl.conduction === 'lbbb' ? 0.85 : 1)
-    : kind === 'paced' ? 0.85 : kind === 'torsades' ? 0.15 : kind === 'vt' ? 0.45 : 0.7;
+    : kind === 'paced' ? 0.85 : kind === 'torsades' ? 0.15 : kind === 'vt' ? 0.6 : 0.7;
   return {
     t, kind, pulses, qrsDur, qt, tw, st,
     pTime: opts.pTime,
     spike: opts.spike,
     conduction: tpl.conduction ?? 'normal',
     efficiency,
+    rr,
+    ivrt: profile.hemo === 'mitral-stenosis' ? 65 : undefined,
   };
 }
 
@@ -697,11 +703,15 @@ export interface CycleEvents {
 
 export function cycleEvents(v: VentEvent, next: VentEvent | null): CycleEvents {
   const wide = v.qrsDur > 125;
+  const hr = 60000 / Math.max(250, Math.min(2400, v.rr || 833));
   const mc = v.t + (wide ? 70 : 45);
-  const ao = mc + (wide ? 60 : 50);
-  // Electromechanical systole (Q–S2) ≈ QT; enforce a minimum ejection time
-  const ac = Math.max(ao + 150, v.t + v.qt + 5);
-  const mo = ac + 80;
+  // Isovolumic contraction shortens a little with rate; prolonged with dyssynchronous (wide) activation
+  const ao = mc + (wide ? 60 : Math.max(38, Math.min(55, 50 - 0.1 * (hr - 72))));
+  // LV ejection time falls with heart rate (Weissler: LVET ≈ 413 − 1.7·HR ms). At rest Q–S2 ≈ QT,
+  // so S2 lands near the end of the T wave; at fast rates systole shortens to preserve diastole.
+  const lvet = Math.max(150, Math.min(340, 415 - 1.7 * hr));
+  const ac = ao + lvet;
+  const mo = ac + (v.ivrt ?? Math.max(50, Math.min(90, 80 - 0.3 * (hr - 72))));
   const nextMc = next ? next.t + (next.qrsDur > 125 ? 70 : 45) : mo + 600;
   return { qrs: v.t, mc, ao, ac, mo, nextMc };
 }
