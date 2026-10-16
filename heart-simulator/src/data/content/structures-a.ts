@@ -934,7 +934,7 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Right-sided endocarditis (often S. aureus in people who inject drugs) causes fever, septic lung emboli and hypoxia: treat sepsis per protocol and notify the receiving facility. Severe TR shows right-heart failure signs, often with AF on the monitor.',
       'On RHC, severe TR ventricularises the RA trace with large cv waves; record and flag it for the operator. For transcatheter tricuspid repair or replacement, prepare the delivery system and temporary pacing, and report new AV block or inferior ST change immediately.',
       'For patients who inject drugs, assess vein access, pain and withdrawal needs, and draw blood cultures as ordered before antibiotics. After transcatheter tricuspid procedures, monitor rhythm for heart block, the femoral access site and signs of right-heart congestion.',
-      'Most TR is secondary (atrial or ventricular functional); severe TR: vena contracta ≥7 mm, EROA ≥0.40 cm², hepatic vein systolic reversal. The AV node/His lie near the septal leaflet and the RCA in the AV groove, so annuloplasty and transcatheter devices risk heart block and RCA injury.',
+      'Most TR is secondary (atrial or ventricular functional); severe TR: vena contracta ≥7 mm, EROA ≥0.40 cm², hepatic vein systolic reversal. The AV node/His lie near the septal leaflet and the RCA in the AV groove, so annuloplasty and TV devices risk heart block and RCA injury.',
     ],
     overview: [
       'Separates RA from RV; opens in diastole and closes in systole (contributes to S1)',
@@ -1625,8 +1625,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Sudden tearing chest or back pain, fainting, or different pulses or BP between the arms can mean aortic dissection. Check pulses and BP in both arms, transport urgently, and consult medical direction before giving aspirin if dissection is suspected.',
       'Dissection can mimic or cause STEMI (usually inferior, via the RCA ostium): check for bilateral BP or pulse differences and contact medical direction before antiplatelets when dissection features are present. Control pain, avoid hypotension and notify the receiving center early.',
       'On aortography the root and sinuses sit just above the valve; anticipate root injections for AR grading and TAVR. Catheters and wires can dissect the root or coronary ostia: report contrast staining, new chest pain, ST change or hypotension to the operator at once.',
-      'For suspected type A dissection, establish large-bore IV access and arterial monitoring as ordered, and titrate the ordered IV beta-blocker, then vasodilator, to the HR and SBP targets (commonly HR ~60, SBP <120 mmHg). Clarify any antithrombotic order before giving it.',
-      'Type A dissection needs emergency surgery; meanwhile give IV beta-blocker first (then a vasodilator) to HR ~60 and SBP <120 mmHg. Repair the ascending aorta at ≥5.5 cm, earlier with Marfan, Loeys–Dietz, bicuspid risk features or rapid growth; know coronary heights and STJ dimensions before TAVR.',
+      'For suspected type A dissection, establish large-bore IV access and arterial monitoring as ordered, and titrate the ordered IV beta-blocker, then vasodilator, to the HR and SBP targets (commonly HR 60–80 bpm, SBP <120 mmHg). Clarify any antithrombotic order before giving it.',
+      'Type A dissection needs emergency surgery; meanwhile give IV beta-blocker first (then a vasodilator) to HR 60–80 bpm and SBP <120 mmHg (2022 ACC/AHA). Repair the ascending aorta at ≥5.5 cm, earlier with Marfan, Loeys–Dietz, bicuspid risk features or rapid growth; know coronary heights and STJ dimensions before TAVR.',
     ],
     overview: [
       'Begins at the aortic annulus and ends at the brachiocephalic trunk origin',
@@ -2084,11 +2084,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The thin inner lining of the heart chambers and valves, continuous with the endothelium of blood vessels. Damage here underlies endocarditis and mural thrombus, and the subendocardium is the first layer to become ischemic.',
     levelNotes: [
-      'Fever in someone with a heart valve replacement, a cardiac device or injection drug use may be endocarditis: report these risk factors',
-      'Endocarditis can send infected clots to the brain, kidneys, spleen and limbs: new stroke signs with fever are a red flag',
-      'Suspected endocarditis: ≥3 sets of blood cultures before antibiotics, then echo (TTE, then TEE); apply modified Duke criteria',
-      'Subendocardial ischemia (ST depression) reflects supply–demand mismatch; endocardial fibrosis (e.g., hypereosinophilia) causes restrictive physiology',
-      'Most ablation is delivered endocardially; contact force, wall thickness and catheter stability determine lesion depth',
+      'Fever in someone with a replaced heart valve, a cardiac device or injection drug use may be a heart-lining infection (endocarditis). Report these risk factors and any new stroke signs, and transport.',
+      'Endocarditis can send infected clots to the brain, kidneys, spleen and limbs: fever with new neuro deficits is a red flag. Treat sepsis per protocol, perform a stroke assessment and report valve, device or injection-drug history to the receiving team.',
+      'Most EP ablation is endocardial: prepare the mapping and ablation system, irrigation and ICE as directed, and monitor contact-force and lesion data with the team. Report impedance spikes, audible steam pops or hypotension to the operator immediately.',
+      'For suspected endocarditis, draw blood culture sets from separate sites before the first antibiotic dose as ordered, and monitor temperature, neuro status, renal function and IV sites. Report new heart-failure signs, new AV block on the monitor or stroke symptoms promptly.',
+      'Suspected endocarditis: ≥3 blood culture sets before antibiotics, TTE then TEE (PET-CT for prosthetic or device infection), Duke-ISCVID 2023 criteria. Subendocardial ischemia gives non-localising ST depression; endocardial ablation lesion depth depends on contact force, power, duration and wall thickness.',
     ],
     overview: [
       'Innermost layer: endothelium plus subendothelial connective tissue',
@@ -2162,11 +2162,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The larger of the two LV papillary muscles, on the anterolateral wall, sending chordae to both mitral leaflets. Its dual blood supply (LAD diagonals and LCx marginals) makes ischemic rupture uncommon.',
     levelNotes: [
-      'Papillary muscles hold the mitral valve shut; if one fails after a heart attack, sudden severe breathlessness follows',
-      'Pulmonary edema with shock after MI may be a mechanical complication: support breathing (CPAP per protocol) and transport to a cardiac surgical center',
-      'Rupture of this muscle is rare because of its dual supply, but anterolateral ischemia can still cause transient (dynamic) MR',
-      'Papillary displacement from LV remodeling tethers the leaflets (secondary MR); anomalous papillary insertion contributes to LVOT obstruction in HCM',
-      'Commissural and papillary anatomy near A1/P1 affects TEER grasping and transcatheter mitral valve anchoring',
+      'Papillary muscles hold the mitral valve shut; if one fails after a heart attack, sudden severe breathlessness and shock follow. Sit the patient up if BP allows, give oxygen or CPAP per protocol, and transport rapidly.',
+      'Pulmonary edema with shock after MI may be a mechanical complication such as papillary dysfunction or rupture: CPAP for hypoxia and pressors for hypotension per protocol, no nitrates when hypotensive, and transport to a center with cardiac surgery.',
+      'New large v waves on the PCWP trace during ischemia (for example, balloon inflation) suggest dynamic MR: record them and alert the operator. On ventriculography, MR opacifies the LA, so keep the LA in the field of view as directed.',
+      'Ischemic papillary dysfunction can cause sudden MR: watch for new dyspnea, falling SpO₂, crackles or hypotension after MI or during ischemia and escalate immediately. Prepare CPAP, vasoactive infusions or mechanical support as ordered.',
+      'Rupture of this muscle is rare (dual LAD diagonal and LCx marginal supply), but ischemia can cause dynamic MR. Papillary displacement tethers the leaflets (secondary MR), anomalous insertion contributes to LVOT obstruction in HCM, and A1/P1 subvalvular anatomy affects TEER and TMVR.',
     ],
     overview: [
       'One of two LV papillary muscles anchoring the mitral valve through chordae',
@@ -2230,11 +2230,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'The LV papillary muscle on the inferior wall that anchors chordae to the posteromedial halves of both mitral leaflets. Its usually single blood supply (the PDA) makes it the one that ruptures after inferior MI.',
     levelNotes: [
-      'Sudden severe breathlessness or shock a few days after a heart attack can mean a torn heart muscle: transport rapidly',
-      'Inferior or posterior MI followed by flash pulmonary edema and hypotension: suspect papillary rupture, give CPAP and pressor support per protocol, and go to a surgical center',
-      'Papillary rupture = acute severe MR (murmur may be soft), large v waves on PCWP and shock: afterload reduction, IABP/Impella and emergency surgery',
-      'Typically occurs 2–7 days post-MI, often after relatively small inferior or inferolateral infarcts; mortality is very high without surgery',
-      'Mechanical support bridges to surgery; TEER has been used in highly selected inoperable patients with papillary rupture or dysfunction',
+      'Sudden severe breathlessness or shock a few days after a heart attack can mean a torn muscle inside the left ventricle. Give oxygen or CPAP per protocol, keep the patient upright if BP allows, and transport rapidly with early notification.',
+      'After inferior or posterior MI, flash pulmonary edema with hypotension suggests papillary rupture (the murmur may be soft or absent). Give CPAP and pressors per protocol, avoid nitrates when hypotensive, notify early and transport to a cardiac surgical center.',
+      'Papillary rupture produces giant v waves on the PCWP trace with shock: record the tracing and alert the operator. Draw a saturation run if requested to exclude VSD, and prepare IABP or Impella equipment as directed for a likely transfer to surgery.',
+      'Expect a critically ill patient: monitor arterial pressure, SpO₂ and urine output, titrate vasopressors or inotropes as ordered, and prepare for IABP/Impella and transfer to surgery. After IABP insertion, check distal pulses, the access site and left radial pulse regularly.',
+      'Typically within the first week (classically 2–7 days), often after small inferior or inferolateral infarcts, because the PDA is usually its only supply. Acute severe MR with shock needs afterload reduction, IABP/Impella and emergency surgery; TEER has been used in highly selected inoperable patients.',
     ],
     overview: [
       'Second LV papillary muscle, arising from the inferior (posteromedial) wall',
@@ -2298,11 +2298,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'Thin fibrous cords connecting the papillary muscles to the leaflets of the AV valves (mitral and tricuspid). They keep the leaflets from prolapsing into the atria during systole.',
     levelNotes: [
-      'Chordae are the "strings" holding the heart valves shut; if one snaps, the valve leaks suddenly and fluid backs into the lungs',
-      'Sudden breathlessness and pulmonary edema in someone with known mitral valve prolapse may be chordal rupture: treat as acute heart failure',
-      'Chordal rupture causes acute MR with a flail leaflet: stabilize with afterload reduction or mechanical support and get an urgent echo and surgical consult',
-      'A flail segment from ruptured chordae means severe primary MR; repairability (isolated P2 flail is most repairable) guides surgery vs TEER',
-      'Avoid chordal entanglement with wires and devices during TEER or transcatheter replacement; chordal-sparing surgery preserves LV geometry',
+      'Chordae are the strings that hold heart valves shut; if one snaps, the valve suddenly leaks and fluid backs into the lungs. Sit the patient up, give oxygen or CPAP per protocol, and report any known valve prolapse.',
+      'Sudden pulmonary edema in a patient with known mitral valve prolapse may be chordal rupture: treat as acute heart failure with CPAP and nitroglycerin per protocol if BP allows. Watch for new AF on the monitor and transport to a center with cardiac surgery.',
+      'During TEER, keep the delivery system flushed and stabilised as the operator directs and watch the imaging with the team. Report sudden changes in LA pressure or v wave, or hypotension (possible chordal entanglement or leaflet injury), to the operator immediately.',
+      'Acute chordal rupture can cause rapid decompensation: monitor breathing, SpO₂ and BP, give diuretics or vasoactives as ordered and escalate early. After surgical repair or TEER, monitor for a new murmur, hypotension, arrhythmia and access-site bleeding.',
+      'A flail segment from ruptured chordae means severe primary MR; repairability (isolated P2 flail is most repairable) guides surgery vs TEER. Avoid chordal entanglement during TEER/TMVR; chordal-sparing replacement and neochords preserve LV geometry.',
     ],
     overview: [
       'Collagen and elastin cords covered by endocardium',
@@ -2365,11 +2365,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'A muscular band in the right ventricle running from the lower septum to the base of the anterior papillary muscle. It carries part of the right bundle branch and is a defining feature of the morphologic right ventricle.',
     levelNotes: [
-      'A muscle bridge inside the right ventricle that carries electrical wiring; it cannot be assessed in the field but explains how the RV is activated',
-      'The right bundle branch travels partly through the moderator band; RBBB can follow RV strain (e.g., PE) or conduction disease',
-      'On POCUS it is a normal bright band near the RV apex: do not mistake it for thrombus, and use it to recognize the RV',
-      'It identifies the morphologic RV in congenital disease (e.g., congenitally corrected transposition) and can harbor PVC/VF triggers',
-      'Moderator band PVCs (LBBB morphology, left superior axis, late transition) can trigger idiopathic VF; ICE is key to confirm catheter contact during ablation',
+      'A muscle bridge inside the right ventricle that carries part of the heart’s wiring; rarely it triggers sudden cardiac arrest in otherwise healthy people. For any unresponsive patient without normal breathing or a pulse, start CPR and apply the AED immediately.',
+      'The right bundle branch runs partly through the moderator band; new RBBB can reflect RV strain (e.g., PE) or conduction disease. Frequent LBBB-morphology PVCs can trigger VF: treat VF/pulseless VT with defibrillation per ACLS protocol.',
+      'On ICE or echo it is a bright band across the distal RV, a normal structure rather than thrombus. For moderator band ablation, prepare ICE and the mapping system; during RV lead or catheter work, report runs of PVCs or VT to the operator immediately.',
+      'Patients with idiopathic VF from moderator band triggers often have an ICD: monitor for PVCs and VT/VF, keep the defibrillator available and follow ACLS. Teach what to do after an ICD shock and when to call emergency services.',
+      'Moderator band PVCs (LBBB morphology, left superior axis, late transition) can trigger idiopathic VF; ablation needs ICE to confirm contact. It identifies the morphologic RV in congenital disease (e.g., congenitally corrected transposition) and can mimic thrombus on imaging.',
     ],
     overview: [
       'Part of the septomarginal trabecula of the RV',
@@ -2429,11 +2429,11 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
     summary:
       'A C-shaped muscular ridge inside the right atrium running from the SVC to the IVC, separating the smooth sinus venarum from the trabeculated atrial wall. The sinus node lies at its upper end and it is a common origin of focal atrial tachycardia.',
     levelNotes: [
-      'The heart\'s natural pacemaker (sinus node) sits at the top of this ridge; if nearby tissue misfires, the pulse can become abnormally fast',
-      'Focal atrial tachycardia from the crista produces P waves that look almost like sinus: watch for abrupt onset and offset',
-      'Sinus tachycardia, inappropriate sinus tachycardia and crista AT all have sinus-like P waves; abrupt onset/offset favors AT',
-      'The crista acts as a line of transverse conduction block that forms the posterior boundary of the typical flutter circuit',
-      'Map along the crista for focal AT; avoid phrenic nerve injury on the lateral RA and sinus node injury superiorly',
+      'The heart’s natural pacemaker (sinus node) sits at the top of this ridge; nearby tissue can misfire and make the pulse abnormally fast. Record pulse rate and regularity, note symptoms such as dizziness or chest pain, and transport.',
+      'Focal atrial tachycardia from the crista produces sinus-like P waves; abrupt onset and offset favours AT over sinus tachycardia. Treat the cause of sinus tachycardia (pain, fever, hypovolemia) rather than the rate, and follow tachycardia protocols for unstable patients.',
+      'On ICE the crista is a ridge along the lateral RA from the SVC and can be mistaken for a mass. During focal AT or flutter mapping, prepare multipolar catheters and the mapping system and help check for phrenic capture as directed.',
+      'After focal AT ablation, monitor for sinus node dysfunction (bradycardia, pauses) and report breathlessness or diaphragm weakness (possible phrenic injury). Give isoproterenol for arrhythmia induction only as ordered, with continuous monitoring.',
+      'Map along the crista for focal AT (P upright in I/II, often biphasic or negative in V1); it forms a line of transverse block on the posterior boundary of the typical flutter circuit. Avoid phrenic nerve injury on the lateral RA and sinus-node injury superiorly.',
     ],
     overview: [
       'Internal ridge corresponding to the external sulcus terminalis',

@@ -940,7 +940,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Esmolol is a hospital-only IV beta-blocker infusion. Patients on beta-blocker infusions can become bradycardic or hypotensive; report a slow pulse, low BP or dizziness and request ALS.',
       'Not a standard prehospital drug. On critical care or interfacility transport, keep the ordered rate and stop or adjust only per orders or medical direction; its effect wears off ~10–30 min after stopping if hypotension or bradycardia develops.',
       'Prepare esmolol on physician order where facility policy permits, e.g. for rate control or HCM gradient studies. Record HR, arterial pressure and any LVOT gradient change, and report hypotension or bradycardia promptly.',
-      'Give 500 mcg/kg over 1 min, then 50 mcg/kg/min as ordered, titrating to the ordered targets (aortic dissection: HR ≤ 60, SBP ~100–120). Hypotension is common, so stop and notify; monitor the IV site for extravasation.',
+      'Give 500 mcg/kg over 1 min, then 50 mcg/kg/min as ordered, titrating to the ordered targets (aortic dissection: HR 60–80, SBP < 120). Hypotension is common, so stop and notify; monitor the IV site for extravasation.',
       'First-line for HR and dP/dt control in aortic dissection before adding a vasodilator, and a titratable "test" beta-blocker in borderline LV function or bronchospasm. In obstructive HCM it lowers LVOT gradients, combined with phenylephrine for hypotension.',
     ],
     mechanism: [
@@ -950,7 +950,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     indications: [
       'Rapid rate control of AF/flutter and SVT (perioperative, ICU)',
-      'Aortic dissection (target HR ≤ 60, SBP ~100–120 mmHg)',
+      'Aortic dissection (targets HR 60–80 bpm and SBP < 120 mmHg, 2022 ACC/AHA)',
       'Perioperative tachycardia and hypertension',
       'Thyroid storm (adjunct)',
     ],
