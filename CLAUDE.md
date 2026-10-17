@@ -17,10 +17,9 @@ See "Working with Codex" below.
 - **Production branch: `main`.** Every "end session" merges into `main`. The name lives in
   `.claude/production-branch` (the SessionStart hook reads it). It must be the same in three places:
   that file, GitHub's default branch, and Vercel's production branch.
-- **Former production branch: `claude/create-heart-3d-model-6mtrW`** (production until 2026-10-16).
-  Until the owner switches Vercel's production branch and GitHub's default branch to `main`
-  (`fix_list.md` → Owner actions), end-session step 7 also moves it to the same commit as `main` — the
-  **bridge** — so the live site keeps updating. Never commit to it or base work on it.
+- **Former production branch: `claude/create-heart-3d-model-6mtrW`** (production until 2026-10-16;
+  GitHub's default branch and Vercel's production branch moved to `main` on 2026-10-17). It is no
+  longer used: never commit to it, push to it or base work on it. The owner may delete it.
 - **Live site:** https://cardiacmap.stationinsight.com — Vercel project `cardiac-map` (team
   "Jason Cochran's projects"). Pushes to other branches make preview deployments only
   (`*.vercel.app` previews sit behind Vercel login; the custom domain is public).
@@ -36,8 +35,7 @@ See "Working with Codex" below.
 ## Branch model
 
 - `main` is the **live production branch**: every end session merges into it, and Vercel deploys it to
-  https://cardiacmap.stationinsight.com (through the bridge until the Vercel switch is done). Below it
-  is called "production".
+  https://cardiacmap.stationinsight.com. Below it is called "production".
 - Claude Code sessions work on a per-session branch (whatever the harness assigns, e.g. `claude/<slug>`);
   Codex works on `codex/<slug>`. One branch per session — do not create a new branch for every prompt.
 - Session branches are **drafts**. Pushing one makes a Vercel preview only. Work affects production
@@ -70,7 +68,7 @@ Lead duties, every Claude session:
 3. **Review and merge Codex pull requests** when the owner asks ("review Codex PR #N"): check out the
    PR branch, merge production in if it is behind (resolve conflicts keeping both agents' behaviour),
    run `npm run check`, check the lanes and the layouts, then merge it exactly like end-session
-   steps 7–9 (`--no-ff` into `main`, checks on the result, push, bridge, deployment check). The owner
+   steps 7–9 (`--no-ff` into `main`, checks on the result, push, deployment check). The owner
    asking you to review and merge is the approval. Add a `SESSION_LOG.md` entry for the review.
    If something needs changing first, push the fix to the PR branch or comment on the PR, and tell the owner.
 4. **Set Codex's priorities** in the "For Codex" group of `fix_list.md`, and answer its
@@ -257,11 +255,6 @@ every session ends with the working branch merged into `main` and pushed. In ord
    - `git push origin main`. **If the push is rejected because `main` moved** (another session or a
      Codex PR landed meanwhile): `git fetch origin && git checkout -B main origin/main`, then repeat
      the merge, the checks and the push. Never rebase or force-push `main`.
-   - **Bridge (temporary — until Vercel deploys `main` as production):** move the former production
-     branch to the same commit so the live site updates:
-     `git push origin main:claude/create-heart-3d-model-6mtrW`. It is a fast-forward; if git rejects
-     it, stop and tell the user (never force it). Delete this bullet once step 9 shows a `main`
-     deployment as **Production**.
 8. **Switch back and catch up:**
    `git checkout <working-branch> && git merge --ff-only main && git push origin <working-branch>` —
    the session branch now sits exactly on the merge commit, so the user can keep iterating on an
@@ -269,15 +262,15 @@ every session ends with the working branch merged into `main` and pushed. In ord
 9. **Confirm to the user** with the merge commit hash, a one-sentence summary of what landed, and
    whether the Vercel **Production** deployment for that commit is READY at
    https://cardiacmap.stationinsight.com (Vercel tools: deployments of `cardiac-map`, look at the
-   target). If the `main` deployment is only a Preview, Vercel still deploys the former branch — the
-   bridge kept the site current, and the owner's Vercel switch is still pending; say so. Say clearly
-   if you couldn't check.
+   target). If the `main` deployment is only a Preview, Vercel's production branch is no longer `main`:
+   the site did not update — tell the owner (Vercel → `cardiac-map` → Settings → Environments →
+   Production → Branch Tracking). Say clearly if you couldn't check.
 
 **Rules:**
 - Do **not** delete the working branch after the merge — keep it for reference.
 - Do **not** skip the merge, even for "just a quick fix". A branch that never merges becomes the
   "lost session" problem.
-- Do **not** force-push or rebase `main` (or the bridged former branch). If `main` got new commits
+- Do **not** force-push or rebase `main`. If `main` got new commits
   while you worked, start step 7 again from `git checkout -B main origin/main`.
 - If the user explicitly says "don't merge yet" (e.g. they want a pull request for review), respect
   it — but still commit, push the working branch, update SESSION_LOG.md / fix_list.md, and remind
@@ -321,7 +314,7 @@ the previous one's deploy actually failed, it says so in its own entry.
 ## Safety rules
 
 1. Never edit or commit on `main` directly, except the end-session merge itself (and never on the
-   bridged former production branch at all).
+   former production branch `claude/create-heart-3d-model-6mtrW` at all).
 2. Never merge to `main` unless the user says "end session" (or equivalent), asks you to review and
    merge a Codex pull request, or explicitly approves an urgent hotfix.
 3. Never delete the user's work or discard commits without asking.
@@ -339,8 +332,8 @@ the previous one's deploy actually failed, it says so in its own entry.
 ## How this differs from the sibling repos
 
 - **Production is `main`, as in the siblings** — switched from `claude/create-heart-3d-model-6mtrW`
-  on 2026-10-16. Until Vercel and GitHub are switched too, end-session step 7's bridge keeps the live
-  site updating. The name lives once in `.claude/production-branch`.
+  on 2026-10-16 (GitHub and Vercel followed on 2026-10-17). The name lives once in
+  `.claude/production-branch`.
 - **The app is in `heart-simulator/`**, so the hook and the checks run there.
 - **The session log lives in `SESSION_LOG.md`, not in CLAUDE.md.** Two of the siblings' CLAUDE.md files
   grew to ~0.7–1 MB of log, all of it loaded into every session; here only the newest entry (plus the

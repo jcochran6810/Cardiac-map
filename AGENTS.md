@@ -24,8 +24,8 @@ differences below.
 
 **Production branch: `main`** (named in `.claude/production-branch`), live at
 https://cardiacmap.stationinsight.com. Start every task from `main`. The former production branch
-`claude/create-heart-3d-model-6mtrW` is kept in step with `main` by Claude's end-session "bridge"
-until the Vercel switch is done — never commit to it, base work on it or open pull requests into it.
+`claude/create-heart-3d-model-6mtrW` is no longer used — never commit to it, base work on it or open
+pull requests into it.
 
 ## Your lane (UI / graphics)
 
@@ -86,7 +86,7 @@ When the owner says **"end session"** (or "ship it", "merge this"…):
      build on it — get it green. Tell the owner: *"Ask Claude to review and merge PR #N."* Claude
      reviews it against the lanes and checks, fixes or comments, and merges it.
    - **If you can push and the owner tells you to merge it yourself:** finish CLAUDE.md steps 7–9
-     (merge with `--no-ff` into `main`, `npm run check` on the result, push, the bridge push,
+     (merge with `--no-ff` into `main`, `npm run check` on the result, push,
      confirm the Vercel deployment). Claude reviews it at the start of its next session.
 3. Never push to `main` (or the former production branch) in any other way.
 

@@ -216,7 +216,7 @@ elif [ "$AGENT" = "claude" ] && [ -z "$CURRENT_BRANCH" ]; then
 elif [ "$AGENT" = "claude" ] && [ "$CURRENT_BRANCH" = "$PROD" ]; then
   read -r PB PA <<< "$(counts || echo '- -')"
   if [ "$SOURCE" != "startup" ] && [ "$FETCHED" = "yes" ] && [ "$PB" = "0" ] && [ "${PA:-0}" != "0" ] && [ "$PA" != "-" ]; then
-    SYNC_STATUS="⚠️ On \`$PROD\` with $PA unpushed commit(s) — an end-session merge was interrupted. Finish it: CLAUDE.md end-session step 7 (checks on the merged result, \`git push origin $PROD\`, the bridge push) and step 8 (back to the session branch, fast-forward it, push)."
+    SYNC_STATUS="⚠️ On \`$PROD\` with $PA unpushed commit(s) — an end-session merge was interrupted. Finish it: CLAUDE.md end-session step 7 (checks on the merged result, \`git push origin $PROD\`) and step 8 (back to the session branch, fast-forward it, push)."
     add_notice "An end-session merge into \`$PROD\` is waiting to be pushed. Finish steps 7–8 before anything else."
   else
     SYNC_STATUS="⛔ On the production branch \`$PROD\` directly — STOP. Every push to it goes live at $LIVE_URL; sessions belong on their own branch. Create one: $BRANCH_HINT."

@@ -11,17 +11,10 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
-- [ ] 2026-10-16 — **Finish switching production to `main`** (two dashboard settings). The repo
-  protocol already merges every "end session" into `main`; until these are done, a temporary
-  "bridge" (CLAUDE.md, end-session step 7) also moves the old branch so the live site keeps updating.
-  1. **Vercel** → project `cardiac-map` → Settings → Environments → Production → Branch Tracking →
-     `main` → Save (older dashboards: Settings → Git → Production Branch).
-  2. **GitHub** → `jcochran6810/Cardiac-map` → Settings → General → Default branch → the ⇄ switch
-     button → `main` → Update (the GitHub mobile app's branch picker does not change this).
-  3. Tell Claude it's done: it checks that a push to `main` deploys as Production, then removes the
-     bridge. After that you may delete the old branch `claude/create-heart-3d-model-6mtrW`
-     (GitHub → Branches) — not before.
-  Until step 2 is done, every session start will show a notice about the default branch.
+- [ ] 2026-10-17 — **Delete the old production branch** `claude/create-heart-3d-model-6mtrW`
+  (optional tidy-up; nothing uses it any more): GitHub → `jcochran6810/Cardiac-map` → Branches →
+  trash icon next to it. Its Vercel domain `cardiac-map-git-claude-create-he-…vercel.app` goes with it;
+  the live site is unaffected.
 - [ ] 2026-10-16 — **Set up Codex's environment** (ChatGPT → Codex → Environments → Cardiac-map):
   set the **setup script** to `cd heart-simulator && npm ci` (Codex tasks have no internet after
   setup, so packages must be installed there), and start Codex tasks from branch `main`.
@@ -81,6 +74,9 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-17 — Production fully on `main`: the owner switched GitHub's default branch and Vercel's
+  production branch; the temporary bridge push was removed from `CLAUDE.md`, `AGENTS.md` and the
+  start hook, and the merge of this change deployed from `main` as Production.
 - [x] 2026-10-17 — Live 12-lead is the default ECG view (every lead sweeps at once, one sweep line per
   column, like a monitor); the paper format stays as "Printout" (`3a1ed71`).
 - [x] 2026-10-17 — Straight line drawn across the ECG rhythm strip at the start of about half the

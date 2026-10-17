@@ -6,6 +6,33 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-17 — ccr-fcd6b419-beq5mr (continued: production fully on `main`, bridge removed)
+
+**Agent:** Claude
+
+**Asked:** "I switched github. Im using the mobil app for vercel. Where do I switch on there?" ·
+"done, switched vercel to main".
+
+**Branch:** level with production `main` at `88f723a` (this session's earlier merge); production did
+not move.
+
+**Shipped:**
+
+- GitHub's default branch confirmed as `main` (`git ls-remote --symref origin HEAD`); the owner set
+  Vercel's production branch to `main` (Environments → Branch Tracking, in the Vercel phone app).
+- Temporary bridge removed: end-session step 7 no longer pushes `main` to
+  `claude/create-heart-3d-model-6mtrW`; `CLAUDE.md`, `AGENTS.md` and the start hook's
+  interrupted-merge message updated; step 9 now says what to do if a `main` deployment is only a
+  Preview. Owner action closed; deleting the old branch added as an optional tidy-up.
+
+**Verified:** hook test ✅ (91) · typecheck ✅ · lint ✅ · tests ✅ (133) · build ✅ on the merged result.
+Whether this merge deployed from `main` as **Production** is reported in the step-9 reply.
+
+**Files:** M: `CLAUDE.md`, `AGENTS.md`, `.claude/hooks/session-start.sh`, `fix_list.md`,
+`SESSION_LOG.md`.
+
+**Follow-up:** optional — the owner may delete `claude/create-heart-3d-model-6mtrW` (fix_list.md).
+
 ### 2026-10-17 — ccr-fcd6b419-beq5mr (ECG straight-line fix, live 12-lead as the default)
 
 **Agent:** Claude
