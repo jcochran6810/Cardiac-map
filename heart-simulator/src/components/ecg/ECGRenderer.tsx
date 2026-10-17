@@ -11,8 +11,10 @@ import { windowStart, xInWindow } from '@/lib/ecg/sweep';
  * Calibrated, sweeping 12-lead ECG.
  *
  * - Grid is true ECG paper: 1 mm minor / 5 mm major boxes, 25 (or 50) mm/s, 5/10/20 mm/mV.
- * - Standard layout prints sequential 2.5 s columns (I-II-III | aVR-aVL-aVF | V1-V3 | V4-V6)
- *   with a continuous lead II rhythm strip, exactly like a 12-lead printout.
+ * - The live 12-lead ('simultaneous', the default) sweeps all four columns at once, like a
+ *   monitor's 12-lead screen, so every lead moves with every beat.
+ * - The printout ('standard') prints sequential 2.5 s columns (I-II-III | aVR-aVL-aVF | V1-V3 |
+ *   V4-V6), exactly like a paper 12-lead. Both have a continuous lead II rhythm strip.
  * - A sweep cursor with an erase bar moves left→right; the cursor is "now", which is the
  *   same instant the 3D heart is showing.
  * - Each strip is drawn incrementally into its own offscreen canvas, so per-frame cost is tiny.
