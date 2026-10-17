@@ -45,7 +45,8 @@ interface ECGState {
 
 export const useECGStore = create<ECGState>((set) => ({
   activeProfileId: 'normal-sinus',
-  layout: 'standard',
+  // Live 12-lead (every lead sweeps at once, like a monitor); 'standard' is the paper printout
+  layout: 'simultaneous',
   theme: 'monitor',
   gain: 10,
   sweepSpeed: 25,

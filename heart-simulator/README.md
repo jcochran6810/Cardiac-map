@@ -50,7 +50,7 @@ the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open ite
 | 3D heart | `src/components/scene/` | Exterior, four-chamber section with blood flow, x-ray, conduction system and coronary territories. Contraction, depolarization wave and ischemia are shaded on the GPU from the live ECG. |
 | Anatomy map | `src/lib/anatomy/landmarks.ts` | Landmarks snapped to the model surface; clicking the heart opens the matching structure. |
 | Teaching content | `src/data/content/`, `src/data/caseData.ts` | 62 structures, 42 conditions, 42 procedures, 38 medications, 9 branching cases, 66 quiz questions. Loaded on demand. |
-| UI | `src/components/layout/`, `src/components/ecg/`, `src/components/physiology/` | Navigator, info panel, ECG (12-lead, monitor, paper, inspect, calipers), Wiggers/PV loop, tutor, quiz. |
+| UI | `src/components/layout/`, `src/components/ecg/`, `src/components/physiology/` | Navigator, info panel, ECG (live 12-lead, printout, monitor, paper, inspect, calipers), Wiggers/PV loop, tutor, quiz. |
 | Electrode lab | `src/lib/ecg/electrodes.ts`, `src/components/ecg/ElectrodeLab.tsx` | 10 electrodes → 12 leads (Einthoven / Goldberger / Wilson). Swap cables or try a "mystery reversal" and watch the live 12-lead change. |
 | Activation map | `src/lib/anatomy/activation.ts` | Epicardial isochronal map of each beat (normal per Durrer 1970, LBBB, RBBB, WPW, pacing, PVC/VT), like an EP mapping system. The 3D wavefront follows it in every view. |
 | Coronary territories | `src/lib/anatomy/aha17.ts`, `src/components/anatomy/Bullseye.tsx` | AHA 17-segment bull's-eye linked to the culprit artery; the angio panel shows the C-arm angle (LAO/RAO, CRA/CAU) of any view. |

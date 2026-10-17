@@ -6,6 +6,44 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-17 — ccr-fcd6b419-beq5mr (ECG straight-line fix, live 12-lead as the default)
+
+**Agent:** Claude
+
+**Asked:** "On the 12 lead read out there is a straight line that is interfering with reading the
+12 lead" · "The white vertical line needs to be in-sync with the heart beating and showing the
+electrical reading. The same way a real 12-lead on a monitor or ekg shows" (then chose "All 12 leads
+live" from the options offered) · "end session".
+
+**Branch:** started level with production `main` at `e869dfb`; production did not move during the
+session.
+
+**Shipped:**
+
+- Straight line across the ECG fixed (`5400102`): the renderer placed samples with
+  `(t - offset) % page`, and floating-point rounding put the first sample of about half the sweeps
+  at the right edge, so a flat line was drawn across the whole lead II rhythm strip (also Monitor,
+  Simultaneous and Inspect views) until the sweep erased it. Positions are now measured from each
+  window's own start (`src/lib/ecg/sweep.ts`), with a regression test (`tests/ecg-sweep.test.ts`).
+- Live 12-lead is the default ECG view (`3a1ed71`): every lead redraws at once with one sweep line per
+  column, plus the lead II rhythm strip, like a monitor's 12-lead screen. The old sequential paper
+  format stays as **Printout**; buttons are now 12-lead · Printout · Monitor (phones still open on
+  Monitor). Checked frame by frame at 0.1× that the sweep line and the 3D heart share one clock
+  (the electrical wave crosses the heart while the line draws the QRS).
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (133) · build ✅. In Playwright: a pixel scan found a
+1,123 px straight line in the rhythm strip before the fix and none after (90 frames, 12-lead; 50
+frames, phone Monitor; 45 frames, live 12-lead). **Not verified:** a real phone or tablet.
+
+**Files:** A: `heart-simulator/src/lib/ecg/sweep.ts`, `heart-simulator/tests/ecg-sweep.test.ts` ·
+M: `heart-simulator/src/components/ecg/ECGRenderer.tsx`,
+`heart-simulator/src/components/layout/BottomDock.tsx`, `heart-simulator/src/store/useECGStore.ts`,
+`heart-simulator/README.md`, `SESSION_LOG.md`, `fix_list.md`.
+
+**Follow-up:** owner actions unchanged (switch GitHub's default branch and Vercel's production branch
+to `main`; try the app on a real phone). The owner was also offered a beat cue (flashing heart / beep
+on each QRS) and a monitor-style erase bar instead of the white line, and did not pick them.
+
 ### 2026-10-16 — claude/magical-allen-qsnowt (phone/tablet layout, installable app, session protocol, `main` as production, Codex as UI agent)
 
 **Agent:** Claude

@@ -81,6 +81,10 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-17 — Live 12-lead is the default ECG view (every lead sweeps at once, one sweep line per
+  column, like a monitor); the paper format stays as "Printout" (`3a1ed71`).
+- [x] 2026-10-17 — Straight line drawn across the ECG rhythm strip at the start of about half the
+  sweeps (floating-point wrap in the sweep maths) fixed, with a regression test (`5400102`).
 - [x] 2026-10-16 — Codex's UI foundation (PR #2 work, landed on `main` as `4c345d1`) merged with the
   phone / tablet layout, PWA and session protocol; Codex's own protocol files folded into
   `CLAUDE.md` / `AGENTS.md` / `SESSION_LOG.md`, root `README.md` corrected.

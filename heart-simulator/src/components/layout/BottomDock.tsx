@@ -21,8 +21,8 @@ const DefibPanel = dynamic(() => import('@/components/monitor/DefibPanel'), { ss
 const WiggersPanel = dynamic(() => import('@/components/physiology/WiggersPanel'), { ssr: false });
 
 const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
-  { value: 'standard', label: '12-lead', title: 'Standard 12-lead printout: sequential 2.5 s columns + lead II rhythm strip' },
-  { value: 'simultaneous', label: 'Simultaneous', title: 'All 12 leads show the same moment (compare leads beat-for-beat)' },
+  { value: 'simultaneous', label: '12-lead', title: 'Live 12-lead, like a monitor: every lead redraws at once (one sweep line per column) + lead II rhythm strip' },
+  { value: 'standard', label: 'Printout', title: 'Paper 12-lead printout: sequential 2.5 s columns (one sweep line walks across them) + lead II rhythm strip' },
   { value: 'monitor', label: 'Monitor', title: 'Bedside monitor: II, V1, V5' },
 ];
 

@@ -5,13 +5,16 @@ import { sim, scrubTo } from '@/lib/sim/simulation';
 import { useECGStore, ECGLead, ECGLayout } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
+import { windowStart, xInWindow } from '@/lib/ecg/sweep';
 
 /**
  * Calibrated, sweeping 12-lead ECG.
  *
  * - Grid is true ECG paper: 1 mm minor / 5 mm major boxes, 25 (or 50) mm/s, 5/10/20 mm/mV.
- * - Standard layout prints sequential 2.5 s columns (I-II-III | aVR-aVL-aVF | V1-V3 | V4-V6)
- *   with a continuous lead II rhythm strip, exactly like a 12-lead printout.
+ * - The live 12-lead ('simultaneous', the default) sweeps all four columns at once, like a
+ *   monitor's 12-lead screen, so every lead moves with every beat.
+ * - The printout ('standard') prints sequential 2.5 s columns (I-II-III | aVR-aVL-aVF | V1-V3 |
+ *   V4-V6), exactly like a paper 12-lead. Both have a continuous lead II rhythm strip.
  * - A sweep cursor with an erase bar moves left→right; the cursor is "now", which is the
  *   same instant the 3D heart is showing.
  * - Each strip is drawn incrementally into its own offscreen canvas, so per-frame cost is tiny.
@@ -176,9 +179,7 @@ function buildLayout(
 
 /** Map time → x for a strip, or null if that time is not displayed in that strip */
 function xFor(s: Strip, t: number, pxPerMs: number): number | null {
-  const rel = (((t - s.offset) % s.page) + s.page) % s.page;
-  if (rel > s.dur) return null;
-  return rel * pxPerMs;
+  return xInWindow(t, windowStart(t, s.offset, s.page), s.dur, pxPerMs);
 }
 
 export default function ECGRenderer() {
@@ -207,7 +208,8 @@ export default function ECGRenderer() {
 
     const engine = sim.engine;
 
-    const drawRange = (L: Layout, s: Strip, u: number, v: number, color: string) => {
+    /** Draw times [u, v] of the window starting at ws (x is measured from ws, never with a modulo) */
+    const drawRange = (L: Layout, s: Strip, ws: number, u: number, v: number, color: string) => {
       const c = s.canvas.getContext('2d')!;
       c.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
       const base = s.overflow + s.h * 0.62;
@@ -225,7 +227,7 @@ export default function ECGRenderer() {
       let first = true;
       let si = 0;
       const plot = (t: number) => {
-        const x = xFor(s, t, L.pxPerMs);
+        const x = xInWindow(t, ws, s.dur, L.pxPerMs);
         if (x === null) return;
         const y = base - engine.voltage(s.lead, t) * L.pxPerMv;
         if (first) {
@@ -265,7 +267,7 @@ export default function ECGRenderer() {
         const xv = (v - ws) * L.pxPerMs;
         if (u === ws) s.hasLast = false;
         clearRange(L, s, xu, xv + gapPx);
-        drawRange(L, s, u, v, color);
+        drawRange(L, s, ws, u, v, color);
       }
     };
 
@@ -283,12 +285,12 @@ export default function ECGRenderer() {
         const prevStart = Math.max(Math.min(T, we) + gapMs, ws) - s.page;
         const prevEnd = we - s.page;
         if (prevEnd > prevStart && prevEnd > 0) {
-          drawRange(L, s, Math.max(0, prevStart), prevEnd, color);
+          drawRange(L, s, ws - s.page, Math.max(0, prevStart), prevEnd, color);
           s.hasLast = false;
         }
         // current page up to the cursor
         const curEnd = Math.min(T, we);
-        if (curEnd > ws) drawRange(L, s, Math.max(0, ws), curEnd, color);
+        if (curEnd > ws) drawRange(L, s, ws, Math.max(0, ws), curEnd, color);
       }
     };
 
