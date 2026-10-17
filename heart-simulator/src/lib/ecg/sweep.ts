@@ -22,3 +22,15 @@ export function xInWindow(t: number, ws: number, dur: number, pxPerMs: number): 
   if (rel < -EPS || rel > dur + EPS) return null;
   return Math.min(dur, Math.max(0, rel)) * pxPerMs;
 }
+
+/**
+ * Sample times for drawing (t0, t1] one frame at a time: every `step` ms from t0, always ending
+ * exactly at t1. The next frame starts where this one ended, so frames join into one line even
+ * when a frame is shorter than `step` (a 120 Hz phone drawing a narrow trace).
+ */
+export function sampleTimes(t0: number, t1: number, step: number): number[] {
+  const out: number[] = [];
+  for (let t = t0; t < t1; t += step) out.push(t);
+  out.push(t1);
+  return out;
+}

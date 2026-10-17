@@ -5,6 +5,7 @@ import { sim } from '@/lib/sim/simulation';
 import { useDefibStore, vitalsAt, plethAt, capnoAt, fmt, type Vitals } from '@/lib/sim/defib';
 import { useECGStore } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
+import { sampleTimes } from '@/lib/ecg/sweep';
 import { useAppStore } from '@/store/useAppStore';
 
 const WINDOW = 6000; // ms across the screen
@@ -79,7 +80,8 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
       let prevX = 0;
       ctx.lineWidth = large ? 2.2 : 1.6;
       ctx.lineJoin = 'round';
-      for (let t = t0; t <= t1 + 1e-6; t += step) {
+      ctx.lineCap = 'round'; // each frame adds short separate segments; round ends keep the joins smooth
+      for (const t of sampleTimes(t0, t1, step)) {
         const x = xOf(t);
         const cur = sample(t, cache);
         if (prev && x >= prevX) {
@@ -117,16 +119,22 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
         }
       }
     };
-    const erase = (x0: number, x1: number) => {
-      ctx.fillStyle = '#05080c';
-      if (x1 >= x0) ctx.fillRect(x0, 0, x1 - x0, H);
-      else { ctx.fillRect(x0, 0, W - x0, H); ctx.fillRect(0, 0, x1, H); }
-    };
-    const grid = () => {
+    // Row dividers are drawn only where the screen was just cleared: stroking the whole width
+    // every frame stacks the translucent line on itself until it turns solid white.
+    const grid = (x0: number, x1: number) => {
       const r = rows();
       ctx.strokeStyle = 'rgba(255,255,255,0.08)';
       ctx.lineWidth = 1;
-      for (const y of [r.pleth[0], r.co2[0]]) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+      ctx.lineCap = 'butt'; // no overhang into the area that was not cleared
+      for (const y of [r.pleth[0], r.co2[0]]) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); }
+    };
+    const erase = (a: number, b: number) => {
+      // Whole device pixels, so the sweep leaves no half-erased seams behind
+      const x0 = Math.floor(a * dpr) / dpr;
+      const x1 = Math.ceil(b * dpr) / dpr;
+      ctx.fillStyle = '#05080c';
+      if (x1 >= x0) { ctx.fillRect(x0, 0, x1 - x0, H); grid(x0, x1); }
+      else { ctx.fillRect(x0, 0, W - x0, H); ctx.fillRect(0, 0, x1, H); grid(x0, W); grid(0, x1); }
     };
     const beep = (spo2: number | null) => {
       if (!useDefibStore.getState().sound) return;
@@ -149,13 +157,12 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
         if (lastT < 0 || sim.epoch !== lastEpoch || T < lastT || T - lastT > WINDOW * 0.8) {
           ctx.fillStyle = '#05080c';
           ctx.fillRect(0, 0, W, H);
-          grid();
+          grid(0, W);
           drawRange(T - WINDOW + 400, T);
           lastEpoch = sim.epoch;
         } else if (T > lastT) {
           const gap = 18;
           erase(xOf(lastT) + 1, (xOf(T) + gap) % W);
-          grid();
           drawRange(lastT, T);
         }
         // QRS tone
