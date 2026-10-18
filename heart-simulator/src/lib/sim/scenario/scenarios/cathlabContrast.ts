@@ -2,6 +2,9 @@ import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { has, line } from '../kit';
 import { MD, RN, TECH, angioGate, askCritical, askEvents, askHarm, operator, type LabAsk } from '../labKit';
 
+/** Real angiograms for this patient: cine view id → key of CATH_IMAGES */
+const IMAGES: Partial<Record<string, string>> = {};
+
 const reactionRead: Omit<PendingRead, 'minute'> = {
   kind: 'clinical', answer: 'clin-contrast', prompt: 'What is happening to her?',
   explain: 'A severe (anaphylactoid) reaction to the contrast: hives, flushing, wheeze, a tight throat, low pressure and a fast heart rate a minute after the first injection. Stop the contrast, epinephrine IM 0.5 mg (or 10–20 mcg IV boluses in the lab), fluid wide open, oxygen; then albuterol, an antihistamine and a steroid.',
@@ -34,6 +37,7 @@ export const cathlabContrast: Scenario = {
   setting: 'cathlab',
   roles: [3, 4, 5],
   difficulty: 'intermediate',
+  images: IMAGES,
   briefing: {
     default: [
       ['team', 'Elective diagnostic angiogram: 55-year-old woman with exertional chest discomfort and an equivocal CT. No previous contrast.'],
@@ -70,7 +74,7 @@ export const cathlabContrast: Scenario = {
   status: (s) => (!s.pulse ? 'Unresponsive.' : has(s, 'recovered') ? '"I can breathe again… that was frightening."' : has(s, 'reaction') ? '"My throat… so tight… I can\'t breathe."' : '"I\'m fine."'),
   respond: {
     access: (s) => ({ say: [[operator(s), 'Right radial: 5 Fr sheath in, cocktail given.']], flags: ['access'] }),
-    angio: (s) => angioGate(s) ?? { say: [['you', 'First injection of the left coronary: smooth vessels, no narrowing.']], image: { id: 'angio', view: 'Left coronary (first run)' }, flags: ['angio-left', 'contrast-given'] },
+    angio: (s) => angioGate(s) ?? { say: [['you', 'First injection of the left coronary: smooth vessels, no narrowing.']], image: { id: 'angio', view: 'Left coronary (first run)', image: IMAGES.angio }, flags: ['angio-left', 'contrast-given'] },
     'epi-im': epi,
     'push-epi': epi,
     fluid: (s) => ({ say: [['monitor', `Fluid wide open. BP ${s.vitals.sbp + 8}/${s.vitals.dbp + 6}.`]], vitals: { sbp: s.vitals.sbp + 8, dbp: s.vitals.dbp + 6 }, flags: ['fluid'] }),
@@ -96,7 +100,7 @@ export const cathlabContrast: Scenario = {
     ...TECH_ASKS.flatMap(askEvents),
     {
       id: 'md-first-shot', when: (s) => s.role !== 5 && has(s, 'access') && (s.role === 4 ? s.minute >= s.flags.access + 2 : has(s, 'diag-in-hand')),
-      effect: () => ({ say: [['operator', 'First injection of the left coronary: smooth.']], image: { id: 'angio', view: 'Left coronary (first run)' }, flags: ['angio-left', 'contrast-given', 'catheter'] }),
+      effect: () => ({ say: [['operator', 'First injection of the left coronary: smooth.']], image: { id: 'angio', view: 'Left coronary (first run)', image: IMAGES.angio }, flags: ['angio-left', 'contrast-given', 'catheter'] }),
     },
     {
       id: 'reaction', when: (s) => has(s, 'contrast-given'),

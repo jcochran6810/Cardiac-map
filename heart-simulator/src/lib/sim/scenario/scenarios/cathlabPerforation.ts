@@ -136,11 +136,14 @@ export const cathlabPerforation: Scenario = {
       effect: (s) => ({
         say: [
           [operator(s), 'Post-dilating at 18 atmospheres… and down.'],
-          ['monitor', 'On the next injection a jet of contrast streams out beyond the vessel wall and stays there after the artery has cleared. BP 98/62, heart rate 108.', 'bad'],
+          ['monitor', IMAGES.perforation
+            ? 'Cine recorded after the post-dilation — look at the run (Imaging). BP 98/62, heart rate 108.'
+            : 'On the next injection a jet of contrast streams out beyond the vessel wall and stays there after the artery has cleared. BP 98/62, heart rate 108.', 'bad'],
           ['patient', '"Ooh — my chest feels tight."'],
           ...(s.role !== 5 ? [line('operator', 'Balloon back up — now!', 'bad')] : []),
         ],
         vitals: { sbp: 98, dbp: 62 }, rhythm: { ...s.rhythm, hr: 108 },
+        image: { id: 'perforation', view: 'The run after the post-dilation', image: IMAGES.perforation },
         flags: ['perforation', ...(s.role !== 5 ? ['balloon-up'] : [])], read: perforationRead,
       }),
     },

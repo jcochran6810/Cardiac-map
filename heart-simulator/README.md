@@ -46,8 +46,9 @@ panel's **← Back** is the same button.
   catheter, guide, view, wire, balloon and stent and waits for the right one — a wrong one gets a word and
   costs points, one opened ahead of the request counts; as the **nurse**, the cardiologist orders drugs and
   you choose them (e.g. "something for the rate" → atropine, the hyperaemia dose of adenosine, IV cangrelor
-  in shock); as the **cardiologist**, every choice is yours. The monitor shows the live arterial pressure
-  (ART) once the sheath is in and the transducers are zeroed, and an **Imaging** tab lists every cine run
+  in shock); as the **cardiologist**, every choice is yours. The monitor draws the arterial pressure trace
+  (ART) once the sheath is in and the transducers are zeroed — it flattens while a guide is wedged — and an
+  **Imaging** tab lists every cine run
   with a C-arm diagram, its angles and what the view shows best (and the real angiogram when the app has one
   — `src/data/cathImages.ts`).
 - **Events happen on time or because of what you did** (VF en route, heart block, a wedged catheter,
@@ -70,7 +71,7 @@ panel's **← Back** is the same button.
 
 `src/data/content/cathlab*.ts` (content) · `src/lib/cathlab/views.ts` (view angles) · Library → **Cath lab** tab
 
-About 75 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
+78 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
 balloons and stents, physiology and intravascular imaging, mechanical support and pacing, pressures and
 hemodynamics, lab drugs, complications, team and safety. Each item says what it is, the numbers to know,
 pearls and pitfalls, and **what the tech, the nurse and the cardiologist each do with it** (your own role is
