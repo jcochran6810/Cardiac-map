@@ -399,6 +399,29 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   return s;
 }
 
+/** Points a hint costs */
+export const HINT_POINTS = 2;
+export const isHint = (p: { id: string }) => p.id.startsWith('hint-');
+
+/** The next critical item still missing, if any */
+export function nextCritical(sc: Scenario, s: SimState): Critical | null {
+  return criticalsFor(sc, s.role).find((c) => (!c.applies || c.applies(s)) && achieved(c, s) === null) ?? null;
+}
+
+/** A hint names the next critical item still missing — at a small cost — and takes no scenario time */
+export function takeHint(sc: Scenario, prev: SimState): SimState {
+  if (prev.ended) return prev;
+  const s: SimState = structuredClone(prev);
+  const next = nextCritical(sc, s);
+  if (!next) {
+    say(s, 'system', 'Hint: nothing critical is missing right now — keep reassessing and watch the monitor.');
+    return s;
+  }
+  s.penalties.push({ id: `hint-${s.penalties.filter(isHint).length + 1}`, minute: s.minute, points: HINT_POINTS, severity: 'minor', text: `Hint used: ${next.label}.` });
+  say(s, 'system', `Hint: ${next.label}. ${next.why}`, 'info');
+  return s;
+}
+
 export function stop(prev: SimState): SimState {
   if (prev.ended) return prev;
   const s: SimState = structuredClone(prev);
@@ -450,11 +473,15 @@ export function review(sc: Scenario, s: SimState): Review {
     }
   }
   const penaltyPoints = s.penalties.reduce((a, p) => a + p.points, 0);
-  for (const p of s.penalties) toFix.push({ kind: 'harm', label: p.text.split('. ')[0] + '.', detail: p.text, points: p.points, severity: p.severity });
+  for (const p of s.penalties) {
+    if (isHint(p)) toFix.push({ kind: 'hint', label: p.text, detail: 'You asked for a hint. Try the case again without one.', points: p.points });
+    else toFix.push({ kind: 'harm', label: p.text.split('. ')[0] + '.', detail: p.text, points: p.points, severity: p.severity });
+  }
   let percent = max > 0 ? Math.round((100 * Math.max(0, earned - penaltyPoints)) / max) : 0;
   if (s.ended?.reason === 'death') percent = Math.min(percent, 40);
   const sev = { critical: 0, major: 1, minor: 2 };
-  toFix.sort((a, b) => (a.kind === 'harm' ? sev[a.severity ?? 'minor'] : 3) - (b.kind === 'harm' ? sev[b.severity ?? 'minor'] : 3) || b.points - a.points);
+  const rank = (t: Review['toFix'][number]) => (t.kind === 'harm' ? sev[t.severity ?? 'minor'] : t.kind === 'hint' ? 4 : 3);
+  toFix.sort((a, b) => rank(a) - rank(b) || b.points - a.points);
 
   const timings: Review['timings'] = [];
   for (const t of sc.timings ?? []) {
@@ -472,5 +499,5 @@ export function review(sc: Scenario, s: SimState): Review {
       ? `Every critical intervention done in ${clockText(s.ended.minute)}.`
       : `Ended early at ${clockText(s.minute)} with ${toFix.filter((t) => t.kind === 'missed').length} critical item(s) not done.`;
 
-  return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, timings, wentWell, toFix, teaching: sc.teaching };
+  return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, timings, wentWell, toFix, hints: s.penalties.filter(isHint).length, teaching: sc.teaching };
 }

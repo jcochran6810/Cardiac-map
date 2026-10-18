@@ -11,8 +11,15 @@ import { useAppStore } from '@/store/useAppStore';
 const WINDOW = 6000; // ms across the screen
 const COLORS = { ecg: '#3cff7a', pleth: '#45d4ff', co2: '#ffd43b', grid: 'rgba(255,255,255,0.05)', text: '#9aa4b2' };
 
-/** Bedside monitor-defibrillator display: ECG lead II, SpO₂ plethysmogram and capnogram. */
-export default function MonitorDisplay({ large = false }: { large?: boolean }) {
+export interface Channels { ecg: boolean; pleth: boolean; co2: boolean }
+const ALL_CHANNELS: Channels = { ecg: true, pleth: true, co2: true };
+
+/**
+ * Bedside monitor-defibrillator display: ECG lead II, SpO₂ plethysmogram and capnogram.
+ * `channels` says which sensors are connected (the case simulator starts with none);
+ * `showRhythmName` labels the rhythm, which a real monitor never does.
+ */
+export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS, showRhythmName = true }: { large?: boolean; channels?: Channels; showRhythmName?: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [vit, setVit] = useState<Vitals>(() => vitalsAt(sim.time));
@@ -21,6 +28,8 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
   const profile = resolveProfile(profileId);
   const role = useAppStore((s) => s.learningLevel);
   const [blink, setBlink] = useState(false);
+  const channelsRef = useRef(channels);
+  channelsRef.current = channels;
 
   // numerics at 4 Hz
   useEffect(() => {
@@ -64,12 +73,13 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
       if (!cache.v || Math.abs((cache.vt ?? 0) - t) > 400) { cache.v = vitalsAt(t); cache.vt = t; }
       const v = cache.v;
       const r = rows();
+      const on = channelsRef.current;
       const ecgMid = r.ecg[0] + (r.ecg[1] - r.ecg[0]) * 0.6;
       const pxPerMv = (r.ecg[1] - r.ecg[0]) * 0.36;
-      const yE = ecgMid - Math.max(-2.2, Math.min(2.6, sim.engine.voltage('II', t))) * pxPerMv;
-      const pl = plethAt(t, v.pulse, v.wave?.[0] ?? v.sbp, v.wave?.[1] ?? v.dbp);
+      const yE = ecgMid - (on.ecg ? Math.max(-2.2, Math.min(2.6, sim.engine.voltage('II', t))) : 0) * pxPerMv;
+      const pl = on.pleth ? plethAt(t, v.pulse, v.wave?.[0] ?? v.sbp, v.wave?.[1] ?? v.dbp) : 0;
       const yP = r.pleth[1] - 8 - pl * (r.pleth[1] - r.pleth[0] - 18);
-      const c = capnoAt(t, v.rr, v.etco2);
+      const c = on.co2 ? capnoAt(t, v.rr, v.etco2) : 0;
       const yC = r.co2[1] - 6 - (c / 50) * (r.co2[1] - r.co2[0] - 16);
       return [yE, yP, yC];
     };
@@ -192,11 +202,14 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
       <div className="relative flex-1 min-w-0" ref={wrapRef}>
         <canvas ref={canvasRef} className="absolute inset-0" />
         <div className="absolute left-2 top-1 text-[10px] font-mono" style={{ color: COLORS.ecg }}>
-          II ×1 {!d.trainee && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
+          II ×1 {showRhythmName && !d.trainee && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
           {d.sync && d.mode === 'manual' && <span className="ml-2 px-1 rounded bg-white text-black font-bold">SYNC</span>}
         </div>
         <div className="absolute left-2 text-[10px] font-mono" style={{ top: '34%', color: COLORS.pleth }}>Pleth</div>
         <div className="absolute left-2 text-[10px] font-mono" style={{ top: '67.5%', color: COLORS.co2 }}>CO₂ mmHg</div>
+        {!channels.ecg && <Unplugged top="12%" large={large}>ECG leads not connected</Unplugged>}
+        {!channels.pleth && <Unplugged top="45%" large={large}>SpO₂ probe not connected</Unplugged>}
+        {!channels.co2 && <Unplugged top="78%" large={large}>No capnography</Unplugged>}
         {d.message && (
           <div className={`absolute left-1/2 -translate-x-1/2 top-1 max-w-[80%] px-2 py-0.5 rounded text-center font-semibold ${large ? 'text-lg' : 'text-[11px]'} ${d.charge === 'charged' || d.aed.phase === 'shock' ? (blink ? 'bg-amber-400 text-black' : 'bg-amber-600 text-black') : 'bg-slate-800/90 text-amber-200'}`}>
             {d.message}
@@ -209,7 +222,7 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
       <div className={`shrink-0 flex flex-col justify-between border-l border-slate-800 font-mono ${large ? 'w-72 p-4' : 'w-28 sm:w-36 p-1.5 sm:p-2'}`}>
         <div style={{ color: COLORS.ecg }}>
           <div className="text-[10px] flex justify-between"><span>HR</span><span>bpm</span></div>
-          <div className={`${big} font-bold leading-none tabular-nums`}>{vit.hr > 0 ? vit.hr : '---'}</div>
+          <div className={`${big} font-bold leading-none tabular-nums`}>{vit.hr > 0 && (channels.ecg || (channels.pleth && vit.pulse)) ? vit.hr : '---'}</div>
           {d.pacer.on && (
             <div className="text-[10px] text-orange-300 mt-0.5">
               PACER {d.pacer.rate} ppm · {d.pacer.mA} mA{d.pacer.inhibited ? ' · inhibited' : d.pacer.captured ? '' : ' · no capture'}
@@ -218,13 +231,13 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
         </div>
         <div style={{ color: COLORS.pleth }}>
           <div className="text-[10px] flex justify-between"><span>SpO₂</span><span>%</span></div>
-          <div className={`${mid} font-bold leading-none tabular-nums`}>{vit.spo2 ?? '---'}</div>
+          <div className={`${mid} font-bold leading-none tabular-nums`}>{channels.pleth ? vit.spo2 ?? '---' : '---'}</div>
         </div>
         <div style={{ color: COLORS.co2 }}>
           <div className="text-[10px] flex justify-between"><span>EtCO₂</span><span>RR</span></div>
           <div className="flex items-baseline justify-between">
-            <span className={`${mid} font-bold leading-none tabular-nums`}>{vit.etco2}</span>
-            <span className={`${large ? 'text-2xl' : 'text-base'} tabular-nums`}>{vit.rr}</span>
+            <span className={`${mid} font-bold leading-none tabular-nums`}>{channels.co2 ? vit.etco2 : '--'}</span>
+            <span className={`${large ? 'text-2xl' : 'text-base'} tabular-nums`}>{channels.co2 || channels.ecg ? vit.rr : '--'}</span>
           </div>
         </div>
         <div className="text-slate-200">
@@ -243,6 +256,14 @@ export default function MonitorDisplay({ large = false }: { large?: boolean }) {
           {epiAgo !== null && <div className={epiAgo >= 180000 ? 'text-amber-300' : ''}>Epi {fmt(epiAgo)} ago{epiAgo >= 180000 ? ' — due' : ''}</div>}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Unplugged({ top, large, children }: { top: string; large: boolean; children: React.ReactNode }) {
+  return (
+    <div className={`absolute left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-slate-800/80 text-slate-300 font-mono whitespace-nowrap ${large ? 'text-base' : 'text-[10px]'}`} style={{ top }}>
+      {children}
     </div>
   );
 }

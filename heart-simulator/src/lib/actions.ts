@@ -18,20 +18,23 @@ import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { CONDUCTION_IDS, CORONARY_IDS, SECTION_FIRST, structureCategory } from '@/lib/anatomy/categories';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CASE_DATA } from '@/data/caseData';
+import { setRhythm } from '@/lib/rhythm';
+import { leaveSimulator } from '@/store/useSimStore';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 
-/** On small screens, opening an item swaps the navigator drawer for the info drawer */
+/** Opening an item shows the learning workspace; on small screens it swaps the navigator drawer for the info drawer */
 function reveal() {
   const app = useAppStore.getState();
+  if (app.mode !== 'learn') {
+    // the simulator hands the monitor back first, so the item's own ECG is not overwritten afterwards
+    if (app.mode === 'simulator') leaveSimulator();
+    app.setMode('learn');
+  }
   if (app.compact) app.setPanels(false, true);
   else if (!app.rightPanelOpen) app.setPanels(app.leftPanelOpen, true);
 }
 
-export function setRhythm(profileId: string, hr?: number) {
-  const p = resolveProfile(profileId);
-  useECGStore.getState().setActiveProfile(p.id);
-  useTimelineStore.getState().setHeartRate(hr && p.rateControl !== 'none' ? hr : p.defaultHR);
-}
+export { setRhythm };
 
 export function openStructure(id: string) {
   reveal();

@@ -12,6 +12,9 @@ import TutorPanel from '@/components/tutor/TutorPanel';
 import QuizPanel from '@/components/tutor/QuizPanel';
 import SimulationDriver from '@/components/sim/SimulationDriver';
 import { InstallBanner } from '@/components/ui/InstallApp';
+import HomeScreen from '@/components/home/HomeScreen';
+import SimulatorScreen from '@/components/simulator/SimulatorScreen';
+import { MobileNav } from '@/components/layout/ModeNav';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore } from '@/store/useECGStore';
@@ -49,6 +52,7 @@ function defaultDockSize(side: boolean, phone: boolean, compact: boolean): numbe
 }
 
 export default function AppShell() {
+  const mode = useAppStore((s) => s.mode);
   const leftPanelOpen = useAppStore((s) => s.leftPanelOpen);
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
   const setPanels = useAppStore((s) => s.setPanels);
@@ -132,6 +136,8 @@ export default function AppShell() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const app = useAppStore.getState();
       const tl = useTimelineStore.getState();
+      // the 3D-heart and ECG shortcuts only belong to the learning workspace
+      if (app.mode !== 'learn' && !['q', 'Q', 't', 'T', '?', 'Escape'].includes(e.key)) return;
       switch (e.key) {
         case ' ':
           e.preventDefault();
@@ -191,6 +197,9 @@ export default function AppShell() {
     <div className="h-[100dvh] flex flex-col overflow-hidden" style={{ ['--dock-h' as string]: side ? '0px' : `${dockSize}px` }}>
       <SimulationDriver />
       <TopBar />
+      {mode === 'home' && <HomeScreen />}
+      {mode === 'simulator' && <SimulatorScreen />}
+      {mode === 'learn' && (
       <div ref={containerRef} className={`flex-1 flex min-h-0 relative ${side ? 'flex-row' : 'flex-col'}`} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div className="flex-1 flex min-h-0 min-w-0 relative">
           {!compact && (
@@ -248,6 +257,8 @@ export default function AppShell() {
           </>
         )}
       </div>
+      )}
+      <MobileNav />
       <TutorPanel />
       <QuizPanel />
       <HelpOverlay />

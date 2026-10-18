@@ -14,7 +14,7 @@
  */
 import { create } from 'zustand';
 import { sim } from '@/lib/sim/simulation';
-import { setRhythm } from '@/lib/actions';
+import { setRhythm } from '@/lib/rhythm';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';

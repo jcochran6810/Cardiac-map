@@ -182,8 +182,11 @@ function xFor(s: Strip, t: number, pxPerMs: number): number | null {
   return xInWindow(t, windowStart(t, s.offset, s.page), s.dur, pxPerMs);
 }
 
-export default function ECGRenderer() {
+/** `scrub`: dragging scrubs through time (pausing the simulation); the case simulator turns it off */
+export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const scrubRef = useRef(scrub);
+  scrubRef.current = scrub;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const layoutRef = useRef<Layout | null>(null);
   const caliperRef = useRef<Caliper[]>([]);
@@ -538,10 +541,11 @@ export default function ECGRenderer() {
       const dx = e.clientX - r.left - down.x;
       if (!dragging && Math.abs(dx) > 5) {
         dragging = true;
+        if (!scrubRef.current) return;
         useTimelineStore.getState().pause();
         setHint('Scrubbing — the 3D heart follows the cursor');
       }
-      if (dragging && layoutRef.current) {
+      if (dragging && scrubRef.current && layoutRef.current) {
         scrubTo(down.t + dx / layoutRef.current.pxPerMs);
       }
     };
@@ -612,7 +616,7 @@ export default function ECGRenderer() {
       <canvas
         ref={canvasRef}
         className="block w-full h-full cursor-crosshair touch-none"
-        aria-label="12-lead ECG. Click or tap a lead to select it, double-click or double-tap to inspect, drag to scrub through time."
+        aria-label={`12-lead ECG. Click or tap a lead to select it, double-click or double-tap to inspect${scrub ? ', drag to scrub through time' : ''}.`}
         role="img"
       />
       {hint && (

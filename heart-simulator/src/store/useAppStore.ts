@@ -15,6 +15,9 @@ export type ViewMode = 'external' | 'sectioned' | 'xray' | 'conduction' | 'terri
 
 export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cases';
 
+/** Top-level screens: the start page, the learning workspace (3D heart, ECG, library) and the case simulator */
+export type AppMode = 'home' | 'learn' | 'simulator';
+
 /** Learner roles — each is held strictly to its scope of practice (see lib/scope.ts) */
 export const LEVEL_LABELS: Record<LearningLevel, { short: string; long: string }> = {
   1: { short: 'EMT', long: 'EMT (NREMT · BLS)' },
@@ -25,6 +28,7 @@ export const LEVEL_LABELS: Record<LearningLevel, { short: string; long: string }
 };
 
 interface AppState {
+  mode: AppMode;
   learningLevel: LearningLevel;
   viewMode: ViewMode;
   labelsVisible: boolean;
@@ -43,6 +47,7 @@ interface AppState {
   /** phone-sized screen (either orientation): denser controls, full-screen sheets */
   phone: boolean;
 
+  setMode: (mode: AppMode) => void;
   setLearningLevel: (level: LearningLevel) => void;
   setViewMode: (mode: ViewMode) => void;
   toggleLabels: () => void;
@@ -73,6 +78,7 @@ function loadLevel(): LearningLevel {
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  mode: 'home',
   learningLevel: loadLevel(),
   viewMode: 'external',
   labelsVisible: true,
@@ -89,6 +95,7 @@ export const useAppStore = create<AppState>((set) => ({
   compact: false,
   phone: false,
 
+  setMode: (mode) => set({ mode }),
   setLearningLevel: (learningLevel) => {
     try { window.localStorage.setItem('cardiosim.level', String(learningLevel)); } catch { /* storage unavailable */ }
     set({ learningLevel });

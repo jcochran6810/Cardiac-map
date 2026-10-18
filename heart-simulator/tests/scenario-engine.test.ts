@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { interventionsFor } from '@/lib/sim/scenario/interventions';
-import { perform, review, start, stop, unavailableReason } from '@/lib/sim/scenario/engine';
+import { HINT_POINTS, perform, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
 import { runScenario as run } from './helpers';
 
@@ -126,5 +126,18 @@ describe('anterior STEMI in the field', () => {
     const r = review(stemiAnterior, s);
     expect(r.outcome).toMatch(/Ended early/);
     expect(r.toFix.filter((t) => t.kind === 'missed').length).toBeGreaterThan(5);
+  });
+});
+
+describe('hints', () => {
+  it('names the next missing critical item, costs points and takes no time', () => {
+    const s0 = run(stemiAnterior, 2, ['primary', 'opqrst', 'sample']);
+    const s = takeHint(stemiAnterior, s0);
+    expect(s.minute).toBe(s0.minute);
+    expect(s.log.at(-1)!.text).toMatch(/^Hint: Vital signs/);
+    expect(s.penalties).toEqual([expect.objectContaining({ id: 'hint-1', points: HINT_POINTS })]);
+    const r = review(stemiAnterior, stop(s));
+    expect(r.hints).toBe(1);
+    expect(r.toFix.at(-1)).toMatchObject({ kind: 'hint' });
   });
 });

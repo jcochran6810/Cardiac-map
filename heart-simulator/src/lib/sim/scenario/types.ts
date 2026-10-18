@@ -209,6 +209,8 @@ export interface Review {
   outcome: string;
   timings: { label: string; minute: number | null; target?: number; met: boolean | null }[];
   wentWell: ReviewItem[];
-  toFix: (ReviewItem & { kind: 'missed' | 'late' | 'harm'; severity?: Severity })[];
+  toFix: (ReviewItem & { kind: 'missed' | 'late' | 'harm' | 'hint'; severity?: Severity })[];
+  /** hints taken during the run */
+  hints: number;
   teaching: string[];
 }

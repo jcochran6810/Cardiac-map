@@ -60,3 +60,27 @@ export const IconCollapse = ({ className, size }: P) => (
 export const IconDownload = ({ className, size }: P) => (
   <svg {...base(size)} className={className}><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>
 );
+export const IconPlay = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><circle cx="12" cy="12" r="9" /><path d="m10 8.5 5.5 3.5-5.5 3.5z" fill="currentColor" /></svg>
+);
+export const IconPill = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M10.5 20.5a5 5 0 0 1-7-7l6-6a5 5 0 0 1 7 7z" /><path d="m8.5 8.5 7 7" /></svg>
+);
+export const IconZap = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
+);
+export const IconPerson = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><circle cx="12" cy="5" r="2.5" /><path d="M7 21v-6l-2-1 1.5-5.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 14l-2 1v6M10 21v-5M14 21v-5" /></svg>
+);
+export const IconClipboard = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3" /></svg>
+);
+export const IconChart = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M3 3v18h18" /><path d="M7 15c2-6 4-8 6-4s4 2 5-3" /></svg>
+);
+export const IconHeartPulse = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z" /><path d="M3.5 12h4l1.5-3 3 6 1.5-3h7" /></svg>
+);
+export const IconBook = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" /><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" /></svg>
+);
