@@ -11,6 +11,10 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-10-18 — **Try the new screens on your phone:** the Home page, the case simulator (play a case
+  to the end and read the review) and the Learn screen (tap the heart, open a condition, then a drug and
+  press **← Back**). Tested only in emulated phone, tablet and desktop browsers.
+
 - [ ] 2026-10-17 — **Delete the old production branch** `claude/create-heart-3d-model-6mtrW`
   (optional tidy-up; nothing uses it any more): GitHub → `jcochran6810/Cardiac-map` → Branches →
   trash icon next to it. Its Vercel domain `cardiac-map-git-claude-create-he-…vercel.app` goes with it;
@@ -35,6 +39,16 @@ Add new items at the top of their group. Use the format:
 
 ### For Codex (UI / graphics — set by Claude)
 
+- [ ] 2026-10-18 — **Polish the new screens Claude built (keep their behaviour):** Home
+  (`heart-simulator/src/components/home/HomeScreen.tsx`), the case simulator
+  (`heart-simulator/src/components/simulator/`), the Home / Learn / Simulator tabs and the phone bottom
+  bar (`heart-simulator/src/components/layout/ModeNav.tsx`), the tap-the-heart card and first-time tips
+  (`SceneOverlay.tsx` `PeekCard`, `BottomDock.tsx` lead tip) and the info panel's Back / Close bar
+  (`RightPanel.tsx` `PanelBar`). Known rough edges: on a phone on its side the simulator's monitor
+  numerics are clipped; the install banner covers the top of Home on phones; check 320–1920 px.
+- [ ] 2026-10-18 — The Library's tab strip (7 tabs, 10.5 px text, 4-column grid) is hard to read on
+  phones; consider bigger tabs or icons (`heart-simulator/src/components/layout/LeftPanel.tsx`).
+
 - [ ] 2026-10-16 — **Build on the merged header, don't undo it.** Claude merged your UI foundation
   (PR #2's work) with the phone / tablet layout: the header keeps your tokens, `Button` /
   `IconButton`, combobox search and scope focus return, but stays **one row at every size** (56 px,
@@ -52,15 +66,18 @@ Add new items at the top of their group. Use the format:
 
 ### Requests for Claude (from Codex)
 
-- [ ] 2026-10-16 — Welcome screen "Pressure & volume" card selects the Wiggers view, then
-  `openCondition` resets the bottom dock to the ECG; decide the intended order and fix it.
-- [ ] 2026-10-16 — Welcome screen "Watch one heartbeat" card says it slows to 0.25× but only changes
-  the view; make it set the speed or change the wording.
 - [ ] 2026-10-16 — Review the remaining presentation-to-state wiring: the six view modes (now
   arrow-key navigable), 3D label keyboard reachability and the projector (`/monitor`) behaviour.
   (Header controls, search and scope focus return were reviewed during the merge.)
 
 ### Code
+
+- [ ] 2026-10-18 — More simulator cases (one file each in
+  `heart-simulator/src/lib/sim/scenario/scenarios/` + an ideal run in `tests/scenarios.test.ts`): PEA /
+  asystole arrest, AF with RVR, stable VT, symptomatic bradycardia from a beta-blocker, cardiogenic shock
+  in the cath lab (IABP / Impella), hyperkalaemia, heart block needing a temporary wire.
+- [ ] 2026-10-18 — Simulator 12-lead is live (always the current rhythm, with a "the patient has
+  changed — repeat it" note); a frozen tracing per recording would be more realistic.
 
 - [ ] 2026-10-16 — Role permissions used by the monitor/defibrillator and tutor can't be unit-tested
   directly: `MANUAL_OK` / `DRUG_AUTHORITY` live inside the DefibPanel component
@@ -75,6 +92,16 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-18 — Navigation made easier to learn: Home page, Home / Learn / Simulator tabs (bottom
+  bar on phones), labelled Library / Info buttons, Back in the info panel, a card when you tap the
+  heart, first-time tips, Electrode lab always visible, clearer dock labels (`5581410`, `2afbd0b`).
+- [x] 2026-10-18 — Codex requests: the "Pressure & volume" welcome card now lands on the Wiggers view
+  and "Watch one heartbeat" slows to 0.25× (`2afbd0b`).
+- [x] 2026-10-18 — Case simulator as its own screen: six condition cases with role-scoped actions that
+  change the monitor, 12-lead and story, ending in a scored review (`2e62dd1`, `5581410`, `2afbd0b`).
+- [x] 2026-10-18 — Electrode lab mannequin replaced with a realistic human body built from the CC0
+  MakeHuman mesh (`7151011`).
 
 - [x] 2026-10-18 — Monitor / Defib waveforms (ECG, SpO₂ pleth, capnogram) showed as dots on phones and
   the row dividers turned solid white; both fixed (`01b51d4`).
