@@ -1,7 +1,7 @@
 /**
  * Reads: the learner interprets what a test shows — a 12-lead, a set of pressures, a physiology
  * measurement, a stent-sizing measurement, an angiogram, or a sudden change in the patient — by picking
- * from every option of that kind. The FTO (field) or preceptor (cath lab) confirms or corrects it at once.
+ * from every option of that kind. The simulator confirms or corrects it at once (self-paced: no instructor needed).
  *
  * 12-lead: each ECG profile maps to exactly one read (the answer); some reads earn partial credit
  * (e.g. "complete heart block" for an inferior STEMI with complete heart block). For the other kinds the
@@ -138,7 +138,7 @@ const ANGIO_OPTIONS: ReadOption[] = [
 ];
 
 export interface ReadSet {
-  /** the question the FTO / preceptor asks */
+  /** the question shown to the learner */
   title: string;
   groups: string[];
   options: ReadOption[];

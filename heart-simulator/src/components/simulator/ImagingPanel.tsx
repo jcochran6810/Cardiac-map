@@ -37,7 +37,7 @@ export default function ImagingPanel({ state }: { state: SimState }) {
     <div className="absolute inset-0 overflow-y-auto px-3 py-2.5 space-y-2">
       {reading && (
         <div className="px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-[12px] text-amber-100">
-          What does it show? Look at the image, then give your read to your preceptor.
+          What does it show? Look at the image, then choose your read — it is checked at once.
         </div>
       )}
       {runs.map((r) => {

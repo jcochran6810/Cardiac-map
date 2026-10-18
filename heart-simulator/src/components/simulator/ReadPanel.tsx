@@ -16,10 +16,10 @@ const HOW_TO: Record<ReadKind, string> = {
 
 /**
  * "What does this show?" — the learner reads a test (12-lead, pressures, FFR, a sizing run, a sudden
- * change) and picks from every option of that kind; the FTO / preceptor answers at once in the case
- * story. `ReadList` fills the action column on large screens; `ReadBar` is the compact phone version.
+ * change) and picks from every option of that kind; the simulator checks it at once and explains it in the
+ * case story (self-paced: no instructor needed). `ReadList` fills the action column on large screens; `ReadBar` is the compact phone version.
  */
-export function ReadList({ who, kind, prompt }: { who: string; kind: ReadKind; prompt?: string }) {
+export function ReadList({ kind, prompt }: { kind: ReadKind; prompt?: string }) {
   const read = useSimStore((s) => s.read);
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function ReadList({ who, kind, prompt }: { who: string; kind: ReadKind; p
       <div className="shrink-0 px-3 pt-3 pb-2 border-b border-slate-700 space-y-2">
         <div className="text-sm font-semibold text-white">{prompt ?? set.title}</div>
         <p className="text-[11px] text-slate-400 leading-snug">
-          Your {who} wants your read before you go on. {HOW_TO[kind]}
+          Give your read before you go on — it is checked at once. {HOW_TO[kind]}
         </p>
         <div className="relative">
           <IconSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -86,14 +86,14 @@ export function ReadList({ who, kind, prompt }: { who: string; kind: ReadKind; p
   );
 }
 
-export function ReadBar({ who, kind, prompt }: { who: string; kind: ReadKind; prompt?: string }) {
+export function ReadBar({ kind, prompt }: { kind: ReadKind; prompt?: string }) {
   const read = useSimStore((s) => s.read);
   const [picked, setPicked] = useState('');
   const set = READ_SETS[kind];
   return (
     <div className="flex-1 min-w-0 flex flex-col gap-1.5">
       <label htmlFor="ecg-read" className="text-[12px] font-semibold text-white leading-tight">
-        Your {who} asks: {(prompt ?? set.title).replace(/^./, (c) => c.toLowerCase())}
+        {prompt ?? set.title}
       </label>
       <div className="flex gap-2">
         <select

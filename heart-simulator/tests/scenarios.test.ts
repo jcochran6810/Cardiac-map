@@ -254,7 +254,7 @@ describe('VF cardiac arrest', () => {
     const steps = IDEAL['vf-arrest-field'][2]!;
     const s = run(sc, 2, steps.slice(0, steps.indexOf('ecg12') + 1));
     expect(s.pulse).toBe(true);
-    expect(s.log.some((l) => l.who === 'fto' && /^Correct\..*anterior STEMI/.test(l.text))).toBe(true);
+    expect(s.log.some((l) => l.who === 'feedback' && /^Correct\..*anterior STEMI/.test(l.text))).toBe(true);
   });
 });
 

@@ -74,7 +74,7 @@ function ecgLine(s: SimState, repeat: boolean): string {
   return `12-lead ${repeat ? 're-' : ''}acquired.`;
 }
 
-/** What the 12-lead shows, in words: the FTO's explanation after your read */
+/** What the 12-lead shows, in words: the explanation the feedback gives after your read */
 function ecgExplanation(sc: Scenario, s: SimState, profile: string): string {
   const fact = factText(sc, s, 'ecg12');
   if (fact) return fact;
@@ -493,7 +493,7 @@ function requestRead(sc: Scenario, s: SimState) {
   }
 }
 
-/** Your read of what is waiting; the FTO / preceptor confirms or corrects it at once (no case time passes) */
+/** Your read of what is waiting; the feedback confirms or corrects it at once (no case time passes) */
 export function answerRead(sc: Scenario, prev: SimState, optionId: string): SimState {
   const choice = READ_OPTION_BY_ID[optionId];
   if (!prev.pendingRead || prev.ended || !choice) return prev;
@@ -503,9 +503,9 @@ export function answerRead(sc: Scenario, prev: SimState, optionId: string): SimS
   const verdict = optionId === r.answer ? 'correct' : r.partial?.includes(optionId) ? 'partial' : 'wrong';
   const answer = READ_OPTION_BY_ID[r.answer];
   say(s, 'you', `My read: ${choice.label}.`);
-  if (verdict === 'correct') say(s, 'fto', `Correct. ${r.explain}`, 'good');
-  else if (verdict === 'partial') say(s, 'fto', `Partly right — the full read is ${answer.label}. ${r.explain}`, 'warn');
-  else say(s, 'fto', `Not quite — this is ${answer.label}. ${r.explain}`, 'bad');
+  if (verdict === 'correct') say(s, 'feedback', `Correct. ${r.explain}`, 'good');
+  else if (verdict === 'partial') say(s, 'feedback', `Partly right — the full read is ${answer.label}. ${r.explain}`, 'warn');
+  else say(s, 'feedback', `Not quite — this is ${answer.label}. ${r.explain}`, 'bad');
   s.reads.push({ kind: r.kind, minute: r.minute, answer: r.answer, chosen: optionId, verdict });
   if (verdict !== 'correct') {
     s.penalties.push({
@@ -575,7 +575,7 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   return s;
 }
 
-/** What the FTO / preceptor says when you ask for help with a read (it costs nothing) */
+/** The method, when you ask for help with a read (it costs nothing) */
 const READ_COACHING: Record<PendingRead['kind'], string> = {
   ecg: 'Work through it: rate, rhythm (P waves?), axis, PR / QRS / QT, then the ST segments lead by lead — which leads, and is there a reciprocal change?',
   hemo: 'Compare each number with normal: RA 2–8, RV 15–30/2–8, PA 15–30/4–12, PCWP 6–12, LVEDP under 12–15, cardiac index above 2.2. Then look at the pattern, and at the waveform itself.',
@@ -599,7 +599,7 @@ export function takeHint(sc: Scenario, prev: SimState): SimState {
   if (prev.ended) return prev;
   const s: SimState = structuredClone(prev);
   if (s.pendingRead) {
-    say(s, 'fto', READ_COACHING[s.pendingRead.kind]);
+    say(s, 'feedback', READ_COACHING[s.pendingRead.kind]);
     return s;
   }
   const next = nextCritical(sc, s);

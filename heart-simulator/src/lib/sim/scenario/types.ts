@@ -47,8 +47,8 @@ export interface Vitals {
   temp: number;
 }
 
-/** `fto`: the field training officer (or, in the cath lab, the preceptor) who checks your 12-lead reads */
-export type Speaker = 'dispatch' | 'scene' | 'patient' | 'partner' | 'team' | 'operator' | 'monitor' | 'you' | 'hospital' | 'system' | 'fto';
+/** `feedback`: the simulator's own feedback — it checks each of your reads the moment you give it (self-paced: no instructor needed) */
+export type Speaker = 'dispatch' | 'scene' | 'patient' | 'partner' | 'team' | 'operator' | 'monitor' | 'you' | 'hospital' | 'system' | 'feedback';
 export type Tone = 'info' | 'good' | 'warn' | 'bad';
 
 export interface LogEntry {
@@ -95,7 +95,7 @@ export interface SimState {
   pendingRead: PendingRead | null;
   /** reads asked for while another one was waiting */
   queuedReads: PendingRead[];
-  /** your reads and how the FTO / preceptor judged them */
+  /** your reads and how the feedback judged them */
   reads: { kind: ReadKind; minute: number; answer: string; chosen: string; verdict: Verdict }[];
   /** cine runs recorded (cath lab), newest last: the view (intervention id and name) and the real image for it, if the app has one */
   images: { minute: number; id?: string; view: string; image?: string }[];
@@ -105,13 +105,13 @@ export interface SimState {
 
 export type Line = [Speaker, string] | [Speaker, string, Tone];
 
-/** A read the learner owes: the right option, half-right options, and the explanation the FTO gives */
+/** A read the learner owes: the right option, half-right options, and the explanation the feedback gives */
 export interface PendingRead {
   kind: ReadKind;
   minute: number;
   answer: string;
   partial?: string[];
-  /** what the FTO / preceptor asks (defaults to the read kind's question) */
+  /** the question shown to the learner (defaults to the read kind's question) */
   prompt?: string;
   explain: string;
   /** the real image this read is about: its run number (1-based) in SimState.images */

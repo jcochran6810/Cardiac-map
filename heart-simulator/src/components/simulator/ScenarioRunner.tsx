@@ -59,7 +59,6 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
   const ended = !!state.ended;
   const reading = !!state.pendingRead && !ended;
-  const fto = state.role <= 2 ? 'FTO' : 'preceptor';
   const leave = () => {
     if (ended || window.confirm('Leave this case? Your progress in it will be lost.')) closeScenario();
   };
@@ -117,7 +116,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
         {/* Actions: a column on large screens */}
         <aside className="hidden lg:flex short:flex w-[400px] xl:w-[440px] short:w-[44%] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
-          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} who={fto} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
+          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
         </aside>
       </div>
 
@@ -128,7 +127,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
             See your score and review →
           </button>
         ) : reading ? (
-          <ReadBar key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} who={fto} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} />
+          <ReadBar key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} />
         ) : (
           <>
             <button onClick={() => setSheet(true)} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
@@ -227,9 +226,9 @@ function TwelveLead({ state }: { state: SimState }) {
   }
   const changed = last.profile !== state.rhythm.profile && state.pulse;
   const read = state.reads.filter((r) => r.kind === 'ecg').at(-1);
-  // the FTO's verdict on the read of this tracing
+  // the feedback's verdict on the read of this tracing
   const verdictLine = read && read.minute === last.minute
-    ? [...state.log].reverse().find((l) => l.who === 'fto' && l.minute === read.minute && /^(Correct|Partly right|Not quite)/.test(l.text))
+    ? [...state.log].reverse().find((l) => l.who === 'feedback' && l.minute === read.minute && /^(Correct|Partly right|Not quite)/.test(l.text))
     : undefined;
   return (
     <div className="absolute inset-0 flex flex-col">
@@ -238,7 +237,7 @@ function TwelveLead({ state }: { state: SimState }) {
         {state.role === 1 ? (
           <span className="text-slate-300">Reading it is outside EMT scope — transmit it to the hospital.</span>
         ) : state.pendingRead?.kind === 'ecg' ? (
-          <span className="text-amber-200 font-medium">What does it show? Give your read{state.role <= 2 ? ' to your FTO' : ' to your preceptor'}.</span>
+          <span className="text-amber-200 font-medium">What does it show? Choose your read — it is checked at once.</span>
         ) : read && read.minute === last.minute ? (
           <span className={read.verdict === 'correct' ? 'text-emerald-300' : read.verdict === 'partial' ? 'text-amber-200' : 'text-red-300'}>
             {read.verdict === 'correct' ? '✓ ' : read.verdict === 'partial' ? '½ ' : '✗ '}

@@ -129,7 +129,7 @@ export function askHarm(a: LabAsk, text: string, points = 3): Harm {
 }
 
 /**
- * A cine run. With a real angiogram for it, the learner sees the image and reads it (the preceptor checks
+ * A cine run. With a real angiogram for it, the learner sees the image and reads it (the simulator checks
  * the read) — `alongside` says what the image does not show (e.g. the other coronary); without one, the
  * finding is said in words.
  */

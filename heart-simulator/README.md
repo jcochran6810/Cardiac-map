@@ -34,11 +34,12 @@ panel's **← Back** is the same button.
 - **The monitor starts unplugged**: the ECG, SpO₂ and capnography appear only once you attach them; the
   NIBP box shows the last blood pressure you took. Nothing reads the tracings for you: the monitor reports
   numbers, and rhythm changes come as a "monitor alarm".
-- **You read every 12-lead, and your FTO checks it** (`reads.ts`): after a paramedic, tech, nurse or
-  cardiologist records a 12-lead, the case waits for their read, chosen from every interpretation the app
-  can show (43, in four groups). The FTO — the preceptor in the cath lab — answers at once: correct, partly
-  right or not quite, with the explanation of the tracing. A misread costs 5 points (2 if partly right) and
-  the review lists every read. EMTs acquire and transmit without reading.
+- **You read every 12-lead, and the app checks it at once** (`reads.ts`): the app is self-paced — no
+  instructor or preceptor is needed. After a paramedic, tech, nurse or cardiologist records a 12-lead, the
+  case waits for their read, chosen from every interpretation the app can show (43, in four groups). The
+  **Feedback** line in the case story answers at once: correct, partly right or not quite, with the
+  explanation of the tracing. A misread costs 5 points (2 if partly right) and the review lists every read.
+  EMTs acquire and transmit without reading.
 - **In the cath lab you read more than the 12-lead:** pressures (a damped guide, LVEDP, right heart numbers
   in shock or RV infarction), FFR, stent sizing from QCA / IVUS, sudden changes (reperfusion reflex, radial
   spasm, perforation, tamponade, contrast reaction) and **real images**: the anterior, inferior, FFR and shock

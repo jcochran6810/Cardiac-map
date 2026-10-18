@@ -155,7 +155,7 @@ describe('hints', () => {
   });
 });
 
-describe('12-lead reads checked by the FTO', () => {
+describe('12-lead reads, checked at once', () => {
   const read = (steps: string[], sc = stemiAnterior, role: 2 | 3 = 2) => run(sc, role, steps, undefined, 'manual');
 
   it('a new 12-lead waits for your read, and nothing else can be done until you give it', () => {
@@ -173,7 +173,7 @@ describe('12-lead reads checked by the FTO', () => {
     expect(s.minute).toBe(s0.minute);
     expect(s.pendingRead).toBeNull();
     expect(s.log.at(-2)).toMatchObject({ who: 'you', text: 'My read: Anterior STEMI.' });
-    expect(s.log.at(-1)).toMatchObject({ who: 'fto', tone: 'good' });
+    expect(s.log.at(-1)).toMatchObject({ who: 'feedback', tone: 'good' });
     expect(s.log.at(-1)!.text).toMatch(/^Correct\. Sinus rhythm 96 with 3–4 mm ST elevation in V1–V4/);
     expect(s.penalties).toEqual([]);
     expect(unavailableReason(stemiAnterior, s, 'aspirin')).toBeNull();
@@ -181,7 +181,7 @@ describe('12-lead reads checked by the FTO', () => {
 
   it('a wrong read is corrected with the answer, costs 5 points and is listed in the review', () => {
     const s = read(['primary', 'ecg12', 'read:stemi-inferior']);
-    expect(s.log.at(-1)).toMatchObject({ who: 'fto', tone: 'bad' });
+    expect(s.log.at(-1)).toMatchObject({ who: 'feedback', tone: 'bad' });
     expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is Anterior STEMI\. /);
     expect(s.penalties).toEqual([expect.objectContaining({ id: 'misread-1', points: 5, severity: 'major' })]);
     const r = review(stemiAnterior, stop(s));
@@ -225,7 +225,7 @@ describe('12-lead reads checked by the FTO', () => {
 
   it('a hint during a read coaches the method and costs nothing', () => {
     const s = takeHint(stemiAnterior, read(['primary', 'ecg12']));
-    expect(s.log.at(-1)).toMatchObject({ who: 'fto' });
+    expect(s.log.at(-1)).toMatchObject({ who: 'feedback' });
     expect(s.penalties).toEqual([]);
   });
 
