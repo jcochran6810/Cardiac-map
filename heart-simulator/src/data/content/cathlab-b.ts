@@ -383,6 +383,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Chattering lines or falling flow at the same pump speed mean low preload or a cannula problem: think volume, bleeding, tamponade and cannula position.',
     ],
     image: {
+      keys: ['va-ecmo-cxr-venous-cannula-ra'],
       want: 'A real photo of a VA-ECMO circuit (centrifugal pump, oxygenator and femoral cannulas), or a fluoroscopy frame showing the venous cannula tip at the right atrium.',
     },
     sim: [],
@@ -425,6 +426,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Zero and level before the first measurement, after any table or patient move, and whenever a number doesn’t fit the patient.',
     ],
     image: {
+      keys: ['fast-flush-square-wave-strip', 'pressure-transducer-kit-photo'],
       want: 'A real photo of a pressure transducer mounted at the phlebostatic axis with its stopcock open to air for zeroing, or a monitor showing an optimal square-wave test.',
     },
     sim: ['transducer'],
@@ -466,6 +468,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Compare with a cuff pressure or a second arterial line when the numbers don’t fit the patient.',
     ],
     image: {
+      keys: ['aortic-pressure-cath-printout'],
       want: 'A real aortic pressure tracing from a cath lab recording system with the upstroke, systolic peak, dicrotic notch and diastolic runoff labeled.',
     },
     sim: [],
@@ -500,6 +503,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'A deep-seated guide during FFR or imaging also damps the pressure, causing ischemia and a falsely high FFR.',
     ],
     image: {
+      keys: ['pressure-damping-catheter-tip'],
       want: 'A real pressure tracing showing a normal aortic waveform changing to a damped and then a ventricularized pattern as a catheter engages a tight ostial stenosis.',
     },
     sim: ['reposition', 'callout'],
@@ -540,6 +544,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'The pigtail can trigger PVCs or VT; reposition it if ectopy persists, because ectopy also distorts the reading.',
     ],
     image: {
+      keys: ['lvedp-tracings-lvad-on-off'],
       want: 'A real LV pressure tracing with the ECG showing the a wave and the end-diastolic point marked at the R wave.',
     },
     sim: ['lvedp'],
@@ -583,6 +588,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'In a patient with left bundle branch block, the catheter can bump the right bundle and cause complete heart block: have pacing ready.',
     ],
     image: {
+      keys: ['rhc-ra-rv-pa-pcwp-tracings', 'rv-pressure-monitor-edp'],
       want: 'A real right heart pullback tracing showing PCWP, PA, RV and RA waveforms in sequence.',
     },
     sim: ['rhc'],
@@ -625,6 +631,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'A wrong cardiac output or a badly leveled RA pressure gives a wrong SVR: the resistances are only as good as the numbers that go in.',
     ],
     image: {
+      keys: ['thermodilution-curves-co-screen', 'cardiac-output-monitor-ci-svri'],
       want: 'A real hemodynamic system screen showing a thermodilution curve with three averaged readings and the calculated cardiac index, SVR and PVR.',
     },
     sim: ['rhc'],
@@ -667,6 +674,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'A rising lactate and falling urine output show the profile worsening, often before the numbers do.',
     ],
     image: {
+      keys: ['constriction-lv-rv-dip-plateau', 'constriction-square-root-equalization'],
       want: 'A real right heart tracing from a tamponade case showing equalized diastolic pressures in the RA, RV, PA and wedge positions.',
     },
     sim: [],
