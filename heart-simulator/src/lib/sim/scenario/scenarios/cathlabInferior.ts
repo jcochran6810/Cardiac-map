@@ -6,7 +6,7 @@ import {
 } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
-const IMAGES: Partial<Record<string, string>> = { angio: 'rca-occlusion' };
+const IMAGES: Partial<Record<string, string>> = { angio: 'rca-occlusion', 'final-angio': 'rca-open-timi3' };
 
 const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiography: left and right coronaries', IMAGES.angio, [
   [who, 'Left system: mild disease only. The right coronary stops dead in its proximal segment — TIMI 0. That is the culprit.'],
@@ -17,7 +17,10 @@ const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiogra
 
 const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the RCA in two views', IMAGES['final-angio'], [
   [who, 'RCA wide open to the crux: TIMI 3 flow, the RV branches filling, no dissection.', 'good'],
-], { kind: 'angio', answer: 'angio-timi3', explain: 'TIMI 3 flow down the RCA and into the PDA, with the RV branches filling again.' });
+], {
+  kind: 'angio', answer: 'angio-timi3', prompt: 'What does the final run show?',
+  explain: 'TIMI 3 flow down the RCA to the crux, with the RV branches filling again.',
+});
 
 /** Reperfusion of the inferior wall: sudden bradycardia and vasodilation */
 const reflexRead = {

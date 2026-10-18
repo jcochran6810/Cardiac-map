@@ -5,6 +5,7 @@ import { answerRead, criticalsFor, perform, review, start, stop } from '@/lib/si
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { SCENARIOS, SCENARIO_BY_ID, scenariosFor } from '@/lib/sim/scenario/scenarios';
 import type { LearningLevel } from '@/store/useAppStore';
+import { CATH_IMAGES } from '@/data/cathImages';
 import { UNTIL_ARRIVED, readAfter, runScenario as run } from './helpers';
 
 const R = (n: number) => Array<string>(n).fill('reassess');
@@ -269,7 +270,7 @@ describe('STEMI in the cath lab', () => {
     ]));
     expect(s.fired.some((id) => id.endsWith('-fallback'))).toBe(false);
     expect(s.rhythm.profile).toBe('anterior-stemi-reperfused');
-    expect(s.reads.map((r) => r.answer)).toEqual(['angio-lad-prox-occlusion', 'hemo-damped', 'reperfused-anterior']);
+    expect(s.reads.map((r) => r.answer)).toEqual(['angio-lad-prox-occlusion', 'hemo-damped', 'angio-timi3', 'reperfused-anterior']);
   });
 
   it('the wrong device gets a word from the operator and costs points; the right one moves things on', () => {
@@ -534,6 +535,18 @@ describe('real angiograms in the cath lab cases', () => {
     }
   });
 
+  it('the final run shows the same patient\'s artery opened up, and is read too', () => {
+    for (const id of ['stemi-cathlab', 'stemi-inferior-cathlab', 'shock-cathlab']) {
+      const sc = SCENARIO_BY_ID[id];
+      const pre = CATH_IMAGES[sc.images!.angio!]!;
+      const post = CATH_IMAGES[sc.images!['final-angio']!]!;
+      expect(post.source, `${id}: before and after come from the same article`).toBe(pre.source);
+      const s = run(sc, 5, IDEAL[id][5]!);
+      expect(s.images.find((r) => r.id === 'final-angio'), id).toMatchObject({ image: sc.images!['final-angio'] });
+      expect(s.reads.find((r) => r.answer === 'angio-timi3'), id).toMatchObject({ kind: 'angio', verdict: 'correct' });
+    }
+  });
+
   it('the tech and the nurse read the run the operator records', () => {
     for (const role of [3, 4] as const) {
       const sc = SCENARIO_BY_ID['stemi-cathlab'];
@@ -554,9 +567,9 @@ describe('real angiograms in the cath lab cases', () => {
     }
   });
 
-  it('a thrombus read of the shock run is partly right', () => {
-    const sc = SCENARIO_BY_ID['shock-cathlab'];
-    const steps = IDEAL['shock-cathlab'][5]!;
+  it('a thrombus read of the anterior STEMI run is partly right', () => {
+    const sc = SCENARIO_BY_ID['stemi-cathlab'];
+    const steps = IDEAL['stemi-cathlab'][5]!;
     let s = perform(sc, run(sc, 5, steps.slice(0, steps.indexOf('angio'))), 'angio');
     while (s.pendingRead && s.pendingRead.kind !== 'angio') s = answerRead(sc, s, s.pendingRead.answer);
     s = answerRead(sc, s, 'angio-thrombus');

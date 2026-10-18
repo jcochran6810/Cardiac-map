@@ -210,7 +210,7 @@ describe('12-lead reads checked by the FTO', () => {
   it('the case does not end while a read is waiting', () => {
     const lab = SCENARIO_BY_ID['stemi-cathlab'];
     const steps = ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger', 'read:angio-lad-prox-occlusion', 'guide-ebu', 'read:hemo-damped', 'callout', 'view-rao-cranial',
-      'wire-workhorse', 'balloon-predil', 'stent-des', 'defib', 'balloon-nc', 'hemostasis', 'ecg12'];
+      'wire-workhorse', 'balloon-predil', 'stent-des', 'defib', 'balloon-nc', 'read:angio-timi3', 'hemostasis', 'ecg12'];
     const s = run(lab, 3, steps, undefined, 'manual');
     expect(s.pendingRead).not.toBeNull();
     expect(s.ended).toBeNull();

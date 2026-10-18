@@ -46,6 +46,24 @@ export const CATH_IMAGES: Partial<Record<string, CathImage>> = {
     caption: 'The proximal LAD stops dead (arrow): a total occlusion with no flow beyond it (TIMI 0).',
     credit: `${SAITO}, fig. 7B (cropped)`, ...CC_BY_4, source: pmc('PMC9088105'),
   },
+  'lad-open-after-aspiration': {
+    src: '/cath-images/lad-open-after-aspiration.jpg', width: 402, height: 351,
+    alt: 'Left coronary angiogram',
+    caption: 'The same LAD after a balloon, a stent and thrombus aspiration: contrast now runs to the apex (TIMI 3 flow). In this patient the flow soon slowed again (no-reflow) and VF followed.',
+    credit: 'Oktaviono YH, Hutomo SA, Al-Farabi MJ. Medicine (Baltimore) 2020;99:e19288, fig. 4D (cropped)', ...CC_BY_4, source: pmc('PMC7478610'),
+  },
+  'lad-open-impella': {
+    src: '/cath-images/lad-open-impella.jpg', width: 758, height: 925,
+    alt: 'Left coronary angiogram',
+    caption: 'The same LAD after stenting: open to the apex with TIMI 3 flow. The thick catheter crossing the picture is an Impella CP pump, which supported this patient in cardiogenic shock during the PCI.',
+    credit: `${SAITO}, fig. 8B (cropped)`, ...CC_BY_4, source: pmc('PMC9088105'),
+  },
+  'rca-open-timi3': {
+    src: '/cath-images/rca-open-timi3.jpg', width: 831, height: 925,
+    alt: 'Right coronary angiogram',
+    caption: 'The same right coronary after stenting: open all the way to the crux with TIMI 3 flow and no narrowing left. The wire loop in the middle is a temporary pacing catheter — this patient had complete heart block.',
+    credit: `${SAITO}, fig. 8A (cropped)`, ...CC_BY_4, source: pmc('PMC9088105'),
+  },
   'rca-occlusion': {
     src: '/cath-images/rca-occlusion.jpg', width: 804, height: 912,
     alt: 'Right coronary angiogram',
