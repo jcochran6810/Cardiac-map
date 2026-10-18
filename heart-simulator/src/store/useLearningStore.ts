@@ -9,6 +9,7 @@ interface LearningProgress {
   conditionsStudied: string[];
   proceduresReviewed: string[];
   medicationsReviewed: string[];
+  cathlabStudied: string[];
   casesCompleted: string[];
   caseScores: Record<string, { correct: number; total: number }>;
   quizAttempts: { questionId: string; correct: boolean; timestamp: number }[];
@@ -19,6 +20,7 @@ interface LearningState extends LearningProgress {
   markConditionStudied: (id: string) => void;
   markProcedureReviewed: (id: string) => void;
   markMedicationReviewed: (id: string) => void;
+  markCathLabStudied: (id: string) => void;
   markCaseCompleted: (id: string, correct: number, total: number) => void;
   recordQuizAttempt: (questionId: string, correct: boolean) => void;
   resetProgress: () => void;
@@ -30,6 +32,7 @@ const EMPTY: LearningProgress = {
   conditionsStudied: [],
   proceduresReviewed: [],
   medicationsReviewed: [],
+  cathlabStudied: [],
   casesCompleted: [],
   caseScores: {},
   quizAttempts: [],
@@ -47,9 +50,9 @@ function load(): LearningProgress {
 
 function save(s: LearningProgress) {
   try {
-    const { structuresViewed, conditionsStudied, proceduresReviewed, medicationsReviewed, casesCompleted, caseScores, quizAttempts } = s;
+    const { structuresViewed, conditionsStudied, proceduresReviewed, medicationsReviewed, cathlabStudied, casesCompleted, caseScores, quizAttempts } = s;
     window.localStorage.setItem(KEY, JSON.stringify({
-      structuresViewed, conditionsStudied, proceduresReviewed, medicationsReviewed, casesCompleted, caseScores,
+      structuresViewed, conditionsStudied, proceduresReviewed, medicationsReviewed, cathlabStudied, casesCompleted, caseScores,
       quizAttempts: quizAttempts.slice(-500),
     }));
   } catch {
@@ -70,6 +73,7 @@ export const useLearningStore = create<LearningState>((set, get) => {
     markConditionStudied: (id) => { if (!get().conditionsStudied.includes(id)) upd({ conditionsStudied: add(get().conditionsStudied, id) }); },
     markProcedureReviewed: (id) => { if (!get().proceduresReviewed.includes(id)) upd({ proceduresReviewed: add(get().proceduresReviewed, id) }); },
     markMedicationReviewed: (id) => { if (!get().medicationsReviewed.includes(id)) upd({ medicationsReviewed: add(get().medicationsReviewed, id) }); },
+    markCathLabStudied: (id) => { if (!get().cathlabStudied.includes(id)) upd({ cathlabStudied: add(get().cathlabStudied, id) }); },
     markCaseCompleted: (id, correct, total) => upd({
       casesCompleted: add(get().casesCompleted, id),
       caseScores: { ...get().caseScores, [id]: { correct, total } },

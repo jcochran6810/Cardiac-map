@@ -18,6 +18,7 @@ const KIND_STYLE: Record<SearchHit['kind'], string> = {
   condition: 'bg-rose-500/15 text-rose-300',
   procedure: 'bg-violet-500/15 text-violet-300',
   medication: 'bg-emerald-500/15 text-emerald-300',
+  cathlab: 'bg-cyan-500/15 text-cyan-300',
   case: 'bg-amber-500/15 text-amber-300',
 };
 

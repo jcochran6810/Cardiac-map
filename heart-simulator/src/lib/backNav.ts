@@ -24,6 +24,7 @@ import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
 import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
+import { useCathLabStore } from '@/store/useCathLabStore';
 import { openById } from '@/lib/actions';
 
 export type Overlay = 'quiz' | 'tutor' | 'help' | null;
@@ -58,6 +59,7 @@ function currentItem(): string | null {
     case 'procedures': return useProcedureStore.getState().selectedProcedureId;
     case 'medications': return usePharmacologyStore.getState().selectedMedicationId;
     case 'cases': return useCaseStore.getState().activeCaseId;
+    case 'cathlab': return useCathLabStore.getState().selectedId;
     default: return useSceneStore.getState().selectedStructureId;
   }
 }
@@ -69,6 +71,7 @@ function clearItem() {
     case 'procedures': useProcedureStore.getState().selectProcedure(null); scene.setHighlights([]); break;
     case 'medications': usePharmacologyStore.getState().selectMedication(null); break;
     case 'cases': useCaseStore.getState().resetCase(); break;
+    case 'cathlab': useCathLabStore.getState().select(null); scene.setHighlights([]); break;
     default: scene.selectStructure(null);
   }
 }
@@ -276,7 +279,7 @@ export function startBackNav(): () => void {
   stack = [currentPage()];
   write('replace', stack[0]);
   publish();
-  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore];
+  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore];
   const unsubscribe = stores.map((st) => st.subscribe(schedule));
   // After the first tap or key press, a second start-page entry lets the first Back on it ask before leaving.
   // (Added on a user gesture so browsers keep it in the Back list.)

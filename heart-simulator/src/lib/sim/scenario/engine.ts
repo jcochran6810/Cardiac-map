@@ -639,8 +639,9 @@ export function review(sc: Scenario, s: SimState): Review {
     const pts = c.points ?? 10;
     max += pts;
     const m = achieved(c, s);
+    const actions = Array.isArray(c.done) ? c.done : c.uses ?? [];
     if (m === null) {
-      toFix.push({ kind: 'missed', label: c.label, detail: c.why, points: pts });
+      toFix.push({ kind: 'missed', label: c.label, detail: c.why, points: pts, actions });
       continue;
     }
     let onTime = true;
@@ -659,7 +660,7 @@ export function review(sc: Scenario, s: SimState): Review {
       wentWell.push({ label: c.label, detail: `at ${clockText(m)}`, points: pts });
     } else {
       earned += pts / 2;
-      toFix.push({ kind: 'late', label: c.label, detail: `${target}. ${c.why}`, points: pts / 2 });
+      toFix.push({ kind: 'late', label: c.label, detail: `${target}. ${c.why}`, points: pts / 2, actions });
     }
   }
   const penaltyPoints = s.penalties.reduce((a, p) => a + p.points, 0);
@@ -674,7 +675,8 @@ export function review(sc: Scenario, s: SimState): Review {
     else {
       // the first sentence is the headline, the rest explains it
       const [first, ...rest] = p.text.split('. ');
-      toFix.push({ kind: 'harm', label: first.endsWith('.') ? first : `${first}.`, detail: rest.join('. '), points: p.points, severity: p.severity });
+      const actions = [...BUILT_IN_HARMS, ...sc.harms].find((h) => h.id === p.id)?.actions;
+      toFix.push({ kind: 'harm', label: first.endsWith('.') ? first : `${first}.`, detail: rest.join('. '), points: p.points, severity: p.severity, actions });
     }
   }
   let percent = max > 0 ? Math.round((100 * Math.max(0, earned - penaltyPoints)) / max) : 0;

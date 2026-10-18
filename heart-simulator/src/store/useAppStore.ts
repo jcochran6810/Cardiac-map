@@ -13,7 +13,7 @@ export type LearningLevel = 1 | 2 | 3 | 4 | 5;
  */
 export type ViewMode = 'external' | 'sectioned' | 'xray' | 'conduction' | 'territories' | 'activation';
 
-export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cases';
+export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cathlab' | 'cases';
 
 /** Top-level screens: the start page, the learning workspace (3D heart, ECG, library) and the case simulator */
 export type AppMode = 'home' | 'learn' | 'simulator';

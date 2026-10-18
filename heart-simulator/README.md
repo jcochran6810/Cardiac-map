@@ -27,8 +27,9 @@ panel's **← Back** is the same button.
 
 `src/lib/sim/scenario/` (engine, interventions, scenarios) · `src/store/useSimStore.ts` · `src/components/simulator/`
 
-- **Every action in your scope is offered — right or wrong** (`interventions.ts`: ~75 actions tagged by role
-  and setting). Each one takes case time and changes the patient: the rhythm on the monitor and the live
+- **Every action in your scope is offered — right or wrong** (`interventions.ts`: ~130 actions tagged by role
+  and setting, including the cath lab's views, catheters, guides, wires, balloons, stents, support devices,
+  physiology and imaging, and lab drugs). Each one takes case time and changes the patient: the rhythm on the monitor and the live
   12-lead, the vitals, and the story (patient, partner, team, monitor, hospital).
 - **The monitor starts unplugged**: the ECG, SpO₂ and capnography appear only once you attach them; the
   NIBP box shows the last blood pressure you took. Nothing reads the tracings for you: the monitor reports
@@ -38,6 +39,17 @@ panel's **← Back** is the same button.
   can show (43, in four groups). The FTO — the preceptor in the cath lab — answers at once: correct, partly
   right or not quite, with the explanation of the tracing. A misread costs 5 points (2 if partly right) and
   the review lists every read. EMTs acquire and transmit without reading.
+- **In the cath lab you read more than the 12-lead:** pressures (a damped guide, LVEDP, right heart numbers
+  in shock or RV infarction), FFR, stent sizing from QCA / IVUS, sudden changes (reperfusion reflex, radial
+  spasm, perforation, tamponade, contrast reaction) and — once real images are in the app — angiograms.
+- **The cath lab works as a team** (`labKit.ts`): as the **tech**, the (computer) cardiologist asks for each
+  catheter, guide, view, wire, balloon and stent and waits for the right one — a wrong one gets a word and
+  costs points, one opened ahead of the request counts; as the **nurse**, the cardiologist orders drugs and
+  you choose them (e.g. "something for the rate" → atropine, the hyperaemia dose of adenosine, IV cangrelor
+  in shock); as the **cardiologist**, every choice is yours. The monitor shows the live arterial pressure
+  (ART) once the sheath is in and the transducers are zeroed, and an **Imaging** tab lists every cine run
+  with a C-arm diagram, its angles and what the view shows best (and the real angiogram when the app has one
+  — `src/data/cathImages.ts`).
 - **Events happen on time or because of what you did** (VF en route, heart block, a wedged catheter,
   reperfusion VF), built-in safety rules catch dangerous choices (shocking a patient with a pulse, arrest-dose
   epinephrine with a pulse, …), and teammates do the other roles' jobs in the cath lab.
@@ -45,11 +57,28 @@ panel's **← Back** is the same button.
   it). The review shows the score and grade, what to fix (harmful choices, missed and late steps — late
   counts half), what went well, your times against the goals and the teaching points. A **Hint** names the
   next critical step for 2 points. Best scores are kept on the device.
-- **Cases:** anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,
-  paramedic) · complete heart block · unstable SVT · VF cardiac arrest (EMT, paramedic) · STEMI in the cath
-  lab (tech, nurse, cardiologist). Tests play every case's ideal run for each role (`tests/scenarios.test.ts`).
+- **Cases:** field — anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,
+  paramedic) · complete heart block · unstable SVT · VF cardiac arrest (EMT, paramedic). Cath lab (tech, nurse,
+  cardiologist) — anterior STEMI (damped guide, reperfusion VF) · inferior STEMI from the groin (Bezold–Jarisch
+  reflex) · FFR- and IVUS-guided PCI (radial spasm) · cardiogenic shock (right heart numbers, Impella) ·
+  coronary perforation and tamponade · contrast reaction. Tests play every case's ideal run for each role
+  and its main traps (`tests/scenarios.test.ts`).
 - The engine is pure and deterministic (`engine.ts`: `start`, `perform`, `takeHint`, `stop`, `review`), so a new
   case is one file in `scenarios/` plus a line in `scenarios/index.ts` and an ideal run in the tests.
+
+## Cath lab catalog
+
+`src/data/content/cathlab*.ts` (content) · `src/lib/cathlab/views.ts` (view angles) · Library → **Cath lab** tab
+
+About 75 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
+balloons and stents, physiology and intravascular imaging, mechanical support and pacing, pressures and
+hemodynamics, lab drugs, complications, team and safety. Each item says what it is, the numbers to know,
+pearls and pitfalls, and **what the tech, the nurse and the cardiologist each do with it** (your own role is
+highlighted). A view shows the C-arm position, turns the 3D heart to that angle and lights up the arteries it
+shows best. Each item links to the simulator cases that use it ("Practise it"). The simulator's case list
+points lab roles to the catalog first. Real angiogram / fluoroscopy images plug in through
+`src/data/cathImages.ts` (each item already describes the image it wants); a test checks every link, every
+simulator action and every standard view is covered (`tests/cathlab-catalog.test.ts`).
 
 ## Roles and scope of practice
 

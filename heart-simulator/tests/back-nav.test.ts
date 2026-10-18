@@ -41,7 +41,7 @@ const fake = vi.hoisted(() => {
 import { currentPage, startBackNav, useBackNavStore } from '@/lib/backNav';
 import { useAppStore } from '@/store/useAppStore';
 import { useSimStore } from '@/store/useSimStore';
-import { openCondition, openMedication } from '@/lib/actions';
+import { openById, openCondition, openMedication } from '@/lib/actions';
 
 const history = fake.history;
 vi.spyOn(performance, 'now').mockImplementation(() => fake.clock);
@@ -82,6 +82,19 @@ describe('the Back button moves through CardioSim pages', () => {
     expect(currentPage().item).not.toBe('anterior-stemi');
     await back();
     expect(currentPage().mode).toBe('home');
+  });
+
+  it('cath lab catalog items are pages too', async () => {
+    useAppStore.getState().setMode('learn');
+    await settle();
+    openById('cl-view-rao-cranial');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', item: 'cl-view-rao-cranial' });
+    expect(useAppStore.getState().activePanelCategory).toBe('cathlab');
+    openById('cl-ffr');
+    await settle();
+    await back();
+    expect(currentPage().item).toBe('cl-view-rao-cranial');
   });
 
   it('closing a drawer with its own control steps back over the entry that opened it', async () => {

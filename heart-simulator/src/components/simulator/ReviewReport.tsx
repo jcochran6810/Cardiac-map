@@ -6,7 +6,7 @@ import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { clockText } from '@/lib/sim/scenario/engine';
 import type { Review } from '@/lib/sim/scenario/types';
-import { openCondition } from '@/lib/actions';
+import { openCathLab, openCondition } from '@/lib/actions';
 import { useContent } from '@/lib/content';
 import { IconCheck, IconFlag } from '@/components/ui/icons';
 import { gradeStyle } from './simStyles';
@@ -31,6 +31,16 @@ export default function ReviewReport({ onBack }: { onBack: () => void }) {
   const sc = SCENARIO_BY_ID[state.scenarioId];
   const g = gradeStyle(review.percent);
   const conditionName = sc.conditionId ? lib?.conditions[sc.conditionId]?.name : undefined;
+
+  /** cath lab cases: the catalog items about what a to-fix item involved */
+  const study = (actions?: string[]) => (sc.setting === 'cathlab' && lib && actions?.length
+    ? Object.values(lib.cathlab).filter((i) => i.sim?.some((id) => actions.includes(id))).slice(0, 2)
+    : []);
+  const read = (id: string) => {
+    leaveSimulator();
+    closeScenario();
+    openCathLab(id);
+  };
 
   const learn = () => {
     // hand the monitor back to the workspace before the condition loads its own ECG
@@ -77,6 +87,15 @@ export default function ReviewReport({ onBack }: { onBack: () => void }) {
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-medium text-white leading-snug">{t.label}</div>
                   {t.detail && t.detail !== t.label && <p className="text-xs text-slate-300 leading-relaxed mt-0.5">{t.detail}</p>}
+                  {study(t.actions).length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {study(t.actions).map((item) => (
+                        <button key={item.id} onClick={() => read(item.id)} className="px-2 py-1 rounded border border-cyan-500/30 bg-cyan-500/10 text-[11px] text-cyan-200 hover:bg-cyan-500/20">
+                          Read: {item.name} →
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <span className={`shrink-0 text-xs font-mono ${t.kind === 'late' ? 'text-yellow-300' : 'text-red-300'}`}>
                   {t.kind === 'late' ? `½ · ${fmt(t.points)}` : `−${fmt(t.points)}`}

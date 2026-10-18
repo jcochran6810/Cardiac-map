@@ -259,6 +259,18 @@ export function answerQuestion(question: string, lib: ContentLibrary, ctx: Tutor
       followUps: [`What is the dose of ${m.name}?`, `What are the contraindications to ${m.name}?`],
     };
   }
+  const cl = lib.cathlab[targetId];
+  if (cl) {
+    const numbers = (intent === 'dose' || /normal|value|size|how much|target|range/i.test(q)) && cl.numbers?.length;
+    const role = level === 3 ? cl.roles.tech : level === 4 ? cl.roles.rn : level === 5 ? cl.roles.md : null;
+    return {
+      title: `${cl.name}${numbers ? ' — numbers to know' : ''}`,
+      text: cl.summary,
+      bullets: [...(numbers ? cl.numbers! : cl.details).slice(0, 6), ...(role ? [`${lv}: ${role}`] : [])],
+      links: [cl.id, ...(cl.related ?? []).slice(0, 3)],
+      followUps: cl.numbers?.length && !numbers ? [`What are the numbers to know for ${cl.name}?`] : [],
+    };
+  }
   const cs = CASE_DATA[targetId];
   if (cs) {
     return { title: cs.title, text: cs.presentation, bullets: cs.teaching.slice(0, 5), links: [cs.id], followUps: [] };

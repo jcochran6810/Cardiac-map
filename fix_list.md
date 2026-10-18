@@ -11,6 +11,18 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-10-18 — **Let Claude fetch real angiogram and fluoroscopy images.** This environment's network
+  policy blocks the image libraries (`commons.wikimedia.org` and `upload.wikimedia.org` answered "403 policy
+  denial"; `openi.nlm.nih.gov` and `www.ncbi.nlm.nih.gov` too). In the Claude app: open this session's cloud
+  environment menu (the environment name in the session's title bar) → **Edit** → **Network access** → add
+  `commons.wikimedia.org` and `upload.wikimedia.org` under **Allowed domains** (keep "Allow package managers"
+  ticked; optionally also `openi.nlm.nih.gov` and `www.ncbi.nlm.nih.gov`) → save, then start a new session and
+  ask Claude to "add the real cath images". Steps: https://code.claude.com/docs/en/cloud-environments#network-access.
+  The app is ready for them: every catalog item and simulator run has a slot (`src/data/cathImages.ts`), and
+  angiogram reads switch on per run once an image is there.
+- [ ] 2026-10-18 — **Try the cath lab cases and catalog on your phone:** Simulator → pick Cath Lab Tech, RN or
+  Cardiologist → play the six lab cases; Library → **Cath lab** tab (open a view: the heart turns to it).
+
 - [ ] 2026-10-18 — **Try the new screens on your phone:** the Home page, the case simulator (play a case
   to the end, give your 12-lead reads, read the review) and the Learn screen (tap the heart, open a
   condition, then a drug). Use your **phone's Back button/gesture** throughout: it should step back through
@@ -40,6 +52,13 @@ Add new items at the top of their group. Use the format:
   what it was for: GitHub → Branches. Sessions can't delete remote branches.
 
 ### For Codex (UI / graphics — set by Claude)
+
+- [ ] 2026-10-18 — **Polish the cath lab screens (keep their behaviour):** the simulator's **Imaging** tab
+  (`heart-simulator/src/components/simulator/ImagingPanel.tsx`), the C-arm diagram
+  (`heart-simulator/src/components/cathlab/CArmDiagram.tsx` — a clearer patient, table and C-arm drawing would
+  help), the catalog item page (`CathLabView` / `PractiseLab` in `heart-simulator/src/components/layout/RightPanel.tsx`),
+  the "study the catalog" banner in `ScenarioPicker.tsx` and the monitor's new **ART** box
+  (`MonitorDisplay.tsx`). The Library now has 8 tabs (Cath lab added).
 
 - [ ] 2026-10-18 — **Polish the new screens Claude built (keep their behaviour):** Home
   (`heart-simulator/src/components/home/HomeScreen.tsx`), the case simulator
@@ -74,10 +93,18 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
+- [ ] 2026-10-18 — **Real cath lab images** once the owner allows the image hosts (Owner actions): pull
+  openly licensed angiograms / fluoroscopy frames (Wikimedia Commons, open-access journals), keep the licence
+  and credit in `heart-simulator/src/data/cathImages.ts`, set `image.key` on the catalog items (each has an
+  `image.want` describing the picture it needs) and fill each lab scenario's `IMAGES` map — that switches on
+  the angiogram reads in the simulator (`labKit.ts` `cine`).
+- [ ] 2026-10-18 — Spelling: the app mixes UK (simulator text: haemostasis, hyperaemia, equalise) and US
+  (library content) spelling; pick US throughout (the users train for US certifications). Read-option ids
+  such as `ischaemia` can stay.
 - [ ] 2026-10-18 — More simulator cases (one file each in
   `heart-simulator/src/lib/sim/scenario/scenarios/` + an ideal run in `tests/scenarios.test.ts`): PEA /
-  asystole arrest, AF with RVR, stable VT, symptomatic bradycardia from a beta-blocker, cardiogenic shock
-  in the cath lab (IABP / Impella), hyperkalaemia, heart block needing a temporary wire.
+  asystole arrest, AF with RVR, stable VT, symptomatic bradycardia from a beta-blocker, hyperkalaemia; in the
+  lab, no-reflow, a left main case, an EP / pacing case.
 - [ ] 2026-10-18 — Simulator 12-lead is live (always the current rhythm, with a "the patient has
   changed — repeat it" note); a frozen tracing per recording would be more realistic.
 

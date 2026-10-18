@@ -16,6 +16,12 @@ export default function ScenarioPicker() {
   const best = useSimStore((s) => s.best);
   const startScenario = useSimStore((s) => s.startScenario);
   const mine = SCENARIOS.filter((sc) => sc.roles.includes(role));
+  const studyLab = () => {
+    const app = useAppStore.getState();
+    app.setMode('learn');
+    app.setActivePanelCategory('cathlab');
+    app.setPanels(true, app.compact ? false : app.rightPanelOpen);
+  };
   const others = SCENARIOS.filter((sc) => !sc.roles.includes(role));
 
   return (
@@ -53,6 +59,14 @@ export default function ScenarioPicker() {
         </div>
 
         <h2 className="mt-6 text-sm font-semibold text-white">Cases for {LEVEL_LABELS[role].long}</h2>
+        {role >= 3 && (
+          <button onClick={studyLab} className="mt-2 w-full text-left flex items-center gap-3 p-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20">
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold text-cyan-100">Study before you scrub in: the cath lab catalog →</span>
+              <span className="block text-xs text-cyan-200/75 leading-snug mt-0.5">Every view, catheter, wire, balloon, stent, lab drug, pressure and complication these cases use — and what the tech, the nurse and the cardiologist each do.</span>
+            </span>
+          </button>
+        )}
         <div className="mt-2 grid gap-3 md:grid-cols-2">
           {mine.map((sc) => (
             <CaseCard key={sc.id} sc={sc} best={best[bestKey(sc.id, role)]} onStart={() => startScenario(sc.id, role)} />

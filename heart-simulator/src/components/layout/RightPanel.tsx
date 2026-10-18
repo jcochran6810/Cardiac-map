@@ -7,18 +7,22 @@ import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
 import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
+import { useCathLabStore } from '@/store/useCathLabStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm } from '@/lib/actions';
+import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm, showCineView } from '@/lib/actions';
 import { currentPage, goBack, useBackNavStore } from '@/lib/backNav';
 import { enterSimulator, useSimStore } from '@/store/useSimStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
+import { SCENARIOS, labCasesUsing } from '@/lib/sim/scenario/scenarios';
 import { CASE_DATA, type CaseData } from '@/data/caseData';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
-import type { ConditionContent, MedicationContent, ProcedureContent, StructureContent } from '@/types/content';
+import { CATHLAB_GROUPS, type CathLabItem, type ConditionContent, type MedicationContent, type ProcedureContent, type StructureContent } from '@/types/content';
+import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
+import { CATH_IMAGES } from '@/data/cathImages';
+import CArmDiagram from '@/components/cathlab/CArmDiagram';
 import { IconCheck, IconClose, IconCube, IconFlag, IconPlay, IconPulse } from '@/components/ui/icons';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { InstallButton } from '@/components/ui/InstallApp';
@@ -31,6 +35,7 @@ const KIND_CHIP: Record<string, string> = {
   condition: 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20',
   procedure: 'bg-violet-500/10 text-violet-300 border-violet-500/30 hover:bg-violet-500/20',
   medication: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20',
+  cathlab: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20',
   case: 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20',
 };
 
@@ -399,6 +404,108 @@ function MedicationView({ m, level }: { m: MedicationContent; level: LearningLev
   );
 }
 
+// ─── Cath lab catalog ──────────────────────────────────────────────────────
+
+const LAB_ROLES = [['tech', 3, 'Cath Lab Tech'], ['rn', 4, 'Cath Lab RN'], ['md', 5, 'Cardiologist']] as const;
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function CathLabView({ item, level }: { item: CathLabItem; level: LearningLevel }) {
+  const compact = useAppStore((s) => s.compact);
+  const v = item.view ? CINE_VIEW_BY_ID[item.view] : undefined;
+  const img = item.image?.key ? CATH_IMAGES[item.image.key] : undefined;
+  const group = CATHLAB_GROUPS.find((g) => g.id === item.group)?.label;
+  const onHeart = () => {
+    if (!v) return;
+    showCineView(v.id);
+    if (compact) useAppStore.getState().setPanels(false, false);
+  };
+  return (
+    <>
+      <Header title={item.name} badge={group} badgeClass="bg-cyan-500/15 text-cyan-300" summary={item.summary}>
+        {item.synonyms?.length ? <p className="text-[10px] text-slate-500 mt-1">Also called: {item.synonyms.join(', ')}</p> : null}
+      </Header>
+      <div className="flex-1 overflow-y-auto p-3 text-xs space-y-4">
+        {v && (
+          <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-2">
+            <div className="flex items-center gap-3">
+              <CArmDiagram rot={v.rot} ang={v.ang} className="w-40 shrink-0" />
+              <div className="min-w-0">
+                <div className="font-mono text-[12px] text-sky-300">{angleText(v)}</div>
+                <div className="mt-1 text-[10px] text-slate-400">Shows best</div>
+                <div className="text-[11px] text-slate-200 leading-snug">{v.best}.</div>
+              </div>
+            </div>
+            {v.system !== 'lv' && (
+              <button onClick={onHeart} className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 touch:py-2.5 rounded-md text-[11px] bg-sky-500/15 text-sky-200 border border-sky-500/30 hover:bg-sky-500/25">
+                <IconCube size={13} /> See this view on the 3D heart
+              </button>
+            )}
+          </div>
+        )}
+        {img && (
+          <figure className="rounded-lg overflow-hidden border border-slate-700 bg-black">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={img.src} alt={img.alt} className="w-full max-h-72 object-contain" />
+            <figcaption className="px-2 py-1 text-[9px] text-slate-500 bg-cardiac-dark">{img.credit} · {img.license}</figcaption>
+          </figure>
+        )}
+        <Section title="What it is"><Bullets items={item.details} /></Section>
+        <Section title="Who does what">
+          <div className="space-y-1.5">
+            {LAB_ROLES.map(([key, lvl, label]) => (
+              <div key={key} className={`p-2 rounded-md border ${lvl === level ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-cardiac-dark/50 border-slate-700/70'}`}>
+                <div className={`text-[9px] uppercase tracking-wider font-semibold ${lvl === level ? 'text-emerald-300' : 'text-slate-400'}`}>{label}{lvl === level ? ' · you' : ''}</div>
+                <p className="text-[11px] text-slate-200 leading-relaxed mt-0.5">{item.roles[key]}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+        {item.numbers?.length ? <Section title="Numbers to know"><Bullets items={item.numbers} accent="text-sky-300" /></Section> : null}
+        {item.pearls?.length ? <Section title="Pearls and pitfalls"><Bullets items={item.pearls} accent="text-amber-300" /></Section> : null}
+        <PractiseLab item={item} level={level} />
+        <Chips ids={item.related ?? []} label="Related" />
+      </div>
+    </>
+  );
+}
+
+/** The cath lab cases that use this item, playable for the learner's role (or the first lab role) */
+function PractiseLab({ item, level }: { item: CathLabItem; level: LearningLevel }) {
+  const cases = labCasesUsing(item.sim ?? []).slice(0, 4);
+  if (!cases.length) return null;
+  const go = (id: string, role: LearningLevel) => {
+    enterSimulator();
+    useSimStore.getState().startScenario(id, role);
+    useAppStore.getState().setMode('simulator');
+  };
+  return (
+    <Section title="Practise it in the simulator">
+      <div className="grid gap-1.5">
+        {cases.map((sc) => {
+          const role = sc.roles.includes(level) ? level : sc.roles[0];
+          return (
+            <button key={sc.id} onClick={() => go(sc.id, role)} className="w-full flex items-center gap-2 p-2 touch:p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-left hover:bg-amber-500/20">
+              <IconPlay size={16} className="text-cardiac-accent shrink-0" />
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold text-amber-100 truncate">{sc.title}</span>
+                <span className="block text-[10px] text-amber-200/70">Play as {LEVEL_LABELS[role].short}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
 // ─── Case ──────────────────────────────────────────────────────────────────
 
 const CASE_TABS: TabDef[] = [
@@ -633,6 +740,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   const selectedProcedureId = useProcedureStore((s) => s.selectedProcedureId);
   const selectedMedicationId = usePharmacologyStore((s) => s.selectedMedicationId);
   const activeCaseId = useCaseStore((s) => s.activeCaseId);
+  const selectedCathLabId = useCathLabStore((s) => s.selectedId);
   const lib = useContent();
 
   const view = useMemo(() => {
@@ -643,9 +751,10 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
     if (category === 'conditions' && selectedConditionId && lib.conditions[selectedConditionId]) return <ConditionView c={lib.conditions[selectedConditionId]} level={level} />;
     if (category === 'procedures' && selectedProcedureId && lib.procedures[selectedProcedureId]) return <ProcedureView p={lib.procedures[selectedProcedureId]} level={level} />;
     if (category === 'medications' && selectedMedicationId && lib.medications[selectedMedicationId]) return <MedicationView m={lib.medications[selectedMedicationId]} level={level} />;
+    if (category === 'cathlab' && selectedCathLabId && lib.cathlab[selectedCathLabId]) return <CathLabView item={lib.cathlab[selectedCathLabId]} level={level} />;
     if (category === 'cases' && activeCaseId && CASE_DATA[activeCaseId]) return <CaseView c={CASE_DATA[activeCaseId]} level={level} />;
     return <Welcome level={level} />;
-  }, [lib, category, level, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, activeCaseId]);
+  }, [lib, category, level, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, selectedCathLabId, activeCaseId]);
 
   return (
     <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden min-h-0" aria-label="Information">

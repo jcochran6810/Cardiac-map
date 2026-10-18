@@ -8,7 +8,7 @@ import { useSceneStore } from '@/store/useSceneStore';
 import { useContent } from '@/lib/content';
 import { scenariosFor } from '@/lib/sim/scenario/scenarios';
 import {
-  IconBook, IconChart, IconClipboard, IconCube, IconHeartPulse, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
+  IconBook, IconChart, IconClipboard, IconCube, IconHeart, IconHeartPulse, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
 } from '@/components/ui/icons';
 
 const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
@@ -56,6 +56,7 @@ export default function HomeScreen() {
     { title: 'Electrode lab', text: 'Place the electrodes on a 3D patient and see what swapped cables do.', icon: <IconPerson size={22} />, tint: 'text-teal-300 bg-teal-500/15', go: dock('ecg', true) },
     { title: 'Drug cards', text: 'Doses, uses and cautions for cardiac and resuscitation drugs.', icon: <IconPill size={22} />, tint: 'text-lime-300 bg-lime-500/15', go: library('medications') },
     { title: 'Procedures', text: 'Cath lab, EP, surgical and bedside procedures, step by step.', icon: <IconClipboard size={22} />, tint: 'text-violet-300 bg-violet-500/15', go: library('procedures') },
+    { title: 'Cath lab catalog', text: 'Views, catheters, wires, stents, lab drugs, pressures and complications — and who does what.', icon: <IconHeart size={22} />, tint: 'text-cyan-300 bg-cyan-500/15', go: library('cathlab') },
     { title: 'Defibrillator', text: 'Shock, cardiovert and pace a live patient on a monitor-defibrillator.', icon: <IconZap size={22} />, tint: 'text-amber-300 bg-amber-500/15', go: dock('defib') },
     { title: 'Pressure & volume', text: 'The Wiggers diagram and pressure-volume loop, beat by beat.', icon: <IconChart size={22} />, tint: 'text-cyan-300 bg-cyan-500/15', go: dock('wiggers') },
     { title: 'Anatomy list', text: 'Every chamber, valve, vessel and conduction structure, A to Z.', icon: <IconBook size={22} />, tint: 'text-blue-300 bg-blue-500/15', go: library('anatomy') },

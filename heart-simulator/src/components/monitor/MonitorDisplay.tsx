@@ -9,10 +9,15 @@ import { sampleTimes } from '@/lib/ecg/sweep';
 import { useAppStore } from '@/store/useAppStore';
 
 const WINDOW = 6000; // ms across the screen
-const COLORS = { ecg: '#3cff7a', pleth: '#45d4ff', co2: '#ffd43b', grid: 'rgba(255,255,255,0.05)', text: '#9aa4b2' };
+const COLORS = { ecg: '#3cff7a', art: '#ff5c74', pleth: '#45d4ff', co2: '#ffd43b', grid: 'rgba(255,255,255,0.05)', text: '#9aa4b2' };
+/** the arterial trace is drawn on a fixed 0–160 mmHg scale, like a bedside monitor */
+const ART_SCALE = 160;
 
-/** `art`: an arterial line (cath lab) — the pressure box then shows the live arterial pressure instead of NIBP */
-export interface Channels { ecg: boolean; pleth: boolean; co2: boolean; art?: boolean }
+/**
+ * `art`: an arterial line (cath lab) — a pressure trace under the ECG, and the pressure box shows the live
+ * arterial pressure instead of NIBP. 'damped': the catheter tip is wedged (no dicrotic notch, a rounded trace).
+ */
+export interface Channels { ecg: boolean; pleth: boolean; co2: boolean; art?: boolean | 'damped' }
 const ALL_CHANNELS: Channels = { ecg: true, pleth: true, co2: true };
 
 /**
@@ -51,8 +56,20 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
     let audio: AudioContext | null = null;
     let lastBeepV = -1;
     const rows = () => {
+      if (channelsRef.current.art) {
+        const h = H / 4;
+        return { ecg: [0, h], art: [h, 2 * h], pleth: [2 * h, 3 * h], co2: [3 * h, 4 * h] } as const;
+      }
       const h = H / 3;
-      return { ecg: [0, h], pleth: [h, 2 * h], co2: [2 * h, 3 * h] } as const;
+      return { ecg: [0, h], art: null, pleth: [h, 2 * h], co2: [2 * h, 3 * h] } as const;
+    };
+    /** arterial pressure (mmHg) at t, scaled to the patient's numbers; a damped line loses the notch and the peaks */
+    const artAt = (t: number, v: Vitals, damped: boolean) => {
+      if (!v.pulse) return 0;
+      const [ms, md] = v.wave ?? [v.sbp, v.dbp];
+      const raw = damped ? [0, 40, 80, 120, 160, 200].reduce((a, d) => a + sim.hemo.sample(t - d).aop, 0) / 6 : sim.hemo.sample(t).aop;
+      const k = Math.max(-0.1, Math.min(1.1, (raw - md) / Math.max(5, ms - md)));
+      return v.dbp + k * (v.sbp - v.dbp);
     };
     const resize = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -82,7 +99,8 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
       const yP = r.pleth[1] - 8 - pl * (r.pleth[1] - r.pleth[0] - 18);
       const c = on.co2 ? capnoAt(t, v.rr, v.etco2) : 0;
       const yC = r.co2[1] - 6 - (c / 50) * (r.co2[1] - r.co2[0] - 16);
-      return [yE, yP, yC];
+      const yA = r.art ? r.art[1] - 5 - (Math.min(ART_SCALE, artAt(t, v, on.art === 'damped')) / ART_SCALE) * (r.art[1] - r.art[0] - 12) : 0;
+      return [yE, yP, yC, yA];
     };
     const drawRange = (t0: number, t1: number) => {
       const step = WINDOW / Math.max(100, W);
@@ -96,8 +114,8 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
         const x = xOf(t);
         const cur = sample(t, cache);
         if (prev && x >= prevX) {
-          const cols = [COLORS.ecg, COLORS.pleth, COLORS.co2];
-          for (let k = 0; k < 3; k++) {
+          const cols = [COLORS.ecg, COLORS.pleth, COLORS.co2, COLORS.art];
+          for (let k = 0; k < (channelsRef.current.art ? 4 : 3); k++) {
             ctx.strokeStyle = cols[k];
             ctx.beginPath();
             ctx.moveTo(prevX, prev[k]);
@@ -137,7 +155,7 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
       ctx.strokeStyle = 'rgba(255,255,255,0.08)';
       ctx.lineWidth = 1;
       ctx.lineCap = 'butt'; // no overhang into the area that was not cleared
-      for (const y of [r.pleth[0], r.co2[0]]) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); }
+      for (const y of [...(r.art ? [r.art[0]] : []), r.pleth[0], r.co2[0]]) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); }
     };
     const erase = (a: number, b: number) => {
       // Whole device pixels, so the sweep leaves no half-erased seams behind
@@ -162,8 +180,11 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
       } catch { /* audio unavailable */ }
     };
 
+    let lastArt = !!channelsRef.current.art;
     const loop = () => {
       const T = sim.time;
+      // the arterial line adds a row: redraw everything in the new layout
+      if (!!channelsRef.current.art !== lastArt) { lastArt = !lastArt; lastT = -1; }
       if (W > 10 && H > 10) {
         if (lastT < 0 || sim.epoch !== lastEpoch || T < lastT || T - lastT > WINDOW * 0.8) {
           ctx.fillStyle = '#05080c';
@@ -206,11 +227,12 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
           II ×1 {showRhythmName && !d.trainee && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
           {d.sync && d.mode === 'manual' && <span className="ml-2 px-1 rounded bg-white text-black font-bold">SYNC</span>}
         </div>
-        <div className="absolute left-2 text-[10px] font-mono" style={{ top: '34%', color: COLORS.pleth }}>Pleth</div>
-        <div className="absolute left-2 text-[10px] font-mono" style={{ top: '67.5%', color: COLORS.co2 }}>CO₂ mmHg</div>
-        {!channels.ecg && <Unplugged top="12%" large={large}>ECG leads not connected</Unplugged>}
-        {!channels.pleth && <Unplugged top="45%" large={large}>SpO₂ probe not connected</Unplugged>}
-        {!channels.co2 && <Unplugged top="78%" large={large}>No capnography</Unplugged>}
+        {channels.art && <div className="absolute left-2 text-[10px] font-mono" style={{ top: '25.5%', color: COLORS.art }}>ART 0–{ART_SCALE}</div>}
+        <div className="absolute left-2 text-[10px] font-mono" style={{ top: channels.art ? '50.5%' : '34%', color: COLORS.pleth }}>Pleth</div>
+        <div className="absolute left-2 text-[10px] font-mono" style={{ top: channels.art ? '75.5%' : '67.5%', color: COLORS.co2 }}>CO₂ mmHg</div>
+        {!channels.ecg && <Unplugged top={channels.art ? '8%' : '12%'} large={large}>ECG leads not connected</Unplugged>}
+        {!channels.pleth && <Unplugged top={channels.art ? '58%' : '45%'} large={large}>SpO₂ probe not connected</Unplugged>}
+        {!channels.co2 && <Unplugged top={channels.art ? '83%' : '78%'} large={large}>No capnography</Unplugged>}
         {d.message && (
           <div className={`absolute left-1/2 -translate-x-1/2 top-1 max-w-[80%] px-2 py-0.5 rounded text-center font-semibold ${large ? 'text-lg' : 'text-[11px]'} ${d.charge === 'charged' || d.aed.phase === 'shock' ? (blink ? 'bg-amber-400 text-black' : 'bg-amber-600 text-black') : 'bg-slate-800/90 text-amber-200'}`}>
             {d.message}

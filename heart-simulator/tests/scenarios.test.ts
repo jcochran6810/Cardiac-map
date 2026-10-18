@@ -38,8 +38,8 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
       'balloon-predil', 'atropine', 'fluid', 'stent-des', 'final-angio', 'ecg12', 'echo', 'handoff'],
   },
   'ffr-cathlab': {
-    3: ['prep', 'transducer', 'monitor', 'timeout', 'cath-tiger', 'radial-cocktail', 'act', 'guide-ebu', 'ffr-equalize', 'ffr', 'ivus', 'stent-des',
-      'balloon-nc', 'hemostasis'],
+    3: ['prep', 'transducer', 'monitor', 'timeout', 'cath-tiger', 'view-lao-caudal', 'view-rao-cranial', 'view-rao-caudal', 'view-rca-lao',
+      'radial-cocktail', 'act', 'guide-ebu', 'ffr-equalize', 'ffr', 'ivus', 'stent-des', 'balloon-nc', 'hemostasis'],
     4: ['consent', 'iv', 'timeout', 'sedation', 'reassess', 'radial-cocktail', 'heparin', 'act', 'ic-nitro', 'adenosine-iv-ffr', 'reassess', 'p2y12',
       ...R(2), 'hemostasis', 'handoff'],
     5: ['consent', 'timeout', 'access', 'cath-tiger', 'angio', 'radial-cocktail', 'heparin', 'guide-ebu', 'ffr-equalize', 'ic-nitro', 'adenosine-iv-ffr',
@@ -497,5 +497,20 @@ describe('contrast reaction', () => {
   it('premedicating for a shellfish allergy is a minor error', () => {
     const s = run(sc, 5, ['steroid']);
     expect(s.penalties.map((p) => p.id)).toEqual(['premed-for-shellfish']);
+  });
+});
+
+describe('the cath lab monitor', () => {
+  it('shows the arterial line once the sheath is in and zeroed, damped while the guide is wedged', async () => {
+    const { attached } = await import('@/store/useSimStore');
+    const sc = SCENARIO_BY_ID['stemi-cathlab'];
+    let s = run(sc, 3, ['prep', 'transducer', 'pads']);
+    expect(attached(s).art).toBe(false);
+    s = run(sc, 3, ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger', 'guide-ebu']);
+    expect(attached(s).art).toBe('damped');
+    expect(s.vitals.sbp).toBe(82);
+    s = perform(sc, s, 'callout');
+    expect(attached(s).art).toBe(true);
+    expect(s.vitals.sbp).toBe(136);
   });
 });

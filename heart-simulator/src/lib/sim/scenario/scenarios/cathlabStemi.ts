@@ -233,7 +233,7 @@ export const cathlabStemi: Scenario = {
       id: 'damped', when: (s) => has(s, 'guide'),
       effect: (s) => ({
         say: [
-          ['monitor', 'Aortic pressure 82/64 — the waveform has lost its dicrotic notch and the diastolic pressure is falling.', 'bad'],
+          ['monitor', 'Aortic pressure 82/64 — and the arterial trace has changed shape.', 'bad'],
           ...(s.role === 5 ? [line('team', 'Tech: "Doctor — the pressure\'s damped!"', 'warn')] : []),
         ],
         // the arterial line reads the pressure at the wedged tip

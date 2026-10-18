@@ -114,6 +114,7 @@ export function askCritical(a: LabAsk): Critical {
   return {
     id: `ask-${a.id}`, label: a.label, why: a.why, roles: [askedRole(a)], points: a.points ?? 5,
     done: (s) => askDone(s, a),
+    uses: a.accept,
     target: { within: { flag: `asked-${a.id}`, minutes: a.within ?? 2 } },
     applies: (s) => has(s, `asked-${a.id}`),
   };

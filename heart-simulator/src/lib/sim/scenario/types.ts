@@ -159,6 +159,8 @@ export interface Critical {
   target?: { by?: number; within?: { flag: string; minutes: number } };
   /** the item only applies if this is true at the end (e.g. only if VF happened) */
   applies?: (s: SimState) => boolean;
+  /** interventions a function-style `done` looks for (lets the library find the cases that use an action) */
+  uses?: string[];
 }
 
 export interface Harm {
@@ -239,7 +241,8 @@ export interface Review {
   outcome: string;
   timings: { label: string; minute: number | null; target?: number; met: boolean | null }[];
   wentWell: ReviewItem[];
-  toFix: (ReviewItem & { kind: 'missed' | 'late' | 'harm' | 'read' | 'hint'; severity?: Severity })[];
+  /** `actions`: the interventions the item is about (to link the learner to what to study) */
+  toFix: (ReviewItem & { kind: 'missed' | 'late' | 'harm' | 'read' | 'hint'; severity?: Severity; actions?: string[] })[];
   /** every read: what kind, what you said, what it was */
   reads: { kind: ReadKind; minute: number; chosen: string; answer: string; verdict: Verdict }[];
   /** hints taken during the run */

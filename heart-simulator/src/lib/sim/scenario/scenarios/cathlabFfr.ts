@@ -1,8 +1,8 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { has } from '../kit';
 import {
-  LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, nextStep,
-  operator, type LabAsk,
+  LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
+  cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: until then the findings are said in words) */
@@ -49,6 +49,43 @@ const TECH_ASKS: LabAsk[] = [
     thanks: 'Thanks.', fallback: 'I\'ll get the Tiger myself.', gives: 'diag-in-hand',
     label: 'Diagnostic catheter as asked (Tiger)',
     why: 'Know your catheters by name and shape: the Tiger engages both coronaries from the right radial.',
+  },
+  // the diagnostic run: the tech moves the C-arm through the standard views as the operator asks
+  {
+    id: 'view-lm', when: (s) => has(s, 'diag-in-hand'),
+    ask: 'Left coronary engaged. Left main first: give me the spider.',
+    accept: ['view-lao-caudal'], wrong: [...RCA_VIEWS, ...LAD_VIEWS],
+    wrongSay: 'That is not the spider. LAO caudal: the left main and its bifurcation, opened up.',
+    thanks: 'Left main is clean.', fallback: 'I\'ll move the C-arm myself: LAO caudal.', gives: 'run-lm',
+    label: 'Spider view (LAO caudal) for the left main',
+    why: 'LAO with caudal tilt opens up the left main and its bifurcation into the LAD and circumflex — the "spider".',
+  },
+  {
+    id: 'view-lad', when: (s) => has(s, 'run-lm'),
+    ask: 'Now the LAD — I want the diagonals and septals split.',
+    accept: LAD_VIEWS, wrong: [...RCA_VIEWS, 'view-rao-caudal', 'view-lao-caudal'],
+    wrongSay: 'The LAD needs a cranial view: RAO, AP or LAO cranial.',
+    thanks: 'There it is — mid LAD.', fallback: 'I\'ll take it: RAO cranial.', gives: 'run-lad',
+    label: 'A cranial view for the LAD',
+    why: 'Cranial angulation lifts the LAD clear of its diagonals and septals.',
+  },
+  {
+    id: 'view-lcx', when: (s) => has(s, 'run-lad'),
+    ask: 'Now the circumflex and its marginals.',
+    accept: ['view-rao-caudal'], wrong: [...RCA_VIEWS, ...LAD_VIEWS],
+    wrongSay: 'For the circumflex and the marginals: RAO caudal.',
+    thanks: 'Circumflex is fine.', fallback: 'I\'ll take it: RAO caudal.', gives: 'run-lcx',
+    label: 'RAO caudal for the circumflex',
+    why: 'RAO with caudal tilt lays the circumflex and its obtuse marginals out below the LAD.',
+  },
+  {
+    id: 'view-rca', when: (s) => has(s, 'run-lcx'),
+    ask: 'Over to the right coronary. Show me the whole "C".',
+    accept: ['view-rca-lao'], wrong: [...LEFT_VIEWS],
+    wrongSay: 'That is a left-system view. The whole RCA "C" is the LAO.',
+    thanks: 'RCA is fine. So it is the mid LAD.', fallback: 'I\'ll take it: LAO 30.', gives: 'run-rca',
+    label: 'LAO for the right coronary',
+    why: 'In the LAO the RCA runs as a "C" around the tricuspid annulus: ostium, proximal and mid segments, down to the crux.',
   },
   {
     id: 'cocktail', when: (s) => has(s, 'spasm'),
@@ -243,7 +280,7 @@ export const cathlabFfr: Scenario = {
       effect: () => ({ say: [['operator', 'Right radial: 6 French sheath in, cocktail given.']], flags: ['access'] }),
     },
     {
-      id: 'md-angio', when: (s) => s.role !== 5 && has(s, 'access') && (s.role === 4 ? s.minute >= s.flags.access + 2 : has(s, 'diag-in-hand')),
+      id: 'md-angio', when: (s) => s.role !== 5 && has(s, 'access') && (s.role === 4 ? s.minute >= s.flags.access + 2 : has(s, 'run-rca')),
       effect: () => ({ ...angioRun('operator'), flags: ['angio', 'catheter'] }),
     },
     {
@@ -336,10 +373,11 @@ export const cathlabFfr: Scenario = {
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
-    askHarm(TECH_ASKS[1], 'An intracoronary drug when the operator asked for the radial cocktail.'),
-    askHarm(TECH_ASKS[2], 'A right-coronary guide when the operator asked for a left guide.'),
-    askHarm(TECH_ASKS[6], 'The wrong device when the operator asked for a drug-eluting stent.'),
-    askHarm(TECH_ASKS[7], 'A compliant balloon when the operator asked for a non-compliant one.'),
+    ...TECH_ASKS.slice(1, 5).map((a) => askHarm(a, `The wrong view when the operator asked for this one. ${a.why}`, 2)),
+    askHarm(TECH_ASKS[5], 'An intracoronary drug when the operator asked for the radial cocktail.'),
+    askHarm(TECH_ASKS[6], 'A right-coronary guide when the operator asked for a left guide.'),
+    askHarm(TECH_ASKS[10], 'The wrong device when the operator asked for a drug-eluting stent.'),
+    askHarm(TECH_ASKS[11], 'A compliant balloon when the operator asked for a non-compliant one.'),
     askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5),
     askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'),
     askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'),
