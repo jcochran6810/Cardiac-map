@@ -6,6 +6,38 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-18 — ccr-fcd6b419-beq5mr (continued: monitor/defib waveforms on phones)
+
+**Agent:** Claude
+
+**Asked:** (screenshot from the owner's phone) "When switching to the monitor/defib mode the ekg read
+out, SpO2 waveform and the EtCO2 waveform do not show" · "end session".
+
+**Branch:** level with production `main` at `a0a5488` (this session's previous merge); production
+did not move.
+
+**Shipped:**
+
+- Monitor / Defib waveforms fixed on phones (`01b51d4`): the monitor drew each frame only between
+  samples spaced WINDOW / width ms apart (~23 ms on a phone) and never joined frames, so on a 120 Hz
+  phone (~8 ms frames) most frames drew nothing and the ECG, pleth and capnogram showed as dots. Each
+  frame now samples through to its own end (`sampleTimes` in `src/lib/ecg/sweep.ts`, 3 new tests),
+  so frames join into one line. The translucent row dividers, re-stroked across the full width every
+  frame, had built up into solid white lines; they are now drawn only where the sweep just cleared.
+  The erase snaps to device pixels and trace segments use round caps. The projector view
+  (`/monitor`) shares the component.
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (136) · build ✅. In Playwright with a phone viewport
+and a ~250 Hz frame loop (to mimic a fast phone screen): before — broken traces and white
+dividers; after — continuous traces, faint dividers; desktop unchanged. **Not verified:** the
+owner's real phone.
+
+**Files:** M: `heart-simulator/src/components/monitor/MonitorDisplay.tsx`,
+`heart-simulator/src/lib/ecg/sweep.ts`, `heart-simulator/tests/ecg-sweep.test.ts`, `SESSION_LOG.md`,
+`fix_list.md`.
+
+**Follow-up:** owner to open Monitor / Defib on their phone and confirm the waveforms draw.
+
 ### 2026-10-17 — ccr-fcd6b419-beq5mr (continued: production fully on `main`, bridge removed)
 
 **Agent:** Claude

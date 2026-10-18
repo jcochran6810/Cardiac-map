@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { windowStart, xInWindow } from '@/lib/ecg/sweep';
+import { sampleTimes, windowStart, xInWindow } from '@/lib/ecg/sweep';
 
 // Desktop 12-lead at 25 mm/s: an awkward page length like the real layout produces
 const pxPerMs = (3.6470588235294117 * 25) / 1000;
@@ -34,6 +34,28 @@ describe('ECG sweep geometry', () => {
       expect(ws).toBeLessThanOrEqual(t + 1e-6);
       expect(t - ws).toBeLessThan(page + 1e-6);
       expect(Math.abs(((ws - offset) / page) - Math.round((ws - offset) / page))).toBeLessThan(1e-9);
+    }
+  });
+});
+
+describe('monitor sweep sampling', () => {
+  it('draws a segment even when a frame is shorter than the sample step (120 Hz phone)', () => {
+    expect(sampleTimes(1000, 1008.3, 23)).toEqual([1000, 1008.3]);
+  });
+
+  it('steps through long frames and always ends exactly at the frame end', () => {
+    const ts = sampleTimes(0, 100, 23);
+    expect(ts).toEqual([0, 23, 46, 69, 92, 100]);
+  });
+
+  it('joins consecutive frames into one continuous line', () => {
+    let t = 5000;
+    for (let f = 0; f < 50; f++) {
+      const next = t + 8.3;
+      const ts = sampleTimes(t, next, 23);
+      expect(ts[0]).toBe(t);
+      expect(ts[ts.length - 1]).toBe(next);
+      t = next;
     }
   });
 });
