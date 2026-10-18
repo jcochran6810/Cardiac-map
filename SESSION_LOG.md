@@ -6,6 +6,78 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-18 — ccr-fcd6b419-beq5mr (continued: electrode lab body, case simulator, cath lab cases and catalog with real images)
+
+**Agent:** Claude
+
+**Asked:** "The electrode lab needs to have a 3D human like model that has the electrodes placed
+correctly … a distinctive line showing where the view starts and goes through the heart" · "Fix the
+mannequin to look more human and less doll" · "Navigation and controls are hard to use … Make it easier"
+· "the simulator needs to be a distinct feature … actions influence what the provider sees … a
+summary/review report showing their score and what to fix" · "The back button needs to navigate to the
+previous page" · "When a 12 lead is acquired the provider must identify what the results are from a list
+… Immediately tell them if correct or incorrect" · "For the cath lab tech and nurse they need to have
+similar simulations … imaging to shoot, devices, meds … Add all of these to the learning catalog … Use
+real images of fluoroscopy and heart cath imaging … Do the same for the cardiologist level too" · how to
+allow Wikimedia / Open-i / PubMed Central (answered; the owner set the environment's network access to
+Full) · "Find pictures for the remaining 57 entries and then find corresponding post artery opening" ·
+"No preceptors are around to use this app … This is a self paced/self teaching app" · "End session".
+
+**Branch:** resumed level with production `main` at `e4d2d3e` (this session's previous merge);
+production did not move during the session. All 24 commits below were made in this session.
+
+**Shipped:**
+
+- Electrode lab: a 3D patient (from the CC0 MakeHuman mesh, `public/models/human-v1.glb`) with the
+  electrodes on their landmarks (limb leads on the shoulders and lower abdomen) and a line through the 3D
+  heart from each lead's (+) electrode showing where it looks (`7fcb663`, `7151011`).
+- Case simulator as its own screen: a pure, deterministic scenario engine (`src/lib/sim/scenario/`) with
+  role-scoped actions that change the monitor, the 12-lead and the story, safety rules, hints, and a scored
+  review with what to fix; Home page and Home / Learn / Simulator navigation, Back in the info panel,
+  tap-the-heart card, first-time tips (`2e62dd1`, `5581410`, `2afbd0b`, `4730e20`).
+- Reads: every 12-lead is read by the learner from all 43 interpretations and checked at once
+  (`92315a6`); the phone / browser Back button steps back through the app (`ae5bf42`, `6256ac8`).
+- Cath lab for the tech, the nurse and the cardiologist: six lab cases worked device by device and drug by
+  drug (anterior STEMI, inferior STEMI with Bezold–Jarisch, FFR / IVUS-guided PCI, cardiogenic shock with an
+  Impella, coronary perforation, contrast reaction), reads of pressures, FFR, stent sizing and angiograms,
+  an arterial (ART) trace and an Imaging tab with C-arm diagrams (`005340b`, `7310763`); a cath lab catalog
+  of 78 entries in the Library — views, access, devices, physiology, support, pressures, drugs,
+  complications, team — each with what the tech, nurse and cardiologist do (`0ca5166`, `307c250`, `b2a5c18`).
+- Real images: 114 images (PMC open-access figures under CC BY 4.0 / 3.0 and Wikimedia Commons photos
+  under CC BY / CC BY-SA / public domain), each licence checked at the source, credited and linked; every
+  one of the 78 catalog entries shows at least one (`3490631`, `61ea7f2`, `c5cb439`, `e1151a4`, `a7db0f7`).
+  Every lab case now shows its culprit artery before and after it is opened from the same patient's
+  article, and the learner reads both; the FFR case reads the real pressure-wire console. To match their
+  images the FFR lesion moved to the distal LAD (3.0 × 15 mm stent) and the perforation case to the LAD
+  (3.0 × 21 mm covered stent) (`e38e062`, `48cd2eb`). Helpers searched in parallel; every pick was
+  re-checked (file, size, alt text, licence text at the source) before it went in.
+- Self-paced wording: reads are checked by the app ("Feedback"); no preceptor / FTO is mentioned
+  (`41bc679`).
+- Docs: README, fix list, third-party notices for the included images (`ede710f`, `49f63cd`, this entry's
+  commit).
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (263) · build ✅ (after `npm ci`). In Playwright (desktop and
+phone viewports): the angiogram, FFR-console and perforation reads with the caption hidden until the read,
+the full-screen view, catalog pages with real images, the "Feedback" wording. Vercel previews built
+(READY) for every image commit. **Not verified:** a real phone; the final-run reads in the browser (covered
+by tests).
+
+**Files:** A: `heart-simulator/public/cath-images/` (114 images), `heart-simulator/public/models/human-v1.glb`,
+`heart-simulator/scripts/build-human-model.py`, `heart-simulator/src/components/cathlab/*`,
+`heart-simulator/src/components/home/HomeScreen.tsx`, `heart-simulator/src/components/simulator/*`,
+`heart-simulator/src/components/layout/{BackNav,ModeNav}.tsx`, `heart-simulator/src/components/ecg/TorsoModel.tsx`,
+`heart-simulator/src/data/cathImages.ts`, `heart-simulator/src/data/content/cathlab*.ts`,
+`heart-simulator/src/lib/sim/scenario/**`, `heart-simulator/src/lib/{backNav,hints,rhythm}.ts`,
+`heart-simulator/src/lib/cathlab/views.ts`, `heart-simulator/src/lib/ecg/leadViews.ts`,
+`heart-simulator/src/lib/anatomy/humanBody.ts`, `heart-simulator/src/store/{useSimStore,useCathLabStore}.ts`,
+`heart-simulator/tests/{back-nav,cathlab-catalog,lead-views,scenario-engine,scenarios}.test.ts` · M: layout,
+monitor, ECG, scene and store files, `heart-simulator/src/types/content.ts`, `heart-simulator/src/lib/{actions,content,tutor}.ts`,
+`heart-simulator/README.md`, `heart-simulator/THIRD_PARTY_NOTICES.md`, `fix_list.md`, `SESSION_LOG.md`.
+
+**Follow-up:** owner to try the lab cases and the catalog on a phone; narrow the environment's network
+access back from Full (fix list → Owner actions); better-fitting images for the near matches (fix list →
+Code); Codex to polish the image UI and the cath lab screens (fix list → For Codex).
+
 ### 2026-10-18 — ccr-fcd6b419-beq5mr (continued: monitor/defib waveforms on phones)
 
 **Agent:** Claude

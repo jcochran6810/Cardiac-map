@@ -132,6 +132,12 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-18 — Cath lab simulator for the tech, the nurse and the cardiologist: six lab cases worked step
+  by step (devices, views, drugs; reads of pressures, FFR, stent sizing and angiograms) and a cath lab
+  catalog of 78 entries in the Library (`005340b`, `7310763`, `0ca5166`, `307c250`, `b2a5c18`).
+- [x] 2026-10-18 — Electrode lab: a 3D patient with correctly placed electrodes (limb electrodes on the
+  shoulders and lower abdomen) and a line through the 3D heart showing where each lead looks from
+  (`7fcb663`, `7151011`).
 - [x] 2026-10-18 — Real images for every cath lab catalog item (114 in all) and same-patient before / after
   angiograms for all five lab cases, read by the learner (`e38e062`, `48cd2eb`, `c5cb439`, `e1151a4`,
   `a7db0f7`). Reads are checked by the app itself ("Feedback") — no preceptor / FTO wording (`41bc679`).
