@@ -6,24 +6,27 @@ import {
 } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
-const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-rao-cranial', ffr: 'ffr-significant' };
+const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-ffr-positive', ffr: 'ffr-significant', 'final-angio': 'lad-stented-after-ffr' };
 
 const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiography: left and right coronaries', IMAGES.angio, [
-  [who, 'Mid LAD: a 60–70 % narrowing after the first diagonal. Circumflex and RCA: no significant disease. By eye it is borderline.'],
+  [who, 'Distal LAD: a 60–70 % narrowing. Circumflex and RCA: no significant disease. By eye it is borderline.'],
 ], {
   kind: 'angio', answer: 'angio-lad-intermediate', partial: ['angio-severe-stenosis'], prompt: 'What does the left coronary run show?',
   explain: 'An intermediate (40–70 %) LAD narrowing: by eye you cannot tell whether it limits flow — that is what the pressure wire is for.',
 }, [[who, 'Right coronary: no significant disease. The left coronary run is on the Imaging screen.']]);
 
 const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the LAD in two views', IMAGES['final-angio'], [
-  [who, 'Mid LAD stented: no residual narrowing, TIMI 3 flow, no edge dissection.', 'good'],
-], { kind: 'angio', answer: 'angio-timi3', explain: 'The stented mid LAD is smooth with brisk TIMI 3 flow and no edge dissection.' });
+  [who, 'Distal LAD stented: no residual narrowing, TIMI 3 flow, no edge dissection.', 'good'],
+], {
+  kind: 'angio', answer: 'angio-timi3', prompt: 'What does the final run show?',
+  explain: 'The stented distal LAD is smooth, with no narrowing left and contrast filling it briskly to the apex: TIMI 3 flow.',
+});
 
 const spasmBlock: Effect = { blocked: true, say: [['system', 'The guide will not pass the forearm: the radial artery is in spasm. Treat it first.']] };
 
 const sizingRead: Omit<PendingRead, 'minute'> = {
-  kind: 'sizing', answer: 'stent-3.5x23', partial: ['stent-3.5x28', 'stent-3.0x23'], prompt: 'Which stent do these IVUS measurements call for?',
-  explain: 'Diameter from the distal reference (lumen 3.4 mm, vessel 3.9 mm): 3.5 mm. Length: 19 mm of plaque between healthy landing zones, plus a margin at each end — 23 mm. A 3.0 would be under-sized; a 28 is longer than it needs to be.',
+  kind: 'sizing', answer: 'stent-3.0x15', partial: ['stent-2.5x12', 'stent-3.0x23'], prompt: 'Which stent do these IVUS measurements call for?',
+  explain: 'Diameter from the distal reference (lumen 2.7 mm, vessel 3.1 mm): 3.0 mm. Length: 12 mm of plaque between healthy landing zones, plus a margin at each end — 15 mm. A 2.5 would be under-sized; a 23 is longer than it needs to be.',
 };
 
 /**
@@ -82,7 +85,7 @@ const TECH_ASKS: LabAsk[] = [
     ask: 'Now the LAD — I want the diagonals and septals split.',
     accept: LAD_VIEWS, wrong: [...RCA_VIEWS, 'view-rao-caudal', 'view-lao-caudal'],
     wrongSay: 'The LAD needs a cranial view: RAO, AP or LAO cranial.',
-    thanks: 'There it is — mid LAD.', fallback: 'I\'ll take it: RAO cranial.', gives: 'run-lad',
+    thanks: 'There it is — distal LAD.', fallback: 'I\'ll take it: RAO cranial.', gives: 'run-lad',
     label: 'A cranial view for the LAD',
     why: 'Cranial angulation lifts the LAD clear of its diagonals and septals.',
   },
@@ -100,7 +103,7 @@ const TECH_ASKS: LabAsk[] = [
     ask: 'Over to the right coronary. Show me the whole "C".',
     accept: ['view-rca-lao'], wrong: [...LEFT_VIEWS],
     wrongSay: 'That is a left-system view. The whole RCA "C" is the LAO.',
-    thanks: 'RCA is fine. So it is the mid LAD.', fallback: 'I\'ll take it: LAO 30.', gives: 'run-rca',
+    thanks: 'RCA is fine. So it is the distal LAD.', fallback: 'I\'ll take it: LAO 30.', gives: 'run-rca',
     label: 'LAO for the right coronary',
     why: 'In the LAO the RCA runs as a "C" around the tricuspid annulus: ostium, proximal and mid segments, down to the crux.',
   },
@@ -148,16 +151,16 @@ const TECH_ASKS: LabAsk[] = [
   },
   {
     id: 'stent', when: (s) => has(s, 'sized'),
-    ask: 'Drug-eluting stent, 3.5 by 23.',
+    ask: 'Drug-eluting stent, 3.0 by 15.',
     accept: ['stent-des'], wrong: ['stent-covered', 'balloon-nc', 'balloon-predil'],
-    wrongSay: 'No — a drug-eluting stent, 3.5 by 23.',
-    thanks: '3.5 by 23 — confirmed. Deploying.', fallback: 'I\'ll open the stent myself.', gives: 'stent-in-hand',
+    wrongSay: 'No — a drug-eluting stent, 3.0 by 15.',
+    thanks: '3.0 by 15 — confirmed. Deploying.', fallback: 'I\'ll open the stent myself.', gives: 'stent-in-hand',
     label: 'Drug-eluting stent, as ordered',
     why: 'Say the size back to the operator and check it on the box before you open it.',
   },
   {
     id: 'nc', when: (s) => has(s, 'pci'),
-    ask: 'Non-compliant balloon, 3.75 by 15.',
+    ask: 'Non-compliant balloon, 3.25 by 12.',
     accept: ['balloon-nc'], wrong: ['balloon-predil'],
     wrongSay: 'That is a compliant balloon — non-compliant, please.',
     thanks: 'Thanks. High pressure inside the stent.', fallback: 'I\'ll get the NC balloon myself.', gives: 'nc-in-hand',
@@ -261,7 +264,7 @@ export const cathlabFfr: Scenario = {
     labs: 'Creatinine 0.9, potassium 4.2, haemoglobin 14.6, INR 1.0, platelets 260.',
     ecg12: `Sinus rhythm 68, normal axis, no ST changes.`,
     echo: 'Normal LV size and function, LVEF 60 %, no effusion.',
-    ivus: 'IVUS: proximal reference lumen 3.6 mm, distal reference lumen 3.4 mm (vessel 3.9 mm); 19 mm of plaque between healthy landing zones; minimum lumen area 2.4 mm².',
+    ivus: 'IVUS: proximal reference lumen 2.9 mm, distal reference lumen 2.7 mm (vessel 3.1 mm); 12 mm of plaque between healthy landing zones; minimum lumen area 1.8 mm².',
   },
   status: (s) => (has(s, 'spasm') && !has(s, 'spasm-eased') ? '"My wrist is burning."' : has(s, 'hyperemia') && !has(s, 'pci') ? '"I feel flushed."' : '"I\'m fine."'),
   respond: {
@@ -273,8 +276,8 @@ export const cathlabFfr: Scenario = {
     'guide-al1': (s) => (s.role === 5 && has(s, 'spasm') && !has(s, 'spasm-eased') ? spasmBlock : null),
     'ffr-equalize': (s) => (s.role === 5 && !has(s, 'guide') ? { blocked: true, say: [['system', 'Engage a guide first: the pressure wire goes in through it.']] } : null),
     ffr: ffrEffect,
-    ivus: (s) => (has(s, 'wired') ? { say: [['monitor', 'IVUS: proximal reference lumen 3.6 mm, distal reference lumen 3.4 mm (vessel 3.9 mm); 19 mm of plaque between healthy landing zones; minimum lumen area 2.4 mm².']], flags: ['ivus', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
-    oct: (s) => (has(s, 'wired') ? { say: [['monitor', 'OCT: proximal reference lumen 3.6 mm, distal reference lumen 3.4 mm; 19 mm of fibrous plaque between healthy landing zones; minimum lumen area 2.3 mm².']], flags: ['oct', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
+    ivus: (s) => (has(s, 'wired') ? { say: [['monitor', 'IVUS: proximal reference lumen 2.9 mm, distal reference lumen 2.7 mm (vessel 3.1 mm); 12 mm of plaque between healthy landing zones; minimum lumen area 1.8 mm².']], flags: ['ivus', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
+    oct: (s) => (has(s, 'wired') ? { say: [['monitor', 'OCT: proximal reference lumen 2.9 mm, distal reference lumen 2.7 mm; 12 mm of fibrous plaque between healthy landing zones; minimum lumen area 1.7 mm².']], flags: ['oct', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
     'adenosine-iv-ffr': (s) => ({ say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['monitor', `BP ${s.vitals.sbp - 6}/${s.vitals.dbp - 2}.`], ['patient', '"I feel flushed… a bit short of breath."']], vitals: { sbp: s.vitals.sbp - 6, dbp: s.vitals.dbp - 2 }, flags: ['hyperemia'] }),
     'ic-adenosine': () => ({ say: [['you', 'Adenosine 150 mcg intracoronary, through the guide.'], ['monitor', 'A few seconds of slowing; the distal pressure dips.']], flags: ['hyperemia'] }),
     'radial-cocktail': (s) => (has(s, 'spasm') ? { say: [['you', 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg.'], ['patient', '"Ooh, that burns… it\'s easing."']], flags: ['cocktail', 'spasm-eased'] } : null),
@@ -339,7 +342,7 @@ export const cathlabFfr: Scenario = {
     },
     {
       id: 'md-ivus-for-rn', when: (s) => s.role === 4 && has(s, 'loaded'),
-      effect: () => ({ say: [['operator', 'IVUS: distal reference 3.4, vessel 3.9, 19 mm of plaque. A 3.5 by 23.']], flags: ['ivus', 'sized'] }),
+      effect: () => ({ say: [['operator', 'IVUS: distal reference 2.7, vessel 3.1, 12 mm of plaque. A 3.0 by 15.']], flags: ['ivus', 'sized'] }),
     },
     {
       id: 'md-stent', when: (s) => s.role !== 5 && has(s, 'sized') && (s.role === 4 ? s.minute >= s.flags.sized + 1 : has(s, 'stent-in-hand')),

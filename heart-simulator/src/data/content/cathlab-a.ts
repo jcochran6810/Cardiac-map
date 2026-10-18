@@ -949,7 +949,7 @@ export const CATHLAB_A: CathLabItem[] = [
       'Keep the balloon up over the leak until the covered stent is ready to go in; deflating early refills the pericardium.',
       'Watch for tamponade: falling blood pressure, a rising heart rate, a narrowing pulse pressure and a heart border that stops moving on fluoroscopy.',
     ],
-    image: { want: 'Real cine angiogram of a coronary perforation streaming contrast, and the same vessel sealed after a covered stent.' },
+    image: { keys: ['lad-perforation-ellis3', 'lad-covered-stent-sealed'], want: 'Real cine angiogram of a coronary perforation streaming contrast, and the same vessel sealed after a covered stent.' },
     sim: ['stent-covered'],
     related: ['cl-comp-perforation', 'cardiac-tamponade', 'pericardiocentesis', 'cl-stent-des'],
   },

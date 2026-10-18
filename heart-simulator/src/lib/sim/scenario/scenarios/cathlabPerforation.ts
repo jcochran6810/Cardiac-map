@@ -2,8 +2,8 @@ import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { has, line } from '../kit';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, operator, type LabAsk } from '../labKit';
 
-/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: a run without one is described in words) */
-const IMAGES: Partial<Record<string, string>> = {};
+/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
+const IMAGES: Partial<Record<string, string>> = { perforation: 'lad-perforation-ellis3', 'final-angio': 'lad-covered-stent-sealed' };
 
 const perforationRead: Omit<PendingRead, 'minute'> = {
   kind: 'clinical', answer: 'clin-perforation', partial: ['clin-dissection'], prompt: 'What just happened?',
@@ -14,9 +14,12 @@ const tamponadeRead: Omit<PendingRead, 'minute'> = {
   explain: 'Cardiac tamponade: blood in the pericardium squeezes the heart so it cannot fill — falling pressure, rising heart rate and RA pressure, a heart border that barely moves. Drain it (echo-guided pericardiocentesis) and keep the leak sealed.',
 };
 
-const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the circumflex in two views', IMAGES['final-angio'], [
-  [who, 'No more contrast outside the vessel: the covered stent has sealed it. TIMI 3 flow in the circumflex.', 'good'],
-], { kind: 'angio', answer: 'angio-timi3', explain: 'The leak is sealed: no contrast outside the vessel and TIMI 3 flow.' });
+const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the LAD in two views', IMAGES['final-angio'], [
+  [who, 'No more contrast outside the vessel: the covered stent has sealed it. TIMI 3 flow in the LAD.', 'good'],
+], {
+  kind: 'angio', answer: 'angio-timi3', prompt: 'What does the final run show?',
+  explain: 'The leak is sealed: no contrast outside the vessel any more, and TIMI 3 flow down the LAD.',
+});
 
 const drain = (s: SimState): Effect => ({
   say: [['you', 'Pericardial drain in under echo: 180 mL of blood out.'], ['monitor', 'BP 112/70. Heart rate 98.', 'good']],
@@ -34,10 +37,10 @@ const TECH_ASKS: LabAsk[] = [
   },
   {
     id: 'covered', when: (s) => has(s, 'drained'),
-    ask: 'She is stable. Covered stent, 3.0 by 16, please — I\'m sealing it.',
+    ask: 'She is stable. Covered stent, 3.0 by 21, please — I\'m sealing it.',
     accept: ['stent-covered'], wrong: ['stent-des', 'balloon-nc', 'balloon-predil'],
     wrongSay: 'Not that — a drug-eluting stent does not seal a hole. A covered stent, please.',
-    thanks: '3.0 by 16 covered — confirmed.', fallback: 'I\'ll open the covered stent myself.', gives: 'covered-in-hand',
+    thanks: '3.0 by 21 covered — confirmed.', fallback: 'I\'ll open the covered stent myself.', gives: 'covered-in-hand',
     label: 'Covered stent to seal the perforation',
     why: 'A covered (PTFE) stent seals a perforation of a large vessel; small distal perforations are sealed with coils or fat instead.',
   },
@@ -74,7 +77,7 @@ const RN_ASKS: LabAsk[] = [
 export const cathlabPerforation: Scenario = {
   id: 'perforation-cathlab',
   title: 'Elective PCI: a coronary perforation',
-  summary: '66-year-old woman, elective stenting of the circumflex. The post-dilation goes wrong: see it, seal it, drain it — fast.',
+  summary: '66-year-old woman, elective stenting of the LAD. The post-dilation goes wrong: see it, seal it, drain it — fast.',
   setting: 'cathlab',
   roles: [3, 4, 5],
   difficulty: 'advanced',
@@ -82,21 +85,21 @@ export const cathlabPerforation: Scenario = {
   images: IMAGES,
   briefing: {
     default: [
-      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid circumflex from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
+      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid LAD from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
       ['scene', 'She is awake and comfortable. The operator post-dilates the stent with a non-compliant balloon at high pressure.'],
     ],
     3: [
-      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid circumflex from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
+      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid LAD from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
       ['scene', 'She is awake and comfortable. The operator post-dilates the stent with a non-compliant balloon at high pressure.'],
       ['team', 'You are the scrub tech, at the table.'],
     ],
     4: [
-      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid circumflex from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
+      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid LAD from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
       ['scene', 'She is awake and comfortable. The operator post-dilates the stent with a non-compliant balloon at high pressure.'],
       ['team', 'You are the procedural nurse, at her side.'],
     ],
     5: [
-      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid circumflex from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
+      ['team', 'Elective PCI: 66-year-old woman with exertional angina. A 3.0 × 18 mm drug-eluting stent has just gone into the mid LAD from the right radial. Heparin 100 units/kg on board; clopidogrel loaded.'],
       ['scene', 'She is awake and comfortable. You post-dilate the stent with a non-compliant balloon at high pressure.'],
       ['team', 'You are the interventional cardiologist. The tech and the nurse are with you.'],
     ],

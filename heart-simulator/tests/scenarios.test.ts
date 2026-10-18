@@ -536,9 +536,9 @@ describe('real angiograms in the cath lab cases', () => {
   });
 
   it('the final run shows the same patient\'s artery opened up, and is read too', () => {
-    for (const id of ['stemi-cathlab', 'stemi-inferior-cathlab', 'shock-cathlab']) {
+    for (const id of ['stemi-cathlab', 'stemi-inferior-cathlab', 'shock-cathlab', 'ffr-cathlab', 'perforation-cathlab']) {
       const sc = SCENARIO_BY_ID[id];
-      const pre = CATH_IMAGES[sc.images!.angio!]!;
+      const pre = CATH_IMAGES[(sc.images!.angio ?? sc.images!.perforation)!]!;
       const post = CATH_IMAGES[sc.images!['final-angio']!]!;
       expect(post.source, `${id}: before and after come from the same article`).toBe(pre.source);
       const s = run(sc, 5, IDEAL[id][5]!);

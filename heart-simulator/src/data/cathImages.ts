@@ -64,6 +64,30 @@ export const CATH_IMAGES: Partial<Record<string, CathImage>> = {
     caption: 'The same right coronary after stenting: open all the way to the crux with TIMI 3 flow and no narrowing left. The wire loop in the middle is a temporary pacing catheter — this patient had complete heart block.',
     credit: `${SAITO}, fig. 8A (cropped)`, ...CC_BY_4, source: pmc('PMC9088105'),
   },
+  'lad-intermediate-ffr-positive': {
+    src: '/cath-images/lad-intermediate-ffr-positive.jpg', width: 368, height: 369,
+    alt: 'Left coronary angiogram',
+    caption: 'An intermediate narrowing in the distal LAD (arrow) — borderline by eye. The pressure wire showed it limits flow (FFR below 0.80), so it was stented.',
+    credit: 'Matsuo A, Shimoo S, Takamatsu K, et al. Cardiovasc Interv Ther 2018;33:99, fig. 5a (cropped)', ...CC_BY_4, source: pmc('PMC5880845'),
+  },
+  'lad-stented-after-ffr': {
+    src: '/cath-images/lad-stented-after-ffr.jpg', width: 368, height: 369,
+    alt: 'Left coronary angiogram',
+    caption: 'The same LAD after the stent: no narrowing is left where the lesion was.',
+    credit: 'Matsuo A, Shimoo S, Takamatsu K, et al. Cardiovasc Interv Ther 2018;33:99, fig. 5b (cropped)', ...CC_BY_4, source: pmc('PMC5880845'),
+  },
+  'lad-perforation-ellis3': {
+    src: '/cath-images/lad-perforation-ellis3.jpg', width: 878, height: 852,
+    alt: 'Left coronary angiogram',
+    caption: 'An Ellis type III perforation at the edge of a newly implanted LAD scaffold, right after high-pressure post-dilation: contrast pours out of the vessel and nothing flows beyond the tear. Prolonged balloon inflation, fluids and pressors stabilized the patient.',
+    credit: 'Chen D, Gadeley R, Wang A, Jepson N. BMC Cardiovasc Disord 2022;22:66, fig. 2 (cropped)', ...CC_BY_4, source: pmc('PMC8864843'),
+  },
+  'lad-covered-stent-sealed': {
+    src: '/cath-images/lad-covered-stent-sealed.jpg', width: 888, height: 861,
+    alt: 'Left coronary angiogram',
+    caption: 'The same LAD after a 3.0 × 21 mm covered stent (BeGraft) across the tear: the leak has stopped and flow down the LAD is normal again.',
+    credit: 'Chen D, Gadeley R, Wang A, Jepson N. BMC Cardiovasc Disord 2022;22:66, fig. 3 (cropped)', ...CC_BY_4, source: pmc('PMC8864843'),
+  },
   'rca-occlusion': {
     src: '/cath-images/rca-occlusion.jpg', width: 804, height: 912,
     alt: 'Right coronary angiogram',
