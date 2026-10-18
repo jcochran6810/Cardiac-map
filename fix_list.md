@@ -11,15 +11,14 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
-- [ ] 2026-10-18 — **Let Claude fetch real angiogram and fluoroscopy images.** This environment's network
-  policy blocks the image libraries (`commons.wikimedia.org` and `upload.wikimedia.org` answered "403 policy
-  denial"; `openi.nlm.nih.gov` and `www.ncbi.nlm.nih.gov` too). In the Claude app: open this session's cloud
-  environment menu (the environment name in the session's title bar) → **Edit** → **Network access** → add
-  `commons.wikimedia.org` and `upload.wikimedia.org` under **Allowed domains** (keep "Allow package managers"
-  ticked; optionally also `openi.nlm.nih.gov` and `www.ncbi.nlm.nih.gov`) → save, then start a new session and
-  ask Claude to "add the real cath images". Steps: https://code.claude.com/docs/en/cloud-environments#network-access.
-  The app is ready for them: every catalog item and simulator run has a slot (`src/data/cathImages.ts`), and
-  angiogram reads switch on per run once an image is there.
+- [ ] 2026-10-18 — **Narrow the environment's network access again (recommended).** It is set to **Full**
+  (any website), which was used to fetch the cath lab images. Allowing only what this project needs is
+  safer: in the Claude app open this session's cloud environment menu (the environment name in the session's
+  title bar) → **Edit** → **Network access** → **Limited** (called **Custom** in older versions of the app) →
+  keep "Allow package managers" ticked → under **Allowed domains** add `commons.wikimedia.org`, `upload.wikimedia.org`, `openi.nlm.nih.gov`,
+  `pmc.ncbi.nlm.nih.gov`, `pubmed.ncbi.nlm.nih.gov`, `eutils.ncbi.nlm.nih.gov`,
+  `pmc-oa-opendata.s3.amazonaws.com` (full-size PMC figures), `www.ebi.ac.uk` (licence checks) and
+  `api.crossref.org` → save. Steps: https://code.claude.com/docs/en/cloud-environments#network-access.
 - [ ] 2026-10-18 — **Try the cath lab cases and catalog on your phone:** Simulator → pick Cath Lab Tech, RN or
   Cardiologist → play the six lab cases; Library → **Cath lab** tab (open a view: the heart turns to it).
 
@@ -52,6 +51,13 @@ Add new items at the top of their group. Use the format:
   what it was for: GitHub → Branches. Sessions can't delete remote branches.
 
 ### For Codex (UI / graphics — set by Claude)
+
+- [ ] 2026-10-18 — **Polish the real-image UI (keep its behaviour):** `CathFigure` / `ImageZoom` /
+  `ImageCredit` in `heart-simulator/src/components/cathlab/CathFigure.tsx` (catalog figures, the full-screen
+  view, the linked credit and licence — both links must stay visible) and the image runs in the simulator's
+  Imaging tab (`ImagingPanel.tsx`). On phones the run header ("Run 1 · 8:30" + title) wraps onto two lines;
+  tall angiograms show small at `max-h-[320px]` on desktop. The caption must stay hidden while a read on that
+  run is pending (`asked` in `ImagingPanel.tsx`).
 
 - [ ] 2026-10-18 — **Polish the cath lab screens (keep their behaviour):** the simulator's **Imaging** tab
   (`heart-simulator/src/components/simulator/ImagingPanel.tsx`), the C-arm diagram
@@ -93,11 +99,15 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
-- [ ] 2026-10-18 — **Real cath lab images** once the owner allows the image hosts (Owner actions): pull
-  openly licensed angiograms / fluoroscopy frames (Wikimedia Commons, open-access journals), keep the licence
-  and credit in `heart-simulator/src/data/cathImages.ts`, set `image.key` on the catalog items (each has an
-  `image.want` describing the picture it needs) and fill each lab scenario's `IMAGES` map — that switches on
-  the angiogram reads in the simulator (`labKit.ts` `cine`).
+- [ ] 2026-10-18 — **More real cath lab images.** 27 are in (`heart-simulator/src/data/cathImages.ts`); 57
+  catalog items still only describe the image they want (`image.want`) — e.g. AP cranial and the RCA RAO /
+  cranial views, access, catheters and guides engaged, wires, balloons and stents in action, no-reflow, air
+  embolism, retroperitoneal bleed and real pressure tracings. Final-run (TIMI 3) images would switch on the
+  final-angiogram reads too (each case's `IMAGES['final-angio']`), and the perforation case still describes
+  its run in words. Rules: only CC BY / CC BY-SA / CC0 — check the article's own licence **text** (one
+  "CC BY"-linked article said NonCommercial), credit and link it, mark crops. Wikimedia Commons throttled
+  downloads (HTTP 429, 10-minute waits) this session; PMC figures (Open-i search, full size from
+  `pmc-oa-opendata.s3.amazonaws.com`) worked.
 - [ ] 2026-10-18 — Spelling: the app mixes UK (simulator text: haemostasis, hyperaemia, equalise) and US
   (library content) spelling; pick US throughout (the users train for US certifications). Read-option ids
   such as `ischaemia` can stay.
@@ -121,6 +131,12 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-18 — Real cath lab images: 27 figures from open-access articles (CC BY 4.0 / 3.0, licence text
+  checked, credited and linked) in `public/cath-images/`; the anterior, inferior, FFR and shock cases show
+  the real culprit angiogram — and the FFR case the real pressure-wire console — for the tech, nurse or
+  cardiologist to read before treating; 21 catalog items show real images (`3490631`, `61ea7f2`). The owner
+  opened the environment's network access, which this needed.
 
 - [x] 2026-10-18 — The phone / browser Back button left the app; it now steps back through the app's pages
   (screens, opened items, drawers, overlays, simulator views), asks before leaving a case, and asks before
