@@ -42,9 +42,11 @@ panel's **← Back** is the same button.
   EMTs acquire and transmit without reading.
 - **In the cath lab you read more than the 12-lead:** pressures (a damped guide, LVEDP, right heart numbers
   in shock or RV infarction), FFR, stent sizing from QCA / IVUS, sudden changes (reperfusion reflex, radial
-  spasm, perforation, tamponade, contrast reaction) and **real images**: the anterior, inferior, FFR and shock
-  cases show the real culprit angiogram, and the FFR case the real pressure-wire console, on the Imaging tab —
-  you read it before you treat, and what it shows (its caption) stays hidden until you have.
+  spasm, perforation, tamponade, contrast reaction) and **real images**: every lab case shows its culprit
+  artery **before and after it is opened** — both angiograms from the same patient's article (anterior and
+  inferior STEMI, shock with an Impella, the FFR lesion and its stent, the perforation and its covered stent),
+  and the FFR case the real pressure-wire console. You read each on the Imaging tab before you go on; what it
+  shows (its caption) stays hidden until you have.
 - **The cath lab works as a team** (`labKit.ts`): as the **tech**, the (computer) cardiologist asks for each
   catheter, guide, view, wire, balloon and stent and waits for the right one — a wrong one gets a word and
   costs points, one opened ahead of the request counts; as the **nurse**, the cardiologist orders drugs and
@@ -80,15 +82,17 @@ hemodynamics, lab drugs, complications, team and safety. Each item says what it 
 pearls and pitfalls, and **what the tech, the nurse and the cardiologist each do with it** (your own role is
 highlighted). A view shows the C-arm position, turns the 3D heart to that angle and lights up the arteries it
 shows best. Each item links to the simulator cases that use it ("Practise it"). The simulator's case list
-points lab roles to the catalog first. 21 items show **real images** — angiograms in labelled C-arm views,
-pressure-wire screens, IVUS and OCT, an LV gram, echo and chest X-rays — each with what it shows, tap to
-enlarge, and its credit and licence linked; the other items describe the image they still want
-(`image.want`). A test checks every link, every simulator action and every standard view is covered
-(`tests/cathlab-catalog.test.ts`).
+points lab roles to the catalog first. **Every item shows real images** (one to three) — angiograms in
+labelled C-arm views, catheters, wires, balloons and stents on fluoroscopy, pressure tracings and consoles,
+IVUS and OCT, echo and X-rays, complications, devices, the lab team and safety gear, drug vials (or what the
+drug does on an angiogram or ECG) — each with what it shows, tap to enlarge, and its credit and licence
+linked; captions say when an image comes from outside the cath lab. A test checks every link, every
+simulator action and every standard view is covered (`tests/cathlab-catalog.test.ts`).
 
-**Real images** (`public/cath-images/`, registered in `src/data/cathImages.ts`): 27 figures from
-open-access journal articles under CC BY 4.0 or 3.0 — each licence checked against the article's own licence
-text — cropped where noted, with author, journal, figure, licence link and source link. `alt` names only the
+**Real images** (`public/cath-images/`, registered in `src/data/cathImages.ts`): 114 images — figures from
+open-access journal articles (CC BY 4.0 / 3.0, each licence checked against the article's own licence text)
+and Wikimedia Commons photos (CC BY / CC BY-SA / public domain, licence checked on the file page) — cropped
+where noted, with author, source, licence link and source link. `alt` names only the
 kind of image (it is read out while a learner is asked what the image shows). A test checks every file
 exists at its stated size, is openly licensed and credited, and that every image a case or item uses exists.
 

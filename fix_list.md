@@ -99,15 +99,15 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
-- [ ] 2026-10-18 — **More real cath lab images.** 27 are in (`heart-simulator/src/data/cathImages.ts`); 57
-  catalog items still only describe the image they want (`image.want`) — e.g. AP cranial and the RCA RAO /
-  cranial views, access, catheters and guides engaged, wires, balloons and stents in action, no-reflow, air
-  embolism, retroperitoneal bleed and real pressure tracings. Final-run (TIMI 3) images would switch on the
-  final-angiogram reads too (each case's `IMAGES['final-angio']`), and the perforation case still describes
-  its run in words. Rules: only CC BY / CC BY-SA / CC0 — check the article's own licence **text** (one
-  "CC BY"-linked article said NonCommercial), credit and link it, mark crops. Wikimedia Commons throttled
-  downloads (HTTP 429, 10-minute waits) this session; PMC figures (Open-i search, full size from
-  `pmc-oa-opendata.s3.amazonaws.com`) worked.
+- [ ] 2026-10-18 — **Better-fitting images where the catalog uses a near match** (every item has a real
+  image; captions say when the setting differs): damping at a coronary ostium (now: innominate artery), a
+  reperfusion VF strip from primary PCI, Bezold–Jarisch during RCA reperfusion, a vasovagal drop during
+  sheath removal, a cath lab time-out and closed-loop exchange, a Hemochron ACT analyzer, vial photos of
+  protamine, bivalirudin, cangrelor, verapamil, nitroglycerin and fentanyl (bivalirudin and cangrelor show
+  the molecule), an ipsilateral-oblique femoral sheath angiogram, an AL1 (not AL 0.75) guide. Rules: only
+  CC BY / CC BY-SA / CC0 / public domain — check the article's own licence **text** (one "CC BY"-linked
+  article said NonCommercial), credit and link it, mark crops. Wikimedia: ask for standard thumbnail widths
+  (960 / 1280 px), not original files — originals were throttled (HTTP 429, 10-minute waits).
 - [ ] 2026-10-18 — Spelling: the app mixes UK (simulator text: haemostasis, hyperaemia, equalise) and US
   (library content) spelling; pick US throughout (the users train for US certifications). Read-option ids
   such as `ischaemia` can stay.
@@ -131,6 +131,10 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-18 — Real images for every cath lab catalog item (114 in all) and same-patient before / after
+  angiograms for all five lab cases, read by the learner (`e38e062`, `48cd2eb`, `c5cb439`, `e1151a4`,
+  `a7db0f7`). Reads are checked by the app itself ("Feedback") — no preceptor / FTO wording (`41bc679`).
 
 - [x] 2026-10-18 — Real cath lab images: 27 figures from open-access articles (CC BY 4.0 / 3.0, licence text
   checked, credited and linked) in `public/cath-images/`; the anterior, inferior, FFR and shock cases show
