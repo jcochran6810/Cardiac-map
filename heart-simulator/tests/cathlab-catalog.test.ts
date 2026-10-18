@@ -69,7 +69,7 @@ describe('real cath lab images', () => {
       expect(img!.credit.length, key).toBeGreaterThan(20);
       expect(img!.caption.length, key).toBeGreaterThan(30);
       // the alt text names the kind of image only: it is read out while the learner is asked what the image shows
-      expect(img!.alt, key).not.toMatch(/occlu|stenos|narrow|thromb|perforat|aneurysm|normal|dissect/i);
+      expect(img!.alt, key).not.toMatch(/occlu|stenos|narrow|thromb|perforat|aneurysm|normal|dissect|spasm|effusion|tamponade|significant/i);
     }
   });
 

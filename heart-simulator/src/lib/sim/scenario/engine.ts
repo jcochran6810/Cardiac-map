@@ -397,7 +397,7 @@ function applyEffect(s: SimState, e: Effect) {
   for (const f of e.clear ?? []) delete s.flags[f];
   if (e.timers) s.timers = { ...s.timers, ...e.timers };
   if (e.image) s.images.push({ minute: s.minute, ...e.image });
-  if (e.read && s.role !== 1) askRead(s, { ...e.read, minute: s.minute });
+  if (e.read && s.role !== 1) askRead(s, { ...e.read, minute: s.minute, ...(e.image?.image ? { run: s.images.length } : {}) });
   if (e.end && !s.ended) s.ended = { reason: e.end, minute: s.minute };
 }
 

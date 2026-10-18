@@ -6,7 +6,7 @@ import {
 } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
-const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-rao-cranial' };
+const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-rao-cranial', ffr: 'ffr-significant' };
 
 const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiography: left and right coronaries', IMAGES.angio, [
   [who, 'Mid LAD: a 60–70 % narrowing after the first diagonal. Circumflex and RCA: no significant disease. By eye it is borderline.'],
@@ -26,6 +26,24 @@ const sizingRead: Omit<PendingRead, 'minute'> = {
   explain: 'Diameter from the distal reference (lumen 3.4 mm, vessel 3.9 mm): 3.5 mm. Length: 19 mm of plaque between healthy landing zones, plus a margin at each end — 23 mm. A 3.0 would be under-sized; a 28 is longer than it needs to be.',
 };
 
+/**
+ * The FFR at maximal hyperaemia (Pd 62 / Pa 98 = 0.63): the console screen to read, when the app has it.
+ * The arterial line reads the same aortic pressure as the console (132/81, mean 98).
+ */
+const ffrResult = (): Effect => ({
+  vitals: { sbp: 132, dbp: 81 },
+  say: [
+    ['monitor', IMAGES.ffr ? 'FFR recorded at maximal hyperaemia — the console screen is on the Imaging tab.' : 'At maximal hyperaemia the distal pressure falls: FFR 0.63 (Pd 62, Pa 98).'],
+    ['patient', '"I feel flushed… a bit short of breath."'],
+  ],
+  ...(IMAGES.ffr ? { image: { id: 'ffr', view: 'Pressure-wire console at maximal hyperaemia', image: IMAGES.ffr } } : {}),
+  flags: ['ffr', 'ffr-done', 'wired'],
+  read: {
+    kind: 'physiology', answer: 'ffr-significant', prompt: 'What does this FFR mean for him?',
+    explain: 'FFR 0.63 (Pd 62 ÷ Pa 98) is well under 0.80: the narrowing limits flow at stress, matching his angina and the anterior ischaemia on the stress test. Treat it — the pressure wire can carry the stent.',
+  },
+});
+
 /** The pressure wire reading: trustworthy only when equalised first and measured at maximal hyperaemia */
 function ffrEffect(s: SimState): Effect | null {
   if (!has(s, 'equalized')) return { blocked: true, say: [['system', 'Equalise the pressure wire at the guide tip first — without it the reading cannot be trusted.']] };
@@ -36,11 +54,7 @@ function ffrEffect(s: SimState): Effect | null {
       read: { kind: 'physiology', answer: 'ffr-no-hyperemia', prompt: 'What does this reading tell you?', explain: 'Pd/Pa 0.91 with nothing happening to the patient is a resting value: FFR needs maximal hyperaemia (adenosine 140 mcg/kg/min IV, or intracoronary boluses). Give it and measure again.' },
     };
   }
-  return {
-    say: [['monitor', 'At maximal hyperaemia the distal pressure falls: FFR 0.72. Heart rate 64, BP 118/70.'], ['patient', '"I feel flushed… a bit short of breath."']],
-    flags: ['ffr', 'ffr-done', 'wired'],
-    read: { kind: 'physiology', answer: 'ffr-significant', prompt: 'What does this FFR mean for him?', explain: 'FFR 0.72 is well under 0.80: the narrowing limits flow at stress, matching his angina and the anterior ischaemia on the stress test. Treat it — the pressure wire can carry the stent.' },
-  };
+  return ffrResult();
 }
 
 const TECH_ASKS: LabAsk[] = [
@@ -238,7 +252,7 @@ export const cathlabFfr: Scenario = {
   },
   initial: {
     rhythm: { profile: 'normal-sinus', hr: 68 },
-    vitals: { sbp: 134, dbp: 82, spo2: 98, rr: 16, etco2: 36, pain: 0, gcs: 15, glucose: 104, temp: 36.6 },
+    vitals: { sbp: 142, dbp: 86, spo2: 98, rr: 16, etco2: 36, pain: 0, gcs: 15, glucose: 104, temp: 36.6 },
   },
   facts: {
     allergies: 'No allergies. No blood thinners apart from my baby aspirin. Yes — I understand and agree.',
@@ -261,7 +275,7 @@ export const cathlabFfr: Scenario = {
     ffr: ffrEffect,
     ivus: (s) => (has(s, 'wired') ? { say: [['monitor', 'IVUS: proximal reference lumen 3.6 mm, distal reference lumen 3.4 mm (vessel 3.9 mm); 19 mm of plaque between healthy landing zones; minimum lumen area 2.4 mm².']], flags: ['ivus', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
     oct: (s) => (has(s, 'wired') ? { say: [['monitor', 'OCT: proximal reference lumen 3.6 mm, distal reference lumen 3.4 mm; 19 mm of fibrous plaque between healthy landing zones; minimum lumen area 2.3 mm².']], flags: ['oct', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
-    'adenosine-iv-ffr': (s) => ({ say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['monitor', `BP ${s.vitals.sbp - 14}/${s.vitals.dbp - 10}.`], ['patient', '"I feel flushed… a bit short of breath."']], vitals: { sbp: s.vitals.sbp - 14, dbp: s.vitals.dbp - 10 }, flags: ['hyperemia'] }),
+    'adenosine-iv-ffr': (s) => ({ say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['monitor', `BP ${s.vitals.sbp - 6}/${s.vitals.dbp - 2}.`], ['patient', '"I feel flushed… a bit short of breath."']], vitals: { sbp: s.vitals.sbp - 6, dbp: s.vitals.dbp - 2 }, flags: ['hyperemia'] }),
     'ic-adenosine': () => ({ say: [['you', 'Adenosine 150 mcg intracoronary, through the guide.'], ['monitor', 'A few seconds of slowing; the distal pressure dips.']], flags: ['hyperemia'] }),
     'radial-cocktail': (s) => (has(s, 'spasm') ? { say: [['you', 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg.'], ['patient', '"Ooh, that burns… it\'s easing."']], flags: ['cocktail', 'spasm-eased'] } : null),
   },
@@ -321,7 +335,7 @@ export const cathlabFfr: Scenario = {
     },
     {
       id: 'md-ffr-for-rn', when: (s) => s.role === 4 && has(s, 'hyperemia') && s.minute >= s.flags.hyperemia + 1,
-      effect: () => ({ say: [['monitor', 'At maximal hyperaemia the distal pressure falls: FFR 0.72.']], flags: ['ffr', 'ffr-done', 'wired'], read: { kind: 'physiology', answer: 'ffr-significant', prompt: 'What does this FFR mean for him?', explain: 'FFR 0.72 is well under 0.80: the narrowing limits flow at stress. Treat it.' } }),
+      effect: ffrResult,
     },
     {
       id: 'md-ivus-for-rn', when: (s) => s.role === 4 && has(s, 'loaded'),

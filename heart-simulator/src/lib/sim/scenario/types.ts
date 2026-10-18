@@ -114,6 +114,8 @@ export interface PendingRead {
   /** what the FTO / preceptor asks (defaults to the read kind's question) */
   prompt?: string;
   explain: string;
+  /** the real image this read is about: its run number (1-based) in SimState.images */
+  run?: number;
 }
 
 /** What an intervention or event does to the patient */

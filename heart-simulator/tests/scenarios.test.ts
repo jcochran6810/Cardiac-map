@@ -529,7 +529,7 @@ describe('real angiograms in the cath lab cases', () => {
       let s = run(sc, 5, steps.slice(0, steps.indexOf('angio')));
       s = perform(sc, s, 'angio');
       expect(s.images.at(-1), id).toMatchObject({ id: 'angio', image: sc.images!.angio });
-      expect(s.pendingRead, id).toMatchObject({ kind: 'angio', answer, prompt: expect.stringMatching(/coronary run/) });
+      expect(s.pendingRead, id).toMatchObject({ kind: 'angio', answer, prompt: expect.stringMatching(/coronary run/), run: s.images.length });
       expect(s.log.some((l) => /coronary: .*Imaging screen/.test(l.text)), id).toBe(true);
     }
   });
@@ -539,6 +539,18 @@ describe('real angiograms in the cath lab cases', () => {
       const sc = SCENARIO_BY_ID['stemi-cathlab'];
       const s = run(sc, role, IDEAL['stemi-cathlab'][role]!);
       expect(s.reads.find((r) => r.kind === 'angio'), `role ${role}`).toMatchObject({ answer: 'angio-lad-prox-occlusion', verdict: 'correct' });
+    }
+  });
+
+  it('the FFR case shows the real console screen and asks what it means', () => {
+    const sc = SCENARIO_BY_ID['ffr-cathlab'];
+    for (const role of [3, 5] as const) {
+      const steps = IDEAL['ffr-cathlab'][role]!;
+      const s = perform(sc, run(sc, role, steps.slice(0, steps.indexOf('ffr'))), 'ffr');
+      expect(s.images.at(-1), `role ${role}`).toMatchObject({ id: 'ffr', image: 'ffr-significant' });
+      expect(s.pendingRead, `role ${role}`).toMatchObject({ kind: 'physiology', answer: 'ffr-significant', run: s.images.length });
+      // the arterial line reads the same aortic pressure as the console: mean 98
+      expect(Math.round((s.vitals.sbp + 2 * s.vitals.dbp) / 3), `role ${role}`).toBe(98);
     }
   });
 

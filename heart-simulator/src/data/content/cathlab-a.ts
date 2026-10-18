@@ -194,7 +194,7 @@ export const CATHLAB_A: CathLabItem[] = [
       'A damped trace as the catheter engages can mean ostial left main disease: no injection until the operator has repositioned.',
     ],
     view: 'view-lao-caudal',
-    image: { want: "Real cine angiogram of a left coronary in LAO caudal (spider view), showing the left main dividing into the LAD and circumflex like a spider's legs." },
+    image: { keys: ['lm-lao-caudal', 'lm-rao-caudal'], want: "Real cine angiogram of a left coronary in LAO caudal (spider view), showing the left main dividing into the LAD and circumflex like a spider's legs." },
     sim: ['view-lao-caudal'],
     related: ['coronary-angiography', 'cl-angio-basics', 'cl-view-rao-caudal', 'cl-radiation', 'cl-damped'],
   },

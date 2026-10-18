@@ -15,8 +15,9 @@ import { ImageCredit, ImageZoom } from '@/components/cathlab/CathFigure';
 export default function ImagingPanel({ state }: { state: SimState }) {
   const [zoom, setZoom] = useState<number | null>(null);
   const runs = state.images.map((r, i) => ({ ...r, n: i + 1 })).reverse();
-  const reading = state.pendingRead?.kind === 'angio' && !state.ended;
-  const hideFrom = reading ? state.pendingRead!.minute : Infinity;
+  // runs the learner is still to read: what they show stays hidden until the read is given
+  const asked = new Set(state.ended ? [] : [state.pendingRead, ...state.queuedReads].flatMap((q) => (q?.run ? [q.run] : [])));
+  const reading = !state.ended && (state.pendingRead?.kind === 'angio' || !!state.pendingRead?.run);
   if (!runs.length) {
     return (
       <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
@@ -36,13 +37,13 @@ export default function ImagingPanel({ state }: { state: SimState }) {
     <div className="absolute inset-0 overflow-y-auto px-3 py-2.5 space-y-2">
       {reading && (
         <div className="px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-[12px] text-amber-100">
-          What does this run show? Look at it, then give your read to your preceptor.
+          What does it show? Look at the image, then give your read to your preceptor.
         </div>
       )}
       {runs.map((r) => {
         const v = r.id ? CINE_VIEW_BY_ID[r.id] : undefined;
         const img = r.image ? CATH_IMAGES[r.image] : undefined;
-        const caption = img && r.minute < hideFrom ? img.caption : null;
+        const caption = img && !asked.has(r.n) ? img.caption : null;
         return (
           <article key={r.n} className="rounded-lg border border-slate-700 bg-cardiac-dark/50 overflow-hidden">
             <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-700/70">
@@ -74,7 +75,7 @@ export default function ImagingPanel({ state }: { state: SimState }) {
           </article>
         );
       })}
-      {big && zoomed && <ImageZoom img={big} showCaption={zoomed.minute < hideFrom} onClose={() => setZoom(null)} />}
+      {big && zoomed && <ImageZoom img={big} showCaption={!asked.has(zoomed.n)} onClose={() => setZoom(null)} />}
     </div>
   );
 }

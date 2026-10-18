@@ -34,16 +34,18 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
   const seen = useRef({ log: state.log.length, performed: state.performed.length, images: state.images.length });
   const lab = sc.setting === 'cathlab';
 
-  // A new 12-lead to read opens the 12-lead tab and an angiogram to read the imaging tab; any other read
-  // needs the story. Anything said (or filmed) while another tab is open marks that tab with a dot.
+  // A new 12-lead to read opens the 12-lead tab and an image to read (an angiogram, a pressure-wire
+  // screen) the imaging tab; any other read needs the story. Anything said (or filmed) while another tab
+  // is open marks that tab with a dot.
   useEffect(() => {
     const prev = seen.current;
     const last = state.performed.at(-1);
     const fresh = state.performed.length > prev.performed;
     const kind = state.pendingRead?.kind;
+    const onImage = kind === 'angio' || !!state.pendingRead?.run;
     if (fresh && last && (last.id === 'ecg12' || last.id === 'ecg12-repeat') && kind === 'ecg') setTab('ecg');
-    else if (kind === 'angio' && tab !== 'imaging') setTab('imaging');
-    else if (kind && kind !== 'ecg' && kind !== 'angio' && tab !== 'story') setTab('story');
+    else if (onImage && tab !== 'imaging') setTab('imaging');
+    else if (kind && kind !== 'ecg' && !onImage && tab !== 'story') setTab('story');
     else {
       if (state.log.length > prev.log && tab !== 'story') setUnread(true);
       if (state.images.length > prev.images && tab !== 'imaging') setNewRun(true);

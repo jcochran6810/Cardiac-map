@@ -45,7 +45,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Whipping, sharp spikes on the Pd trace usually from the sensor touching the vessel wall, makes Pd unreliable; move the wire slightly and remeasure.',
     ],
     image: {
-      keys: ['ffr-console'],
+      keys: ['ffr-significant', 'ffr-not-significant', 'ffr-console'],
       want: 'A real pressure-wire console screen showing the aortic (Pa) and distal (Pd) tracings separating during adenosine hyperemia, with the FFR value displayed.',
     },
     sim: ['ffr', 'ffr-equalize'],
@@ -129,6 +129,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Say whether a size came from the lumen or the EEM; the two give different stent diameters.',
     ],
     image: {
+      keys: ['ivus-plaque-normal', 'oct-ivus-plaques'],
       want: 'A real IVUS cross-section of a coronary artery with the lumen and EEM borders traced, showing the plaque burden and a calcium arc with its acoustic shadow.',
     },
     sim: ['ivus'],
@@ -171,7 +172,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Red thrombus and lipid block the light and hide the outer wall; use IVUS when the true vessel size (EEM) is needed.',
     ],
     image: {
-      keys: ['oct-tcfa'],
+      keys: ['oct-tcfa', 'oct-ivus-plaques'],
       want: 'A real OCT cross-section showing a stent with struts well apposed to the wall, or a calcified plaque with its arc and thickness measured.',
     },
     sim: ['oct'],
@@ -213,6 +214,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Check the stent’s maximum expansion diameter on its label before post-dilating with a much larger balloon.',
     ],
     image: {
+      keys: ['ivus-stent-expansion'],
       want: 'A real QCA or IVUS measurement screen showing the proximal and distal reference diameters and the lesion length used to choose a stent.',
     },
     sim: [],
@@ -256,6 +258,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Red or tea-colored urine and a rising LDH suggest hemolysis, often from poor position or suction.',
     ],
     image: {
+      keys: ['impella-position'],
       want: 'A real fluoroscopy frame of an Impella CP across the aortic valve, with the inlet in the left ventricle and the outlet in the ascending aorta.',
     },
     sim: ['impella'],
@@ -297,6 +300,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'A weaker left radial pulse can mean the balloon sits too high, and a fall in urine output that it sits too low; blood in the gas line means a rupture: stop pumping and call it out.',
     ],
     image: {
+      keys: ['iabp-low'],
       want: 'A real arterial pressure tracing during 1:2 IABP support showing inflation at the dicrotic notch, diastolic augmentation and the lower assisted end-diastolic pressure.',
     },
     sim: ['iabp'],
