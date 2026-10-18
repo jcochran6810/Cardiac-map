@@ -474,7 +474,7 @@ export const CATHLAB_A: CathLabItem[] = [
       'Wires are sized in inches and sheaths and catheters in French: check that the wire fits the needle, the dilator and the catheter.',
       'Call sizes in a closed loop ("six French, eleven centimeter sheath") and check the package before it goes onto the field.',
     ],
-    image: { want: 'Real device photo of 5, 6 and 7 Fr introducer sheaths side by side with their dilators, valves and side arms.' },
+    image: { keys: ['radial-sheath-introducer-set'], want: 'Real device photo of 5, 6 and 7 Fr introducer sheaths side by side with their dilators, valves and side arms.' },
     related: ['cl-radial-access', 'cl-femoral-access', 'cl-venous-access', 'cl-hemostasis', 'cl-guide-ebu'],
   },
   {
@@ -512,7 +512,7 @@ export const CATHLAB_A: CathLabItem[] = [
       'Radial artery occlusion is often silent: check the radial pulse, or the thumb oximeter wave with the ulnar artery pressed, before discharge.',
       'A closure device shortens bed rest but not the checks: bleeding and limb problems still happen.',
     ],
-    image: { want: 'Real photo of a radial compression band inflated over the wrist puncture, with a pulse oximeter on the thumb confirming patent flow.' },
+    image: { keys: ['radial-tr-band-wrist', 'radial-screw-compression-device'], want: 'Real photo of a radial compression band inflated over the wrist puncture, with a pulse oximeter on the thumb confirming patent flow.' },
     sim: ['hemostasis', 'closure-device'],
     related: ['cl-radial-access', 'cl-femoral-access', 'cl-comp-rp-bleed', 'cl-act', 'heparin'],
   },

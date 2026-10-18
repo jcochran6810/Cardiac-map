@@ -384,7 +384,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Chattering lines or falling flow at the same pump speed mean low preload or a cannula problem: think volume, bleeding, tamponade and cannula position.',
     ],
     image: {
-      keys: ['va-ecmo-cxr-venous-cannula-ra'],
+      keys: ['ecmo-console-heater-cooler', 'va-ecmo-cxr-venous-cannula-ra', 'ecmo-circuit-simulation-class'],
       want: 'A real photo of a VA-ECMO circuit (centrifugal pump, oxygenator and femoral cannulas), or a fluoroscopy frame showing the venous cannula tip at the right atrium.',
     },
     sim: [],
@@ -427,7 +427,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Zero and level before the first measurement, after any table or patient move, and whenever a number doesn’t fit the patient.',
     ],
     image: {
-      keys: ['fast-flush-square-wave-strip', 'pressure-transducer-kit-photo'],
+      keys: ['fast-flush-square-wave-strip', 'pressure-transducer-kit-photo', 'cath-lab-manifold-deairing'],
       want: 'A real photo of a pressure transducer mounted at the phlebostatic axis with its stopcock open to air for zeroing, or a monitor showing an optimal square-wave test.',
     },
     sim: ['transducer'],
@@ -718,6 +718,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'After protamine (on order), recheck the ACT before the sheath comes out.',
     ],
     image: {
+      keys: ['istat-handheld-analyzer', 'act-timeline-heparin-resistance'],
       want: 'A real photo of a point-of-care ACT analyzer showing a result in seconds, with its sample cartridge.',
     },
     sim: ['act'],
@@ -758,6 +759,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'In a STEMI the time-out is quick but never skipped: confirm identity, allergies and anticoagulants at the door.',
       'Ask when the last DOAC or warfarin dose was taken; it changes the access choice, heparin dosing and bleeding risk.',
     ],
+    image: { keys: ['surgical-time-out-field-hospital'], want: 'A real photo of a cath lab team pausing for the time-out before the case.' },
     sim: ['timeout', 'consent', 'prep'],
     related: ['cl-closed-loop', 'cl-lab-roles', 'cl-drug-contrast'],
   },
@@ -789,6 +791,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'If a read-back is wrong, the sender corrects it at once and the loop starts again.',
       'Silence is not agreement: if you are not sure, ask again.',
     ],
+    image: { keys: ['cath-lab-team-passing-instruments'], want: 'A real photo of the cath lab team communicating across the table.' },
     sim: ['callout'],
     related: ['cl-damped', 'cl-timeout', 'cl-lab-roles'],
   },
@@ -829,6 +832,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Step back during cine runs and stay behind the shield; it costs nothing.',
     ],
     image: {
+      keys: ['cath-lab-lead-shields-labeled', 'lead-apron-thyroid-collar-goggles'],
       want: 'A real photo of a cath lab with the ceiling shield and table skirt in place, or a dose display showing reference air kerma and kerma-area product during a case.',
     },
     sim: [],
@@ -865,6 +869,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Scope matters: techs don’t give drugs, RNs give drugs on order and the operator decides, but anyone can stop the case for safety.',
       'In an emergency, the operator or a named leader assigns roles out loud: compressions, defibrillator, drugs, recorder.',
     ],
+    image: { keys: ['cath-lab-ep-study-team', 'cath-lab-cv-technologists'], want: 'A real photo of the cath lab team at work: operator, tech, nurse and control room.' },
     sim: [],
     related: ['cl-timeout', 'cl-closed-loop', 'cl-radiation'],
   },
