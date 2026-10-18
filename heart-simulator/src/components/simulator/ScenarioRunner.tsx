@@ -26,7 +26,8 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
   const closeScenario = useSimStore((s) => s.closeScenario);
   const sc = SCENARIO_BY_ID[state.scenarioId];
   const [tab, setTab] = useState<Tab>('story');
-  const [sheet, setSheet] = useState(false);
+  const sheet = useSimStore((s) => s.sheetOpen);
+  const setSheet = useSimStore((s) => s.setSheetOpen);
   const [unread, setUnread] = useState(false);
   const seen = useRef({ log: state.log.length, performed: state.performed.length });
 

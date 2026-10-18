@@ -22,6 +22,12 @@ interface SimStore {
   scenarioId: string | null;
   state: SimState | null;
   review: Review | null;
+  /** the review page is showing (once the case has ended) */
+  reviewOpen: boolean;
+  /** phones and tablets: the action list is open over the case */
+  sheetOpen: boolean;
+  /** counts case starts, so a Back-button history entry knows which run it belongs to */
+  run: number;
   /** best score per scenario and role ("scenarioId:role" → percent), kept on this device */
   best: Record<string, number>;
   startScenario: (id: string, role: LearningLevel) => void;
@@ -33,6 +39,8 @@ interface SimStore {
   endScenario: () => void;
   /** back to the case list */
   closeScenario: () => void;
+  setReviewOpen: (open: boolean) => void;
+  setSheetOpen: (open: boolean) => void;
 }
 
 function loadBest(): Record<string, number> {
@@ -133,13 +141,16 @@ export const useSimStore = create<SimStore>((set, get) => {
     const prev = get().state;
     if (next === prev) return;
     show(next, prev);
-    set({ state: next, ...(next.ended ? finish(next) : {}) });
+    set({ state: next, ...(next.ended ? { ...finish(next), sheetOpen: false } : {}) });
   };
 
   return {
     scenarioId: null,
     state: null,
     review: null,
+    reviewOpen: false,
+    sheetOpen: false,
+    run: 0,
     best: typeof window === 'undefined' ? {} : loadBest(),
 
     startScenario: (id, role) => {
@@ -150,7 +161,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       setNibpReading(null);
       const s = start(sc, sc.roles.includes(role) ? role : sc.roles[0]);
       show(s, null);
-      set({ scenarioId: id, state: s, review: null });
+      set((st) => ({ scenarioId: id, state: s, review: null, reviewOpen: false, sheetOpen: false, run: st.run + 1 }));
     },
     act: (id) => {
       const { state } = get();
@@ -175,7 +186,9 @@ export const useSimStore = create<SimStore>((set, get) => {
     closeScenario: () => {
       setScriptedVitals(null);
       setNibpReading(null);
-      set({ scenarioId: null, state: null, review: null });
+      set({ scenarioId: null, state: null, review: null, reviewOpen: false, sheetOpen: false });
     },
+    setReviewOpen: (reviewOpen) => set((st) => ({ reviewOpen: reviewOpen && !!st.state?.ended })),
+    setSheetOpen: (sheetOpen) => set((st) => ({ sheetOpen: sheetOpen && !!st.state && !st.state.ended })),
   };
 });

@@ -15,6 +15,7 @@ import { InstallBanner } from '@/components/ui/InstallApp';
 import HomeScreen from '@/components/home/HomeScreen';
 import SimulatorScreen from '@/components/simulator/SimulatorScreen';
 import { MobileNav } from '@/components/layout/ModeNav';
+import BackNav from '@/components/layout/BackNav';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore } from '@/store/useECGStore';
@@ -196,6 +197,7 @@ export default function AppShell() {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden" style={{ ['--dock-h' as string]: side ? '0px' : `${dockSize}px` }}>
       <SimulationDriver />
+      <BackNav />
       <TopBar />
       {mode === 'home' && <HomeScreen />}
       {mode === 'simulator' && <SimulatorScreen />}

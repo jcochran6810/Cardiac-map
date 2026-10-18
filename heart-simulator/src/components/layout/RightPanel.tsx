@@ -10,8 +10,8 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { goBack, kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm } from '@/lib/actions';
-import { useHistoryStore } from '@/store/useHistoryStore';
+import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm } from '@/lib/actions';
+import { currentPage, goBack, useBackNavStore } from '@/lib/backNav';
 import { enterSimulator, useSimStore } from '@/store/useSimStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
@@ -655,19 +655,24 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   );
 }
 
-/** Back to the previously opened item; on tablets and phones also a clear way to close the drawer */
+/** Back (the same as the phone's Back button); on tablets and phones also a clear way to close the drawer */
 function PanelBar() {
-  const stack = useHistoryStore((s) => s.stack);
+  const canGoBack = useBackNavStore((s) => s.canGoBack);
+  const prev = useBackNavStore((s) => s.previous);
   const compact = useAppStore((s) => s.compact);
   const setPanels = useAppStore((s) => s.setPanels);
   useContent(); // re-render with real names once the library has loaded
-  const prev = stack.length >= 2 ? stack[stack.length - 2] : null;
-  if (!prev && !compact) return null;
+  const label = !prev ? 'Back'
+    : prev.mode === 'home' ? 'Back to Home'
+      : prev.mode === 'simulator' ? 'Back to the simulator'
+        : prev.left ? 'Back to the Library'
+          : prev.item && prev.item !== currentPage().item ? `Back to ${nameOf(prev.item)}` : 'Back';
+  if (!canGoBack && !compact) return null;
   return (
     <div className="flex items-center gap-1 px-1.5 py-1 border-b border-slate-700 shrink-0 bg-cardiac-dark/40">
-      {prev && (
-        <button onClick={goBack} className="min-w-0 flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-sky-300 hover:bg-cardiac-surface/70" title="Back to the item you had open before">
-          <span aria-hidden>←</span><span className="truncate">Back to {nameOf(prev)}</span>
+      {canGoBack && (
+        <button onClick={goBack} className="min-w-0 flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-sky-300 hover:bg-cardiac-surface/70" title="Back to the page before (same as your phone's Back button)">
+          <span aria-hidden>←</span><span className="truncate">{label}</span>
         </button>
       )}
       {compact && (

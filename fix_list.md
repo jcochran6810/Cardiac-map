@@ -12,8 +12,10 @@ Add new items at the top of their group. Use the format:
 ### Owner actions (dashboard steps — code can't do these)
 
 - [ ] 2026-10-18 — **Try the new screens on your phone:** the Home page, the case simulator (play a case
-  to the end and read the review) and the Learn screen (tap the heart, open a condition, then a drug and
-  press **← Back**). Tested only in emulated phone, tablet and desktop browsers.
+  to the end, give your 12-lead reads, read the review) and the Learn screen (tap the heart, open a
+  condition, then a drug). Use your **phone's Back button/gesture** throughout: it should step back through
+  the app and, on Home, say "press Back again to leave". Tested only in emulated phone, tablet and desktop
+  browsers.
 
 - [ ] 2026-10-17 — **Delete the old production branch** `claude/create-heart-3d-model-6mtrW`
   (optional tidy-up; nothing uses it any more): GitHub → `jcochran6810/Cardiac-map` → Branches →
@@ -92,6 +94,12 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-18 — The phone / browser Back button left the app; it now steps back through the app's pages
+  (screens, opened items, drawers, overlays, simulator views), asks before leaving a case, and asks before
+  leaving the app from Home (this session's Back-button commit).
+- [x] 2026-10-18 — Simulator 12-lead: the app no longer reads the tracing for the learner; they choose their
+  read from all interpretations and the FTO / preceptor confirms or corrects it at once (`92315a6`).
 
 - [x] 2026-10-18 — Navigation made easier to learn: Home page, Home / Learn / Simulator tabs (bottom
   bar on phones), labelled Library / Info buttons, Back in the info panel, a card when you tap the

@@ -16,6 +16,13 @@ step — plus a **case simulator** where you treat a patient and get a scored re
 Tablets and desktops switch screens with the tabs in the top bar; phones have a bottom tab bar
 (Home · Learn · Simulator · Quiz · Tutor). Opening any library item (search, chips, tutor, quiz) goes to Learn.
 
+**The phone's Back button stays inside the app** (`src/lib/backNav.ts`): every page — the screen, the item
+open in the info panel, the Library / Info drawers on small screens, the electrode lab, quiz / tutor / help,
+and the simulator's case list → case → action list → review — is a browser history entry. Back returns to
+the previous page; closing something with its own button steps over its entry, so Back never stalls;
+leaving a case in progress asks first; on Home the first Back says "press Back again to leave". The info
+panel's **← Back** is the same button.
+
 ## Case simulator
 
 `src/lib/sim/scenario/` (engine, interventions, scenarios) · `src/store/useSimStore.ts` · `src/components/simulator/`
@@ -24,8 +31,13 @@ Tablets and desktops switch screens with the tabs in the top bar; phones have a 
   and setting). Each one takes case time and changes the patient: the rhythm on the monitor and the live
   12-lead, the vitals, and the story (patient, partner, team, monitor, hospital).
 - **The monitor starts unplugged**: the ECG, SpO₂ and capnography appear only once you attach them; the
-  NIBP box shows the last blood pressure you took. A 3-lead monitor names the rhythm only — the 12-lead
-  makes the diagnosis.
+  NIBP box shows the last blood pressure you took. Nothing reads the tracings for you: the monitor reports
+  numbers, and rhythm changes come as a "monitor alarm".
+- **You read every 12-lead, and your FTO checks it** (`reads.ts`): after a paramedic, tech, nurse or
+  cardiologist records a 12-lead, the case waits for their read, chosen from every interpretation the app
+  can show (43, in four groups). The FTO — the preceptor in the cath lab — answers at once: correct, partly
+  right or not quite, with the explanation of the tracing. A misread costs 5 points (2 if partly right) and
+  the review lists every read. EMTs acquire and transmit without reading.
 - **Events happen on time or because of what you did** (VF en route, heart block, a wedged catheter,
   reperfusion VF), built-in safety rules catch dangerous choices (shocking a patient with a pulse, arrest-dose
   epinephrine with a pulse, …), and teammates do the other roles' jobs in the cath lab.
