@@ -1,19 +1,14 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { has, line } from '../kit';
-import { MD, RN, TECH, angioGate, askCritical, askEvents, askHarm, cine, doneAfter, operator, type LabAsk } from '../labKit';
+import {
+  LAD_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, nextStep,
+  operator, type LabAsk,
+} from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: until then the findings are said in words) */
 const IMAGES: Partial<Record<string, string>> = {};
 
-const LAD_VIEWS = ['view-rao-cranial', 'view-ap-cranial', 'view-lao-cranial'];
-const RCA_VIEWS = ['view-rca-lao', 'view-rca-rao', 'view-rca-cranial'];
-const RIGHT_GUIDES = ['guide-jr4', 'guide-al1'];
-const WIRES = ['wire-workhorse', 'wire-hydrophilic'];
-
-const anticoagulated = (s: SimState) => has(s, 'heparin') || has(s, 'bivalirudin');
 const wedged: Effect = { blocked: true, say: [['system', 'The pressure is still damped: back the guide out first.']] };
-/** The operator's next step: with the nurse it simply takes a minute; with the tech it waits for the device */
-const nextStep = (s: SimState, after: string, handed: string) => (s.role === 4 ? s.minute >= s.flags[after] + 1 : has(s, handed));
 
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;
@@ -187,7 +182,7 @@ export const cathlabStemi: Scenario = {
     access: (s) => ({ say: [[operator(s), 'Right radial access: 6 Fr sheath in.']], flags: ['access'] }),
     angio: (s) => angioGate(s) ?? { ...angioRun('you'), flags: ['angio'] },
     reposition: (s) => has(s, 'damped')
-      ? { say: [['you', 'Guide backed out of the left main: the aortic waveform is normal again.', 'good']], flags: ['repositioned'] }
+      ? { say: [['you', 'Guide backed out of the left main: the aortic waveform is normal again.', 'good']], vitals: { sbp: 136, dbp: 84 }, flags: ['repositioned'] }
       : null,
     'wire-workhorse': (s) => (s.role === 5 && has(s, 'damped') && !has(s, 'repositioned') ? wedged : null),
     'wire-hydrophilic': (s) => (s.role === 5 && has(s, 'damped') && !has(s, 'repositioned') ? wedged : null),
@@ -241,6 +236,8 @@ export const cathlabStemi: Scenario = {
           ['monitor', 'Aortic pressure 82/64 — the waveform has lost its dicrotic notch and the diastolic pressure is falling.', 'bad'],
           ...(s.role === 5 ? [line('team', 'Tech: "Doctor — the pressure\'s damped!"', 'warn')] : []),
         ],
+        // the arterial line reads the pressure at the wedged tip
+        vitals: { sbp: 82, dbp: 64 },
         flags: ['damped'],
         ...(s.role !== 5 ? {
           read: {
@@ -256,6 +253,7 @@ export const cathlabStemi: Scenario = {
         say: has(s, 'callout')
           ? [['operator', 'Thanks — backing out. Waveform\'s back.', 'good']]
           : [['operator', 'Pressure\'s damped — who\'s watching the waveform? Backing out now.', 'warn']],
+        vitals: { sbp: 136, dbp: 84 },
         flags: ['repositioned'],
       }),
     },

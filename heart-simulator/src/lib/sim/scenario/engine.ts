@@ -237,7 +237,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'access-femoral': return { say: [['you', 'Common femoral artery over the femoral head, ultrasound-guided: 6 Fr sheath in.']], flags: ['access', 'femoral'] };
     case 'access-venous': return { say: [['you', 'Femoral venous sheath in.']], flags: ['venous'] };
     case 'balloon-tamponade': return { say: [['you', 'Balloon inflated at low pressure over the site.']], flags: ['balloon-tamponade'] };
-    case 'pericardiocentesis': return { say: [['you', fact('echo') ? 'Pericardial drain in under echo guidance.' : 'Pericardial drain in.']], flags: ['pericardiocentesis'] };
+    case 'pericardiocentesis':
+      return s.role === 3
+        ? { say: [['you', 'Pericardiocentesis tray open: needle, wire, drain and a drainage bag; echo probe in a sterile sleeve.']], flags: ['pericardiocentesis-ready'] }
+        : { say: [['you', 'Pericardial drain in under echo guidance.']], flags: ['pericardiocentesis'] };
     case 'closure-device': return { say: [['you', 'Femoral closure device deployed; haemostasis.']], flags: ['closure', 'hemostasis'] };
     case 'angio': return angioGate(s) ?? { say: [['you', 'Angiography complete.']], image: { id, view: 'Diagnostic angiography', image: sc.images?.angio }, flags: ['angio'] };
     case 'reposition': return { say: [['operator', 'Catheter disengaged and repositioned.']], flags: ['repositioned'] };
@@ -282,7 +285,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['monitor', fact('final') ?? 'Final angiogram recorded in two views.']], image: { id, view: 'Final angiogram', image: sc.images?.[id] }, flags: ['final-angio'] };
     case 'stop-contrast': return { say: [['you', 'No more contrast — injector and manifold off.']], flags: ['contrast-stopped'] };
     case 'call-surgery': return { say: [['hospital', 'Cardiac surgery notified: the surgeon is on the way and the OR is being prepared.']], flags: ['surgery-called'] };
-    case 'hemostasis': return { say: [['you', 'Radial band on; distal pulse and perfusion checked.']], flags: ['hemostasis'] };
+    case 'hemostasis':
+      return has(s, 'femoral')
+        ? { say: [['you', 'Femoral sheath out; firm pressure for 15 minutes, then a dressing. Distal pulses checked; no hematoma.']], flags: ['hemostasis'] }
+        : { say: [['you', 'Radial band on; distal pulse and perfusion checked.']], flags: ['hemostasis'] };
 
     case 'call-help': return { say: [['team', 'Help is on the way.']], flags: ['help'] };
     case 'callout': return { say: [['operator', 'Copy.']], flags: ['callout'] };

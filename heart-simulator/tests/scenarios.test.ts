@@ -30,6 +30,38 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
     2: ['cpr', 'defib', 'cpr', 'io', 'defib', 'epinephrine', 'cpr', 'defib', 'amio-arrest', 'capno', 'bvm', 'cpr', 'defib',
       'bvm', 'ecg12', 'pressor', 'transport-pci', UNTIL_ARRIVED, 'handoff'],
   },
+  'stemi-inferior-cathlab': {
+    3: ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-jl4', 'cath-jr4', 'guide-jr4', 'view-rca-lao', 'wire-workhorse', 'balloon-predil',
+      'callout', 'temp-wire', 'stent-des', 'ecg12', 'hemostasis'],
+    4: ['consent', 'iv', 'heparin', 'p2y12', 'timeout', 'act', ...R(4), 'callout', 'atropine', 'fluid', 'reassess', 'ecg12', 'hemostasis', 'handoff'],
+    5: ['consent', 'heparin', 'p2y12', 'timeout', 'access-femoral', 'cath-jl4', 'angio', 'guide-jr4', 'view-rca-lao', 'wire-workhorse',
+      'balloon-predil', 'atropine', 'fluid', 'stent-des', 'final-angio', 'ecg12', 'echo', 'handoff'],
+  },
+  'ffr-cathlab': {
+    3: ['prep', 'transducer', 'monitor', 'timeout', 'cath-tiger', 'radial-cocktail', 'act', 'guide-ebu', 'ffr-equalize', 'ffr', 'ivus', 'stent-des',
+      'balloon-nc', 'hemostasis'],
+    4: ['consent', 'iv', 'timeout', 'sedation', 'reassess', 'radial-cocktail', 'heparin', 'act', 'ic-nitro', 'adenosine-iv-ffr', 'reassess', 'p2y12',
+      ...R(2), 'hemostasis', 'handoff'],
+    5: ['consent', 'timeout', 'access', 'cath-tiger', 'angio', 'radial-cocktail', 'heparin', 'guide-ebu', 'ffr-equalize', 'ic-nitro', 'adenosine-iv-ffr',
+      'ffr', 'ivus', 'p2y12', 'stent-des', 'balloon-nc', 'final-angio', 'handoff'],
+  },
+  'shock-cathlab': {
+    3: ['prep', 'transducer', 'pads', 'timeout', 'rhc', 'impella', 'perfusion', 'guide-ebu', 'stent-des', 'ecg12'],
+    4: ['iv', 'pressor', 'o2-nrb', 'consent', 'timeout', 'reassess', 'heparin', 'act', 'cangrelor', 'perfusion', ...R(4), 'ecg12', 'handoff'],
+    5: ['consent', 'o2-nrb', 'pressor', 'timeout', 'access-femoral', 'access-venous', 'rhc', 'heparin', 'impella', 'cangrelor', 'cath-jl4', 'angio',
+      'guide-ebu', 'view-rao-cranial', 'wire-workhorse', 'balloon-predil', 'stent-des', 'final-angio', 'ecg12', 'echo', 'handoff'],
+  },
+  'perforation-cathlab': {
+    3: ['callout', 'pericardiocentesis', 'stent-covered', 'hemostasis'],
+    4: ['callout', 'fluid', 'call-surgery', ...R(2), 'act', 'hemostasis', 'handoff'],
+    5: ['balloon-tamponade', 'call-surgery', 'fluid', 'echo', 'pericardiocentesis', 'stent-covered', 'final-angio', 'handoff'],
+  },
+  'contrast-cathlab': {
+    3: ['prep', 'transducer', 'monitor', 'timeout', 'cath-tiger', 'stop-contrast', 'callout', 'o2-nrb', 'call-help', 'hemostasis'],
+    4: ['consent', 'iv', 'timeout', 'reassess', 'callout', 'epi-im', 'fluid', 'o2-nrb', 'albuterol', 'diphenhydramine', 'steroid', 'hemostasis', 'handoff'],
+    5: ['consent', 'timeout', 'access', 'cath-tiger', 'angio', 'stop-contrast', 'epi-im', 'fluid', 'o2-nrb', 'albuterol', 'diphenhydramine', 'steroid',
+      'handoff'],
+  },
   'stemi-cathlab': {
     3: ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger', 'guide-ebu', 'callout', 'view-rao-cranial', 'wire-workhorse',
       'balloon-predil', 'stent-des', 'defib', 'balloon-nc', 'ecg12', 'hemostasis'],
@@ -315,5 +347,155 @@ describe('STEMI in the cath lab', () => {
     expect(s.pulse).toBe(false);
     for (let i = 0; i < 6 && !s.ended; i++) s = perform(sc, s, 'reassess');
     expect(s.ended?.reason).toBe('death');
+  });
+});
+
+describe('inferior STEMI in the cath lab', () => {
+  const sc = SCENARIO_BY_ID['stemi-inferior-cathlab'];
+  const MD_TO_BALLOON = IDEAL['stemi-inferior-cathlab'][5]!.slice(0, IDEAL['stemi-inferior-cathlab'][5]!.indexOf('balloon-predil') + 1);
+
+  it('nitroglycerin crashes the pressure of an RV infarct', () => {
+    const s = run(sc, 5, ['nitro']);
+    expect(s.vitals.sbp).toBe(72);
+    expect(s.penalties.map((p) => p.id)).toEqual(['nitro-rv']);
+  });
+
+  it('a left guide for the RCA costs points; reflow brings the reflex, and the learner must name it', () => {
+    let s = run(sc, 5, ['consent', 'heparin', 'timeout', 'access-femoral', 'cath-jl4', 'angio', 'guide-ebu']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['left-guide-for-rca']);
+    s = run(sc, 5, MD_TO_BALLOON, undefined, 'manual');
+    expect(s.pendingRead).toMatchObject({ kind: 'clinical', answer: 'clin-bezold' });
+    expect(s.rhythm.hr).toBe(38);
+    expect(s.vitals.sbp).toBe(68);
+  });
+
+  it('atropine brings the rate back, fluid the pressure; untreated, it gets worse', () => {
+    let s = run(sc, 5, [...MD_TO_BALLOON, 'atropine']);
+    expect(s.rhythm.hr).toBe(72);
+    expect(s.flags.recovered).toBeUndefined();
+    s = perform(sc, s, 'fluid');
+    expect(s.flags.recovered).toBeDefined();
+    const untreated = run(sc, 5, [...MD_TO_BALLOON, 'reassess', 'reassess']);
+    expect(untreated.fired).toContain('reflex-worse');
+    expect(untreated.vitals.sbp).toBe(58);
+  });
+
+  it('the nurse must choose the drug: adenosine for a rate of 38 is wrong', () => {
+    const steps = IDEAL['stemi-inferior-cathlab'][4]!;
+    const s = run(sc, 4, [...steps.slice(0, steps.indexOf('callout') + 1), 'adenosine6']);
+    expect(s.penalties.map((p) => p.id)).toContain('wrong-atropine');
+    expect(s.log.some((l) => l.who === 'operator' && /Atropine, 1 milligram/.test(l.text))).toBe(true);
+  });
+});
+
+describe('FFR-guided PCI', () => {
+  const sc = SCENARIO_BY_ID['ffr-cathlab'];
+  const MD = IDEAL['ffr-cathlab'][5]!;
+  const upTo = (id: string) => MD.slice(0, MD.indexOf(id));
+
+  it('no reading before the wire is equalised; without hyperaemia the reading is a resting value', () => {
+    let s = run(sc, 5, [...upTo('ffr-equalize'), 'ffr']);
+    expect(s.counts.ffr).toBeUndefined();
+    expect(s.log.at(-1)!.text).toMatch(/Equalise the pressure wire/);
+    s = perform(sc, run(sc, 5, upTo('adenosine-iv-ffr')), 'ffr');
+    expect(s.pendingRead).toMatchObject({ kind: 'physiology', answer: 'ffr-no-hyperemia' });
+  });
+
+  it('a stent before the physiology is a major error', () => {
+    const s = run(sc, 5, [...upTo('ffr-equalize'), 'wire-workhorse', 'stent-des']);
+    expect(s.penalties.map((p) => p.id)).toContain('stent-before-ffr');
+  });
+
+  it('the radial spasm must be treated before the guide will pass', () => {
+    let s = run(sc, 5, [...upTo('radial-cocktail'), 'heparin', 'guide-ebu']);
+    expect(s.counts['guide-ebu']).toBeUndefined();
+    s = perform(sc, s, 'radial-cocktail');
+    s = perform(sc, s, 'guide-ebu');
+    expect(s.flags.guide).toBeDefined();
+  });
+
+  it('the nurse who pushes the SVT dose of adenosine for hyperaemia is corrected', () => {
+    const steps = IDEAL['ffr-cathlab'][4]!;
+    const s = run(sc, 4, [...steps.slice(0, steps.indexOf('adenosine-iv-ffr')), 'adenosine6']);
+    expect(s.penalties.map((p) => p.id)).toEqual(expect.arrayContaining(['svt-adenosine', 'wrong-hyperemia']));
+    expect(s.log.some((l) => /Not the SVT dose/.test(l.text))).toBe(true);
+  });
+});
+
+describe('cardiogenic shock in the cath lab', () => {
+  const sc = SCENARIO_BY_ID['shock-cathlab'];
+
+  it('fluid floods the lungs; the right heart numbers ask for a read', () => {
+    let s = run(sc, 5, ['fluid']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['fluid-in-shock']);
+    expect(s.vitals.spo2).toBe(85);
+    s = run(sc, 5, ['consent', 'timeout', 'access-femoral', 'access-venous', 'rhc'], undefined, 'manual');
+    expect(s.pendingRead).toMatchObject({ kind: 'hemo', answer: 'hemo-cardiogenic' });
+  });
+
+  it('support after the stent misses the support item', () => {
+    const steps = IDEAL['shock-cathlab'][5]!.filter((id) => id !== 'impella');
+    const s = stop(run(sc, 5, [...steps.slice(0, steps.indexOf('final-angio')), 'impella']));
+    expect(review(sc, s).toFix.some((t) => t.kind === 'missed' && /Mechanical support/.test(t.label))).toBe(true);
+  });
+
+  it('the nurse gives IV cangrelor, not tablets, to a drowsy shocked patient', () => {
+    const steps = IDEAL['shock-cathlab'][4]!;
+    const s = run(sc, 4, [...steps.slice(0, steps.indexOf('cangrelor')), 'p2y12']);
+    expect(s.penalties.map((p) => p.id)).toContain('wrong-p2y12');
+  });
+});
+
+describe('coronary perforation', () => {
+  const sc = SCENARIO_BY_ID['perforation-cathlab'];
+
+  it('opens with the perforation to read, and a tamponade follows', () => {
+    let s = run(sc, 5, [], undefined, 'manual');
+    expect(s.pendingRead).toMatchObject({ kind: 'clinical', answer: 'clin-perforation' });
+    s = run(sc, 5, ['read:clin-perforation', 'balloon-tamponade', 'call-surgery', 'fluid'], undefined, 'manual');
+    expect(s.pendingRead).toMatchObject({ kind: 'clinical', answer: 'clin-tamponade' });
+    expect(s.vitals.sbp).toBe(76);
+  });
+
+  it('no needle without the echo; left alone, the tamponade arrests the heart', () => {
+    let s = run(sc, 5, ['balloon-tamponade', 'pericardiocentesis']);
+    expect(s.counts.pericardiocentesis).toBeUndefined();
+    s = run(sc, 5, ['balloon-tamponade', ...R(4)]);
+    expect(s.pulse).toBe(false);
+    expect(s.rhythm.profile).toBe('pea');
+    s = perform(sc, perform(sc, s, 'echo'), 'pericardiocentesis');
+    expect(s.pulse).toBe(true);
+  });
+
+  it('a drug-eluting stent does not seal a hole', () => {
+    const s = run(sc, 5, ['balloon-tamponade', 'stent-des']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['des-for-perforation']);
+  });
+});
+
+describe('contrast reaction', () => {
+  const sc = SCENARIO_BY_ID['contrast-cathlab'];
+  const MD = IDEAL['contrast-cathlab'][5]!;
+  const toReaction = MD.slice(0, MD.indexOf('angio') + 1);
+
+  it('the first injection brings the reaction, and the learner must name it', () => {
+    const s = run(sc, 5, toReaction, undefined, 'manual');
+    expect(s.pendingRead).toMatchObject({ kind: 'clinical', answer: 'clin-contrast' });
+    expect(s.vitals.sbp).toBe(76);
+  });
+
+  it('antihistamine before epinephrine is a major error; more contrast during the reaction too', () => {
+    const s = run(sc, 5, [...toReaction, 'diphenhydramine', 'view-rao-caudal']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['antihistamine-first', 'contrast-during-reaction']);
+  });
+
+  it('without epinephrine she arrests', () => {
+    const s = run(sc, 5, [...toReaction, ...R(3)]);
+    expect(s.pulse).toBe(false);
+  });
+
+  it('premedicating for a shellfish allergy is a minor error', () => {
+    const s = run(sc, 5, ['steroid']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['premed-for-shellfish']);
   });
 });

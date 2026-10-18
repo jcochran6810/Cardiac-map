@@ -11,7 +11,8 @@ import { useAppStore } from '@/store/useAppStore';
 const WINDOW = 6000; // ms across the screen
 const COLORS = { ecg: '#3cff7a', pleth: '#45d4ff', co2: '#ffd43b', grid: 'rgba(255,255,255,0.05)', text: '#9aa4b2' };
 
-export interface Channels { ecg: boolean; pleth: boolean; co2: boolean }
+/** `art`: an arterial line (cath lab) — the pressure box then shows the live arterial pressure instead of NIBP */
+export interface Channels { ecg: boolean; pleth: boolean; co2: boolean; art?: boolean }
 const ALL_CHANNELS: Channels = { ecg: true, pleth: true, co2: true };
 
 /**
@@ -240,13 +241,21 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
             <span className={`${large ? 'text-2xl' : 'text-base'} tabular-nums`}>{channels.co2 || channels.ecg ? vit.rr : '--'}</span>
           </div>
         </div>
-        <div className="text-slate-200">
-          <div className="text-[10px] flex justify-between"><span>NIBP</span><span>mmHg</span></div>
-          <div className={`${large ? 'text-3xl' : 'text-base'} font-bold leading-none tabular-nums`}>
-            {d.nibp.measuring ? <span className="text-slate-400 text-xs">measuring…</span> : nibp === 'fail' ? '---/---' : nibp ? `${nibp.sbp}/${nibp.dbp}` : '--/--'}
+        {channels.art ? (
+          <div className="text-rose-300">
+            <div className="text-[10px] flex justify-between"><span>ART</span><span>mmHg</span></div>
+            <div className={`${large ? 'text-3xl' : 'text-base'} font-bold leading-none tabular-nums`}>{vit.pulse ? `${vit.sbp}/${vit.dbp}` : '0/0'}</div>
+            {vit.pulse && <div className="text-[10px] text-rose-200/70">({Math.round((vit.sbp + 2 * vit.dbp) / 3)})</div>}
           </div>
-          {nibp && nibp !== 'fail' && !d.nibp.measuring && <div className="text-[10px] text-slate-400">({nibp.map})</div>}
-        </div>
+        ) : (
+          <div className="text-slate-200">
+            <div className="text-[10px] flex justify-between"><span>NIBP</span><span>mmHg</span></div>
+            <div className={`${large ? 'text-3xl' : 'text-base'} font-bold leading-none tabular-nums`}>
+              {d.nibp.measuring ? <span className="text-slate-400 text-xs">measuring…</span> : nibp === 'fail' ? '---/---' : nibp ? `${nibp.sbp}/${nibp.dbp}` : '--/--'}
+            </div>
+            {nibp && nibp !== 'fail' && !d.nibp.measuring && <div className="text-[10px] text-slate-400">({nibp.map})</div>}
+          </div>
+        )}
         <div className="text-[10px] text-slate-400 space-y-0.5">
           <div className={d.charge === 'charging' ? 'text-amber-300' : d.charge === 'charged' ? 'text-amber-300 font-bold' : ''}>
             {d.energy} J {d.charge === 'charging' ? 'charging…' : d.charge === 'charged' ? 'READY' : ''}

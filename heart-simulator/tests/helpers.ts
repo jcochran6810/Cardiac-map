@@ -25,6 +25,8 @@ export function runScenario(
   sc: Scenario, role: LearningLevel, steps: string[], onStep?: (s: SimState) => void, reads: 'correct' | 'manual' = 'correct',
 ): SimState {
   let s = start(sc, role);
+  // a case can open with something to read (e.g. a complication already under way)
+  while (s.pendingRead && reads === 'correct') s = answerRead(sc, s, s.pendingRead.answer);
   const act = (id: string) => {
     if (id.startsWith('read:')) {
       s = answerRead(sc, s, id.slice(5));

@@ -111,7 +111,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'amio-infusion', label: 'Amiodarone 150 mg IV over 10 min', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'tachycardia with a pulse', needsAccess: true },
   { id: 'lidocaine', label: 'Lidocaine IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '1–1.5 mg/kg', needsAccess: true },
   { id: 'push-epi', label: 'Push-dose epinephrine', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '10–20 mcg IV, repeat as needed', repeatable: true, needsAccess: true },
-  { id: 'pressor', label: 'Vasopressor infusion', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'epinephrine 2–10 mcg/min or dopamine 5–20 mcg/kg/min', needsAccess: true },
+  { id: 'pressor', label: 'Vasopressor infusion', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'norepinephrine, epinephrine or dopamine, titrated to MAP ≥ 65', needsAccess: true },
   { id: 'sedation', label: 'Sedation / analgesia for the procedure', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'per protocol or order, with monitoring', needsAccess: true },
   { id: 'tnk', label: 'Fibrinolytic: tenecteplase IV', category: 'meds', roles: [5], minutes: 0.5, detail: 'weight-based', needsAccess: true },
   { id: 'epi-im', label: 'Epinephrine IM for anaphylaxis', category: 'meds', roles: [1, 2, 4, 5], minutes: 0.3, detail: '0.3–0.5 mg (1 mg/mL), lateral thigh' },
@@ -147,7 +147,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'access-femoral', label: 'Femoral arterial access (ultrasound-guided)', category: 'procedure', roles: [5], settings: LAB, minutes: 2 },
   { id: 'access-venous', label: 'Femoral venous access', category: 'procedure', roles: [5], settings: LAB, minutes: 2 },
   { id: 'balloon-tamponade', label: 'Inflate a balloon over the perforation', category: 'procedure', roles: [5], settings: LAB, minutes: 1, detail: 'low pressure, 5–10 minutes' },
-  { id: 'pericardiocentesis', label: 'Pericardiocentesis (echo-guided)', category: 'procedure', roles: [5], settings: LAB, minutes: 4 },
+  { id: 'pericardiocentesis', label: 'Pericardiocentesis (echo-guided)', category: 'procedure', roles: TECH_MD, settings: LAB, minutes: 3 },
   { id: 'closure-device', label: 'Femoral closure device', category: 'procedure', roles: [5], settings: LAB, minutes: 1 },
 
   // Catheters, wires & devices: the tech opens, prepares and hands them; the cardiologist uses them
@@ -166,9 +166,9 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'balloon-nc', label: 'Non-compliant balloon — post-dilation', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 1, detail: '1:1 with the stent, high pressure', repeatable: true },
   { id: 'stent-covered', label: 'Covered (PTFE) stent', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 2 },
   { id: 'iabp', label: 'Intra-aortic balloon pump (IABP)', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 6 },
-  { id: 'impella', label: 'Impella CP (percutaneous LV pump)', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 8 },
-  { id: 'temp-wire', label: 'Temporary transvenous pacing wire', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 5 },
-  { id: 'hemostasis', label: 'Access-site haemostasis (radial band)', category: 'procedure', roles: [3, 4], settings: LAB, minutes: 1 },
+  { id: 'impella', label: 'Impella CP (percutaneous LV pump)', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 5 },
+  { id: 'temp-wire', label: 'Temporary transvenous pacing wire', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 3 },
+  { id: 'hemostasis', label: 'Access-site haemostasis (radial band or femoral pressure)', category: 'procedure', roles: [3, 4], settings: LAB, minutes: 1 },
   { id: 'call-surgery', label: 'Call cardiac surgery', category: 'team', roles: LAB_TEAM, settings: LAB, minutes: 0.2 },
 
   // Team, calls & transport

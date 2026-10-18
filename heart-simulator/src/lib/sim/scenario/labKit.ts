@@ -13,6 +13,22 @@ export const TECH: LearningLevel[] = [3];
 export const RN: LearningLevel[] = [4];
 export const MD: LearningLevel[] = [5];
 
+/** Views by coronary system (intervention ids) */
+export const LAD_VIEWS = ['view-rao-cranial', 'view-ap-cranial', 'view-lao-cranial'];
+export const LEFT_VIEWS = ['view-rao-caudal', ...LAD_VIEWS, 'view-lao-caudal'];
+export const RCA_VIEWS = ['view-rca-lao', 'view-rca-rao', 'view-rca-cranial'];
+export const LEFT_GUIDES = ['guide-ebu'];
+export const RIGHT_GUIDES = ['guide-jr4', 'guide-al1'];
+export const WIRES = ['wire-workhorse', 'wire-hydrophilic'];
+
+export const anticoagulated = (s: SimState) => has(s, 'heparin') || has(s, 'bivalirudin');
+
+/**
+ * The computer operator's next step after `after`: with the nurse it simply takes a minute; with the
+ * tech it waits until the tech has handed what was asked for (the `handed` flag).
+ */
+export const nextStep = (s: SimState, after: string, handed: string) => (s.role === 4 ? s.minute >= s.flags[after] + 1 : has(s, handed));
+
 /** Who is operating: the learner (cardiologist) or the computer operator */
 export const operator = (s: SimState): Speaker => (s.role === 5 ? 'you' : 'operator');
 
@@ -50,6 +66,8 @@ export interface LabAsk {
   points?: number;
   /** minutes the operator waits before getting it themselves (default 3) */
   wait?: number;
+  /** full marks if answered within this many minutes (default 2) */
+  within?: number;
 }
 
 const askedRole = (a: LabAsk) => a.role ?? 3;
@@ -96,7 +114,7 @@ export function askCritical(a: LabAsk): Critical {
   return {
     id: `ask-${a.id}`, label: a.label, why: a.why, roles: [askedRole(a)], points: a.points ?? 5,
     done: (s) => askDone(s, a),
-    target: { within: { flag: `asked-${a.id}`, minutes: 2 } },
+    target: { within: { flag: `asked-${a.id}`, minutes: a.within ?? 2 } },
     applies: (s) => has(s, `asked-${a.id}`),
   };
 }

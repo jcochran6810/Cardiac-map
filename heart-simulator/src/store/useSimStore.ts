@@ -65,7 +65,8 @@ export function monitorVitals(s: SimState): ScriptedVitals {
 /** Which monitor channels are connected */
 export function attached(s: SimState) {
   const f = s.flags;
-  return { ecg: 'monitor' in f || 'pads' in f || 'ecg12' in f, pleth: 'monitor' in f, co2: 'capno' in f || 'airway' in f };
+  // in the cath lab, the pressure from the arterial sheath shows once it is in and the transducers are zeroed
+  return { ecg: 'monitor' in f || 'pads' in f || 'ecg12' in f, pleth: 'monitor' in f, co2: 'capno' in f || 'airway' in f, art: 'access' in f && 'transducer' in f };
 }
 
 // ─── Side effects on the shared monitor ─────────────────────────────────────
