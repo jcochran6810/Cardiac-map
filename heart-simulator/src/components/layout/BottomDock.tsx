@@ -374,10 +374,10 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           </aside>
         )}
         {ecg.bottomView === 'ecg' && ecg.electrodeLab && (narrow ? (
-          <Sheet title="Electrode lab" onClose={() => ecg.setElectrodeLab(false)}><ElectrodeLab /></Sheet>
+          <Sheet title="Electrode lab" onClose={() => ecg.setElectrodeLab(false)}><ElectrodeLab titled /></Sheet>
         ) : (
-          <aside className="w-64 shrink-0 border-l border-slate-700 overflow-y-auto p-2.5 bg-cardiac-dark/40">
-            <ElectrodeLab />
+          <aside className="w-[30rem] max-w-[48%] shrink-0 border-l border-slate-700 overflow-hidden p-2.5 bg-cardiac-dark/40">
+            <ElectrodeLab wide />
           </aside>
         ))}
         {ecg.bottomView === 'ecg' && showInterp && !ecg.electrodeLab && (narrow ? (

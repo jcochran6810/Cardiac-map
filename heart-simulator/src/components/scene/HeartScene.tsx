@@ -298,6 +298,7 @@ function HeartModel({ viewMode, onHover, onPick }: {
         geometry={closedGeo}
         material={closedMat}
         visible={!sectioned}
+        userData={{ leadTarget: true }}
         onPointerMove={!sectioned && !xray ? handleMove : undefined}
         onPointerOut={() => onHover(null)}
         onClick={!sectioned && !xray ? handleClick : undefined}
@@ -307,6 +308,7 @@ function HeartModel({ viewMode, onHover, onPick }: {
         geometry={openGeo}
         material={openMat}
         visible={sectioned}
+        userData={{ leadTarget: true }}
         onPointerMove={sectioned ? handleMove : undefined}
         onPointerOut={() => onHover(null)}
         onClick={sectioned ? handleClick : undefined}

@@ -136,7 +136,7 @@ export default function SceneOverlay() {
           {viewMode === 'sectioned' && <Pill active={showFlow} onClick={toggleFlow} title="Animated blood flow (F)">Blood flow</Pill>}
           <Pill active={showVector} onClick={toggleVector} title="Show the instantaneous cardiac electrical vector (V)">Cardiac vector</Pill>
           <Pill active={autoRotate} onClick={toggleAutoRotate} title="Slowly rotate the heart">Auto-rotate</Pill>
-          {selectedLead && <Pill active onClick={() => selectLead(selectedLead)} title="Hide the lead axis">Lead {selectedLead} axis ✕</Pill>}
+          {selectedLead && <Pill active onClick={() => selectLead(selectedLead)} title="Hide the lead view">Lead {selectedLead} view ✕</Pill>}
         </div>
         {viewMode === 'conduction' && !narrow && (
           <div className="text-[11px] text-slate-300 bg-black/55 rounded-md px-2 py-1 max-w-xs leading-snug">
