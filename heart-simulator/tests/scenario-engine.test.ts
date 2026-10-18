@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { interventionsFor } from '@/lib/sim/scenario/interventions';
-import { HINT_POINTS, perform, readEcg, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
+import { HINT_POINTS, perform, answerRead, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
 import { READ_OPTIONS, answerFor, judgeRead } from '@/lib/sim/scenario/reads';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
@@ -25,13 +25,18 @@ describe('scope of practice', () => {
     for (const id of ['iv', 'nitro', 'epinephrine', 'defib', 'cardiovert', 'pace', 'stemi-alert', 'ecg-right']) expect(emt).not.toContain(id);
     const medic = interventionsFor(2, 'field').map((i) => i.id);
     for (const id of ['iv', 'nitro', 'defib', 'cardiovert', 'pace', 'stemi-alert', 'atropine']) expect(medic).toContain(id);
-    for (const id of ['pci', 'heparin', 'tnk', 'timeout']) expect(medic).not.toContain(id);
+    for (const id of ['stent-des', 'heparin', 'tnk', 'timeout']) expect(medic).not.toContain(id);
     const tech = interventionsFor(3, 'cathlab').map((i) => i.id);
     expect(tech).toContain('transducer');
     expect(tech).toContain('callout');
-    for (const id of ['heparin', 'pci', 'nitro', 'sedation']) expect(tech).not.toContain(id);
+    // the tech prepares and hands the devices and runs the C-arm; drugs are the nurse's
+    for (const id of ['guide-ebu', 'stent-des', 'view-rao-cranial', 'ffr']) expect(tech).toContain(id);
+    for (const id of ['heparin', 'nitro', 'sedation', 'access', 'angio']) expect(tech).not.toContain(id);
+    const rn = interventionsFor(4, 'cathlab').map((i) => i.id);
+    for (const id of ['heparin', 'protamine', 'radial-cocktail', 'ic-nitro']) expect(rn).toContain(id);
+    for (const id of ['guide-ebu', 'stent-des', 'view-rao-cranial', 'access']) expect(rn).not.toContain(id);
     const md = interventionsFor(5, 'cathlab').map((i) => i.id);
-    for (const id of ['pci', 'angio', 'heparin', 'tnk']) expect(md).toContain(id);
+    for (const id of ['access', 'angio', 'guide-ebu', 'stent-des', 'heparin', 'tnk', 'impella']) expect(md).toContain(id);
   });
 
   it('refuses interventions outside the scope', () => {
@@ -155,7 +160,7 @@ describe('12-lead reads checked by the FTO', () => {
 
   it('a new 12-lead waits for your read, and nothing else can be done until you give it', () => {
     const s = read(['primary', 'ecg12']);
-    expect(s.pendingRead).toEqual({ minute: 3, profile: 'anterior-stemi' });
+    expect(s.pendingRead).toMatchObject({ kind: 'ecg', minute: 3, answer: 'stemi-anterior' });
     expect(unavailableReason(stemiAnterior, s, 'aspirin')).toMatch(/12-lead read/);
     expect(perform(stemiAnterior, s, 'aspirin')).toBe(s);
     // nobody reads it for you
@@ -164,7 +169,7 @@ describe('12-lead reads checked by the FTO', () => {
 
   it('a correct read is confirmed at once, with no case time and no points lost', () => {
     const s0 = read(['primary', 'ecg12']);
-    const s = readEcg(stemiAnterior, s0, 'stemi-anterior');
+    const s = answerRead(stemiAnterior, s0, 'stemi-anterior');
     expect(s.minute).toBe(s0.minute);
     expect(s.pendingRead).toBeNull();
     expect(s.log.at(-2)).toMatchObject({ who: 'you', text: 'My read: Anterior STEMI.' });
@@ -180,7 +185,7 @@ describe('12-lead reads checked by the FTO', () => {
     expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is Anterior STEMI\. /);
     expect(s.penalties).toEqual([expect.objectContaining({ id: 'misread-1', points: 5, severity: 'major' })]);
     const r = review(stemiAnterior, stop(s));
-    expect(r.reads).toEqual([{ minute: 3, chosen: 'Inferior STEMI', answer: 'Anterior STEMI', verdict: 'wrong' }]);
+    expect(r.reads).toEqual([{ kind: 'ecg', minute: 3, chosen: 'Inferior STEMI', answer: 'Anterior STEMI', verdict: 'wrong' }]);
     expect(r.toFix.find((t) => t.kind === 'read')).toMatchObject({ label: 'Misread 12-lead at 3:00', points: 5 });
   });
 
@@ -188,7 +193,7 @@ describe('12-lead reads checked by the FTO', () => {
     // the inferior STEMI goes into complete heart block while the 12-lead is being recorded
     const sc = SCENARIO_BY_ID['stemi-inferior-rv-field'];
     const s = read(['primary', 'vitals', 'iv', 'opqrst', 'sample', 'lungs', 'perfusion', 'ecg12', 'read:chb'], sc);
-    expect(s.reads[0]).toMatchObject({ profile: 'inferior-stemi-chb', verdict: 'partial' });
+    expect(s.reads[0]).toMatchObject({ kind: 'ecg', answer: 'stemi-inferior-chb', verdict: 'partial' });
     expect(s.log.at(-1)!.text).toMatch(/^Partly right — the full read is Inferior STEMI with complete heart block\./);
     expect(s.penalties[0]).toMatchObject({ points: 2, severity: 'minor' });
   });
@@ -199,16 +204,17 @@ describe('12-lead reads checked by the FTO', () => {
     expect(same.log.at(-1)!.text).toBe('Unchanged from the previous 12-lead.');
     const svt = SCENARIO_BY_ID['svt-unstable-field'];
     const changed = run(svt, 2, ['pads', 'ecg12', 'iv', 'sedation', 'cardiovert', 'ecg12-repeat']);
-    expect(changed.reads.map((r) => r.profile)).toEqual(['avnrt', 'normal-sinus']);
+    expect(changed.reads.map((r) => r.answer)).toEqual(['svt', 'nsr']);
   });
 
   it('the case does not end while a read is waiting', () => {
     const lab = SCENARIO_BY_ID['stemi-cathlab'];
-    const steps = ['prep', 'transducer', 'pads', 'timeout', 'act', 'reassess', 'callout', 'reassess', 'defib', 'hemostasis', 'ecg12'];
+    const steps = ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger', 'guide-ebu', 'read:hemo-damped', 'callout', 'view-rao-cranial',
+      'wire-workhorse', 'balloon-predil', 'stent-des', 'defib', 'balloon-nc', 'hemostasis', 'ecg12'];
     const s = run(lab, 3, steps, undefined, 'manual');
     expect(s.pendingRead).not.toBeNull();
     expect(s.ended).toBeNull();
-    const done = readEcg(lab, s, 'reperfused-anterior');
+    const done = answerRead(lab, s, 'reperfused-anterior');
     expect(done.ended?.reason).toBe('complete');
   });
 
@@ -225,10 +231,10 @@ describe('12-lead reads checked by the FTO', () => {
 
   it('every ECG profile with a pulse has exactly one correct read, and no 12-lead is taken in arrest', () => {
     expect(new Set(READ_OPTIONS.map((o) => o.id)).size).toBe(READ_OPTIONS.length);
-    for (const o of READ_OPTIONS) for (const p of o.profiles) expect(ECG_PROFILES[p], `${o.id}: ${p}`).toBeDefined();
+    for (const o of READ_OPTIONS) for (const p of o.profiles ?? []) expect(ECG_PROFILES[p], `${o.id}: ${p}`).toBeDefined();
     for (const p of Object.values(ECG_PROFILES)) {
       if (p.id === 'pea') continue;
-      expect(READ_OPTIONS.filter((o) => o.profiles.includes(p.id)), p.id).toHaveLength(1);
+      expect(READ_OPTIONS.filter((o) => (o.profiles ?? []).includes(p.id)), p.id).toHaveLength(1);
       expect(judgeRead(p.id, answerFor(p.id).id)).toBe('correct');
     }
     const vf = SCENARIO_BY_ID['vf-arrest-field'];

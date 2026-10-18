@@ -1,7 +1,6 @@
 import { expect } from 'vitest';
 import type { Vec3 } from '@/lib/ecg/vector';
-import { perform, readEcg, start, unavailableReason } from '@/lib/sim/scenario/engine';
-import { answerFor } from '@/lib/sim/scenario/reads';
+import { answerRead, perform, start, unavailableReason } from '@/lib/sim/scenario/engine';
 import type { Scenario, SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 
@@ -28,7 +27,7 @@ export function runScenario(
   let s = start(sc, role);
   const act = (id: string) => {
     if (id.startsWith('read:')) {
-      s = readEcg(sc, s, id.slice(5));
+      s = answerRead(sc, s, id.slice(5));
       onStep?.(s);
       return;
     }
@@ -36,8 +35,8 @@ export function runScenario(
     if (why) throw new Error(`${id} unavailable at ${s.minute} min: ${why}`);
     s = perform(sc, s, id);
     onStep?.(s);
-    if (s.pendingRead && reads === 'correct') {
-      s = readEcg(sc, s, answerFor(s.pendingRead.profile).id);
+    while (s.pendingRead && reads === 'correct') {
+      s = answerRead(sc, s, s.pendingRead.answer);
       onStep?.(s);
     }
   };

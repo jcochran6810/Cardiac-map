@@ -8,11 +8,11 @@
  * choices always give the same patient and the same score.
  */
 import type { LearningLevel } from '@/store/useAppStore';
-import type { Verdict } from './reads';
+import type { ReadKind, Verdict } from './reads';
 
 export type Setting = 'field' | 'cathlab';
 
-export type Category = 'assess' | 'monitor' | 'airway' | 'access' | 'meds' | 'resus' | 'procedure' | 'team';
+export type Category = 'assess' | 'monitor' | 'imaging' | 'airway' | 'access' | 'meds' | 'devices' | 'resus' | 'procedure' | 'team';
 
 export interface Intervention {
   id: string;
@@ -91,15 +91,30 @@ export interface SimState {
   /** fired event ids */
   fired: string[];
   ended: null | { reason: EndReason; minute: number };
-  /** a 12-lead waiting for your read: nothing else can be done until you give it */
-  pendingRead: null | { minute: number; profile: string };
-  /** your 12-lead reads and how the FTO judged them */
-  reads: { minute: number; profile: string; chosen: string; verdict: Verdict }[];
+  /** a test waiting for your read (12-lead, pressures, …): nothing else can be done until you give it */
+  pendingRead: PendingRead | null;
+  /** reads asked for while another one was waiting */
+  queuedReads: PendingRead[];
+  /** your reads and how the FTO / preceptor judged them */
+  reads: { kind: ReadKind; minute: number; answer: string; chosen: string; verdict: Verdict }[];
+  /** cine runs recorded (cath lab), newest last: the view (intervention id and name) and the real image for it, if the app has one */
+  images: { minute: number; id?: string; view: string; image?: string }[];
   /** the last 12-lead recorded: when, and the rhythm on it (an unchanged repeat needs no new read) */
   lastEcg: null | { minute: number; profile: string };
 }
 
 export type Line = [Speaker, string] | [Speaker, string, Tone];
+
+/** A read the learner owes: the right option, half-right options, and the explanation the FTO gives */
+export interface PendingRead {
+  kind: ReadKind;
+  minute: number;
+  answer: string;
+  partial?: string[];
+  /** what the FTO / preceptor asks (defaults to the read kind's question) */
+  prompt?: string;
+  explain: string;
+}
 
 /** What an intervention or event does to the patient */
 export interface Effect {
@@ -114,6 +129,10 @@ export interface Effect {
   /** the intervention could not be performed: no time passes and it is not counted */
   blocked?: boolean;
   end?: EndReason;
+  /** ask the learner to read what this showed (pressures, FFR, sizing, a sudden change, an angiogram) */
+  read?: Omit<PendingRead, 'minute'>;
+  /** a cine run: the view (intervention id and name), and the real angiogram for it when the app has one (a key of CATH_IMAGES) */
+  image?: { id?: string; view: string; image?: string };
 }
 
 /** Scenario-specific response; return null to fall back to the default response */
@@ -155,7 +174,8 @@ export interface Harm {
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'
-  | 'labs' | 'echo' | 'ownNitro' | 'allergies';
+  | 'labs' | 'echo' | 'ownNitro' | 'allergies'
+  | 'angio' | 'lvgram' | 'lvedp' | 'rhc' | 'ivus' | 'oct' | 'ffr' | 'final';
 
 export interface Timing {
   label: string;
@@ -183,6 +203,8 @@ export interface Scenario {
   initial: { rhythm: { profile: string; hr: number }; vitals: Vitals; pulse?: boolean; phase?: string };
   /** answers to history and test questions */
   facts: Partial<Record<FactKey, string | ((s: SimState) => string)>>;
+  /** real angiogram / fluoroscopy images for this patient: cine view id → key of CATH_IMAGES (added as they become available) */
+  images?: Partial<Record<string, string>>;
   /** what the patient says when reassessed */
   status?: (s: SimState) => string;
   respond: Partial<Record<string, Responder>>;
@@ -218,8 +240,8 @@ export interface Review {
   timings: { label: string; minute: number | null; target?: number; met: boolean | null }[];
   wentWell: ReviewItem[];
   toFix: (ReviewItem & { kind: 'missed' | 'late' | 'harm' | 'read' | 'hint'; severity?: Severity })[];
-  /** every 12-lead read: what you said, what it was */
-  reads: { minute: number; chosen: string; answer: string; verdict: Verdict }[];
+  /** every read: what kind, what you said, what it was */
+  reads: { kind: ReadKind; minute: number; chosen: string; answer: string; verdict: Verdict }[];
   /** hints taken during the run */
   hints: number;
   teaching: string[];

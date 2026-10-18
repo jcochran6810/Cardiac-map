@@ -7,11 +7,11 @@
  */
 import { create } from 'zustand';
 import { setRhythm } from '@/lib/rhythm';
-import { perform, readEcg, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
+import { answerRead, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Review, SimState } from '@/lib/sim/scenario/types';
 import { resetCode, setNibpReading, setScriptedVitals, useDefibStore, type ScriptedVitals } from '@/lib/sim/defib';
-import { sim } from '@/lib/sim/simulation';
+import { scrubTo, sim } from '@/lib/sim/simulation';
 import type { LearningLevel } from '@/store/useAppStore';
 import { useECGStore, type ECGLayout, type ECGLead } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -32,7 +32,7 @@ interface SimStore {
   best: Record<string, number>;
   startScenario: (id: string, role: LearningLevel) => void;
   act: (interventionId: string) => void;
-  /** your read of the 12-lead that is waiting for one */
+  /** your read of the test that is waiting for one */
   read: (optionId: string) => void;
   hint: () => void;
   /** end the case now and see the review */
@@ -84,6 +84,12 @@ function show(s: SimState, prev: SimState | null) {
   if (prev && last && s.performed.length > prev.performed.length) {
     if (last.id === 'nibp') setNibpReading(s.pulse ? { sbp: s.vitals.sbp, dbp: s.vitals.dbp } : 'fail');
     if (newLines.some((l) => /shock delivered|synchronised shock/i.test(l.text))) useDefibStore.setState({ lastShock: sim.time });
+    if ((last.id === 'ecg12' || last.id === 'ecg12-repeat') && s.lastEcg?.minute === s.minute) {
+      // a 12-lead records 10 s of the rhythm the patient has now: skip ahead so the tracing does not
+      // still show the last seconds of the rhythm before (e.g. VF just after the shock)
+      sim.engine.setRhythm(useECGStore.getState().activeProfileId, useTimelineStore.getState().heartRate, sim.time);
+      scrubTo(sim.time + 10500);
+    }
   }
 }
 
@@ -171,7 +177,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     read: (optionId) => {
       const { state } = get();
       if (!state?.pendingRead) return;
-      update(readEcg(SCENARIO_BY_ID[state.scenarioId], state, optionId));
+      update(answerRead(SCENARIO_BY_ID[state.scenarioId], state, optionId));
     },
     hint: () => {
       const { state } = get();

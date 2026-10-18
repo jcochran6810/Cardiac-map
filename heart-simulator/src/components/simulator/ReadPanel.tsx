@@ -2,29 +2,39 @@
 
 import React, { useMemo, useState } from 'react';
 import { useSimStore } from '@/store/useSimStore';
-import { READ_GROUPS, READ_OPTIONS } from '@/lib/sim/scenario/reads';
+import { READ_SETS, type ReadKind } from '@/lib/sim/scenario/reads';
 import { IconSearch } from '@/components/ui/icons';
 
+const HOW_TO: Record<ReadKind, string> = {
+  ecg: 'Look at it lead by lead — rate, rhythm, axis, intervals, then the ST segments — and choose one.',
+  hemo: 'Compare each pressure with normal, then put them together: filling pressures, output, resistance.',
+  physiology: 'Check the number against its cut-off — and whether the measurement itself can be trusted.',
+  sizing: 'Size the diameter to the reference vessel and the length to cover the disease from edge to edge.',
+  clinical: 'Put the signs together — rate, pressure, skin, breathing, what you just did — and name it.',
+  angio: 'Look at every segment in both views: where is the narrowing or cut-off, and how does contrast flow past it?',
+};
+
 /**
- * "What does this 12-lead show?" — the learner reads the tracing and picks from every interpretation
- * the app knows; the FTO answers at once in the case story and above the 12-lead.
- * `ReadList` fills the action column on large screens; `ReadBar` is the compact phone version.
+ * "What does this show?" — the learner reads a test (12-lead, pressures, FFR, a sizing run, a sudden
+ * change) and picks from every option of that kind; the FTO / preceptor answers at once in the case
+ * story. `ReadList` fills the action column on large screens; `ReadBar` is the compact phone version.
  */
-export function ReadList({ who }: { who: string }) {
+export function ReadList({ who, kind, prompt }: { who: string; kind: ReadKind; prompt?: string }) {
   const read = useSimStore((s) => s.read);
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<string | null>(null);
+  const set = READ_SETS[kind];
   const f = q.trim().toLowerCase();
   const groups = useMemo(
-    () => READ_GROUPS.map((g) => ({ g, items: READ_OPTIONS.filter((o) => o.group === g && (!f || o.label.toLowerCase().includes(f))) })).filter((x) => x.items.length),
-    [f],
+    () => set.groups.map((g) => ({ g, items: set.options.filter((o) => o.group === g && (!f || o.label.toLowerCase().includes(f))) })).filter((x) => x.items.length),
+    [f, set],
   );
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="shrink-0 px-3 pt-3 pb-2 border-b border-slate-700 space-y-2">
-        <div className="text-sm font-semibold text-white">What does this 12-lead show?</div>
+        <div className="text-sm font-semibold text-white">{prompt ?? set.title}</div>
         <p className="text-[11px] text-slate-400 leading-snug">
-          Your {who} wants your read before you go on. Look at it lead by lead — rate, rhythm, axis, intervals, then the ST segments — and choose one.
+          Your {who} wants your read before you go on. {HOW_TO[kind]}
         </p>
         <div className="relative">
           <IconSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -32,7 +42,7 @@ export function ReadList({ who }: { who: string }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             type="search"
-            placeholder="Find a read (e.g. STEMI, block, flutter)"
+            placeholder="Find a read"
             className="w-full h-9 bg-cardiac-dark text-[13px] text-slate-100 rounded-lg pl-8 pr-2 border border-slate-600 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
             aria-label="Find a read"
           />
@@ -76,13 +86,14 @@ export function ReadList({ who }: { who: string }) {
   );
 }
 
-export function ReadBar({ who }: { who: string }) {
+export function ReadBar({ who, kind, prompt }: { who: string; kind: ReadKind; prompt?: string }) {
   const read = useSimStore((s) => s.read);
   const [picked, setPicked] = useState('');
+  const set = READ_SETS[kind];
   return (
     <div className="flex-1 min-w-0 flex flex-col gap-1.5">
       <label htmlFor="ecg-read" className="text-[12px] font-semibold text-white leading-tight">
-        Your {who} asks: what does this 12-lead show?
+        Your {who} asks: {(prompt ?? set.title).replace(/^./, (c) => c.toLowerCase())}
       </label>
       <div className="flex gap-2">
         <select
@@ -92,9 +103,9 @@ export function ReadBar({ who }: { who: string }) {
           className="flex-1 min-w-0 h-12 rounded-xl bg-cardiac-dark border border-slate-500 text-[14px] text-slate-100 px-2"
         >
           <option value="" disabled>Choose your read…</option>
-          {READ_GROUPS.map((g) => (
+          {set.groups.map((g) => (
             <optgroup key={g} label={g}>
-              {READ_OPTIONS.filter((o) => o.group === g).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+              {set.options.filter((o) => o.group === g).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
             </optgroup>
           ))}
         </select>

@@ -14,12 +14,14 @@
 import type { LearningLevel } from '@/store/useAppStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
-import { READ_OPTION_BY_ID, answerFor, judgeRead } from './reads';
+import { READ_KIND_NAME, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
+import { angioGate } from './labKit';
 import type {
-  Critical, Effect, FactKey, Harm, Intervention, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
+  Critical, Effect, FactKey, Harm, Intervention, PendingRead, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
 
 const round = (m: number) => Math.round(m * 10) / 10;
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 export const clockText = (minute: number) => {
   const total = Math.round(minute * 60);
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
@@ -126,6 +128,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'labs': return { say: [['team', fact('labs') ?? 'Labs sent: troponin, electrolytes, CBC, coagulation.']], flags: ['labs'] };
     case 'act': return { say: [['team', has(s, 'heparin') ? 'ACT 286 s: therapeutic for PCI.' : 'ACT 128 s: no heparin effect yet.']], flags: ['act'] };
     case 'echo': return { say: [['you', fact('echo') ?? 'Normal biventricular function; no effusion.']], flags: ['echo'] };
+    case 'lvedp':
+      if (!has(s, 'access')) return s.role === 5 ? noAccess : noCatheter;
+      return { say: [['monitor', fact('lvedp') ?? 'LV 128/10, LVEDP 10 mmHg.']], flags: ['lvedp'] };
+    case 'rhc':
+      if (!has(s, 'venous')) return { blocked: true, say: [['system', s.role === 5 ? 'A right heart run needs venous access first.' : 'No venous sheath in yet.']] };
+      return { say: [['monitor', fact('rhc') ?? 'RA 6 · RV 26/6 · PA 26/10 (mean 16) · PCWP 10 · CO 5.2 L/min, CI 2.8.']], flags: ['rhc'] };
 
     case 'o2-nc': {
       const spo2 = Math.min(97, v.spo2 + (v.spo2 < 94 ? 4 : 1));
@@ -183,6 +191,19 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['monitor', `Infusion running. BP ${Math.min(140, v.sbp + 22)}/${Math.min(88, v.dbp + 14)}.`]], vitals: { sbp: Math.min(140, v.sbp + 22), dbp: Math.min(88, v.dbp + 14) }, flags: ['pressor'] };
     case 'sedation': return { say: [['you', 'Sedated and comfortable; airway maintained, capnography on.']], flags: ['sedation'] };
     case 'tnk': return { say: [['you', 'Tenecteplase given.']], flags: ['lytic'] };
+    case 'epi-im': return { say: [['you', 'Epinephrine 0.5 mg IM, lateral thigh.']], flags: ['epi-im'] };
+    case 'albuterol': return { say: [['you', 'Albuterol nebuliser running.']], flags: ['albuterol'] };
+    case 'diphenhydramine': return { say: [['you', 'Diphenhydramine 50 mg IV.']], flags: ['antihistamine'] };
+    case 'steroid': return { say: [['you', 'Methylprednisolone 125 mg IV.']], flags: ['steroid'] };
+    case 'radial-cocktail': return { say: [['you', 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg, diluted with blood.'], ['patient', '"Ooh, that burns up my arm."']], vitals: { sbp: v.sbp - 6, dbp: v.dbp - 4 }, flags: ['cocktail'] };
+    case 'ic-nitro': return { say: [['you', 'Nitroglycerin 200 mcg intracoronary.'], ['monitor', `BP ${v.sbp - 10}/${v.dbp - 6}.`]], vitals: { sbp: v.sbp - 10, dbp: v.dbp - 6 }, flags: ['ic-nitro'] };
+    case 'ic-adenosine': return { say: [['you', 'Adenosine 150 mcg intracoronary.'], ['monitor', 'A few seconds of slowing, then back to baseline.']], flags: ['ic-adenosine'] };
+    case 'ic-verapamil': return { say: [['you', 'Verapamil 200 mcg intracoronary.']], flags: ['ic-verapamil'] };
+    case 'adenosine-iv-ffr': return { say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['patient', '"I feel flushed… a bit short of breath."']], flags: ['hyperemia'] };
+    case 'bivalirudin': return { say: [['you', 'Bivalirudin 0.75 mg/kg bolus, 1.75 mg/kg/h running.']], flags: ['bivalirudin', 'anticoagulated'] };
+    case 'gp2b3a': return { say: [['you', 'Eptifibatide 180 mcg/kg bolus, infusion running.']], flags: ['gp2b3a'] };
+    case 'cangrelor': return { say: [['you', 'Cangrelor 30 mcg/kg bolus, 4 mcg/kg/min running.']], flags: ['p2y12', 'cangrelor'] };
+    case 'protamine': return { say: [['you', 'Protamine 50 mg slowly IV.'], ['team', 'ACT falling.']], vitals: { sbp: v.sbp - 6, dbp: v.dbp - 4 }, flags: ['protamine'] };
 
     case 'cpr':
       if (s.pulse) return { say: [['patient', 'The patient cries out — they have a pulse and are breathing.', 'bad']] };
@@ -213,11 +234,54 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'consent': return { say: [['patient', fact('allergies') ?? 'No allergies. I understand and consent.']], flags: ['consent'] };
     case 'prep': return { say: [['you', 'Right radial and both groins prepped and draped.']], flags: ['prep'] };
     case 'access': return { say: [['operator', 'Radial access: 6 Fr sheath in.']], flags: ['access'] };
-    case 'angio': return { say: [['operator', 'Angiography complete.']], flags: ['angio'] };
+    case 'access-femoral': return { say: [['you', 'Common femoral artery over the femoral head, ultrasound-guided: 6 Fr sheath in.']], flags: ['access', 'femoral'] };
+    case 'access-venous': return { say: [['you', 'Femoral venous sheath in.']], flags: ['venous'] };
+    case 'balloon-tamponade': return { say: [['you', 'Balloon inflated at low pressure over the site.']], flags: ['balloon-tamponade'] };
+    case 'pericardiocentesis': return { say: [['you', fact('echo') ? 'Pericardial drain in under echo guidance.' : 'Pericardial drain in.']], flags: ['pericardiocentesis'] };
+    case 'closure-device': return { say: [['you', 'Femoral closure device deployed; haemostasis.']], flags: ['closure', 'hemostasis'] };
+    case 'angio': return angioGate(s) ?? { say: [['you', 'Angiography complete.']], image: { id, view: 'Diagnostic angiography', image: sc.images?.angio }, flags: ['angio'] };
     case 'reposition': return { say: [['operator', 'Catheter disengaged and repositioned.']], flags: ['repositioned'] };
-    case 'pci': return { say: [['operator', 'Stent deployed. TIMI 3 flow.']], flags: ['pci'] };
-    case 'iabp': return { say: [['operator', 'Mechanical support running.']], flags: ['mcs'] };
-    case 'temp-wire': return { say: [['operator', 'Temporary wire in the RV apex; pacing at 70 with capture.']], flags: ['temp-wire'] };
+    case 'iabp':
+      return s.role === 3
+        ? { say: [['you', 'IABP console set up and the balloon prepped; timing on ECG trigger.']], flags: ['iabp-ready'] }
+        : { say: [['you', 'IABP in, tip 2 cm below the left subclavian; 1:1, augmented diastolic 118 mmHg.']], vitals: { sbp: Math.min(140, v.sbp + 6), dbp: Math.min(90, v.dbp + 8) }, flags: ['iabp', 'mcs'] };
+    case 'impella':
+      return s.role === 3
+        ? { say: [['you', 'Impella console primed and the purge set up; large-bore access kit and closure sutures open.']], flags: ['impella-ready'] }
+        : { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm below the valve; P-6, flow 3.3 L/min.']], vitals: { sbp: Math.min(140, v.sbp + 14), dbp: Math.min(90, v.dbp + 10) }, flags: ['impella', 'mcs'] };
+    case 'temp-wire':
+      return s.role === 3
+        ? { say: [['you', 'Pacing wire and generator ready: rate 70, output 5 mA.']], flags: ['temp-wire-ready'] }
+        : { say: [['you', 'Temporary wire in the RV apex: threshold 0.6 mA, pacing at 70, output 3 mA.']], flags: ['temp-wire'] };
+    case 'cath-tiger': case 'cath-jl4': case 'cath-jr4': case 'cath-pigtail':
+    case 'guide-ebu': case 'guide-jr4': case 'guide-al1':
+    case 'wire-workhorse': case 'wire-hydrophilic': case 'aspiration':
+    case 'balloon-predil': case 'stent-des': case 'balloon-nc': case 'stent-covered':
+      return deviceEffect(s, id);
+    case 'view-rao-caudal': case 'view-rao-cranial': case 'view-ap-cranial': case 'view-lao-cranial': case 'view-lao-caudal':
+    case 'view-rca-lao': case 'view-rca-rao': case 'view-rca-cranial': {
+      if (!has(s, 'access')) return s.role === 5 ? noAccess : nothingToFilm;
+      const iv = INTERVENTION_BY_ID[id];
+      return { say: [['monitor', `Cine recorded: ${iv.label.split(' — ')[0]} (${iv.detail}).`]], image: { id, view: iv.label, image: sc.images?.[id] }, flags: ['cine', id] };
+    }
+    case 'lv-gram':
+      if (!has(s, 'access')) return s.role === 5 ? noAccess : nothingToFilm;
+      return { say: [['monitor', fact('lvgram') ?? 'LV gram: normal wall motion, EF about 60 %, no mitral regurgitation.']], image: { id, view: 'Left ventriculogram', image: sc.images?.[id] }, flags: ['lv-gram'] };
+    case 'ffr-equalize': return { say: [['monitor', 'Pressure wire equalised with the aortic pressure at the guide tip: Pd/Pa 1.00.']], flags: ['equalized'] };
+    case 'ffr':
+      if (!has(s, 'wired')) return noWire(s, 'Wire the vessel with the pressure wire first.');
+      return { say: [['monitor', fact('ffr') ?? 'FFR 0.88 at maximal hyperaemia.']], flags: ['ffr'] };
+    case 'ivus':
+      if (!has(s, 'wired')) return noWire(s, 'Wire the vessel first.');
+      return { say: [['monitor', fact('ivus') ?? 'IVUS: no significant plaque.']], flags: ['ivus'] };
+    case 'oct':
+      if (!has(s, 'wired')) return noWire(s, 'Wire the vessel first.');
+      return { say: [['monitor', fact('oct') ?? 'OCT: no significant plaque.']], flags: ['oct'] };
+    case 'final-angio':
+      if (!has(s, 'access')) return s.role === 5 ? noAccess : nothingToFilm;
+      return { say: [['monitor', fact('final') ?? 'Final angiogram recorded in two views.']], image: { id, view: 'Final angiogram', image: sc.images?.[id] }, flags: ['final-angio'] };
+    case 'stop-contrast': return { say: [['you', 'No more contrast — injector and manifold off.']], flags: ['contrast-stopped'] };
+    case 'call-surgery': return { say: [['hospital', 'Cardiac surgery notified: the surgeon is on the way and the OR is being prepared.']], flags: ['surgery-called'] };
     case 'hemostasis': return { say: [['you', 'Radial band on; distal pulse and perfusion checked.']], flags: ['hemostasis'] };
 
     case 'call-help': return { say: [['team', 'Help is on the way.']], flags: ['help'] };
@@ -242,6 +306,43 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'SBAR hand-off given; the receiving team takes over.']], flags: ['handoff'] };
   }
   return { say: [['you', 'Done.']] };
+}
+
+const noAccess: Effect = { blocked: true, say: [['system', 'No arterial access yet.']] };
+const nothingToFilm: Effect = { blocked: true, say: [['system', 'Nothing to film yet: the operator has no catheter in.']] };
+const noCatheter: Effect = { blocked: true, say: [['system', 'The operator has no catheter in yet.']] };
+const noWire = (s: SimState, mine: string): Effect => ({ blocked: true, say: [['system', s.role === 5 ? mine : 'There is no wire in the vessel yet.']] });
+
+/** The tech opens, prepares and hands a device; the cardiologist uses it */
+function deviceEffect(s: SimState, id: string): Effect {
+  const label = INTERVENTION_BY_ID[id].label.split(' — ')[0];
+  if (s.role === 3) return { say: [['you', `${label}: opened, prepped and handed to the operator.`]], flags: [`${id}-ready`] };
+  const needs: Record<string, [string, string]> = {
+    'guide-ebu': ['access', 'No arterial access yet.'], 'guide-jr4': ['access', 'No arterial access yet.'], 'guide-al1': ['access', 'No arterial access yet.'],
+    'cath-tiger': ['access', 'No arterial access yet.'], 'cath-jl4': ['access', 'No arterial access yet.'], 'cath-jr4': ['access', 'No arterial access yet.'], 'cath-pigtail': ['access', 'No arterial access yet.'],
+    'wire-workhorse': ['guide', 'Engage a guide catheter first.'], 'wire-hydrophilic': ['guide', 'Engage a guide catheter first.'],
+    aspiration: ['wired', 'Wire the vessel first.'], 'balloon-predil': ['wired', 'Wire the vessel first.'], 'stent-des': ['wired', 'Wire the vessel first.'],
+    'stent-covered': ['wired', 'Wire the vessel first.'], 'balloon-nc': ['stented', 'There is no stent to post-dilate yet.'],
+  };
+  const need = needs[id];
+  if (need && !has(s, need[0])) return { blocked: true, say: [['system', need[1]]] };
+  const result: Record<string, Effect> = {
+    'cath-tiger': { say: [['you', 'Tiger catheter engaged — both coronaries can be injected with it.']], flags: ['catheter'] },
+    'cath-jl4': { say: [['you', 'JL4 engaged in the left main.']], flags: ['catheter'] },
+    'cath-jr4': { say: [['you', 'JR4 engaged in the right coronary ostium.']], flags: ['catheter'] },
+    'cath-pigtail': { say: [['you', 'Pigtail across the aortic valve into the LV.']], flags: ['pigtail'] },
+    'guide-ebu': { say: [['you', 'EBU 3.5 guide engaged in the left main.']], flags: ['guide', 'guide-left'] },
+    'guide-jr4': { say: [['you', 'JR4 guide engaged in the right coronary.']], flags: ['guide', 'guide-right'] },
+    'guide-al1': { say: [['you', 'AL1 guide engaged in the right coronary: strong back-up.']], flags: ['guide', 'guide-right'] },
+    'wire-workhorse': { say: [['you', 'Workhorse wire across the lesion into the distal vessel.']], flags: ['wired'] },
+    'wire-hydrophilic': { say: [['you', 'Hydrophilic wire across the lesion — watch the tip.']], flags: ['wired'] },
+    aspiration: { say: [['you', 'Aspiration run: a little thrombus retrieved.']], flags: ['aspirated'] },
+    'balloon-predil': { say: [['you', 'Pre-dilated with a 2.5 × 15 compliant balloon.']], flags: ['predilated'] },
+    'stent-des': { say: [['you', 'Drug-eluting stent deployed at nominal pressure.']], flags: ['stented', 'pci'] },
+    'balloon-nc': { say: [['you', 'Post-dilated with a non-compliant balloon at high pressure: good expansion.']], flags: ['postdilated'] },
+    'stent-covered': { say: [['you', 'Covered stent deployed over the site.']], flags: ['covered-stent'] },
+  };
+  return result[id];
 }
 
 function nitroEffect(s: SimState): Effect {
@@ -289,7 +390,16 @@ function applyEffect(s: SimState, e: Effect) {
   for (const f of e.flags ?? []) setFlag(s, f);
   for (const f of e.clear ?? []) delete s.flags[f];
   if (e.timers) s.timers = { ...s.timers, ...e.timers };
+  if (e.image) s.images.push({ minute: s.minute, ...e.image });
+  if (e.read && s.role !== 1) askRead(s, { ...e.read, minute: s.minute });
   if (e.end && !s.ended) s.ended = { reason: e.end, minute: s.minute };
+}
+
+/** Ask the learner for a read (the next one waits if one is already open) */
+function askRead(s: SimState, r: PendingRead) {
+  if (s.ended) return;
+  if (s.pendingRead) s.queuedReads.push(r);
+  else s.pendingRead = r;
 }
 
 function harmsFor(sc: Scenario, s: SimState, id: string) {
@@ -365,39 +475,42 @@ function tick(sc: Scenario, s: SimState) {
 }
 
 /** A new 12-lead tracing waits for the learner's read (EMTs acquire and transmit; they do not interpret) */
-function requestRead(s: SimState) {
+function requestRead(sc: Scenario, s: SimState) {
   if (s.ended || !s.pulse) return;
   const unchanged = s.lastEcg?.profile === s.rhythm.profile;
   s.lastEcg = { minute: s.minute, profile: s.rhythm.profile };
   if (s.role === 1) return;
   if (unchanged) say(s, 'monitor', 'Unchanged from the previous 12-lead.');
-  else s.pendingRead = { minute: s.minute, profile: s.rhythm.profile };
+  else {
+    const profile = s.rhythm.profile;
+    askRead(s, { kind: 'ecg', minute: s.minute, answer: answerFor(profile).id, partial: partialFor(profile), explain: ecgExplanation(sc, s, profile) });
+  }
 }
 
-/** Your read of the pending 12-lead; the FTO confirms or corrects it at once (no case time passes) */
-export function readEcg(sc: Scenario, prev: SimState, optionId: string): SimState {
+/** Your read of what is waiting; the FTO / preceptor confirms or corrects it at once (no case time passes) */
+export function answerRead(sc: Scenario, prev: SimState, optionId: string): SimState {
   const choice = READ_OPTION_BY_ID[optionId];
   if (!prev.pendingRead || prev.ended || !choice) return prev;
   const s: SimState = structuredClone(prev);
-  const { minute, profile } = s.pendingRead!;
-  s.pendingRead = null;
-  const verdict = judgeRead(profile, optionId);
-  const answer = answerFor(profile);
-  const why = ecgExplanation(sc, s, profile);
+  const r = s.pendingRead!;
+  s.pendingRead = s.queuedReads.shift() ?? null;
+  const verdict = optionId === r.answer ? 'correct' : r.partial?.includes(optionId) ? 'partial' : 'wrong';
+  const answer = READ_OPTION_BY_ID[r.answer];
   say(s, 'you', `My read: ${choice.label}.`);
-  if (verdict === 'correct') say(s, 'fto', `Correct. ${why}`, 'good');
-  else if (verdict === 'partial') say(s, 'fto', `Partly right — the full read is ${answer.label}. ${why}`, 'warn');
-  else say(s, 'fto', `Not quite — this is ${answer.label}. ${why}`, 'bad');
-  s.reads.push({ minute, profile, chosen: optionId, verdict });
+  if (verdict === 'correct') say(s, 'fto', `Correct. ${r.explain}`, 'good');
+  else if (verdict === 'partial') say(s, 'fto', `Partly right — the full read is ${answer.label}. ${r.explain}`, 'warn');
+  else say(s, 'fto', `Not quite — this is ${answer.label}. ${r.explain}`, 'bad');
+  s.reads.push({ kind: r.kind, minute: r.minute, answer: r.answer, chosen: optionId, verdict });
   if (verdict !== 'correct') {
     s.penalties.push({
-      id: `misread-${s.reads.length}`, minute, points: verdict === 'partial' ? 2 : 5, severity: verdict === 'partial' ? 'minor' : 'major',
-      text: `12-lead at ${clockText(minute)}: you read “${choice.label}”; it was ${answer.label}.`,
+      id: `misread-${s.reads.length}`, minute: r.minute, points: verdict === 'partial' ? 2 : 5, severity: verdict === 'partial' ? 'minor' : 'major',
+      text: `${capitalize(READ_KIND_NAME[r.kind])} at ${clockText(r.minute)}: you read “${choice.label}”; it was ${answer.label}.`,
     });
   }
   finish(sc, s);
   return s;
 }
+
 
 export function start(sc: Scenario, role: LearningLevel): SimState {
   const s: SimState = {
@@ -405,7 +518,7 @@ export function start(sc: Scenario, role: LearningLevel): SimState {
     rhythm: { ...sc.initial.rhythm }, vitals: { ...sc.initial.vitals },
     pulse: sc.initial.pulse ?? true, phase: sc.initial.phase ?? 'initial',
     flags: {}, timers: {}, counts: {}, performed: [], log: [], penalties: [], fired: [], ended: null,
-    pendingRead: null, reads: [], lastEcg: null,
+    pendingRead: null, queuedReads: [], reads: [], images: [], lastEcg: null,
   };
   if (!s.pulse) {
     s.timers.arrestAt = 0;
@@ -421,7 +534,7 @@ export function unavailableReason(sc: Scenario, s: SimState, id: string): string
   const iv = INTERVENTION_BY_ID[id];
   if (!iv) return 'Unknown intervention';
   if (s.ended) return 'The scenario has ended';
-  if (s.pendingRead) return 'Give your 12-lead read first';
+  if (s.pendingRead) return `Give your ${READ_KIND_NAME[s.pendingRead.kind]} read first`;
   if (!iv.roles.includes(s.role) || (iv.settings && !iv.settings.includes(sc.setting))) return 'Outside your scope';
   const n = s.counts[id] ?? 0;
   if (!iv.repeatable && n > 0) return 'Already done';
@@ -451,10 +564,20 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   s.minute = round(s.minute + iv.minutes);
   applyEffect(s, effect);
   if (!s.ended) advance(sc, s);
-  if (id === 'ecg12' || id === 'ecg12-repeat') requestRead(s);
+  if (id === 'ecg12' || id === 'ecg12-repeat') requestRead(sc, s);
   finish(sc, s);
   return s;
 }
+
+/** What the FTO / preceptor says when you ask for help with a read (it costs nothing) */
+const READ_COACHING: Record<PendingRead['kind'], string> = {
+  ecg: 'Work through it: rate, rhythm (P waves?), axis, PR / QRS / QT, then the ST segments lead by lead — which leads, and is there a reciprocal change?',
+  hemo: 'Compare each number with normal: RA 2–8, RV 15–30/2–8, PA 15–30/4–12, PCWP 6–12, LVEDP under 12–15, cardiac index above 2.2. Then look at the pattern, and at the waveform itself.',
+  physiology: 'FFR: 0.80 or less is significant. Before you trust the number, ask: was the wire equalised, and was hyperaemia adequate?',
+  sizing: 'Diameter: match the reference vessel 1:1 (round to the nearest size up). Length: cover the lesion edge to edge, with a few millimetres of healthy vessel at each end.',
+  clinical: 'Put it together: what just happened (contrast, a balloon, a wire, a drug), then the rate, the pressure, the skin, the breathing and what the patient says.',
+  angio: 'Go segment by segment: left main, LAD, diagonals, circumflex, marginals, RCA, PDA. Where does the contrast stop or narrow, and how fast does it fill the vessel beyond?',
+};
 
 /** Points a hint costs */
 export const HINT_POINTS = 2;
@@ -470,7 +593,7 @@ export function takeHint(sc: Scenario, prev: SimState): SimState {
   if (prev.ended) return prev;
   const s: SimState = structuredClone(prev);
   if (s.pendingRead) {
-    say(s, 'fto', 'Work through it: rate, rhythm (P waves?), axis, PR / QRS / QT, then the ST segments lead by lead — which leads, and is there a reciprocal change?');
+    say(s, 'fto', READ_COACHING[s.pendingRead.kind]);
     return s;
   }
   const next = nextCritical(sc, s);
@@ -536,7 +659,12 @@ export function review(sc: Scenario, s: SimState): Review {
   const penaltyPoints = s.penalties.reduce((a, p) => a + p.points, 0);
   for (const p of s.penalties) {
     if (isHint(p)) toFix.push({ kind: 'hint', label: p.text, detail: 'You asked for a hint. Try the case again without one.', points: p.points });
-    else if (p.id.startsWith('misread-')) toFix.push({ kind: 'read', label: `Misread 12-lead at ${clockText(p.minute)}`, detail: p.text.replace(/^12-lead at [^:]+: /, '').replace(/^you/, 'You'), points: p.points, severity: p.severity });
+    else if (p.id.startsWith('misread-')) {
+      // "12-lead at 3:00: you read …" → label "Misread 12-lead at 3:00", detail "You read …"
+      const cut = p.text.indexOf(': ');
+      const what = p.text.slice(0, cut);
+      toFix.push({ kind: 'read', label: `Misread ${what.charAt(0).toLowerCase()}${what.slice(1)}`, detail: p.text.slice(cut + 2).replace(/^you/, 'You'), points: p.points, severity: p.severity });
+    }
     else {
       // the first sentence is the headline, the rest explains it
       const [first, ...rest] = p.text.split('. ');
@@ -565,6 +693,6 @@ export function review(sc: Scenario, s: SimState): Review {
       ? `Every critical intervention done in ${clockText(s.ended.minute)}.`
       : `Ended early at ${clockText(s.minute)} with ${toFix.filter((t) => t.kind === 'missed').length} critical item(s) not done.`;
 
-  const reads = s.reads.map((r) => ({ minute: r.minute, chosen: READ_OPTION_BY_ID[r.chosen].label, answer: answerFor(r.profile).label, verdict: r.verdict }));
+  const reads = s.reads.map((r) => ({ kind: r.kind, minute: r.minute, chosen: READ_OPTION_BY_ID[r.chosen].label, answer: READ_OPTION_BY_ID[r.answer].label, verdict: r.verdict }));
   return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, timings, wentWell, toFix, reads, hints: s.penalties.filter(isHint).length, teaching: sc.teaching };
 }

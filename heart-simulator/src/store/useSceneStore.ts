@@ -16,7 +16,7 @@ const n = (x: number, y: number, z: number): [number, number, number] => {
 };
 const deg = Math.PI / 180;
 /** Angiographic projection: rotation (LAO + / RAO −) and angulation (cranial + / caudal −) */
-const angio = (lao: number, cranial: number): [number, number, number] =>
+export const angio = (lao: number, cranial: number): [number, number, number] =>
   n(Math.sin(lao * deg) * Math.cos(cranial * deg), Math.sin(cranial * deg), Math.cos(lao * deg) * Math.cos(cranial * deg));
 
 export const CAMERA_PRESETS: CameraPreset[] = [

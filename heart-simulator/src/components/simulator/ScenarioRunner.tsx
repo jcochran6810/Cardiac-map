@@ -11,11 +11,12 @@ import type { Category, Intervention, LogEntry, Scenario, SimState } from '@/lib
 import { IconClose, IconSearch } from '@/components/ui/icons';
 import { SETTING_LABEL, SPEAKER_STYLE, TONE_STYLE, durationText, gradeStyle, speakerName } from './simStyles';
 import { ReadBar, ReadList } from './ReadPanel';
+import ImagingPanel from './ImagingPanel';
 
 const MonitorDisplay = dynamic(() => import('@/components/monitor/MonitorDisplay'), { ssr: false });
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
 
-type Tab = 'story' | 'ecg';
+type Tab = 'story' | 'ecg' | 'imaging';
 
 /** A case in progress: the patient (monitor, 12-lead, story) and everything you can do */
 export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
@@ -29,18 +30,29 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
   const sheet = useSimStore((s) => s.sheetOpen);
   const setSheet = useSimStore((s) => s.setSheetOpen);
   const [unread, setUnread] = useState(false);
-  const seen = useRef({ log: state.log.length, performed: state.performed.length });
+  const [newRun, setNewRun] = useState(false);
+  const seen = useRef({ log: state.log.length, performed: state.performed.length, images: state.images.length });
+  const lab = sc.setting === 'cathlab';
 
-  // A new 12-lead opens the 12-lead tab; anything else said while it is open marks the story unread
+  // A new 12-lead to read opens the 12-lead tab and an angiogram to read the imaging tab; any other read
+  // needs the story. Anything said (or filmed) while another tab is open marks that tab with a dot.
   useEffect(() => {
     const prev = seen.current;
     const last = state.performed.at(-1);
-    if (state.performed.length > prev.performed && last && (last.id === 'ecg12' || last.id === 'ecg12-repeat')) setTab('ecg');
-    else if (state.log.length > prev.log && tab === 'ecg') setUnread(true);
-    seen.current = { log: state.log.length, performed: state.performed.length };
+    const fresh = state.performed.length > prev.performed;
+    const kind = state.pendingRead?.kind;
+    if (fresh && last && (last.id === 'ecg12' || last.id === 'ecg12-repeat') && kind === 'ecg') setTab('ecg');
+    else if (kind === 'angio' && tab !== 'imaging') setTab('imaging');
+    else if (kind && kind !== 'ecg' && kind !== 'angio' && tab !== 'story') setTab('story');
+    else {
+      if (state.log.length > prev.log && tab !== 'story') setUnread(true);
+      if (state.images.length > prev.images && tab !== 'imaging') setNewRun(true);
+    }
+    seen.current = { log: state.log.length, performed: state.performed.length, images: state.images.length };
   }, [state, tab]);
   useEffect(() => {
     if (tab === 'story') setUnread(false);
+    if (tab === 'imaging') setNewRun(false);
   }, [tab]);
 
   const ended = !!state.ended;
@@ -90,15 +102,20 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
           <div className="flex shrink-0 border-y border-slate-700 bg-cardiac-panel" role="tablist" aria-label="Patient views">
             <TabButton active={tab === 'story'} onClick={() => setTab('story')} dot={unread}>Case story</TabButton>
             <TabButton active={tab === 'ecg'} onClick={() => setTab('ecg')}>12-lead ECG</TabButton>
+            {lab && (
+              <TabButton active={tab === 'imaging'} onClick={() => setTab('imaging')} dot={newRun}>
+                Imaging{state.images.length > 0 && <span className="ml-1 text-slate-500 tabular-nums">{state.images.length}</span>}
+              </TabButton>
+            )}
           </div>
           <div className="flex-1 min-h-0 relative">
-            {tab === 'story' ? <CaseLog state={state} /> : <TwelveLead state={state} />}
+            {tab === 'story' ? <CaseLog state={state} /> : tab === 'imaging' ? <ImagingPanel state={state} /> : <TwelveLead state={state} />}
           </div>
         </div>
 
         {/* Actions: a column on large screens */}
         <aside className="hidden lg:flex short:flex w-[400px] xl:w-[440px] short:w-[44%] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
-          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : reading ? <ReadList who={fto} /> : <ActionList sc={sc} state={state} showLatest />}
+          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} who={fto} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
         </aside>
       </div>
 
@@ -109,7 +126,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
             See your score and review →
           </button>
         ) : reading ? (
-          <ReadBar who={fto} />
+          <ReadBar key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} who={fto} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} />
         ) : (
           <>
             <button onClick={() => setSheet(true)} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
@@ -207,7 +224,7 @@ function TwelveLead({ state }: { state: SimState }) {
     );
   }
   const changed = last.profile !== state.rhythm.profile && state.pulse;
-  const read = state.reads.at(-1);
+  const read = state.reads.filter((r) => r.kind === 'ecg').at(-1);
   // the FTO's verdict on the read of this tracing
   const verdictLine = read && read.minute === last.minute
     ? [...state.log].reverse().find((l) => l.who === 'fto' && l.minute === read.minute && /^(Correct|Partly right|Not quite)/.test(l.text))
@@ -218,7 +235,7 @@ function TwelveLead({ state }: { state: SimState }) {
         <span className="text-slate-400">12-lead recorded at {clockText(last.minute)}. </span>
         {state.role === 1 ? (
           <span className="text-slate-300">Reading it is outside EMT scope — transmit it to the hospital.</span>
-        ) : state.pendingRead ? (
+        ) : state.pendingRead?.kind === 'ecg' ? (
           <span className="text-amber-200 font-medium">What does it show? Give your read{state.role <= 2 ? ' to your FTO' : ' to your preceptor'}.</span>
         ) : read && read.minute === last.minute ? (
           <span className={read.verdict === 'correct' ? 'text-emerald-300' : read.verdict === 'partial' ? 'text-amber-200' : 'text-red-300'}>

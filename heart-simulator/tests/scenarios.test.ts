@@ -31,9 +31,12 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
       'bvm', 'ecg12', 'pressor', 'transport-pci', UNTIL_ARRIVED, 'handoff'],
   },
   'stemi-cathlab': {
-    3: ['prep', 'transducer', 'pads', 'timeout', 'act', 'reassess', 'callout', 'reassess', 'defib', 'ecg12', 'hemostasis'],
-    4: ['consent', 'iv', 'heparin', 'p2y12', 'timeout', 'act', 'reassess', 'callout', 'reassess', 'defib', 'ecg12', 'hemostasis', 'handoff'],
-    5: ['consent', 'heparin', 'p2y12', 'timeout', 'access', 'angio', 'reposition', 'pci', 'defib', 'ecg12', 'echo', 'handoff'],
+    3: ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger', 'guide-ebu', 'callout', 'view-rao-cranial', 'wire-workhorse',
+      'balloon-predil', 'stent-des', 'defib', 'balloon-nc', 'ecg12', 'hemostasis'],
+    4: ['consent', 'iv', 'heparin', 'p2y12', 'fentanyl', 'timeout', 'radial-cocktail', 'act', ...R(2), 'callout', ...R(2), 'fentanyl',
+      'reassess', 'defib', 'ecg12', 'ic-nitro', 'hemostasis', 'handoff'],
+    5: ['consent', 'heparin', 'p2y12', 'fentanyl', 'timeout', 'access', 'cath-tiger', 'angio', 'guide-ebu', 'reposition', 'view-rao-cranial',
+      'wire-workhorse', 'balloon-predil', 'stent-des', 'defib', 'balloon-nc', 'final-angio', 'ecg12', 'echo', 'handoff'],
   },
 };
 
@@ -224,30 +227,91 @@ describe('VF cardiac arrest', () => {
 
 describe('STEMI in the cath lab', () => {
   const sc = SCENARIO_BY_ID['stemi-cathlab'];
+  const TECH_TO_GUIDE = ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger'];
 
-  it('teammates do the other roles: the tech sees the cardiologist open the artery', () => {
+  it('the tech hands what the cardiologist asks for, and the procedure moves on with each device', () => {
     const s = run(sc, 3, IDEAL['stemi-cathlab'][3]!);
-    expect(s.fired).toEqual(expect.arrayContaining(['rn-setup-for-tech', 'md-access', 'md-angio', 'damped', 'md-reposition', 'md-pci', 'reperfusion-vf']));
+    expect(s.fired).toEqual(expect.arrayContaining([
+      'rn-setup-for-tech', 'md-access', 'diag-ask', 'diag-got', 'md-angio', 'guide-got', 'md-guide', 'damped', 'md-reposition',
+      'view-got', 'md-wire', 'md-predil', 'md-stent', 'reperfusion-vf', 'nc-got', 'md-postdil', 'md-final',
+    ]));
+    expect(s.fired.some((id) => id.endsWith('-fallback'))).toBe(false);
     expect(s.rhythm.profile).toBe('anterior-stemi-reperfused');
+    expect(s.reads.map((r) => r.answer)).toEqual(['hemo-damped', 'reperfused-anterior']);
   });
 
-  it('a tech who misses the damped waveform loses the callout points', () => {
+  it('the wrong device gets a word from the operator and costs points; the right one moves things on', () => {
+    let s = run(sc, 3, [...TECH_TO_GUIDE, 'guide-jr4']);
+    expect(s.log.at(-1)).toMatchObject({ who: 'operator', text: expect.stringMatching(/right-coronary guide/) });
+    expect(s.penalties.map((p) => p.id)).toEqual(['wrong-guide']);
+    expect(s.flags.guide).toBeUndefined();
+    s = perform(sc, s, 'guide-ebu');
+    expect(s.flags.guide).toBeDefined();
+  });
+
+  it('a guide opened ahead of the request counts at once', () => {
+    const s = run(sc, 3, ['prep', 'transducer', 'pads', 'guide-ebu', 'timeout', 'act', 'cath-tiger']);
+    expect(s.fired).toContain('guide-got');
+    expect(s.flags.damped).toBeDefined();
+  });
+
+  it('when the tech never hands it, the operator gets it after 3 minutes and the item is missed', () => {
     const s = run(sc, 3, ['prep', 'transducer', 'pads', 'timeout', 'act', 'reassess', 'reassess']);
-    expect(s.fired).toContain('md-reposition');
-    expect(s.log.some((l) => /who's watching the waveform/.test(l.text))).toBe(true);
-    const r = review(sc, stop(s));
-    expect(r.toFix.some((t) => t.kind === 'missed' && /damped/.test(t.label))).toBe(true);
+    expect(s.fired).toContain('diag-fallback');
+    expect(s.fired).toContain('md-angio');
+    expect(review(sc, stop(s)).toFix.some((t) => t.kind === 'missed' && /Tiger/.test(t.label))).toBe(true);
   });
 
-  it('the cardiologist cannot stent before the angiogram, and PCI without heparin is a critical error', () => {
-    let s = run(sc, 5, ['consent', 'timeout', 'pci']);
-    expect(s.counts.pci).toBeUndefined();
-    s = run(sc, 5, ['consent', 'timeout', 'access', 'angio', 'reposition', 'pci']);
+  it('opening a stent before there is a wire is a minor error', () => {
+    const s = run(sc, 3, ['prep', 'stent-des']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['opened-early']);
+  });
+
+  it('the tech and the nurse read the damped pressure; a tech who misses it loses the callout points', () => {
+    const s = run(sc, 3, [...TECH_TO_GUIDE, 'guide-ebu', 'reassess']);
+    expect(s.reads[0]).toMatchObject({ kind: 'hemo', answer: 'hemo-damped' });
+    expect(s.log.some((l) => /who's watching the waveform/.test(l.text))).toBe(true);
+    expect(review(sc, stop(s)).toFix.some((t) => t.kind === 'missed' && /damped/.test(t.label))).toBe(true);
+  });
+
+  it('the nurse chooses the drugs the cardiologist asks for', () => {
+    const s = run(sc, 4, ['consent', 'iv', 'heparin', 'p2y12', 'timeout', 'ic-verapamil']);
+    expect(s.log.at(-1)!.text).toMatch(/radial cocktail through the sheath/);
+    expect(s.penalties.map((p) => p.id)).toEqual(['wrong-cocktail']);
+  });
+
+  it('the cardiologist needs access, a catheter, a guide and a wire, in that order', () => {
+    let s = run(sc, 5, ['consent', 'timeout', 'stent-des']);
+    expect(s.counts['stent-des']).toBeUndefined();
+    s = run(sc, 5, ['consent', 'timeout', 'access', 'angio']);
+    expect(s.counts.angio).toBeUndefined();
+    expect(s.log.at(-1)!.text).toMatch(/diagnostic catheter/);
+    s = run(sc, 5, ['consent', 'timeout', 'access', 'cath-tiger', 'angio', 'wire-workhorse']);
+    expect(s.counts['wire-workhorse']).toBeUndefined();
+    s = perform(sc, s, 'guide-ebu');
+    s = perform(sc, s, 'wire-workhorse');
+    expect(s.counts['wire-workhorse']).toBeUndefined(); // the guide is wedged: back it out first
+    s = perform(sc, s, 'reposition');
+    s = perform(sc, s, 'wire-workhorse');
+    expect(s.flags.wired).toBeDefined();
     expect(s.penalties.map((p) => p.id)).toContain('pci-no-heparin');
   });
 
+  it('a right guide for an LAD culprit costs points', () => {
+    const s = run(sc, 5, ['consent', 'heparin', 'timeout', 'access', 'cath-tiger', 'angio', 'guide-jr4']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['right-guide-for-lad']);
+  });
+
+  it('the cardiologist sizes the stent from the measurements', () => {
+    const steps = IDEAL['stemi-cathlab'][5]!;
+    const s = run(sc, 5, [...steps.slice(0, steps.indexOf('balloon-predil') + 1), 'read:stent-3.5x23'], undefined, 'manual');
+    expect(s.reads.at(-1)).toMatchObject({ kind: 'sizing', answer: 'stent-3.5x28', verdict: 'partial' });
+    expect(s.penalties.at(-1)).toMatchObject({ points: 2, text: expect.stringMatching(/^Stent sizing at/) });
+  });
+
   it('reperfusion VF kills the patient if nobody shocks it', () => {
-    let s = run(sc, 5, ['consent', 'heparin', 'p2y12', 'timeout', 'access', 'angio', 'reposition', 'pci']);
+    const steps = IDEAL['stemi-cathlab'][5]!;
+    let s = run(sc, 5, steps.slice(0, steps.indexOf('stent-des') + 1));
     expect(s.pulse).toBe(false);
     for (let i = 0; i < 6 && !s.ended; i++) s = perform(sc, s, 'reassess');
     expect(s.ended?.reason).toBe('death');
