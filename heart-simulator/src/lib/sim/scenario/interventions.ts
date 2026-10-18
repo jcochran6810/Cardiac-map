@@ -74,7 +74,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'view-rca-lao', label: 'LAO view of the right coronary', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true, detail: angles('view-rca-lao') },
   { id: 'view-rca-rao', label: 'RAO view of the right coronary', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true, detail: angles('view-rca-rao') },
   { id: 'view-rca-cranial', label: 'AP cranial view of the right coronary (crux, PDA)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true, detail: angles('view-rca-cranial') },
-  { id: 'lv-gram', label: 'Left ventriculogram (pigtail, power injector)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 1, detail: `${angles('lv-gram')}, 30–36 mL at 10–12 mL/s` },
+  { id: 'lv-gram', label: 'Left ventriculogram (pigtail, power injector)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 1, detail: `${angles('lv-gram')}, 30–36 mL at 10–15 mL/s` },
   { id: 'ffr-equalize', label: 'Equalise the pressure wire at the guide tip', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true },
   { id: 'ffr', label: 'FFR measurement (pressure wire, hyperaemia)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 3, repeatable: true },
   { id: 'ivus', label: 'IVUS run', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 2, repeatable: true },
