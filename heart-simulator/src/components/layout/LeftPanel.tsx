@@ -7,11 +7,12 @@ import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
 import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
+import { useCathLabStore } from '@/store/useCathLabStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { openCase, openCondition, openMedication, openProcedure, openStructure } from '@/lib/actions';
+import { openCase, openCathLab, openCondition, openMedication, openProcedure, openStructure } from '@/lib/actions';
 import { CASE_DATA } from '@/data/caseData';
-import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
+import { CATHLAB_GROUPS, CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CONDUCTION_IDS, CORONARY_IDS } from '@/lib/anatomy/categories';
 import { IconCheck, IconChevron, IconDownload, IconHelp, IconSearch } from '@/components/ui/icons';
@@ -24,6 +25,7 @@ const TABS: { value: PanelCategory; label: string; title: string }[] = [
   { value: 'conditions', label: 'Conditions', title: 'Rhythms, ischaemia, structural disease' },
   { value: 'procedures', label: 'Procedures', title: 'Cath lab, EP, structural, surgical, bedside' },
   { value: 'medications', label: 'Drugs', title: 'Cardiac and ACLS pharmacology' },
+  { value: 'cathlab', label: 'Cath lab', title: 'Views, catheters, wires, stents, lab drugs, pressures and complications' },
   { value: 'cases', label: 'Cases', title: 'Interactive clinical scenarios' },
 ];
 
@@ -67,6 +69,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const selectedProcedureId = useProcedureStore((s) => s.selectedProcedureId);
   const selectedMedicationId = usePharmacologyStore((s) => s.selectedMedicationId);
   const activeCaseId = useCaseStore((s) => s.activeCaseId);
+  const selectedCathLabId = useCathLabStore((s) => s.selectedId);
   const learning = useLearningStore();
   const lib = useContent();
   const [filter, setFilter] = useState('');
@@ -112,6 +115,8 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       }
       case 'medications':
         return MED_GROUPS.map((g) => ({ label: g.label, items: g.ids.filter((id) => (MEDICATION_IDS as readonly string[]).includes(id)).map((id) => it(id, lib?.medications[id]?.drugClass)) }));
+      case 'cathlab':
+        return CATHLAB_GROUPS.map((g) => ({ label: g.label, items: Object.values(lib?.cathlab ?? {}).filter((i) => i.group === g.id).map((i) => ({ id: i.id, name: i.name })) }));
       case 'cases':
         return [{ label: 'Clinical scenarios', items: Object.values(CASE_DATA).map((c) => ({ id: c.id, name: c.title, sub: c.difficulty })) }];
     }
@@ -129,6 +134,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       case 'conditions': return selectedConditionId === id;
       case 'procedures': return selectedProcedureId === id;
       case 'medications': return selectedMedicationId === id;
+      case 'cathlab': return selectedCathLabId === id;
       case 'cases': return activeCaseId === id;
       default: return selectedStructureId === id;
     }
@@ -138,6 +144,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       case 'conditions': return learning.conditionsStudied.includes(id);
       case 'procedures': return learning.proceduresReviewed.includes(id);
       case 'medications': return learning.medicationsReviewed.includes(id);
+      case 'cathlab': return learning.cathlabStudied.includes(id);
       case 'cases': return learning.casesCompleted.includes(id);
       default: return learning.structuresViewed.includes(id);
     }
@@ -147,6 +154,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       case 'conditions': return openCondition(id);
       case 'procedures': return openProcedure(id);
       case 'medications': return openMedication(id);
+      case 'cathlab': return openCathLab(id);
       case 'cases': return openCase(id);
       default: return openStructure(id);
     }
@@ -194,6 +202,20 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-1.5 pb-3 text-xs">
+        {activeTab === 'cases' && (
+          <button
+            onClick={() => useAppStore.getState().setMode('simulator')}
+            className="mx-1 my-1.5 w-[calc(100%-0.5rem)] text-left p-2 touch:p-2.5 rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20"
+          >
+            <span className="block text-[11px] font-semibold text-amber-100">Want to treat the patient yourself? →</span>
+            <span className="block text-[10px] text-amber-200/70 leading-snug mt-0.5">The case simulator runs a full case with your scope&apos;s actions and scores you. These case studies are step-by-step decisions.</span>
+          </button>
+        )}
+        {activeTab === 'cathlab' && (
+          <p className="mx-1.5 my-1 text-[10px] text-slate-500 leading-snug">
+            Everything the cath lab cases use — what it is, and what the tech, the nurse and the cardiologist each do with it. A view also turns the 3D heart to that angle.
+          </p>
+        )}
         {activeTab === 'coronary' && (
           <p className="mx-1.5 my-1 text-[10px] text-slate-500 leading-snug">
             Right-dominant anatomy shown (~70–85% of people): the PDA arises from the RCA. Try the <b className="text-slate-300">Territories</b> view.

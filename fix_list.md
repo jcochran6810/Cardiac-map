@@ -11,6 +11,23 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-10-18 — **Narrow the environment's network access again (recommended).** It is set to **Full**
+  (any website), which was used to fetch the cath lab images. Allowing only what this project needs is
+  safer: in the Claude app open this session's cloud environment menu (the environment name in the session's
+  title bar) → **Edit** → **Network access** → **Limited** (called **Custom** in older versions of the app) →
+  keep "Allow package managers" ticked → under **Allowed domains** add `commons.wikimedia.org`, `upload.wikimedia.org`, `openi.nlm.nih.gov`,
+  `pmc.ncbi.nlm.nih.gov`, `pubmed.ncbi.nlm.nih.gov`, `eutils.ncbi.nlm.nih.gov`,
+  `pmc-oa-opendata.s3.amazonaws.com` (full-size PMC figures), `www.ebi.ac.uk` (licence checks) and
+  `api.crossref.org` → save. Steps: https://code.claude.com/docs/en/cloud-environments#network-access.
+- [ ] 2026-10-18 — **Try the cath lab cases and catalog on your phone:** Simulator → pick Cath Lab Tech, RN or
+  Cardiologist → play the six lab cases; Library → **Cath lab** tab (open a view: the heart turns to it).
+
+- [ ] 2026-10-18 — **Try the new screens on your phone:** the Home page, the case simulator (play a case
+  to the end, give your 12-lead reads, read the review) and the Learn screen (tap the heart, open a
+  condition, then a drug). Use your **phone's Back button/gesture** throughout: it should step back through
+  the app and, on Home, say "press Back again to leave". Tested only in emulated phone, tablet and desktop
+  browsers.
+
 - [ ] 2026-10-17 — **Delete the old production branch** `claude/create-heart-3d-model-6mtrW`
   (optional tidy-up; nothing uses it any more): GitHub → `jcochran6810/Cardiac-map` → Branches →
   trash icon next to it. Its Vercel domain `cardiac-map-git-claude-create-he-…vercel.app` goes with it;
@@ -35,6 +52,30 @@ Add new items at the top of their group. Use the format:
 
 ### For Codex (UI / graphics — set by Claude)
 
+- [ ] 2026-10-18 — **Polish the real-image UI (keep its behaviour):** `CathFigure` / `ImageZoom` /
+  `ImageCredit` in `heart-simulator/src/components/cathlab/CathFigure.tsx` (catalog figures, the full-screen
+  view, the linked credit and licence — both links must stay visible) and the image runs in the simulator's
+  Imaging tab (`ImagingPanel.tsx`). On phones the run header ("Run 1 · 8:30" + title) wraps onto two lines;
+  tall angiograms show small at `max-h-[320px]` on desktop. The caption must stay hidden while a read on that
+  run is pending (`asked` in `ImagingPanel.tsx`).
+
+- [ ] 2026-10-18 — **Polish the cath lab screens (keep their behaviour):** the simulator's **Imaging** tab
+  (`heart-simulator/src/components/simulator/ImagingPanel.tsx`), the C-arm diagram
+  (`heart-simulator/src/components/cathlab/CArmDiagram.tsx` — a clearer patient, table and C-arm drawing would
+  help), the catalog item page (`CathLabView` / `PractiseLab` in `heart-simulator/src/components/layout/RightPanel.tsx`),
+  the "study the catalog" banner in `ScenarioPicker.tsx` and the monitor's new **ART** box
+  (`MonitorDisplay.tsx`). The Library now has 8 tabs (Cath lab added).
+
+- [ ] 2026-10-18 — **Polish the new screens Claude built (keep their behaviour):** Home
+  (`heart-simulator/src/components/home/HomeScreen.tsx`), the case simulator
+  (`heart-simulator/src/components/simulator/`), the Home / Learn / Simulator tabs and the phone bottom
+  bar (`heart-simulator/src/components/layout/ModeNav.tsx`), the tap-the-heart card and first-time tips
+  (`SceneOverlay.tsx` `PeekCard`, `BottomDock.tsx` lead tip) and the info panel's Back / Close bar
+  (`RightPanel.tsx` `PanelBar`). Known rough edges: on a phone on its side the simulator's monitor
+  numerics are clipped; the install banner covers the top of Home on phones; check 320–1920 px.
+- [ ] 2026-10-18 — The Library's tab strip (7 tabs, 10.5 px text, 4-column grid) is hard to read on
+  phones; consider bigger tabs or icons (`heart-simulator/src/components/layout/LeftPanel.tsx`).
+
 - [ ] 2026-10-16 — **Build on the merged header, don't undo it.** Claude merged your UI foundation
   (PR #2's work) with the phone / tablet layout: the header keeps your tokens, `Button` /
   `IconButton`, combobox search and scope focus return, but stays **one row at every size** (56 px,
@@ -52,15 +93,30 @@ Add new items at the top of their group. Use the format:
 
 ### Requests for Claude (from Codex)
 
-- [ ] 2026-10-16 — Welcome screen "Pressure & volume" card selects the Wiggers view, then
-  `openCondition` resets the bottom dock to the ECG; decide the intended order and fix it.
-- [ ] 2026-10-16 — Welcome screen "Watch one heartbeat" card says it slows to 0.25× but only changes
-  the view; make it set the speed or change the wording.
 - [ ] 2026-10-16 — Review the remaining presentation-to-state wiring: the six view modes (now
   arrow-key navigable), 3D label keyboard reachability and the projector (`/monitor`) behaviour.
   (Header controls, search and scope focus return were reviewed during the merge.)
 
 ### Code
+
+- [ ] 2026-10-18 — **Better-fitting images where the catalog uses a near match** (every item has a real
+  image; captions say when the setting differs): damping at a coronary ostium (now: innominate artery), a
+  reperfusion VF strip from primary PCI, Bezold–Jarisch during RCA reperfusion, a vasovagal drop during
+  sheath removal, a cath lab time-out and closed-loop exchange, a Hemochron ACT analyzer, vial photos of
+  protamine, bivalirudin, cangrelor, verapamil, nitroglycerin and fentanyl (bivalirudin and cangrelor show
+  the molecule), an ipsilateral-oblique femoral sheath angiogram, an AL1 (not AL 0.75) guide. Rules: only
+  CC BY / CC BY-SA / CC0 / public domain — check the article's own licence **text** (one "CC BY"-linked
+  article said NonCommercial), credit and link it, mark crops. Wikimedia: ask for standard thumbnail widths
+  (960 / 1280 px), not original files — originals were throttled (HTTP 429, 10-minute waits).
+- [ ] 2026-10-18 — Spelling: the app mixes UK (simulator text: haemostasis, hyperaemia, equalise) and US
+  (library content) spelling; pick US throughout (the users train for US certifications). Read-option ids
+  such as `ischaemia` can stay.
+- [ ] 2026-10-18 — More simulator cases (one file each in
+  `heart-simulator/src/lib/sim/scenario/scenarios/` + an ideal run in `tests/scenarios.test.ts`): PEA /
+  asystole arrest, AF with RVR, stable VT, symptomatic bradycardia from a beta-blocker, hyperkalaemia; in the
+  lab, no-reflow, a left main case, an EP / pacing case.
+- [ ] 2026-10-18 — Simulator 12-lead is live (always the current rhythm, with a "the patient has
+  changed — repeat it" note); a frozen tracing per recording would be more realistic.
 
 - [ ] 2026-10-16 — Role permissions used by the monitor/defibrillator and tutor can't be unit-tested
   directly: `MANUAL_OK` / `DRUG_AUTHORITY` live inside the DefibPanel component
@@ -75,6 +131,38 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-18 — Cath lab simulator for the tech, the nurse and the cardiologist: six lab cases worked step
+  by step (devices, views, drugs; reads of pressures, FFR, stent sizing and angiograms) and a cath lab
+  catalog of 78 entries in the Library (`005340b`, `7310763`, `0ca5166`, `307c250`, `b2a5c18`).
+- [x] 2026-10-18 — Electrode lab: a 3D patient with correctly placed electrodes (limb electrodes on the
+  shoulders and lower abdomen) and a line through the 3D heart showing where each lead looks from
+  (`7fcb663`, `7151011`).
+- [x] 2026-10-18 — Real images for every cath lab catalog item (114 in all) and same-patient before / after
+  angiograms for all five lab cases, read by the learner (`e38e062`, `48cd2eb`, `c5cb439`, `e1151a4`,
+  `a7db0f7`). Reads are checked by the app itself ("Feedback") — no preceptor / FTO wording (`41bc679`).
+
+- [x] 2026-10-18 — Real cath lab images: 27 figures from open-access articles (CC BY 4.0 / 3.0, licence text
+  checked, credited and linked) in `public/cath-images/`; the anterior, inferior, FFR and shock cases show
+  the real culprit angiogram — and the FFR case the real pressure-wire console — for the tech, nurse or
+  cardiologist to read before treating; 21 catalog items show real images (`3490631`, `61ea7f2`). The owner
+  opened the environment's network access, which this needed.
+
+- [x] 2026-10-18 — The phone / browser Back button left the app; it now steps back through the app's pages
+  (screens, opened items, drawers, overlays, simulator views), asks before leaving a case, and asks before
+  leaving the app from Home (`ae5bf42`).
+- [x] 2026-10-18 — Simulator 12-lead: the app no longer reads the tracing for the learner; they choose their
+  read from all interpretations and the FTO / preceptor confirms or corrects it at once (`92315a6`).
+
+- [x] 2026-10-18 — Navigation made easier to learn: Home page, Home / Learn / Simulator tabs (bottom
+  bar on phones), labelled Library / Info buttons, Back in the info panel, a card when you tap the
+  heart, first-time tips, Electrode lab always visible, clearer dock labels (`5581410`, `2afbd0b`).
+- [x] 2026-10-18 — Codex requests: the "Pressure & volume" welcome card now lands on the Wiggers view
+  and "Watch one heartbeat" slows to 0.25× (`2afbd0b`).
+- [x] 2026-10-18 — Case simulator as its own screen: six condition cases with role-scoped actions that
+  change the monitor, 12-lead and story, ending in a scored review (`2e62dd1`, `5581410`, `2afbd0b`).
+- [x] 2026-10-18 — Electrode lab mannequin replaced with a realistic human body built from the CC0
+  MakeHuman mesh (`7151011`).
 
 - [x] 2026-10-18 — Monitor / Defib waveforms (ECG, SpO₂ pleth, capnogram) showed as dots on phones and
   the row dividers turned solid white; both fixed (`01b51d4`).

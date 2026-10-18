@@ -144,6 +144,53 @@ export type QuizTopic =
   | 'congenital'
   | 'procedures';
 
+/** Cath lab catalog groups, in the order the Library shows them */
+export const CATHLAB_GROUPS = [
+  { id: 'views', label: 'Angiographic views' },
+  { id: 'access', label: 'Access & closure' },
+  { id: 'catheters', label: 'Catheters & guides' },
+  { id: 'wires', label: 'Wires' },
+  { id: 'balloons-stents', label: 'Balloons, stents & thrombectomy' },
+  { id: 'imaging-physiology', label: 'Physiology & intravascular imaging' },
+  { id: 'support', label: 'Mechanical support & pacing' },
+  { id: 'hemodynamics', label: 'Pressures & hemodynamics' },
+  { id: 'drugs', label: 'Lab drugs' },
+  { id: 'complications', label: 'Complications' },
+  { id: 'team', label: 'Team & safety' },
+] as const;
+
+export type CathLabGroup = (typeof CATHLAB_GROUPS)[number]['id'];
+
+/**
+ * One cath lab catalog item: a view, a device, a drug, a pressure, a complication or a team skill —
+ * what it is, and what the tech, the nurse and the cardiologist each do with it.
+ */
+export interface CathLabItem {
+  /** 'cl-…' */
+  id: string;
+  name: string;
+  group: CathLabGroup;
+  synonyms?: string[];
+  /** 1–2 plain sentences */
+  summary: string;
+  /** what it is, how it works, when it is used — short self-contained bullets */
+  details: string[];
+  /** what each lab role does with it, each within that role's scope */
+  roles: { tech: string; rn: string; md: string };
+  /** sizes, doses, normal values, angles — short facts */
+  numbers?: string[];
+  /** pearls, pitfalls and common mistakes */
+  pearls?: string[];
+  /** an angiographic view: its simulator view id (angles and "shows best" come from lib/cathlab/views) */
+  view?: string;
+  /** real images (keys of CATH_IMAGES, shown in order) and what the ideal image would show */
+  image?: { keys?: string[]; want: string };
+  /** simulator interventions this item teaches */
+  sim?: string[];
+  /** other library items: procedure, medication or condition ids, or other cl- ids */
+  related?: string[];
+}
+
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -275,6 +322,7 @@ export const ECG_PROFILE_IDS = [
   'aortic-stenosis', 'mitral-regurgitation', 'mitral-stenosis',
   'pericarditis', 'tamponade', 'asd', 'vsd', 'pfo',
   'pulmonary-embolism', 'aortic-dissection', 'hyperkalemia', 'paced', 'pea', 'pvt', 'tcp',
+  'inferior-stemi-chb', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused',
 ] as const;
 
 export type StructureId = (typeof STRUCTURE_IDS)[number];

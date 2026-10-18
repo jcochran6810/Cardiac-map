@@ -10,6 +10,9 @@ import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
 import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
+import { useCathLabStore } from '@/store/useCathLabStore';
+import { CINE_VIEW_BY_ID } from '@/lib/cathlab/views';
+import { angio } from '@/store/useSceneStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
@@ -18,20 +21,24 @@ import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { CONDUCTION_IDS, CORONARY_IDS, SECTION_FIRST, structureCategory } from '@/lib/anatomy/categories';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CASE_DATA } from '@/data/caseData';
+import { setRhythm } from '@/lib/rhythm';
+import { leaveSimulator } from '@/store/useSimStore';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 
-/** On small screens, opening an item swaps the navigator drawer for the info drawer */
+/** Opening an item shows the learning workspace; on small screens it swaps the navigator drawer for the info drawer */
 function reveal() {
   const app = useAppStore.getState();
+  if (app.mode !== 'learn') {
+    // the simulator hands the monitor back first, so the item's own ECG is not overwritten afterwards
+    if (app.mode === 'simulator') leaveSimulator();
+    app.setMode('learn');
+  }
   if (app.compact) app.setPanels(false, true);
   else if (!app.rightPanelOpen) app.setPanels(app.leftPanelOpen, true);
 }
 
-export function setRhythm(profileId: string, hr?: number) {
-  const p = resolveProfile(profileId);
-  useECGStore.getState().setActiveProfile(p.id);
-  useTimelineStore.getState().setHeartRate(hr && p.rateControl !== 'none' ? hr : p.defaultHR);
-}
+export { setRhythm };
+
 
 export function openStructure(id: string) {
   reveal();
@@ -105,20 +112,47 @@ export function openCase(id: string) {
   useECGStore.getState().setBottomView('ecg');
 }
 
+/** A cath lab catalog item: a view also turns the 3D heart to that C-arm angle */
+export function openCathLab(id: string) {
+  reveal();
+  const app = useAppStore.getState();
+  app.setActivePanelCategory('cathlab');
+  useCathLabStore.getState().select(id);
+  useLearningStore.getState().markCathLabStudied(id);
+  const scene = useSceneStore.getState();
+  scene.selectStructure(null);
+  const v = CINE_VIEW_BY_ID[useContentStore.getState().lib?.cathlab[id]?.view ?? ''];
+  if (v) showCineView(v.id);
+  else scene.setHighlights([]);
+}
+
+/** Turn the 3D heart to a view's C-arm angle and light up the arteries it shows best */
+export function showCineView(viewId: string) {
+  const v = CINE_VIEW_BY_ID[viewId];
+  if (!v) return;
+  const app = useAppStore.getState();
+  if (v.system !== 'lv' && app.viewMode !== 'external' && app.viewMode !== 'territories') app.setViewMode('external');
+  const scene = useSceneStore.getState();
+  scene.setHighlights(v.vessels);
+  scene.setCameraPreset({ label: v.name, short: v.name, dir: angio(v.rot, v.ang), group: 'angio' });
+}
+
 /** Open any item by ID (used by "related" chips and search) */
 export function openById(id: string) {
   if ((STRUCTURE_IDS as readonly string[]).includes(id)) return openStructure(id);
   if ((CONDITION_IDS as readonly string[]).includes(id)) return openCondition(id);
   if ((PROCEDURE_IDS as readonly string[]).includes(id)) return openProcedure(id);
   if ((MEDICATION_IDS as readonly string[]).includes(id)) return openMedication(id);
+  if (id.startsWith('cl-')) return openCathLab(id);
   if (CASE_DATA[id]) return openCase(id);
 }
 
-export function kindOf(id: string): 'structure' | 'condition' | 'procedure' | 'medication' | 'case' | null {
+export function kindOf(id: string): 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case' | null {
   if ((STRUCTURE_IDS as readonly string[]).includes(id)) return 'structure';
   if ((CONDITION_IDS as readonly string[]).includes(id)) return 'condition';
   if ((PROCEDURE_IDS as readonly string[]).includes(id)) return 'procedure';
   if ((MEDICATION_IDS as readonly string[]).includes(id)) return 'medication';
+  if (id.startsWith('cl-')) return useContentStore.getState().lib ? (useContentStore.getState().lib!.cathlab[id] ? 'cathlab' : null) : 'cathlab';
   if (CASE_DATA[id]) return 'case';
   return null;
 }
@@ -126,7 +160,7 @@ export function kindOf(id: string): 'structure' | 'condition' | 'procedure' | 'm
 export function nameOf(id: string): string {
   const lib = useContentStore.getState().lib;
   if (lib) {
-    const n = lib.structures[id]?.name ?? lib.conditions[id]?.name ?? lib.procedures[id]?.name ?? lib.medications[id]?.name;
+    const n = lib.structures[id]?.name ?? lib.conditions[id]?.name ?? lib.procedures[id]?.name ?? lib.medications[id]?.name ?? lib.cathlab[id]?.name;
     if (n) return n;
   }
   if (CASE_DATA[id]) return CASE_DATA[id].title;

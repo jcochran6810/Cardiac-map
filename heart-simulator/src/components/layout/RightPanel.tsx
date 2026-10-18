@@ -7,15 +7,24 @@ import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
 import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
+import { useCathLabStore } from '@/store/useCathLabStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm } from '@/lib/actions';
+import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm, showCineView } from '@/lib/actions';
+import { currentPage, goBack, useBackNavStore } from '@/lib/backNav';
+import { enterSimulator, useSimStore } from '@/store/useSimStore';
+import { useTimelineStore } from '@/store/useTimelineStore';
+import { SCENARIOS, labCasesUsing } from '@/lib/sim/scenario/scenarios';
 import { CASE_DATA, type CaseData } from '@/data/caseData';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
-import type { ConditionContent, MedicationContent, ProcedureContent, StructureContent } from '@/types/content';
-import { IconCheck, IconCube, IconFlag, IconPulse } from '@/components/ui/icons';
+import { CATHLAB_GROUPS, type CathLabItem, type ConditionContent, type MedicationContent, type ProcedureContent, type StructureContent } from '@/types/content';
+import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
+import { CATH_IMAGES } from '@/data/cathImages';
+import { CathFigure } from '@/components/cathlab/CathFigure';
+import CArmDiagram from '@/components/cathlab/CArmDiagram';
+import { IconCheck, IconClose, IconCube, IconFlag, IconPlay, IconPulse } from '@/components/ui/icons';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { InstallButton } from '@/components/ui/InstallApp';
 import { SCOPES } from '@/lib/scope';
@@ -27,6 +36,7 @@ const KIND_CHIP: Record<string, string> = {
   condition: 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20',
   procedure: 'bg-violet-500/10 text-violet-300 border-violet-500/30 hover:bg-violet-500/20',
   medication: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20',
+  cathlab: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20',
   case: 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20',
 };
 
@@ -236,6 +246,7 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
           {showsHemo && <ActionBtn onClick={() => ecg.setBottomView('wiggers')}>Hemodynamics</ActionBtn>}
           {territory && <ActionBtn onClick={() => setViewMode('territories')}>Culprit territory ({territory})</ActionBtn>}
         </div>
+        <PractiseCase conditionId={c.id} level={level} />
       </Header>
       <Tabs tabs={CONDITION_TABS} active={tab} onChange={setTab} level={level} />
       <div className="flex-1 overflow-y-auto p-3 text-xs space-y-3">
@@ -258,6 +269,27 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
         {(tab === 'anatomy' || tab === 'overview') && <Chips ids={c.affectedStructures} label="Anatomy involved (highlighted in 3D)" />}
       </div>
     </>
+  );
+}
+
+/** A simulator case for this condition, written for the learner's role */
+function PractiseCase({ conditionId, level }: { conditionId: string; level: LearningLevel }) {
+  const sc = SCENARIOS.find((x) => x.conditionId === conditionId && x.roles.includes(level));
+  if (!sc) return null;
+  const go = () => {
+    // save the workspace's monitor before the case takes it over
+    enterSimulator();
+    useSimStore.getState().startScenario(sc.id, level);
+    useAppStore.getState().setMode('simulator');
+  };
+  return (
+    <button onClick={go} className="mt-2 w-full flex items-center gap-2 p-2 touch:p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-left hover:bg-amber-500/20">
+      <IconPlay size={18} className="text-cardiac-accent shrink-0" />
+      <span className="min-w-0">
+        <span className="block text-[11px] font-semibold text-amber-100">Practise it in the case simulator</span>
+        <span className="block text-[10px] text-amber-200/70 truncate">{sc.title}</span>
+      </span>
+    </button>
   );
 }
 
@@ -370,6 +402,108 @@ function MedicationView({ m, level }: { m: MedicationContent; level: LearningLev
         {(tab === 'indications' || tab === 'teaching') && <Chips ids={m.relatedConditions} label="Related conditions" />}
       </div>
     </>
+  );
+}
+
+// ─── Cath lab catalog ──────────────────────────────────────────────────────
+
+const LAB_ROLES = [['tech', 3, 'Cath Lab Tech'], ['rn', 4, 'Cath Lab RN'], ['md', 5, 'Cardiologist']] as const;
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function CathLabView({ item, level }: { item: CathLabItem; level: LearningLevel }) {
+  const compact = useAppStore((s) => s.compact);
+  const v = item.view ? CINE_VIEW_BY_ID[item.view] : undefined;
+  const imgs = (item.image?.keys ?? []).flatMap((k) => CATH_IMAGES[k] ?? []);
+  const group = CATHLAB_GROUPS.find((g) => g.id === item.group)?.label;
+  const onHeart = () => {
+    if (!v) return;
+    showCineView(v.id);
+    if (compact) useAppStore.getState().setPanels(false, false);
+  };
+  return (
+    <>
+      <Header title={item.name} badge={group} badgeClass="bg-cyan-500/15 text-cyan-300" summary={item.summary}>
+        {item.synonyms?.length ? <p className="text-[10px] text-slate-500 mt-1">Also called: {item.synonyms.join(', ')}</p> : null}
+      </Header>
+      <div className="flex-1 overflow-y-auto p-3 text-xs space-y-4">
+        {v && (
+          <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-2">
+            <div className="flex items-center gap-3">
+              <CArmDiagram rot={v.rot} ang={v.ang} className="w-40 shrink-0" />
+              <div className="min-w-0">
+                <div className="font-mono text-[12px] text-sky-300">{angleText(v)}</div>
+                <div className="mt-1 text-[10px] text-slate-400">Shows best</div>
+                <div className="text-[11px] text-slate-200 leading-snug">{v.best}.</div>
+              </div>
+            </div>
+            {v.system !== 'lv' && (
+              <button onClick={onHeart} className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 touch:py-2.5 rounded-md text-[11px] bg-sky-500/15 text-sky-200 border border-sky-500/30 hover:bg-sky-500/25">
+                <IconCube size={13} /> See this view on the 3D heart
+              </button>
+            )}
+          </div>
+        )}
+        {imgs.length > 0 && (
+          <Section title={imgs.length > 1 ? 'Real images' : 'Real image'}>
+            <div className="space-y-2">
+              {imgs.map((img) => <CathFigure key={img.src} img={img} />)}
+            </div>
+          </Section>
+        )}
+        <Section title="What it is"><Bullets items={item.details} /></Section>
+        <Section title="Who does what">
+          <div className="space-y-1.5">
+            {LAB_ROLES.map(([key, lvl, label]) => (
+              <div key={key} className={`p-2 rounded-md border ${lvl === level ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-cardiac-dark/50 border-slate-700/70'}`}>
+                <div className={`text-[9px] uppercase tracking-wider font-semibold ${lvl === level ? 'text-emerald-300' : 'text-slate-400'}`}>{label}{lvl === level ? ' · you' : ''}</div>
+                <p className="text-[11px] text-slate-200 leading-relaxed mt-0.5">{item.roles[key]}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+        {item.numbers?.length ? <Section title="Numbers to know"><Bullets items={item.numbers} accent="text-sky-300" /></Section> : null}
+        {item.pearls?.length ? <Section title="Pearls and pitfalls"><Bullets items={item.pearls} accent="text-amber-300" /></Section> : null}
+        <PractiseLab item={item} level={level} />
+        <Chips ids={item.related ?? []} label="Related" />
+      </div>
+    </>
+  );
+}
+
+/** The cath lab cases that use this item, playable for the learner's role (or the first lab role) */
+function PractiseLab({ item, level }: { item: CathLabItem; level: LearningLevel }) {
+  const cases = labCasesUsing(item.sim ?? []).slice(0, 4);
+  if (!cases.length) return null;
+  const go = (id: string, role: LearningLevel) => {
+    enterSimulator();
+    useSimStore.getState().startScenario(id, role);
+    useAppStore.getState().setMode('simulator');
+  };
+  return (
+    <Section title="Practise it in the simulator">
+      <div className="grid gap-1.5">
+        {cases.map((sc) => {
+          const role = sc.roles.includes(level) ? level : sc.roles[0];
+          return (
+            <button key={sc.id} onClick={() => go(sc.id, role)} className="w-full flex items-center gap-2 p-2 touch:p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-left hover:bg-amber-500/20">
+              <IconPlay size={16} className="text-cardiac-accent shrink-0" />
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold text-amber-100 truncate">{sc.title}</span>
+                <span className="block text-[10px] text-amber-200/70">Play as {LEVEL_LABELS[role].short}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Section>
   );
 }
 
@@ -552,24 +686,27 @@ function Welcome({ level }: { level: LearningLevel }) {
   const setQuizOpen = useAppStore((s) => s.setQuizOpen);
   const setViewMode = useAppStore((s) => s.setViewMode);
   const setHelpOpen = useAppStore((s) => s.setHelpOpen);
+  const setMode = useAppStore((s) => s.setMode);
   const ecg = useECGStore();
+  const lib = useContent();
   const cards: { title: string; text: string; go: () => void }[] = [
-    { title: 'Watch one heartbeat', text: 'Slow the simulation to 0.25× and watch the P wave light the atria, the QRS spread through the ventricles and the valves open in the sectioned view.', go: () => { setViewMode('sectioned'); } },
+    { title: 'Treat a patient (case simulator)', text: 'Run a STEMI, heart block, SVT or cardiac-arrest case from first contact to hand-off and get a scored review.', go: () => setMode('simulator') },
+    { title: 'Watch one heartbeat', text: 'Slows the simulation to 0.25× in the sectioned view: watch the P wave light the atria, the QRS spread through the ventricles and the valves open.', go: () => { setViewMode('sectioned'); useTimelineStore.getState().setSpeed(0.25); useTimelineStore.getState().play(); } },
     { title: 'Conduction system', text: 'See SA → AV node → His → bundles → Purkinje fire in time with the ECG. Try Mobitz II or complete heart block.', go: () => { setViewMode('conduction'); openCondition('third-degree-av-block'); } },
     { title: 'Read a STEMI', text: 'Anterior STEMI: ST elevation V1–V4 with reciprocal inferior change, and the LAD territory pulsing on the heart.', go: () => openCondition('anterior-stemi') },
-    { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { ecg.setBottomView('wiggers'); openCondition('aortic-stenosis'); } },
-    { title: 'Run a case', text: 'Make time-critical decisions with feedback in an unstable SVT scenario.', go: () => openCase('unstable-svt') },
-    { title: 'Run a code', text: 'Monitor-defibrillator trainer: AED, defibrillation, synchronised cardioversion, pacing, CPR and ACLS drugs on a live patient. Open Instructor for scenarios.', go: () => ecg.setBottomView('defib') },
+    { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { openCondition('aortic-stenosis'); ecg.setBottomView('wiggers'); } },
+    { title: 'Work through a case study', text: 'Step-by-step decisions with feedback in an unstable SVT case.', go: () => openCase('unstable-svt') },
+    { title: 'Practise on the defibrillator', text: 'Monitor-defibrillator trainer: AED, defibrillation, synchronised cardioversion, pacing, CPR and ACLS drugs on a live patient. Open Instructor for scenarios.', go: () => ecg.setBottomView('defib') },
     { title: 'Map the activation', text: 'See the order in which the ventricles activate, like an EP mapping system — compare normal conduction, LBBB and WPW.', go: () => { setViewMode('activation'); openCondition('left-bundle-branch-block'); } },
     { title: 'Swap the electrodes', text: 'Reverse the ECG cables and learn the tell-tale patterns, or take the mystery-reversal challenge.', go: () => { ecg.setBottomView('ecg'); ecg.setElectrodeLab(true); } },
-    { title: 'Quiz yourself', text: '66 questions across all levels, including live rhythm identification.', go: () => setQuizOpen(true) },
+    { title: 'Quiz yourself', text: `${lib ? `${lib.quiz.length} questions` : 'Questions'} across all levels, including live rhythm identification.`, go: () => setQuizOpen(true) },
   ];
   return (
     <div className="flex-1 overflow-y-auto p-3">
       <h2 className="text-base font-semibold text-white">Welcome to CardioSim</h2>
       <p className="text-xs text-slate-400 mt-1 leading-relaxed">
         An interactive heart where the anatomy, ECG, conduction system and hemodynamics all run from one beat-by-beat model.
-        Pick anything in the navigator, click the heart, or start below. Guidance is written for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> and stays within that role&apos;s scope of practice — change your role in the top bar.
+        Open the <b className="text-slate-200">Library</b> (top left), tap any part of the heart, or start below. Guidance is written for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> and stays within that role&apos;s scope of practice — change your role in the top bar.
       </p>
       <div className="grid gap-2 mt-3">
         {cards.map((c) => (
@@ -604,6 +741,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   const selectedProcedureId = useProcedureStore((s) => s.selectedProcedureId);
   const selectedMedicationId = usePharmacologyStore((s) => s.selectedMedicationId);
   const activeCaseId = useCaseStore((s) => s.activeCaseId);
+  const selectedCathLabId = useCathLabStore((s) => s.selectedId);
   const lib = useContent();
 
   const view = useMemo(() => {
@@ -614,13 +752,44 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
     if (category === 'conditions' && selectedConditionId && lib.conditions[selectedConditionId]) return <ConditionView c={lib.conditions[selectedConditionId]} level={level} />;
     if (category === 'procedures' && selectedProcedureId && lib.procedures[selectedProcedureId]) return <ProcedureView p={lib.procedures[selectedProcedureId]} level={level} />;
     if (category === 'medications' && selectedMedicationId && lib.medications[selectedMedicationId]) return <MedicationView m={lib.medications[selectedMedicationId]} level={level} />;
+    if (category === 'cathlab' && selectedCathLabId && lib.cathlab[selectedCathLabId]) return <CathLabView item={lib.cathlab[selectedCathLabId]} level={level} />;
     if (category === 'cases' && activeCaseId && CASE_DATA[activeCaseId]) return <CaseView c={CASE_DATA[activeCaseId]} level={level} />;
     return <Welcome level={level} />;
-  }, [lib, category, level, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, activeCaseId]);
+  }, [lib, category, level, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, selectedCathLabId, activeCaseId]);
 
   return (
     <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden min-h-0" aria-label="Information">
+      <PanelBar />
       {view}
     </aside>
+  );
+}
+
+/** Back (the same as the phone's Back button); on tablets and phones also a clear way to close the drawer */
+function PanelBar() {
+  const canGoBack = useBackNavStore((s) => s.canGoBack);
+  const prev = useBackNavStore((s) => s.previous);
+  const compact = useAppStore((s) => s.compact);
+  const setPanels = useAppStore((s) => s.setPanels);
+  useContent(); // re-render with real names once the library has loaded
+  const label = !prev ? 'Back'
+    : prev.mode === 'home' ? 'Back to Home'
+      : prev.mode === 'simulator' ? 'Back to the simulator'
+        : prev.left ? 'Back to the Library'
+          : prev.item && prev.item !== currentPage().item ? `Back to ${nameOf(prev.item)}` : 'Back';
+  if (!canGoBack && !compact) return null;
+  return (
+    <div className="flex items-center gap-1 px-1.5 py-1 border-b border-slate-700 shrink-0 bg-cardiac-dark/40">
+      {canGoBack && (
+        <button onClick={goBack} className="min-w-0 flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-sky-300 hover:bg-cardiac-surface/70" title="Back to the page before (same as your phone's Back button)">
+          <span aria-hidden>←</span><span className="truncate">{label}</span>
+        </button>
+      )}
+      {compact && (
+        <button onClick={() => setPanels(false, false)} className="ml-auto flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-slate-300 hover:text-white hover:bg-cardiac-surface/70 shrink-0" aria-label="Close the info panel">
+          <IconClose size={14} /> Close
+        </button>
+      )}
+    </div>
   );
 }

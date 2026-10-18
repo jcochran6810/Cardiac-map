@@ -13,6 +13,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { openProjector } from '@/lib/sim/projector';
 import { useIsTouch } from '@/lib/device';
 import { IconClose, IconCollapse, IconExpand } from '@/components/ui/icons';
+import { useOnceHint } from '@/lib/hints';
 
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
 const ElectrodeLab = dynamic(() => import('@/components/ecg/ElectrodeLab'), { ssr: false });
@@ -23,13 +24,13 @@ const WiggersPanel = dynamic(() => import('@/components/physiology/WiggersPanel'
 const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
   { value: 'simultaneous', label: '12-lead', title: 'Live 12-lead, like a monitor: every lead redraws at once (one sweep line per column) + lead II rhythm strip' },
   { value: 'standard', label: 'Printout', title: 'Paper 12-lead printout: sequential 2.5 s columns (one sweep line walks across them) + lead II rhythm strip' },
-  { value: 'monitor', label: 'Monitor', title: 'Bedside monitor: II, V1, V5' },
+  { value: 'monitor', label: '3-lead', title: 'Bedside monitor view: leads II, V1 and V5' },
 ];
 
 const VIEWS: { v: 'ecg' | 'wiggers' | 'defib'; l: string; short: string; t?: string }[] = [
   { v: 'ecg', l: 'ECG', short: 'ECG' },
   { v: 'wiggers', l: 'Wiggers / PV', short: 'Wiggers / PV' },
-  { v: 'defib', l: 'Monitor / Defib', short: 'Monitor / Defib', t: 'Monitor-defibrillator trainer: defibrillation, cardioversion, pacing, CPR, drugs (M)' },
+  { v: 'defib', l: 'Defibrillator', short: 'Defibrillator', t: 'Monitor-defibrillator trainer: defibrillation, cardioversion, pacing, CPR, drugs (M)' },
 ];
 
 interface DockProps {
@@ -72,6 +73,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   const stackDefib = width < 760;
   const [showInterp, setShowInterp] = useState(() => typeof window === 'undefined' || window.innerWidth >= 900);
   const [optsOpen, setOptsOpen] = useState(false);
+  const [leadTip, dismissLeadTip] = useOnceHint('ecg-leads');
 
   // Phones: the monitor-defibrillator needs room, so give it most of the screen while it is open
   const autoExpanded = useRef(false);
@@ -82,15 +84,17 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   useEffect(() => {
     const toggle = toggleRef.current;
     if (!toggle || side || !narrow) return;
-    if (ecg.bottomView === 'defib' && !expandedRef.current) {
+    // the electrode lab's 3D patient needs the room too
+    const big = ecg.bottomView === 'defib' || (ecg.bottomView === 'ecg' && ecg.electrodeLab);
+    if (big && !expandedRef.current) {
       toggle();
       autoExpanded.current = true;
-    } else if (ecg.bottomView !== 'defib' && autoExpanded.current && expandedRef.current) {
+    } else if (!big && autoExpanded.current && expandedRef.current) {
       toggle();
       autoExpanded.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ecg.bottomView]);
+  }, [ecg.bottomView, ecg.electrodeLab]);
   const [intervals, setIntervals] = useState(() => sim.engine.intervals(sim.time));
 
   useEffect(() => {
@@ -128,11 +132,14 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         onChange={(v) => ecg.setSweepSpeed(Number(v) as 25 | 50)}
       />
       <Seg
-        options={[{ v: 'monitor', l: 'Monitor' }, { v: 'paper', l: 'Paper' }]}
+        options={[{ v: 'monitor', l: 'Dark' }, { v: 'paper', l: 'Paper' }]}
         value={ecg.theme}
         onChange={(v) => ecg.setTheme(v as 'monitor' | 'paper')}
       />
     </>
+  );
+  const labToggle = (
+    <Toggle active={ecg.electrodeLab} onClick={() => ecg.setElectrodeLab(!ecg.electrodeLab)} title="Electrode lab: place the electrodes on a 3D patient, see each lead's view and practise cable reversals">Electrode lab</Toggle>
   );
   const toolOpts = (
     <>
@@ -145,7 +152,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         {ecg.inspectLead ? `Inspecting ${ecg.inspectLead} ✕` : `Inspect ${ecg.selectedLead ?? 'II'}`}
       </Toggle>
       <Toggle active={ecg.caliperMode} onClick={ecg.toggleCalipers} title={touch ? 'Tap two points on a lead to measure time, rate and voltage' : 'Click two points on a lead to measure time, rate and voltage'}>Calipers</Toggle>
-      <Toggle active={ecg.electrodeLab} onClick={() => ecg.setElectrodeLab(!ecg.electrodeLab)} title="Electrode placement, lead derivation and cable-reversal practice">Electrodes</Toggle>
+      {!fold && labToggle}
     </>
   );
   const placementWarning = !ecg.placementHidden && describePlacement(ecg.placement) && (
@@ -167,7 +174,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         </p>
       )}
       {trainee ? (
-        <p className="text-slate-400 leading-snug">Hidden in trainee mode — interpret the rhythm yourself. Turn trainee mode off in Monitor / Defib to reveal it.</p>
+        <p className="text-slate-400 leading-snug">Hidden in trainee mode — interpret the rhythm yourself. Turn trainee mode off in the Defibrillator tab to reveal it.</p>
       ) : (
       <>
       <h4 className="text-xs font-semibold text-white leading-snug">{profile.headline}</h4>
@@ -318,13 +325,14 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       {/* ── ECG options bar ─────────────────────────────────────── */}
       {ecg.bottomView === 'ecg' && (fold ? (
         <>
-          <div className="flex items-center gap-1.5 px-2 py-1 border-b border-slate-700/40 shrink-0 text-[10px]">
+          <div className="flex items-center gap-1.5 px-2 py-1 border-b border-slate-700/40 shrink-0 text-[10px] overflow-x-auto no-scrollbar">
             <Seg
               options={LAYOUTS.map((l) => ({ v: l.value, l: l.label, t: l.title }))}
               value={ecg.inspectLead ? '' : ecg.layout}
               onChange={(v) => { ecg.setInspectLead(null); ecg.setLayout(v as ECGLayout); }}
             />
             <div className="ml-auto flex items-center gap-1 shrink-0">
+              {labToggle}
               <Toggle active={showInterp} onClick={() => setShowInterp((v) => !v)} title="What this rhythm shows">Interpret</Toggle>
               <Toggle active={optsOpen} onClick={() => setOptsOpen((v) => !v)} title="Gain, paper speed, calipers, electrodes">
                 More {optsOpen ? '▴' : '▾'}
@@ -367,6 +375,12 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           {ecg.bottomView === 'ecg' ? <ECGRenderer /> : ecg.bottomView === 'wiggers' ? <WiggersPanel /> : (
             <div className="absolute inset-0 p-1.5"><MonitorDisplay /></div>
           )}
+          {ecg.bottomView === 'ecg' && leadTip && !ecg.electrodeLab && (
+            <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 w-max max-w-[calc(100%-1rem)] pl-3 pr-1 py-1 rounded-xl bg-sky-950/95 border border-sky-500/50 text-[11px] leading-snug text-sky-100 shadow-lg">
+              <span>{touch ? 'Tap' : 'Click'} a lead to see where it looks at the heart · {touch ? 'double-tap' : 'double-click'} to enlarge it</span>
+              <button onClick={dismissLeadTip} className="p-1 text-sky-300 hover:text-white shrink-0" aria-label="Dismiss tip"><IconClose size={13} /></button>
+            </div>
+          )}
         </div>
         {ecg.bottomView === 'defib' && (
           <aside className={stackDefib ? 'flex-1 min-h-0 border-t border-slate-700 bg-cardiac-dark/40' : 'w-72 shrink-0 border-l border-slate-700 bg-cardiac-dark/40'}>
@@ -374,10 +388,10 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           </aside>
         )}
         {ecg.bottomView === 'ecg' && ecg.electrodeLab && (narrow ? (
-          <Sheet title="Electrode lab" onClose={() => ecg.setElectrodeLab(false)}><ElectrodeLab /></Sheet>
+          <Sheet title="Electrode lab" onClose={() => ecg.setElectrodeLab(false)}><ElectrodeLab titled /></Sheet>
         ) : (
-          <aside className="w-64 shrink-0 border-l border-slate-700 overflow-y-auto p-2.5 bg-cardiac-dark/40">
-            <ElectrodeLab />
+          <aside className="w-[30rem] max-w-[48%] shrink-0 border-l border-slate-700 overflow-hidden p-2.5 bg-cardiac-dark/40">
+            <ElectrodeLab wide />
           </aside>
         ))}
         {ecg.bottomView === 'ecg' && showInterp && !ecg.electrodeLab && (narrow ? (

@@ -7,7 +7,8 @@ import { useTutorStore } from '@/store/useTutorStore';
 import { useContent, searchLibrary, type SearchHit } from '@/lib/content';
 import { openById } from '@/lib/actions';
 import { CASE_DATA } from '@/data/caseData';
-import { IconChevron, IconClose, IconDownload, IconHelp, IconPanelLeft, IconQuiz, IconSearch, IconTutor } from '@/components/ui/icons';
+import { IconBook, IconChevron, IconClose, IconDownload, IconHelp, IconPanelLeft, IconQuiz, IconSearch, IconTutor } from '@/components/ui/icons';
+import { ModeTabs } from '@/components/layout/ModeNav';
 import { InstallButton } from '@/components/ui/InstallApp';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -17,12 +18,15 @@ const KIND_STYLE: Record<SearchHit['kind'], string> = {
   condition: 'bg-rose-500/15 text-rose-300',
   procedure: 'bg-violet-500/15 text-violet-300',
   medication: 'bg-emerald-500/15 text-emerald-300',
+  cathlab: 'bg-cyan-500/15 text-cyan-300',
   case: 'bg-amber-500/15 text-amber-300',
 };
 
 const CASES = Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title }));
 
 export default function TopBar() {
+  const mode = useAppStore((s) => s.mode);
+  const setMode = useAppStore((s) => s.setMode);
   const learningLevel = useAppStore((s) => s.learningLevel);
   const setLearningLevel = useAppStore((s) => s.setLearningLevel);
   const toggleLeftPanel = useAppStore((s) => s.toggleLeftPanel);
@@ -84,13 +88,19 @@ export default function TopBar() {
   return (
     <header className="workspace-header" aria-label="Simulator tools">
       <div className="workspace-brand">
-        <IconButton onClick={toggleLeftPanel} active={leftPanelOpen} aria-pressed={leftPanelOpen} aria-label="Toggle navigator panel" title="Toggle navigator panel"><IconPanelLeft size={18} /></IconButton>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.webp" alt="" width={22} height={32} className="hidden sm:block h-8 w-auto drop-shadow-[0_2px_6px_rgba(220,38,38,0.35)]" />
-        <div className="hidden lg:block leading-tight">
-          <div className="text-sm font-semibold tracking-tight text-ui-text">CardioSim</div>
-          <div className="hidden xl:block text-xs text-ui-muted mt-0.5">Anatomy · ECG · physiology</div>
-        </div>
+        {mode === 'learn' && (
+          <Button onClick={toggleLeftPanel} active={leftPanelOpen} aria-pressed={leftPanelOpen} aria-label="Library: conditions, anatomy, drugs, procedures" title="Library: conditions, anatomy, drugs and procedures" className="px-2 gap-1.5">
+            <IconBook size={18} /><span className="text-[13px]">Library</span>
+          </Button>
+        )}
+        <button onClick={() => setMode('home')} className={`items-center gap-2 rounded-md ${mode === 'learn' ? 'hidden sm:flex' : 'flex'}`} title="Home" aria-label="CardioSim home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.webp" alt="" width={22} height={32} className="h-8 w-auto drop-shadow-[0_2px_6px_rgba(220,38,38,0.35)]" />
+          <span className={`leading-tight text-left ${mode === 'learn' ? 'hidden xl:block' : 'hidden xs:block lg:hidden xl:block'}`}>
+            <span className="block text-sm font-semibold tracking-tight text-ui-text">CardioSim</span>
+          </span>
+        </button>
+        <ModeTabs />
       </div>
 
       <RoleMenu level={learningLevel} onChange={setLearningLevel} />
@@ -177,13 +187,17 @@ export default function TopBar() {
 
       <nav className="workspace-actions" aria-label="Learning tools">
         <IconButton onClick={openSearch} className="md:hidden" aria-label="Search" title="Search ( / )"><IconSearch size={18} /></IconButton>
-        <Button onClick={() => setQuizOpen(true)} aria-label="Quiz yourself" title="Quiz yourself (Q)"><IconQuiz size={18} /><span className="hidden xl:inline">Quiz</span></Button>
-        <Button onClick={toggleTutor} active={tutorOpen} aria-pressed={tutorOpen} aria-label="Ask the tutor" title="Ask the tutor (T)"><IconTutor size={18} /><span className="hidden xl:inline">Tutor</span></Button>
+        <Button onClick={() => setQuizOpen(true)} className="hidden sm:inline-flex short:inline-flex" aria-label="Quiz yourself" title="Quiz yourself (Q)"><IconQuiz size={18} /><span className="hidden xl:inline">Quiz</span></Button>
+        <Button onClick={toggleTutor} active={tutorOpen} aria-pressed={tutorOpen} className="hidden sm:inline-flex short:inline-flex" aria-label="Ask the tutor" title="Ask the tutor (T)"><IconTutor size={18} /><span className="hidden xl:inline">Tutor</span></Button>
         <InstallButton className="ui-button ui-button--quiet hidden md:inline-flex text-emerald-300">
           <IconDownload size={18} /><span className="hidden xl:inline">Install</span>
         </InstallButton>
         <IconButton onClick={() => setHelpOpen(true)} className="hidden xs:inline-flex" aria-label="Help and keyboard shortcuts" title="Help & keyboard shortcuts (?)"><IconHelp size={18} /></IconButton>
-        <IconButton onClick={toggleRightPanel} active={rightPanelOpen} aria-pressed={rightPanelOpen} aria-label="Toggle info panel" title="Toggle info panel"><IconPanelLeft size={18} className="scale-x-[-1]" /></IconButton>
+        {mode === 'learn' && (
+          <Button onClick={toggleRightPanel} active={rightPanelOpen} aria-pressed={rightPanelOpen} aria-label="Info panel: details of what you selected" title="Info panel: details of what you selected" className="px-2 gap-1.5">
+            <IconPanelLeft size={18} className="scale-x-[-1]" /><span className="text-[13px]">Info</span>
+          </Button>
+        )}
       </nav>
     </header>
   );

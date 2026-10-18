@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import type { ConditionContent, MedicationContent, ProcedureContent, QuizQuestion, StructureContent } from '@/types/content';
+import type { CathLabItem, ConditionContent, MedicationContent, ProcedureContent, QuizQuestion, StructureContent } from '@/types/content';
 
 /**
  * The teaching library is large (~1 MB of text), so it is code-split and loaded
@@ -13,6 +13,8 @@ export interface ContentLibrary {
   conditions: Record<string, ConditionContent>;
   procedures: Record<string, ProcedureContent>;
   medications: Record<string, MedicationContent>;
+  /** the cath lab catalog: views, devices, drugs, pressures, complications, team */
+  cathlab: Record<string, CathLabItem>;
   quiz: QuizQuestion[];
 }
 
@@ -33,7 +35,7 @@ export function loadContent(): Promise<void> {
   pending = import('@/data/content')
     .then((m) => {
       useContentStore.setState({
-        lib: { structures: m.STRUCTURES, conditions: m.CONDITIONS, procedures: m.PROCEDURES, medications: m.MEDICATIONS, quiz: m.QUIZ_QUESTIONS },
+        lib: { structures: m.STRUCTURES, conditions: m.CONDITIONS, procedures: m.PROCEDURES, medications: m.MEDICATIONS, cathlab: m.CATHLAB, quiz: m.QUIZ_QUESTIONS },
         loading: false,
       });
     })
@@ -53,7 +55,7 @@ export function useContent(): ContentLibrary | null {
   return lib;
 }
 
-export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'case';
+export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case';
 
 export interface SearchHit {
   kind: SearchKind;
@@ -101,6 +103,10 @@ export function searchLibrary(lib: ContentLibrary, cases: { id: string; title: s
   for (const m of Object.values(lib.medications)) {
     const sc = score(m.name, m.brandNames.concat(m.drugClass), norm(m.summary));
     if (sc) hits.push({ kind: 'medication', id: m.id, name: m.name, sub: m.drugClass, score: sc + 0.2 });
+  }
+  for (const i of Object.values(lib.cathlab)) {
+    const sc = score(i.name, i.synonyms ?? [], norm(i.summary));
+    if (sc) hits.push({ kind: 'cathlab', id: i.id, name: i.name, sub: 'Cath lab', score: sc + 0.25 });
   }
   for (const c of cases) {
     const sc = score(c.title, [], '');

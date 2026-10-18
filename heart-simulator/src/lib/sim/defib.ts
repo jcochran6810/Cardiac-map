@@ -14,7 +14,7 @@
  */
 import { create } from 'zustand';
 import { sim } from '@/lib/sim/simulation';
-import { setRhythm } from '@/lib/actions';
+import { setRhythm } from '@/lib/rhythm';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
@@ -716,11 +716,29 @@ export interface Vitals {
   sbp: number;
   dbp: number;
   co: number;
+  /** the model's own pressure range, for scaling the pleth when the numbers are scripted */
+  wave?: [number, number];
+}
+
+/** A simulator scenario scripts the patient's numbers; the rhythm still comes from the ECG engine */
+export interface ScriptedVitals { pulse: boolean; sbp: number; dbp: number; spo2: number; rr: number; etco2: number }
+let scripted: ScriptedVitals | null = null;
+
+export function setScriptedVitals(v: ScriptedVitals | null) { scripted = v; }
+
+/** Show a blood-pressure reading on the monitor's NIBP box ('fail' = no reading, null = blank) */
+export function setNibpReading(r: { sbp: number; dbp: number } | 'fail' | null) {
+  const last = r === null || r === 'fail' ? r : { ...r, map: Math.round((r.sbp + 2 * r.dbp) / 3) };
+  set({ nibp: { measuring: false, until: 0, last } });
 }
 
 export function vitalsAt(t: number): Vitals {
   const s = get();
   const h = sim.hemo.summary(t);
+  if (scripted) {
+    const v = scripted;
+    return { hr: sim.engine.heartRate(t), pulse: v.pulse, spo2: v.pulse ? v.spo2 : null, etco2: v.etco2, rr: v.rr, sbp: v.sbp, dbp: v.dbp, co: h.co, wave: [h.sbp, h.dbp] };
+  }
   const pulse = !h.noOutput && h.sbp >= 50;
   const hr = sim.engine.heartRate(t);
   const lastShockAgo = t - s.lastShock;
