@@ -342,6 +342,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Keep transcutaneous pads on while the wire goes in and until it is secure.',
     ],
     image: {
+      keys: ['temp-pacing-wire-rv-apex'],
       want: 'A real fluoroscopy frame of a temporary pacing wire from the femoral vein with its tip at the RV apex, beside an ECG strip showing paced capture.',
     },
     sim: ['temp-wire'],
