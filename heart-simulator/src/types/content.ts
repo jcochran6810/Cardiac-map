@@ -275,6 +275,7 @@ export const ECG_PROFILE_IDS = [
   'aortic-stenosis', 'mitral-regurgitation', 'mitral-stenosis',
   'pericarditis', 'tamponade', 'asd', 'vsd', 'pfo',
   'pulmonary-embolism', 'aortic-dissection', 'hyperkalemia', 'paced', 'pea', 'pvt', 'tcp',
+  'inferior-stemi-chb', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused',
 ] as const;
 
 export type StructureId = (typeof STRUCTURE_IDS)[number];
