@@ -18,6 +18,8 @@ Add new items at the top of their group. Use the format:
 - [ ] 2026-10-16 — **Set up Codex's environment** (ChatGPT → Codex → Environments → Cardiac-map):
   set the **setup script** to `cd heart-simulator && npm ci` (Codex tasks have no internet after
   setup, so packages must be installed there), and start Codex tasks from branch `main`.
+- [ ] 2026-10-18 — **Check Monitor / Defib on your phone:** the ECG, SpO₂ and EtCO₂ waveforms should now
+  draw as solid lines (fixed for fast phone screens, tested only in a simulated browser).
 - [ ] 2026-10-16 — **Try it on your own phone.** The phone/tablet layout and the install flow were
   tested in an emulated browser, not on a real device. On an iPhone open the site in Safari → Share
   → Add to Home Screen; on Android, Chrome menu ⋮ → Install app. Then turn on airplane mode and open
@@ -74,6 +76,8 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-18 — Monitor / Defib waveforms (ECG, SpO₂ pleth, capnogram) showed as dots on phones and
+  the row dividers turned solid white; both fixed (`01b51d4`).
 - [x] 2026-10-17 — Production fully on `main`: the owner switched GitHub's default branch and Vercel's
   production branch; the temporary bridge push was removed from `CLAUDE.md`, `AGENTS.md` and the
   start hook, and the merge of this change deployed from `main` as Production.
