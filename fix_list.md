@@ -97,7 +97,7 @@ Add new items at the top of their group. Use the format:
 
 - [x] 2026-10-18 — The phone / browser Back button left the app; it now steps back through the app's pages
   (screens, opened items, drawers, overlays, simulator views), asks before leaving a case, and asks before
-  leaving the app from Home (this session's Back-button commit).
+  leaving the app from Home (`ae5bf42`).
 - [x] 2026-10-18 — Simulator 12-lead: the app no longer reads the tracing for the learner; they choose their
   read from all interpretations and the FTO / preceptor confirms or corrects it at once (`92315a6`).
 
