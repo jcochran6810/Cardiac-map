@@ -775,7 +775,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Covered stents are bulkier and stiffer: check the guide size they need before opening one.',
       'A hydrophilic wire tip deep in a small branch is a classic source of late tamponade — watch where the wire tip is on every run.',
     ],
-    image: { want: 'A real angiogram frame of an Ellis type III coronary perforation with a jet of contrast streaming out of the vessel into the pericardial space.' },
+    image: { keys: ['rca-perforation', 'rca-lao-coils'], want: 'A real angiogram frame of an Ellis type III coronary perforation with a jet of contrast streaming out of the vessel into the pericardial space.' },
     sim: ['balloon-tamponade', 'stent-covered', 'call-surgery'],
     related: ['cardiac-tamponade', 'cl-stent-covered', 'cl-drug-protamine', 'cl-comp-tamponade', 'cl-wire-hydrophilic', 'cl-drug-gp2b3a', 'pericardiocentesis'],
   },

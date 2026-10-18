@@ -5,12 +5,15 @@ import {
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
 
-/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: until then the findings are said in words) */
-const IMAGES: Partial<Record<string, string>> = {};
+/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
+const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-rao-cranial' };
 
 const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiography: left and right coronaries', IMAGES.angio, [
   [who, 'Mid LAD: a 60–70 % narrowing after the first diagonal. Circumflex and RCA: no significant disease. By eye it is borderline.'],
-], { kind: 'angio', answer: 'angio-lad-intermediate', explain: 'An intermediate (40–70 %) mid-LAD narrowing: by eye you cannot tell whether it limits flow — that is what the pressure wire is for.' });
+], {
+  kind: 'angio', answer: 'angio-lad-intermediate', partial: ['angio-severe-stenosis'], prompt: 'What does the left coronary run show?',
+  explain: 'An intermediate (40–70 %) LAD narrowing: by eye you cannot tell whether it limits flow — that is what the pressure wire is for.',
+}, [[who, 'Right coronary: no significant disease. The left coronary run is on the Imaging screen.']]);
 
 const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the LAD in two views', IMAGES['final-angio'], [
   [who, 'Mid LAD stented: no residual narrowing, TIMI 3 flow, no edge dissection.', 'good'],

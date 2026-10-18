@@ -130,11 +130,14 @@ export function askHarm(a: LabAsk, text: string, points = 3): Harm {
 
 /**
  * A cine run. With a real angiogram for it, the learner sees the image and reads it (the preceptor checks
- * the read); until the app has one, the finding is said in words.
+ * the read) — `alongside` says what the image does not show (e.g. the other coronary); without one, the
+ * finding is said in words.
  */
-export function cine(id: string, view: string, image: string | undefined, words: Line[], read: Omit<PendingRead, 'minute'>): Effect {
+export function cine(
+  id: string, view: string, image: string | undefined, words: Line[], read: Omit<PendingRead, 'minute'>, alongside: Line[] = [],
+): Effect {
   return image
-    ? { say: [['monitor', `Cine recorded: ${view}.`]], image: { id, view, image }, read }
+    ? { say: [['monitor', `Cine recorded: ${view}.`], ...alongside], image: { id, view, image }, read }
     : { say: words, image: { id, view } };
 }
 

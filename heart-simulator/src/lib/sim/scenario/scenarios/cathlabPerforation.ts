@@ -2,7 +2,7 @@ import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { has, line } from '../kit';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, operator, type LabAsk } from '../labKit';
 
-/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: until then the findings are said in words) */
+/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = {};
 
 const perforationRead: Omit<PendingRead, 'minute'> = {

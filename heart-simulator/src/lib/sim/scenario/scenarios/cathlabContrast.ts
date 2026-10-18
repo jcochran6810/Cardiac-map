@@ -3,7 +3,7 @@ import { has, line } from '../kit';
 import { MD, RN, TECH, angioGate, askCritical, askEvents, askHarm, operator, type LabAsk } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES */
-const IMAGES: Partial<Record<string, string>> = {};
+const IMAGES: Partial<Record<string, string>> = { angio: 'normal-left-rao-caudal' };
 
 const reactionRead: Omit<PendingRead, 'minute'> = {
   kind: 'clinical', answer: 'clin-contrast', prompt: 'What is happening to her?',

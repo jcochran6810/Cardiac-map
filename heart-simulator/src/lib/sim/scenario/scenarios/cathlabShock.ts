@@ -4,12 +4,15 @@ import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
 
-/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: until then the findings are said in words) */
-const IMAGES: Partial<Record<string, string>> = {};
+/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
+const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion-thrombus' };
 
 const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiography: left and right coronaries', IMAGES.angio, [
-  [who, 'Proximal LAD occluded — TIMI 0. The RCA has a 70 % mid narrowing; the circumflex is fine. The LAD is the culprit.'],
-], { kind: 'angio', answer: 'angio-lad-prox-occlusion', explain: 'The proximal LAD is occluded (TIMI 0): the culprit. The 70 % RCA narrowing is not — in shock, open the culprit only (CULPRIT-SHOCK) and deal with the RCA later.' });
+  [who, 'Proximal LAD occluded — TIMI 0, with a big thrombus load. The RCA has a 70 % mid narrowing. The LAD is the culprit.'],
+], {
+  kind: 'angio', answer: 'angio-lad-prox-occlusion', partial: ['angio-thrombus'], prompt: 'What does the left coronary run show?',
+  explain: 'The proximal LAD is occluded (TIMI 0), with a large thrombus burden: the culprit. The 70 % RCA narrowing is not — in shock, open the culprit only (CULPRIT-SHOCK) and deal with the RCA later.',
+}, [[who, 'Right coronary: a 70 % narrowing in the mid vessel. The left coronary run is on the Imaging screen.']]);
 
 const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the LAD in two views', IMAGES['final-angio'], [
   [who, 'LAD open: TIMI 3 flow. Leaving the RCA for another day.', 'good'],

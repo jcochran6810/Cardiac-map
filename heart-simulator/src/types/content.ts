@@ -183,8 +183,8 @@ export interface CathLabItem {
   pearls?: string[];
   /** an angiographic view: its simulator view id (angles and "shows best" come from lib/cathlab/views) */
   view?: string;
-  /** a real image (key of CATH_IMAGES once one is in the app) and what the ideal image shows */
-  image?: { key?: string; want: string };
+  /** real images (keys of CATH_IMAGES, shown in order) and what the ideal image would show */
+  image?: { keys?: string[]; want: string };
   /** simulator interventions this item teaches */
   sim?: string[];
   /** other library items: procedure, medication or condition ids, or other cl- ids */

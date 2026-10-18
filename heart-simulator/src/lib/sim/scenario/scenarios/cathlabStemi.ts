@@ -5,8 +5,8 @@ import {
   operator, type LabAsk,
 } from '../labKit';
 
-/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: until then the findings are said in words) */
-const IMAGES: Partial<Record<string, string>> = {};
+/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
+const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion' };
 
 const wedged: Effect = { blocked: true, say: [['system', 'The pressure is still damped: back the guide out first.']] };
 
@@ -25,7 +25,10 @@ function shockOutcome(s: SimState): Effect | null {
 
 const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiography: left and right coronaries', IMAGES.angio, [
   [who, 'Proximal LAD 100 % occluded — TIMI 0 flow. Circumflex and RCA: mild disease only. That is the culprit.'],
-], { kind: 'angio', answer: 'angio-lad-prox-occlusion', explain: 'The proximal LAD stops dead (TIMI 0): the culprit of this anterior STEMI. The circumflex and the RCA have only mild disease.' });
+], {
+  kind: 'angio', answer: 'angio-lad-prox-occlusion', prompt: 'What does the left coronary run show?',
+  explain: 'The proximal LAD stops dead (TIMI 0): the culprit of this anterior STEMI. The circumflex and the RCA have only mild disease.',
+}, [[who, 'Right coronary: mild disease only. The left coronary run is on the Imaging screen.']]);
 
 const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the LAD in two views', IMAGES['final-angio'], [
   [who, 'LAD wide open: TIMI 3 flow, no dissection at the stent edges, no residual thrombus.', 'good'],

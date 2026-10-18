@@ -45,6 +45,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Whipping, sharp spikes on the Pd trace usually from the sensor touching the vessel wall, makes Pd unreliable; move the wire slightly and remeasure.',
     ],
     image: {
+      keys: ['ffr-console'],
       want: 'A real pressure-wire console screen showing the aortic (Pa) and distal (Pd) tracings separating during adenosine hyperemia, with the FFR value displayed.',
     },
     sim: ['ffr', 'ffr-equalize'],
@@ -86,6 +87,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Avoid any pressure ratio on a STEMI culprit lesion; severe aortic stenosis can also make the ratios less reliable.',
     ],
     image: {
+      keys: ['rfr-pullback'],
       want: 'A real iFR pullback screen showing the pressure-ratio curve along the vessel, with the step-up at the lesion marked on the co-registered angiogram.',
     },
     sim: [],
@@ -169,6 +171,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Red thrombus and lipid block the light and hide the outer wall; use IVUS when the true vessel size (EEM) is needed.',
     ],
     image: {
+      keys: ['oct-tcfa'],
       want: 'A real OCT cross-section showing a stent with struts well apposed to the wall, or a calcified plaque with its arc and thickness measured.',
     },
     sim: ['oct'],
@@ -888,6 +891,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'In inferior STEMI, check right-sided leads (V4R): RV involvement means avoiding nitrates and supporting preload with fluids.',
       'Review false activations as well as delays; both improve ECG reading and the system.',
     ],
+    image: { keys: ['lad-occlusion', 'rca-occlusion'], want: 'Real angiograms of the culprit occlusions the whole system races to open.' },
     sim: [],
     related: ['anterior-stemi', 'inferior-stemi', 'tenecteplase', 'aspirin', 'cl-radial-access', 'pci-stent'],
   },

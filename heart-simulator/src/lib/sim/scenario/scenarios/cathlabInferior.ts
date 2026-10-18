@@ -5,12 +5,15 @@ import {
   doneAfter, nextStep, type LabAsk,
 } from '../labKit';
 
-/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (none yet: until then the findings are said in words) */
-const IMAGES: Partial<Record<string, string>> = {};
+/** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
+const IMAGES: Partial<Record<string, string>> = { angio: 'rca-occlusion' };
 
 const angioRun = (who: 'you' | 'operator') => cine('angio', 'Diagnostic angiography: left and right coronaries', IMAGES.angio, [
   [who, 'Left system: mild disease only. The right coronary stops dead in its proximal segment — TIMI 0. That is the culprit.'],
-], { kind: 'angio', answer: 'angio-rca-occlusion', explain: 'The RCA is occluded proximally (TIMI 0): the culprit of this inferior STEMI, and proximal enough to take the RV branches — hence the RV infarct.' });
+], {
+  kind: 'angio', answer: 'angio-rca-occlusion', prompt: 'What does the right coronary run show?',
+  explain: 'The RCA is occluded proximally (TIMI 0): the culprit of this inferior STEMI, and proximal enough to take the RV branches — hence the RV infarct.',
+}, [[who, 'Left coronary: mild disease only. The right coronary run is on the Imaging screen.']]);
 
 const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogram: the RCA in two views', IMAGES['final-angio'], [
   [who, 'RCA wide open to the crux: TIMI 3 flow, the RV branches filling, no dissection.', 'good'],

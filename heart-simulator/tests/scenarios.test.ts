@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CONDITIONS } from '@/data/content';
 import { resolveProfile } from '@/lib/ecg/profiles';
-import { criticalsFor, perform, review, start, stop } from '@/lib/sim/scenario/engine';
+import { answerRead, criticalsFor, perform, review, start, stop } from '@/lib/sim/scenario/engine';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { SCENARIOS, SCENARIO_BY_ID, scenariosFor } from '@/lib/sim/scenario/scenarios';
 import type { LearningLevel } from '@/store/useAppStore';
-import { UNTIL_ARRIVED, runScenario as run } from './helpers';
+import { UNTIL_ARRIVED, readAfter, runScenario as run } from './helpers';
 
 const R = (n: number) => Array<string>(n).fill('reassess');
 
@@ -269,7 +269,7 @@ describe('STEMI in the cath lab', () => {
     ]));
     expect(s.fired.some((id) => id.endsWith('-fallback'))).toBe(false);
     expect(s.rhythm.profile).toBe('anterior-stemi-reperfused');
-    expect(s.reads.map((r) => r.answer)).toEqual(['hemo-damped', 'reperfused-anterior']);
+    expect(s.reads.map((r) => r.answer)).toEqual(['angio-lad-prox-occlusion', 'hemo-damped', 'reperfused-anterior']);
   });
 
   it('the wrong device gets a word from the operator and costs points; the right one moves things on', () => {
@@ -301,7 +301,7 @@ describe('STEMI in the cath lab', () => {
 
   it('the tech and the nurse read the damped pressure; a tech who misses it loses the callout points', () => {
     const s = run(sc, 3, [...TECH_TO_GUIDE, 'guide-ebu', 'reassess']);
-    expect(s.reads[0]).toMatchObject({ kind: 'hemo', answer: 'hemo-damped' });
+    expect(s.reads.find((r) => r.kind === 'hemo')).toMatchObject({ answer: 'hemo-damped' });
     expect(s.log.some((l) => /who's watching the waveform/.test(l.text))).toBe(true);
     expect(review(sc, stop(s)).toFix.some((t) => t.kind === 'missed' && /damped/.test(t.label))).toBe(true);
   });
@@ -336,7 +336,8 @@ describe('STEMI in the cath lab', () => {
 
   it('the cardiologist sizes the stent from the measurements', () => {
     const steps = IDEAL['stemi-cathlab'][5]!;
-    const s = run(sc, 5, [...steps.slice(0, steps.indexOf('balloon-predil') + 1), 'read:stent-3.5x23'], undefined, 'manual');
+    const toPredil = readAfter(steps.slice(0, steps.indexOf('balloon-predil') + 1), 'angio', 'angio-lad-prox-occlusion');
+    const s = run(sc, 5, [...toPredil, 'read:stent-3.5x23'], undefined, 'manual');
     expect(s.reads.at(-1)).toMatchObject({ kind: 'sizing', answer: 'stent-3.5x28', verdict: 'partial' });
     expect(s.penalties.at(-1)).toMatchObject({ points: 2, text: expect.stringMatching(/^Stent sizing at/) });
   });
@@ -363,7 +364,7 @@ describe('inferior STEMI in the cath lab', () => {
   it('a left guide for the RCA costs points; reflow brings the reflex, and the learner must name it', () => {
     let s = run(sc, 5, ['consent', 'heparin', 'timeout', 'access-femoral', 'cath-jl4', 'angio', 'guide-ebu']);
     expect(s.penalties.map((p) => p.id)).toEqual(['left-guide-for-rca']);
-    s = run(sc, 5, MD_TO_BALLOON, undefined, 'manual');
+    s = run(sc, 5, readAfter(MD_TO_BALLOON, 'angio', 'angio-rca-occlusion'), undefined, 'manual');
     expect(s.pendingRead).toMatchObject({ kind: 'clinical', answer: 'clin-bezold' });
     expect(s.rhythm.hr).toBe(38);
     expect(s.vitals.sbp).toBe(68);
@@ -512,5 +513,41 @@ describe('the cath lab monitor', () => {
     s = perform(sc, s, 'callout');
     expect(attached(s).art).toBe(true);
     expect(s.vitals.sbp).toBe(136);
+  });
+});
+
+describe('real angiograms in the cath lab cases', () => {
+  const CULPRIT_READS = {
+    'stemi-cathlab': 'angio-lad-prox-occlusion', 'stemi-inferior-cathlab': 'angio-rca-occlusion',
+    'ffr-cathlab': 'angio-lad-intermediate', 'shock-cathlab': 'angio-lad-prox-occlusion',
+  } as const;
+
+  it('the run shows the image, says what the image does not show, and waits for the read', () => {
+    for (const [id, answer] of Object.entries(CULPRIT_READS)) {
+      const sc = SCENARIO_BY_ID[id];
+      const steps = IDEAL[id][5]!;
+      let s = run(sc, 5, steps.slice(0, steps.indexOf('angio')));
+      s = perform(sc, s, 'angio');
+      expect(s.images.at(-1), id).toMatchObject({ id: 'angio', image: sc.images!.angio });
+      expect(s.pendingRead, id).toMatchObject({ kind: 'angio', answer, prompt: expect.stringMatching(/coronary run/) });
+      expect(s.log.some((l) => /coronary: .*Imaging screen/.test(l.text)), id).toBe(true);
+    }
+  });
+
+  it('the tech and the nurse read the run the operator records', () => {
+    for (const role of [3, 4] as const) {
+      const sc = SCENARIO_BY_ID['stemi-cathlab'];
+      const s = run(sc, role, IDEAL['stemi-cathlab'][role]!);
+      expect(s.reads.find((r) => r.kind === 'angio'), `role ${role}`).toMatchObject({ answer: 'angio-lad-prox-occlusion', verdict: 'correct' });
+    }
+  });
+
+  it('a thrombus read of the shock run is partly right', () => {
+    const sc = SCENARIO_BY_ID['shock-cathlab'];
+    const steps = IDEAL['shock-cathlab'][5]!;
+    let s = perform(sc, run(sc, 5, steps.slice(0, steps.indexOf('angio'))), 'angio');
+    while (s.pendingRead && s.pendingRead.kind !== 'angio') s = answerRead(sc, s, s.pendingRead.answer);
+    s = answerRead(sc, s, 'angio-thrombus');
+    expect(s.reads.at(-1)).toMatchObject({ kind: 'angio', verdict: 'partial' });
   });
 });

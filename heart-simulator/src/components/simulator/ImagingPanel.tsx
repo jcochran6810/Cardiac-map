@@ -6,13 +6,17 @@ import { clockText } from '@/lib/sim/scenario/engine';
 import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
 import { CATH_IMAGES } from '@/data/cathImages';
 import CArmDiagram from '@/components/cathlab/CArmDiagram';
-import { IconClose } from '@/components/ui/icons';
+import { ImageCredit, ImageZoom } from '@/components/cathlab/CathFigure';
 
-/** Cath lab cases: every cine run recorded so far, newest first — the view, the C-arm angles, the picture */
+/**
+ * Cath lab cases: every cine run recorded so far, newest first — the view, the C-arm angles, the picture.
+ * What a real image shows (its caption) stays hidden while the learner is asked to read that run.
+ */
 export default function ImagingPanel({ state }: { state: SimState }) {
-  const [zoom, setZoom] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<number | null>(null);
   const runs = state.images.map((r, i) => ({ ...r, n: i + 1 })).reverse();
   const reading = state.pendingRead?.kind === 'angio' && !state.ended;
+  const hideFrom = reading ? state.pendingRead!.minute : Infinity;
   if (!runs.length) {
     return (
       <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
@@ -26,7 +30,8 @@ export default function ImagingPanel({ state }: { state: SimState }) {
       </div>
     );
   }
-  const big = zoom ? CATH_IMAGES[zoom] : undefined;
+  const zoomed = runs.find((r) => r.n === zoom);
+  const big = zoomed?.image ? CATH_IMAGES[zoomed.image] : undefined;
   return (
     <div className="absolute inset-0 overflow-y-auto px-3 py-2.5 space-y-2">
       {reading && (
@@ -37,6 +42,7 @@ export default function ImagingPanel({ state }: { state: SimState }) {
       {runs.map((r) => {
         const v = r.id ? CINE_VIEW_BY_ID[r.id] : undefined;
         const img = r.image ? CATH_IMAGES[r.image] : undefined;
+        const caption = img && r.minute < hideFrom ? img.caption : null;
         return (
           <article key={r.n} className="rounded-lg border border-slate-700 bg-cardiac-dark/50 overflow-hidden">
             <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-700/70">
@@ -45,11 +51,12 @@ export default function ImagingPanel({ state }: { state: SimState }) {
               {v && <span className="ml-auto text-[11px] font-mono text-sky-300 whitespace-nowrap">{angleText(v)}</span>}
             </div>
             {img && (
-              <button onClick={() => setZoom(r.image!)} className="block w-full bg-black" aria-label={`Enlarge: ${img.alt}`}>
+              <button onClick={() => setZoom(r.n)} className="block w-full bg-black" aria-label={`Enlarge: ${img.alt}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.src} alt={img.alt} className="w-full max-h-[320px] object-contain" />
+                <img src={img.src} alt={img.alt} width={img.width} height={img.height} className="w-full h-auto max-h-[320px] object-contain" />
               </button>
             )}
+            {caption && <p className="px-2.5 pt-2 text-[12px] text-slate-200 leading-snug">{caption}</p>}
             {(v || img) && (
               <div className="flex gap-3 items-center px-2.5 py-2">
                 {v && <CArmDiagram rot={v.rot} ang={v.ang} className="w-40 sm:w-48 shrink-0" />}
@@ -60,21 +67,14 @@ export default function ImagingPanel({ state }: { state: SimState }) {
                       <div className="text-slate-100">{v.best}.</div>
                     </>
                   )}
-                  {img && <div className="mt-1 text-[10px] text-slate-500">Image: {img.credit} · {img.license}</div>}
+                  {img && <ImageCredit img={img} className="block mt-1 text-[10px] text-slate-500" />}
                 </div>
               </div>
             )}
           </article>
         );
       })}
-      {big && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" role="dialog" aria-label={big.alt}>
-          <button onClick={() => setZoom(null)} className="self-end p-3 text-slate-200" aria-label="Close the image"><IconClose size={20} /></button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={big.src} alt={big.alt} className="flex-1 min-h-0 w-full object-contain" />
-          <div className="p-2 text-center text-[11px] text-slate-400">{big.credit} · {big.license}</div>
-        </div>
-      )}
+      {big && zoomed && <ImageZoom img={big} showCaption={zoomed.minute < hideFrom} onClose={() => setZoom(null)} />}
     </div>
   );
 }

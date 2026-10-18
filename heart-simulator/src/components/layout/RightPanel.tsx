@@ -22,6 +22,7 @@ import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
 import { CATHLAB_GROUPS, type CathLabItem, type ConditionContent, type MedicationContent, type ProcedureContent, type StructureContent } from '@/types/content';
 import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
 import { CATH_IMAGES } from '@/data/cathImages';
+import { CathFigure } from '@/components/cathlab/CathFigure';
 import CArmDiagram from '@/components/cathlab/CArmDiagram';
 import { IconCheck, IconClose, IconCube, IconFlag, IconPlay, IconPulse } from '@/components/ui/icons';
 import ScopeCard from '@/components/ui/ScopeCard';
@@ -420,7 +421,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function CathLabView({ item, level }: { item: CathLabItem; level: LearningLevel }) {
   const compact = useAppStore((s) => s.compact);
   const v = item.view ? CINE_VIEW_BY_ID[item.view] : undefined;
-  const img = item.image?.key ? CATH_IMAGES[item.image.key] : undefined;
+  const imgs = (item.image?.keys ?? []).flatMap((k) => CATH_IMAGES[k] ?? []);
   const group = CATHLAB_GROUPS.find((g) => g.id === item.group)?.label;
   const onHeart = () => {
     if (!v) return;
@@ -450,12 +451,12 @@ function CathLabView({ item, level }: { item: CathLabItem; level: LearningLevel 
             )}
           </div>
         )}
-        {img && (
-          <figure className="rounded-lg overflow-hidden border border-slate-700 bg-black">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={img.src} alt={img.alt} className="w-full max-h-72 object-contain" />
-            <figcaption className="px-2 py-1 text-[9px] text-slate-500 bg-cardiac-dark">{img.credit} · {img.license}</figcaption>
-          </figure>
+        {imgs.length > 0 && (
+          <Section title={imgs.length > 1 ? 'Real images' : 'Real image'}>
+            <div className="space-y-2">
+              {imgs.map((img) => <CathFigure key={img.src} img={img} />)}
+            </div>
+          </Section>
         )}
         <Section title="What it is"><Bullets items={item.details} /></Section>
         <Section title="Who does what">

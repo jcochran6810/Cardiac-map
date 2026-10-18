@@ -14,6 +14,13 @@ export function expectVec(actual: Vec3, expected: Vec3, digits = 9) {
 
 // ─── Scenario simulator ────────────────────────────────────────────────────
 
+/** The steps with a read given right after `step` (for runs with reads: 'manual') */
+export function readAfter(steps: string[], step: string, read: string): string[] {
+  const i = steps.indexOf(step);
+  if (i < 0) throw new Error(`no step ${step}`);
+  return [...steps.slice(0, i + 1), `read:${read}`, ...steps.slice(i + 1)];
+}
+
 /** Reassess until the ambulance arrives at the hospital */
 export const UNTIL_ARRIVED = 'until-arrived';
 
