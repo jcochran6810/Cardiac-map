@@ -1,5 +1,5 @@
 import type { Effect, Scenario, SimState } from '../types';
-import { has, interpret } from '../kit';
+import { has } from '../kit';
 
 /** RV infarction: nitrates drop preload and blood pressure */
 function nitroCrash(s: SimState): Effect {
@@ -41,8 +41,8 @@ export const stemiInferiorRV: Scenario = {
     perfusion: 'Pale and clammy. Neck veins distended even sitting upright. Radial pulses weak.',
     ecg12: (s) => s.rhythm.profile === 'inferior-stemi-chb'
       ? `Complete heart block with a narrow junctional escape at ${s.rhythm.hr}; ST elevation persists in II, III and aVF.`
-      : `Sinus ${s.rhythm.hr < 60 ? 'bradycardia' : 'rhythm'} ${s.rhythm.hr} with ST elevation in II, III and aVF (III > II) and reciprocal depression in aVL and I: inferior STEMI. STE in III > II points to the RCA — check right-sided leads.`,
-    ecgRight: 'V4R: 1.5 mm ST elevation — right ventricular infarction. She is preload-dependent: no nitrates, and fluid for hypotension.',
+      : `Sinus ${s.rhythm.hr < 60 ? 'bradycardia' : 'rhythm'} ${s.rhythm.hr} with ST elevation in II, III and aVF (III > II) and reciprocal depression in aVL and I: inferior STEMI. ST elevation in III greater than II points to the RCA.`,
+    ecgRight: 'V4R: 1.5 mm ST elevation.',
     ecgPosterior: 'V7–V9: no ST elevation.',
   },
   status: (s) => {
@@ -60,12 +60,12 @@ export const stemiInferiorRV: Scenario = {
     atropine: (s) => {
       if (s.rhythm.profile !== 'inferior-stemi-chb') return null;
       return {
-        say: [['monitor', interpret(s) ? 'Conducted beats return: sinus rhythm 66 with inferior ST elevation.' : 'Heart rate up to 66.', 'good'], ['patient', '"That\'s a bit better."']],
+        say: [['monitor', 'Heart rate up to 66.', 'good'], ['patient', '"That\'s a bit better."']],
         rhythm: { profile: 'inferior-stemi', hr: 66 }, vitals: { sbp: Math.min(106, s.vitals.sbp + 12), dbp: Math.min(68, s.vitals.dbp + 8) }, flags: ['atropine', 'brady-treated'],
       };
     },
     pace: (s) => s.rhythm.profile === 'inferior-stemi-chb' ? {
-      say: [['monitor', 'Electrical capture at 70 mA, rate 70.'], ['you', 'Femoral pulse matches: mechanical capture.', 'good']],
+      say: [['monitor', 'Pacer on: rate 70, output turned up to 70 mA.'], ['you', 'Femoral pulse now 70, matching the pacer.', 'good']],
       rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp: Math.max(s.vitals.sbp, 100), dbp: Math.max(s.vitals.dbp, 62), pain: Math.max(s.vitals.pain, 6) }, flags: ['pads', 'monitor', 'paced', 'brady-treated'],
     } : null,
     'ecg-transmit': (s) => has(s, 'ecg12') ? {
@@ -80,7 +80,7 @@ export const stemiInferiorRV: Scenario = {
       effect: (s) => ({
         say: [
           ['patient', '"Everything\'s going dark…"', 'bad'],
-          ['monitor', interpret(s) ? 'The rate drops to 40: complete heart block with a narrow escape.' : 'Pulse 40 and weak.', 'bad'],
+          ['monitor', 'Monitor alarm: heart rate 40.', 'bad'],
         ],
         rhythm: { profile: 'inferior-stemi-chb', hr: 40 }, vitals: { sbp: Math.min(s.vitals.sbp - 14, 86), dbp: Math.min(s.vitals.dbp - 10, 52), gcs: 14 },
         flags: ['chb', 'hypotension'],

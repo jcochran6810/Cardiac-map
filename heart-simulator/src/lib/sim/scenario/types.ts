@@ -8,6 +8,7 @@
  * choices always give the same patient and the same score.
  */
 import type { LearningLevel } from '@/store/useAppStore';
+import type { Verdict } from './reads';
 
 export type Setting = 'field' | 'cathlab';
 
@@ -46,7 +47,8 @@ export interface Vitals {
   temp: number;
 }
 
-export type Speaker = 'dispatch' | 'scene' | 'patient' | 'partner' | 'team' | 'operator' | 'monitor' | 'you' | 'hospital' | 'system';
+/** `fto`: the field training officer (or, in the cath lab, the preceptor) who checks your 12-lead reads */
+export type Speaker = 'dispatch' | 'scene' | 'patient' | 'partner' | 'team' | 'operator' | 'monitor' | 'you' | 'hospital' | 'system' | 'fto';
 export type Tone = 'info' | 'good' | 'warn' | 'bad';
 
 export interface LogEntry {
@@ -89,6 +91,12 @@ export interface SimState {
   /** fired event ids */
   fired: string[];
   ended: null | { reason: EndReason; minute: number };
+  /** a 12-lead waiting for your read: nothing else can be done until you give it */
+  pendingRead: null | { minute: number; profile: string };
+  /** your 12-lead reads and how the FTO judged them */
+  reads: { minute: number; profile: string; chosen: string; verdict: Verdict }[];
+  /** the last 12-lead recorded: when, and the rhythm on it (an unchanged repeat needs no new read) */
+  lastEcg: null | { minute: number; profile: string };
 }
 
 export type Line = [Speaker, string] | [Speaker, string, Tone];
@@ -209,7 +217,9 @@ export interface Review {
   outcome: string;
   timings: { label: string; minute: number | null; target?: number; met: boolean | null }[];
   wentWell: ReviewItem[];
-  toFix: (ReviewItem & { kind: 'missed' | 'late' | 'harm' | 'hint'; severity?: Severity })[];
+  toFix: (ReviewItem & { kind: 'missed' | 'late' | 'harm' | 'read' | 'hint'; severity?: Severity })[];
+  /** every 12-lead read: what you said, what it was */
+  reads: { minute: number; chosen: string; answer: string; verdict: Verdict }[];
   /** hints taken during the run */
   hints: number;
   teaching: string[];

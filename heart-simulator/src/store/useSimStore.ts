@@ -7,7 +7,7 @@
  */
 import { create } from 'zustand';
 import { setRhythm } from '@/lib/rhythm';
-import { perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
+import { perform, readEcg, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Review, SimState } from '@/lib/sim/scenario/types';
 import { resetCode, setNibpReading, setScriptedVitals, useDefibStore, type ScriptedVitals } from '@/lib/sim/defib';
@@ -22,12 +22,12 @@ interface SimStore {
   scenarioId: string | null;
   state: SimState | null;
   review: Review | null;
-  /** the last recorded 12-lead: when, what rhythm, and what it showed */
-  lastEcg: { minute: number; profile: string; hr: number; text: string } | null;
   /** best score per scenario and role ("scenarioId:role" → percent), kept on this device */
   best: Record<string, number>;
   startScenario: (id: string, role: LearningLevel) => void;
   act: (interventionId: string) => void;
+  /** your read of the 12-lead that is waiting for one */
+  read: (optionId: string) => void;
   hint: () => void;
   /** end the case now and see the review */
   endScenario: () => void;
@@ -133,20 +133,13 @@ export const useSimStore = create<SimStore>((set, get) => {
     const prev = get().state;
     if (next === prev) return;
     show(next, prev);
-    let lastEcg = get().lastEcg;
-    const last = next.performed.at(-1);
-    if (prev && last && next.performed.length > prev.performed.length && (last.id === 'ecg12' || last.id === 'ecg12-repeat')) {
-      const reading = next.log.slice(prev.log.length).find((l) => l.who === 'monitor');
-      lastEcg = { minute: last.minute, profile: next.rhythm.profile, hr: next.rhythm.hr, text: reading?.text ?? '' };
-    }
-    set({ state: next, lastEcg, ...(next.ended ? finish(next) : {}) });
+    set({ state: next, ...(next.ended ? finish(next) : {}) });
   };
 
   return {
     scenarioId: null,
     state: null,
     review: null,
-    lastEcg: null,
     best: typeof window === 'undefined' ? {} : loadBest(),
 
     startScenario: (id, role) => {
@@ -157,12 +150,17 @@ export const useSimStore = create<SimStore>((set, get) => {
       setNibpReading(null);
       const s = start(sc, sc.roles.includes(role) ? role : sc.roles[0]);
       show(s, null);
-      set({ scenarioId: id, state: s, review: null, lastEcg: null });
+      set({ scenarioId: id, state: s, review: null });
     },
     act: (id) => {
       const { state } = get();
       if (!state || state.ended) return;
       update(perform(SCENARIO_BY_ID[state.scenarioId], state, id));
+    },
+    read: (optionId) => {
+      const { state } = get();
+      if (!state?.pendingRead) return;
+      update(readEcg(SCENARIO_BY_ID[state.scenarioId], state, optionId));
     },
     hint: () => {
       const { state } = get();
@@ -177,7 +175,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     closeScenario: () => {
       setScriptedVitals(null);
       setNibpReading(null);
-      set({ scenarioId: null, state: null, review: null, lastEcg: null });
+      set({ scenarioId: null, state: null, review: null });
     },
   };
 });

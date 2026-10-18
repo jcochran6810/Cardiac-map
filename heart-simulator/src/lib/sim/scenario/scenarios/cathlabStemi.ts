@@ -1,5 +1,5 @@
 import type { Effect, Scenario, SimState } from '../types';
-import { has } from '../kit';
+import { has, line } from '../kit';
 
 const operator = (s: SimState) => (s.role === 5 ? 'you' : 'operator');
 
@@ -8,7 +8,7 @@ function shockOutcome(s: SimState): Effect | null {
   return {
     say: [
       ['monitor', 'Shock delivered: 200 J.'],
-      ['you', 'Sinus rhythm 86, pressure 116/72 on the arterial line. ROSC within seconds.', 'good'],
+      ['you', 'An organised rhythm returns; 116/72 on the arterial line. ROSC within seconds.', 'good'],
       ['patient', '"What just happened? The pain\'s almost gone."'],
     ],
     rhythm: { profile: 'anterior-stemi-reperfused', hr: 86 }, pulse: true, phase: 'post',
@@ -111,8 +111,8 @@ export const cathlabStemi: Scenario = {
       id: 'damped', when: (s) => has(s, 'angio'),
       effect: (s) => ({
         say: [
-          ['monitor', 'The aortic pressure waveform has gone damped and ventricularised: 82/64 with no dicrotic notch.', 'bad'],
-          ...(s.role === 5 ? [['team', 'Tech: "Doctor — the pressure\'s damped!"', 'warn'] as [ 'team', string, 'warn']] : []),
+          ['monitor', 'Aortic pressure 82/64 — the waveform has lost its dicrotic notch.', 'bad'],
+          ...(s.role === 5 ? [line('team', 'Tech: "Doctor — the pressure\'s damped!"', 'warn')] : []),
         ],
         flags: ['damped'],
       }),
@@ -134,8 +134,8 @@ export const cathlabStemi: Scenario = {
       id: 'reperfusion-vf', when: (s) => has(s, 'pci') && s.pulse,
       effect: (s) => ({
         say: [
-          ['monitor', 'Ventricular fibrillation on reflow!', 'bad'],
-          ...(s.role === 5 ? [['team', 'Tech: "VF!"', 'bad'] as ['team', string, 'bad']] : []),
+          ['monitor', 'Monitor alarm on reflow — he is unresponsive!', 'bad'],
+          ...(s.role === 5 ? [line('team', 'Tech: "Doctor — look at the monitor!"', 'bad')] : []),
         ],
         rhythm: { profile: 'vf', hr: 0 }, pulse: false, flags: ['vf'],
       }),

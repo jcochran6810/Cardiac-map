@@ -52,24 +52,24 @@ export const svtUnstable: Scenario = {
       ? { say: [['monitor', 'She strains, legs raised… no change: still 190.']], flags: ['vagal'] }
       : null,
     adenosine6: (s) => s.rhythm.profile === 'avnrt'
-      ? { say: [['monitor', 'A brief pause… then SVT resumes at 190.']], flags: ['adenosine'] }
+      ? { say: [['monitor', 'A brief pause… then the same fast rhythm resumes at 190.']], flags: ['adenosine'] }
       : null,
     adenosine12: (s) => s.rhythm.profile === 'avnrt'
-      ? { ...converted(s, 'A 5-second pause, then sinus rhythm at 94.'), flags: ['converted', 'adenosine'] }
+      ? { ...converted(s, 'A 5-second pause, then a new rhythm at 94.'), flags: ['converted', 'adenosine'] }
       : null,
     cardiovert: (s) => s.pulse && s.rhythm.profile === 'avnrt'
-      ? { ...converted(s, 'Synchronised shock at 100 J: sinus rhythm at 94.'), flags: ['converted', 'cardioverted', 'pads', 'monitor'] }
+      ? { ...converted(s, 'Synchronised shock at 100 J: the rhythm changes, rate 94.'), flags: ['converted', 'cardioverted', 'pads', 'monitor'] }
       : null,
     defib: (s) => {
       if (s.pulse && s.rhythm.profile === 'avnrt') {
         return {
-          say: [['monitor', 'Unsynchronised shock landed on the T wave: ventricular fibrillation!', 'bad']],
+          say: [['monitor', 'Unsynchronised shock delivered — she goes limp and the monitor alarms!', 'bad']],
           rhythm: { profile: 'vf', hr: 0 }, pulse: false, flags: ['pads', 'monitor', 'iatrogenic-vf'],
         };
       }
       if (!s.pulse && s.rhythm.profile === 'vf') {
         return {
-          say: [['monitor', 'Shock delivered.'], ['you', 'Organised rhythm, pulse present: sinus tachycardia 108. ROSC.', 'good']],
+          say: [['monitor', 'Shock delivered.'], ['you', 'An organised rhythm and a pulse — ROSC.', 'good']],
           rhythm: { profile: 'sinus-tachycardia', hr: 108 }, pulse: true, vitals: { sbp: 96, dbp: 60, gcs: 13, pain: 0 },
           flags: ['pads', 'monitor', 'shocked', 'converted'],
         };

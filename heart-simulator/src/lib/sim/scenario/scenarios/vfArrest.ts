@@ -7,11 +7,11 @@ function shockOutcome(s: SimState): Effect | null {
   const rosc = s.role === 1
     ? n >= 2 && cprCycles(s) >= 2
     : n >= 3 && has(s, 'epi') && cprCycles(s) >= 2 && (has(s, 'amiodarone') || has(s, 'lidocaine') || n >= 4);
-  if (!rosc) return { say: [['monitor', `Shock ${n} delivered. Still VF — resume CPR immediately.`]], flags: ['pads', 'monitor', 'shocked'] };
+  if (!rosc) return { say: [['monitor', `Shock ${n} delivered. No change on the monitor — resume CPR immediately.`]], flags: ['pads', 'monitor', 'shocked'] };
   return {
     say: [
       ['monitor', `Shock ${n} delivered.`],
-      ['you', interpret(s) ? 'After 2 minutes of CPR: organised rhythm, sinus tachycardia 104, carotid pulse present — ROSC. EtCO₂ jumps to 38.' : 'He coughs and moves; there is a pulse — ROSC.', 'good'],
+      ['you', interpret(s) ? 'After 2 minutes of CPR: an organised rhythm and a carotid pulse — ROSC. EtCO₂ jumps to 38.' : 'He coughs and moves; there is a pulse — ROSC.', 'good'],
     ],
     rhythm: { profile: 'anterior-stemi', hr: 104 }, pulse: true, phase: 'rosc',
     vitals: { sbp: 84, dbp: 50, spo2: 91, rr: 8, etco2: 38, gcs: 5, pain: 0 },
@@ -50,7 +50,6 @@ export const vfArrest: Scenario = {
   respond: {
     defib: shockOutcome,
     aed: shockOutcome,
-    ecg12: (s) => (s.pulse ? null : { blocked: true, say: [['system', 'Not during CPR: get the 12-lead after ROSC.']] }),
     capno: (s) => (s.pulse
       ? { say: [['monitor', `EtCO₂ ${s.vitals.etco2} mmHg.`]], flags: ['capno'] }
       : { say: [['monitor', has(s, 'cpr') ? 'EtCO₂ 18 mmHg during compressions: CPR is adequate.' : 'EtCO₂ 9 mmHg: push harder and faster.']], flags: ['capno'] }),

@@ -10,6 +10,7 @@ import { CATEGORY_LABELS, CATEGORY_ORDER, INTERVENTION_BY_ID } from '@/lib/sim/s
 import type { Category, Intervention, LogEntry, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { IconClose, IconSearch } from '@/components/ui/icons';
 import { SETTING_LABEL, SPEAKER_STYLE, TONE_STYLE, durationText, gradeStyle, speakerName } from './simStyles';
+import { ReadBar, ReadList } from './ReadPanel';
 
 const MonitorDisplay = dynamic(() => import('@/components/monitor/MonitorDisplay'), { ssr: false });
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
@@ -42,6 +43,8 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
   }, [tab]);
 
   const ended = !!state.ended;
+  const reading = !!state.pendingRead && !ended;
+  const fto = state.role <= 2 ? 'FTO' : 'preceptor';
   const leave = () => {
     if (ended || window.confirm('Leave this case? Your progress in it will be lost.')) closeScenario();
   };
@@ -79,7 +82,8 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row short:flex-row">
         {/* The patient */}
         <div className="flex-1 min-h-0 min-w-0 flex flex-col">
-          <div className="shrink-0 h-[27dvh] min-h-[140px] max-h-[300px] lg:h-[38%] lg:max-h-[340px] short:h-[48%] short:min-h-0 p-1.5">
+          {/* while you read a 12-lead on a phone, the monitor shrinks so the tracing gets the room */}
+          <div className={`shrink-0 max-h-[300px] lg:h-[38%] lg:max-h-[340px] short:h-[48%] short:min-h-0 p-1.5 ${reading ? 'h-[15dvh] min-h-[92px]' : 'h-[27dvh] min-h-[140px]'}`}>
             <MonitorDisplay channels={attached(state)} showRhythmName={false} />
           </div>
           <div className="flex shrink-0 border-y border-slate-700 bg-cardiac-panel" role="tablist" aria-label="Patient views">
@@ -93,7 +97,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
         {/* Actions: a column on large screens */}
         <aside className="hidden lg:flex short:flex w-[400px] xl:w-[440px] short:w-[44%] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
-          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : <ActionList sc={sc} state={state} showLatest />}
+          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : reading ? <ReadList who={fto} /> : <ActionList sc={sc} state={state} showLatest />}
         </aside>
       </div>
 
@@ -103,6 +107,8 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
           <button onClick={onReview} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
             See your score and review →
           </button>
+        ) : reading ? (
+          <ReadBar who={fto} />
         ) : (
           <>
             <button onClick={() => setSheet(true)} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
@@ -113,7 +119,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
         )}
       </div>
 
-      {sheet && !ended && (
+      {sheet && !ended && !reading && (
         <div className="lg:hidden short:hidden absolute inset-0 z-30 flex flex-col bg-cardiac-panel animate-slide-in-up" role="dialog" aria-label="Choose your next action">
           <div className="flex items-center gap-2 pl-3 pr-1 py-1 border-b border-slate-700 shrink-0">
             <span className="text-sm font-semibold text-white flex-1">What do you do next?</span>
@@ -186,8 +192,8 @@ function LogLine({ l, role }: { l: LogEntry; role: SimState['role'] }) {
 // ─── 12-lead ───────────────────────────────────────────────────────────────
 
 function TwelveLead({ state }: { state: SimState }) {
-  const lastEcg = useSimStore((s) => s.lastEcg);
-  if (!('ecg12' in state.flags) || !lastEcg) {
+  const last = state.lastEcg;
+  if (!last) {
     return (
       <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
         <div className="max-w-sm">
@@ -199,12 +205,28 @@ function TwelveLead({ state }: { state: SimState }) {
       </div>
     );
   }
-  const changed = lastEcg.profile !== state.rhythm.profile;
+  const changed = last.profile !== state.rhythm.profile && state.pulse;
+  const read = state.reads.at(-1);
+  // the FTO's verdict on the read of this tracing
+  const verdictLine = read && read.minute === last.minute
+    ? [...state.log].reverse().find((l) => l.who === 'fto' && l.minute === read.minute && /^(Correct|Partly right|Not quite)/.test(l.text))
+    : undefined;
   return (
     <div className="absolute inset-0 flex flex-col">
-      <div className="shrink-0 px-3 py-1.5 border-b border-slate-700/60 text-[12px] leading-snug">
-        <span className="text-slate-400">12-lead recorded at {clockText(lastEcg.minute)}: </span>
-        <span className="text-slate-100">{lastEcg.text}</span>
+      <div className="shrink-0 px-3 py-1.5 border-b border-slate-700/60 text-[12px] leading-snug max-h-[45%] overflow-y-auto">
+        <span className="text-slate-400">12-lead recorded at {clockText(last.minute)}. </span>
+        {state.role === 1 ? (
+          <span className="text-slate-300">Reading it is outside EMT scope — transmit it to the hospital.</span>
+        ) : state.pendingRead ? (
+          <span className="text-amber-200 font-medium">What does it show? Give your read{state.role <= 2 ? ' to your FTO' : ' to your preceptor'}.</span>
+        ) : read && read.minute === last.minute ? (
+          <span className={read.verdict === 'correct' ? 'text-emerald-300' : read.verdict === 'partial' ? 'text-amber-200' : 'text-red-300'}>
+            {read.verdict === 'correct' ? '✓ ' : read.verdict === 'partial' ? '½ ' : '✗ '}
+            {verdictLine ? verdictLine.text : ''}
+          </span>
+        ) : (
+          <span className="text-slate-300">Unchanged from your earlier read.</span>
+        )}
         {changed && (
           <div className="mt-1 px-2 py-1 rounded bg-amber-500/15 border border-amber-500/40 text-amber-200">
             The patient has changed since then — the tracing below is live. Repeat the 12-lead to record it.

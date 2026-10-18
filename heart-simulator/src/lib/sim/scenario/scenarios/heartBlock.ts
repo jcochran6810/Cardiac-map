@@ -45,25 +45,25 @@ export const heartBlock: Scenario = {
   },
   respond: {
     atropine: (s) => s.rhythm.profile === 'third-degree-avb'
-      ? { say: [['monitor', 'No change: still 34. A wide-complex escape (infranodal block) rarely responds to atropine.']], flags: ['atropine'] }
+      ? { say: [['monitor', 'No change: heart rate still 34.']], flags: ['atropine'] }
       : null,
     pace: (s) => s.rhythm.profile === 'third-degree-avb' ? {
       say: [
-        ['monitor', 'Pacing at 70: a wide QRS follows every spike from 85 mA — electrical capture.'],
+        ['monitor', 'Pacer on: rate 70, output turned up to 85 mA.'],
         ['patient', '"Ow! What is that?"'],
       ],
       rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp: 104, dbp: 62, gcs: 15, pain: 7 }, flags: ['pads', 'monitor', 'paced'],
     } : null,
     pressor: (s) => s.rhythm.profile === 'third-degree-avb' ? {
-      say: [['monitor', 'Epinephrine infusion running: escape rate up to 46, BP 96/58.', 'good']],
+      say: [['monitor', 'Epinephrine infusion running: heart rate up to 46, BP 96/58.', 'good']],
       rhythm: { profile: 'third-degree-avb', hr: 46 }, vitals: { sbp: 96, dbp: 58, gcs: 15 }, flags: ['pressor'],
     } : null,
-    lidocaine: (s) => slower(s, 'The escape rhythm slows to 22!'),
-    'amio-infusion': (s) => slower(s, 'The escape rhythm slows to 22!'),
+    lidocaine: (s) => slower(s, 'Heart rate falls to 22!'),
+    'amio-infusion': (s) => slower(s, 'Heart rate falls to 22!'),
     metoprolol: (s) => slower(s, 'Rate 22 after the beta-blocker!'),
     diltiazem: (s) => slower(s, 'Rate 22 after the calcium-channel blocker!'),
-    adenosine6: () => ({ say: [['monitor', 'Six seconds of ventricular standstill… then the escape returns at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
-    adenosine12: () => ({ say: [['monitor', 'Eight seconds of ventricular standstill… then the escape returns at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
+    adenosine6: () => ({ say: [['monitor', 'Six seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
+    adenosine12: () => ({ say: [['monitor', 'Eight seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     'pulse-check': (s) => s.rhythm.profile === 'tcp'
       ? { say: [['you', 'Femoral pulse at 70, matching the pacer: mechanical capture.', 'good']], flags: ['capture-confirmed'] }
       : null,
@@ -79,7 +79,7 @@ export const heartBlock: Scenario = {
       id: 'worse',
       when: (s) => s.minute >= 12 && s.rhythm.profile === 'third-degree-avb' && !has(s, 'pressor'),
       effect: () => ({
-        say: [['partner', 'He is getting harder to rouse.', 'bad'], ['monitor', 'Escape rate 28. BP 62/34.', 'bad']],
+        say: [['partner', 'He is getting harder to rouse.', 'bad'], ['monitor', 'Heart rate 28. BP 62/34.', 'bad']],
         rhythm: { profile: 'third-degree-avb', hr: 28 }, vitals: { sbp: 62, dbp: 34, gcs: 11 },
       }),
     },

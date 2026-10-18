@@ -8,12 +8,12 @@ function shockOutcome(s: SimState): Effect | null {
   // brief, witnessed VF with early CPR / defibrillation: the first or second shock converts
   const early = has(s, 'cpr') || (s.timers.arrestAt !== undefined && s.minute - s.timers.arrestAt <= 1);
   if (!early && shocks(s) === 0) {
-    return { say: [['monitor', 'Shock delivered. Still VF — resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
+    return { say: [['monitor', 'Shock delivered. No change on the monitor — resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
   }
   return {
     say: [
       ['monitor', 'Shock delivered.'],
-      ['you', interpret(s) ? 'Organised rhythm: sinus tachycardia 112 with anterior ST elevation. Carotid pulse present — ROSC.' : 'He takes a breath; there is a pulse — ROSC.', 'good'],
+      ['you', interpret(s) ? 'An organised rhythm on the monitor and a carotid pulse — ROSC.' : 'He takes a breath; there is a pulse — ROSC.', 'good'],
       ['patient', 'Groans and opens his eyes: "What happened?"'],
     ],
     rhythm: { profile: 'anterior-stemi', hr: 112 }, pulse: true, phase: 'rosc', vitals: ROSC_VITALS,
@@ -81,7 +81,7 @@ export const stemiAnterior: Scenario = {
       effect: (s) => ({
         say: [
           ['partner', "He's gone limp — he's not responding and he's gasping!", 'bad'],
-          ...(interpret(s) ? [line('monitor', 'Monitor: ventricular fibrillation.', 'bad')] : []),
+          line('monitor', 'Monitor alarm!', 'bad'),
         ],
         rhythm: { profile: 'vf', hr: 0 }, pulse: false, phase: 'arrest', flags: ['vf'],
       }),

@@ -28,6 +28,7 @@ export function speakerName(who: Speaker, role: LearningLevel): string {
     case 'you': return 'You';
     case 'hospital': return 'Hospital';
     case 'system': return 'Simulator';
+    case 'fto': return role <= 2 ? 'FTO' : 'Preceptor';
   }
 }
 
@@ -42,6 +43,7 @@ export const SPEAKER_STYLE: Record<Speaker, string> = {
   you: 'text-cyan-300',
   hospital: 'text-sky-300',
   system: 'text-slate-400',
+  fto: 'text-orange-300',
 };
 
 export const TONE_STYLE: Record<Tone, string> = {

@@ -11,11 +11,12 @@ import { useContent } from '@/lib/content';
 import { IconCheck, IconFlag } from '@/components/ui/icons';
 import { gradeStyle } from './simStyles';
 
-const KIND_LABEL: Record<Review['toFix'][number]['kind'], string> = { harm: 'Harmful choice', missed: 'Missed', late: 'Too late', hint: 'Hint' };
+const KIND_LABEL: Record<Review['toFix'][number]['kind'], string> = { harm: 'Harmful choice', missed: 'Missed', late: 'Too late', read: 'Misread', hint: 'Hint' };
 const KIND_STYLE: Record<Review['toFix'][number]['kind'], string> = {
   harm: 'bg-red-500/20 text-red-200',
   missed: 'bg-amber-500/20 text-amber-200',
   late: 'bg-yellow-500/15 text-yellow-200',
+  read: 'bg-orange-500/20 text-orange-200',
   hint: 'bg-slate-600/40 text-slate-300',
 };
 
@@ -94,6 +95,30 @@ export default function ReviewReport({ onBack }: { onBack: () => void }) {
             </li>
           ))}
         </Section>
+
+        {review.reads.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-sm font-semibold text-white">Your 12-lead reads</h2>
+            <div className="mt-2 overflow-hidden rounded-lg border border-slate-700">
+              <table className="w-full text-[13px]">
+                <thead className="bg-cardiac-panel text-[10px] uppercase tracking-wider text-slate-400">
+                  <tr><th className="text-left px-3 py-1.5 font-medium">Time</th><th className="text-left px-3 py-1.5 font-medium">Your read</th><th className="text-left px-3 py-1.5 font-medium">The 12-lead showed</th></tr>
+                </thead>
+                <tbody>
+                  {review.reads.map((r) => (
+                    <tr key={r.minute} className="border-t border-slate-700/70 align-top">
+                      <td className="px-3 py-1.5 font-mono text-slate-400">{clockText(r.minute)}</td>
+                      <td className={`px-3 py-1.5 ${r.verdict === 'correct' ? 'text-emerald-300' : r.verdict === 'partial' ? 'text-amber-200' : 'text-red-300'}`}>
+                        {r.verdict === 'correct' ? '✓' : r.verdict === 'partial' ? '½' : '✗'} {r.chosen}
+                      </td>
+                      <td className="px-3 py-1.5 text-slate-200">{r.answer}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {review.timings.length > 0 && (
           <div className="mt-6">

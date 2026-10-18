@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { interventionsFor } from '@/lib/sim/scenario/interventions';
-import { HINT_POINTS, perform, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
+import { HINT_POINTS, perform, readEcg, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
+import { READ_OPTIONS, answerFor, judgeRead } from '@/lib/sim/scenario/reads';
+import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
+import { ECG_PROFILES } from '@/lib/ecg/profiles';
 import { runScenario as run } from './helpers';
 
 const MEDIC_IDEAL = [
@@ -53,11 +56,9 @@ describe('engine basics', () => {
     expect(s.log.at(-1)!.text).toMatch(/IV or IO access/);
   });
 
-  it('the 3-lead monitor names the rhythm, not the diagnosis', () => {
+  it('the monitor shows numbers, never the rhythm or the diagnosis', () => {
     const line = run(stemiAnterior, 2, ['monitor']).log.at(-1)!.text;
-    expect(line).toMatch(/sinus rhythm at 96/);
-    expect(line).not.toMatch(/STEMI/);
-    expect(line).toMatch(/record a 12-lead/);
+    expect(line).toBe('Monitor attached: heart rate 96.');
   });
 
   it('keeps an EMT from interpreting the 12-lead', () => {
@@ -146,5 +147,91 @@ describe('hints', () => {
     const r = review(stemiAnterior, stop(s));
     expect(r.hints).toBe(1);
     expect(r.toFix.at(-1)).toMatchObject({ kind: 'hint' });
+  });
+});
+
+describe('12-lead reads checked by the FTO', () => {
+  const read = (steps: string[], sc = stemiAnterior, role: 2 | 3 = 2) => run(sc, role, steps, undefined, 'manual');
+
+  it('a new 12-lead waits for your read, and nothing else can be done until you give it', () => {
+    const s = read(['primary', 'ecg12']);
+    expect(s.pendingRead).toEqual({ minute: 3, profile: 'anterior-stemi' });
+    expect(unavailableReason(stemiAnterior, s, 'aspirin')).toMatch(/12-lead read/);
+    expect(perform(stemiAnterior, s, 'aspirin')).toBe(s);
+    // nobody reads it for you
+    expect(s.log.some((l) => /STEMI|ST elevation|sinus/i.test(l.text))).toBe(false);
+  });
+
+  it('a correct read is confirmed at once, with no case time and no points lost', () => {
+    const s0 = read(['primary', 'ecg12']);
+    const s = readEcg(stemiAnterior, s0, 'stemi-anterior');
+    expect(s.minute).toBe(s0.minute);
+    expect(s.pendingRead).toBeNull();
+    expect(s.log.at(-2)).toMatchObject({ who: 'you', text: 'My read: Anterior STEMI.' });
+    expect(s.log.at(-1)).toMatchObject({ who: 'fto', tone: 'good' });
+    expect(s.log.at(-1)!.text).toMatch(/^Correct\. Sinus rhythm 96 with 3–4 mm ST elevation in V1–V4/);
+    expect(s.penalties).toEqual([]);
+    expect(unavailableReason(stemiAnterior, s, 'aspirin')).toBeNull();
+  });
+
+  it('a wrong read is corrected with the answer, costs 5 points and is listed in the review', () => {
+    const s = read(['primary', 'ecg12', 'read:stemi-inferior']);
+    expect(s.log.at(-1)).toMatchObject({ who: 'fto', tone: 'bad' });
+    expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is Anterior STEMI\. /);
+    expect(s.penalties).toEqual([expect.objectContaining({ id: 'misread-1', points: 5, severity: 'major' })]);
+    const r = review(stemiAnterior, stop(s));
+    expect(r.reads).toEqual([{ minute: 3, chosen: 'Inferior STEMI', answer: 'Anterior STEMI', verdict: 'wrong' }]);
+    expect(r.toFix.find((t) => t.kind === 'read')).toMatchObject({ label: 'Misread 12-lead at 3:00', points: 5 });
+  });
+
+  it('half of a combined finding earns partial credit', () => {
+    // the inferior STEMI goes into complete heart block while the 12-lead is being recorded
+    const sc = SCENARIO_BY_ID['stemi-inferior-rv-field'];
+    const s = read(['primary', 'vitals', 'iv', 'opqrst', 'sample', 'lungs', 'perfusion', 'ecg12', 'read:chb'], sc);
+    expect(s.reads[0]).toMatchObject({ profile: 'inferior-stemi-chb', verdict: 'partial' });
+    expect(s.log.at(-1)!.text).toMatch(/^Partly right — the full read is Inferior STEMI with complete heart block\./);
+    expect(s.penalties[0]).toMatchObject({ points: 2, severity: 'minor' });
+  });
+
+  it('an unchanged repeat needs no new read; a changed tracing does', () => {
+    const same = run(stemiAnterior, 2, ['primary', 'ecg12', 'ecg12-repeat']);
+    expect(same.reads).toHaveLength(1);
+    expect(same.log.at(-1)!.text).toBe('Unchanged from the previous 12-lead.');
+    const svt = SCENARIO_BY_ID['svt-unstable-field'];
+    const changed = run(svt, 2, ['pads', 'ecg12', 'iv', 'sedation', 'cardiovert', 'ecg12-repeat']);
+    expect(changed.reads.map((r) => r.profile)).toEqual(['avnrt', 'normal-sinus']);
+  });
+
+  it('the case does not end while a read is waiting', () => {
+    const lab = SCENARIO_BY_ID['stemi-cathlab'];
+    const steps = ['prep', 'transducer', 'pads', 'timeout', 'act', 'reassess', 'callout', 'reassess', 'defib', 'hemostasis', 'ecg12'];
+    const s = run(lab, 3, steps, undefined, 'manual');
+    expect(s.pendingRead).not.toBeNull();
+    expect(s.ended).toBeNull();
+    const done = readEcg(lab, s, 'reperfused-anterior');
+    expect(done.ended?.reason).toBe('complete');
+  });
+
+  it('EMTs acquire and transmit; they are not asked to read', () => {
+    expect(read(['ecg12'], stemiAnterior, 2 as never).pendingRead).not.toBeNull();
+    expect(run(stemiAnterior, 1, ['ecg12'], undefined, 'manual').pendingRead).toBeNull();
+  });
+
+  it('a hint during a read coaches the method and costs nothing', () => {
+    const s = takeHint(stemiAnterior, read(['primary', 'ecg12']));
+    expect(s.log.at(-1)).toMatchObject({ who: 'fto' });
+    expect(s.penalties).toEqual([]);
+  });
+
+  it('every ECG profile with a pulse has exactly one correct read, and no 12-lead is taken in arrest', () => {
+    expect(new Set(READ_OPTIONS.map((o) => o.id)).size).toBe(READ_OPTIONS.length);
+    for (const o of READ_OPTIONS) for (const p of o.profiles) expect(ECG_PROFILES[p], `${o.id}: ${p}`).toBeDefined();
+    for (const p of Object.values(ECG_PROFILES)) {
+      if (p.id === 'pea') continue;
+      expect(READ_OPTIONS.filter((o) => o.profiles.includes(p.id)), p.id).toHaveLength(1);
+      expect(judgeRead(p.id, answerFor(p.id).id)).toBe('correct');
+    }
+    const vf = SCENARIO_BY_ID['vf-arrest-field'];
+    expect(perform(vf, start(vf, 2), 'ecg12').counts.ecg12).toBeUndefined();
   });
 });

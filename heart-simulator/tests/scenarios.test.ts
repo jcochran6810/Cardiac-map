@@ -76,6 +76,18 @@ describe('scenario library', () => {
   });
 });
 
+describe('the learner reads the tracings', () => {
+  it('no monitor or event line names the rhythm or the diagnosis', () => {
+    const giveaway = /STEMI|fibrillation|heart block|AV block|sinus|tachycardia|bradycardia|SVT|AVNRT|escape|ventricular|capture/i;
+    for (const sc of SCENARIOS) {
+      for (const [role, steps] of Object.entries(IDEAL[sc.id])) {
+        const s = run(sc, Number(role) as LearningLevel, steps!);
+        for (const l of s.log) if (l.who === 'monitor') expect(l.text, `${sc.id}: ${l.text}`).not.toMatch(giveaway);
+      }
+    }
+  });
+});
+
 describe('ideal runs end by themselves with full marks', () => {
   for (const sc of SCENARIOS) {
     for (const role of sc.roles) {
@@ -104,9 +116,9 @@ describe('inferior STEMI with RV infarction', () => {
     expect(s.log.some((l) => l.who === 'monitor' && /74\/44/.test(l.text))).toBe(true);
   });
 
-  it('V4R shows the right-ventricular infarction', () => {
+  it('V4R reports the measurement, not the diagnosis', () => {
     const s = run(sc, 2, ['ecg12', 'ecg-right']);
-    expect(s.log.at(-1)!.text).toMatch(/right ventricular infarction/);
+    expect(s.log.at(-1)!.text).toBe('V4R: 1.5 mm ST elevation.');
   });
 
   it('complete heart block develops if the crew lingers, and atropine reverses it', () => {
@@ -206,7 +218,7 @@ describe('VF cardiac arrest', () => {
     const steps = IDEAL['vf-arrest-field'][2]!;
     const s = run(sc, 2, steps.slice(0, steps.indexOf('ecg12') + 1));
     expect(s.pulse).toBe(true);
-    expect(s.log.some((l) => l.who === 'monitor' && /anterior STEMI/.test(l.text))).toBe(true);
+    expect(s.log.some((l) => l.who === 'fto' && /^Correct\..*anterior STEMI/.test(l.text))).toBe(true);
   });
 });
 

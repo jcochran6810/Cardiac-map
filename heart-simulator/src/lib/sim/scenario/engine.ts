@@ -12,8 +12,9 @@
  * done and the patient has a pulse (plus any scenario-specific condition).
  */
 import type { LearningLevel } from '@/store/useAppStore';
-import { resolveProfile, type RhythmKind } from '@/lib/ecg/profiles';
+import { resolveProfile } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
+import { READ_OPTION_BY_ID, answerFor, judgeRead } from './reads';
 import type {
   Critical, Effect, FactKey, Harm, Intervention, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
@@ -60,35 +61,23 @@ export function vitalsLine(s: SimState): string {
   return `BP ${v.sbp}/${v.dbp} · pulse ${s.rhythm.hr} · RR ${v.rr} · SpO₂ ${v.spo2}%`;
 }
 
-const RHYTHM_ON_MONITOR: Record<RhythmKind, string> = {
-  sinus: 'sinus rhythm', af: 'atrial fibrillation', flutter: 'atrial flutter', svt: 'regular narrow-complex tachycardia (SVT)',
-  junctional: 'junctional rhythm', wenckebach: 'second-degree AV block, Mobitz I (Wenckebach)', mobitz2: 'second-degree AV block, Mobitz II',
-  chb: 'complete heart block', pvc: 'sinus rhythm with PVCs', vt: 'ventricular tachycardia', vf: 'ventricular fibrillation',
-  torsades: 'polymorphic VT (torsades)', asystole: 'asystole', paced: 'paced rhythm', vpaced: 'paced rhythm',
-};
-
-/** The rhythm as a 3-lead monitor shows it: the rhythm only — diagnosing a STEMI takes a 12-lead */
-export function rhythmOnMonitor(s: SimState): string {
-  const p = resolveProfile(s.rhythm.profile);
-  if (p.rhythm === 'sinus' && !s.pulse) return 'an organised rhythm (no pulse: PEA)';
-  if (p.rhythm === 'sinus') return s.rhythm.hr < 60 ? 'sinus bradycardia' : s.rhythm.hr > 100 ? 'sinus tachycardia' : 'sinus rhythm';
-  return RHYTHM_ON_MONITOR[p.rhythm];
-}
-
+/** The monitor shows the trace and the numbers; reading the rhythm is the learner's job */
 function monitorLine(s: SimState): string {
   if (s.role === 1) return `Monitor on: heart rate ${s.pulse ? s.rhythm.hr : '—'}. Interpreting the rhythm is outside EMT scope — acquire and transmit a 12-lead.`;
-  const k = rhythmKind(s);
-  const rate = s.rhythm.hr > 0 && k !== 'vf' && k !== 'asystole' && k !== 'torsades' ? ` at ${s.rhythm.hr}` : '';
-  const st = resolveProfile(s.rhythm.profile).injury && s.pulse ? ' The ST segments look abnormal — record a 12-lead.' : '';
-  return `Monitor: ${rhythmOnMonitor(s)}${rate}.${st}`;
+  return s.pulse ? `Monitor attached: heart rate ${s.rhythm.hr}.` : 'Monitor attached.';
 }
 
-function ecgLine(sc: Scenario, s: SimState, repeat: boolean): string {
+function ecgLine(s: SimState, repeat: boolean): string {
   if (s.role === 1) return `12-lead ${repeat ? 're-' : ''}acquired. You can't interpret it — transmit it to the hospital.`;
+  return `12-lead ${repeat ? 're-' : ''}acquired.`;
+}
+
+/** What the 12-lead shows, in words: the FTO's explanation after your read */
+function ecgExplanation(sc: Scenario, s: SimState, profile: string): string {
   const fact = factText(sc, s, 'ecg12');
   if (fact) return fact;
-  const p = resolveProfile(s.rhythm.profile);
-  return `12-lead: ${p.headline}.`;
+  const p = resolveProfile(profile);
+  return `${p.headline}: ${p.findings.slice(0, 2).join('; ')}.`;
 }
 
 // ─── Default responses ─────────────────────────────────────────────────────
@@ -122,8 +111,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
 
     case 'monitor': return { say: [['monitor', monitorLine(s)]], flags: ['monitor'] };
     case 'pads': return { say: [['you', 'Pads on: anterior–lateral.']], flags: ['pads', 'monitor'] };
-    case 'ecg12': return { say: [['monitor', ecgLine(sc, s, false)]], flags: ['ecg12', 'monitor'] };
-    case 'ecg12-repeat': return { say: [['monitor', ecgLine(sc, s, true)]], flags: ['ecg12', 'monitor', 'ecg12-repeat'] };
+    case 'ecg12':
+    case 'ecg12-repeat':
+      if (!s.pulse) return { blocked: true, say: [['system', 'No 12-lead in cardiac arrest: treat the rhythm on the monitor.']] };
+      return { say: [['monitor', ecgLine(s, id === 'ecg12-repeat')]], flags: id === 'ecg12' ? ['ecg12', 'monitor'] : ['ecg12', 'monitor', 'ecg12-repeat'] };
     case 'ecg-transmit':
       if (!has(s, 'ecg12')) return { blocked: true, say: [['system', 'Acquire a 12-lead first.']] };
       return { say: [['hospital', 'ECG received; the physician is reviewing it.']], flags: ['transmitted'] };
@@ -209,11 +200,11 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (s.pulse && s.rhythm.hr < 50) {
         const sbp = Math.max(v.sbp, 102);
         return {
-          say: [['monitor', 'Electrical capture at 80 mA, rate 70.'], ['you', `Femoral pulse matches the paced rate: mechanical capture. BP ${sbp}/${Math.max(v.dbp, 64)}.`, 'good']],
+          say: [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.']],
           rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp, dbp: Math.max(v.dbp, 64), pain: Math.max(v.pain, 6) }, flags: ['pads', 'monitor', 'paced'],
         };
       }
-      return { say: [['monitor', 'Pacing: no improvement.']], flags: ['pads', 'monitor'] };
+      return { say: [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.']], flags: ['pads', 'monitor'] };
     case 'vagal': return { say: [['monitor', 'No change.']], flags: ['vagal'] };
     case 'hs-ts':
       return { say: [['you', 'Hs: hypoxia, hypovolaemia, acidosis, potassium, hypothermia. Ts: tension pneumothorax, tamponade, toxins, thrombosis (coronary or pulmonary).']], flags: ['hs-ts'] };
@@ -332,7 +323,8 @@ function isComplete(sc: Scenario, s: SimState) {
   return criticalsFor(sc, s.role).every((c) => (c.applies && !c.applies(s)) || achieved(c, s) !== null);
 }
 
-function tick(sc: Scenario, s: SimState) {
+/** Time has passed: arrival, scripted events, death */
+function advance(sc: Scenario, s: SimState) {
   if (s.timers.arrive !== undefined && s.minute >= s.timers.arrive && !has(s, 'arrived')) {
     setFlag(s, 'arrived');
     say(s, 'hospital', sc.arrival ?? 'You arrive at the hospital; the team meets you at the door.');
@@ -351,16 +343,60 @@ function tick(sc: Scenario, s: SimState) {
   if (!s.pulse && s.timers.arrestAt !== undefined && s.minute - s.timers.arrestAt >= (sc.deathAfter ?? 15)) {
     say(s, 'system', 'Despite resuscitation there is no return of circulation. The patient has died.', 'bad');
     s.ended = { reason: 'death', minute: s.minute };
-    return;
   }
-  if (!s.ended && isComplete(sc, s)) {
+}
+
+/** The case ends by itself once everything is done (never while a 12-lead read is pending) */
+function finish(sc: Scenario, s: SimState) {
+  if (s.ended || s.pendingRead) return;
+  if (isComplete(sc, s)) {
     say(s, 'system', 'All critical interventions are done — scenario complete.', 'good');
     s.ended = { reason: 'complete', minute: s.minute };
-  } else if (!s.ended && has(s, 'handoff') && s.pulse) {
+  } else if (has(s, 'handoff') && s.pulse) {
     // a hand-off ends your care, whatever is still missing
     say(s, 'system', 'Care handed over — scenario complete.', 'info');
     s.ended = { reason: 'complete', minute: s.minute };
   }
+}
+
+function tick(sc: Scenario, s: SimState) {
+  advance(sc, s);
+  finish(sc, s);
+}
+
+/** A new 12-lead tracing waits for the learner's read (EMTs acquire and transmit; they do not interpret) */
+function requestRead(s: SimState) {
+  if (s.ended || !s.pulse) return;
+  const unchanged = s.lastEcg?.profile === s.rhythm.profile;
+  s.lastEcg = { minute: s.minute, profile: s.rhythm.profile };
+  if (s.role === 1) return;
+  if (unchanged) say(s, 'monitor', 'Unchanged from the previous 12-lead.');
+  else s.pendingRead = { minute: s.minute, profile: s.rhythm.profile };
+}
+
+/** Your read of the pending 12-lead; the FTO confirms or corrects it at once (no case time passes) */
+export function readEcg(sc: Scenario, prev: SimState, optionId: string): SimState {
+  const choice = READ_OPTION_BY_ID[optionId];
+  if (!prev.pendingRead || prev.ended || !choice) return prev;
+  const s: SimState = structuredClone(prev);
+  const { minute, profile } = s.pendingRead!;
+  s.pendingRead = null;
+  const verdict = judgeRead(profile, optionId);
+  const answer = answerFor(profile);
+  const why = ecgExplanation(sc, s, profile);
+  say(s, 'you', `My read: ${choice.label}.`);
+  if (verdict === 'correct') say(s, 'fto', `Correct. ${why}`, 'good');
+  else if (verdict === 'partial') say(s, 'fto', `Partly right — the full read is ${answer.label}. ${why}`, 'warn');
+  else say(s, 'fto', `Not quite — this is ${answer.label}. ${why}`, 'bad');
+  s.reads.push({ minute, profile, chosen: optionId, verdict });
+  if (verdict !== 'correct') {
+    s.penalties.push({
+      id: `misread-${s.reads.length}`, minute, points: verdict === 'partial' ? 2 : 5, severity: verdict === 'partial' ? 'minor' : 'major',
+      text: `12-lead at ${clockText(minute)}: you read “${choice.label}”; it was ${answer.label}.`,
+    });
+  }
+  finish(sc, s);
+  return s;
 }
 
 export function start(sc: Scenario, role: LearningLevel): SimState {
@@ -369,6 +405,7 @@ export function start(sc: Scenario, role: LearningLevel): SimState {
     rhythm: { ...sc.initial.rhythm }, vitals: { ...sc.initial.vitals },
     pulse: sc.initial.pulse ?? true, phase: sc.initial.phase ?? 'initial',
     flags: {}, timers: {}, counts: {}, performed: [], log: [], penalties: [], fired: [], ended: null,
+    pendingRead: null, reads: [], lastEcg: null,
   };
   if (!s.pulse) {
     s.timers.arrestAt = 0;
@@ -384,6 +421,7 @@ export function unavailableReason(sc: Scenario, s: SimState, id: string): string
   const iv = INTERVENTION_BY_ID[id];
   if (!iv) return 'Unknown intervention';
   if (s.ended) return 'The scenario has ended';
+  if (s.pendingRead) return 'Give your 12-lead read first';
   if (!iv.roles.includes(s.role) || (iv.settings && !iv.settings.includes(sc.setting))) return 'Outside your scope';
   const n = s.counts[id] ?? 0;
   if (!iv.repeatable && n > 0) return 'Already done';
@@ -412,7 +450,9 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   s.performed.push({ id, minute: s.minute });
   s.minute = round(s.minute + iv.minutes);
   applyEffect(s, effect);
-  if (!s.ended) tick(sc, s);
+  if (!s.ended) advance(sc, s);
+  if (id === 'ecg12' || id === 'ecg12-repeat') requestRead(s);
+  finish(sc, s);
   return s;
 }
 
@@ -429,6 +469,10 @@ export function nextCritical(sc: Scenario, s: SimState): Critical | null {
 export function takeHint(sc: Scenario, prev: SimState): SimState {
   if (prev.ended) return prev;
   const s: SimState = structuredClone(prev);
+  if (s.pendingRead) {
+    say(s, 'fto', 'Work through it: rate, rhythm (P waves?), axis, PR / QRS / QT, then the ST segments lead by lead — which leads, and is there a reciprocal change?');
+    return s;
+  }
   const next = nextCritical(sc, s);
   if (!next) {
     say(s, 'system', 'Hint: nothing critical is missing right now — keep reassessing and watch the monitor.');
@@ -492,6 +536,7 @@ export function review(sc: Scenario, s: SimState): Review {
   const penaltyPoints = s.penalties.reduce((a, p) => a + p.points, 0);
   for (const p of s.penalties) {
     if (isHint(p)) toFix.push({ kind: 'hint', label: p.text, detail: 'You asked for a hint. Try the case again without one.', points: p.points });
+    else if (p.id.startsWith('misread-')) toFix.push({ kind: 'read', label: `Misread 12-lead at ${clockText(p.minute)}`, detail: p.text.replace(/^12-lead at [^:]+: /, '').replace(/^you/, 'You'), points: p.points, severity: p.severity });
     else {
       // the first sentence is the headline, the rest explains it
       const [first, ...rest] = p.text.split('. ');
@@ -501,7 +546,7 @@ export function review(sc: Scenario, s: SimState): Review {
   let percent = max > 0 ? Math.round((100 * Math.max(0, earned - penaltyPoints)) / max) : 0;
   if (s.ended?.reason === 'death') percent = Math.min(percent, 40);
   const sev = { critical: 0, major: 1, minor: 2 };
-  const rank = (t: Review['toFix'][number]) => (t.kind === 'harm' ? sev[t.severity ?? 'minor'] : t.kind === 'hint' ? 4 : 3);
+  const rank = (t: Review['toFix'][number]) => (t.kind === 'harm' ? sev[t.severity ?? 'minor'] : t.kind === 'read' ? 2.5 : t.kind === 'hint' ? 4 : 3);
   toFix.sort((a, b) => rank(a) - rank(b) || b.points - a.points);
 
   const timings: Review['timings'] = [];
@@ -520,5 +565,6 @@ export function review(sc: Scenario, s: SimState): Review {
       ? `Every critical intervention done in ${clockText(s.ended.minute)}.`
       : `Ended early at ${clockText(s.minute)} with ${toFix.filter((t) => t.kind === 'missed').length} critical item(s) not done.`;
 
-  return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, timings, wentWell, toFix, hints: s.penalties.filter(isHint).length, teaching: sc.teaching };
+  const reads = s.reads.map((r) => ({ minute: r.minute, chosen: READ_OPTION_BY_ID[r.chosen].label, answer: answerFor(r.profile).label, verdict: r.verdict }));
+  return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, timings, wentWell, toFix, reads, hints: s.penalties.filter(isHint).length, teaching: sc.teaching };
 }
