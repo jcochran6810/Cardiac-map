@@ -76,10 +76,10 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row short:flex-row">
         {/* The patient */}
         <div className="flex-1 min-h-0 min-w-0 flex flex-col">
-          <div className="shrink-0 h-[27dvh] min-h-[140px] max-h-[300px] lg:h-[38%] lg:max-h-[340px] p-1.5">
+          <div className="shrink-0 h-[27dvh] min-h-[140px] max-h-[300px] lg:h-[38%] lg:max-h-[340px] short:h-[48%] short:min-h-0 p-1.5">
             <MonitorDisplay channels={attached(state)} showRhythmName={false} />
           </div>
           <div className="flex shrink-0 border-y border-slate-700 bg-cardiac-panel" role="tablist" aria-label="Patient views">
@@ -92,13 +92,13 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
         </div>
 
         {/* Actions: a column on large screens */}
-        <aside className="hidden lg:flex w-[400px] xl:w-[440px] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
+        <aside className="hidden lg:flex short:flex w-[400px] xl:w-[440px] short:w-[44%] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
           {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : <ActionList sc={sc} state={state} showLatest />}
         </aside>
       </div>
 
       {/* Phones and tablets: one big button opens the action list */}
-      <div className="lg:hidden shrink-0 p-2 border-t border-slate-700 bg-cardiac-panel flex gap-2">
+      <div className="lg:hidden short:hidden shrink-0 p-2 border-t border-slate-700 bg-cardiac-panel flex gap-2">
         {ended ? (
           <button onClick={onReview} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
             See your score and review →
@@ -114,7 +114,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
       </div>
 
       {sheet && !ended && (
-        <div className="lg:hidden absolute inset-0 z-30 flex flex-col bg-cardiac-panel animate-slide-in-up" role="dialog" aria-label="Choose your next action">
+        <div className="lg:hidden short:hidden absolute inset-0 z-30 flex flex-col bg-cardiac-panel animate-slide-in-up" role="dialog" aria-label="Choose your next action">
           <div className="flex items-center gap-2 pl-3 pr-1 py-1 border-b border-slate-700 shrink-0">
             <span className="text-sm font-semibold text-white flex-1">What do you do next?</span>
             <span className="font-mono text-sm text-amber-300 tabular-nums">{clockText(state.minute)}</span>
@@ -245,7 +245,7 @@ function ActionList({ sc, state, onDone, showLatest = false }: { sc: Scenario; s
       {showLatest && <Latest state={state} />}
       <div className="shrink-0 px-3 pt-2 pb-2 border-b border-slate-700 space-y-2">
         {!onDone && <div className="text-sm font-semibold text-white">What do you do next?</div>}
-        <p className="text-[11px] text-slate-400 leading-snug">
+        <p className="short:hidden text-[11px] text-slate-400 leading-snug">
           All {all.length} actions in your scope as {LEVEL_LABELS[state.role].short} — some help, some harm. Each one takes case time.
         </p>
         <div className="relative">

@@ -75,7 +75,7 @@ export default function ReviewReport({ onBack }: { onBack: () => void }) {
                 <span className={`shrink-0 mt-px px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${KIND_STYLE[t.kind]}`}>{KIND_LABEL[t.kind]}</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-medium text-white leading-snug">{t.label}</div>
-                  {t.detail !== t.label && <p className="text-xs text-slate-300 leading-relaxed mt-0.5">{t.detail}</p>}
+                  {t.detail && t.detail !== t.label && <p className="text-xs text-slate-300 leading-relaxed mt-0.5">{t.detail}</p>}
                 </div>
                 <span className={`shrink-0 text-xs font-mono ${t.kind === 'late' ? 'text-yellow-300' : 'text-red-300'}`}>
                   {t.kind === 'late' ? `½ · ${fmt(t.points)}` : `−${fmt(t.points)}`}

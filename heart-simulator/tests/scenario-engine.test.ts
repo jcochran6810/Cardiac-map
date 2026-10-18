@@ -53,6 +53,13 @@ describe('engine basics', () => {
     expect(s.log.at(-1)!.text).toMatch(/IV or IO access/);
   });
 
+  it('the 3-lead monitor names the rhythm, not the diagnosis', () => {
+    const line = run(stemiAnterior, 2, ['monitor']).log.at(-1)!.text;
+    expect(line).toMatch(/sinus rhythm at 96/);
+    expect(line).not.toMatch(/STEMI/);
+    expect(line).toMatch(/record a 12-lead/);
+  });
+
   it('keeps an EMT from interpreting the 12-lead', () => {
     const s = run(stemiAnterior, 1, ['ecg12']);
     expect(s.log.at(-1)!.text).toMatch(/can't interpret/);

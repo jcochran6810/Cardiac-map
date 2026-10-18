@@ -12,7 +12,7 @@
  * done and the patient has a pulse (plus any scenario-specific condition).
  */
 import type { LearningLevel } from '@/store/useAppStore';
-import { resolveProfile } from '@/lib/ecg/profiles';
+import { resolveProfile, type RhythmKind } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
 import type {
   Critical, Effect, FactKey, Harm, Intervention, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
@@ -60,10 +60,27 @@ export function vitalsLine(s: SimState): string {
   return `BP ${v.sbp}/${v.dbp} · pulse ${s.rhythm.hr} · RR ${v.rr} · SpO₂ ${v.spo2}%`;
 }
 
+const RHYTHM_ON_MONITOR: Record<RhythmKind, string> = {
+  sinus: 'sinus rhythm', af: 'atrial fibrillation', flutter: 'atrial flutter', svt: 'regular narrow-complex tachycardia (SVT)',
+  junctional: 'junctional rhythm', wenckebach: 'second-degree AV block, Mobitz I (Wenckebach)', mobitz2: 'second-degree AV block, Mobitz II',
+  chb: 'complete heart block', pvc: 'sinus rhythm with PVCs', vt: 'ventricular tachycardia', vf: 'ventricular fibrillation',
+  torsades: 'polymorphic VT (torsades)', asystole: 'asystole', paced: 'paced rhythm', vpaced: 'paced rhythm',
+};
+
+/** The rhythm as a 3-lead monitor shows it: the rhythm only — diagnosing a STEMI takes a 12-lead */
+export function rhythmOnMonitor(s: SimState): string {
+  const p = resolveProfile(s.rhythm.profile);
+  if (p.rhythm === 'sinus' && !s.pulse) return 'an organised rhythm (no pulse: PEA)';
+  if (p.rhythm === 'sinus') return s.rhythm.hr < 60 ? 'sinus bradycardia' : s.rhythm.hr > 100 ? 'sinus tachycardia' : 'sinus rhythm';
+  return RHYTHM_ON_MONITOR[p.rhythm];
+}
+
 function monitorLine(s: SimState): string {
   if (s.role === 1) return `Monitor on: heart rate ${s.pulse ? s.rhythm.hr : '—'}. Interpreting the rhythm is outside EMT scope — acquire and transmit a 12-lead.`;
-  const p = resolveProfile(s.rhythm.profile);
-  return `Monitor: ${p.name}${s.rhythm.hr > 0 && rhythmKind(s) !== 'vf' && rhythmKind(s) !== 'asystole' ? `, rate ${s.rhythm.hr}` : ''}.`;
+  const k = rhythmKind(s);
+  const rate = s.rhythm.hr > 0 && k !== 'vf' && k !== 'asystole' && k !== 'torsades' ? ` at ${s.rhythm.hr}` : '';
+  const st = resolveProfile(s.rhythm.profile).injury && s.pulse ? ' The ST segments look abnormal — record a 12-lead.' : '';
+  return `Monitor: ${rhythmOnMonitor(s)}${rate}.${st}`;
 }
 
 function ecgLine(sc: Scenario, s: SimState, repeat: boolean): string {
@@ -475,7 +492,11 @@ export function review(sc: Scenario, s: SimState): Review {
   const penaltyPoints = s.penalties.reduce((a, p) => a + p.points, 0);
   for (const p of s.penalties) {
     if (isHint(p)) toFix.push({ kind: 'hint', label: p.text, detail: 'You asked for a hint. Try the case again without one.', points: p.points });
-    else toFix.push({ kind: 'harm', label: p.text.split('. ')[0] + '.', detail: p.text, points: p.points, severity: p.severity });
+    else {
+      // the first sentence is the headline, the rest explains it
+      const [first, ...rest] = p.text.split('. ');
+      toFix.push({ kind: 'harm', label: first.endsWith('.') ? first : `${first}.`, detail: rest.join('. '), points: p.points, severity: p.severity });
+    }
   }
   let percent = max > 0 ? Math.round((100 * Math.max(0, earned - penaltyPoints)) / max) : 0;
   if (s.ended?.reason === 'death') percent = Math.min(percent, 40);

@@ -6,8 +6,10 @@ import { useSceneStore, CAMERA_PRESETS } from '@/store/useSceneStore';
 import { useECGStore } from '@/store/useECGStore';
 import { sim } from '@/lib/sim/simulation';
 import { PHASE_DESCRIPTIONS, PHASE_LABELS, type CyclePhase } from '@/lib/ecg/engine';
-import { PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
-import { IconHome, IconRotate, IconZoomIn, IconZoomOut } from '@/components/ui/icons';
+import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
+import { IconClose, IconHome, IconRotate, IconZoomIn, IconZoomOut } from '@/components/ui/icons';
+import { useContent } from '@/lib/content';
+import { useOnceHint } from '@/lib/hints';
 import Bullseye from '@/components/anatomy/Bullseye';
 import { formatCarm } from '@/components/scene/CArmTracker';
 import { ATRIAL_PATTERNS, VENT_PATTERNS } from '@/lib/anatomy/activation';
@@ -61,6 +63,14 @@ export default function SceneOverlay() {
   const [showViews, setShowViews] = useState(false);
   const probe = useRef<HTMLDivElement>(null);
   const touch = useIsTouch();
+  const selectedId = useSceneStore((s) => s.selectedStructureId);
+  const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
+  // Tapping the heart with the info panel closed shows a short card instead of nothing
+  const peek = !!selectedId && !rightPanelOpen;
+  const [coach, dismissCoach] = useOnceHint('heart');
+  useEffect(() => {
+    if (selectedId && coach) dismissCoach();
+  }, [selectedId, coach, dismissCoach]);
 
   // Condense the overlay when the 3D viewport is small (phone, or a phone on its side)
   useEffect(() => {
@@ -147,7 +157,7 @@ export default function SceneOverlay() {
 
       {/* Cardiac cycle HUD */}
       <div
-        className={`absolute right-2 z-10 scene-panel rounded-lg text-[11px] shadow-xl ${narrow ? 'bottom-2 w-[min(10rem,42%)] p-1.5' : 'top-2 w-56 p-2'}`}
+        className={`absolute right-2 z-10 scene-panel rounded-lg text-[11px] shadow-xl ${narrow ? 'bottom-2 w-[min(10rem,42%)] p-1.5' : 'top-2 w-56 p-2'} ${narrow && (peek || coach) ? 'hidden' : ''}`}
         title={PHASE_DESCRIPTIONS[hud.phase]}
       >
         {!narrow && <div className="text-[11px] uppercase tracking-wider text-slate-400">Cardiac cycle</div>}
@@ -165,9 +175,9 @@ export default function SceneOverlay() {
       </div>
 
       {/* Territory legend */}
-      {viewMode === 'activation' && <ActivationLegend narrow={narrow} />}
+      {viewMode === 'activation' && !(narrow && peek) && <ActivationLegend narrow={narrow} />}
 
-      {(viewMode === 'territories' || (culprit && viewMode !== 'activation')) && (
+      {(viewMode === 'territories' || (culprit && viewMode !== 'activation')) && !(narrow && peek) && (
         <div className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl flex items-end gap-2 ${narrow ? 'bottom-2 p-1.5 max-w-[calc(58%-1rem)] leading-snug' : 'bottom-9 p-2'}`}>
           <div>
             {viewMode === 'territories' && (
@@ -239,11 +249,52 @@ export default function SceneOverlay() {
         </div>
       </div>
 
+      {peek && <PeekCard id={selectedId!} />}
+      {coach && !peek && (
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto scene-panel rounded-xl px-4 py-3 text-center max-w-xs shadow-2xl animate-fade-in">
+            <div className="text-sm font-semibold text-white">{touch ? 'Tap' : 'Click'} any part of the heart</div>
+            <p className="text-xs text-slate-300 mt-1 leading-snug">
+              to see what it is and what it does. {touch ? 'Drag to turn it, pinch to zoom' : 'Drag to turn it, scroll to zoom'}, and try the views at the top left.
+            </p>
+            <button onClick={dismissCoach} className="mt-2.5 px-4 py-1.5 touch:py-2 rounded-lg bg-cardiac-accent text-slate-950 text-xs font-semibold">Got it</button>
+          </div>
+        </div>
+      )}
+
       <div className="absolute bottom-1.5 left-2 right-2 z-0 pointer-events-none flex justify-between text-[11px] text-slate-500">
         <span className={narrow ? 'hidden' : ''}>{touch ? 'Drag to rotate · pinch to zoom · two-finger drag to pan · tap a structure' : 'Drag to rotate · scroll to zoom · right-drag to pan · click a structure'}</span>
         <span className="hidden md:inline">Educational simulation — not for clinical use</span>
       </div>
     </>
+  );
+}
+
+/** What you just tapped, with a way into the full description */
+function PeekCard({ id }: { id: string }) {
+  const lib = useContent();
+  const s = lib?.structures[id];
+  const name = s?.name ?? LANDMARK_BY_ID[id]?.name ?? id.replace(/-/g, ' ');
+  const readMore = () => {
+    const app = useAppStore.getState();
+    app.setPanels(app.compact ? false : app.leftPanelOpen, true);
+  };
+  return (
+    <div className="absolute left-2 right-2 bottom-2 z-30 flex justify-center pointer-events-none">
+      <div className="pointer-events-auto w-full max-w-md scene-panel rounded-xl p-3 shadow-2xl animate-fade-in" role="dialog" aria-label={name}>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] uppercase tracking-wider text-sky-300">{s?.group?.replace('-', ' ') ?? 'Structure'}</div>
+            <div className="text-sm font-semibold text-white leading-tight">{name}</div>
+            {s?.summary && <p className="text-xs text-slate-300 mt-1 leading-snug line-clamp-3">{s.summary}</p>}
+          </div>
+          <button onClick={() => useSceneStore.getState().selectStructure(null)} className="p-1.5 -mr-1 -mt-1 text-slate-400 hover:text-white" aria-label="Close"><IconClose size={16} /></button>
+        </div>
+        <button onClick={readMore} className="mt-2 w-full py-2 rounded-lg bg-cardiac-accent/90 text-slate-950 text-xs font-semibold hover:bg-cardiac-accent">
+          Read more →
+        </button>
+      </div>
+    </div>
   );
 }
 

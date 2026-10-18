@@ -20,6 +20,7 @@ import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CASE_DATA } from '@/data/caseData';
 import { setRhythm } from '@/lib/rhythm';
 import { leaveSimulator } from '@/store/useSimStore';
+import { useHistoryStore } from '@/store/useHistoryStore';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 
 /** Opening an item shows the learning workspace; on small screens it swaps the navigator drawer for the info drawer */
@@ -35,6 +36,21 @@ function reveal() {
 }
 
 export { setRhythm };
+
+let replaying = false;
+
+/** Note an opened item so the info panel's Back button can return to it */
+export function rememberItem(id: string) {
+  if (!replaying) useHistoryStore.getState().push(id);
+}
+
+/** Re-open the item before the current one */
+export function goBack() {
+  const prev = useHistoryStore.getState().back();
+  if (!prev) return;
+  replaying = true;
+  try { openById(prev); } finally { replaying = false; }
+}
 
 export function openStructure(id: string) {
   reveal();
@@ -56,6 +72,7 @@ export function openStructure(id: string) {
     app.setViewMode('external');
   }
   scene.selectStructure(id);
+  rememberItem(id);
   useLearningStore.getState().markStructureViewed(id);
 }
 
@@ -72,6 +89,7 @@ export function openCondition(id: string) {
   scene.selectStructure(null);
   scene.setHighlights((c?.affectedStructures ?? []).filter((s) => LANDMARK_BY_ID[s]));
   useECGStore.getState().setBottomView('ecg');
+  rememberItem(id);
   useLearningStore.getState().markConditionStudied(id);
 }
 
@@ -84,6 +102,7 @@ export function openProcedure(id: string) {
   const scene = useSceneStore.getState();
   scene.selectStructure(null);
   scene.setHighlights((p?.targetStructures ?? []).filter((s) => LANDMARK_BY_ID[s]));
+  rememberItem(id);
   useLearningStore.getState().markProcedureReviewed(id);
 }
 
@@ -91,6 +110,7 @@ export function openMedication(id: string) {
   reveal();
   useAppStore.getState().setActivePanelCategory('medications');
   usePharmacologyStore.getState().selectMedication(id);
+  rememberItem(id);
   useLearningStore.getState().markMedicationReviewed(id);
 }
 
@@ -106,6 +126,7 @@ export function openCase(id: string) {
   scene.setHighlights([]);
   setRhythm(c.ecgProfile, c.heartRate);
   useECGStore.getState().setBottomView('ecg');
+  rememberItem(id);
 }
 
 /** Open any item by ID (used by "related" chips and search) */

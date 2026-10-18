@@ -17,6 +17,7 @@ import LeadVector from './LeadVector';
 import { FRAME_EULER, TILT_EULER, modelToWorld } from '@/lib/anatomy/frames';
 import { HEART_CENTER, LANDMARK_BY_ID, LANDMARKS, PROFILE_TERRITORY, SURFACE_REGIONS } from '@/lib/anatomy/landmarks';
 import { structureCategory } from '@/lib/anatomy/categories';
+import { rememberItem } from '@/lib/actions';
 import CArmTracker from '@/components/scene/CArmTracker';
 import {
   ATRIAL_PATTERNS, VENT_PATTERNS, buildGraph, computeActivation, ventPatternKey, type MeshGraph, type Region,
@@ -395,6 +396,7 @@ function SceneContents({ onHover }: { onHover: (id: string | null, e?: ThreeEven
 
   const onPick = useCallback((id: string) => {
     useSceneStore.getState().selectStructure(id);
+    rememberItem(id);
     const app = useAppStore.getState();
     const cat = structureCategory(id);
     if (app.activePanelCategory !== cat) app.setActivePanelCategory(cat);

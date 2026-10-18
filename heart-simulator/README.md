@@ -3,7 +3,41 @@
 An interactive cardiac teaching simulator: a 3D heart, a live 12-lead ECG and a
 pressure–volume (Wiggers) model that all run from **one shared clock**, so the
 P wave, atrial contraction, valve clicks, pressures and the 3D heartbeat stay in
-step.
+step — plus a **case simulator** where you treat a patient and get a scored review.
+
+## Three screens
+
+| Screen | What it is |
+| --- | --- |
+| **Home** | The start page: pick your role, then jump straight to the simulator, the 3D heart, conditions, the 12-lead, the electrode lab, drug cards, procedures, the defibrillator, pressure–volume, the quiz or the tutor. |
+| **Learn** | The workspace: the 3D heart with the ECG dock below. **Library** (top left) lists anatomy, conditions, drugs, procedures and case studies; **Info** (top right) explains what you picked, with **← Back** to the item before. Tapping the heart with the info panel closed shows a short card with **Read more**. First-time tips explain tapping the heart and the leads. |
+| **Simulator** | Treat a patient case from first contact to hand-off (below). |
+
+Tablets and desktops switch screens with the tabs in the top bar; phones have a bottom tab bar
+(Home · Learn · Simulator · Quiz · Tutor). Opening any library item (search, chips, tutor, quiz) goes to Learn.
+
+## Case simulator
+
+`src/lib/sim/scenario/` (engine, interventions, scenarios) · `src/store/useSimStore.ts` · `src/components/simulator/`
+
+- **Every action in your scope is offered — right or wrong** (`interventions.ts`: ~75 actions tagged by role
+  and setting). Each one takes case time and changes the patient: the rhythm on the monitor and the live
+  12-lead, the vitals, and the story (patient, partner, team, monitor, hospital).
+- **The monitor starts unplugged**: the ECG, SpO₂ and capnography appear only once you attach them; the
+  NIBP box shows the last blood pressure you took. A 3-lead monitor names the rhythm only — the 12-lead
+  makes the diagnosis.
+- **Events happen on time or because of what you did** (VF en route, heart block, a wedged catheter,
+  reperfusion VF), built-in safety rules catch dangerous choices (shocking a patient with a pulse, arrest-dose
+  epinephrine with a pulse, …), and teammates do the other roles' jobs in the cath lab.
+- **The case ends by itself** once every critical step for your role is done (or the patient dies, or you end
+  it). The review shows the score and grade, what to fix (harmful choices, missed and late steps — late
+  counts half), what went well, your times against the goals and the teaching points. A **Hint** names the
+  next critical step for 2 points. Best scores are kept on the device.
+- **Cases:** anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,
+  paramedic) · complete heart block · unstable SVT · VF cardiac arrest (EMT, paramedic) · STEMI in the cath
+  lab (tech, nurse, cardiologist). Tests play every case's ideal run for each role (`tests/scenarios.test.ts`).
+- The engine is pure and deterministic (`engine.ts`: `start`, `perform`, `takeHint`, `stop`, `review`), so a new
+  case is one file in `scenarios/` plus a line in `scenarios/index.ts` and an ideal run in the tests.
 
 ## Roles and scope of practice
 
@@ -44,7 +78,7 @@ the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open ite
 
 | Area | Where | Notes |
 | --- | --- | --- |
-| ECG engine | `src/lib/ecg/` | Vector (dipole) model projected onto all 12 leads + right-sided/posterior leads, so axis, reciprocal ST change and R-wave progression come out of the physics rather than being drawn per lead. 46 rhythm/condition profiles (incl. PEA, pulseless VT, transcutaneous pacing), Fridericia QTc. |
+| ECG engine | `src/lib/ecg/` | Vector (dipole) model projected onto all 12 leads + right-sided/posterior leads, so axis, reciprocal ST change and R-wave progression come out of the physics rather than being drawn per lead. 49 rhythm/condition profiles (incl. PEA, pulseless VT, transcutaneous pacing, inferior STEMI with heart block and reperfused STEMI), Fridericia QTc. |
 | Hemodynamics | `src/lib/physiology/hemodynamics.ts` | Beat-by-beat LV/aortic/LA pressure, LV volume and heart sounds (Frank–Starling filling, atrial kick, Windkessel aorta). Drives the Wiggers chart and PV loop. |
 | Simulation clock | `src/lib/sim/simulation.ts`, `src/components/sim/SimulationDriver.tsx` | Single animation loop; pause, scrub and 0.1–1× speed. |
 | 3D heart | `src/components/scene/` | Exterior, four-chamber section with blood flow, x-ray, conduction system and coronary territories. Contraction, depolarization wave and ischemia are shaded on the GPU from the live ECG. Selecting a lead (12-lead or electrode lab) draws its view line: from the (+) side, into the wall it faces and through the heart. |
@@ -64,8 +98,8 @@ The layout adapts to the screen (`src/lib/device.ts`, Tailwind `phone:` / `touch
 | --- | --- |
 | Desktop / laptop (≥ 1024 px) | Navigator, info panel, 3D heart and ECG dock side by side; drag the dividers to resize |
 | Tablet | Navigator and info panel slide over the heart (tap outside to close); rarer ECG options under **More** |
-| Phone, upright | Compact top bar (search and role/scope behind icons), ECG / Wiggers / Monitor tabs, interpretation and electrode lab slide over the tracing, quiz / tutor / help open full screen |
-| Phone, on its side | Heart and ECG dock side by side |
+| Phone, upright | Bottom tab bar (Home · Learn · Simulator · Quiz · Tutor); compact top bar with **Library**, role, search and **Info**; ECG / Wiggers / Defibrillator tabs; interpretation slides over the tracing; the electrode lab and the defibrillator enlarge the dock; in the simulator one button opens the action list |
+| Phone, on its side | Heart and ECG dock side by side; the simulator shows the patient and the action list side by side |
 
 On touch screens buttons get bigger, the ECG dock has a grip bar and an enlarge (⤢) button, a double-tap on
 a lead inspects it, and Help lists the touch gestures.
@@ -86,8 +120,8 @@ and `app/apple-icon.png` are generated from `assets/logo-source.webp`.
 ## Keyboard shortcuts
 
 `Space` play/pause · `←/→` step · `[ ]` speed · `1–6` 3D view · `L` labels ·
-`F` blood flow · `V` ECG vector · `E` ECG/Wiggers · `M` monitor/defib · `Q` quiz ·
-`T` tutor · `/` search · `?` help · `Esc` close.
+`F` blood flow · `V` ECG vector · `E` ECG/Wiggers · `M` defibrillator · `Q` quiz ·
+`T` tutor · `/` search · `?` help · `Esc` close. (The 3D and ECG keys work in Learn only.)
 
 ## Credits
 

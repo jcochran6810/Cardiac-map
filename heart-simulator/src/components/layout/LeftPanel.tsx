@@ -194,6 +194,15 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-1.5 pb-3 text-xs">
+        {activeTab === 'cases' && (
+          <button
+            onClick={() => useAppStore.getState().setMode('simulator')}
+            className="mx-1 my-1.5 w-[calc(100%-0.5rem)] text-left p-2 touch:p-2.5 rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20"
+          >
+            <span className="block text-[11px] font-semibold text-amber-100">Want to treat the patient yourself? →</span>
+            <span className="block text-[10px] text-amber-200/70 leading-snug mt-0.5">The case simulator runs a full case with your scope&apos;s actions and scores you. These case studies are step-by-step decisions.</span>
+          </button>
+        )}
         {activeTab === 'coronary' && (
           <p className="mx-1.5 my-1 text-[10px] text-slate-500 leading-snug">
             Right-dominant anatomy shown (~70–85% of people): the PDA arises from the RCA. Try the <b className="text-slate-300">Territories</b> view.

@@ -10,12 +10,16 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm } from '@/lib/actions';
+import { goBack, kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm } from '@/lib/actions';
+import { useHistoryStore } from '@/store/useHistoryStore';
+import { enterSimulator, useSimStore } from '@/store/useSimStore';
+import { useTimelineStore } from '@/store/useTimelineStore';
+import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import { CASE_DATA, type CaseData } from '@/data/caseData';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
 import type { ConditionContent, MedicationContent, ProcedureContent, StructureContent } from '@/types/content';
-import { IconCheck, IconCube, IconFlag, IconPulse } from '@/components/ui/icons';
+import { IconCheck, IconClose, IconCube, IconFlag, IconPlay, IconPulse } from '@/components/ui/icons';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { InstallButton } from '@/components/ui/InstallApp';
 import { SCOPES } from '@/lib/scope';
@@ -236,6 +240,7 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
           {showsHemo && <ActionBtn onClick={() => ecg.setBottomView('wiggers')}>Hemodynamics</ActionBtn>}
           {territory && <ActionBtn onClick={() => setViewMode('territories')}>Culprit territory ({territory})</ActionBtn>}
         </div>
+        <PractiseCase conditionId={c.id} level={level} />
       </Header>
       <Tabs tabs={CONDITION_TABS} active={tab} onChange={setTab} level={level} />
       <div className="flex-1 overflow-y-auto p-3 text-xs space-y-3">
@@ -258,6 +263,27 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
         {(tab === 'anatomy' || tab === 'overview') && <Chips ids={c.affectedStructures} label="Anatomy involved (highlighted in 3D)" />}
       </div>
     </>
+  );
+}
+
+/** A simulator case for this condition, written for the learner's role */
+function PractiseCase({ conditionId, level }: { conditionId: string; level: LearningLevel }) {
+  const sc = SCENARIOS.find((x) => x.conditionId === conditionId && x.roles.includes(level));
+  if (!sc) return null;
+  const go = () => {
+    // save the workspace's monitor before the case takes it over
+    enterSimulator();
+    useSimStore.getState().startScenario(sc.id, level);
+    useAppStore.getState().setMode('simulator');
+  };
+  return (
+    <button onClick={go} className="mt-2 w-full flex items-center gap-2 p-2 touch:p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-left hover:bg-amber-500/20">
+      <IconPlay size={18} className="text-cardiac-accent shrink-0" />
+      <span className="min-w-0">
+        <span className="block text-[11px] font-semibold text-amber-100">Practise it in the case simulator</span>
+        <span className="block text-[10px] text-amber-200/70 truncate">{sc.title}</span>
+      </span>
+    </button>
   );
 }
 
@@ -552,24 +578,27 @@ function Welcome({ level }: { level: LearningLevel }) {
   const setQuizOpen = useAppStore((s) => s.setQuizOpen);
   const setViewMode = useAppStore((s) => s.setViewMode);
   const setHelpOpen = useAppStore((s) => s.setHelpOpen);
+  const setMode = useAppStore((s) => s.setMode);
   const ecg = useECGStore();
+  const lib = useContent();
   const cards: { title: string; text: string; go: () => void }[] = [
-    { title: 'Watch one heartbeat', text: 'Slow the simulation to 0.25× and watch the P wave light the atria, the QRS spread through the ventricles and the valves open in the sectioned view.', go: () => { setViewMode('sectioned'); } },
+    { title: 'Treat a patient (case simulator)', text: 'Run a STEMI, heart block, SVT or cardiac-arrest case from first contact to hand-off and get a scored review.', go: () => setMode('simulator') },
+    { title: 'Watch one heartbeat', text: 'Slows the simulation to 0.25× in the sectioned view: watch the P wave light the atria, the QRS spread through the ventricles and the valves open.', go: () => { setViewMode('sectioned'); useTimelineStore.getState().setSpeed(0.25); useTimelineStore.getState().play(); } },
     { title: 'Conduction system', text: 'See SA → AV node → His → bundles → Purkinje fire in time with the ECG. Try Mobitz II or complete heart block.', go: () => { setViewMode('conduction'); openCondition('third-degree-av-block'); } },
     { title: 'Read a STEMI', text: 'Anterior STEMI: ST elevation V1–V4 with reciprocal inferior change, and the LAD territory pulsing on the heart.', go: () => openCondition('anterior-stemi') },
-    { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { ecg.setBottomView('wiggers'); openCondition('aortic-stenosis'); } },
-    { title: 'Run a case', text: 'Make time-critical decisions with feedback in an unstable SVT scenario.', go: () => openCase('unstable-svt') },
-    { title: 'Run a code', text: 'Monitor-defibrillator trainer: AED, defibrillation, synchronised cardioversion, pacing, CPR and ACLS drugs on a live patient. Open Instructor for scenarios.', go: () => ecg.setBottomView('defib') },
+    { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { openCondition('aortic-stenosis'); ecg.setBottomView('wiggers'); } },
+    { title: 'Work through a case study', text: 'Step-by-step decisions with feedback in an unstable SVT case.', go: () => openCase('unstable-svt') },
+    { title: 'Practise on the defibrillator', text: 'Monitor-defibrillator trainer: AED, defibrillation, synchronised cardioversion, pacing, CPR and ACLS drugs on a live patient. Open Instructor for scenarios.', go: () => ecg.setBottomView('defib') },
     { title: 'Map the activation', text: 'See the order in which the ventricles activate, like an EP mapping system — compare normal conduction, LBBB and WPW.', go: () => { setViewMode('activation'); openCondition('left-bundle-branch-block'); } },
     { title: 'Swap the electrodes', text: 'Reverse the ECG cables and learn the tell-tale patterns, or take the mystery-reversal challenge.', go: () => { ecg.setBottomView('ecg'); ecg.setElectrodeLab(true); } },
-    { title: 'Quiz yourself', text: '66 questions across all levels, including live rhythm identification.', go: () => setQuizOpen(true) },
+    { title: 'Quiz yourself', text: `${lib ? `${lib.quiz.length} questions` : 'Questions'} across all levels, including live rhythm identification.`, go: () => setQuizOpen(true) },
   ];
   return (
     <div className="flex-1 overflow-y-auto p-3">
       <h2 className="text-base font-semibold text-white">Welcome to CardioSim</h2>
       <p className="text-xs text-slate-400 mt-1 leading-relaxed">
         An interactive heart where the anatomy, ECG, conduction system and hemodynamics all run from one beat-by-beat model.
-        Pick anything in the navigator, click the heart, or start below. Guidance is written for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> and stays within that role&apos;s scope of practice — change your role in the top bar.
+        Open the <b className="text-slate-200">Library</b> (top left), tap any part of the heart, or start below. Guidance is written for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> and stays within that role&apos;s scope of practice — change your role in the top bar.
       </p>
       <div className="grid gap-2 mt-3">
         {cards.map((c) => (
@@ -620,7 +649,32 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
 
   return (
     <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden min-h-0" aria-label="Information">
+      <PanelBar />
       {view}
     </aside>
+  );
+}
+
+/** Back to the previously opened item; on tablets and phones also a clear way to close the drawer */
+function PanelBar() {
+  const stack = useHistoryStore((s) => s.stack);
+  const compact = useAppStore((s) => s.compact);
+  const setPanels = useAppStore((s) => s.setPanels);
+  useContent(); // re-render with real names once the library has loaded
+  const prev = stack.length >= 2 ? stack[stack.length - 2] : null;
+  if (!prev && !compact) return null;
+  return (
+    <div className="flex items-center gap-1 px-1.5 py-1 border-b border-slate-700 shrink-0 bg-cardiac-dark/40">
+      {prev && (
+        <button onClick={goBack} className="min-w-0 flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-sky-300 hover:bg-cardiac-surface/70" title="Back to the item you had open before">
+          <span aria-hidden>←</span><span className="truncate">Back to {nameOf(prev)}</span>
+        </button>
+      )}
+      {compact && (
+        <button onClick={() => setPanels(false, false)} className="ml-auto flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-slate-300 hover:text-white hover:bg-cardiac-surface/70 shrink-0" aria-label="Close the info panel">
+          <IconClose size={14} /> Close
+        </button>
+      )}
+    </div>
   );
 }

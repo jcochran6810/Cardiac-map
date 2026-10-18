@@ -40,7 +40,7 @@ export default function MonitorWindow() {
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-center p-6">
           <div>
             <div className="text-slate-200 text-lg font-semibold">Waiting for the CardioSim window…</div>
-            <p className="text-slate-400 text-sm mt-1">Open Monitor / Defib in the main window and press “Projector”. This screen mirrors it.</p>
+            <p className="text-slate-400 text-sm mt-1">Open the Defibrillator tab in the main window and press “Projector”. This screen mirrors it.</p>
           </div>
         </div>
       )}
