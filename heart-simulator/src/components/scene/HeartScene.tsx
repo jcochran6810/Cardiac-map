@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Environment, Lightformer, useGLTF } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
+import { CENTER as BVH_CENTER, MeshBVH, acceleratedRaycast } from 'three-mesh-bvh';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
@@ -21,6 +22,10 @@ import CArmTracker from '@/components/scene/CArmTracker';
 import {
   ATRIAL_PATTERNS, VENT_PATTERNS, buildGraph, computeActivation, ventPatternKey, type MeshGraph, type Region,
 } from '@/lib/anatomy/activation';
+import {
+  AUTO_ROTATE_DEG_PER_S, DEG_PER_PX, POLAR_MARGIN, PressTracker, autoRotateSpeedFor, dampingFor, frameTime,
+  panCorrection, rotateSpeedFor, turnOffset,
+} from '@/lib/scene/orbit';
 
 const CLOSED_URL = '/models/heart_closed.glb';
 const OPEN_URL = '/models/heart_open.glb';
@@ -29,6 +34,9 @@ useGLTF.preload(OPEN_URL);
 
 const CENTER_WORLD = modelToWorld(HEART_CENTER);
 const DEFAULT_DISTANCE = 3.7;
+
+/** The press in progress on the 3D view (or the last one): a press that moved is a turn, never a pick */
+const press = new PressTracker();
 
 // ─── Error boundary: a WebGL/asset failure must never take down the whole app ─────────
 
@@ -108,6 +116,24 @@ function usePreparedModels() {
       openMat: createHeartMaterial(omap, { interior: true }),
     };
   }, [closed.scene, open.scene]);
+}
+
+/**
+ * Picking hit-tests the mesh on every pointer move; with 60–100k triangles that took ~10 ms a test and made
+ * dragging stutter. A bounding-volume tree makes each test a fraction of a millisecond. It is built once, when
+ * the browser is idle, and only for a mesh that is in use (until then picking falls back to the plain test).
+ */
+function useIdleBvh(geometry: THREE.BufferGeometry, active: boolean) {
+  useEffect(() => {
+    if (!active || geometry.boundsTree) return;
+    const build = () => { if (!geometry.boundsTree) geometry.boundsTree = new MeshBVH(geometry, { strategy: BVH_CENTER, maxLeafTris: 10 }); };
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(build, { timeout: 2500 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(build, 400);
+    return () => window.clearTimeout(id);
+  }, [geometry, active]);
 }
 
 // ─── Activation-time maps ───────────────────────────────────────────────────
@@ -248,6 +274,8 @@ function HeartModel({ viewMode, onHover, onPick }: {
   const { closedGeo, openGeo, closedMat, openMat, graph } = usePreparedModels();
   const xray = viewMode === 'xray' || viewMode === 'conduction';
   const sectioned = viewMode === 'sectioned';
+  useIdleBvh(closedGeo, !sectioned);
+  useIdleBvh(openGeo, sectioned);
 
   useEffect(() => {
     closedMat.transparent = xray;
@@ -285,22 +313,25 @@ function HeartModel({ viewMode, onHover, onPick }: {
   };
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (e.delta > 4) return; // was a drag
+    if (press.dragged) return; // the press turned the heart
     const local = e.object.worldToLocal(e.point.clone());
     const id = pick(local);
     if (id) onPick(id);
   };
+  const hoverOut = () => onHover(null);
 
   return (
     <>
       <ActivationSync geometry={closedGeo} graph={graph} />
+      {/* Only the mesh that can be picked carries pointer handlers, so the hidden one is never hit-tested */}
       <mesh
         geometry={closedGeo}
         material={closedMat}
         visible={!sectioned}
         userData={{ leadTarget: true }}
+        raycast={acceleratedRaycast}
         onPointerMove={!sectioned && !xray ? handleMove : undefined}
-        onPointerOut={() => onHover(null)}
+        onPointerOut={!sectioned && !xray ? hoverOut : undefined}
         onClick={!sectioned && !xray ? handleClick : undefined}
         renderOrder={xray ? 2 : 0}
       />
@@ -309,15 +340,16 @@ function HeartModel({ viewMode, onHover, onPick }: {
         material={openMat}
         visible={sectioned}
         userData={{ leadTarget: true }}
+        raycast={acceleratedRaycast}
         onPointerMove={sectioned ? handleMove : undefined}
-        onPointerOut={() => onHover(null)}
+        onPointerOut={sectioned ? hoverOut : undefined}
         onClick={sectioned ? handleClick : undefined}
       />
     </>
   );
 }
 
-// ─── Camera rig: presets, focusing on a selection, user override ───────────
+// ─── Camera rig: presets, focusing on a selection, rotate buttons, user override ───────────
 
 function CameraRig({ viewMode }: { viewMode: ViewMode }) {
   const { camera } = useThree();
@@ -325,11 +357,14 @@ function CameraRig({ viewMode }: { viewMode: ViewMode }) {
   const preset = useSceneStore((s) => s.cameraPreset);
   const setCameraPreset = useSceneStore((s) => s.setCameraPreset);
   const focusNonce = useSceneStore((s) => s.focusNonce);
-  const anim = useRef<{ from: THREE.Vector3; to: THREE.Vector3; tFrom: THREE.Vector3; tTo: THREE.Vector3; t: number } | null>(null);
+  const turn = useSceneStore((s) => s.turn);
+  // a tap already handled (or made before this view was opened) is not replayed
+  const turnSeen = useRef(useSceneStore.getState().turn?.nonce ?? 0);
+  const anim = useRef<{ from: THREE.Vector3; to: THREE.Vector3; tFrom: THREE.Vector3; tTo: THREE.Vector3; t: number; dur: number } | null>(null);
 
-  const start = useCallback((to: THREE.Vector3, target: THREE.Vector3) => {
+  const start = useCallback((to: THREE.Vector3, target: THREE.Vector3, dur = 0.7) => {
     if (!controls) return;
-    anim.current = { from: camera.position.clone(), to, tFrom: controls.target.clone(), tTo: target, t: 0 };
+    anim.current = { from: camera.position.clone(), to, tFrom: controls.target.clone(), tTo: target, t: 0, dur };
   }, [camera, controls]);
 
   useEffect(() => {
@@ -357,14 +392,36 @@ function CameraRig({ viewMode }: { viewMode: ViewMode }) {
     else if (l.surface && viewMode !== 'xray' && viewMode !== 'conduction') dir = anchor.clone().sub(CENTER_WORLD).normalize();
     else dir = camera.position.clone().sub(CENTER_WORLD).normalize();
     const target = anchor.clone().lerp(CENTER_WORLD, 0.45);
+    const keep = panCorrection(target, CENTER_WORLD);
+    if (keep) target.add(keep);
     start(target.clone().add(dir.multiplyScalar(2.9)), target);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce, controls]);
 
-  useFrame((_, dt) => {
+  // A tap of a rotate button turns 30° from where the camera is heading, so quick taps add up
+  useEffect(() => {
+    if (!turn || !controls || turn.nonce === turnSeen.current) return;
+    turnSeen.current = turn.nonce;
     const a = anim.current;
-    if (!a || !controls) return;
-    a.t = Math.min(1, a.t + dt / 0.7);
+    const pivot = (a ? a.tTo : controls.target).clone();
+    const offset = (a ? a.to : camera.position).clone().sub(pivot);
+    start(pivot.clone().add(turnOffset(offset, turn.dTheta, turn.dPhi)), pivot, 0.3);
+  }, [turn, controls, camera, start]);
+
+  useFrame((_, dt) => {
+    if (!controls) return;
+    // A rotate button held down keeps turning the heart, once the 30° step of the first tap has played
+    const spin = useSceneStore.getState().spin;
+    if (spin && !anim.current) {
+      const step = frameTime(dt);
+      const offset = turnOffset(camera.position.clone().sub(controls.target), spin.dTheta * step, spin.dPhi * step);
+      camera.position.copy(controls.target).add(offset);
+      controls.update();
+      return;
+    }
+    const a = anim.current;
+    if (!a) return;
+    a.t = Math.min(1, a.t + dt / a.dur);
     const k = a.t < 0.5 ? 4 * a.t ** 3 : 1 - (-2 * a.t + 2) ** 3 / 2;
     // interpolate on a sphere around the target so the camera arcs instead of cutting through the heart
     const tgt = a.tFrom.clone().lerp(a.tTo, k);
@@ -381,6 +438,90 @@ function CameraRig({ viewMode }: { viewMode: ViewMode }) {
   return null;
 }
 
+// ─── Controls tuning: the same feel on every screen and device ─────────────
+
+/**
+ * OrbitControls measures a drag against the canvas height and smooths per frame, so small screens turned too
+ * fast and slow devices drifted on after the pointer stopped. Each frame this sets the turn rate in degrees per
+ * pixel, the smoothing and auto-rotate per second, and keeps the pivot on the heart (a pan can't lose it).
+ * A press that starts turning the heart switches off hover hit-tests until it ends.
+ */
+function ControlsTuning() {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as OrbitControlsImpl | null;
+  const el = useThree((s) => s.events.connected) as HTMLElement | null | undefined;
+  const setEvents = useThree((s) => s.setEvents);
+  const height = useRef(500);
+  height.current = useThree((s) => s.size.height);
+
+  const turnRate = useCallback(() => {
+    if (controls) controls.rotateSpeed = rotateSpeedFor(DEG_PER_PX[press.pointerType === 'mouse' ? 'mouse' : 'touch'], height.current);
+  }, [controls]);
+
+  useEffect(() => {
+    if (!el) return;
+    let dragging = false;
+    const startDrag = () => {
+      dragging = true;
+      setEvents({ enabled: false });
+      el.style.cursor = 'grabbing';
+    };
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      el.style.cursor = '';
+      // after the click that ends the press, so that click is not hit-tested either
+      window.setTimeout(() => setEvents({ enabled: true }), 0);
+    };
+    const move = (e: PointerEvent) => {
+      press.move(e.clientX, e.clientY);
+      if (!dragging && press.dragged) startDrag();
+    };
+    const stopListening = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+    const up = () => {
+      press.up();
+      if (press.pointers > 0) return;
+      stopListening();
+      endDrag();
+    };
+    const down = (e: PointerEvent) => {
+      press.down(e.clientX, e.clientY, e.pointerType, e.isPrimary);
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+      turnRate();
+      if (!dragging && press.dragged) startDrag();
+    };
+    el.addEventListener('pointerdown', down);
+    return () => {
+      el.removeEventListener('pointerdown', down);
+      stopListening();
+      endDrag();
+    };
+  }, [el, setEvents, turnRate]);
+
+  useFrame((_, dt) => {
+    if (!controls) return;
+    controls.dampingFactor = dampingFor(dt);
+    controls.autoRotateSpeed = autoRotateSpeedFor(AUTO_ROTATE_DEG_PER_S, dt);
+    turnRate();
+  }, -2);
+
+  // after the controls' own update: a pan that strays off the heart moves pivot and camera back together
+  useFrame(() => {
+    if (!controls) return;
+    const back = panCorrection(controls.target, CENTER_WORLD);
+    if (!back) return;
+    controls.target.add(back);
+    camera.position.add(back);
+  });
+  return null;
+}
+
 // ─── Scene contents ────────────────────────────────────────────────────────
 
 function SceneContents({ onHover }: { onHover: (id: string | null, e?: ThreeEvent<PointerEvent>) => void }) {
@@ -393,8 +534,9 @@ function SceneContents({ onHover }: { onHover: (id: string | null, e?: ThreeEven
   const highlightIds = useSceneStore((s) => s.highlightIds);
   const selectedLead = useECGStore((s) => s.selectedLead);
 
+  // The structure was picked on the heart, so it is already in view: select it without moving the camera
   const onPick = useCallback((id: string) => {
-    useSceneStore.getState().selectStructure(id);
+    useSceneStore.getState().selectStructure(id, false);
     const app = useAppStore.getState();
     const cat = structureCategory(id);
     if (app.activePanelCategory !== cat) app.setActivePanelCategory(cat);
@@ -416,25 +558,26 @@ function SceneContents({ onHover }: { onHover: (id: string | null, e?: ThreeEven
             labelsVisible={labelsVisible}
             selectedId={selectedId}
             highlightIds={highlightIds}
-            onSelect={onPick}
+            onSelect={(id, keyboard) => { if (keyboard || !press.dragged) onPick(id); }}
           />
         </group>
       </group>
       <LeadVector center={CENTER_WORLD} lead={selectedLead} showVector={showVector || !!selectedLead} />
       <CArmTracker />
+      {/* rotateSpeed, dampingFactor and autoRotateSpeed are set every frame by ControlsTuning */}
       <OrbitControls
         makeDefault
         target={CENTER_WORLD}
         enableDamping
-        dampingFactor={0.1}
-        rotateSpeed={0.6}
-        zoomSpeed={0.8}
+        zoomSpeed={0.9}
         panSpeed={0.6}
         minDistance={1.6}
         maxDistance={8}
+        minPolarAngle={POLAR_MARGIN}
+        maxPolarAngle={Math.PI - POLAR_MARGIN}
         autoRotate={autoRotate}
-        autoRotateSpeed={0.8}
       />
+      <ControlsTuning />
     </>
   );
 }
@@ -455,7 +598,7 @@ export default function HeartScene() {
   }, []);
 
   return (
-    <div ref={wrapRef} className="w-full h-full relative heart-stage">
+    <div ref={wrapRef} className="w-full h-full relative heart-stage cursor-grab">
       <SceneErrorBoundary>
         <Canvas
           camera={{ position: [CENTER_WORLD.x, CENTER_WORLD.y, CENTER_WORLD.z + DEFAULT_DISTANCE], fov: 38, near: 0.05, far: 50 }}

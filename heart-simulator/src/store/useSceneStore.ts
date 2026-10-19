@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { TURN_AXES, TURN_RATE, TURN_STEP, type TurnDirection } from '@/lib/scene/orbit';
 
 export interface CameraPreset {
   /** camera direction from the heart centre (world frame: +x patient's left, +y superior, +z anterior) */
@@ -42,16 +43,24 @@ interface SceneState {
   cameraPreset: CameraPreset | null;
   /** increments to request the camera to frame the current selection */
   focusNonce: number;
+  /** The latest tap of an on-screen rotate button (radians; see turnOffset), animated by the camera rig */
+  turn: { dTheta: number; dPhi: number; nonce: number } | null;
+  /** While a rotate button is held down: turning speed in radians per second */
+  spin: { dTheta: number; dPhi: number } | null;
   /** Equivalent C-arm projection of the current 3D view (degrees): LAO + / RAO −, cranial + / caudal − */
   carm: { primary: number; secondary: number };
   /** Activation patterns currently shown (keys into VENT_PATTERNS / ATRIAL_PATTERNS) and their durations */
   activation: { vent: string | null; atria: string | null; qrsMs: number; pMs: number; vFirstMs: number; aFirstMs: number };
 
-  selectStructure: (id: string | null) => void;
+  /** `focus: false` (a pick on the heart itself, already in view) selects without moving the camera */
+  selectStructure: (id: string | null, focus?: boolean) => void;
   hoverStructure: (id: string | null) => void;
   setHighlights: (ids: string[]) => void;
   setCameraPreset: (preset: CameraPreset | null) => void;
   requestFocus: () => void;
+  turnHeart: (dir: TurnDirection) => void;
+  /** Start (a direction) or stop (null) turning the heart continuously */
+  spinHeart: (dir: TurnDirection | null) => void;
   setCarm: (primary: number, secondary: number) => void;
   setActivation: (a: SceneState['activation']) => void;
 }
@@ -62,14 +71,21 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   highlightIds: [],
   cameraPreset: null,
   focusNonce: 0,
+  turn: null,
+  spin: null,
   carm: { primary: 0, secondary: 0 },
   activation: { vent: 'normal', atria: 'sinus', qrsMs: 92, pMs: 100, vFirstMs: 20, aFirstMs: 0 },
 
-  selectStructure: (id) => set((s) => ({ selectedStructureId: id, focusNonce: id ? s.focusNonce + 1 : s.focusNonce })),
+  selectStructure: (id, focus = true) => set((s) => ({ selectedStructureId: id, focusNonce: id && focus ? s.focusNonce + 1 : s.focusNonce })),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
   setHighlights: (highlightIds) => set({ highlightIds }),
   setCameraPreset: (cameraPreset) => set({ cameraPreset }),
   requestFocus: () => set((s) => ({ focusNonce: s.focusNonce + 1 })),
+  turnHeart: (dir) => set((s) => {
+    const [a, b] = TURN_AXES[dir];
+    return { turn: { dTheta: a * TURN_STEP, dPhi: b * TURN_STEP, nonce: (s.turn?.nonce ?? 0) + 1 } };
+  }),
+  spinHeart: (dir) => set({ spin: dir ? { dTheta: TURN_AXES[dir][0] * TURN_RATE, dPhi: TURN_AXES[dir][1] * TURN_RATE } : null }),
   setActivation: (activation) => {
     const a = get().activation;
     if (a.vent !== activation.vent || a.atria !== activation.atria || a.qrsMs !== activation.qrsMs || a.pMs !== activation.pMs || a.vFirstMs !== activation.vFirstMs || a.aFirstMs !== activation.aFirstMs) set({ activation });

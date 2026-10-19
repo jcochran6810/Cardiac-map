@@ -1,19 +1,20 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
 import { useSceneStore, CAMERA_PRESETS } from '@/store/useSceneStore';
 import { useECGStore } from '@/store/useECGStore';
 import { sim } from '@/lib/sim/simulation';
 import { PHASE_DESCRIPTIONS, PHASE_LABELS, type CyclePhase } from '@/lib/ecg/engine';
 import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
-import { IconClose, IconHome, IconRotate, IconZoomIn, IconZoomOut } from '@/components/ui/icons';
+import { IconChevron, IconClose, IconHome, IconRotate, IconZoomIn, IconZoomOut } from '@/components/ui/icons';
 import { useContent } from '@/lib/content';
 import { useOnceHint } from '@/lib/hints';
 import Bullseye from '@/components/anatomy/Bullseye';
 import { formatCarm } from '@/components/scene/CArmTracker';
 import { ATRIAL_PATTERNS, VENT_PATTERNS } from '@/lib/anatomy/activation';
 import { useIsTouch } from '@/lib/device';
+import type { TurnDirection } from '@/lib/scene/orbit';
 
 const MODES: { value: ViewMode; label: string; key: string; title: string }[] = [
   { value: 'external', label: 'Exterior', key: '1', title: 'Photoreal exterior with coronary vessels' },
@@ -225,26 +226,28 @@ export default function SceneOverlay() {
             </div>
           </div>
         )}
-        <div className="scene-panel rounded-lg overflow-hidden">
-          <div className="grid grid-cols-3 gap-0.5 p-1">
-            {CAMERA_PRESETS.filter((p) => p.group === 'anatomic').map((p) => (
-              <button key={p.label} onClick={() => setCameraPreset(p)} title={`${p.label}: ${p.description}`} className="px-2 py-1 touch:py-2 text-[11px] font-medium text-slate-200 hover:bg-white/10 rounded">
-                {p.short}
+        <div className="scene-panel rounded-lg overflow-hidden flex">
+          <RotatePad onReset={() => setCameraPreset(CAMERA_PRESETS[0])} />
+          <div className="border-l border-slate-600/40">
+            <div className="grid grid-cols-3 gap-0.5 p-1">
+              {CAMERA_PRESETS.filter((p) => p.group === 'anatomic').map((p) => (
+                <button key={p.label} onClick={() => setCameraPreset(p)} title={`${p.label}: ${p.description}`} className="px-2 py-1 touch:py-2 text-[11px] font-medium text-slate-200 hover:bg-white/10 rounded">
+                  {p.short}
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-slate-600/40 p-1 flex items-center gap-0.5">
+              <IconBtn onClick={() => zoom(1)} title="Zoom in"><IconZoomIn size={14} /></IconBtn>
+              <IconBtn onClick={() => zoom(-1)} title="Zoom out"><IconZoomOut size={14} /></IconBtn>
+              <IconBtn onClick={toggleAutoRotate} title={autoRotate ? 'Stop turning' : 'Turn slowly by itself (auto-rotate)'} pressed={autoRotate}><IconRotate size={14} /></IconBtn>
+              <button
+                onClick={() => setShowAngio((v) => !v)}
+                className={`ml-auto px-2 py-1 touch:py-2 text-[11px] rounded ${showAngio ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:bg-white/10'}`}
+                title="Cath-lab projections (RAO / LAO / cranial / caudal)"
+              >
+                Angio
               </button>
-            ))}
-          </div>
-          <div className="border-t border-slate-600/40 p-1 flex items-center gap-0.5">
-            <IconBtn onClick={() => zoom(1)} title="Zoom in"><IconZoomIn size={14} /></IconBtn>
-            <IconBtn onClick={() => zoom(-1)} title="Zoom out"><IconZoomOut size={14} /></IconBtn>
-            <IconBtn onClick={() => setCameraPreset(CAMERA_PRESETS[0])} title="Reset to anterior view"><IconHome size={14} /></IconBtn>
-            <IconBtn onClick={toggleAutoRotate} title="Auto-rotate"><IconRotate size={14} /></IconBtn>
-            <button
-              onClick={() => setShowAngio((v) => !v)}
-              className={`ml-auto px-2 py-1 touch:py-2 text-[11px] rounded ${showAngio ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:bg-white/10'}`}
-              title="Cath-lab projections (RAO / LAO / cranial / caudal)"
-            >
-              Angio
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -255,7 +258,7 @@ export default function SceneOverlay() {
           <div className="pointer-events-auto scene-panel rounded-xl px-4 py-3 text-center max-w-xs shadow-2xl animate-fade-in">
             <div className="text-sm font-semibold text-white">{touch ? 'Tap' : 'Click'} any part of the heart</div>
             <p className="text-xs text-slate-300 mt-1 leading-snug">
-              to see what it is and what it does. {touch ? 'Drag to turn it, pinch to zoom' : 'Drag to turn it, scroll to zoom'}, and try the views at the top left.
+              to see what it is and what it does. {touch ? 'Drag to turn it and pinch to zoom; the arrows under Views ▾ turn it step by step' : 'Drag to turn it and scroll to zoom; the arrows at the bottom right turn it step by step'}.
             </p>
             <button onClick={dismissCoach} className="mt-2.5 px-4 py-1.5 touch:py-2 rounded-lg bg-cardiac-accent text-slate-950 text-xs font-semibold">Got it</button>
           </div>
@@ -263,7 +266,7 @@ export default function SceneOverlay() {
       )}
 
       <div className="absolute bottom-1.5 left-2 right-2 z-0 pointer-events-none flex justify-between text-[11px] text-slate-500">
-        <span className={narrow ? 'hidden' : ''}>{touch ? 'Drag to rotate · pinch to zoom · two-finger drag to pan · tap a structure' : 'Drag to rotate · scroll to zoom · right-drag to pan · click a structure'}</span>
+        <span className={narrow ? 'hidden' : ''}>{touch ? 'Drag to turn · pinch to zoom · arrows turn step by step · tap a structure' : 'Drag to turn · scroll to zoom · right-drag to pan · arrows turn step by step · click a structure'}</span>
         <span className="hidden md:inline">Educational simulation — not for clinical use</span>
       </div>
     </>
@@ -313,9 +316,77 @@ function Pill({ active, onClick, children, title }: { active: boolean; onClick: 
   );
 }
 
-function IconBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
+function IconBtn({ onClick, title, pressed, children }: { onClick: () => void; title: string; pressed?: boolean; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} title={title} aria-label={title} className="p-1.5 touch:p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded">
+    <button
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      aria-pressed={pressed}
+      className={`p-1.5 touch:p-2 rounded ${pressed ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:text-white hover:bg-white/10'}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+const TURN_BUTTONS: { dir: TurnDirection; label: string; icon: string; cell: string }[] = [
+  { dir: 'up', label: 'Turn the heart up', icon: '-rotate-90', cell: 'col-start-2 row-start-1' },
+  { dir: 'left', label: 'Turn the heart left', icon: 'rotate-180', cell: 'col-start-1 row-start-2' },
+  { dir: 'right', label: 'Turn the heart right', icon: '', cell: 'col-start-3 row-start-2' },
+  { dir: 'down', label: 'Turn the heart down', icon: 'rotate-90', cell: 'col-start-2 row-start-3' },
+];
+
+/** Arrow buttons that turn the heart the way they point, like dragging it: tap for 30°, hold to keep turning */
+function RotatePad({ onReset }: { onReset: () => void }) {
+  return (
+    <div className="grid grid-cols-3 grid-rows-3 gap-0.5 p-1 place-items-center" role="group" aria-label="Turn the heart">
+      {TURN_BUTTONS.map((b) => (
+        <TurnButton key={b.dir} dir={b.dir} label={b.label} className={b.cell}>
+          <IconChevron size={15} className={b.icon} />
+        </TurnButton>
+      ))}
+      <button
+        onClick={onReset}
+        title="Reset the view (front)"
+        aria-label="Reset the view (front)"
+        className="col-start-2 row-start-2 p-1.5 touch:p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10"
+      >
+        <IconHome size={13} />
+      </button>
+    </div>
+  );
+}
+
+function TurnButton({ dir, label, className, children }: { dir: TurnDirection; label: string; className: string; children: React.ReactNode }) {
+  const turnHeart = useSceneStore((s) => s.turnHeart);
+  const spinHeart = useSceneStore((s) => s.spinHeart);
+  const hold = useRef<number | null>(null);
+  const stop = useCallback(() => {
+    if (hold.current !== null) window.clearTimeout(hold.current);
+    hold.current = null;
+    spinHeart(null);
+  }, [spinHeart]);
+  // never leave the heart turning if the button goes away while held
+  useEffect(() => stop, [stop]);
+  return (
+    <button
+      type="button"
+      title={`${label} (hold to keep turning)`}
+      aria-label={label}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        turnHeart(dir);
+        hold.current = window.setTimeout(() => { hold.current = null; spinHeart(dir); }, 350);
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onLostPointerCapture={stop}
+      onClick={(e) => { if (e.detail === 0) turnHeart(dir); }}
+      onContextMenu={(e) => e.preventDefault()}
+      className={`${className} p-1.5 touch:p-2 rounded text-slate-200 hover:text-white hover:bg-white/10 active:bg-cardiac-accent/30 touch-none select-none [-webkit-touch-callout:none]`}
+    >
       {children}
     </button>
   );

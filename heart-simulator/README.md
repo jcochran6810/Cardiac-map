@@ -16,6 +16,13 @@ step — plus a **case simulator** where you treat a patient and get a scored re
 Tablets and desktops switch screens with the tabs in the top bar; phones have a bottom tab bar
 (Home · Learn · Simulator · Quiz · Tutor). Opening any library item (search, chips, tutor, quiz) goes to Learn.
 
+**Turning the 3D heart** (`src/lib/scene/orbit.ts`, `ControlsTuning` / `CameraRig` in `HeartScene.tsx`): drag to
+turn it — the same 0.4° per pixel with a mouse (0.5° with a finger) on any screen size, smoothing that settles in
+the same time at any frame rate, and it always turns about the heart (a pan can't push it off screen). The arrow
+pad in the view panel (under **Views ▾** on phones) turns it 30° per tap, keeps turning while held, and ⌂ resets
+the front view. A tap or click picks a part without moving the camera; a press that moved is a turn, never a
+pick. Picking hit-tests a bounding-volume tree (`three-mesh-bvh`), so dragging stays smooth on phones.
+
 **The phone's Back button stays inside the app** (`src/lib/backNav.ts`): every page — the screen, the item
 open in the info panel, the Library / Info drawers on small screens, the electrode lab, quiz / tutor / help,
 and the simulator's case list → case → action list → review — is a browser history entry. Back returns to

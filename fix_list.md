@@ -52,6 +52,13 @@ Add new items at the top of their group. Use the format:
 
 ### For Codex (UI / graphics — set by Claude)
 
+- [ ] 2026-10-19 — **Polish the 3D heart's arrow pad (keep its behaviour):** `RotatePad` / `TurnButton` in
+  `heart-simulator/src/components/scene/SceneOverlay.tsx` (left of the Front / Back / … presets; under
+  **Views ▾** on phones). The chevrons are small and thin; give the pad clear hover / pressed states and check
+  it at 320–1920 px. Keep: tap = 30° step, hold = keeps turning, release stops, ⌂ = front view, Enter / Space
+  steps once. Also consider **keyboard turning**: arrow keys while the 3D view has keyboard focus (only then —
+  ← / → already step time when the simulation is paused), via `useSceneStore().turnHeart(dir)`.
+
 - [ ] 2026-10-18 — **Polish the real-image UI (keep its behaviour):** `CathFigure` / `ImageZoom` /
   `ImageCredit` in `heart-simulator/src/components/cathlab/CathFigure.tsx` (catalog figures, the full-screen
   view, the linked credit and licence — both links must stay visible) and the image runs in the simulator's

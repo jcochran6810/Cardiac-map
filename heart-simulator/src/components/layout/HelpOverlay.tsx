@@ -11,6 +11,7 @@ const SHORTCUTS: [string, string][] = [
   ['← / →', 'Step 10 ms while paused (Shift = 100 ms)'],
   ['[ / ]', 'Slower / faster simulation'],
   ['1 – 6', 'Exterior · Sectioned · X-ray · Conduction · Territories · Activation map'],
+  ['Drag · scroll', 'Turn · zoom the 3D heart (right-drag pans; the arrow pad at the bottom right turns it 30° per click)'],
   ['L', 'Toggle 3D labels'],
   ['F', 'Toggle blood flow (sectioned view)'],
   ['V', 'Toggle cardiac vector'],
@@ -23,9 +24,10 @@ const SHORTCUTS: [string, string][] = [
 ];
 
 const GESTURES: [string, string][] = [
-  ['Drag', 'Rotate the heart'],
+  ['Drag', 'Turn the heart (it turns about its own centre)'],
   ['Pinch', 'Zoom in and out'],
-  ['Two-finger drag', 'Move (pan) the heart'],
+  ['Two-finger drag', 'Move (pan) the heart a little'],
+  ['Views ▾ arrows', 'Turn the heart 30° per tap; hold to keep turning; ⌂ resets the view'],
   ['Tap a structure', 'Open it in the info panel'],
   ['Tap a lead', 'Show its axis on the heart'],
   ['Double-tap a lead', 'Inspect it large with labelled intervals'],

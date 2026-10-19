@@ -61,7 +61,8 @@ interface Props {
   labelsVisible: boolean;
   selectedId: string | null;
   highlightIds: string[];
-  onSelect: (id: string) => void;
+  /** `keyboard`: the label was activated from the keyboard rather than by a press that might have been a drag */
+  onSelect: (id: string, keyboard: boolean) => void;
 }
 
 type Kind = 'selected' | 'highlight' | 'normal';
@@ -160,7 +161,7 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
               />
               <button
                 ref={(el) => { pillRefs.current[l.id] = el; }}
-                onClick={() => onSelect(l.id)}
+                onClick={(e) => onSelect(l.id, e.detail === 0)}
                 className={`absolute whitespace-nowrap rounded px-1.5 py-0.5 font-medium shadow-lg border backdrop-blur-sm transition-transform duration-200 ${
                   kind === 'selected'
                     ? 'left-3 -top-6 text-xs bg-sky-500/90 text-white border-sky-300/60'
