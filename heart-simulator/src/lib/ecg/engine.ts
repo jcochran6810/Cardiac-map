@@ -15,6 +15,7 @@ import {
   ECGProfile, P_TEMPLATES, PTemplate, QRS_TEMPLATES, QRSTemplate, TWaveSpec,
   prForRate, qtForRR, resolveProfile,
 } from './profiles';
+import { applyMods, modsKey, type RhythmMods } from './mods';
 
 export type VentKind = 'conducted' | 'pvc' | 'escape' | 'paced' | 'svt' | 'junctional' | 'vt' | 'torsades';
 
@@ -53,8 +54,11 @@ export interface VentEvent {
 
 interface Segment {
   start: number;
+  /** the rhythm profile with any drug effects applied */
   profile: ECGProfile;
   hr: number;
+  /** key of the drug modifiers in force (empty when none) */
+  mods: string;
 }
 
 // ─── Deterministic noise helpers ───────────────────────────────────────────
@@ -179,18 +183,23 @@ export class ECGEngine {
     return this.segments[this.segments.length - 1];
   }
 
-  /** Switch rhythm/rate at time `now`. Past events are preserved so the strip shows the transition. */
-  setRhythm(profileId: string, hr: number, now: number) {
-    const profile = resolveProfile(profileId);
+  /**
+   * Switch rhythm/rate (and drug effects, see ecg/mods.ts) at time `now`. Past events are preserved so the
+   * strip shows the transition.
+   */
+  setRhythm(profileId: string, hr: number, now: number, mods: RhythmMods | null = null) {
+    const base = resolveProfile(profileId);
+    const key = modsKey(mods);
     const cur = this.segments[this.segments.length - 1];
-    if (cur && cur.profile.id === profile.id && cur.hr === hr) return;
+    if (cur && cur.profile.id === base.id && cur.hr === hr && cur.mods === key) return;
+    const profile = applyMods(base, mods);
 
     // Drop anything scheduled after `now`
     this.atrial = this.atrial.filter((e) => e.t <= now);
     this.vent = this.vent.filter((e) => e.t <= now);
     // Segments that start in the future (after a scrub-back) are discarded
     this.segments = this.segments.filter((s) => s.start < now);
-    const seg: Segment = { start: now, profile, hr: hr > 0 ? hr : profile.defaultHR };
+    const seg: Segment = { start: now, profile, hr: hr > 0 ? hr : profile.defaultHR, mods: key };
     this.segments.push(seg);
     this.gen = this.createGenerator(seg);
   }
@@ -253,7 +262,10 @@ export class ECGEngine {
           step() {
             const rr = rrNominal * (1 + rsa * Math.sin((2 * Math.PI * nextP) / 4600));
             const idx = beat++;
-            if (profile.rhythm === 'pvc' && idx % 4 === 3) {
+            if (profile.avBlock && profile.rhythm !== 'paced') {
+              // Every P blocked at the AV node (adenosine): P waves march on without QRS complexes
+              atrial.push(buildAtrial(nextP, profile, 'sinus', false));
+            } else if (profile.rhythm === 'pvc' && idx % 4 === 3) {
               // PVC arrives early; the sinus P on schedule is blocked (full compensatory pause)
               const pvcT = lastQRS + rrNominal * 0.6;
               pushV(buildVent(pvcT, 'pvc', profile, 'pvc', rr * 0.6));
@@ -362,7 +374,9 @@ export class ECGEngine {
 
       case 'flutter': {
         const fPeriod = 200; // 300/min
-        const ratio = Math.max(2, Math.min(4, Math.round(300 / Math.max(60, hr))));
+        // 2:1 to 4:1 at the rates the slider offers; a drug that blocks the AV node (adenosine) drives the
+        // rate setting lower, giving the long runs of flutter waves that unmask the diagnosis
+        const ratio = Math.max(2, Math.min(hr < 70 ? 10 : 4, Math.round(300 / Math.max(30, hr))));
         const fr = 250; // F-wave to QRS latency
         const segStart = seg.start;
         let k = Math.ceil((vReady - fr - segStart) / fPeriod);

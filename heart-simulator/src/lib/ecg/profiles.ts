@@ -287,6 +287,8 @@ export interface ECGProfile {
   findings: string[];
   /** Leads to highlight when this profile is active */
   keyLeads?: string[];
+  /** Every P wave blocked at the AV node (set by a drug effect, e.g. adenosine — see ecg/mods.ts) */
+  avBlock?: boolean;
 }
 
 const STD = { minHR: 30, maxHR: 180 };

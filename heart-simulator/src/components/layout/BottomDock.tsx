@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore, ECGLayout } from '@/store/useECGStore';
@@ -14,12 +14,15 @@ import { openProjector } from '@/lib/sim/projector';
 import { useIsTouch } from '@/lib/device';
 import { IconClose, IconCollapse, IconExpand } from '@/components/ui/icons';
 import { useOnceHint } from '@/lib/hints';
+import { useMedStore } from '@/store/useMedStore';
+import { describeMods } from '@/lib/ecg/mods';
 
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
 const ElectrodeLab = dynamic(() => import('@/components/ecg/ElectrodeLab'), { ssr: false });
 const MonitorDisplay = dynamic(() => import('@/components/monitor/MonitorDisplay'), { ssr: false });
 const DefibPanel = dynamic(() => import('@/components/monitor/DefibPanel'), { ssr: false });
 const WiggersPanel = dynamic(() => import('@/components/physiology/WiggersPanel'), { ssr: false });
+const MedEffectBar = dynamic(() => import('@/components/meds/MedEffectBar'), { ssr: false });
 
 const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
   { value: 'simultaneous', label: '12-lead', title: 'Live 12-lead, like a monitor: every lead redraws at once (one sweep line per column) + lead II rhythm strip' },
@@ -74,6 +77,13 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   const [showInterp, setShowInterp] = useState(() => typeof window === 'undefined' || window.innerWidth >= 900);
   const [optsOpen, setOptsOpen] = useState(false);
   const [leadTip, dismissLeadTip] = useOnceHint('ecg-leads');
+  // A drug was just given: clear the first-time lead tip so nothing covers the 12-lead while it acts
+  const medActive = useMedStore((s) => s.log.length > 0);
+  const medMods = useMedStore((s) => s.mods);
+  const medChanges = useMemo(() => describeMods(medMods), [medMods]);
+  useEffect(() => {
+    if (medActive && leadTip) dismissLeadTip();
+  }, [medActive, leadTip, dismissLeadTip]);
 
   // Phones: the monitor-defibrillator needs room, so give it most of the screen while it is open
   const autoExpanded = useRef(false);
@@ -178,6 +188,11 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       ) : (
       <>
       <h4 className="text-xs font-semibold text-white leading-snug">{profile.headline}</h4>
+      {medChanges.length > 0 && (
+        <p className="mt-1.5 text-[10px] leading-snug rounded bg-sky-500/10 border border-sky-500/30 text-sky-200 p-1.5">
+          After the medications given: {medChanges.join(' · ')}
+        </p>
+      )}
       <ul className="mt-2 space-y-1">
         {profile.findings.map((f) => (
           <li key={f} className="flex gap-1.5 text-slate-300 leading-snug">
@@ -368,6 +383,9 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           </button>
         </div>
       ))}
+
+      {/* A drug given from a condition's Give meds tab: what it is doing now */}
+      {ecg.bottomView === 'ecg' && <MedEffectBar />}
 
       {/* ── Main area ──────────────────────────────────────────── */}
       <div className={`flex-1 min-h-0 flex relative ${ecg.bottomView === 'defib' && stackDefib ? 'flex-col' : ''}`}>

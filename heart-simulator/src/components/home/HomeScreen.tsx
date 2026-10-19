@@ -7,6 +7,7 @@ import { useTutorStore } from '@/store/useTutorStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useContent } from '@/lib/content';
 import { scenariosFor } from '@/lib/sim/scenario/scenarios';
+import { openTreatment } from '@/lib/actions';
 import {
   IconBook, IconChart, IconClipboard, IconCube, IconHeart, IconHeartPulse, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
 } from '@/components/ui/icons';
@@ -53,6 +54,7 @@ export default function HomeScreen() {
     },
     { title: 'Conditions', text: 'Rhythms, heart attacks and heart disease — each with its live ECG.', icon: <IconHeartPulse size={22} />, tint: 'text-rose-300 bg-rose-500/15', go: library('conditions') },
     { title: '12-lead ECG', text: 'A live 12-lead in step with the heart. Tap a lead to see where it looks.', icon: <IconPulse size={22} />, tint: 'text-emerald-300 bg-emerald-500/15', go: dock('ecg') },
+    { title: 'Give a medication', text: 'Choose a drug and a dose for the patient’s weight, push it, and watch what it does to the live 12-lead.', icon: <IconPill size={22} />, tint: 'text-pink-300 bg-pink-500/15', go: () => openTreatment('avnrt') },
     { title: 'Electrode lab', text: 'Place the electrodes on a 3D patient and see what swapped cables do.', icon: <IconPerson size={22} />, tint: 'text-teal-300 bg-teal-500/15', go: dock('ecg', true) },
     { title: 'Drug cards', text: 'Doses, uses and cautions for cardiac and resuscitation drugs.', icon: <IconPill size={22} />, tint: 'text-lime-300 bg-lime-500/15', go: library('medications') },
     { title: 'Procedures', text: 'Cath lab, EP, surgical and bedside procedures, step by step.', icon: <IconClipboard size={22} />, tint: 'text-violet-300 bg-violet-500/15', go: library('procedures') },

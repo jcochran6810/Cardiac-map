@@ -11,7 +11,7 @@ import { useCathLabStore } from '@/store/useCathLabStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm, showCineView } from '@/lib/actions';
+import { kindOf, nameOf, openById, openCase, openCondition, openStructure, openTreatment, setRhythm, showCineView } from '@/lib/actions';
 import { currentPage, goBack, useBackNavStore } from '@/lib/backNav';
 import { enterSimulator, useSimStore } from '@/store/useSimStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -24,7 +24,9 @@ import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { CathFigure } from '@/components/cathlab/CathFigure';
 import CArmDiagram from '@/components/cathlab/CArmDiagram';
-import { IconCheck, IconClose, IconCube, IconFlag, IconPlay, IconPulse } from '@/components/ui/icons';
+import { IconCheck, IconClose, IconCube, IconFlag, IconPill, IconPlay, IconPulse } from '@/components/ui/icons';
+import GiveMedication from '@/components/meds/GiveMedication';
+import { useMedStore } from '@/store/useMedStore';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { InstallButton } from '@/components/ui/InstallApp';
 import { SCOPES } from '@/lib/scope';
@@ -212,6 +214,7 @@ function StructureView({ s, level }: { s: StructureContent; level: LearningLevel
 
 const CONDITION_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1] },
+  { key: 'treat', label: 'Give meds', levels: [2, 4, 5] },
   { key: 'pathophysiology', label: 'Pathophysiology', levels: [5] },
   { key: 'symptoms', label: 'Signs & symptoms', levels: [1, 2, 4] },
   { key: 'ecg', label: 'ECG', levels: [2, 3, 5] },
@@ -234,19 +237,22 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
   const territory = PROFILE_TERRITORY[profile.id];
   const body = (c as unknown as Record<string, string[]>)[tab] ?? c.overview;
   const showsHemo = profile.hemo !== 'normal' && profile.hemo !== 'stemi';
+  // Giving a drug needs the room: the summary, role focus and case link stay on the other tabs
+  const treating = tab === 'treat';
   return (
     <>
-      <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={c.summary}>
-        <LevelFocus notes={c.levelNotes} level={level} />
+      <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={treating ? undefined : c.summary}>
+        {!treating && <LevelFocus notes={c.levelNotes} level={level} />}
         <div className="flex flex-wrap gap-1 mt-2">
-          <ActionBtn onClick={() => { setRhythm(profile.id); ecg.setBottomView('ecg'); }} title="Load this pattern on the ECG"><IconPulse size={11} /> Replay ECG</ActionBtn>
+          <ActionBtn onClick={() => { useMedStore.getState().reset(c.id); setRhythm(profile.id); ecg.setBottomView('ecg'); }} title="Load this pattern on the ECG (and forget any drugs given)"><IconPulse size={11} /> Replay ECG</ActionBtn>
+          <ActionBtn onClick={() => setTab('treat')} title="Choose a drug and a dose for this patient's weight, push it, and watch the live 12-lead"><IconPill size={11} /> Give a medication</ActionBtn>
           {profile.keyLeads?.[0] && (
             <ActionBtn onClick={() => { ecg.setBottomView('ecg'); ecg.setInspectLead(profile.keyLeads![0] as never); }}>Inspect lead {profile.keyLeads[0]}</ActionBtn>
           )}
           {showsHemo && <ActionBtn onClick={() => ecg.setBottomView('wiggers')}>Hemodynamics</ActionBtn>}
           {territory && <ActionBtn onClick={() => setViewMode('territories')}>Culprit territory ({territory})</ActionBtn>}
         </div>
-        <PractiseCase conditionId={c.id} level={level} />
+        {!treating && <PractiseCase conditionId={c.id} level={level} />}
       </Header>
       <Tabs tabs={CONDITION_TABS} active={tab} onChange={setTab} level={level} />
       <div className="flex-1 overflow-y-auto p-3 text-xs space-y-3">
@@ -256,7 +262,7 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
             <Bullets items={c.redFlags} accent="text-red-400" />
           </div>
         )}
-        <Bullets items={body} />
+        {tab === 'treat' ? <GiveMedication conditionId={c.id} conditionName={c.name} level={level} /> : <Bullets items={body} />}
         {tab === 'ecg' && (
           <div className="p-2 rounded-md bg-cardiac-dark border border-slate-700">
             <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">On the live monitor now</div>
@@ -695,6 +701,7 @@ function Welcome({ level }: { level: LearningLevel }) {
     { title: 'Conduction system', text: 'See SA → AV node → His → bundles → Purkinje fire in time with the ECG. Try Mobitz II or complete heart block.', go: () => { setViewMode('conduction'); openCondition('third-degree-av-block'); } },
     { title: 'Read a STEMI', text: 'Anterior STEMI: ST elevation V1–V4 with reciprocal inferior change, and the LAD territory pulsing on the heart.', go: () => openCondition('anterior-stemi') },
     { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { openCondition('aortic-stenosis'); ecg.setBottomView('wiggers'); } },
+    { title: 'Give a drug, watch the ECG', text: 'Open SVT, push adenosine 6 mg and watch the 12-lead pause and turn into sinus rhythm. Every condition has a Give meds tab: weight, drug, dose, push.', go: () => openTreatment('avnrt') },
     { title: 'Work through a case study', text: 'Step-by-step decisions with feedback in an unstable SVT case.', go: () => openCase('unstable-svt') },
     { title: 'Practise on the defibrillator', text: 'Monitor-defibrillator trainer: AED, defibrillation, synchronised cardioversion, pacing, CPR and ACLS drugs on a live patient. Open Instructor for scenarios.', go: () => ecg.setBottomView('defib') },
     { title: 'Map the activation', text: 'See the order in which the ventricles activate, like an EP mapping system — compare normal conduction, LBBB and WPW.', go: () => { setViewMode('activation'); openCondition('left-bundle-branch-block'); } },

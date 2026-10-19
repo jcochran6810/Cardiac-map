@@ -52,6 +52,13 @@ Add new items at the top of their group. Use the format:
 
 ### For Codex (UI / graphics — set by Claude)
 
+- [ ] 2026-10-19 — **Polish the Give meds screens (keep their behaviour):** the tab in
+  `heart-simulator/src/components/meds/GiveMedication.tsx` (weight stepper, drug select, dose chips + input with
+  the mg/kg readout, Push, the verdict card, the timeline), the bar above the ECG in `MedEffectBar.tsx`, and the
+  dashed dose / effect markers drawn on the strip (`drawMarks` in `ECGRenderer.tsx`, labels on the rhythm strip).
+  Keep: Push closes the drawer on phones; the verdict and dose class appear only after Push (no hints before);
+  Skip ahead moves drug time, not the clock. Check 320–1920 px and the paper ECG theme.
+
 - [ ] 2026-10-19 — **Polish the 3D heart's arrow pad (keep its behaviour):** `RotatePad` / `TurnButton` in
   `heart-simulator/src/components/scene/SceneOverlay.tsx` (left of the Front / Back / … presets; under
   **Views ▾** on phones). The chevrons are small and thin; give the pad clear hover / pressed states and check

@@ -6,6 +6,7 @@ import { useECGStore, ECGLead, ECGLayout } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { windowStart, xInWindow } from '@/lib/ecg/sweep';
+import { useMedStore, type MedMark } from '@/store/useMedStore';
 
 /**
  * Calibrated, sweeping 12-lead ECG.
@@ -180,6 +181,19 @@ function buildLayout(
 /** Map time → x for a strip, or null if that time is not displayed in that strip */
 function xFor(s: Strip, t: number, pxPerMs: number): number | null {
   return xInWindow(t, windowStart(t, s.offset, s.page), s.dur, pxPerMs);
+}
+
+/** x of a past moment still on screen at time T: on the current sweep, or ahead of the erase bar on the last one */
+function shownX(s: Strip, t: number, T: number, pxPerMs: number): number | null {
+  if (t > T) return null;
+  const kNow = Math.floor((T - s.offset) / s.page);
+  const kMark = Math.floor((t - s.offset) / s.page);
+  const ws = kMark * s.page + s.offset;
+  if (t - ws > s.dur) return null;
+  const x = (t - ws) * pxPerMs;
+  if (kMark === kNow) return x;
+  if (kMark === kNow - 1) return x > (T - (kNow * s.page + s.offset)) * pxPerMs + 14 ? x : null;
+  return null;
 }
 
 /** `scrub`: dragging scrubs through time (pausing the simulation); the case simulator turns it off */
@@ -386,6 +400,10 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
         }
       }
 
+      // Drugs given from a condition's Give meds tab: where each dose and each effect happened
+      const marks = useMedStore.getState().marks;
+      if (marks.length) drawMarks(ctx, L, T, marks, theme.annot, ecg.inspectLead || ecg.layout === 'monitor' ? 0 : L.strips.length - 1);
+
       // Inspect-mode annotations: label the waves and intervals of the last complete beat
       if (ecg.inspectLead && ecg.showAnnotations) drawAnnotations(ctx, L, T, theme.annot);
 
@@ -398,6 +416,42 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       ctx.textAlign = 'right';
       ctx.fillText(`${ecg.sweepSpeed} mm/s · ${ecg.gain} mm/mV`, W - 6, H - 5);
       ctx.textAlign = 'left';
+    };
+
+    const drawMarks = (c: CanvasRenderingContext2D, L: Layout, T: number, marks: MedMark[], color: string, labelStrip: number) => {
+      c.save();
+      c.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+      c.lineWidth = 1;
+      L.strips.forEach((s, i) => {
+        let lastEnd = -Infinity;
+        let row = 0;
+        for (const m of marks) {
+          const x = shownX(s, m.t, T, L.pxPerMs);
+          if (x === null) continue;
+          const X = s.x + x;
+          c.strokeStyle = color;
+          c.globalAlpha = 0.8;
+          c.setLineDash([3, 3]);
+          c.beginPath();
+          c.moveTo(X + 0.5, s.y + 2);
+          c.lineTo(X + 0.5, s.y + s.h - 2);
+          c.stroke();
+          if (i !== labelStrip) continue;
+          c.setLineDash([]);
+          const w = c.measureText(m.label).width + 6;
+          const lx = Math.min(X + 3, s.x + s.w - w - 2);
+          row = lx < lastEnd ? (row + 1) % 3 : 0; // stagger labels that would overlap
+          lastEnd = lx + w;
+          const ly = s.y + 3 + row * 15;
+          c.globalAlpha = 0.85;
+          c.fillStyle = 'rgba(0,0,0,0.7)';
+          c.fillRect(lx, ly, w, 14);
+          c.globalAlpha = 1;
+          c.fillStyle = color;
+          c.fillText(m.label, lx + 3, ly + 11);
+        }
+      });
+      c.restore();
     };
 
     const drawAnnotations = (c: CanvasRenderingContext2D, L: Layout, T: number, color: string) => {
