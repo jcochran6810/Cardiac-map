@@ -13,7 +13,7 @@ import { IconCheck, IconFlag, IconPill } from '@/components/ui/icons';
 
 /** What each role may do with IV medications (src/lib/scope.ts) */
 const SCOPE_NOTE: Partial<Record<LearningLevel, string>> = {
-  1: 'IV medications are outside the EMT scope — use this to learn what the paramedic or nurse gives, and what you will see on the monitor.',
+  1: 'Most of these (IV) drugs are outside the EMT scope — aspirin for suspected ACS, and helping with the patient’s own nitroglycerin, are within it by protocol. Use the rest to learn what the paramedic or nurse gives, and what you will see on the monitor.',
   2: 'Paramedic: per your protocols and medical direction.',
   3: 'Cath lab techs give medications only on a physician’s order, where facility policy allows.',
   4: 'Nurse: on a prescriber’s order or a standing protocol (e.g. ACLS).',
@@ -73,6 +73,7 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
   }, [conditionId, reset]);
 
   const def = drug ? MED_BY_ID[drug] : null;
+  // weight-based picks only depend on the patient's weight and doses so far
   const patient = useMemo(() => ({ profileId, hr, kg, given }), [profileId, hr, kg, given]);
   const picks = def ? def.picks(patient) : [];
   const n = Number(dose);

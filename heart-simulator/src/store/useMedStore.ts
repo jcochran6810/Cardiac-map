@@ -84,7 +84,8 @@ export const useMedStore = create<MedState>((set, get) => ({
     const tl = useTimelineStore.getState();
     const s = get();
     const restoreTo = { profileId: ecg.activeProfileId, hr: tl.heartRate };
-    const plan = planDose(drug, { ...restoreTo, kg: s.kg, given: s.given }, dose);
+    // the blood pressure on the monitor decides, e.g., whether VT is stable and whether nitrates are safe
+    const plan = planDose(drug, { ...restoreTo, kg: s.kg, given: s.given, sbp: sim.hemo.summary(t).sbp }, dose);
     for (const step of plan.steps) pending.push({ fireAt: t + step.at, step, drug, restoreTo });
     pending.sort((a, b) => a.fireAt - b.fireAt);
     const def = MED_BY_ID[drug];

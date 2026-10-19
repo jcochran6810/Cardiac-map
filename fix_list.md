@@ -113,6 +113,12 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
+- [ ] 2026-10-19 — **Give meds: more drugs for the common cases** (`heart-simulator/src/lib/sim/meds.ts`; each needs
+  a Library drug card first): insulin 10 units + dextrose 25 g and nebulised salbutamol 10–20 mg for hyperkalaemia,
+  a P2Y12 loading dose (ticagrelor 180 mg / clopidogrel 300–600 mg) for STEMI, sotalol 1.5 mg/kg for stable VT.
+- [ ] 2026-10-19 — **Check the drug doses and algorithms against the AHA 2025 guidelines** (the app's drug cards,
+  defibrillator trainer and Give meds model follow ACLS 2020 + the 2023 focused update).
+
 - [ ] 2026-10-18 — **Better-fitting images where the catalog uses a near match** (every item has a real
   image; captions say when the setting differs): damping at a coronary ostium (now: innominate artery), a
   reperfusion VF strip from primary PCI, Bezold–Jarisch during RCA reperfusion, a vasovagal drop during
