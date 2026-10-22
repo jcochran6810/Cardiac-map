@@ -1,15 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
-import { sim } from '@/lib/sim/simulation';
+import { sim, syncRhythm } from '@/lib/sim/simulation';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore } from '@/store/useECGStore';
 import { tickDefib } from '@/lib/sim/defib';
+import { tickMeds, useMedStore } from '@/store/useMedStore';
+import { useAppStore } from '@/store/useAppStore';
 
 /**
  * Single animation loop that advances simulation time, keeps the rhythm engine
- * in sync with the selected ECG profile / heart rate, and publishes a few
- * low-frequency values (phase, displayed HR) for regular React UI.
+ * in sync with the selected ECG profile / heart rate (and any drug effects),
+ * fires the defibrillator's and the medication session's scheduled responses,
+ * and publishes a few low-frequency values (phase, displayed HR) for regular React UI.
  */
 export default function SimulationDriver() {
   useEffect(() => {
@@ -23,10 +26,13 @@ export default function SimulationDriver() {
       const tl = useTimelineStore.getState();
       const ecg = useECGStore.getState();
 
-      sim.engine.setRhythm(ecg.activeProfileId, tl.heartRate, sim.time);
+      // drug effects given in the Learn view (useMedStore) apply only there
+      const mods = useAppStore.getState().mode === 'learn' ? useMedStore.getState().mods : null;
+      syncRhythm(ecg.activeProfileId, tl.heartRate, mods);
       if (tl.playing) sim.time += dt * tl.speed;
       sim.engine.ensure(sim.time + 4000);
       tickDefib(sim.time);
+      tickMeds(sim.time);
 
       if (now - lastPublish > 120) {
         lastPublish = now;

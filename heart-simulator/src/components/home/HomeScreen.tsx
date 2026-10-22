@@ -14,7 +14,7 @@ import { useCathLabStore } from '@/store/useCathLabStore';
 import { useSimStore } from '@/store/useSimStore';
 import { useContent } from '@/lib/content';
 import { CATEGORIES } from '@/lib/categories';
-import { nameOf, openById, openCase, openCategory, openCondition, openTool, showEcg, showHeart, type Tool } from '@/lib/actions';
+import { nameOf, openById, openCase, openCategory, openCondition, openTool, openTreatment, showEcg, showHeart, type Tool } from '@/lib/actions';
 import { scenariosFor, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { CASE_DATA } from '@/data/caseData';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
@@ -39,9 +39,10 @@ const CATEGORY_LOOK: Record<PanelCategory, { icon: React.ReactNode; tint: string
   cases: { icon: <IconClipboard size={22} />, tint: 'text-amber-300 bg-amber-500/15' },
 };
 
-const TOOLS: { tool: Tool; title: string; text: string; icon: React.ReactNode; tint: string }[] = [
+const TOOLS: { tool: Tool | 'meds'; title: string; text: string; icon: React.ReactNode; tint: string }[] = [
   { tool: 'heart', title: '3D heart', text: 'Spin it, cut it open and tap any part to learn what it does.', icon: <IconCube size={22} />, tint: 'text-sky-300 bg-sky-500/15' },
   { tool: 'ecg', title: '12-lead ECG', text: 'A live 12-lead in step with the heart. Tap a lead to see where it looks.', icon: <IconPulse size={22} />, tint: 'text-emerald-300 bg-emerald-500/15' },
+  { tool: 'meds', title: 'Give a medication', text: 'Choose a drug and a dose for the patient’s weight, push it, and watch what it does to the live 12-lead.', icon: <IconPill size={22} />, tint: 'text-pink-300 bg-pink-500/15' },
   { tool: 'lab', title: 'Electrode lab', text: 'Place the electrodes on a 3D patient and see what swapped cables do.', icon: <IconPerson size={22} />, tint: 'text-teal-300 bg-teal-500/15' },
   { tool: 'defib', title: 'Defibrillator', text: 'Shock, cardiovert and pace a live patient on a monitor-defibrillator.', icon: <IconZap size={22} />, tint: 'text-amber-300 bg-amber-500/15' },
   { tool: 'wiggers', title: 'Pressure & volume', text: 'The Wiggers diagram and pressure-volume loop, beat by beat.', icon: <IconChart size={22} />, tint: 'text-cyan-300 bg-cyan-500/15' },
@@ -68,6 +69,10 @@ const TOURS: { title: string; text: string; go: () => void }[] = [
   {
     title: 'Map the activation', text: 'The order the ventricles activate in, like an EP mapping system — normal conduction against LBBB and WPW.',
     go: () => { openCondition('left-bundle-branch-block'); useAppStore.getState().setViewMode('activation'); showHeart(); },
+  },
+  {
+    title: 'Give a drug, watch the ECG', text: 'SVT on the monitor: push adenosine 6 mg and watch the 12-lead pause and turn into sinus rhythm. Every condition has a Give meds section.',
+    go: () => openTreatment('avnrt'),
   },
   {
     title: 'Work through a case study', text: 'Step-by-step decisions with feedback in an unstable SVT case.',
@@ -230,7 +235,7 @@ export default function HomeScreen() {
 
         {/* ── Tools ── */}
         <MenuSection title="Tools" hint="Each opens full screen. Close it from its bar to get back to the reading.">
-          {TOOLS.map((t) => <Tile key={t.tool} title={t.title} text={t.text} icon={t.icon} tint={t.tint} onClick={() => openTool(t.tool)} />)}
+          {TOOLS.map((t) => <Tile key={t.tool} title={t.title} text={t.text} icon={t.icon} tint={t.tint} onClick={() => (t.tool === 'meds' ? openTreatment('avnrt') : openTool(t.tool))} />)}
         </MenuSection>
 
         {/* ── Guided ── */}

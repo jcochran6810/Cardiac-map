@@ -22,8 +22,10 @@ import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { CathFigure } from '@/components/cathlab/CathFigure';
 import CArmDiagram from '@/components/cathlab/CArmDiagram';
-import { IconCheck, IconChevron, IconCube, IconFlag, IconList, IconPlay, IconPulse } from '@/components/ui/icons';
+import { IconCheck, IconChevron, IconCube, IconFlag, IconList, IconPill, IconPlay, IconPulse } from '@/components/ui/icons';
 import { CATEGORY_BY_VALUE } from '@/lib/categories';
+import GiveMedication from '@/components/meds/GiveMedication';
+import { useMedStore } from '@/store/useMedStore';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { SCOPES } from '@/lib/scope';
 
@@ -281,6 +283,7 @@ function StructureView({ s, level }: { s: StructureContent; level: LearningLevel
 
 const CONDITION_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1] },
+  { key: 'treat', label: 'Give meds', levels: [2, 4, 5] },
   { key: 'pathophysiology', label: 'Pathophysiology', levels: [5] },
   { key: 'symptoms', label: 'Signs & symptoms', levels: [1, 2, 4] },
   { key: 'ecg', label: 'ECG', levels: [2, 3, 5] },
@@ -303,20 +306,23 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
   const territory = PROFILE_TERRITORY[profile.id];
   const body = (c as unknown as Record<string, string[]>)[tab] ?? c.overview;
   const showsHemo = profile.hemo !== 'normal' && profile.hemo !== 'stemi';
+  // Giving a drug needs the room: the summary, role focus and case link stay on the other tabs
+  const treating = tab === 'treat';
   return (
     <>
       <Tabs tabs={CONDITION_TABS} active={tab} onChange={setTab} level={level} />
-      <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={c.summary}>
-        <LevelFocus notes={c.levelNotes} level={level} />
+      <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={treating ? undefined : c.summary}>
+        {!treating && <LevelFocus notes={c.levelNotes} level={level} />}
         <div className="flex flex-wrap gap-1 mt-2">
-          <ActionBtn onClick={() => { showRhythm(profile.id); showEcg('ecg'); }} title="Show this pattern on the 12-lead"><IconPulse size={11} /> Show the EKG</ActionBtn>
+          <ActionBtn onClick={() => { useMedStore.getState().reset(c.id); showRhythm(profile.id); showEcg('ecg'); }} title="Show this pattern on the 12-lead (and forget any drugs given)"><IconPulse size={11} /> Show the EKG</ActionBtn>
+          <ActionBtn onClick={() => setTab('treat')} title="Choose a drug and a dose for this patient's weight, push it, and watch the live 12-lead"><IconPill size={11} /> Give a medication</ActionBtn>
           {profile.keyLeads?.[0] && (
             <ActionBtn onClick={() => { showEcg('ecg'); ecg.setInspectLead(profile.keyLeads![0] as never); }}>Inspect lead {profile.keyLeads[0]}</ActionBtn>
           )}
           {showsHemo && <ActionBtn onClick={() => showEcg('wiggers')}>Hemodynamics</ActionBtn>}
           {territory && <ActionBtn onClick={() => { setViewMode('territories'); showHeart(); }}><IconCube size={11} /> Culprit territory ({territory})</ActionBtn>}
         </div>
-        <PractiseCase conditionId={c.id} level={level} />
+        {!treating && <PractiseCase conditionId={c.id} level={level} />}
       </Header>
       <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm space-y-3">
         {tab === 'overview' && c.redFlags.length > 0 && (
@@ -325,7 +331,7 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
             <Bullets items={c.redFlags} accent="text-red-400" />
           </div>
         )}
-        <Bullets items={body} />
+        {tab === 'treat' ? <GiveMedication conditionId={c.id} conditionName={c.name} level={level} /> : <Bullets items={body} />}
         {tab === 'ecg' && (
           <div className="p-2 rounded-md bg-cardiac-dark border border-slate-700">
             <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">On the live monitor now</div>

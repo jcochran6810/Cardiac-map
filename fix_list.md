@@ -11,11 +11,11 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
-- [ ] 2026-10-22 — **Decide on 2 unfinished commits from 2026-10-19** on branch `ccr-fcd6b419-beq5mr` (never
-  merged, not live): give a medication from any condition and watch the live 12-lead respond (`06b9370`), and
-  clinical review fixes for those meds (`1c083da`). (Its third commit, smoother 3D-heart turning, shipped on
-  2026-10-22 as `1b4c0ea` without the arrow pad.) They overlap the new navigation's files, so a session must merge
-  production into that branch and resolve conflicts first. Tell Claude "merge the meds work" (or "drop it").
+- [ ] 2026-10-22 — **Try Give meds on your phone:** Menu → **Give a medication** (opens SVT with the 12-lead up)
+  → Adenosine → 6 mg → **Push**, then watch the 12-lead pause and return to sinus (**Skip ⏩** speeds it up). Any
+  condition's **Give meds** section works the same way. Tested only in an emulated phone browser.
+- [ ] 2026-10-22 — **Delete the branch `ccr-fcd6b419-beq5mr`** (optional tidy-up): all of its work has now shipped.
+  GitHub → `jcochran6810/Cardiac-map` → Branches → trash icon next to it.
 - [ ] 2026-10-22 — **Try the 3D heart and the topic pages on your phone:** one finger turns the heart, pinch zooms,
   two fingers pan, a tap opens a part's card; on a condition page scroll to the bottom, use the section buttons
   under "All conditions", and fold the summary / Focus boxes. Tested only in an emulated phone browser.
@@ -64,6 +64,13 @@ Add new items at the top of their group. Use the format:
   what it was for: GitHub → Branches. Sessions can't delete remote branches.
 
 ### For Codex (UI / graphics — set by Claude)
+
+- [ ] 2026-10-22 — **Polish the Give meds screens (keep their behaviour):** the section in
+  `heart-simulator/src/components/meds/GiveMedication.tsx` (weight stepper, drug select, dose chips + input with the
+  mg/kg readout, Push, the verdict card, the timeline), the bar above the ECG in `MedEffectBar.tsx`, and the dashed
+  dose / effect markers drawn on the strip (`drawMarks` in `ECGRenderer.tsx`, labels on the rhythm strip). Keep: Push
+  slides the 12-lead up; the verdict and dose class appear only after Push; Skip ahead moves drug time, not the clock.
+  Check 320–1920 px and the paper ECG theme.
 
 - [ ] 2026-10-18 — **Polish the real-image UI (keep its behaviour):** `CathFigure` / `ImageZoom` /
   `ImageCredit` in `heart-simulator/src/components/cathlab/CathFigure.tsx` (catalog figures, the full-screen
@@ -119,6 +126,12 @@ Add new items at the top of their group. Use the format:
 - [ ] 2026-10-22 — The start hook lists only `claude/*` and `codex/*` branches, but web sessions now get `ccr-*`
   branches, so unmerged work there goes unreported (it missed `ccr-fcd6b419-beq5mr`). Add `ccr-*` to the fetch
   refspec and listing (`.claude/hooks/session-start.sh:275`) and a case to `session-start.test.sh`.
+- [ ] 2026-10-19 — **Give meds: more drugs for the common cases** (`heart-simulator/src/lib/sim/meds.ts`; each needs
+  a Library drug card first): insulin 10 units + dextrose 25 g and nebulised salbutamol 10–20 mg for hyperkalaemia,
+  a P2Y12 loading dose (ticagrelor 180 mg / clopidogrel 300–600 mg) for STEMI, sotalol 1.5 mg/kg for stable VT.
+- [ ] 2026-10-19 — **Check the drug doses and algorithms against the AHA 2025 guidelines** (the app's drug cards,
+  defibrillator trainer and Give meds model follow ACLS 2020 + the 2023 focused update).
+
 - [ ] 2026-10-18 — **Better-fitting images where the catalog uses a near match** (every item has a real
   image; captions say when the setting differs): damping at a coronary ostium (now: innominate artery), a
   reperfusion VF strip from primary PCI, Bezold–Jarisch during RCA reperfusion, a vasovagal drop during
@@ -151,6 +164,10 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-22 — Give meds from any condition (19 drugs, effects on the live 12-lead, verdicts on drug and dose)
+  with the 2026-10-19 clinical review fixes, ported onto the new layout (`ac752a0`, `2ca8e53`; from `06b9370`,
+  `1c083da`). All of `ccr-fcd6b419-beq5mr` has now shipped.
 
 - [x] 2026-10-22 — EKG: the newly drawn trace (behind the sweep line) came out thin and dashed on phones while the
   rest was thick; each frame no longer erases over the newest trace (`df1d669`).

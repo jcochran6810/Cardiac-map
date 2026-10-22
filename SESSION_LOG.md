@@ -6,6 +6,49 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: Give meds from any condition, ported from 2026-10-19)
+
+**Agent:** Claude
+
+**Asked:** "merge the meds work" (the owner's answer to the fix-list question about the unmerged 2026-10-19 commits).
+
+**Branch:** resumed level with production `main` at `e2a7eeb` (this session's previous merge); production did not
+move. The two commits below were made in this session; they port `06b9370` and `1c083da` from
+`ccr-fcd6b419-beq5mr`, whose third commit (`4f9200f`) shipped earlier today as `1b4c0ea`. That branch has nothing
+left to merge.
+
+**Shipped:**
+
+- Give meds (`ac752a0`, from `06b9370`): every condition has a **Give meds** section (plus **Give a medication**
+  under its title, a Tools tile and a Try this start in the main menu): weight, one of 19 IV/SL drugs, dose (mg/kg
+  shown), Push; the drug acts on the shared clock with a deterministic timeline of ECG effects (`lib/sim/meds.ts`,
+  `lib/ecg/mods.ts` drug modifiers on each beat, `store/useMedStore.ts`), marks on the strip, a bar above the ECG
+  (latest effect, next, Skip ahead, Details) and a verdict on drug and dose. Adapted to the new layout: Push slides
+  the 12-lead up (the old info drawer is gone), Details brings the reading back, "Show the EKG" and Reset patient
+  forget drugs given and fill the tracing at once. `engine.setRhythm` takes drug effects and the history rewrite
+  together; `showRhythm` now sets `sim.rewrite` and the driver's per-frame `syncRhythm` (simulation.ts) rewrites the
+  recent past with the drug effects in force.
+- Clinical review fixes (`2ca8e53`, from `1c083da`): aortic dissection (β-blocker first; lysis, heparin, aspirin
+  contraindicated), the plan reads the monitor's blood pressure (hypotensive VT → cardioversion; no nitrates at SBP
+  < 90; diltiazem in HFrEF / hypotension is harm), heparin and aspirin for every ACS, pulseless torsades, dose
+  ranges (procainamide, adenosine, calcium, bicarbonate, heparin for PE, push-dose epinephrine, tenecteplase).
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (323: `tests/meds.test.ts` every drug on every rhythm, doses by weight,
+classic responses, adenosine in AVNRT on the live clock; `tests/show-rhythm.test.ts` now through `syncRhythm`,
+including drug effects carried into the rewritten past) · build ✅ (after `npm ci`). In Playwright on an emulated
+phone (412×860): menu → Give a medication → AVNRT with the 12-lead up → adenosine 6 mg → Push → verdict "a good
+choice", dose and effects marked on the strip, AV block, then sinus at ~94/min; no page errors. **Not verified:** a
+real phone; the other 18 drugs in the browser (covered by tests).
+
+**Files:** A: `heart-simulator/src/components/meds/{GiveMedication,MedEffectBar}.tsx`, `heart-simulator/src/lib/ecg/mods.ts`,
+`heart-simulator/src/lib/sim/meds.ts`, `heart-simulator/src/store/useMedStore.ts`, `heart-simulator/tests/meds.test.ts` ·
+M: `heart-simulator/src/components/{ecg/ECGRenderer,home/HomeScreen,layout/BottomDock,layout/HelpOverlay,layout/RightPanel,sim/SimulationDriver}.tsx`,
+`heart-simulator/src/lib/{actions,rhythm}.ts`, `heart-simulator/src/lib/ecg/{engine,profiles}.ts`, `heart-simulator/src/lib/sim/simulation.ts`,
+`heart-simulator/tests/show-rhythm.test.ts`, `heart-simulator/README.md`, `fix_list.md`, `SESSION_LOG.md`.
+
+**Follow-up:** owner to try Give meds on a phone; the owner may delete `ccr-fcd6b419-beq5mr` (all of it has shipped);
+more drugs and an AHA 2025 check are in the fix list; Codex to polish the Give meds screens (fix list → For Codex).
+
 ### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: the newly drawn EKG trace is as thick and solid as the rest)
 
 **Agent:** Claude
