@@ -11,10 +11,8 @@ import { useCathLabStore } from '@/store/useCathLabStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, openCase, openCondition, openStructure, setRhythm, showCineView } from '@/lib/actions';
-import { currentPage, goBack, useBackNavStore } from '@/lib/backNav';
+import { kindOf, nameOf, openById, openCase, openStructure, setRhythm, showCineView, showEcg, showHeart } from '@/lib/actions';
 import { enterSimulator, useSimStore } from '@/store/useSimStore';
-import { useTimelineStore } from '@/store/useTimelineStore';
 import { SCENARIOS, labCasesUsing } from '@/lib/sim/scenario/scenarios';
 import { CASE_DATA, type CaseData } from '@/data/caseData';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
@@ -24,9 +22,9 @@ import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { CathFigure } from '@/components/cathlab/CathFigure';
 import CArmDiagram from '@/components/cathlab/CArmDiagram';
-import { IconCheck, IconClose, IconCube, IconFlag, IconPlay, IconPulse } from '@/components/ui/icons';
+import { IconCheck, IconCube, IconFlag, IconList, IconPlay, IconPulse } from '@/components/ui/icons';
+import { CATEGORY_BY_VALUE } from '@/lib/categories';
 import ScopeCard from '@/components/ui/ScopeCard';
-import { InstallButton } from '@/components/ui/InstallApp';
 import { SCOPES } from '@/lib/scope';
 
 type TabDef = { key: string; label: string; levels?: LearningLevel[] };
@@ -189,8 +187,8 @@ function StructureView({ s, level }: { s: StructureContent; level: LearningLevel
         {s.synonyms.length > 0 && <p className="text-[10px] text-slate-500 mt-1">Also: {s.synonyms.join(', ')}</p>}
         <LevelFocus notes={s.levelNotes} level={level} />
         <div className="flex flex-wrap gap-1 mt-2">
-          {l && <ActionBtn onClick={() => openStructure(s.id)} title="Frame this structure in the 3D view"><IconCube size={11} /> Show in 3D</ActionBtn>}
-          {l?.section && viewMode !== 'sectioned' && <ActionBtn onClick={() => { setViewMode('sectioned'); openStructure(s.id); }}>Sectioned view</ActionBtn>}
+          {l && <ActionBtn onClick={() => { openStructure(s.id); showHeart(); }} title="Frame this structure in the 3D heart"><IconCube size={11} /> Show in 3D</ActionBtn>}
+          {l?.section && viewMode !== 'sectioned' && <ActionBtn onClick={() => { setViewMode('sectioned'); openStructure(s.id); showHeart(); }}>Sectioned view</ActionBtn>}
         </div>
       </Header>
       <Tabs tabs={STRUCTURE_TABS} active={tab} onChange={setTab} level={level} />
@@ -239,12 +237,12 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
       <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={c.summary}>
         <LevelFocus notes={c.levelNotes} level={level} />
         <div className="flex flex-wrap gap-1 mt-2">
-          <ActionBtn onClick={() => { setRhythm(profile.id); ecg.setBottomView('ecg'); }} title="Load this pattern on the ECG"><IconPulse size={11} /> Replay ECG</ActionBtn>
+          <ActionBtn onClick={() => { setRhythm(profile.id); showEcg('ecg'); }} title="Show this pattern on the 12-lead"><IconPulse size={11} /> Show the EKG</ActionBtn>
           {profile.keyLeads?.[0] && (
-            <ActionBtn onClick={() => { ecg.setBottomView('ecg'); ecg.setInspectLead(profile.keyLeads![0] as never); }}>Inspect lead {profile.keyLeads[0]}</ActionBtn>
+            <ActionBtn onClick={() => { showEcg('ecg'); ecg.setInspectLead(profile.keyLeads![0] as never); }}>Inspect lead {profile.keyLeads[0]}</ActionBtn>
           )}
-          {showsHemo && <ActionBtn onClick={() => ecg.setBottomView('wiggers')}>Hemodynamics</ActionBtn>}
-          {territory && <ActionBtn onClick={() => setViewMode('territories')}>Culprit territory ({territory})</ActionBtn>}
+          {showsHemo && <ActionBtn onClick={() => showEcg('wiggers')}>Hemodynamics</ActionBtn>}
+          {territory && <ActionBtn onClick={() => { setViewMode('territories'); showHeart(); }}><IconCube size={11} /> Culprit territory ({territory})</ActionBtn>}
         </div>
         <PractiseCase conditionId={c.id} level={level} />
       </Header>
@@ -419,14 +417,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function CathLabView({ item, level }: { item: CathLabItem; level: LearningLevel }) {
-  const compact = useAppStore((s) => s.compact);
   const v = item.view ? CINE_VIEW_BY_ID[item.view] : undefined;
   const imgs = (item.image?.keys ?? []).flatMap((k) => CATH_IMAGES[k] ?? []);
   const group = CATHLAB_GROUPS.find((g) => g.id === item.group)?.label;
   const onHeart = () => {
     if (!v) return;
     showCineView(v.id);
-    if (compact) useAppStore.getState().setPanels(false, false);
+    showHeart();
   };
   return (
     <>
@@ -651,7 +648,7 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
         <Vitals c={c} />
         <div className="flex flex-wrap gap-1 mt-2">
           <ActionBtn onClick={() => setTab('decisions')}>Work the case →</ActionBtn>
-          <ActionBtn onClick={() => openCase(c.id)} title="Restart and reload the monitor"><IconPulse size={11} /> Reload monitor</ActionBtn>
+          <ActionBtn onClick={() => { openCase(c.id); showEcg('ecg'); }} title="Restart the case and show its monitor"><IconPulse size={11} /> Show the EKG</ActionBtn>
         </div>
       </Header>
       <Tabs tabs={CASE_TABS} active={tab} onChange={setTab} level={level} />
@@ -667,7 +664,7 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
             )}
             <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">History</div><p className="text-slate-300 leading-relaxed">{c.history}</p></div>
             <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Examination</div><p className="text-slate-300 leading-relaxed">{c.physicalExam}</p></div>
-            <p className="text-[10px] text-slate-500">Look at the live ECG below, then open <b>Decisions</b>.</p>
+            <p className="text-[10px] text-slate-500">Tap <b>12-lead EKG</b> at the bottom to see the live ECG, then open <b>Decisions</b>.</p>
           </>
         )}
         {tab === 'decisions' && <CaseDecisions c={c} level={level} />}
@@ -680,53 +677,27 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
   );
 }
 
-// ─── Welcome ───────────────────────────────────────────────────────────────
+// ─── Nothing picked yet ────────────────────────────────────────────────────
 
-function Welcome({ level }: { level: LearningLevel }) {
-  const setQuizOpen = useAppStore((s) => s.setQuizOpen);
-  const setViewMode = useAppStore((s) => s.setViewMode);
-  const setHelpOpen = useAppStore((s) => s.setHelpOpen);
-  const setMode = useAppStore((s) => s.setMode);
-  const ecg = useECGStore();
-  const lib = useContent();
-  const cards: { title: string; text: string; go: () => void }[] = [
-    { title: 'Treat a patient (case simulator)', text: 'Run a STEMI, heart block, SVT or cardiac-arrest case from first contact to hand-off and get a scored review.', go: () => setMode('simulator') },
-    { title: 'Watch one heartbeat', text: 'Slows the simulation to 0.25× in the sectioned view: watch the P wave light the atria, the QRS spread through the ventricles and the valves open.', go: () => { setViewMode('sectioned'); useTimelineStore.getState().setSpeed(0.25); useTimelineStore.getState().play(); } },
-    { title: 'Conduction system', text: 'See SA → AV node → His → bundles → Purkinje fire in time with the ECG. Try Mobitz II or complete heart block.', go: () => { setViewMode('conduction'); openCondition('third-degree-av-block'); } },
-    { title: 'Read a STEMI', text: 'Anterior STEMI: ST elevation V1–V4 with reciprocal inferior change, and the LAD territory pulsing on the heart.', go: () => openCondition('anterior-stemi') },
-    { title: 'Pressure & volume', text: 'Open the Wiggers diagram and PV loop; compare aortic stenosis, mitral regurgitation and heart failure.', go: () => { openCondition('aortic-stenosis'); ecg.setBottomView('wiggers'); } },
-    { title: 'Work through a case study', text: 'Step-by-step decisions with feedback in an unstable SVT case.', go: () => openCase('unstable-svt') },
-    { title: 'Practise on the defibrillator', text: 'Monitor-defibrillator trainer: AED, defibrillation, synchronised cardioversion, pacing, CPR and ACLS drugs on a live patient. Open Instructor for scenarios.', go: () => ecg.setBottomView('defib') },
-    { title: 'Map the activation', text: 'See the order in which the ventricles activate, like an EP mapping system — compare normal conduction, LBBB and WPW.', go: () => { setViewMode('activation'); openCondition('left-bundle-branch-block'); } },
-    { title: 'Swap the electrodes', text: 'Reverse the ECG cables and learn the tell-tale patterns, or take the mystery-reversal challenge.', go: () => { ecg.setBottomView('ecg'); ecg.setElectrodeLab(true); } },
-    { title: 'Quiz yourself', text: `${lib ? `${lib.quiz.length} questions` : 'Questions'} across all levels, including live rhythm identification.`, go: () => setQuizOpen(true) },
-  ];
+function PickPrompt() {
+  const category = useAppStore((s) => s.activePanelCategory);
+  const compact = useAppStore((s) => s.compact);
+  const section = CATEGORY_BY_VALUE[category];
   return (
-    <div className="flex-1 overflow-y-auto p-3">
-      <h2 className="text-base font-semibold text-white">Welcome to CardioSim</h2>
-      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-        An interactive heart where the anatomy, ECG, conduction system and hemodynamics all run from one beat-by-beat model.
-        Open the <b className="text-slate-200">Library</b> (top left), tap any part of the heart, or start below. Guidance is written for <b className="text-emerald-300">{LEVEL_LABELS[level].long}</b> and stays within that role&apos;s scope of practice — change your role in the top bar.
+    <div className="flex-1 overflow-y-auto p-4 flex flex-col items-center justify-center text-center">
+      <h2 className="text-base font-semibold text-white">{section.label}</h2>
+      <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">
+        {compact ? 'Open the list and pick a topic to read about it.' : 'Pick a topic from the list to read about it.'}
+        {' '}Tap <b className="text-slate-200">3D heart</b> at the top or <b className="text-slate-200">12-lead EKG</b> at the bottom at any time to slide them into view.
       </p>
-      <div className="grid gap-2 mt-3">
-        {cards.map((c) => (
-          <button key={c.title} onClick={c.go} className="text-left p-2.5 rounded-lg bg-cardiac-dark/70 border border-slate-700 hover:border-cardiac-accent/60 transition-colors">
-            <div className="text-xs font-semibold text-white">{c.title} →</div>
-            <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">{c.text}</div>
-          </button>
-        ))}
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <button onClick={() => setHelpOpen(true)} className="text-[11px] text-sky-300 hover:underline">Keyboard shortcuts & tips</button>
-        <InstallButton className="text-[11px] text-emerald-300 hover:underline">Install as an app (works offline)</InstallButton>
-      </div>
-      <div className="mt-3 p-2.5 bg-cardiac-dark rounded-lg">
-        <p className="text-cardiac-accent text-[10px] font-semibold mb-0.5">EDUCATIONAL USE ONLY</p>
-        <p className="text-slate-500 text-[10px] leading-relaxed">
-          CardioSim is a teaching simulation. Waveforms and hemodynamics are idealised models, and doses are typical adult values for
-          education. It is not a medical device and must not be used for diagnosis or treatment.
-        </p>
-      </div>
+      {compact && (
+        <button onClick={() => useAppStore.getState().setListOpen(true)} className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cardiac-accent text-slate-950 text-xs font-semibold">
+          <IconList size={15} /> Open the {section.short.toLowerCase()} list
+        </button>
+      )}
+      <p className="mt-6 text-[10px] text-slate-500 max-w-sm leading-relaxed">
+        Educational simulation only — waveforms and hemodynamics are idealised models and doses are typical adult values for teaching. Not for diagnosis or treatment.
+      </p>
     </div>
   );
 }
@@ -754,7 +725,7 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
     if (category === 'medications' && selectedMedicationId && lib.medications[selectedMedicationId]) return <MedicationView m={lib.medications[selectedMedicationId]} level={level} />;
     if (category === 'cathlab' && selectedCathLabId && lib.cathlab[selectedCathLabId]) return <CathLabView item={lib.cathlab[selectedCathLabId]} level={level} />;
     if (category === 'cases' && activeCaseId && CASE_DATA[activeCaseId]) return <CaseView c={CASE_DATA[activeCaseId]} level={level} />;
-    return <Welcome level={level} />;
+    return <PickPrompt />;
   }, [lib, category, level, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, selectedCathLabId, activeCaseId]);
 
   return (
@@ -765,31 +736,16 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
   );
 }
 
-/** Back (the same as the phone's Back button); on tablets and phones also a clear way to close the drawer */
+/** Tablets and phones: the reading is a page of its own, with a way back to the section's list */
 function PanelBar() {
-  const canGoBack = useBackNavStore((s) => s.canGoBack);
-  const prev = useBackNavStore((s) => s.previous);
   const compact = useAppStore((s) => s.compact);
-  const setPanels = useAppStore((s) => s.setPanels);
-  useContent(); // re-render with real names once the library has loaded
-  const label = !prev ? 'Back'
-    : prev.mode === 'home' ? 'Back to Home'
-      : prev.mode === 'simulator' ? 'Back to the simulator'
-        : prev.left ? 'Back to the Library'
-          : prev.item && prev.item !== currentPage().item ? `Back to ${nameOf(prev.item)}` : 'Back';
-  if (!canGoBack && !compact) return null;
+  const category = useAppStore((s) => s.activePanelCategory);
+  if (!compact) return null;
   return (
-    <div className="flex items-center gap-1 px-1.5 py-1 border-b border-slate-700 shrink-0 bg-cardiac-dark/40">
-      {canGoBack && (
-        <button onClick={goBack} className="min-w-0 flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-sky-300 hover:bg-cardiac-surface/70" title="Back to the page before (same as your phone's Back button)">
-          <span aria-hidden>←</span><span className="truncate">{label}</span>
-        </button>
-      )}
-      {compact && (
-        <button onClick={() => setPanels(false, false)} className="ml-auto flex items-center gap-1 px-2 py-1.5 touch:py-2 rounded-md text-[11px] text-slate-300 hover:text-white hover:bg-cardiac-surface/70 shrink-0" aria-label="Close the info panel">
-          <IconClose size={14} /> Close
-        </button>
-      )}
+    <div className="flex items-center px-1.5 py-1 border-b border-slate-700 shrink-0 bg-cardiac-dark/40">
+      <button onClick={() => useAppStore.getState().setListOpen(true)} className="min-w-0 flex items-center gap-1.5 px-2 py-1.5 touch:py-2 rounded-md text-xs text-sky-300 hover:bg-cardiac-surface/70" title="The whole list for this section">
+        <IconList size={15} /><span className="truncate">All {CATEGORY_BY_VALUE[category].short.toLowerCase()}</span>
+      </button>
     </div>
   );
 }

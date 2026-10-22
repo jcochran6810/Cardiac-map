@@ -439,7 +439,8 @@ function SceneContents({ onHover }: { onHover: (id: string | null, e?: ThreeEven
   );
 }
 
-export default function HeartScene() {
+/** `paused`: the heart's drawer is closed — keep the scene (camera, loaded model) but stop drawing it */
+export default function HeartScene({ paused = false }: { paused?: boolean }) {
   const [hoverName, setHoverName] = useState<string | null>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -458,6 +459,7 @@ export default function HeartScene() {
     <div ref={wrapRef} className="w-full h-full relative heart-stage">
       <SceneErrorBoundary>
         <Canvas
+          frameloop={paused ? 'never' : 'always'}
           camera={{ position: [CENTER_WORLD.x, CENTER_WORLD.y, CENTER_WORLD.z + DEFAULT_DISTANCE], fov: 38, near: 0.05, far: 50 }}
           dpr={[1, 2]}
           gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}

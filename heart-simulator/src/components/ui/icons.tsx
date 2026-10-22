@@ -84,3 +84,12 @@ export const IconHeartPulse = ({ className, size }: P) => (
 export const IconBook = ({ className, size }: P) => (
   <svg {...base(size)} className={className}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" /><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" /></svg>
 );
+export const IconMenu = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+);
+export const IconBack = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+);
+export const IconList = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r=".8" fill="currentColor" /><circle cx="4.5" cy="12" r=".8" fill="currentColor" /><circle cx="4.5" cy="18" r=".8" fill="currentColor" /></svg>
+);

@@ -5,23 +5,29 @@ pressure–volume (Wiggers) model that all run from **one shared clock**, so the
 P wave, atrial contraction, valve clicks, pressures and the 3D heartbeat stay in
 step — plus a **case simulator** where you treat a patient and get a scored review.
 
-## Three screens
+## Navigation: one main menu, two sliding drawers
+
+Everything starts from the **main menu**; the **Menu** button (top left) brings you back to it from anywhere.
 
 | Screen | What it is |
 | --- | --- |
-| **Home** | The start page: pick your role, then jump straight to the simulator, the 3D heart, conditions, the 12-lead, the electrode lab, drug cards, procedures, the defibrillator, pressure–volume, the quiz or the tutor. |
-| **Learn** | The workspace: the 3D heart with the ECG dock below. **Library** (top left) lists anatomy, conditions, drugs, procedures and case studies; **Info** (top right) explains what you picked, with **← Back** to the item before. Tapping the heart with the info panel closed shows a short card with **Read more**. First-time tips explain tapping the heart and the leads. |
-| **Simulator** | Treat a patient case from first contact to hand-off (below). |
+| **Main menu** | Your role (and its scope of practice), search, **continue** where you left off (the item you were reading, a case in progress), the **case simulator**, every **library section** (conditions & rhythms, anatomy, coronary arteries, conduction system, drugs, procedures, cath lab catalog, case studies — each with how much you have studied), the **tools** (3D heart, 12-lead ECG, electrode lab, defibrillator, pressure & volume), guided starts (**Try this**), the quiz, the tutor, help and install. |
+| **Reading** | The section's list and the item you picked (side by side on desktops; on tablets and phones the list and the item are separate pages, with **All …** back to the list). **12-lead EKG** at the bottom slides the ECG panel up (12-lead, Wiggers / PV, defibrillator, electrode lab, all their options) and **Hide EKG** slides it back down; **3D heart** at the top slides the heart down the same way. Drag a drawer's grip to resize it; ⤢ gives it the whole screen. A tool opened from the menu starts full screen; opening an item shrinks it so the reading shows. |
+| **Case simulator** | Treat a patient case from first contact to hand-off (below). |
 
-Tablets and desktops switch screens with the tabs in the top bar; phones have a bottom tab bar
-(Home · Learn · Simulator · Quiz · Tutor). Opening any library item (search, chips, tutor, quiz) goes to Learn.
+The top bar holds only **Menu**, **←** (Back), where you are, and search. Buttons in the reading open what they need
+("Show the EKG", "Inspect lead V1", "Hemodynamics" slide the ECG up; "Show in 3D", "Culprit territory", a cath lab view
+slide the heart down). Tapping the heart while the reading is out of sight shows a short card with **Read more**.
+State: `heart` / `ecg` (`closed | open | full`) and `listOpen` in `src/store/useAppStore.ts`; menu and drawer actions
+(`openCategory`, `openTool`, `showEcg`, `showHeart`, `showReading`) in `src/lib/actions.ts`; layout in
+`src/components/AppShell.tsx` and `src/components/layout/DrawerBar.tsx`; the menu in `src/components/home/HomeScreen.tsx`.
 
-**The phone's Back button stays inside the app** (`src/lib/backNav.ts`): every page — the screen, the item
-open in the info panel, the Library / Info drawers on small screens, the electrode lab, quiz / tutor / help,
-and the simulator's case list → case → action list → review — is a browser history entry. Back returns to
-the previous page; closing something with its own button steps over its entry, so Back never stalls;
-leaving a case in progress asks first; on Home the first Back says "press Back again to leave". The info
-panel's **← Back** is the same button.
+**The phone's Back button stays inside the app** (`src/lib/backNav.ts`): every page — the screen, the library section and
+the item being read, the list page on small screens, each drawer opening, the electrode lab, quiz / tutor / help, and the
+simulator's case list → case → action list → review — is a browser history entry. Back returns to the previous page (so
+it also slides a drawer you just opened away); closing something with its own button steps over its entry, so Back never
+stalls; leaving a case in progress asks first; on the main menu the first Back says "press Back again to leave". The top
+bar's **←** is the same button.
 
 ## Case simulator
 
@@ -74,7 +80,7 @@ panel's **← Back** is the same button.
 
 ## Cath lab catalog
 
-`src/data/content/cathlab*.ts` (content) · `src/lib/cathlab/views.ts` (view angles) · Library → **Cath lab** tab
+`src/data/content/cathlab*.ts` (content) · `src/lib/cathlab/views.ts` (view angles) · main menu → **Cath lab catalog**
 
 78 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
 balloons and stents, physiology and intravascular imaging, mechanical support and pacing, pressures and
@@ -98,7 +104,7 @@ exists at its stated size, is openly licensed and credited, and that every image
 
 ## Roles and scope of practice
 
-Pick a role in the top bar; all guidance, recommended tabs, quiz questions, case decisions and
+Pick a role on the main menu; all guidance, recommended tabs, quiz questions, case decisions and
 monitor/defibrillator permissions stay inside that role's scope (`src/lib/scope.ts`):
 
 | Role | Scope framework |
@@ -141,7 +147,7 @@ the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open ite
 | 3D heart | `src/components/scene/` | Exterior, four-chamber section with blood flow, x-ray, conduction system and coronary territories. Contraction, depolarization wave and ischemia are shaded on the GPU from the live ECG. Selecting a lead (12-lead or electrode lab) draws its view line: from the (+) side, into the wall it faces and through the heart. |
 | Anatomy map | `src/lib/anatomy/landmarks.ts` | Landmarks snapped to the model surface; clicking the heart opens the matching structure. |
 | Teaching content | `src/data/content/`, `src/data/caseData.ts` | 62 structures, 42 conditions, 42 procedures, 38 medications, 9 branching cases, 66 quiz questions. Loaded on demand. |
-| UI | `src/components/layout/`, `src/components/ecg/`, `src/components/physiology/` | Navigator, info panel, ECG (live 12-lead, printout, monitor, paper, inspect, calipers), Wiggers/PV loop, tutor, quiz. |
+| UI | `src/components/home/`, `src/components/layout/`, `src/components/ecg/`, `src/components/physiology/` | Main menu, top bar, library list and reading, the heart / EKG drawers, ECG (live 12-lead, printout, monitor, paper, inspect, calipers), Wiggers/PV loop, tutor, quiz. |
 | Electrode lab | `src/lib/ecg/electrodes.ts`, `src/lib/ecg/leadViews.ts`, `src/lib/anatomy/humanBody.ts`, `src/components/ecg/ElectrodeLab.tsx`, `src/components/ecg/TorsoModel.tsx` | 10 electrodes on a 3D patient (an adult male body built from the CC0 MakeHuman mesh by `scripts/build-human-model.py`; limb electrodes on the shoulders and lower abdomen, Mason–Likar; the heart beats behind a window in the chest) → 12 leads (Einthoven / Goldberger / Wilson). Tap a lead or an electrode to see where that lead looks from; swap cables or try a "mystery reversal" and watch the live 12-lead change. |
 | Activation map | `src/lib/anatomy/activation.ts` | Epicardial isochronal map of each beat (normal per Durrer 1970, LBBB, RBBB, WPW, pacing, PVC/VT), like an EP mapping system. The 3D wavefront follows it in every view. |
 | Coronary territories | `src/lib/anatomy/aha17.ts`, `src/components/anatomy/Bullseye.tsx` | AHA 17-segment bull's-eye linked to the culprit artery; the angio panel shows the C-arm angle (LAO/RAO, CRA/CAU) of any view. |
@@ -153,21 +159,21 @@ The layout adapts to the screen (`src/lib/device.ts`, Tailwind `phone:` / `touch
 
 | Screen | Layout |
 | --- | --- |
-| Desktop / laptop (≥ 1024 px) | Navigator, info panel, 3D heart and ECG dock side by side; drag the dividers to resize |
-| Tablet | Navigator and info panel slide over the heart (tap outside to close); rarer ECG options under **More** |
-| Phone, upright | Bottom tab bar (Home · Learn · Simulator · Quiz · Tutor); compact top bar with **Library**, role, search and **Info**; ECG / Wiggers / Defibrillator tabs; interpretation slides over the tracing; the electrode lab and the defibrillator enlarge the dock; in the simulator one button opens the action list |
-| Phone, on its side | Heart and ECG dock side by side; the simulator shows the patient and the action list side by side |
+| Desktop / laptop (≥ 1024 px) | The list and the reading side by side (drag the divider); the heart and EKG drawers span the width |
+| Tablet | The list and the reading are separate pages; rarer ECG options under **More** |
+| Phone, upright | As a tablet, with compact controls; ECG / Wiggers / Defibrillator tabs in the EKG drawer; interpretation slides over the tracing; the electrode lab and the defibrillator take the whole screen; in the simulator one button opens the action list |
+| Phone, on its side | A drawer opens full screen; with both open the heart and the ECG sit side by side; the simulator shows the patient and the action list side by side |
 
-On touch screens buttons get bigger, the ECG dock has a grip bar and an enlarge (⤢) button, a double-tap on
+On touch screens buttons get bigger, each drawer has a grip bar and an enlarge (⤢) button, a double-tap on
 a lead inspects it, and Help lists the touch gestures.
 
 ## Install as an app (PWA)
 
 CardioSim installs like a native app and keeps working offline after the first visit.
 
-- **Android / Chrome / Edge:** tap **Install** (banner, navigator panel, Help, or the browser menu → *Install app*).
+- **Android / Chrome / Edge:** tap **Install** (banner, main menu → **Install the app**, Help, or the browser menu → *Install app*).
 - **iPhone / iPad:** in Safari tap **Share → Add to Home Screen** (the app shows these steps when you tap Install).
-- **Desktop:** the **Install** button in the top bar, or the install icon in the address bar.
+- **Desktop:** main menu → **Install the app**, or the install icon in the address bar.
 
 Pieces: `public/manifest.webmanifest` (name, colours, icons, install screenshots), `public/sw.js` (offline cache:
 pages network-first, build files and 3D models cache-first, one cache per release), `src/lib/pwa.ts` +
@@ -176,9 +182,9 @@ and `app/apple-icon.png` are generated from `assets/logo-source.webp`.
 
 ## Keyboard shortcuts
 
-`Space` play/pause · `←/→` step · `[ ]` speed · `1–6` 3D view · `L` labels ·
-`F` blood flow · `V` ECG vector · `E` ECG/Wiggers · `M` defibrillator · `Q` quiz ·
-`T` tutor · `/` search · `?` help · `Esc` close. (The 3D and ECG keys work in Learn only.)
+`Space` play/pause · `←/→` step · `[ ]` speed · `H` 3D heart drawer · `K` EKG drawer · `1–6` 3D view ·
+`L` labels · `F` blood flow · `V` ECG vector · `E` ECG/Wiggers · `M` defibrillator · `Q` quiz ·
+`T` tutor · `/` search · `?` help · `Esc` close. (The 3D and ECG keys work on the reading screen only.)
 
 ## Credits
 

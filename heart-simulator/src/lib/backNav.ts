@@ -2,20 +2,21 @@
 
 /**
  * The phone's (or browser's) Back button moves through CardioSim's own pages instead of leaving the
- * app. Each page — the screen (Home / Learn / Simulator), the item open in the info panel, the
- * Library and Info drawers on small screens, the electrode lab, the quiz / tutor / help, and the
- * simulator's case list → case → action list → review — is one browser history entry.
+ * app. Each page — the screen (main menu / Learn / Simulator), the library section and the item
+ * being read, the list page on small screens, the 3D heart and ECG drawers, the electrode lab, the
+ * quiz / tutor / help, and the simulator's case list → case → action list → review — is one browser
+ * history entry.
  *
  * - Opening something pushes an entry; closing it with its own button steps back over that entry,
  *   so Back never "does nothing".
  * - Back restores the previous page. Leaving a case in progress asks first; entries for a case that
  *   no longer exists are skipped.
- * - On the start page the first Back says "press Back again to leave".
+ * - On the main menu the first Back says "press Back again to leave".
  *
  * Next.js copies its own router state into these entries, so its popstate handling stays a no-op.
  */
 import { create } from 'zustand';
-import { useAppStore, type AppMode } from '@/store/useAppStore';
+import { useAppStore, type AppMode, type DrawerState, type PanelCategory } from '@/store/useAppStore';
 import { leaveSimulator, useSimStore } from '@/store/useSimStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTutorStore } from '@/store/useTutorStore';
@@ -32,11 +33,14 @@ export type SimPage = 'list' | 'case' | 'actions' | 'review';
 
 export interface Page {
   mode: AppMode;
-  /** Learn: the item shown in the info panel */
+  /** Learn: the library section, and the item being read */
+  cat: PanelCategory | null;
   item: string | null;
-  /** Learn on tablets and phones: the Library / Info drawers */
-  left: boolean;
-  right: boolean;
+  /** Learn on tablets and phones: the section's list rather than the reading */
+  list: boolean;
+  /** Learn: the 3D heart (top) and ECG (bottom) drawers */
+  heart: DrawerState;
+  ecg: DrawerState;
   /** Learn: the electrode lab */
   lab: boolean;
   overlay: Overlay;
@@ -85,9 +89,11 @@ export function currentPage(): Page {
   const simPage: SimPage = !s ? 'list' : s.ended && sim.reviewOpen ? 'review' : sim.sheetOpen && !s.ended ? 'actions' : 'case';
   return {
     mode: app.mode,
+    cat: learn ? app.activePanelCategory : null,
     item: learn ? currentItem() : null,
-    left: learn && app.compact && app.leftPanelOpen,
-    right: learn && app.compact && app.rightPanelOpen,
+    list: learn && app.compact && app.listOpen,
+    heart: learn ? app.heart : 'closed',
+    ecg: learn ? app.ecg : 'closed',
     lab: learn && ecg.electrodeLab && ecg.bottomView === 'ecg',
     overlay: app.helpOpen ? 'help' : app.quizOpen ? 'quiz' : useTutorStore.getState().tutorOpen ? 'tutor' : null,
     sim: app.mode === 'simulator' ? simPage : 'list',
@@ -96,8 +102,8 @@ export function currentPage(): Page {
 }
 
 const same = (a: Page | undefined, b: Page | undefined) =>
-  !!a && !!b && a.mode === b.mode && a.item === b.item && a.left === b.left && a.right === b.right
-  && a.lab === b.lab && a.overlay === b.overlay && a.sim === b.sim && a.run === b.run;
+  !!a && !!b && a.mode === b.mode && a.cat === b.cat && a.item === b.item && a.list === b.list
+  && a.heart === b.heart && a.ecg === b.ecg && a.lab === b.lab && a.overlay === b.overlay && a.sim === b.sim && a.run === b.run;
 
 /** A simulator page can only come back while its case is still the one loaded */
 function restorable(page: Page): boolean {
@@ -118,11 +124,14 @@ function apply(page: Page, from: Page) {
   useTutorStore.getState().setTutorOpen(page.overlay === 'tutor');
   if (page.mode === 'learn') {
     app.setMode('learn');
-    if (page.item !== from.item) {
+    if (page.cat && app.activePanelCategory !== page.cat) app.setActivePanelCategory(page.cat);
+    if (page.item !== currentItem()) {
       if (page.item) openById(page.item);
       else clearItem();
     }
-    if (app.compact) app.setPanels(page.left, page.right);
+    if (app.compact) app.setListOpen(page.list);
+    app.setHeart(page.heart);
+    app.setEcg(page.ecg);
     const ecg = useECGStore.getState();
     if (ecg.electrodeLab !== page.lab) {
       if (page.lab) ecg.setBottomView('ecg');
@@ -219,7 +228,7 @@ function onPop(e: PopStateEvent) {
   }
   const from = currentPage();
 
-  // Back on the start page: ask once, leave on the second press
+  // Back on the main menu: ask once, leave on the second press
   if (guarded && target === 0) {
     if (useBackNavStore.getState().exitHint) {
       window.history.back();
@@ -281,7 +290,7 @@ export function startBackNav(): () => void {
   publish();
   const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore];
   const unsubscribe = stores.map((st) => st.subscribe(schedule));
-  // After the first tap or key press, a second start-page entry lets the first Back on it ask before leaving.
+  // After the first tap or key press, a second main-menu entry lets the first Back on it ask before leaving.
   // (Added on a user gesture so browsers keep it in the Back list.)
   const guard = () => {
     if (guarded || idx !== 0) return;

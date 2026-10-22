@@ -11,6 +11,8 @@ const SHORTCUTS: [string, string][] = [
   ['← / →', 'Step 10 ms while paused (Shift = 100 ms)'],
   ['[ / ]', 'Slower / faster simulation'],
   ['1 – 6', 'Exterior · Sectioned · X-ray · Conduction · Territories · Activation map'],
+  ['H', 'Slide the 3D heart down / up'],
+  ['K', 'Slide the 12-lead EKG up / down'],
   ['L', 'Toggle 3D labels'],
   ['F', 'Toggle blood flow (sectioned view)'],
   ['V', 'Toggle cardiac vector'],
@@ -19,19 +21,20 @@ const SHORTCUTS: [string, string][] = [
   ['/  or  Ctrl+K', 'Search everything'],
   ['Q · T', 'Open quiz · tutor'],
   ['?', 'This help'],
-  ['Esc', 'Close panels / clear selection'],
+  ['Esc', 'Close the quiz, tutor or help / clear selection'],
 ];
 
 const GESTURES: [string, string][] = [
   ['Drag', 'Rotate the heart'],
   ['Pinch', 'Zoom in and out'],
   ['Two-finger drag', 'Move (pan) the heart'],
-  ['Tap a structure', 'Open it in the info panel'],
+  ['Tap a structure', 'Read about it'],
   ['Tap a lead', 'Show its axis on the heart'],
   ['Double-tap a lead', 'Inspect it large with labelled intervals'],
   ['Drag the ECG', 'Scrub back and forth through time'],
-  ['Drag the grip bar', 'Resize the ECG panel (double-tap to reset)'],
-  ['⤢ button', 'Enlarge the ECG / monitor panel'],
+  ['Tap 3D heart / 12-lead EKG', 'Slide the heart down from the top, the EKG up from the bottom — tap again to put it away'],
+  ['Drag a grip bar', 'Resize the heart or the EKG (double-tap to reset)'],
+  ['⤢ button', 'Give the heart or the EKG the whole screen'],
 ];
 
 export default function HelpOverlay() {
@@ -50,9 +53,9 @@ export default function HelpOverlay() {
           <section className="md:col-span-2 text-slate-300 leading-relaxed">
             <h3 className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Getting around</h3>
             <ul className="grid sm:grid-cols-3 gap-2">
-              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Home</b> — the start page: choose your role and jump straight to anything.</li>
-              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Learn</b> — the 3D heart with the ECG below it. <b className="text-slate-100">Library</b> (top left) lists conditions, anatomy, drugs and procedures; <b className="text-slate-100">Info</b> (top right) explains what you picked; <b className="text-slate-100">← Back</b> returns to the item before.</li>
-              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Simulator</b> — treat a patient case: every action in your scope is offered, the patient responds, and you get a scored review.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Main menu</b> — everything starts here: your role, search, the case simulator, every library section, the tools (3D heart, 12-lead, electrode lab, defibrillator, pressure &amp; volume), guided starts, the quiz, the tutor and this help. <b className="text-slate-100">Menu</b> (top left) always brings you back.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Reading</b> — pick a section, then a topic. Tap <b className="text-slate-100">12-lead EKG</b> at the bottom to slide the ECG up, and <b className="text-slate-100">3D heart</b> at the top to slide the heart down; tap again to put them away. <b className="text-slate-100">←</b> (or your phone&apos;s Back) goes to the page before.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Case simulator</b> — treat a patient case: every action in your scope is offered, the patient responds, and you get a scored review.</li>
             </ul>
           </section>
           <section className="hidden touch:block">
@@ -81,7 +84,7 @@ export default function HelpOverlay() {
             <h3 className="text-[10px] uppercase tracking-wider text-slate-500">One heartbeat, many views</h3>
             <p>The ECG, 3D contraction, conduction animation, valve states, heart sounds and pressure curves are all generated from the same beat-by-beat event list, so they always agree — including AF, dropped beats and AV dissociation.</p>
             <p><b className="text-white">ECG:</b> calibrated at 25 mm/s and 10 mm/mV (1 small box = 40 ms / 0.1 mV). Click (or tap) a lead to see its axis on the heart, double-click (double-tap) to inspect it with labelled intervals, and drag to scrub time.</p>
-            <p><b className="text-white">Roles &amp; scope of practice:</b> choose EMT, Paramedic, Cath Lab Tech, Cath Lab Nurse or Cardiologist in the top bar. The “Focus” guidance, recommended tabs (green dots), quiz questions, case roles and monitor/defibrillator permissions follow that role&apos;s scope: EMT and Paramedic per the National EMS Scope of Practice Model (NREMT); cath lab tech per RCIS / SCAI best practices and facility policy; cath lab nurse per the state Nurse Practice Act; cardiologists without limits beyond their privileges. Press <b>Scope</b> next to the role selector for details (on a phone, tap your role at the top left). Local protocols, medical direction and facility policy always govern real practice.</p>
+            <p><b className="text-white">Roles &amp; scope of practice:</b> choose EMT, Paramedic, Cath Lab Tech, Cath Lab Nurse or Cardiologist on the main menu. The “Focus” guidance, recommended tabs (green dots), quiz questions, case roles and monitor/defibrillator permissions follow that role&apos;s scope: EMT and Paramedic per the National EMS Scope of Practice Model (NREMT); cath lab tech per RCIS / SCAI best practices and facility policy; cath lab nurse per the state Nurse Practice Act; cardiologists without limits beyond their privileges. Tap <b>What can I do?</b> next to the roles on the main menu for details. Local protocols, medical direction and facility policy always govern real practice.</p>
             <p><b className="text-white">Defibrillator (M):</b> practise AED use, manual defibrillation, synchronised cardioversion, pacing and ACLS drugs on the live rhythm. Instructor mode loads scenarios and changes the patient; trainee mode hides rhythm names; Projector mirrors the monitor on a second screen.</p>
             <p><b className="text-white">Sources:</b> activation sequence after Durrer et al. (1970); AHA 17-segment model (Cerqueira 2002); lead derivation and electrode reversals per standard ECG references; C-arm angles cross-checked with SlicerHeart. See THIRD_PARTY_NOTICES.md.</p>
             <p><b className="text-white">How accurate is it?</b> Waveforms come from a cardiac dipole model with physiological intervals (QT corrected by Fridericia), and the hemodynamics are a teaching model with representative values. It is designed to teach patterns and relationships, not to reproduce any individual patient.</p>

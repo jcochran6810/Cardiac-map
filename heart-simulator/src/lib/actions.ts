@@ -4,7 +4,7 @@
  * Cross-store "open this item" actions used by the navigator, search, related
  * links, tutor and quiz — so every entry point behaves the same way.
  */
-import { useAppStore } from '@/store/useAppStore';
+import { useAppStore, type PanelCategory } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
@@ -13,7 +13,7 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useCathLabStore } from '@/store/useCathLabStore';
 import { CINE_VIEW_BY_ID } from '@/lib/cathlab/views';
 import { angio } from '@/store/useSceneStore';
-import { useECGStore } from '@/store/useECGStore';
+import { useECGStore, type BottomView } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContentStore } from '@/lib/content';
@@ -25,7 +25,7 @@ import { setRhythm } from '@/lib/rhythm';
 import { leaveSimulator } from '@/store/useSimStore';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 
-/** Opening an item shows the learning workspace; on small screens it swaps the navigator drawer for the info drawer */
+/** Opening an item shows the learning screen; on tablets and phones the reading replaces the list */
 function reveal() {
   const app = useAppStore.getState();
   if (app.mode !== 'learn') {
@@ -33,8 +33,72 @@ function reveal() {
     if (app.mode === 'simulator') leaveSimulator();
     app.setMode('learn');
   }
-  if (app.compact) app.setPanels(false, true);
-  else if (!app.rightPanelOpen) app.setPanels(app.leftPanelOpen, true);
+  showReading();
+}
+
+/** Bring the reading into view: the item rather than the list on small screens, and no drawer covering it */
+export function showReading() {
+  const app = useAppStore.getState();
+  if (app.compact && app.listOpen) app.setListOpen(false);
+  if (app.short) {
+    // a phone on its side has room for the reading or a drawer, not both
+    if (app.heart !== 'closed' && (app.heart === 'full' || app.ecg !== 'closed')) app.setHeart('closed');
+    if (app.ecg === 'full') app.setEcg('closed');
+    return;
+  }
+  if (app.heart === 'full') app.setHeart('open');
+  if (app.ecg === 'full') app.setEcg('open');
+}
+
+/** Slide the 3D heart down from the top, if it is not showing already */
+export function showHeart() {
+  const app = useAppStore.getState();
+  if (app.heart === 'closed') app.setHeart(app.short ? 'full' : 'open');
+}
+
+/** Slide the ECG panel up from the bottom on one of its views, if it is not showing already */
+export function showEcg(view: BottomView = 'ecg') {
+  useECGStore.getState().setBottomView(view);
+  const app = useAppStore.getState();
+  if (app.ecg === 'closed') app.setEcg(app.short ? 'full' : 'open');
+}
+
+/** Main menu: a section of the library, starting at its list */
+export function openCategory(cat: PanelCategory) {
+  const app = useAppStore.getState();
+  if (app.mode === 'simulator') leaveSimulator();
+  app.setMode('learn');
+  app.setActivePanelCategory(cat);
+  app.setListOpen(true);
+  app.setHeart('closed');
+  app.setEcg('closed');
+}
+
+export type Tool = 'heart' | 'ecg' | 'lab' | 'defib' | 'wiggers';
+
+/**
+ * Main menu: a tool on its own, filling the learning screen. Closing it shows the library list
+ * underneath (anatomy under the 3D heart, conditions under the ECG tools).
+ */
+export function openTool(tool: Tool) {
+  const app = useAppStore.getState();
+  if (app.mode === 'simulator') leaveSimulator();
+  app.setMode('learn');
+  app.setActivePanelCategory(tool === 'heart' ? 'anatomy' : 'conditions');
+  app.setListOpen(true);
+  if (tool === 'heart') {
+    useSceneStore.getState().selectStructure(null);
+    app.setEcg('closed');
+    app.setHeart('full');
+    return;
+  }
+  const ecg = useECGStore.getState();
+  ecg.setBottomView(tool === 'defib' ? 'defib' : tool === 'wiggers' ? 'wiggers' : 'ecg');
+  ecg.setElectrodeLab(tool === 'lab');
+  if (tool === 'ecg') { ecg.setInspectLead(null); ecg.setLayout('simultaneous'); }
+  // the heart stays in view above the 12-lead, the electrode lab and the pressure curves; phones give the lab and the defibrillator the whole screen
+  app.setHeart(tool === 'defib' || (tool === 'lab' && app.phone && !app.short) ? 'closed' : 'open');
+  app.setEcg('full');
 }
 
 export { setRhythm };

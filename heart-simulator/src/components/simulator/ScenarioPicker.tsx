@@ -4,6 +4,7 @@ import React from 'react';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { bestKey, useSimStore } from '@/store/useSimStore';
 import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
+import { openCategory } from '@/lib/actions';
 import type { Scenario } from '@/lib/sim/scenario/types';
 import { SETTING_LABEL, DIFFICULTY_STYLE, gradeStyle } from './simStyles';
 
@@ -16,12 +17,7 @@ export default function ScenarioPicker() {
   const best = useSimStore((s) => s.best);
   const startScenario = useSimStore((s) => s.startScenario);
   const mine = SCENARIOS.filter((sc) => sc.roles.includes(role));
-  const studyLab = () => {
-    const app = useAppStore.getState();
-    app.setMode('learn');
-    app.setActivePanelCategory('cathlab');
-    app.setPanels(true, app.compact ? false : app.rightPanelOpen);
-  };
+  const studyLab = () => openCategory('cathlab');
   const others = SCENARIOS.filter((sc) => !sc.roles.includes(role));
 
   return (
