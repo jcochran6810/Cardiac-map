@@ -152,6 +152,9 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-22 — EKG: the newly drawn trace (behind the sweep line) came out thin and dashed on phones while the
+  rest was thick; each frame no longer erases over the newest trace (`df1d669`).
+
 - [x] 2026-10-22 — 3D heart: standard one- / two-finger gestures (turn, pinch zoom, pan), smooth dragging, taps that
   don't fly the camera, the whole heart in view on an upright phone (`1b4c0ea`, ported from `4f9200f`). Topic pages
   scroll as one with pinned section buttons above the title and foldable summary / Focus boxes (`82ae263`).

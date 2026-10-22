@@ -5,7 +5,7 @@ import { sim, scrubTo } from '@/lib/sim/simulation';
 import { useECGStore, ECGLead, ECGLayout } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
-import { windowStart, xInWindow } from '@/lib/ecg/sweep';
+import { eraseSpan, windowStart, xInWindow } from '@/lib/ecg/sweep';
 
 /**
  * Calibrated, sweeping 12-lead ECG.
@@ -226,6 +226,8 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       c.strokeStyle = color;
       c.lineWidth = 1.35;
       c.lineJoin = 'round';
+      // the sweep adds a short separate piece every frame: round ends join the pieces without notches
+      c.lineCap = 'round';
       c.beginPath();
       let first = true;
       let si = 0;
@@ -249,10 +251,11 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       c.stroke();
     };
 
-    const clearRange = (L: Layout, s: Strip, x0: number, x1: number) => {
+    /** Erase the strip's device-pixel columns [d0, d1) */
+    const clearRange = (s: Strip, [d0, d1]: [number, number]) => {
       const c = s.canvas.getContext('2d')!;
-      c.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
-      c.clearRect(Math.max(0, x0 - 0.5), 0, Math.min(s.w, x1) - Math.max(0, x0 - 0.5) + 1, s.h + s.overflow * 2);
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      if (d1 > d0) c.clearRect(d0, 0, d1 - d0, s.canvas.height);
     };
 
     /** Draw times (a, b] into strip s, erasing a short gap ahead of the cursor */
@@ -269,7 +272,8 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
         const xu = (u - ws) * L.pxPerMs;
         const xv = (v - ws) * L.pxPerMs;
         if (u === ws) s.hasLast = false;
-        clearRange(L, s, xu, xv + gapPx);
+        // only ever erase ahead of the trace drawn so far (and the left edge when a new sweep starts)
+        clearRange(s, eraseSpan(xu, xv, gapPx, L.dpr, s.canvas.width, u === ws));
         drawRange(L, s, ws, u, v, color);
       }
     };

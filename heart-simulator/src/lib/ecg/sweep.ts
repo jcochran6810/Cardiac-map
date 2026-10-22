@@ -34,3 +34,13 @@ export function sampleTimes(t0: number, t1: number, step: number): number[] {
   out.push(t1);
   return out;
 }
+
+/**
+ * Device-pixel columns [d0, d1) a frame erases before drawing the trace from xu to xv (CSS px): the gap ahead of
+ * the cursor, and on a new sweep the left edge too. It never reaches back over the trace already drawn — erasing
+ * from behind the cursor nibbled a sliver off the newest trace every frame, so it came out thin and dashed.
+ */
+export function eraseSpan(xu: number, xv: number, gapPx: number, dpr: number, widthDevice: number, newSweep: boolean): [number, number] {
+  const from = newSweep ? 0 : xu + 1; // the pen is 1.35 px wide: its round end reaches 0.7 px past xu
+  return [Math.max(0, Math.ceil(from * dpr)), Math.min(widthDevice, Math.ceil((xv + gapPx) * dpr))];
+}

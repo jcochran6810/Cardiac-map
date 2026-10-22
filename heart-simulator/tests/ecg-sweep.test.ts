@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sampleTimes, windowStart, xInWindow } from '@/lib/ecg/sweep';
+import { eraseSpan, sampleTimes, windowStart, xInWindow } from '@/lib/ecg/sweep';
 
 // Desktop 12-lead at 25 mm/s: an awkward page length like the real layout produces
 const pxPerMs = (3.6470588235294117 * 25) / 1000;
@@ -57,5 +57,30 @@ describe('monitor sweep sampling', () => {
       expect(ts[ts.length - 1]).toBe(next);
       t = next;
     }
+  });
+});
+
+describe('the sweep erases ahead of the trace, never over it', () => {
+  const PEN = 1.35; // line width in CSS px
+  it('a continuing sweep leaves the newest trace whole at any screen density and pace', () => {
+    for (const dpr of [1, 1.5, 2, 2.625, 3]) {
+      for (const pxPerFrame of [0.2, 0.7, 1.3, 2.5, 6]) {
+        let x = 37.3;
+        for (let f = 0; f < 50; f++) {
+          const next = x + pxPerFrame;
+          const [d0, d1] = eraseSpan(x, next, 14, dpr, 4000, false);
+          // the piece drawn last frame ends at x, its round end reaching PEN / 2 further
+          expect(d0 / dpr).toBeGreaterThanOrEqual(x + PEN / 2);
+          // and everything the new piece will cover past x + 1 was wiped this frame or earlier
+          expect(d1 / dpr).toBeGreaterThanOrEqual(next + 14);
+          x = next;
+        }
+      }
+    }
+  });
+
+  it('a new sweep wipes from the left edge; the erase stays inside the strip', () => {
+    expect(eraseSpan(0, 3, 14, 2.625, 800, true)[0]).toBe(0);
+    expect(eraseSpan(290, 300, 14, 2, 600, false)[1]).toBe(600);
   });
 });
