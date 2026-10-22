@@ -14,6 +14,7 @@ import Bullseye from '@/components/anatomy/Bullseye';
 import { formatCarm } from '@/components/scene/CArmTracker';
 import { ATRIAL_PATTERNS, VENT_PATTERNS } from '@/lib/anatomy/activation';
 import { useIsTouch } from '@/lib/device';
+import { showReading } from '@/lib/actions';
 
 const MODES: { value: ViewMode; label: string; key: string; title: string }[] = [
   { value: 'external', label: 'Exterior', key: '1', title: 'Photoreal exterior with coronary vessels' },
@@ -64,9 +65,9 @@ export default function SceneOverlay() {
   const probe = useRef<HTMLDivElement>(null);
   const touch = useIsTouch();
   const selectedId = useSceneStore((s) => s.selectedStructureId);
-  const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
-  // Tapping the heart with the info panel closed shows a short card instead of nothing
-  const peek = !!selectedId && !rightPanelOpen;
+  // Tapping the heart while the reading is out of sight (list page, or a drawer taking the whole screen) shows a short card instead
+  const readingShown = useAppStore((s) => s.heart !== 'full' && s.ecg !== 'full' && !(s.short && s.ecg !== 'closed') && !(s.compact && s.listOpen));
+  const peek = !!selectedId && !readingShown;
   const [coach, dismissCoach] = useOnceHint('heart');
   useEffect(() => {
     if (selectedId && coach) dismissCoach();
@@ -255,7 +256,7 @@ export default function SceneOverlay() {
           <div className="pointer-events-auto scene-panel rounded-xl px-4 py-3 text-center max-w-xs shadow-2xl animate-fade-in">
             <div className="text-sm font-semibold text-white">{touch ? 'Tap' : 'Click'} any part of the heart</div>
             <p className="text-xs text-slate-300 mt-1 leading-snug">
-              to see what it is and what it does. {touch ? 'Drag to turn it, pinch to zoom' : 'Drag to turn it, scroll to zoom'}, and try the views at the top left.
+              to see what it is and what it does. {touch ? 'Drag to turn it, pinch to zoom' : 'Drag to turn it, scroll to zoom'}, and try the views at the top left of the heart.
             </p>
             <button onClick={dismissCoach} className="mt-2.5 px-4 py-1.5 touch:py-2 rounded-lg bg-cardiac-accent text-slate-950 text-xs font-semibold">Got it</button>
           </div>
@@ -275,10 +276,7 @@ function PeekCard({ id }: { id: string }) {
   const lib = useContent();
   const s = lib?.structures[id];
   const name = s?.name ?? LANDMARK_BY_ID[id]?.name ?? id.replace(/-/g, ' ');
-  const readMore = () => {
-    const app = useAppStore.getState();
-    app.setPanels(app.compact ? false : app.leftPanelOpen, true);
-  };
+  const readMore = () => showReading();
   return (
     <div className="absolute left-2 right-2 bottom-2 z-30 flex justify-center pointer-events-none">
       <div className="pointer-events-auto w-full max-w-md scene-panel rounded-xl p-3 shadow-2xl animate-fade-in" role="dialog" aria-label={name}>

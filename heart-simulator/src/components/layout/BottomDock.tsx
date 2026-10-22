@@ -12,7 +12,7 @@ import { useDefibStore } from '@/lib/sim/defib';
 import { useAppStore } from '@/store/useAppStore';
 import { openProjector } from '@/lib/sim/projector';
 import { useIsTouch } from '@/lib/device';
-import { IconClose, IconCollapse, IconExpand } from '@/components/ui/icons';
+import { IconClose } from '@/components/ui/icons';
 import { useOnceHint } from '@/lib/hints';
 
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
@@ -37,8 +37,9 @@ interface DockProps {
   style?: React.CSSProperties;
   /** docked beside the heart (phone on its side) rather than under it */
   side?: boolean;
+  /** the ECG drawer has the whole screen */
   expanded?: boolean;
-  /** tablets and phones: let the dock take over most of the screen */
+  /** give the drawer the whole screen, or shrink it back (phones do this for the defibrillator and the electrode lab) */
   onToggleExpand?: () => void;
 }
 
@@ -106,18 +107,6 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
     ? (profile.rhythm === 'chb' ? 'Escape rate' : 'Ventricular rate') : 'Rate';
   const noRate = profile.rateControl === 'none';
   const arrest = profile.hemo === 'no-output';
-
-  const expandBtn = onToggleExpand && (
-    <button
-      onClick={() => { autoExpanded.current = false; onToggleExpand(); }}
-      className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-cardiac-surface border border-slate-600"
-      title={expanded ? 'Shrink this panel' : 'Enlarge this panel'}
-      aria-label={expanded ? 'Shrink ECG panel' : 'Enlarge ECG panel'}
-      aria-pressed={expanded}
-    >
-      {expanded ? <IconCollapse size={14} /> : <IconExpand size={14} />}
-    </button>
-  );
 
   const displayOpts = (
     <>
@@ -234,7 +223,6 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
               </button>
             ))}
           </div>
-          {expandBtn}
         </div>
       )}
 
@@ -317,7 +305,6 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
               value={ecg.bottomView}
               onChange={(v) => ecg.setBottomView(v as 'ecg' | 'wiggers' | 'defib')}
             />
-            {expandBtn}
           </div>
         )}
       </div>

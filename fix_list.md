@@ -11,6 +11,17 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-10-22 — **Decide on 3 unfinished commits from 2026-10-19** on branch `ccr-fcd6b419-beq5mr` (never
+  merged, not live): give a medication from any condition and watch the live 12-lead respond, smoother 3D-heart
+  turning with an arrow pad, and clinical review fixes for the meds. They overlap the new navigation's files, so a
+  session must merge production into that branch and resolve conflicts first. Tell Claude "merge the meds work"
+  (or "drop it").
+
+- [ ] 2026-10-22 — **Try the new navigation on your phone:** Menu (top left) → a section → a topic; tap
+  **12-lead EKG** at the bottom (slides up) and again (slides down); tap **3D heart** at the top (slides down) and
+  again; use your phone's Back button — it slides an open drawer away first. Turn the phone on its side with both
+  open (they sit side by side). Tested only in emulated phone, tablet and desktop browsers.
+
 - [ ] 2026-10-18 — **Narrow the environment's network access again (recommended).** It is set to **Full**
   (any website), which was used to fetch the cath lab images. Allowing only what this project needs is
   safer: in the Claude app open this session's cloud environment menu (the environment name in the session's
@@ -64,17 +75,20 @@ Add new items at the top of their group. Use the format:
   (`heart-simulator/src/components/cathlab/CArmDiagram.tsx` — a clearer patient, table and C-arm drawing would
   help), the catalog item page (`CathLabView` / `PractiseLab` in `heart-simulator/src/components/layout/RightPanel.tsx`),
   the "study the catalog" banner in `ScenarioPicker.tsx` and the monitor's new **ART** box
-  (`MonitorDisplay.tsx`). The Library now has 8 tabs (Cath lab added).
+  (`MonitorDisplay.tsx`).
 
-- [ ] 2026-10-18 — **Polish the new screens Claude built (keep their behaviour):** Home
-  (`heart-simulator/src/components/home/HomeScreen.tsx`), the case simulator
-  (`heart-simulator/src/components/simulator/`), the Home / Learn / Simulator tabs and the phone bottom
-  bar (`heart-simulator/src/components/layout/ModeNav.tsx`), the tap-the-heart card and first-time tips
-  (`SceneOverlay.tsx` `PeekCard`, `BottomDock.tsx` lead tip) and the info panel's Back / Close bar
-  (`RightPanel.tsx` `PanelBar`). Known rough edges: on a phone on its side the simulator's monitor
-  numerics are clipped; the install banner covers the top of Home on phones; check 320–1920 px.
-- [ ] 2026-10-18 — The Library's tab strip (7 tabs, 10.5 px text, 4-column grid) is hard to read on
-  phones; consider bigger tabs or icons (`heart-simulator/src/components/layout/LeftPanel.tsx`).
+- [ ] 2026-10-22 — **Polish the new navigation (keep its behaviour):** the main menu
+  (`heart-simulator/src/components/home/HomeScreen.tsx` — sections, tiles, "continue" cards, role + scope), the
+  slim top bar (`TopBar.tsx`: Menu, Back, title, search), the drawer bars (`DrawerBar.tsx`: "3D heart" at the top,
+  "12-lead EKG" at the bottom, ⤢) and the drawers' slide and grips (`AppShell.tsx`), the list header
+  (`LeftPanel.tsx`) and the "All …" bar and "pick a topic" page in `RightPanel.tsx`. Keep: drawers slide (height
+  transition), the reading stays visible with a drawer open, a phone on its side puts heart and ECG side by side.
+  Known rough edges: with both drawers open on a phone the reading is a thin strip; the heart's overlay controls
+  crowd a short drawer; the install banner covers the top of the menu on phones; check 320–1920 px.
+- [ ] 2026-10-18 — **Polish the screens Claude built (keep their behaviour):** the case simulator
+  (`heart-simulator/src/components/simulator/`), the tap-the-heart card and first-time tips (`SceneOverlay.tsx`
+  `PeekCard`, `BottomDock.tsx` lead tip). Known rough edge: on a phone on its side the simulator's monitor numerics
+  are clipped.
 
 - [ ] 2026-10-16 — **Build on the merged header, don't undo it.** Claude merged your UI foundation
   (PR #2's work) with the phone / tablet layout: the header keeps your tokens, `Button` /
@@ -82,7 +96,8 @@ Add new items at the top of their group. Use the format:
   48 px on phones, 44 px on a phone on its side), search sits behind an icon below 768 px, the role +
   scope menu replaces the select below 640 px, and the owner's heart logo replaces the drawn
   brandmark. Your `.ui-button` / `.workspace-*` styles moved into `@layer components` so `hidden` /
-  `md:hidden` work on buttons. Checked at 320, 375, 390, 640, 700, 768, 820, 844×390, 1024, 1180,
+  `md:hidden` work on buttons. (2026-10-22: the bar now holds only Menu, Back, the title and search — the
+  role selector, Scope, Quiz, Tutor, Install and Help moved to the main menu.) Checked at 320, 375, 390, 640, 700, 768, 820, 844×390, 1024, 1180,
   1366 and 1920 px: no overflow, nothing clipped (`heart-simulator/app/globals.css`,
   `heart-simulator/src/components/layout/TopBar.tsx`).
 - [ ] 2026-10-16 — Finish the UI regression pass you started: **200 % browser zoom** and
@@ -99,6 +114,9 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
+- [ ] 2026-10-22 — The start hook lists only `claude/*` and `codex/*` branches, but web sessions now get `ccr-*`
+  branches, so unmerged work there goes unreported (it missed `ccr-fcd6b419-beq5mr`). Add `ccr-*` to the fetch
+  refspec and listing (`.claude/hooks/session-start.sh:275`) and a case to `session-start.test.sh`.
 - [ ] 2026-10-18 — **Better-fitting images where the catalog uses a near match** (every item has a real
   image; captions say when the setting differs): damping at a coronary ostium (now: innominate artery), a
   reperfusion VF strip from primary PCI, Bezold–Jarisch during RCA reperfusion, a vasovagal drop during
@@ -131,6 +149,11 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-22 — Navigation revamp: one main menu handles everything (role, search, continue, simulator, every
+  library section, tools, guided starts, quiz, tutor, help, install); the top bar is Menu / Back / title / search;
+  the EKG slides up from a bottom bar and the 3D heart slides down from a top bar; the phone tab bar, mode tabs,
+  Library / Info buttons and the Library's tab strip (hard to read on phones) are gone (`9568e80`).
 
 - [x] 2026-10-18 — Cath lab simulator for the tech, the nurse and the cardiologist: six lab cases worked step
   by step (devices, views, drugs; reads of pressures, FFR, stent sizing and angiograms) and a cath lab

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { useAppStore, type PanelCategory } from '@/store/useAppStore';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useAppStore } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
 import { useProcedureStore } from '@/store/useProcedureStore';
@@ -15,19 +15,8 @@ import { CASE_DATA } from '@/data/caseData';
 import { CATHLAB_GROUPS, CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CONDUCTION_IDS, CORONARY_IDS } from '@/lib/anatomy/categories';
-import { IconCheck, IconChevron, IconDownload, IconHelp, IconSearch } from '@/components/ui/icons';
-import { InstallButton } from '@/components/ui/InstallApp';
-
-const TABS: { value: PanelCategory; label: string; title: string }[] = [
-  { value: 'anatomy', label: 'Anatomy', title: 'Chambers, valves, vessels and layers' },
-  { value: 'coronary', label: 'Coronary', title: 'Coronary arteries and territories' },
-  { value: 'conduction', label: 'Conduction', title: 'SA node to Purkinje fibres' },
-  { value: 'conditions', label: 'Conditions', title: 'Rhythms, ischaemia, structural disease' },
-  { value: 'procedures', label: 'Procedures', title: 'Cath lab, EP, structural, surgical, bedside' },
-  { value: 'medications', label: 'Drugs', title: 'Cardiac and ACLS pharmacology' },
-  { value: 'cathlab', label: 'Cath lab', title: 'Views, catheters, wires, stents, lab drugs, pressures and complications' },
-  { value: 'cases', label: 'Cases', title: 'Interactive clinical scenarios' },
-];
+import { IconCheck, IconChevron, IconSearch } from '@/components/ui/icons';
+import { CATEGORY_BY_VALUE } from '@/lib/categories';
 
 const ANATOMY_GROUPS: { label: string; group: string }[] = [
   { label: 'Chambers', group: 'chambers' },
@@ -60,10 +49,9 @@ const DIFF_STYLE: Record<string, string> = {
 interface Item { id: string; name: string; sub?: string }
 interface Group { label: string; items: Item[] }
 
+/** The open library section's list (the main menu chooses the section) */
 export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const activeTab = useAppStore((s) => s.activePanelCategory);
-  const setHelpOpen = useAppStore((s) => s.setHelpOpen);
-  const setActiveTab = useAppStore((s) => s.setActivePanelCategory);
   const selectedStructureId = useSceneStore((s) => s.selectedStructureId);
   const selectedConditionId = useConditionStore((s) => s.selectedConditionId);
   const selectedProcedureId = useProcedureStore((s) => s.selectedProcedureId);
@@ -74,6 +62,9 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const lib = useContent();
   const [filter, setFilter] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const section = CATEGORY_BY_VALUE[activeTab];
+  // a new section starts unfiltered
+  useEffect(() => { setFilter(''); setCollapsed(new Set()); }, [activeTab]);
 
   const nameOf = (id: string) =>
     lib?.structures[id]?.name ?? lib?.conditions[id]?.name ?? lib?.procedures[id]?.name ?? lib?.medications[id]?.name ?? LANDMARK_BY_ID[id]?.name ?? id.replace(/-/g, ' ');
@@ -164,32 +155,19 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
   const done = groups.reduce((n, g) => n + g.items.filter((i) => isDone(i.id)).length, 0);
 
   return (
-    <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden" aria-label="Navigator">
-      <nav className="grid grid-cols-4 gap-0.5 p-1 border-b border-slate-700 shrink-0" role="tablist">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => { setActiveTab(tab.value); setFilter(''); }}
-            title={tab.title}
-            role="tab"
-            aria-selected={activeTab === tab.value}
-            className={`px-0.5 py-1.5 touch:py-2.5 text-[10.5px] leading-none rounded transition-colors whitespace-nowrap overflow-hidden ${
-              activeTab === tab.value ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : 'text-slate-400 hover:text-white hover:bg-cardiac-surface'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
+    <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden" aria-label={`${section.label} list`}>
+      <div className="px-3 pt-2.5 shrink-0">
+        <h2 className="text-sm font-semibold text-white leading-tight">{section.label}</h2>
+        <p className="text-[11px] text-slate-400 leading-snug mt-0.5">{section.text}</p>
+      </div>
       <div className="px-2 pt-2 pb-1 shrink-0">
         <div className="relative">
           <IconSearch size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder={`Filter ${TABS.find((t) => t.value === activeTab)?.label.toLowerCase()}…`}
-            className="w-full bg-cardiac-dark text-[11px] text-slate-200 rounded pl-6 pr-2 py-1 touch:py-1.5 border border-slate-700 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
+            placeholder={`Filter ${section.short.toLowerCase()}…`}
+            className="w-full bg-cardiac-dark text-xs text-slate-200 rounded-md pl-6 pr-2 py-1.5 touch:py-2 border border-slate-700 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
             aria-label="Filter list"
           />
         </div>
@@ -242,7 +220,7 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
                       <li key={item.id}>
                         <button
                           onClick={() => open(item.id)}
-                          className={`w-full flex items-center gap-1.5 text-left pl-5 pr-2 py-1.5 touch:py-2.5 rounded transition-colors ${
+                          className={`w-full flex items-center gap-1.5 text-left pl-5 pr-2 py-2 touch:py-2.5 text-[13px] rounded transition-colors ${
                             sel ? 'bg-cardiac-accent/15 text-cardiac-accent' : 'text-slate-300 hover:text-white hover:bg-cardiac-surface/70'
                           }`}
                           aria-current={sel ? 'true' : undefined}
@@ -265,16 +243,6 @@ export default function LeftPanel({ style }: { style?: React.CSSProperties }) {
         })}
         {visibleGroups.length === 0 && <p className="px-2 py-4 text-slate-500 text-center">Nothing matches “{filter}”.</p>}
       </div>
-      <InstallButton className="flex items-center gap-2 px-3 py-3 border-t border-slate-700 text-xs text-emerald-300 hover:text-white shrink-0">
-        <IconDownload size={15} /> Install CardioSim on this device
-      </InstallButton>
-      {/* Small phones have no room for Help in the top bar */}
-      <button
-        onClick={() => setHelpOpen(true)}
-        className="xs:hidden flex items-center gap-2 px-3 py-3 border-t border-slate-700 text-xs text-slate-300 hover:text-white shrink-0"
-      >
-        <IconHelp size={15} /> Help &amp; guide
-      </button>
     </aside>
   );
 }

@@ -41,7 +41,7 @@ const fake = vi.hoisted(() => {
 import { currentPage, startBackNav, useBackNavStore } from '@/lib/backNav';
 import { useAppStore } from '@/store/useAppStore';
 import { useSimStore } from '@/store/useSimStore';
-import { openById, openCondition, openMedication } from '@/lib/actions';
+import { openById, openCategory, openCondition, openMedication, openTool, showEcg, showHeart } from '@/lib/actions';
 
 const history = fake.history;
 vi.spyOn(performance, 'now').mockImplementation(() => fake.clock);
@@ -99,20 +99,67 @@ describe('the Back button moves through CardioSim pages', () => {
 
   it('closing a drawer with its own control steps back over the entry that opened it', async () => {
     const app = useAppStore.getState();
-    // like AppShell on a phone: drawers closed
-    app.setCompact(true);
-    app.setPanels(false, false);
     app.setMode('learn');
     await settle();
     const before = history.i;
-    app.setPanels(true, false);
+    app.toggleEcg(); // the EKG slides up
     await settle();
     expect(history.i).toBe(before + 1);
-    app.setPanels(false, false);
+    expect(currentPage().ecg).toBe('open');
+    app.toggleEcg(); // and down again with the same button
     await settle();
     expect(history.i).toBe(before);
-    expect(currentPage().left).toBe(false);
+    expect(currentPage().ecg).toBe('closed');
+  });
+
+  it('Back closes the 3D heart and the EKG, and the list page comes back on a phone', async () => {
+    const app = useAppStore.getState();
+    // like AppShell on a phone: the list and the reading are separate pages
+    app.setCompact(true);
+    openCategory('conditions');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', cat: 'conditions', list: true, heart: 'closed', ecg: 'closed' });
+    openCondition('anterior-stemi');
+    await settle();
+    expect(currentPage()).toMatchObject({ item: 'anterior-stemi', list: false });
+    showEcg();
+    await settle();
+    showHeart();
+    await settle();
+    expect(currentPage()).toMatchObject({ heart: 'open', ecg: 'open' });
+
+    await back();
+    expect(currentPage()).toMatchObject({ item: 'anterior-stemi', heart: 'closed', ecg: 'open' });
+    await back();
+    expect(currentPage()).toMatchObject({ item: 'anterior-stemi', heart: 'closed', ecg: 'closed', list: false });
+    await back();
+    expect(currentPage()).toMatchObject({ cat: 'conditions', list: true });
     app.setCompact(false);
+  });
+
+  it('main menu sections are pages: Back returns to the section before', async () => {
+    openCategory('conditions');
+    await settle();
+    useAppStore.getState().setMode('home');
+    await settle();
+    openCategory('medications');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', cat: 'medications' });
+    await back();
+    expect(currentPage().mode).toBe('home');
+    await back();
+    expect(currentPage()).toMatchObject({ mode: 'learn', cat: 'conditions' });
+  });
+
+  it('a tool from the main menu fills the screen; opening an item shrinks it so the reading shows', async () => {
+    openTool('ecg');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', ecg: 'full', heart: 'open', cat: 'conditions' });
+    openById('inferior-stemi');
+    await settle();
+    expect(currentPage()).toMatchObject({ item: 'inferior-stemi', ecg: 'open' });
+    await back();
+    expect(currentPage()).toMatchObject({ ecg: 'full' });
   });
 
   it('the simulator: Back closes the action list, asks before leaving a case, and keeps you there if you cancel', async () => {
