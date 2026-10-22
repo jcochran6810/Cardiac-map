@@ -6,6 +6,57 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-22 — ccr-e41fe6a7-sr38ig (navigation revamp: one main menu, EKG slides up, 3D heart slides down)
+
+**Agent:** Claude
+
+**Asked:** "Need to revamp the whole layout. Its too confusing to navigate anywhere. Have the main menu handle
+everything. If while learning about a rhythm or condition the user can click on an ekg button at the bottom to
+expand it and the 12 lead will slide up from the bottom. Same to collapse. The same for the 3D heart, that can be a
+slide down from the top. Just simplify and better organize the navigation without losing any features" · "End session".
+
+**Branch:** started level with production `main` at `c746e72`; production did not move during the session. Both
+commits below were made in this session. Found at end session: `ccr-fcd6b419-beq5mr` (the previous session's
+branch) carries 3 commits from 2026-10-19 that never merged (give meds from any condition with the 12-lead
+responding, smooth 3D-heart turning with an arrow pad, clinical review fixes) — not shipped here (not asked for);
+they overlap this session's files (`actions.ts`, `SceneOverlay.tsx`, `HeartScene.tsx`), see the fix list.
+
+**Shipped:**
+
+- Main menu as the hub (`HomeScreen.tsx`): role + scope, search, "continue reading" / "continue your case", the
+  case simulator, all 8 library sections with progress, the tools (3D heart, 12-lead, electrode lab,
+  defibrillator, pressure & volume — each opens full screen), "Try this" guided starts (moved from the old info
+  panel welcome), quiz, tutor, help, install (`9568e80`).
+- Top bar is Menu / Back / title / search only; removed the Home / Learn / Simulator tabs, the phone bottom tab
+  bar (`ModeNav.tsx` deleted), the Library / Info buttons, the role selector and the Library's tab strip
+  (`9568e80`).
+- Reading screen: the section's list and the item (side by side on desktop; separate pages with "All …" on
+  tablets and phones). Drawer bars: "12-lead EKG" at the bottom slides the ECG panel up / down (all its views and
+  options unchanged), "3D heart" at the top slides the heart down / up; grips resize, ⤢ gives the whole screen; a
+  phone on its side opens drawers full screen and puts heart and ECG side by side. The heart scene is kept and
+  paused while closed. Reading buttons open the drawer they need; `H` / `K` toggle them (`9568e80`).
+- State and actions: `heart` / `ecg` / `listOpen` / `short` in `useAppStore`; `openCategory`, `openTool`,
+  `showEcg`, `showHeart`, `showReading` in `actions.ts`; section list in `lib/categories.ts`; search extracted to
+  `SearchBox.tsx`. Back button pages now include the section, the list page and both drawers (`9568e80`).
+- Docs: README navigation, help overlay, fix list (Codex items re-pointed at the new files) (`9568e80`, `39668a3`,
+  this entry's commit).
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (266, incl. new Back-button tests for drawers, sections and tools) ·
+build ✅ (after `npm ci`). In Playwright (Chromium, emulated): desktop 1440×900, tablet 820×1180, phone 390×844 and
+phone on its side 844×390 — menu → section → item, EKG up/down, heart down/up, both open, defibrillator and
+electrode lab full screen, simulator; no page errors. Vercel previews of both commits READY. **Not verified:** a
+real phone or tablet.
+
+**Files:** A: `heart-simulator/src/components/layout/{DrawerBar,SearchBox}.tsx`, `heart-simulator/src/lib/categories.ts` ·
+M: `heart-simulator/src/components/{AppShell,home/HomeScreen,layout/TopBar,layout/LeftPanel,layout/RightPanel,layout/BottomDock,layout/HelpOverlay,scene/SceneOverlay,scene/HeartScene,simulator/ScenarioPicker,ui/icons}.tsx`,
+`heart-simulator/src/lib/{actions,backNav}.ts`, `heart-simulator/src/store/useAppStore.ts`,
+`heart-simulator/tests/back-nav.test.ts`, `heart-simulator/README.md`, `fix_list.md`, `SESSION_LOG.md` ·
+D: `heart-simulator/src/components/layout/ModeNav.tsx`.
+
+**Follow-up:** owner to try the new navigation on a phone and decide on the 3 unmerged 2026-10-19 commits on
+`ccr-fcd6b419-beq5mr` (fix list); the start hook only lists `claude/*` and `codex/*` branches, so it missed them —
+widen it to `ccr-*` (fix list → Code); Codex to polish the menu and drawers (fix list → For Codex).
+
 ### 2026-10-18 — ccr-fcd6b419-beq5mr (continued: electrode lab body, case simulator, cath lab cases and catalog with real images)
 
 **Agent:** Claude

@@ -11,6 +11,12 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-10-22 — **Decide on 3 unfinished commits from 2026-10-19** on branch `ccr-fcd6b419-beq5mr` (never
+  merged, not live): give a medication from any condition and watch the live 12-lead respond, smoother 3D-heart
+  turning with an arrow pad, and clinical review fixes for the meds. They overlap the new navigation's files, so a
+  session must merge production into that branch and resolve conflicts first. Tell Claude "merge the meds work"
+  (or "drop it").
+
 - [ ] 2026-10-22 — **Try the new navigation on your phone:** Menu (top left) → a section → a topic; tap
   **12-lead EKG** at the bottom (slides up) and again (slides down); tap **3D heart** at the top (slides down) and
   again; use your phone's Back button — it slides an open drawer away first. Turn the phone on its side with both
@@ -108,6 +114,9 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
+- [ ] 2026-10-22 — The start hook lists only `claude/*` and `codex/*` branches, but web sessions now get `ccr-*`
+  branches, so unmerged work there goes unreported (it missed `ccr-fcd6b419-beq5mr`). Add `ccr-*` to the fetch
+  refspec and listing (`.claude/hooks/session-start.sh:275`) and a case to `session-start.test.sh`.
 - [ ] 2026-10-18 — **Better-fitting images where the catalog uses a near match** (every item has a real
   image; captions say when the setting differs): damping at a coronary ostium (now: innominate artery), a
   reperfusion VF strip from primary PCI, Bezold–Jarisch during RCA reperfusion, a vasovagal drop during
