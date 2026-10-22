@@ -6,6 +6,51 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: standard 3D heart gestures; topic pages scroll, section buttons on top, foldable boxes)
+
+**Agent:** Claude
+
+**Asked:** "Fix the 3D controls on the heart. use the standard 1 and 2 finger commands to zoom, rotate and pan." ·
+(with a screenshot) "Each of the yellow boxes should be able to collapse. The red box is not all visible and hard to
+read everything. Make these pages easier to read and navigate" · (with a screenshot) "The items circled in the red
+box should be navigation buttons at the top between all conditions and the chapter title … These pages should be able
+to scroll to allow all information to be displayed" · "end session".
+
+**Branch:** resumed level with production `main` at `d0711fa` (this session's previous merge); production did not
+move. Both commits below were made in this session; `1b4c0ea` ports `4f9200f` from the unmerged
+`ccr-fcd6b419-beq5mr` (2026-10-19), without its arrow pad.
+
+**Shipped:**
+
+- 3D heart controls (`1b4c0ea`): standard gestures set explicitly (`TOUCHES` / `MOUSE_BUTTONS` in
+  `src/lib/scene/orbit.ts`: one finger turns, two fingers pinch-zoom and pan; mouse left turns, wheel zooms, right
+  pans). From `4f9200f`: BVH hit-tests (`three-mesh-bvh`, new dependency) so dragging no longer stutters (every move
+  hit-tested 160k triangles), hover tests pause mid-drag, a press that moved is never a tap, a tap on the heart
+  selects without moving the camera, the same turn per pixel on every screen, smoothing per second, pan limit, no
+  pole flips. New: the whole heart fits a tall view (an upright phone started zoomed in and cut off) and re-fits
+  when the drawer changes shape unless the learner zoomed. The arrow pad, its store state and helpers were left out.
+- Topic pages (`82ae263`): the whole reading page scrolls as one (on phones the fixed header + three rows of tabs
+  left a sliver; Red Flags was cut off); the section tabs are now pill navigation buttons under "All …", above the
+  title, pinned while scrolling (one swipeable row below 1024 px), and jump to their section (sections have room to
+  reach the top); the title's badge + summary and the "Focus for <role>" box fold away and stay folded on every page
+  (`useFold`, localStorage); a new topic opens at its top; larger text on phones.
+- Docs: README (gestures, topic pages), help gestures (`1b4c0ea`, `82ae263`, this entry's commit).
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (289; `tests/orbit.test.ts` drives the real OrbitControls: one-finger
+turn, pinch in/out, two-finger pan, wheel, right-drag; framing; click vs drag) · build ✅ (after `npm ci`). In
+Playwright on an emulated phone (390×844) with CDP touch events: one-finger turn, pinch in/out, two-finger pan, a tap
+selecting Right Atrium without moving the camera, page zoom/scroll unchanged; the whole heart in view at start.
+Topic page on phone (412×860) and desktop (1440×900): section buttons on top, scroll to Red Flags, jump to Field
+care, folds remembered on the next topic; no page errors. **Not verified:** a real phone (touch feel, speed).
+
+**Files:** A: `heart-simulator/src/lib/scene/orbit.ts`, `heart-simulator/tests/orbit.test.ts` · M:
+`heart-simulator/src/components/scene/{HeartScene,Labels3D}.tsx`, `heart-simulator/src/store/useSceneStore.ts`,
+`heart-simulator/src/components/layout/{RightPanel,HelpOverlay}.tsx`, `heart-simulator/package.json`,
+`heart-simulator/package-lock.json`, `heart-simulator/README.md`, `fix_list.md`, `SESSION_LOG.md`.
+
+**Follow-up:** owner to try the gestures and the topic pages on a phone; the two remaining 2026-10-19 meds commits
+on `ccr-fcd6b419-beq5mr` still wait for the owner's decision (fix list).
+
 ### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: a condition's rhythm fills the EKG at once; phones open on the 12-lead)
 
 **Agent:** Claude
