@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useConditionStore } from '@/store/useConditionStore';
@@ -22,7 +22,7 @@ import { CINE_VIEW_BY_ID, angleText } from '@/lib/cathlab/views';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { CathFigure } from '@/components/cathlab/CathFigure';
 import CArmDiagram from '@/components/cathlab/CArmDiagram';
-import { IconCheck, IconCube, IconFlag, IconList, IconPlay, IconPulse } from '@/components/ui/icons';
+import { IconCheck, IconChevron, IconCube, IconFlag, IconList, IconPlay, IconPulse } from '@/components/ui/icons';
 import { CATEGORY_BY_VALUE } from '@/lib/categories';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { SCOPES } from '@/lib/scope';
@@ -88,37 +88,98 @@ function Chips({ ids, label }: { ids: string[]; label: string }) {
   );
 }
 
+/**
+ * The item's sections as navigation buttons, pinned at the top of the page under "All …" (one row; it scrolls
+ * sideways when the screen is too narrow for all of them). A button jumps to the start of its section.
+ */
 function Tabs({ tabs, active, onChange, level }: { tabs: TabDef[]; active: string; onChange: (k: string) => void; level: LearningLevel }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const row = useRef<HTMLDivElement>(null);
+  // keep the chosen section's button in view in the row (sideways only: the page itself must not jump)
+  useEffect(() => {
+    const r = row.current;
+    const el = r?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!r || !el) return;
+    const left = el.offsetLeft - 24;
+    const right = el.offsetLeft + el.offsetWidth + 24;
+    if (left < r.scrollLeft) r.scrollLeft = left;
+    else if (right > r.scrollLeft + r.clientWidth) r.scrollLeft = right - r.clientWidth;
+  }, [active]);
+  const choose = (k: string) => {
+    onChange(k);
+    // once the section has rendered, bring its start up under the buttons unless it is already near the top
+    requestAnimationFrame(() => {
+      const page = bar.current?.closest<HTMLElement>('[data-reading]');
+      const section = page?.querySelector<HTMLElement>('[data-section]');
+      if (!page || !section || !bar.current) return;
+      const pinned = bar.current.offsetHeight;
+      const onScreen = section.offsetTop - page.scrollTop;
+      if (onScreen < pinned || onScreen > page.clientHeight * 0.45) page.scrollTop = section.offsetTop - pinned;
+    });
+  };
   return (
-    <div className="flex flex-wrap gap-0.5 px-2 py-1.5 border-b border-slate-700 shrink-0 bg-cardiac-panel" role="tablist">
-      {tabs.map((t) => {
-        const rec = t.levels?.includes(level);
-        return (
-          <button
-            key={t.key}
-            onClick={() => onChange(t.key)}
-            role="tab"
-            aria-selected={active === t.key}
-            title={rec ? `Recommended for ${LEVEL_LABELS[level].long}` : undefined}
-            className={`relative px-2 py-1 touch:py-2 touch:px-2.5 text-[10px] rounded transition-colors ${
-              active === t.key ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : 'text-slate-400 hover:text-white hover:bg-cardiac-surface/70'
-            }`}
-          >
-            {t.label}
-            {rec && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-          </button>
-        );
-      })}
-    </div>
+    <nav ref={bar} className="sticky top-0 z-10 shrink-0 border-b border-slate-700 bg-cardiac-panel" aria-label="Sections">
+      <div ref={row} className="relative flex lg:flex-wrap gap-1.5 px-2 py-2 overflow-x-auto no-scrollbar" role="tablist">
+        {tabs.map((t) => {
+          const rec = t.levels?.includes(level);
+          return (
+            <button
+              key={t.key}
+              onClick={() => choose(t.key)}
+              role="tab"
+              aria-selected={active === t.key}
+              title={rec ? `Recommended for ${LEVEL_LABELS[level].long}` : undefined}
+              className={`relative shrink-0 whitespace-nowrap px-3 py-1.5 touch:py-2 text-[11px] phone:text-xs rounded-full border transition-colors ${
+                active === t.key
+                  ? 'bg-cardiac-accent/20 border-cardiac-accent/60 text-cardiac-accent font-semibold'
+                  : 'border-slate-600 text-slate-300 hover:text-white hover:bg-cardiac-surface/70'
+              }`}
+            >
+              {t.label}
+              {rec && <span className="absolute -top-0.5 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+            </button>
+          );
+        })}
+      </div>
+      {/* more sections off to the side: a soft edge says the row scrolls */}
+      <div className="lg:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-cardiac-panel to-transparent" />
+    </nav>
   );
 }
 
+/** A part of the page the learner can fold away; remembered on this device, so it stays folded on every page */
+function useFold(key: string): [boolean, () => void] {
+  const [open, setOpen] = useState(() => {
+    try { return window.localStorage.getItem(`cardiosim.fold.${key}`) !== 'closed'; } catch { return true; }
+  });
+  const toggle = () => setOpen((was) => {
+    try { window.localStorage.setItem(`cardiosim.fold.${key}`, was ? 'closed' : 'open'); } catch { /* storage unavailable */ }
+    return !was;
+  });
+  return [open, toggle];
+}
+
+function FoldChevron({ open }: { open: boolean }) {
+  return <IconChevron size={16} className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`} />;
+}
+
 function Header({ title, badge, badgeClass, summary, children }: { title: string; badge?: string; badgeClass?: string; summary?: string; children?: React.ReactNode }) {
+  const [open, toggle] = useFold('summary');
+  const folds = !!summary;
   return (
     <div className="px-3 pt-3 pb-2 border-b border-slate-700/60 shrink-0">
-      {badge && <span className={`inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded mb-1 ${badgeClass ?? 'bg-slate-700 text-slate-300'}`}>{badge}</span>}
-      <h2 className="text-base font-semibold text-white leading-tight">{title}</h2>
-      {summary && <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{summary}</p>}
+      {badge && (open || !folds) && <span className={`inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded mb-1 ${badgeClass ?? 'bg-slate-700 text-slate-300'}`}>{badge}</span>}
+      {folds ? (
+        <h2 className="text-base phone:text-lg font-semibold text-white leading-tight">
+          <button onClick={toggle} aria-expanded={open} className="w-full flex items-center gap-2 text-left" title={open ? 'Fold away the summary' : 'Show the summary'}>
+            <span className="min-w-0 flex-1">{title}</span>
+            <FoldChevron open={open} />
+          </button>
+        </h2>
+      ) : (
+        <h2 className="text-base phone:text-lg font-semibold text-white leading-tight">{title}</h2>
+      )}
+      {summary && open && <p className="text-[13px] phone:text-sm text-slate-300 mt-1.5 leading-relaxed">{summary}</p>}
       {children}
     </div>
   );
@@ -126,19 +187,29 @@ function Header({ title, badge, badgeClass, summary, children }: { title: string
 
 function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }) {
   const [showScope, setShowScope] = useState(false);
+  const [open, toggle] = useFold('focus');
   const note = notes?.[level - 1];
   if (!note) return null;
   return (
-    <div className="mt-2 p-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
-      <div className="flex items-center justify-between gap-2 mb-0.5">
-        <div className="text-[9px] uppercase tracking-wider text-emerald-300 font-semibold">Focus for {LEVEL_LABELS[level].long}</div>
-        <button onClick={() => setShowScope((v) => !v)} className="text-[9px] touch:text-[11px] touch:py-1 text-emerald-300/80 hover:text-emerald-200 whitespace-nowrap" title="What this role may and may not do">
-          {showScope ? 'hide scope' : 'scope ▸'}
+    <div className="mt-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
+      <div className="flex items-center gap-2">
+        <button onClick={toggle} aria-expanded={open} className="min-w-0 flex-1 flex items-center gap-1.5 px-2 py-1.5 touch:py-2 text-left" title={open ? 'Fold this away' : 'Show the focus for your role'}>
+          <span className="min-w-0 flex-1 text-[10px] phone:text-[11px] uppercase tracking-wider text-emerald-300 font-semibold">Focus for {LEVEL_LABELS[level].long}</span>
+          <FoldChevron open={open} />
         </button>
+        {open && (
+          <button onClick={() => setShowScope((v) => !v)} className="pr-2 text-[10px] touch:text-[11px] touch:py-1 text-emerald-300/80 hover:text-emerald-200 whitespace-nowrap" title="What this role may and may not do">
+            {showScope ? 'hide scope' : 'scope ▸'}
+          </button>
+        )}
       </div>
-      <p className="text-[11px] text-slate-200 leading-relaxed">{note}</p>
-      <p className="mt-1 text-[9px] text-slate-500">Within {SCOPES[level].role} scope · {SCOPES[level].framework.split(' · ')[0]}</p>
-      {showScope && <div className="mt-2 pt-2 border-t border-emerald-500/20"><ScopeCard level={level} compact /></div>}
+      {open && (
+        <div className="px-2 pb-2">
+          <p className="text-xs phone:text-[13px] text-slate-200 leading-relaxed">{note}</p>
+          <p className="mt-1 text-[9px] text-slate-500">Within {SCOPES[level].role} scope · {SCOPES[level].framework.split(' · ')[0]}</p>
+          {showScope && <div className="mt-2 pt-2 border-t border-emerald-500/20"><ScopeCard level={level} compact /></div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -183,6 +254,7 @@ function StructureView({ s, level }: { s: StructureContent; level: LearningLevel
   const body = (s as unknown as Record<string, string[]>)[tab] ?? s.overview;
   return (
     <>
+      <Tabs tabs={STRUCTURE_TABS} active={tab} onChange={setTab} level={level} />
       <Header title={s.name} badge={s.group.replace('-', ' ')} badgeClass="bg-sky-500/15 text-sky-300" summary={s.summary}>
         {s.synonyms.length > 0 && <p className="text-[10px] text-slate-500 mt-1">Also: {s.synonyms.join(', ')}</p>}
         <LevelFocus notes={s.levelNotes} level={level} />
@@ -191,8 +263,7 @@ function StructureView({ s, level }: { s: StructureContent; level: LearningLevel
           {l?.section && viewMode !== 'sectioned' && <ActionBtn onClick={() => { setViewMode('sectioned'); openStructure(s.id); showHeart(); }}>Sectioned view</ActionBtn>}
         </div>
       </Header>
-      <Tabs tabs={STRUCTURE_TABS} active={tab} onChange={setTab} level={level} />
-      <div className="flex-1 overflow-y-auto p-3 text-xs">
+      <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm">
         {tab === 'anatomy' && s.bloodSupply && (
           <div className="mb-2 p-2 rounded bg-red-500/10 border border-red-500/20 text-[11px]">
             <span className="text-red-300 font-semibold">Blood supply: </span><span className="text-slate-200">{s.bloodSupply}</span>
@@ -234,6 +305,7 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
   const showsHemo = profile.hemo !== 'normal' && profile.hemo !== 'stemi';
   return (
     <>
+      <Tabs tabs={CONDITION_TABS} active={tab} onChange={setTab} level={level} />
       <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={c.summary}>
         <LevelFocus notes={c.levelNotes} level={level} />
         <div className="flex flex-wrap gap-1 mt-2">
@@ -246,8 +318,7 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
         </div>
         <PractiseCase conditionId={c.id} level={level} />
       </Header>
-      <Tabs tabs={CONDITION_TABS} active={tab} onChange={setTab} level={level} />
-      <div className="flex-1 overflow-y-auto p-3 text-xs space-y-3">
+      <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm space-y-3">
         {tab === 'overview' && c.redFlags.length > 0 && (
           <div className="p-2 rounded-md bg-red-500/10 border border-red-500/30">
             <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-red-300 font-semibold mb-1"><IconFlag size={11} /> Red flags</div>
@@ -313,11 +384,11 @@ function ProcedureView({ p, level }: { p: ProcedureContent; level: LearningLevel
   const body = (p as unknown as Record<string, string[]>)[tab];
   return (
     <>
+      <Tabs tabs={PROCEDURE_TABS} active={tab} onChange={setTab} level={level} />
       <Header title={p.name} badge={p.category} badgeClass="bg-violet-500/15 text-violet-300" summary={p.summary}>
         <LevelFocus notes={p.levelNotes} level={level} />
       </Header>
-      <Tabs tabs={PROCEDURE_TABS} active={tab} onChange={setTab} level={level} />
-      <div className="flex-1 overflow-y-auto p-3 text-xs">
+      <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm">
         {tab === 'anatomy' && (
           <div className="mb-2 p-2 rounded bg-violet-500/10 border border-violet-500/25 text-[11px]">
             <span className="text-violet-300 font-semibold">Access: </span><span className="text-slate-200">{p.accessSite}</span>
@@ -385,12 +456,12 @@ function MedicationView({ m, level }: { m: MedicationContent; level: LearningLev
   const body = (m as unknown as Record<string, string[]>)[tab] ?? m.mechanism;
   return (
     <>
+      <Tabs tabs={MED_TABS} active={tab} onChange={setTab} level={level} />
       <Header title={m.name} badge={m.drugClass} badgeClass="bg-emerald-500/15 text-emerald-300" summary={m.summary}>
         {m.brandNames.length > 0 && <p className="text-[10px] text-slate-500 mt-1">Brand names: {m.brandNames.join(', ')}</p>}
         <LevelFocus notes={m.levelNotes} level={level} />
       </Header>
-      <Tabs tabs={MED_TABS} active={tab} onChange={setTab} level={level} />
-      <div className="flex-1 overflow-y-auto p-3 text-xs">
+      <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm">
         {tab === 'dosing' && (
           <div className="mb-2 p-2 rounded bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-200 leading-snug">
             Typical adult doses for education only. Always follow current guidelines, local protocols and medical direction.
@@ -430,7 +501,7 @@ function CathLabView({ item, level }: { item: CathLabItem; level: LearningLevel 
       <Header title={item.name} badge={group} badgeClass="bg-cyan-500/15 text-cyan-300" summary={item.summary}>
         {item.synonyms?.length ? <p className="text-[10px] text-slate-500 mt-1">Also called: {item.synonyms.join(', ')}</p> : null}
       </Header>
-      <div className="flex-1 overflow-y-auto p-3 text-xs space-y-4">
+      <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm space-y-4">
         {v && (
           <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-2">
             <div className="flex items-center gap-3">
@@ -644,6 +715,7 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
   };
   return (
     <>
+      <Tabs tabs={CASE_TABS} active={tab} onChange={setTab} level={level} />
       <Header title={c.title} badge={`${c.difficulty} case`} badgeClass={diff[c.difficulty]}>
         <Vitals c={c} />
         <div className="flex flex-wrap gap-1 mt-2">
@@ -651,8 +723,7 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
           <ActionBtn onClick={() => { openCase(c.id); showEcg('ecg'); }} title="Restart the case and show its monitor"><IconPulse size={11} /> Show the EKG</ActionBtn>
         </div>
       </Header>
-      <Tabs tabs={CASE_TABS} active={tab} onChange={setTab} level={level} />
-      <div className="flex-1 overflow-y-auto p-3 text-xs space-y-3">
+      <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm space-y-3">
         {tab === 'scenario' && (
           <>
             <p className="text-slate-200 leading-relaxed">{c.presentation}</p>
@@ -684,7 +755,7 @@ function PickPrompt() {
   const compact = useAppStore((s) => s.compact);
   const section = CATEGORY_BY_VALUE[category];
   return (
-    <div className="flex-1 overflow-y-auto p-4 flex flex-col items-center justify-center text-center">
+    <div className="flex-1 p-4 flex flex-col items-center justify-center text-center">
       <h2 className="text-base font-semibold text-white">{section.label}</h2>
       <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">
         {compact ? 'Open the list and pick a topic to read about it.' : 'Pick a topic from the list to read about it.'}
@@ -728,10 +799,16 @@ export default function RightPanel({ style }: { style?: React.CSSProperties }) {
     return <PickPrompt />;
   }, [lib, category, level, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, selectedCathLabId, activeCaseId]);
 
+  // the whole page scrolls as one (header, sections and text), and each new item starts at its top
+  const page = useRef<HTMLDivElement>(null);
+  useEffect(() => { page.current?.scrollTo(0, 0); }, [category, selectedStructureId, selectedConditionId, selectedProcedureId, selectedMedicationId, selectedCathLabId, activeCaseId]);
+
   return (
     <aside style={style} className="bg-cardiac-panel border-r border-slate-700 flex flex-col shrink-0 overflow-hidden min-h-0" aria-label="Information">
       <PanelBar />
-      {view}
+      <div ref={page} data-reading className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
+        {view}
+      </div>
     </aside>
   );
 }

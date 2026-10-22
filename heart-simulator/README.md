@@ -15,6 +15,11 @@ Everything starts from the **main menu**; the **Menu** button (top left) brings 
 | **Reading** | The section's list and the item you picked (side by side on desktops; on tablets and phones the list and the item are separate pages, with **All …** back to the list). **12-lead EKG** at the bottom slides the ECG panel up (12-lead, Wiggers / PV, defibrillator, electrode lab, all their options) and **Hide EKG** slides it back down; **3D heart** at the top slides the heart down the same way. Drag a drawer's grip to resize it; ⤢ gives it the whole screen. A tool opened from the menu starts full screen; opening an item shrinks it so the reading shows. |
 | **Case simulator** | Treat a patient case from first contact to hand-off (below). |
 
+**A topic's page scrolls as one:** under **All …** come its section buttons (Overview, Signs & symptoms, ECG, Field
+care, …; pinned while you scroll, one swipeable row on phones — a button jumps to its section), then the title with
+its summary and the **Focus for your role** box — both fold away with a tap and stay folded on every page
+(`useFold` in `RightPanel.tsx`) — then the section's text.
+
 The top bar holds only **Menu**, **←** (Back), where you are, and search. Buttons in the reading open what they need
 ("Show the EKG", "Inspect lead V1", "Hemodynamics" slide the ECG up; "Show in 3D", "Culprit territory", a cath lab view
 slide the heart down). Tapping the heart while the reading is out of sight shows a short card with **Read more**.
