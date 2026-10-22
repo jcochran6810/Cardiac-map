@@ -44,7 +44,7 @@ bar's **←** is the same button.
 
 Every condition page has a **Give meds** section (also **Give a medication** under its title, and in the main
 menu's Tools and Try this): set the
-patient's weight, choose one of 18 drugs (antiarrhythmics and rate control, bradycardia and arrest drugs,
+patient's weight, choose one of 19 drugs (antiarrhythmics and rate control, bradycardia and arrest drugs,
 electrolytes, coronary care), choose or type a dose — weight-based doses show their mg/kg — and **Push**. The
 12-lead slides up (if it is not showing) and the drug acts on the shared clock: adenosine in AVNRT reaches the heart in
 ~12 s, blocks the AV node (P waves, no QRS) and the SVT gives way to sinus rhythm; diltiazem slows AF over
@@ -53,8 +53,10 @@ long QT; calcium narrows a hyperkalaemic QRS; tenecteplase reperfuses a STEMI (A
 epinephrine IV with a pulse causes VT. Each dose and effect is marked on the strip, a bar above the ECG shows
 what is happening and when the next change comes (**Skip ahead** brings slow effects forward in drug time while
 the tracing keeps running in real time), the PR / QRS / QT readouts follow the drug, and the interpretation box
-lists the changes. The tab then judges the choice of drug for this rhythm and the dose (low, usual, high,
-overdose) with the reason. **Details** on the bar above the ECG brings the Give meds section back into view. The model is deterministic and shows the classic response (notes say where real patients differ);
+lists the changes. The section then judges the choice of drug for this rhythm, this blood pressure and this
+condition (e.g. β-blocker first in aortic dissection; cardioversion, not antiarrhythmics, for hypotensive VT)
+and the dose (low, usual, high, overdose) with the reason. **Details** on the bar above the ECG brings the Give
+meds section back into view. The model is deterministic and shows the classic response (notes say where real patients differ);
 doses follow the drug cards and current guidelines, adult only. Opening another condition starts a new patient.
 
 ## Case simulator

@@ -120,7 +120,7 @@ describe('the medications', () => {
     expect(classifyDose(d, { ...p, kg: 120 }, 20)).toBe('low');
   });
 
-  it('adenosine: 6 mg first, 12 mg after a first dose', () => {
+  it('adenosine: 6 mg first, 12 mg after a full first dose; after an under-dose 6 mg still works', () => {
     const a = MED_BY_ID.adenosine;
     const first = patient('avnrt', 180);
     expect(classifyDose(a, first, 6)).toBe('usual');
@@ -128,6 +128,16 @@ describe('the medications', () => {
     const second = { ...first, given: [{ id: 'adenosine' as MedId, dose: 6, at: 0 }] };
     expect(classifyDose(a, second, 12)).toBe('usual');
     expect(classifyDose(a, second, 24)).toBe('toxic');
+    const afterLow = { ...first, given: [{ id: 'adenosine' as MedId, dose: 3, at: 0 }] };
+    expect(classifyDose(a, afterLow, 6)).toBe('usual');
+    expect(planDose('adenosine', afterLow, 6).steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
+    // a 12 mg first dose is not "more than the maximum"
+    expect(planDose('adenosine', first, 12).steps.some((s) => /maximum/.test(s.note))).toBe(false);
+  });
+
+  it('calcium 0.5–1 g and bicarbonate 50 mEq are usual doses', () => {
+    expect(classifyDose(MED_BY_ID['calcium-chloride'], patient('hyperkalemia', 64), 0.5)).toBe('usual');
+    expect(classifyDose(MED_BY_ID['sodium-bicarbonate'], patient('hyperkalemia', 64), 50)).toBe('usual');
   });
 
   it('tenecteplase follows the weight bands exactly', () => {
@@ -190,13 +200,48 @@ describe('classic responses', () => {
     expect(paradox.steps[0].hr).toBeLessThan(46);
   });
 
-  it('magnesium stops torsades but leaves a long QT; procainamide widens the QRS', () => {
+  it('magnesium is the drug for torsades, but pulseless torsades still needs the shock', () => {
     const mg = planDose('magnesium-sulfate', patient('torsades', 230), 2);
-    const stop = mg.steps.find((s) => s.profile === 'normal-sinus')!;
-    expect(stop.mods!.qtcAdd).toBeGreaterThanOrEqual(100);
-    const pa = planDose('procainamide', patient('vt', 170), 17 * 80);
-    expect(Math.max(...pa.steps.map((s) => s.mods?.qrsWiden ?? 1))).toBeGreaterThan(1.2);
-    expect(pa.steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
+    expect(mg.verdict.tone).toBe('good');
+    expect(mg.verdict.text).toMatch(/defibrillate/i);
+    expect(mg.steps.some((s) => s.profile)).toBe(false);
+    // pulseless torsades follows the VF pathway, epinephrine included
+    expect(planDose('epinephrine', patient('torsades', 230), 1).verdict.tone).toBe('caution');
+  });
+
+  it('procainamide terminates stable VT and widens the QRS; in hypotensive VT it is the wrong choice', () => {
+    const stable = planDose('procainamide', patient('vt', 170, { sbp: 118 }), 17 * 80);
+    expect(Math.max(...stable.steps.map((s) => s.mods?.qrsWiden ?? 1))).toBeGreaterThan(1.2);
+    expect(stable.steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
+    expect(stable.verdict.tone).toBe('good');
+    expect(planDose('procainamide', patient('vt', 170, { sbp: 78 }), 17 * 80).verdict.tone).toBe('bad');
+    expect(planDose('amiodarone', patient('vt', 170, { sbp: 78 }), 150).verdict.text).toMatch(/cardioversion/);
+    expect(planDose('amiodarone', patient('vt', 170, { sbp: 118 }), 150).verdict.tone).toBe('good');
+    // 17 mg/kg is the ceiling
+    expect(classifyDose(MED_BY_ID.procainamide, patient('vt', 170), 20 * 80)).toBe('toxic');
+  });
+
+  it('aortic dissection: β-blocker first; no lysis, heparin or aspirin', () => {
+    expect(planDose('metoprolol', patient('aortic-dissection', 104, { sbp: 150 }), 5).verdict.tone).toBe('good');
+    expect(planDose('esmolol', patient('aortic-dissection', 104, { sbp: 150 }), 40).verdict.tone).toBe('good');
+    for (const id of ['tenecteplase', 'heparin', 'aspirin'] as MedId[]) {
+      expect(planDose(id, patient('aortic-dissection', 104, { sbp: 150 }), MED_BY_ID[id].usual(patient('aortic-dissection', 104)).low).verdict.tone).toBe('bad');
+    }
+  });
+
+  it('heparin and aspirin for every acute coronary syndrome, whatever the rhythm', () => {
+    for (const id of ['cardiogenic-shock', 'inferior-stemi-chb', 'anterior-stemi-reperfused', 'nstemi']) {
+      expect(planDose('heparin', patient(id, 90), 4000).verdict.tone, id).toBe('good');
+      expect(planDose('aspirin', patient(id, 90), 325).verdict.tone, id).toBe('good');
+    }
+    expect(planDose('tenecteplase', patient('cardiogenic-shock', 118), 45).verdict.tone).toBe('caution');
+    // PE heparin is 80 units/kg without the ACS cap
+    expect(classifyDose(MED_BY_ID.heparin, patient('pulmonary-embolism', 114), 6400)).toBe('usual');
+  });
+
+  it('nitrates are refused when the patient is hypotensive', () => {
+    expect(planDose('nitroglycerin', patient('nstemi', 88, { sbp: 82 }), 0.4).verdict.tone).toBe('bad');
+    expect(planDose('nitroglycerin', patient('nstemi', 88, { sbp: 130 }), 0.4).verdict.tone).toBe('good');
   });
 
   it('calcium narrows the hyperkalaemic QRS; tenecteplase reperfuses a STEMI', () => {
@@ -204,12 +249,17 @@ describe('classic responses', () => {
     expect(ca.steps[0].mods!.qrsWiden).toBeLessThan(1);
     const tnk = planDose('tenecteplase', patient('anterior-stemi', 92), 45);
     expect(tnk.steps.map((s) => s.profile)).toContain('anterior-stemi-reperfused');
+    // no VT-looking step that a learner might try to treat
+    expect(tnk.steps.some((s) => s.profile === 'vt')).toBe(false);
   });
 
-  it('1 mg of epinephrine IV to a patient with a pulse causes VT', () => {
+  it('1 mg of epinephrine IV to a patient with a pulse causes VT; a larger push-dose is only a caution', () => {
     const plan = planDose('epinephrine', patient('normal-sinus', 72), 1);
     expect(plan.verdict.tone).toBe('bad');
     expect(plan.steps.map((s) => s.profile)).toContain('vt');
+    const push = planDose('epinephrine', patient('sinus-bradycardia', 46), 0.04);
+    expect(push.verdict.tone).toBe('caution');
+    expect(push.steps.some((s) => s.profile === 'vt')).toBe(false);
   });
 
   it('categorises the rhythms the drugs care about', () => {
