@@ -4,9 +4,6 @@ import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { sim } from '@/lib/sim/simulation';
 
-/** How much of the recent past `showRhythm` rewrites: more than any tracing keeps on screen */
-const HISTORY_MS = 30000;
-
 export function setRhythm(profileId: string, hr?: number) {
   const p = resolveProfile(profileId);
   useECGStore.getState().setActiveProfile(p.id);
@@ -20,10 +17,6 @@ export function setRhythm(profileId: string, hr?: number) {
  */
 export function showRhythm(profileId: string, hr?: number) {
   setRhythm(profileId, hr);
-  const id = useECGStore.getState().activeProfileId;
-  const rate = useTimelineStore.getState().heartRate;
-  // the same rhythm and rate the driver passes every frame, so it carries on from here
-  sim.engine.setRhythm(id, rate, sim.time, sim.time - HISTORY_MS);
-  sim.engine.ensure(sim.time + 4000);
-  sim.epoch++;
+  // the simulation driver's next frame rewrites the recent past (syncRhythm), with any drug effects in force
+  sim.rewrite = true;
 }

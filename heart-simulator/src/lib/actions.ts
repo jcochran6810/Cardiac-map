@@ -16,6 +16,7 @@ import { angio } from '@/store/useSceneStore';
 import { useECGStore, type BottomView } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
+import { useMedStore } from '@/store/useMedStore';
 import { useContentStore } from '@/lib/content';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { CONDUCTION_IDS, CORONARY_IDS, SECTION_FIRST, structureCategory } from '@/lib/anatomy/categories';
@@ -131,6 +132,8 @@ export function openCondition(id: string) {
   reveal();
   const app = useAppStore.getState();
   app.setActivePanelCategory('conditions');
+  // a new patient: drugs given to the last one no longer apply
+  useMedStore.getState().reset(id);
   useConditionStore.getState().selectCondition(id);
   useCaseStore.getState().resetCase();
   const profile = CONDITION_TO_PROFILE[id];
@@ -160,6 +163,13 @@ export function openMedication(id: string) {
   useAppStore.getState().setActivePanelCategory('medications');
   usePharmacologyStore.getState().selectMedication(id);
   useLearningStore.getState().markMedicationReviewed(id);
+}
+
+/** A condition's Give meds section: choose a drug and dose for the patient, push it, watch the live 12-lead */
+export function openTreatment(conditionId: string) {
+  openCondition(conditionId);
+  useAppStore.getState().setRightPanelTab('treat');
+  showEcg('ecg');
 }
 
 export function openCase(id: string) {
