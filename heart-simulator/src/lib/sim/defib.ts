@@ -14,7 +14,7 @@
  */
 import { create } from 'zustand';
 import { sim } from '@/lib/sim/simulation';
-import { setRhythm } from '@/lib/rhythm';
+import { setRhythm, showRhythm } from '@/lib/rhythm';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
@@ -586,7 +586,7 @@ export function loadScenario(sc: Scenario) {
   resetCode(true);
   sim.hemo.setOverride(sc.baseline);
   set({ baseline: sc.baseline, vitals: { spo2: sc.spo2, rr: sc.rr, etco2: sc.etco2 }, scenario: sc, codeStart: sc.arrest ? now() : null });
-  setRhythm(sc.profile, sc.hr);
+  showRhythm(sc.profile, sc.hr);
   log(`Scenario: ${sc.label}`, 'info');
 }
 

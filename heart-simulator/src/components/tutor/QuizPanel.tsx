@@ -6,7 +6,7 @@ import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, setRhythm } from '@/lib/actions';
+import { kindOf, nameOf, openById, showRhythm } from '@/lib/actions';
 import type { QuizQuestion, QuizTopic } from '@/types/content';
 import { IconClose, IconQuiz } from '@/components/ui/icons';
 
@@ -48,7 +48,7 @@ export default function QuizPanel() {
     if (quizOpen) {
       saved.current = { profile: useECGStore.getState().activeProfileId, hr: useTimelineStore.getState().heartRate };
     } else if (saved.current) {
-      setRhythm(saved.current.profile, saved.current.hr);
+      showRhythm(saved.current.profile, saved.current.hr);
       saved.current = null;
       setDeck(null);
     }
@@ -63,7 +63,7 @@ export default function QuizPanel() {
 
   useEffect(() => {
     if (q?.ecgProfile) {
-      setRhythm(q.ecgProfile, q.heartRate);
+      showRhythm(q.ecgProfile, q.heartRate);
       useECGStore.getState().setBottomView('ecg');
       useECGStore.getState().setInspectLead(null);
       useTimelineStore.getState().play();

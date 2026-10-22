@@ -6,6 +6,41 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: a condition's rhythm fills the EKG at once; phones open on the 12-lead)
+
+**Agent:** Claude
+
+**Asked:** "When viewing a condition or rhythm to learn about it, it needs to show that rhythm in the ekg" · "end session".
+
+**Branch:** resumed level with production `main` at `5c4b492` (this session's previous merge); production did not
+move. The one commit below was made in this session.
+
+**Shipped:**
+
+- Cause: opening a condition switched the rhythm only from that moment, so the tracing already on screen (up to
+  10 s) kept the old rhythm until the sweep painted over it, and while paused the new rhythm never appeared. Now a
+  rhythm shown for study rewrites the last 30 s (`engine.setRhythm(…, from)`, `showRhythm()` in `lib/rhythm.ts`,
+  which bumps `sim.epoch` so every tracing redraws): conditions, case studies, "Show the EKG", quiz strips,
+  defibrillator scenarios, returning from the simulator and the start of a simulator case. Live changes on a
+  patient (simulator events, shocks, the instructor) still sweep in (`2e3c9ee`).
+- Phones no longer force the 3-lead layout: the EKG drawer opens on the live 12-lead (3-lead one tap away)
+  (`2e3c9ee`).
+- Tests: `tests/show-rhythm.test.ts` (rewrite, live sweep, paused, the driver carries on, opening a condition);
+  README (`2e3c9ee`).
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (271) · build ✅ (after `npm ci`). In Playwright (Chromium, emulated
+phone 390×844 and desktop 1440×900): normal sinus on screen → open Atrial Fibrillation → slide the EKG up: AF across
+the whole tracing at once; complete heart block opened while paused fills the tracing; Anterior STEMI on a phone
+shows the 12-lead with ST elevation V1–V4 at once; no page errors. **Not verified:** a real phone.
+
+**Files:** A: `heart-simulator/tests/show-rhythm.test.ts` · M: `heart-simulator/src/lib/{rhythm,actions}.ts`,
+`heart-simulator/src/lib/ecg/engine.ts`, `heart-simulator/src/lib/sim/defib.ts`, `heart-simulator/src/store/useSimStore.ts`,
+`heart-simulator/src/components/{AppShell,layout/RightPanel,tutor/QuizPanel}.tsx`, `heart-simulator/README.md`,
+`fix_list.md`, `SESSION_LOG.md`.
+
+**Follow-up:** unchanged from the entry below (owner: try it on a phone, decide on the 3 unmerged 2026-10-19
+commits on `ccr-fcd6b419-beq5mr`; widen the start hook to `ccr-*` branches).
+
 ### 2026-10-22 — ccr-e41fe6a7-sr38ig (navigation revamp: one main menu, EKG slides up, 3D heart slides down)
 
 **Agent:** Claude

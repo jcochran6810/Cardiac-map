@@ -6,7 +6,7 @@
  * Entering the simulator saves the workspace's ECG settings; leaving it puts them back.
  */
 import { create } from 'zustand';
-import { setRhythm } from '@/lib/rhythm';
+import { setRhythm, showRhythm } from '@/lib/rhythm';
 import { answerRead, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Review, SimState } from '@/lib/sim/scenario/types';
@@ -80,7 +80,9 @@ let saved: null | {
 
 /** Show this patient on the monitor and the 12-lead */
 function show(s: SimState, prev: SimState | null) {
-  if (!prev || prev.rhythm.profile !== s.rhythm.profile || prev.rhythm.hr !== s.rhythm.hr) setRhythm(s.rhythm.profile, s.rhythm.hr);
+  // a new (or resumed) case fills the monitor with the patient's rhythm; changes during the case sweep in, as on a real monitor
+  if (!prev) showRhythm(s.rhythm.profile, s.rhythm.hr);
+  else if (prev.rhythm.profile !== s.rhythm.profile || prev.rhythm.hr !== s.rhythm.hr) setRhythm(s.rhythm.profile, s.rhythm.hr);
   setScriptedVitals(monitorVitals(s));
   const newLines = prev ? s.log.slice(prev.log.length) : [];
   const last = s.performed.at(-1);
@@ -124,7 +126,7 @@ export function leaveSimulator() {
   if (!saved) return;
   const ecg = useECGStore.getState();
   const tl = useTimelineStore.getState();
-  setRhythm(saved.profile, saved.hr);
+  showRhythm(saved.profile, saved.hr);
   ecg.setLayout(saved.layout);
   ecg.setInspectLead(saved.inspect);
   ecg.setElectrodeLab(saved.lab);
