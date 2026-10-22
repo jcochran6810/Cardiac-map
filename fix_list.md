@@ -150,6 +150,10 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-22 — Opening a condition or rhythm left the old rhythm on the EKG until the sweep painted over it
+  (and never changed it while paused); it now fills every tracing at once. Phones open the EKG on the 12-lead
+  (`2e3c9ee`).
+
 - [x] 2026-10-22 — Navigation revamp: one main menu handles everything (role, search, continue, simulator, every
   library section, tools, guided starts, quiz, tutor, help, install); the top bar is Menu / Back / title / search;
   the EKG slides up from a bottom bar and the 3D heart slides down from a top bar; the phone tab bar, mode tabs,
