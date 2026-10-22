@@ -18,6 +18,9 @@ Everything starts from the **main menu**; the **Menu** button (top left) brings 
 The top bar holds only **Menu**, **←** (Back), where you are, and search. Buttons in the reading open what they need
 ("Show the EKG", "Inspect lead V1", "Hemodynamics" slide the ECG up; "Show in 3D", "Culprit territory", a cath lab view
 slide the heart down). Tapping the heart while the reading is out of sight shows a short card with **Read more**.
+Opening a condition, a case study or a quiz strip shows its rhythm on every tracing at once — even while paused —
+instead of sweeping in after the old one (`showRhythm` in `src/lib/rhythm.ts` rewrites the last 30 s); live changes
+on a patient in the simulator or on the defibrillator still sweep in, as on a real monitor.
 State: `heart` / `ecg` (`closed | open | full`) and `listOpen` in `src/store/useAppStore.ts`; menu and drawer actions
 (`openCategory`, `openTool`, `showEcg`, `showHeart`, `showReading`) in `src/lib/actions.ts`; layout in
 `src/components/AppShell.tsx` and `src/components/layout/DrawerBar.tsx`; the menu in `src/components/home/HomeScreen.tsx`.
@@ -161,7 +164,7 @@ The layout adapts to the screen (`src/lib/device.ts`, Tailwind `phone:` / `touch
 | --- | --- |
 | Desktop / laptop (≥ 1024 px) | The list and the reading side by side (drag the divider); the heart and EKG drawers span the width |
 | Tablet | The list and the reading are separate pages; rarer ECG options under **More** |
-| Phone, upright | As a tablet, with compact controls; ECG / Wiggers / Defibrillator tabs in the EKG drawer; interpretation slides over the tracing; the electrode lab and the defibrillator take the whole screen; in the simulator one button opens the action list |
+| Phone, upright | As a tablet, with compact controls; the EKG drawer opens on the live 12-lead (3-lead one tap away) with ECG / Wiggers / Defibrillator tabs; interpretation slides over the tracing; the electrode lab and the defibrillator take the whole screen; in the simulator one button opens the action list |
 | Phone, on its side | A drawer opens full screen; with both open the heart and the ECG sit side by side; the simulator shows the patient and the action list side by side |
 
 On touch screens buttons get bigger, each drawer has a grip bar and an enlarge (⤢) button, a double-tap on

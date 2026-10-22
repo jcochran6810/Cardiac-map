@@ -85,10 +85,8 @@ export default function AppShell() {
 
   useEffect(() => { useAppStore.getState().setCompact(compact); }, [compact]);
   useEffect(() => { useAppStore.getState().setShort(short); }, [short]);
-  useEffect(() => {
-    useAppStore.getState().setPhone(phone);
-    if (phone) useECGStore.getState().setLayout('monitor');
-  }, [phone]);
+  // Phones get the full 12-lead too (it reads well in the EKG drawer, ⤢ enlarges it); 3-lead is one tap away
+  useEffect(() => { useAppStore.getState().setPhone(phone); }, [phone]);
   // A new screen shape gets the default drawer sizes again
   useEffect(() => { setHeartSize(null); setEcgSize(null); setEcgWidth(null); }, [phone, compact, short]);
 

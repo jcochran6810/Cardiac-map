@@ -11,7 +11,7 @@ import { useCathLabStore } from '@/store/useCathLabStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, openCase, openStructure, setRhythm, showCineView, showEcg, showHeart } from '@/lib/actions';
+import { kindOf, nameOf, openById, openCase, openStructure, showCineView, showEcg, showHeart, showRhythm } from '@/lib/actions';
 import { enterSimulator, useSimStore } from '@/store/useSimStore';
 import { SCENARIOS, labCasesUsing } from '@/lib/sim/scenario/scenarios';
 import { CASE_DATA, type CaseData } from '@/data/caseData';
@@ -237,7 +237,7 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
       <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={c.summary}>
         <LevelFocus notes={c.levelNotes} level={level} />
         <div className="flex flex-wrap gap-1 mt-2">
-          <ActionBtn onClick={() => { setRhythm(profile.id); showEcg('ecg'); }} title="Show this pattern on the 12-lead"><IconPulse size={11} /> Show the EKG</ActionBtn>
+          <ActionBtn onClick={() => { showRhythm(profile.id); showEcg('ecg'); }} title="Show this pattern on the 12-lead"><IconPulse size={11} /> Show the EKG</ActionBtn>
           {profile.keyLeads?.[0] && (
             <ActionBtn onClick={() => { showEcg('ecg'); ecg.setInspectLead(profile.keyLeads![0] as never); }}>Inspect lead {profile.keyLeads[0]}</ActionBtn>
           )}

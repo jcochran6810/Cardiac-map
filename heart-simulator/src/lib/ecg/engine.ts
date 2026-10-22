@@ -179,18 +179,23 @@ export class ECGEngine {
     return this.segments[this.segments.length - 1];
   }
 
-  /** Switch rhythm/rate at time `now`. Past events are preserved so the strip shows the transition. */
-  setRhythm(profileId: string, hr: number, now: number) {
+  /**
+   * Switch rhythm/rate at time `now`. Past events are preserved so the strip shows the transition.
+   * With `from` earlier than `now` the rhythm is rewritten from `from` instead, so the recent past —
+   * everything already on screen — shows the new rhythm too (a learner opening a condition).
+   */
+  setRhythm(profileId: string, hr: number, now: number, from = now) {
     const profile = resolveProfile(profileId);
+    const start = Math.max(0, Math.min(from, now));
     const cur = this.segments[this.segments.length - 1];
-    if (cur && cur.profile.id === profile.id && cur.hr === hr) return;
+    if (cur && cur.profile.id === profile.id && cur.hr === hr && cur.start <= start) return;
 
-    // Drop anything scheduled after `now`
-    this.atrial = this.atrial.filter((e) => e.t <= now);
-    this.vent = this.vent.filter((e) => e.t <= now);
-    // Segments that start in the future (after a scrub-back) are discarded
-    this.segments = this.segments.filter((s) => s.start < now);
-    const seg: Segment = { start: now, profile, hr: hr > 0 ? hr : profile.defaultHR };
+    // Drop anything scheduled after the switch
+    this.atrial = this.atrial.filter((e) => e.t <= start);
+    this.vent = this.vent.filter((e) => e.t <= start);
+    // Segments that start later (after a scrub-back, or inside the rewritten past) are discarded
+    this.segments = this.segments.filter((s) => s.start < start);
+    const seg: Segment = { start, profile, hr: hr > 0 ? hr : profile.defaultHR };
     this.segments.push(seg);
     this.gen = this.createGenerator(seg);
   }

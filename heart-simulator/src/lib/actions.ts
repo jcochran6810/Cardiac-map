@@ -21,7 +21,7 @@ import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { CONDUCTION_IDS, CORONARY_IDS, SECTION_FIRST, structureCategory } from '@/lib/anatomy/categories';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CASE_DATA } from '@/data/caseData';
-import { setRhythm } from '@/lib/rhythm';
+import { setRhythm, showRhythm } from '@/lib/rhythm';
 import { leaveSimulator } from '@/store/useSimStore';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 
@@ -101,7 +101,7 @@ export function openTool(tool: Tool) {
   app.setEcg('full');
 }
 
-export { setRhythm };
+export { setRhythm, showRhythm };
 
 
 export function openStructure(id: string) {
@@ -134,7 +134,7 @@ export function openCondition(id: string) {
   useConditionStore.getState().selectCondition(id);
   useCaseStore.getState().resetCase();
   const profile = CONDITION_TO_PROFILE[id];
-  if (profile) setRhythm(profile);
+  if (profile) showRhythm(profile);
   const c = useContentStore.getState().lib?.conditions[id];
   const scene = useSceneStore.getState();
   scene.selectStructure(null);
@@ -172,7 +172,7 @@ export function openCase(id: string) {
   const scene = useSceneStore.getState();
   scene.selectStructure(null);
   scene.setHighlights([]);
-  setRhythm(c.ecgProfile, c.heartRate);
+  showRhythm(c.ecgProfile, c.heartRate);
   useECGStore.getState().setBottomView('ecg');
 }
 
