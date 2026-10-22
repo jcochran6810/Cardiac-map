@@ -6,6 +6,39 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: the newly drawn EKG trace is as thick and solid as the rest)
+
+**Agent:** Claude
+
+**Asked:** (with a screenshot of the live 12-lead) "As a 12 lead (or any ekg read out) is showing the initial line is
+full and thick and as the refreshing line moves the new line is thin and harder to read" · "end session".
+
+**Branch:** resumed level with production `main` at `78d2850` (this session's previous merge); production did not
+move. The one commit below was made in this session.
+
+**Shipped:**
+
+- Cause: `ECGRenderer`'s per-frame `advance` erased from half a pixel behind the trace it had just drawn
+  (`clearRect(x0 - 0.5, …)`) before adding the next piece; at 1–2 px of sweep per frame on a phone that nibble left
+  the newest trace thin and dashed, while the trace drawn in one go (`fullRedraw`) stayed whole. Now each frame
+  erases only ahead of the trace — from 1 px past the pen, in whole device pixels — and the left edge when a new
+  sweep starts (`eraseSpan` in `src/lib/ecg/sweep.ts`); the pen has round ends so the per-frame pieces join without
+  notches. Covers the live 12-lead, printout, rhythm strip and inspect views, in Learn and the case simulator; the
+  monitor / defibrillator display already erased this way (`df1d669`).
+- Test: `tests/ecg-sweep.test.ts` — the erase never reaches the newest trace at device pixel ratios 1–3 and sweep
+  paces 0.2–6 px per frame (fails on the old rule) (`df1d669`).
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (291) · build ✅ (after `npm ci`). In Playwright on an emulated phone
+(412×860 at 2.6× pixel density, as the owner's screenshot): before the fix the newest trace near the sweep line was
+dashed; after it, solid and the same thickness, and after a full sweep no old trace is left ahead of the cursor.
+**Not verified:** a real phone.
+
+**Files:** M: `heart-simulator/src/components/ecg/ECGRenderer.tsx`, `heart-simulator/src/lib/ecg/sweep.ts`,
+`heart-simulator/tests/ecg-sweep.test.ts`, `fix_list.md`, `SESSION_LOG.md`.
+
+**Follow-up:** owner to look at the 12-lead on a phone; the two 2026-10-19 meds commits still wait for a decision
+(fix list).
+
 ### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: standard 3D heart gestures; topic pages scroll, section buttons on top, foldable boxes)
 
 **Agent:** Claude
