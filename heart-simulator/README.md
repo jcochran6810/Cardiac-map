@@ -15,6 +15,11 @@ Everything starts from the **main menu**; the **Menu** button (top left) brings 
 | **Reading** | The section's list and the item you picked (side by side on desktops; on tablets and phones the list and the item are separate pages, with **All …** back to the list). **12-lead EKG** at the bottom slides the ECG panel up (12-lead, Wiggers / PV, defibrillator, electrode lab, all their options) and **Hide EKG** slides it back down; **3D heart** at the top slides the heart down the same way. Drag a drawer's grip to resize it; ⤢ gives it the whole screen. A tool opened from the menu starts full screen; opening an item shrinks it so the reading shows. |
 | **Case simulator** | Treat a patient case from first contact to hand-off (below). |
 
+**A topic's page scrolls as one:** under **All …** come its section buttons (Overview, Signs & symptoms, ECG, Field
+care, …; pinned while you scroll, one swipeable row on phones — a button jumps to its section), then the title with
+its summary and the **Focus for your role** box — both fold away with a tap and stay folded on every page
+(`useFold` in `RightPanel.tsx`) — then the section's text.
+
 The top bar holds only **Menu**, **←** (Back), where you are, and search. Buttons in the reading open what they need
 ("Show the EKG", "Inspect lead V1", "Hemodynamics" slide the ECG up; "Show in 3D", "Culprit territory", a cath lab view
 slide the heart down). Tapping the heart while the reading is out of sight shows a short card with **Read more**.
@@ -147,7 +152,7 @@ the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open ite
 | ECG engine | `src/lib/ecg/` | Vector (dipole) model projected onto all 12 leads + right-sided/posterior leads, so axis, reciprocal ST change and R-wave progression come out of the physics rather than being drawn per lead. 49 rhythm/condition profiles (incl. PEA, pulseless VT, transcutaneous pacing, inferior STEMI with heart block and reperfused STEMI), Fridericia QTc. |
 | Hemodynamics | `src/lib/physiology/hemodynamics.ts` | Beat-by-beat LV/aortic/LA pressure, LV volume and heart sounds (Frank–Starling filling, atrial kick, Windkessel aorta). Drives the Wiggers chart and PV loop. |
 | Simulation clock | `src/lib/sim/simulation.ts`, `src/components/sim/SimulationDriver.tsx` | Single animation loop; pause, scrub and 0.1–1× speed. |
-| 3D heart | `src/components/scene/` | Exterior, four-chamber section with blood flow, x-ray, conduction system and coronary territories. Contraction, depolarization wave and ischemia are shaded on the GPU from the live ECG. Selecting a lead (12-lead or electrode lab) draws its view line: from the (+) side, into the wall it faces and through the heart. |
+| 3D heart | `src/components/scene/`, `src/lib/scene/orbit.ts` | Standard gestures: one finger (left mouse button) turns it, pinch (wheel) zooms, two fingers (right button) pan; the same turn per pixel on every screen, smoothing per second, a tap picks a part without moving the camera (BVH hit-tests keep dragging smooth), the whole heart fits a tall phone view. Exterior, four-chamber section with blood flow, x-ray, conduction system and coronary territories. Contraction, depolarization wave and ischemia are shaded on the GPU from the live ECG. Selecting a lead (12-lead or electrode lab) draws its view line: from the (+) side, into the wall it faces and through the heart. |
 | Anatomy map | `src/lib/anatomy/landmarks.ts` | Landmarks snapped to the model surface; clicking the heart opens the matching structure. |
 | Teaching content | `src/data/content/`, `src/data/caseData.ts` | 62 structures, 42 conditions, 42 procedures, 38 medications, 9 branching cases, 66 quiz questions. Loaded on demand. |
 | UI | `src/components/home/`, `src/components/layout/`, `src/components/ecg/`, `src/components/physiology/` | Main menu, top bar, library list and reading, the heart / EKG drawers, ECG (live 12-lead, printout, monitor, paper, inspect, calipers), Wiggers/PV loop, tutor, quiz. |

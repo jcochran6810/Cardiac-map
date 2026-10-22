@@ -25,8 +25,8 @@ const SHORTCUTS: [string, string][] = [
 ];
 
 const GESTURES: [string, string][] = [
-  ['Drag', 'Rotate the heart'],
-  ['Pinch', 'Zoom in and out'],
+  ['One-finger drag', 'Turn the heart'],
+  ['Pinch (two fingers)', 'Zoom in and out'],
   ['Two-finger drag', 'Move (pan) the heart'],
   ['Tap a structure', 'Read about it'],
   ['Tap a lead', 'Show its axis on the heart'],

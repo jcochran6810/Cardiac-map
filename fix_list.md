@@ -11,12 +11,14 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
-- [ ] 2026-10-22 — **Decide on 3 unfinished commits from 2026-10-19** on branch `ccr-fcd6b419-beq5mr` (never
-  merged, not live): give a medication from any condition and watch the live 12-lead respond, smoother 3D-heart
-  turning with an arrow pad, and clinical review fixes for the meds. They overlap the new navigation's files, so a
-  session must merge production into that branch and resolve conflicts first. Tell Claude "merge the meds work"
-  (or "drop it").
-
+- [ ] 2026-10-22 — **Decide on 2 unfinished commits from 2026-10-19** on branch `ccr-fcd6b419-beq5mr` (never
+  merged, not live): give a medication from any condition and watch the live 12-lead respond (`06b9370`), and
+  clinical review fixes for those meds (`1c083da`). (Its third commit, smoother 3D-heart turning, shipped on
+  2026-10-22 as `1b4c0ea` without the arrow pad.) They overlap the new navigation's files, so a session must merge
+  production into that branch and resolve conflicts first. Tell Claude "merge the meds work" (or "drop it").
+- [ ] 2026-10-22 — **Try the 3D heart and the topic pages on your phone:** one finger turns the heart, pinch zooms,
+  two fingers pan, a tap opens a part's card; on a condition page scroll to the bottom, use the section buttons
+  under "All conditions", and fold the summary / Focus boxes. Tested only in an emulated phone browser.
 - [ ] 2026-10-22 — **Try the new navigation on your phone:** Menu (top left) → a section → a topic; tap
   **12-lead EKG** at the bottom (slides up) and again (slides down); tap **3D heart** at the top (slides down) and
   again; use your phone's Back button — it slides an open drawer away first. Turn the phone on its side with both
@@ -149,6 +151,10 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-22 — 3D heart: standard one- / two-finger gestures (turn, pinch zoom, pan), smooth dragging, taps that
+  don't fly the camera, the whole heart in view on an upright phone (`1b4c0ea`, ported from `4f9200f`). Topic pages
+  scroll as one with pinned section buttons above the title and foldable summary / Focus boxes (`82ae263`).
 
 - [x] 2026-10-22 — Opening a condition or rhythm left the old rhythm on the EKG until the sweep painted over it
   (and never changed it while paused); it now fills every tracing at once. Phones open the EKG on the 12-lead
