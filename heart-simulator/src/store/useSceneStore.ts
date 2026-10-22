@@ -47,7 +47,8 @@ interface SceneState {
   /** Activation patterns currently shown (keys into VENT_PATTERNS / ATRIAL_PATTERNS) and their durations */
   activation: { vent: string | null; atria: string | null; qrsMs: number; pMs: number; vFirstMs: number; aFirstMs: number };
 
-  selectStructure: (id: string | null) => void;
+  /** `focus: false` (a pick on the heart itself, already in view) selects without moving the camera */
+  selectStructure: (id: string | null, focus?: boolean) => void;
   hoverStructure: (id: string | null) => void;
   setHighlights: (ids: string[]) => void;
   setCameraPreset: (preset: CameraPreset | null) => void;
@@ -65,7 +66,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   carm: { primary: 0, secondary: 0 },
   activation: { vent: 'normal', atria: 'sinus', qrsMs: 92, pMs: 100, vFirstMs: 20, aFirstMs: 0 },
 
-  selectStructure: (id) => set((s) => ({ selectedStructureId: id, focusNonce: id ? s.focusNonce + 1 : s.focusNonce })),
+  selectStructure: (id, focus = true) => set((s) => ({ selectedStructureId: id, focusNonce: id && focus ? s.focusNonce + 1 : s.focusNonce })),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
   setHighlights: (highlightIds) => set({ highlightIds }),
   setCameraPreset: (cameraPreset) => set({ cameraPreset }),
