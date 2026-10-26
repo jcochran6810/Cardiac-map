@@ -7,14 +7,16 @@ import { useContent } from '@/lib/content';
 import { nameOf } from '@/lib/actions';
 import { CATEGORY_BY_VALUE } from '@/lib/categories';
 import { currentPage, goBack, useBackNavStore } from '@/lib/backNav';
-import { IconBack, IconClose, IconMenu, IconSearch } from '@/components/ui/icons';
+import { IconBack, IconClose, IconMenu, IconMessage, IconSearch } from '@/components/ui/icons';
 import { Button, IconButton } from '@/components/ui/Button';
 import SearchBox from '@/components/layout/SearchBox';
 import { AdminBell } from '@/components/admin/AdminEntry';
+import { useFeedbackStore } from '@/store/useFeedbackStore';
 
 /**
  * One slim bar on every screen: Menu (everything starts from the main menu), Back, where you are,
- * and search. Roles, the quiz, the tutor, help and install live in the main menu.
+ * search, and Feedback in the top-right corner (with the admin's bell beside it once signed in).
+ * Roles, the quiz, the tutor, help and install live in the main menu.
  */
 export default function TopBar() {
   const mode = useAppStore((s) => s.mode);
@@ -84,7 +86,6 @@ export default function TopBar() {
       {title && <h1 className="flex-1 min-w-0 truncate text-sm sm:text-[15px] font-semibold text-ui-text">{title}</h1>}
 
       {mode === 'home' && <span className="flex-1" />}
-      <AdminBell />
 
       {mode !== 'home' && (
         <>
@@ -106,6 +107,17 @@ export default function TopBar() {
           </nav>
         </>
       )}
+
+      {/* The top-right corner on every screen: the admin's bell (signed in only), then Feedback */}
+      <AdminBell />
+      <Button
+        onClick={() => useFeedbackStore.getState().openForm()}
+        className="shrink-0 gap-1.5 px-2 sm:px-2.5"
+        aria-label="Send feedback"
+        title="Send feedback: report a bug or suggest an improvement or a feature"
+      >
+        <IconMessage size={18} /><span className="hidden sm:inline text-[13px] font-semibold">Feedback</span>
+      </Button>
     </header>
   );
 }
