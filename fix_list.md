@@ -181,6 +181,8 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-26 — A small **Feedback** button in the top-right corner of every screen opens the feedback form
+  (`81c2c6b`).
 - [x] 2026-10-26 — Feedback from learners (bugs, improvements, feature ideas; offline-safe) with the owner's admin
   login at the bottom of the main menu, a feedback dashboard, a top-bar bell and new-report alerts; Supabase tables
   `cardiac_feedback` / `cardiac_admins` with row-level security in the shared "Where's my note" project (`eac2928`).

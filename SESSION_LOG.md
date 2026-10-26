@@ -6,6 +6,30 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-26 — ccr-79516388-9rwhsq (continued: a Feedback button in the top-right corner of every screen)
+
+**Agent:** Claude
+
+**Asked:** "Add a small feedback button at the very top right corner"; "End session".
+
+**Branch:** resumed level with production `main` at `d576223` (this session's previous merge); production did not move.
+
+**Shipped:**
+
+- Feedback button in the top bar (`81c2c6b`): the last item of the bar on the main menu, the reading screens and the
+  simulator — icon only on phones, icon + "Feedback" from 640 px — opens the feedback form; the signed-in admin's bell
+  moved beside it (`TopBar.tsx`). README and the Codex polish item updated.
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (339) · build ✅. Playwright on the production build at 320, 412 and 1366 px:
+the button sits 6 px (phones) / 16 px (desktop) from the right edge, the bar doesn't overflow on a reading screen with
+Menu, Back, title and search, the form opens and notes the page, the phone's Back closes it; no page errors.
+**Not verified:** a real phone.
+
+**Files:** M: `heart-simulator/src/components/layout/TopBar.tsx`, `heart-simulator/README.md`, `fix_list.md`, `SESSION_LOG.md`.
+
+**Follow-up:** none new; the open items from the previous entry stand (delete the three test reports, optional
+Supabase hardening, Codex polish).
+
 ### 2026-10-26 — ccr-79516388-9rwhsq (feedback from learners, with the owner's admin login, dashboard and alerts)
 
 **Agent:** Claude
