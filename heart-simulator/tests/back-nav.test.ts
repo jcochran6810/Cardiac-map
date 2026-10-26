@@ -41,6 +41,8 @@ const fake = vi.hoisted(() => {
 import { currentPage, startBackNav, useBackNavStore } from '@/lib/backNav';
 import { useAppStore } from '@/store/useAppStore';
 import { useSimStore } from '@/store/useSimStore';
+import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { describePage } from '@/lib/feedback/context';
 import { openById, openCategory, openCondition, openMedication, openTool, showEcg, showHeart } from '@/lib/actions';
 
 const history = fake.history;
@@ -200,6 +202,40 @@ describe('the Back button moves through CardioSim pages', () => {
     await back(); // skips the old run's review and case, lands on the case list
     await settle();
     expect(currentPage()).toMatchObject({ mode: 'simulator', sim: 'list' });
+  });
+
+  it('the feedback form and the admin panel are pages: Back closes them, and a closed one leaves no step behind', async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    const before = history.i;
+    useFeedbackStore.getState().openForm('bug');
+    await settle();
+    expect(currentPage().overlay).toBe('feedback');
+    expect(history.i).toBe(before + 1);
+    await back();
+    expect(useFeedbackStore.getState().formOpen).toBe(false);
+    expect(currentPage().overlay).toBeNull();
+
+    useFeedbackStore.getState().setAdminOpen(true);
+    await settle();
+    expect(currentPage().overlay).toBe('admin');
+    useFeedbackStore.getState().setAdminOpen(false); // its own close button
+    await settle();
+    expect(history.i).toBe(before);
+  });
+
+  it('a report says where the learner was', async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    expect(describePage()).toBe('Main menu');
+    useAppStore.getState().setMode('learn');
+    openCondition('anterior-stemi');
+    showEcg('ecg');
+    await settle();
+    // (names read "anterior stemi" until the content library loads)
+    expect(describePage()).toMatch(/^Learn › Conditions & rhythms › anterior stemi \(.*12-lead open\)$/);
+    useAppStore.getState().setMode('home');
+    await settle();
   });
 
   it('on Home, the first Back asks and the second one leaves', async () => {

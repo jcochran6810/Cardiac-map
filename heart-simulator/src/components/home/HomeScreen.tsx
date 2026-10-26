@@ -22,8 +22,10 @@ import { CONDUCTION_IDS, CORONARY_IDS, structureCategory } from '@/lib/anatomy/c
 import ScopeCard from '@/components/ui/ScopeCard';
 import { InstallButton } from '@/components/ui/InstallApp';
 import SearchBox from '@/components/layout/SearchBox';
+import { AdminFooter } from '@/components/admin/AdminEntry';
+import { useFeedbackStore } from '@/store/useFeedbackStore';
 import {
-  IconBook, IconChart, IconChevron, IconClipboard, IconCube, IconDownload, IconHeart, IconHeartPulse, IconHelp, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
+  IconBook, IconChart, IconChevron, IconClipboard, IconCube, IconDownload, IconHeart, IconHeartPulse, IconHelp, IconMessage, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
 } from '@/components/ui/icons';
 
 const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
@@ -266,6 +268,10 @@ export default function HomeScreen() {
             title="Help & shortcuts" text="How to get around, touch gestures and keyboard shortcuts."
             icon={<IconHelp size={22} />} tint="text-slate-200 bg-slate-500/20" onClick={() => useAppStore.getState().setHelpOpen(true)}
           />
+          <Tile
+            title="Send feedback" text="Report a bug, or suggest an improvement or a new feature. No account needed."
+            icon={<IconMessage size={22} />} tint="text-rose-300 bg-rose-500/15" onClick={() => useFeedbackStore.getState().openForm()}
+          />
           <InstallButton className="flex flex-col items-start text-left p-3 sm:p-3.5 rounded-xl bg-cardiac-panel border border-slate-700 hover:border-slate-500 transition-colors">
             <span className="w-9 h-9 rounded-lg flex items-center justify-center text-emerald-300 bg-emerald-500/15"><IconDownload size={22} /></span>
             <span className="block mt-2 text-[13px] sm:text-sm font-semibold text-white leading-tight">Install the app</span>
@@ -277,6 +283,8 @@ export default function HomeScreen() {
           Educational simulation only. Waveforms and hemodynamics are idealised models and doses are typical adult values for teaching.
           It is not a medical device and must not be used for diagnosis or treatment.
         </p>
+
+        <AdminFooter />
       </div>
     </div>
   );

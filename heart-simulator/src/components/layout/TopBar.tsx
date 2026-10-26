@@ -10,6 +10,7 @@ import { currentPage, goBack, useBackNavStore } from '@/lib/backNav';
 import { IconBack, IconClose, IconMenu, IconSearch } from '@/components/ui/icons';
 import { Button, IconButton } from '@/components/ui/Button';
 import SearchBox from '@/components/layout/SearchBox';
+import { AdminBell } from '@/components/admin/AdminEntry';
 
 /**
  * One slim bar on every screen: Menu (everything starts from the main menu), Back, where you are,
@@ -81,6 +82,9 @@ export default function TopBar() {
       </div>
 
       {title && <h1 className="flex-1 min-w-0 truncate text-sm sm:text-[15px] font-semibold text-ui-text">{title}</h1>}
+
+      {mode === 'home' && <span className="flex-1" />}
+      <AdminBell />
 
       {mode !== 'home' && (
         <>

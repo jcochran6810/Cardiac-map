@@ -11,6 +11,21 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-10-26 — **Switch feedback on for the live site (2 settings in Vercel, ~3 minutes).** Claude can't add
+  them (Vercel answers "403 forbidden"). Vercel → project **cardiac-map** → **Settings** → **Environment Variables**
+  → add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (tick Production, Preview and
+  Development) → **Save** → **Deployments** → newest → **⋯** → **Redeploy**. The values were given in the session
+  chat of 2026-10-26; they are also in Supabase → project **Where's my note** → **Project Settings** → **API Keys**
+  (the *Publishable key*) and **Data API** (the *Project URL*). Until then the form keeps reports on the device
+  (they go out once the settings are in) and Admin login says it isn't switched on.
+- [ ] 2026-10-26 — **Try the admin dashboard:** main menu → scroll to the very bottom → **Admin login** → sign in with
+  the same email and password as Where's my note. The bell (top right) shows new reports. Three test reports from
+  Claude's checks are there ("TEST from Claude …"): open them and press **Delete**.
+- [ ] 2026-10-26 — **Optional, Supabase hardening for the shared project** (affects every app in it, so check them
+  after): Supabase → project **Where's my note** → **Authentication** → **Providers** → Email → turn on
+  *Leaked password protection*. The advisor also flags `public.spatial_ref_sys` (PostGIS's own reference table)
+  without row-level security — it holds no user data; leave it unless you want to move PostGIS out of `public`.
+
 - [ ] 2026-10-22 — **Try Give meds on your phone:** Menu → **Give a medication** (opens SVT with the 12-lead up)
   → Adenosine → 6 mg → **Push**, then watch the 12-lead pause and return to sinus (**Skip ⏩** speeds it up). Any
   condition's **Give meds** section works the same way. Tested only in an emulated phone browser.
@@ -64,6 +79,14 @@ Add new items at the top of their group. Use the format:
   what it was for: GitHub → Branches. Sessions can't delete remote branches.
 
 ### For Codex (UI / graphics — set by Claude)
+
+- [ ] 2026-10-26 — **Polish the feedback and admin screens (keep their behaviour):** the form
+  (`heart-simulator/src/components/feedback/FeedbackForm.tsx`), the admin sign-in and dashboard
+  (`src/components/admin/AdminPanel.tsx`), the top-bar bell and the menu's bottom block (`AdminEntry.tsx`), the new-report
+  pop-up (`FeedbackService.tsx`), the **Send feedback** tile in `HomeScreen.tsx` and the two buttons at the bottom of
+  `HelpOverlay.tsx`. Keep: Admin login at the very bottom of the main menu and only the signed-in admin sees the bell,
+  the dashboard and the admin block; the form shows what is sent with a report; Esc and the phone's Back close both.
+  Check 320–1920 px.
 
 - [ ] 2026-10-22 — **Polish the Give meds screens (keep their behaviour):** the section in
   `heart-simulator/src/components/meds/GiveMedication.tsx` (weight stepper, drug select, dose chips + input with the
@@ -164,6 +187,11 @@ Add new items at the top of their group. Use the format:
   Remove it, or keep it deliberately and say so in the README.
 
 ## Done
+
+- [x] 2026-10-26 — Feedback from learners (bugs, improvements, feature ideas; offline-safe) with the owner's admin
+  login at the bottom of the main menu, a feedback dashboard, a top-bar bell and new-report alerts; Supabase tables
+  `cardiac_feedback` / `cardiac_admins` with row-level security in the shared "Where's my note" project (`eac2928`).
+  Goes live on the site once the two Vercel settings (Owner actions) are added.
 
 - [x] 2026-10-22 — Give meds from any condition (19 drugs, effects on the live 12-lead, verdicts on drug and dose)
   with the 2026-10-19 clinical review fixes, ported onto the new layout (`ac752a0`, `2ca8e53`; from `06b9370`,
