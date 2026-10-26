@@ -46,7 +46,8 @@ and sent when back online, Back closes the form, wrong-password message, no bell
 mocked) on desktop and phone — sign-in, stats, triage (read, status, note), delete, bell count, the new-report pop-up,
 staying signed in after a reload, sign-out. Preview deployment of `eac2928` READY. **Not verified:** signing in with
 the owner's real account (password unknown to Claude); a real phone; the live site until the owner adds the two Vercel
-settings.
+settings. After the merge (`ce12123`, Production READY): the live site shows Send feedback and Admin login is switched
+on — the owner had added the two Vercel settings.
 
 **Files:** A: `heart-simulator/src/lib/feedback/{feedback,admin,context}.ts`, `heart-simulator/src/store/useFeedbackStore.ts`,
 `heart-simulator/src/components/feedback/FeedbackForm.tsx`, `heart-simulator/src/components/admin/{AdminPanel,AdminEntry,FeedbackService}.tsx`,
@@ -54,8 +55,7 @@ settings.
 `heart-simulator/src/lib/backNav.ts`, `heart-simulator/tests/back-nav.test.ts`, `heart-simulator/package.json`,
 `heart-simulator/package-lock.json`, `heart-simulator/README.md`, `fix_list.md`, `SESSION_LOG.md`.
 
-**Follow-up:** the owner adds `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel (Claude
-gets 403) and redeploys — until then the live form keeps reports on the device; three "TEST from Claude" reports are in
+**Follow-up:** the two Vercel settings are in (added by the owner — Claude gets 403 on Vercel settings); three "TEST from Claude" reports are in
 the table for the owner to delete from the dashboard; optional Supabase hardening (leaked-password protection; the
 advisor's `spatial_ref_sys` finding predates this work); Codex to polish the feedback and admin screens. The project's
 URL and key are deliberately not in the repo (CLAUDE.md safety rule 10); a local run needs `heart-simulator/.env.local`.

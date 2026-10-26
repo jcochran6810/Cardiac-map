@@ -11,13 +11,6 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
-- [ ] 2026-10-26 — **Switch feedback on for the live site (2 settings in Vercel, ~3 minutes).** Claude can't add
-  them (Vercel answers "403 forbidden"). Vercel → project **cardiac-map** → **Settings** → **Environment Variables**
-  → add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (tick Production, Preview and
-  Development) → **Save** → **Deployments** → newest → **⋯** → **Redeploy**. The values were given in the session
-  chat of 2026-10-26; they are also in Supabase → project **Where's my note** → **Project Settings** → **API Keys**
-  (the *Publishable key*) and **Data API** (the *Project URL*). Until then the form keeps reports on the device
-  (they go out once the settings are in) and Admin login says it isn't switched on.
 - [ ] 2026-10-26 — **Try the admin dashboard:** main menu → scroll to the very bottom → **Admin login** → sign in with
   the same email and password as Where's my note. The bell (top right) shows new reports. Three test reports from
   Claude's checks are there ("TEST from Claude …"): open them and press **Delete**.
@@ -191,7 +184,8 @@ Add new items at the top of their group. Use the format:
 - [x] 2026-10-26 — Feedback from learners (bugs, improvements, feature ideas; offline-safe) with the owner's admin
   login at the bottom of the main menu, a feedback dashboard, a top-bar bell and new-report alerts; Supabase tables
   `cardiac_feedback` / `cardiac_admins` with row-level security in the shared "Where's my note" project (`eac2928`).
-  Goes live on the site once the two Vercel settings (Owner actions) are added.
+  The owner added the two Vercel settings (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`); checked
+  on the live site after the merge `ce12123`: Send feedback present, Admin login switched on.
 
 - [x] 2026-10-22 — Give meds from any condition (19 drugs, effects on the live 12-lead, verdicts on drug and dose)
   with the 2026-10-19 clinical review fixes, ported onto the new layout (`ac752a0`, `2ca8e53`; from `06b9370`,
