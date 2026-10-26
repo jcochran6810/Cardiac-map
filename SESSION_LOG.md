@@ -6,6 +6,60 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-10-26 — ccr-79516388-9rwhsq (feedback from learners, with the owner's admin login, dashboard and alerts)
+
+**Agent:** Claude
+
+**Asked:** "I need a way for users to provide feedback on bugs, improvements and feature suggestions"; then "Create an
+admin login for me to see in app notifications. 'Admin login' will be at the very bottom of the home screen but when
+logged in admin controls and dashboard are only visible to me"; "No, add it to the project as is. I dont want any
+extra costs" (no new Supabase project); "skip approval" (re-run the migration without the drop / revoke lines whose
+approval prompt never reached the owner); "end session".
+
+**Branch:** started level with production `main` at `6a9e6dd`; production did not move during the session.
+
+**Shipped:**
+
+- Feedback and the admin dashboard (`eac2928`): **Send feedback** on the main menu and **Report a bug** / **Suggest an
+  idea** in Help — kind (bug, improvement, feature idea), message, optional reply email, no account; each report
+  carries the page, role, device, screen and build (shown on the form), its own id (a retry can't duplicate it) and
+  waits on the device while offline (`lib/feedback/feedback.ts`, `context.ts`, `store/useFeedbackStore.ts`,
+  `components/feedback/FeedbackForm.tsx`). **Admin login** at the very bottom of the main menu; signed in, the menu's
+  bottom shows the admin block, a bell with the unread count sits in the top bar (and the installed app's icon badge),
+  a pop-up announces new reports (polled every minute while visible), and the dashboard filters, searches, marks read,
+  sets a status, keeps a private note, deletes and exports CSV (`lib/feedback/admin.ts`, `components/admin/`). The
+  form and panel are Back-button pages (`backNav.ts`). The Supabase client (`@supabase/supabase-js`, installed with
+  npm 11) loads only when an admin signs in.
+- Supabase, in the owner's shared project "Where's my note" (no extra cost): migrations `cardiac_feedback` and
+  `cardiac_feedback_private_triggers` — tables `cardiac_feedback` and `cardiac_admins`, RLS (anyone inserts; only an
+  admin reads, updates, deletes), a before-insert trigger that stamps new reports and caps everyone at 60 per 10
+  minutes, trigger functions moved to the unexposed schema `cardiac_private` (advisor warning). The owner's existing
+  account in that project was added to `cardiac_admins` (in SQL, not in a migration). Checked over REST: anon insert
+  201, spoofed status / note overwritten, duplicate 409, bad kind 400, anon select / update / delete see nothing, the
+  trigger isn't callable; as the owner (simulated JWT in SQL) all rows readable, as another user none.
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (339: new `tests/feedback.test.ts` — validation, report building,
+posting, retry / refusal, the offline queue and its flush, time-ago and CSV; `tests/back-nav.test.ts` — the form and
+the panel as Back pages, the page description) · build ✅ · hook test ✅. Playwright on the production build: as a
+learner on an emulated phone against the real database — validation messages, a report sent, an offline report saved
+and sent when back online, Back closes the form, wrong-password message, no bell for learners; as the admin (Supabase
+mocked) on desktop and phone — sign-in, stats, triage (read, status, note), delete, bell count, the new-report pop-up,
+staying signed in after a reload, sign-out. Preview deployment of `eac2928` READY. **Not verified:** signing in with
+the owner's real account (password unknown to Claude); a real phone; the live site until the owner adds the two Vercel
+settings.
+
+**Files:** A: `heart-simulator/src/lib/feedback/{feedback,admin,context}.ts`, `heart-simulator/src/store/useFeedbackStore.ts`,
+`heart-simulator/src/components/feedback/FeedbackForm.tsx`, `heart-simulator/src/components/admin/{AdminPanel,AdminEntry,FeedbackService}.tsx`,
+`heart-simulator/tests/feedback.test.ts` · M: `heart-simulator/src/components/{AppShell,home/HomeScreen,layout/HelpOverlay,layout/TopBar,ui/icons}.tsx`,
+`heart-simulator/src/lib/backNav.ts`, `heart-simulator/tests/back-nav.test.ts`, `heart-simulator/package.json`,
+`heart-simulator/package-lock.json`, `heart-simulator/README.md`, `fix_list.md`, `SESSION_LOG.md`.
+
+**Follow-up:** the owner adds `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel (Claude
+gets 403) and redeploys — until then the live form keeps reports on the device; three "TEST from Claude" reports are in
+the table for the owner to delete from the dashboard; optional Supabase hardening (leaked-password protection; the
+advisor's `spatial_ref_sys` finding predates this work); Codex to polish the feedback and admin screens. The project's
+URL and key are deliberately not in the repo (CLAUDE.md safety rule 10); a local run needs `heart-simulator/.env.local`.
+
 ### 2026-10-22 — ccr-e41fe6a7-sr38ig (continued: Give meds from any condition, ported from 2026-10-19)
 
 **Agent:** Claude

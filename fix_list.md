@@ -188,6 +188,11 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-26 — Feedback from learners (bugs, improvements, feature ideas; offline-safe) with the owner's admin
+  login at the bottom of the main menu, a feedback dashboard, a top-bar bell and new-report alerts; Supabase tables
+  `cardiac_feedback` / `cardiac_admins` with row-level security in the shared "Where's my note" project (`eac2928`).
+  Goes live on the site once the two Vercel settings (Owner actions) are added.
+
 - [x] 2026-10-22 — Give meds from any condition (19 drugs, effects on the live 12-lead, verdicts on drug and dose)
   with the 2026-10-19 clinical review fixes, ported onto the new layout (`ac752a0`, `2ca8e53`; from `06b9370`,
   `1c083da`). All of `ccr-fcd6b419-beq5mr` has now shipped.
