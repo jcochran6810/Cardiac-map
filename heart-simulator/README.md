@@ -20,7 +20,7 @@ care, …; pinned while you scroll, one swipeable row on phones — a button jum
 its summary and the **Focus for your role** box — both fold away with a tap and stay folded on every page
 (`useFold` in `RightPanel.tsx`) — then the section's text.
 
-The top bar holds only **Menu**, **←** (Back), where you are, and search. Buttons in the reading open what they need
+The top bar holds only **Menu**, **←** (Back), where you are, search, and **Feedback** in the top-right corner. Buttons in the reading open what they need
 ("Show the EKG", "Inspect lead V1", "Hemodynamics" slide the ECG up; "Show in 3D", "Culprit territory", a cath lab view
 slide the heart down). Tapping the heart while the reading is out of sight shows a short card with **Read more**.
 Opening a condition, a case study or a quiz strip shows its rhythm on every tracing at once — even while paused —
@@ -113,8 +113,8 @@ doses follow the drug cards and current guidelines, adult only. Opening another 
 `src/lib/feedback/` (sending, offline queue, admin API) · `src/store/useFeedbackStore.ts` ·
 `src/components/feedback/FeedbackForm.tsx` · `src/components/admin/` (panel, bell, alerts)
 
-- **Anyone can send feedback, no account needed:** main menu → **Send feedback** (or Help → **Report a bug** /
-  **Suggest an idea**). Choose Bug, Improvement or Feature idea, write it, optionally leave an email for a reply.
+- **Anyone can send feedback, no account needed:** **Feedback** in the top-right corner of every screen, main menu →
+  **Send feedback**, or Help → **Report a bug** / **Suggest an idea**. Choose Bug, Improvement or Feature idea, write it, optionally leave an email for a reply.
   The report carries where the learner was (e.g. "Learn › Conditions & rhythms › Anterior STEMI (12-lead open)"),
   their role, device, screen size and the app version — the form says so; nothing else. Offline, the report waits
   on the device and is sent when the app is next online (each report has its own id, so a retry can't duplicate it).

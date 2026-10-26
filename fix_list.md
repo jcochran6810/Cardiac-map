@@ -76,8 +76,8 @@ Add new items at the top of their group. Use the format:
 - [ ] 2026-10-26 — **Polish the feedback and admin screens (keep their behaviour):** the form
   (`heart-simulator/src/components/feedback/FeedbackForm.tsx`), the admin sign-in and dashboard
   (`src/components/admin/AdminPanel.tsx`), the top-bar bell and the menu's bottom block (`AdminEntry.tsx`), the new-report
-  pop-up (`FeedbackService.tsx`), the **Send feedback** tile in `HomeScreen.tsx` and the two buttons at the bottom of
-  `HelpOverlay.tsx`. Keep: Admin login at the very bottom of the main menu and only the signed-in admin sees the bell,
+  pop-up (`FeedbackService.tsx`), the **Send feedback** tile in `HomeScreen.tsx`, the **Feedback** button in the top bar's top-right corner
+  (`TopBar.tsx`) and the two buttons at the bottom of `HelpOverlay.tsx`. Keep: Admin login at the very bottom of the main menu and only the signed-in admin sees the bell,
   the dashboard and the admin block; the form shows what is sent with a report; Esc and the phone's Back close both.
   Check 320–1920 px.
 
@@ -181,6 +181,8 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-10-26 — A small **Feedback** button in the top-right corner of every screen opens the feedback form
+  (`81c2c6b`).
 - [x] 2026-10-26 — Feedback from learners (bugs, improvements, feature ideas; offline-safe) with the owner's admin
   login at the bottom of the main menu, a feedback dashboard, a top-bar bell and new-report alerts; Supabase tables
   `cardiac_feedback` / `cardiac_admins` with row-level security in the shared "Where's my note" project (`eac2928`).
