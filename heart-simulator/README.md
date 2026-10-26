@@ -108,6 +108,32 @@ doses follow the drug cards and current guidelines, adult only. Opening another 
 - The engine is pure and deterministic (`engine.ts`: `start`, `perform`, `takeHint`, `stop`, `review`), so a new
   case is one file in `scenarios/` plus a line in `scenarios/index.ts` and an ideal run in the tests.
 
+## Feedback and the admin dashboard
+
+`src/lib/feedback/` (sending, offline queue, admin API) · `src/store/useFeedbackStore.ts` ·
+`src/components/feedback/FeedbackForm.tsx` · `src/components/admin/` (panel, bell, alerts)
+
+- **Anyone can send feedback, no account needed:** main menu → **Send feedback** (or Help → **Report a bug** /
+  **Suggest an idea**). Choose Bug, Improvement or Feature idea, write it, optionally leave an email for a reply.
+  The report carries where the learner was (e.g. "Learn › Conditions & rhythms › Anterior STEMI (12-lead open)"),
+  their role, device, screen size and the app version — the form says so; nothing else. Offline, the report waits
+  on the device and is sent when the app is next online (each report has its own id, so a retry can't duplicate it).
+- **Admin login** sits at the very bottom of the main menu. Only an account listed in `cardiac_admins` gets in;
+  then the bottom of the menu shows the admin's controls, a **bell with the unread count** appears in the top bar on
+  every screen (and on the installed app's icon), and a pop-up announces each new report (checked every minute
+  while the app is on screen). The **feedback dashboard** filters by kind, status and unread, searches, marks read,
+  sets a status (new, planned, in progress, done, won't fix), keeps a private note, deletes, and downloads the
+  reports shown as a spreadsheet (CSV).
+- **Backend:** Supabase — the owner's shared project (the one that also holds "Where's my note"), tables
+  `cardiac_feedback` and `cardiac_admins` (migrations `cardiac_feedback`, `cardiac_feedback_private_triggers`).
+  Row-level security lets anyone insert a report and only an admin read, change or delete one; a trigger stamps
+  new reports (status new, unread, no note) and caps everyone together at 60 reports per 10 minutes. The app needs
+  two build settings: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (the publishable,
+  browser-safe key) — set in Vercel for the live site and in `heart-simulator/.env.local` (git-ignored) for local
+  runs. Without them the form still works and keeps reports on the device, and admin login says it isn't switched on.
+- To make another account an admin: in Supabase's SQL editor,
+  `insert into public.cardiac_admins (user_id) select id from auth.users where email = '…';`
+
 ## Cath lab catalog
 
 `src/data/content/cathlab*.ts` (content) · `src/lib/cathlab/views.ts` (view angles) · main menu → **Cath lab catalog**
@@ -149,7 +175,7 @@ monitor/defibrillator permissions stay inside that role's scope (`src/lib/scope.
 
 ```bash
 npm ci
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:3000 (feedback and admin login need .env.local — see "Feedback and the admin dashboard")
 npm run build && npm start   # production build
 ```
 
@@ -181,6 +207,7 @@ the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open ite
 | Electrode lab | `src/lib/ecg/electrodes.ts`, `src/lib/ecg/leadViews.ts`, `src/lib/anatomy/humanBody.ts`, `src/components/ecg/ElectrodeLab.tsx`, `src/components/ecg/TorsoModel.tsx` | 10 electrodes on a 3D patient (an adult male body built from the CC0 MakeHuman mesh by `scripts/build-human-model.py`; limb electrodes on the shoulders and lower abdomen, Mason–Likar; the heart beats behind a window in the chest) → 12 leads (Einthoven / Goldberger / Wilson). Tap a lead or an electrode to see where that lead looks from; swap cables or try a "mystery reversal" and watch the live 12-lead change. |
 | Activation map | `src/lib/anatomy/activation.ts` | Epicardial isochronal map of each beat (normal per Durrer 1970, LBBB, RBBB, WPW, pacing, PVC/VT), like an EP mapping system. The 3D wavefront follows it in every view. |
 | Coronary territories | `src/lib/anatomy/aha17.ts`, `src/components/anatomy/Bullseye.tsx` | AHA 17-segment bull's-eye linked to the culprit artery; the angio panel shows the C-arm angle (LAO/RAO, CRA/CAU) of any view. |
+| Feedback & admin | `src/lib/feedback/`, `src/components/feedback/`, `src/components/admin/` | Send feedback (bugs, improvements, ideas) from anywhere, offline-safe; the owner's admin login, dashboard, bell and alerts. Supabase with row-level security. |
 | Monitor / defibrillator trainer | `src/lib/sim/defib.ts`, `src/components/monitor/` | Generic monitor with ECG, SpO₂ pleth, capnography and NIBP. Includes AED, manual defibrillation, synchronised cardioversion, transcutaneous pacing, CPR, ACLS drugs, a code record, scenarios, and trainee/instructor modes. Press **Projector** to mirror it at `/monitor` on a second screen. |
 
 ## Phones, tablets and desktops

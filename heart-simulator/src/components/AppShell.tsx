@@ -16,11 +16,15 @@ import { InstallBanner } from '@/components/ui/InstallApp';
 import HomeScreen from '@/components/home/HomeScreen';
 import SimulatorScreen from '@/components/simulator/SimulatorScreen';
 import BackNav from '@/components/layout/BackNav';
+import FeedbackForm from '@/components/feedback/FeedbackForm';
+import AdminPanel from '@/components/admin/AdminPanel';
+import FeedbackService from '@/components/admin/FeedbackService';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTutorStore } from '@/store/useTutorStore';
+import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { sim, scrubTo } from '@/lib/sim/simulation';
 import { loadContent } from '@/lib/content';
 import { showEcg, showHeart } from '@/lib/actions';
@@ -192,6 +196,9 @@ export default function AppShell() {
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // the feedback form and the admin panel close on Esc (their own handler) and take no shortcuts
+      const fb = useFeedbackStore.getState();
+      if (fb.formOpen || fb.adminOpen) return;
       const app = useAppStore.getState();
       const tl = useTimelineStore.getState();
       // the 3D-heart and ECG shortcuts only belong to the learning screen
@@ -349,6 +356,9 @@ export default function AppShell() {
       <TutorPanel />
       <QuizPanel />
       <HelpOverlay />
+      <FeedbackForm />
+      <AdminPanel />
+      <FeedbackService />
       <InstallBanner />
     </div>
   );

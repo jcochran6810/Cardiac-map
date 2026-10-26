@@ -4,8 +4,8 @@
  * The phone's (or browser's) Back button moves through CardioSim's own pages instead of leaving the
  * app. Each page — the screen (main menu / Learn / Simulator), the library section and the item
  * being read, the list page on small screens, the 3D heart and ECG drawers, the electrode lab, the
- * quiz / tutor / help, and the simulator's case list → case → action list → review — is one browser
- * history entry.
+ * quiz / tutor / help / feedback form / admin panel, and the simulator's case list → case → action
+ * list → review — is one browser history entry.
  *
  * - Opening something pushes an entry; closing it with its own button steps back over that entry,
  *   so Back never "does nothing".
@@ -26,9 +26,10 @@ import { useProcedureStore } from '@/store/useProcedureStore';
 import { usePharmacologyStore } from '@/store/usePharmacologyStore';
 import { useCaseStore } from '@/store/useCaseStore';
 import { useCathLabStore } from '@/store/useCathLabStore';
+import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { openById } from '@/lib/actions';
 
-export type Overlay = 'quiz' | 'tutor' | 'help' | null;
+export type Overlay = 'quiz' | 'tutor' | 'help' | 'feedback' | 'admin' | null;
 export type SimPage = 'list' | 'case' | 'actions' | 'review';
 
 export interface Page {
@@ -84,6 +85,7 @@ export function currentPage(): Page {
   const app = useAppStore.getState();
   const sim = useSimStore.getState();
   const ecg = useECGStore.getState();
+  const fb = useFeedbackStore.getState();
   const learn = app.mode === 'learn';
   const s = sim.state;
   const simPage: SimPage = !s ? 'list' : s.ended && sim.reviewOpen ? 'review' : sim.sheetOpen && !s.ended ? 'actions' : 'case';
@@ -95,7 +97,8 @@ export function currentPage(): Page {
     heart: learn ? app.heart : 'closed',
     ecg: learn ? app.ecg : 'closed',
     lab: learn && ecg.electrodeLab && ecg.bottomView === 'ecg',
-    overlay: app.helpOpen ? 'help' : app.quizOpen ? 'quiz' : useTutorStore.getState().tutorOpen ? 'tutor' : null,
+    overlay: app.helpOpen ? 'help' : app.quizOpen ? 'quiz' : useTutorStore.getState().tutorOpen ? 'tutor'
+      : fb.formOpen ? 'feedback' : fb.adminOpen ? 'admin' : null,
     sim: app.mode === 'simulator' ? simPage : 'list',
     run: app.mode === 'simulator' && s ? sim.run : 0,
   };
@@ -122,6 +125,8 @@ function apply(page: Page, from: Page) {
   app.setHelpOpen(page.overlay === 'help');
   app.setQuizOpen(page.overlay === 'quiz');
   useTutorStore.getState().setTutorOpen(page.overlay === 'tutor');
+  useFeedbackStore.getState().setFormOpen(page.overlay === 'feedback');
+  useFeedbackStore.getState().setAdminOpen(page.overlay === 'admin');
   if (page.mode === 'learn') {
     app.setMode('learn');
     if (page.cat && app.activePanelCategory !== page.cat) app.setActivePanelCategory(page.cat);
@@ -288,7 +293,7 @@ export function startBackNav(): () => void {
   stack = [currentPage()];
   write('replace', stack[0]);
   publish();
-  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore];
+  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore, useFeedbackStore];
   const unsubscribe = stores.map((st) => st.subscribe(schedule));
   // After the first tap or key press, a second main-menu entry lets the first Back on it ask before leaving.
   // (Added on a user gesture so browsers keep it in the Back list.)

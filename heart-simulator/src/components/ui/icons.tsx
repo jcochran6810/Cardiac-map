@@ -93,3 +93,12 @@ export const IconBack = ({ className, size }: P) => (
 export const IconList = ({ className, size }: P) => (
   <svg {...base(size)} className={className}><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r=".8" fill="currentColor" /><circle cx="4.5" cy="12" r=".8" fill="currentColor" /><circle cx="4.5" cy="18" r=".8" fill="currentColor" /></svg>
 );
+export const IconBell = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg>
+);
+export const IconMessage = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z" /><path d="M12 8v4M12 15.5v.01" /></svg>
+);
+export const IconLock = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+);

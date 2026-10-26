@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { IconClose } from '@/components/ui/icons';
 import { InstallButton } from '@/components/ui/InstallApp';
+import { useFeedbackStore } from '@/store/useFeedbackStore';
 
 const SHORTCUTS: [string, string][] = [
   ['Space', 'Play / pause the heartbeat'],
@@ -90,6 +91,20 @@ export default function HelpOverlay() {
             <p><b className="text-white">Sources:</b> activation sequence after Durrer et al. (1970); AHA 17-segment model (Cerqueira 2002); lead derivation and electrode reversals per standard ECG references; C-arm angles cross-checked with SlicerHeart. See THIRD_PARTY_NOTICES.md.</p>
             <p><b className="text-white">How accurate is it?</b> Waveforms come from a cardiac dipole model with physiological intervals (QT corrected by Fridericia), and the hemodynamics are a teaching model with representative values. It is designed to teach patterns and relationships, not to reproduce any individual patient.</p>
           </section>
+        </div>
+        <div className="mx-4 mb-2 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => { setHelpOpen(false); useFeedbackStore.getState().openForm('bug'); }}
+            className="py-2.5 rounded-lg bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-semibold hover:bg-rose-500/25"
+          >
+            Report a bug
+          </button>
+          <button
+            onClick={() => { setHelpOpen(false); useFeedbackStore.getState().openForm('feature'); }}
+            className="py-2.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-semibold hover:bg-amber-500/25"
+          >
+            Suggest an idea
+          </button>
         </div>
         <InstallButton className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/25">
           Install CardioSim on this device — full screen, works offline
