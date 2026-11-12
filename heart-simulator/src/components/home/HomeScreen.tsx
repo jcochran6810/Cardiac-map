@@ -13,6 +13,7 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useCathLabStore } from '@/store/useCathLabStore';
 import { useSimStore } from '@/store/useSimStore';
 import { useContent } from '@/lib/content';
+import type { Course } from '@/types/course';
 import { CATEGORIES } from '@/lib/categories';
 import { nameOf, openById, openCase, openCategory, openCondition, openTool, openTreatment, showEcg, showHeart, type Tool } from '@/lib/actions';
 import { scenariosFor, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
@@ -88,6 +89,24 @@ const TOURS: { title: string; text: string; go: () => void }[] = [
   },
 ];
 
+/** Courses the menu's course row brings to the front for a role, in this order (the cath lab roles' own work after the basics) */
+const COURSES_FIRST: Partial<Record<LearningLevel, string[]>> = {
+  3: ['heart-basics', 'cath-lab', 'hemodynamics'],
+  4: ['heart-basics', 'cath-lab', 'hemodynamics'],
+  5: ['heart-basics', 'cath-lab', 'hemodynamics'],
+};
+
+/** The courses in the order the main menu offers them to a role: its own courses first, those nearest its work at the very front */
+function menuCourses(role: LearningLevel, list: Course[]): Course[] {
+  const first = COURSES_FIRST[role] ?? [];
+  const rank = (c: Course) => {
+    const i = c.roles.includes(role) ? first.indexOf(c.id) : -1;
+    return i < 0 ? first.length : i;
+  };
+  // a stable sort: everything else keeps the course list's order
+  return coursesFor(role, list).sort((a, b) => rank(a) - rank(b));
+}
+
 /** The item you were last reading, so the menu can take you straight back to it */
 function useLastItem(): string | null {
   const cat = useAppStore((s) => s.activePanelCategory);
@@ -147,7 +166,7 @@ export default function HomeScreen() {
 
   const caseInProgress = simState && !simState.ended ? SCENARIO_BY_ID[simState.scenarioId] : null;
   const courseDone = useCourseStore((s) => s.progress);
-  const courses = lib ? coursesFor(role, lib.courses) : [];
+  const courses = lib ? menuCourses(role, lib.courses) : [];
   const lessonOpen = lib ? lessonInProgress(lib.courses, courseDone) : null;
   const firstCourse = courses[0] ?? null;
   const coursesTotal = courses.length;
@@ -158,7 +177,7 @@ export default function HomeScreen() {
     quizAttempts: learning.quizAttempts,
   });
   const startFirstLesson = () => {
-    const c = lib ? coursesFor(useAppStore.getState().learningLevel, lib.courses)[0] : null;
+    const c = lib ? menuCourses(useAppStore.getState().learningLevel, lib.courses)[0] : null;
     const l = c ? nextLesson(c, useCourseStore.getState().progress) ?? c.lessons[0] : null;
     if (c && l) startLesson(c.id, l.id);
     else useAppStore.getState().setMode('courses');
@@ -278,7 +297,8 @@ export default function HomeScreen() {
             <button onClick={() => useAppStore.getState().setMode('courses')} className="shrink-0 text-xs text-sky-300 hover:underline">All courses →</button>
           </div>
           <p className="text-xs text-slate-400 mt-0.5 leading-snug">Short guided lessons, each with quick checks. Your place and your scores are kept on this device.</p>
-          <div className="mt-2.5 -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar snap-x">
+          {/* on phones the row runs to the screen edges; its scroll padding keeps a card that snaps into place clear of the edge */}
+          <div className="mt-2.5 -mx-4 px-4 scroll-px-4 sm:mx-0 sm:px-0 sm:scroll-px-0 flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar snap-x">
             {courses.map((c) => {
               const { done, total } = courseProgress(c, courseDone);
               const up = nextLesson(c, courseDone);
@@ -290,21 +310,22 @@ export default function HomeScreen() {
                 >
                   <span className="flex items-center gap-2">
                     <span className="w-9 h-9 rounded-lg flex items-center justify-center text-cardiac-accent bg-cardiac-accent/15"><IconPlay size={20} /></span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400">{c.roles.includes(role) ? `For ${LEVEL_LABELS[role].short}` : 'Open to all'}</span>
+                    <span className="text-[11px] uppercase tracking-wider text-slate-400">{c.roles.includes(role) ? `For ${LEVEL_LABELS[role].short}` : 'Open to all'}</span>
                   </span>
                   <span className="block mt-2 text-[13px] sm:text-sm font-semibold text-white leading-tight">{c.title}</span>
-                  <span className="block mt-1 text-[11px] sm:text-xs text-slate-400 leading-snug line-clamp-3">{c.summary}</span>
+                  {/* no `block` here: line-clamp sets its own display, and `block` would undo the clamp */}
+                  <span className="mt-1 text-[11px] sm:text-xs text-slate-400 leading-snug line-clamp-3">{c.summary}</span>
                   <span className="mt-auto pt-2 flex items-center gap-1.5 w-full">
                     <span className="flex-1 h-1 rounded-full bg-cardiac-dark overflow-hidden">
                       <span className="block h-full bg-emerald-500/80" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
                     </span>
-                    <span className="text-[10px] text-slate-500 whitespace-nowrap">{done}/{total} lessons</span>
+                    <span className="text-[11px] text-slate-400 whitespace-nowrap">{done}/{total} lessons</span>
                   </span>
                   <span className="block mt-1.5 text-[11px] font-semibold text-cardiac-accent truncate">{up ? `${done > 0 ? 'Next' : 'Start'}: ${up.title} →` : 'Finished — review →'}</span>
                 </button>
               );
             })}
-            {!lib && <span className="text-xs text-slate-500 py-6">Loading the courses…</span>}
+            {!lib && <span className="text-xs text-slate-400 py-6">Loading the courses…</span>}
           </div>
         </section>
 
@@ -320,7 +341,7 @@ export default function HomeScreen() {
                     <span className="flex-1 h-1 rounded-full bg-cardiac-dark overflow-hidden">
                       <span className="block h-full bg-emerald-500/80" style={{ width: `${(done / total) * 100}%` }} />
                     </span>
-                    <span className="text-[10px] text-slate-500 whitespace-nowrap">{done}/{total}</span>
+                    <span className="text-[11px] text-slate-400 whitespace-nowrap">{done}/{total}</span>
                   </span>
                 )}
               </Tile>
@@ -376,7 +397,7 @@ export default function HomeScreen() {
           </InstallButton>
         </MenuSection>
 
-        <p className="mt-8 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+        <p className="mt-8 text-[11px] text-slate-400 leading-relaxed max-w-3xl">
           Educational simulation only. Waveforms and hemodynamics are idealised models and doses are typical adult values for teaching.
           It is not a medical device and must not be used for diagnosis or treatment.
         </p>
@@ -395,8 +416,8 @@ function ProgressStat({ label, value, of, note, share, onClick }: { label: strin
       <span className="block text-[10px] uppercase tracking-wider text-slate-400 truncate">{label}</span>
       <span className="flex items-baseline gap-1">
         <span className="text-lg font-semibold text-white tabular-nums leading-tight">{value}</span>
-        {of && <span className="text-xs text-slate-500">of {of}</span>}
-        {note && <span className="text-[11px] text-slate-500 truncate">{of ? '· ' : ''}{note}</span>}
+        {of && <span className="text-xs text-slate-400">of {of}</span>}
+        {note && <span className="text-[11px] text-slate-400 truncate">{of ? '· ' : ''}{note}</span>}
       </span>
       <span className="mt-1 block h-1 rounded-full bg-cardiac-dark overflow-hidden">
         <span className="block h-full bg-emerald-500/80" style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }} />
