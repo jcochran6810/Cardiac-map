@@ -10,7 +10,9 @@ import type { ViewMode } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { LABEL_SETS } from '@/lib/anatomy/labelSets';
 import { useIsTouch } from '@/lib/device';
-import { findSlot, leaderLine, leastCrowdedSlot, type Box, type PlaceOptions, type Slot } from './labelPlacement';
+import {
+  DOT, TAG_GAP, TOUCH_MARGIN, findSlot, leaderLine, leastCrowdedSlot, nearestFreeSlot, touchMargins, type Box, type PlaceOptions, type Slot,
+} from './labelPlacement';
 import { useOverlayCover } from './overlayCover';
 
 export { LABEL_SETS };
@@ -53,8 +55,13 @@ const NATURAL: Record<Kind, { x: number; y: number }> = { selected: { x: 8, y: -
 const ROWS = 1;
 /** … and more for a tag that must show — one a lesson points at, or any tag while a check asks for one by its tag */
 const MUST_ROWS = 3;
-/** Half the size of the space kept clear around each dot */
-const DOT = 4;
+/** When even those are taken, a tag that must show goes to the nearest free place this far (px) from its dot */
+const REACH = 120;
+/** the invisible margin of a tag on a touch screen, side by side (drawn by the button's `touch:before:` classes) */
+const HIT = { top: '--hit-t', right: '--hit-r', bottom: '--hit-b', left: '--hit-l' } as const;
+const HIT_AREA = {
+  [HIT.top]: `${TOUCH_MARGIN.y}px`, [HIT.right]: `${TOUCH_MARGIN.x}px`, [HIT.bottom]: `${TOUCH_MARGIN.y}px`, [HIT.left]: `${TOUCH_MARGIN.x}px`,
+} as React.CSSProperties;
 
 interface Size { w: number; h: number }
 interface Sizes { full: Size; short?: Size }
@@ -98,15 +105,21 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
   const written = useRef(new WeakMap<HTMLElement, Record<string, string | number>>());
   const frame = useRef(0);
   const sizes = useRef(new Map<string, Sizes>());
+  /** what the last layout was made from: while the heart and the controls stay put, the tags need no new one */
+  const laidOut = useRef<{ key: string; items: unknown; controls: unknown } | null>(null);
   const { size } = useThree();
   const allLabels = useSceneStore((s) => s.allLabels);
   // Fingers need bigger tags (12 px text, a 40 px touch target) with more space between them
   const touch = useIsTouch();
   useEffect(() => {
-    sizes.current.clear();
+    const remeasure = () => {
+      sizes.current.clear();
+      laidOut.current = null;
+    };
+    remeasure();
     if (!document.fonts) return;
     let live = true;
-    void document.fonts.ready.then(() => { if (live) sizes.current.clear(); });
+    void document.fonts.ready.then(() => { if (live) remeasure(); });
     return () => { live = false; };
   }, [touch]);
   // A small view (a phone, a drawer sharing the screen) shows only the most important tags — the sets list them
@@ -148,12 +161,13 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
     if (!g) return;
     const occluding = mode === 'external' || mode === 'territories' || mode === 'activation';
     const n = ++frame.current;
-    const set = (el: HTMLElement, prop: 'opacity' | 'transform' | 'width' | 'pointerEvents' | 'display', value: string) => {
+    const set = (el: HTMLElement, prop: 'opacity' | 'transform' | 'width' | 'pointerEvents' | 'display' | (typeof HIT)[keyof typeof HIT], value: string) => {
       let w = written.current.get(el);
       if (!w) written.current.set(el, (w = {}));
       if (w[prop] === value) return;
       w[prop] = value;
-      el.style[prop] = value;
+      if (prop.startsWith('--')) el.style.setProperty(prop, value);
+      else el.style[prop as 'opacity'] = value;
     };
     /** a tag that moves to another slot glides there; the first time it is placed it simply appears */
     const glide = (el: HTMLElement, prop: 'transform' | 'width', value: string) => {
@@ -190,16 +204,25 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
     // a tag must not hide another tag's dot (or it reads as that tag's)
     const dots = spots.map((p) => (p.alpha > 0.3 ? { x0: p.x - DOT, y0: p.y - DOT, x1: p.x + DOT, y1: p.y + DOT } : null));
     const controls = useOverlayCover.getState().boxes;
+    // nothing moved (to the pixel) since the last complete layout: it still holds
+    const layout = `${size.width}x${size.height} ${touch} ${allLabels} ${spots.map((p) => `${Math.round(p.x)},${Math.round(p.y)},${p.alpha.toFixed(2)}`).join(' ')}`;
+    const last = laidOut.current;
+    if (last && last.key === layout && last.items === items && last.controls === controls) return;
+    let complete = true;
 
     // 2. screen-space de-cluttering, in order of importance: each tag takes the first free slot near its dot,
     // clear of the tags already placed, the other dots and the controls over the heart
     const placed: Box[] = [];
+    const placedPills: HTMLButtonElement[] = [];
     items.forEach(({ l, kind }, i) => {
       const key = `${l.id}-${kind}`;
       const dot = dotRefs.current[key];
       const pill = pillRefs.current[key];
       const line = lineRefs.current[key];
-      if (!dot || !pill || !line) return;
+      if (!dot || !pill || !line) {
+        complete = false;
+        return;
+      }
       const { x: sx, y: sy } = spots[i];
       let alpha = spots[i].alpha;
       let short = false;
@@ -208,29 +231,30 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
         if (!sz) {
           const m = measure(pill);
           if (m) sizes.current.set(key, m);
+          else complete = false;
           sz = m ?? guess(kind === 'normal' ? l.short ?? l.name : l.name, touch || kind === 'selected');
         }
         const must = kind !== 'normal' || allLabels;
         const opts: PlaceOptions = {
-          width: size.width, height: size.height, placed, cover: [...controls, ...dots.filter((b, j): b is Box => !!b && j !== i)], gap: touch ? 6 : 2, rows: must ? MUST_ROWS : ROWS,
+          width: size.width, height: size.height, placed, cover: [...controls, ...dots.filter((b, j): b is Box => !!b && j !== i)], gap: touch ? TAG_GAP.touch : TAG_GAP.mouse, rows: must ? MUST_ROWS : ROWS,
         };
         const nat = NATURAL[kind];
         const place = (s: Size) => findSlot(sx, sx + nat.x, sy + nat.y - s.h, s.w, s.h, opts);
         let slot: Slot | null = place(sz.full);
-        // a tag that must show does: by its short name (LM, pLAD, OM1…) when the full one has no room, and where it
-        // overlaps least when even that has none
+        // a tag that must show does: by its short name (LM, pLAD, OM1…) when the full one has no room beside its dot,
+        // then at the nearest free place further out (with a leader line), and where it crowds least when there is none
         if (!slot && must) {
           if (sz.short) {
             slot = place(sz.short);
             short = true;
           }
-          if (!slot) {
-            const s = sz.short ?? sz.full;
-            slot = leastCrowdedSlot(sx, sx + nat.x, sy + nat.y - s.h, s.w, s.h, opts);
-          }
+          const s = sz.short ?? sz.full;
+          const at = [sx, sy, sx + nat.x, sy + nat.y - s.h, s.w, s.h, opts, REACH] as const;
+          if (!slot) slot = nearestFreeSlot(...at) ?? leastCrowdedSlot(...at);
         }
         if (slot) {
           placed.push(slot.box);
+          placedPills.push(pill);
           const s = short && sz.short ? sz.short : sz.full;
           glide(pill, 'transform', `translate(${nat.x + slot.dx}px, ${nat.y - s.h + slot.dy}px)`);
           const lead = leaderLine(slot.box, sx, sy);
@@ -253,6 +277,14 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
         pill.setAttribute('aria-hidden', String(alpha <= 0.3));
       }
     });
+    // 3. on a touch screen, a tag crammed in closer than the gap gives up the part of its invisible margin that
+    // would cover its neighbour (and so take its taps)
+    if (touch) {
+      touchMargins(placed).forEach((m, i) => {
+        for (const side of ['top', 'right', 'bottom', 'left'] as const) set(placedPills[i], HIT[side], `${m[side]}px`);
+      });
+    }
+    laidOut.current = complete ? { key: layout, items, controls } : null;
   });
 
   return (
@@ -281,7 +313,9 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
                 aria-label={twoNames ? l.name : undefined}
                 title={twoNames ? l.name : undefined}
                 // on touch screens an invisible margin makes the tag a 40 px target without making it look bigger
-                className={`absolute left-0 top-0 whitespace-nowrap rounded px-1.5 py-0.5 touch:px-2 font-medium shadow-lg border backdrop-blur-sm transition-transform duration-200 touch:before:absolute touch:before:-inset-x-1.5 touch:before:-inset-y-[9px] touch:before:content-[''] ${
+                // (tags are kept further apart than it reaches, TAG_GAP, and one crammed in closer has it cut back)
+                style={HIT_AREA}
+                className={`absolute left-0 top-0 whitespace-nowrap rounded px-1.5 py-0.5 touch:px-2 font-medium shadow-lg border backdrop-blur-sm transition-transform duration-200 touch:before:absolute touch:before:-top-[var(--hit-t)] touch:before:-right-[var(--hit-r)] touch:before:-bottom-[var(--hit-b)] touch:before:-left-[var(--hit-l)] touch:before:content-[''] ${
                   kind === 'selected'
                     ? 'text-xs bg-sky-500/90 text-white border-sky-300/60'
                     : kind === 'highlight'
