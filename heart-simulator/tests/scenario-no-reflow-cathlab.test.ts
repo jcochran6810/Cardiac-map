@@ -179,11 +179,13 @@ describe('no-reflow in the cath lab: what works', () => {
     expect(s.penalties).toEqual([]);
   });
 
-  it('adenosine brings seconds of AV block: the monitor shows it without naming it, and the nurse says it aloud', () => {
+  it('adenosine brings seconds of AV block: the monitor gives only the numbers, and the nurse says it aloud', () => {
     const s = run(sc, 5, [...MD_TO_STENT, 'ic-epinephrine', 'ic-adenosine']);
-    const pause = s.log.find((l) => l.who === 'monitor' && /P waves with no QRS/.test(l.text))!;
+    const pause = s.log.find((l) => l.who === 'monitor' && /Heart rate falls to about 30 for 8 seconds/.test(l.text))!;
     expect(pause.text).toMatch(/then back to 116 on its own/);
     expect(pause.text).not.toMatch(giveaway);
+    // what the tracing showed during the pause is the learner's to see: no P waves, QRS or block in the monitor's words
+    expect(pause.text).not.toMatch(/P wave|QRS|block/i);
     expect(s.log.some((l) => l.who === 'team' && /Pause/.test(l.text))).toBe(true);
   });
 
@@ -251,10 +253,14 @@ describe('no-reflow in the cath lab: the traps', () => {
     expect(stent.vitals.pain).toBe(9);
     const balloon = run(sc, 5, [...MD_TO_STENT, 'balloon-nc']);
     expect(penalties(balloon)).toEqual(['balloon-for-no-reflow']);
-    // the tech who opens a stent once the flow has stalled gets a word, and the same penalty
-    const tech = run(sc, 3, ['act', 'stent-des', 'stent-des']);
-    expect(penalties(tech)).toEqual(['stent-for-no-reflow']);
-    expect(tech.log.some((l) => l.who === 'operator' && /More metal won't fix this/.test(l.text))).toBe(true);
+    // the tech who opens a stent or a balloon once the flow has stalled gets a word and a smaller penalty: the operator
+    // refuses it, so nothing reaches the patient
+    for (const device of ['stent-des', 'balloon-nc']) {
+      const tech = run(sc, 3, ['act', 'stent-des', device]);
+      expect(penalties(tech), device).toEqual(['tech-unasked-metal']);
+      expect(tech.penalties[0].points).toBe(3);
+      expect(tech.log.some((l) => l.who === 'operator' && /More metal won't fix this/.test(l.text)), device).toBe(true);
+    }
   });
 
   it('treating without looking at the stent misses the search for a dissection', () => {
@@ -293,8 +299,20 @@ describe('no-reflow in the cath lab: the tech and the nurse', () => {
 
   it('the nurse who reaches for nitroglycerin gets a word from the operator and one penalty, not two', () => {
     const s = run(sc, 4, [...RN.slice(0, RN.indexOf('ic-epinephrine')), 'ic-nitro']);
-    expect(s.log.some((l) => l.who === 'operator' && /drops his pressure even further/.test(l.text))).toBe(true);
+    expect(s.log.some((l) => l.who === 'operator' && /lowers his pressure, it doesn't raise it/.test(l.text))).toBe(true);
     expect(penalties(s)).toEqual(['nitro-low-pressure']);
+  });
+
+  it('adenosine when the operator asks for a drug that raises the pressure gets a word and a small penalty (nurse and tech)', () => {
+    const rn = run(sc, 4, [...RN.slice(0, RN.indexOf('ic-epinephrine')), 'ic-adenosine']);
+    expect(penalties(rn)).toEqual(['wrong-rn-epi']);
+    expect(rn.log.some((l) => l.who === 'operator' && /lowers his pressure, it doesn't raise it/.test(l.text))).toBe(true);
+    const tech = run(sc, 3, [...TECH.slice(0, TECH.indexOf('ic-epinephrine')), 'ic-adenosine']);
+    expect(penalties(tech)).toEqual(['wrong-epi']);
+    expect(tech.log.some((l) => l.who === 'operator' && /That's not what I asked for/.test(l.text))).toBe(true);
+    // and epinephrine handed when the operator asked for adenosine is the wrong syringe too
+    const swap = run(sc, 3, [...TECH.slice(0, TECH.indexOf('ic-adenosine')), 'ic-epinephrine']);
+    expect(penalties(swap)).toEqual(['wrong-adenosine']);
   });
 
   it('the nurse gives adenosine into the coronary, not an IV dose', () => {
@@ -354,5 +372,96 @@ describe('no-reflow in the cath lab: the tech and the nurse', () => {
       expect(s.flags['heparin-topup'], `role ${role}`).toBeDefined();
       expect(s.flags['no-reflow'], `role ${role}`).toBeDefined();
     }
+  });
+});
+
+describe('no-reflow in the cath lab: fair scoring and a consistent patient (independent review)', () => {
+  /** The cardiologist up to the stent, then the no-reflow read answered by the runner */
+  const NO_REFLOW = MD_TO_STENT;
+  const FINISH = ['final-angio', 'ecg12', 'echo', 'handoff'];
+
+  it('flow brought back within 3 minutes brings the pressure back too: no missed support for that learner', () => {
+    // the aspiration catheter beyond the stent, then adenosine through it: the flow (and the pressure) back in about a minute
+    const fast = run(sc, 5, [...NO_REFLOW, 'aspiration', 'ic-adenosine', 'ivus', ...FINISH]);
+    expect(fast.vitals.sbp).toBeGreaterThanOrEqual(112);
+    expectFullMarks(fast);
+    // adenosine twice with the second dose bringing the flow back inside the 3 minutes: the same
+    expectFullMarks(run(sc, 5, [...NO_REFLOW, 'ic-adenosine', 'ivus', 'ic-adenosine', ...FINISH]));
+    // but leaving the pressure at 86 while the flow stays stalled is still a miss: it falls to 74 at 3 minutes
+    const slow = run(sc, 5, [...NO_REFLOW, 'ivus', 'ic-adenosine', 'reassess', 'ic-adenosine', ...FINISH]);
+    expect(slow.fired).toContain('pressure-falls');
+    expect(missed(slow)).toContain('Support the pressure (intracoronary epinephrine or a pressor)');
+  });
+
+  it('a drug counts from when it was started, as everywhere in the simulator', () => {
+    // epinephrine started exactly 4:00 after the no-reflow: the microvascular drug is on time, the support is late
+    const s = run(sc, 5, [...NO_REFLOW, 'reassess', 'reassess', 'ic-epinephrine', 'ivus', 'ic-adenosine', ...FINISH]);
+    const r = review(sc, s);
+    expect(r.toFix.map((t) => `${t.kind}:${t.label}`)).toEqual(['late:Support the pressure (intracoronary epinephrine or a pressor)']);
+    // perfused again after the fall to 74, he is fully awake
+    expect(s.vitals.gcs).toBe(15);
+  });
+
+  it('an ACT of 212 with eptifibatide started is in range: no heparin top-up is missed', () => {
+    const s = run(sc, 5, ['act', 'gp2b3a', 'stent-des', 'ic-epinephrine', 'ivus', 'ic-adenosine', ...FINISH]);
+    expect(s.flags['act-low']).toBeDefined();
+    expectFullMarks(s);
+  });
+
+  it('a stent put in while the ACT is still 212 costs points, checked or not', () => {
+    const blind = run(sc, 5, ['stent-des']);
+    expect(penalties(blind)).toEqual(['stent-act-low']);
+    const ignored = run(sc, 5, ['act', 'stent-des']);
+    expect(penalties(ignored)).toEqual(['stent-act-low']);
+    // topped up (or bivalirudin or eptifibatide running) first: no penalty
+    for (const first of ['heparin', 'bivalirudin', 'gp2b3a']) expect(penalties(run(sc, 5, ['act', first, 'stent-des'])), first).toEqual([]);
+  });
+
+  it('another diagnostic angiogram after the stent is a look at the stent in standard views — not the first run\'s occluded artery again', () => {
+    const s = run(sc, 5, [...NO_REFLOW, 'ic-epinephrine', 'angio', 'ic-adenosine', ...FINISH]);
+    const run2 = s.images.find((r) => r.id === 'angio' && r.minute > 0)!;
+    expect(run2.image).toBeUndefined();
+    expect(s.log.some((l) => /the stent edges are smooth/.test(l.text))).toBe(true);
+    expectFullMarks(s);
+    // with no pulse there is no angiogram to take
+    let vf = run(sc, 5, NO_REFLOW);
+    while (vf.pulse) vf = perform(sc, vf, 'reassess');
+    expect(perform(sc, vf, 'angio').counts.angio).toBeUndefined();
+  });
+
+  it('a balloon pump holds the pressure once it is in (late support), but opens no microvessels: VF still comes', () => {
+    const s = run(sc, 5, [...NO_REFLOW, 'iabp']);
+    expect(s.fired).not.toContain('pressure-falls');
+    expect(s.log.some((l) => /IABP in from the right femoral artery/.test(l.text))).toBe(true);
+    expect(s.fired).toContain('vf');
+    const r = review(sc, stop(s));
+    expect(r.toFix.find((t) => t.label.startsWith('Support the pressure'))?.kind).toBe('late');
+  });
+
+  it('an intracoronary drug pushed during VF reaches nothing and is not the microvascular drug', () => {
+    let s = run(sc, 5, NO_REFLOW);
+    while (s.pulse) s = perform(sc, s, 'reassess');
+    for (const drug of ['ic-adenosine', 'ic-verapamil']) {
+      const t = perform(sc, s, drug);
+      expect(t.log.at(-1)!.text, drug).toMatch(/with no circulation it goes nowhere/);
+      expect(t.flags['micro-1'], drug).toBeUndefined();
+      expect(missed(t), drug).toContain('An intracoronary drug for the microvessels');
+    }
+  });
+
+  it('intracoronary epinephrine with normal flow and pressure has no indication: a small penalty, for every role', () => {
+    for (const role of ROLES) expect(penalties(run(sc, role, ['ic-epinephrine'])), `role ${role}`).toEqual(['epi-no-indication']);
+    // after the flow is back too
+    expect(penalties(run(sc, 5, [...NO_REFLOW, 'ic-epinephrine', 'ic-adenosine', 'ic-epinephrine']))).toEqual(['epi-no-indication']);
+  });
+
+  it('the LV gram, LVEDP and right heart numbers match a large anterior infarct, not a normal heart', () => {
+    const s = run(sc, 5, [...NO_REFLOW, 'lv-gram', 'lvedp']);
+    const text = s.log.map((l) => l.text).join('\n');
+    expect(text).toMatch(/EF about 35 %/);
+    expect(text).not.toMatch(/normal wall motion|LVEDP 10/);
+    expect(text).toMatch(new RegExp(`LV ${s.vitals.sbp}/30 mmHg: LVEDP 30 mmHg`));
+    const rhc = run(sc, 5, [...NO_REFLOW, 'access-venous', 'rhc']);
+    expect(rhc.log.some((l) => /PCWP 26 · CO 3.9 L\/min, CI 1.9/.test(l.text))).toBe(true);
   });
 });

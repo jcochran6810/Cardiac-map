@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../
 import { bpAfter, firstDone, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import {
-  LEFT_VIEWS, MD, NO_REFLOW_VASODILATORS, askCritical, askEvents, askHarm, cine, type LabAsk,
+  LEFT_VIEWS, MD, NO_REFLOW_VASODILATORS, TECH, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
 
 /**
@@ -21,6 +21,27 @@ const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion-thrombus
 
 /** Every intracoronary drug that acts on the microvessels: the three vasodilators and epinephrine */
 const MICRO = [...NO_REFLOW_VASODILATORS, 'ic-epinephrine'];
+
+/** What holds the pressure up while the flow is stalled: epinephrine (intracoronary or IV), norepinephrine, a pump */
+const SUPPORT = ['ic-epinephrine', 'pressor', 'push-epi', 'iabp', 'impella'];
+
+/** The earliest of several minutes (null if none) */
+const earliest = (...mins: (number | null | undefined)[]) => {
+  const got = mins.filter((m): m is number => typeof m === 'number');
+  return got.length ? Math.min(...got) : null;
+};
+
+/**
+ * When the action behind a flag was started (the engine counts an action from its start; the flag is set when it is
+ * done): the one of `ids` that finished at the flag's minute — otherwise the flag's own minute (e.g. a pump, which only
+ * holds the pressure up once it is in).
+ */
+function startedAt(s: SimState, flag: string, ids: string[]): number | null {
+  const at = s.flags[flag];
+  if (at === undefined) return null;
+  const hit = s.performed.find((p) => ids.includes(p.id) && Math.abs(p.minute + INTERVENTION_BY_ID[p.id].minutes - at) < 0.05);
+  return hit ? hit.minute : at;
+}
 
 const firstRun = cine('angio', 'First run of the case: the left coronary', IMAGES.angio, [
   ['team', 'First run: the proximal LAD is occluded, with a heavy thrombus load. Right coronary: mild disease only.'],
@@ -76,13 +97,16 @@ function flowAfter(s: SimState, bp: { sbp: number; dbp: number }, hr: number): E
   }
   const sbp = Math.max(bp.sbp, 112);
   const dbp = Math.max(bp.dbp, 70);
+  // perfused again, he is fully awake (a little drowsier only if he has just been shocked out of VF)
+  const gcs = has(s, 'arrest') ? Math.max(s.vitals.gcs, 14) : 15;
   return {
     say: [
       [who, 'Next run: the LAD fills briskly to the apex, the muscle blushes, and the contrast clears within a few beats.', 'good'],
       ['monitor', `Heart rate 92. BP ${sbp}/${dbp}.`],
-      ...awake(s, 'Oh — that\'s easing off now.'),
+      ...(gcs >= 13 ? [line('patient', '"Oh — that\'s easing off now."')] : []),
     ],
-    vitals: { sbp, dbp, pain: 2 }, rhythm: { profile: 'anterior-stemi-reperfused', hr: 92 }, flags: ['micro-1', 'reflow'],
+    // with the flow back the pressure is back too ('pressure-up'), however it got there
+    vitals: { sbp, dbp, pain: 2, gcs }, rhythm: { profile: 'anterior-stemi-reperfused', hr: 92 }, flags: ['micro-1', 'reflow', 'pressure-up'],
   };
 }
 
@@ -96,14 +120,17 @@ function microDrug(s: SimState, by: By, drug: string, bp: { sbp: number; dbp: nu
 function epinephrine(s: SimState, by: By): Effect {
   const bp = bpAfter(s, 16, 8);
   const hr = s.rhythm.hr + 8;
-  return microDrug(s, by, 'Epinephrine 100 mcg', bp, hr, [['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]], ['ic-epinephrine', 'supported']);
+  return microDrug(s, by, 'Epinephrine 100 mcg', bp, hr, [['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]], ['ic-epinephrine', 'supported', 'pressure-up']);
 }
 
-/** Adenosine 200 mcg: seconds of AV block (the pressure dips with it), then it works on the arterioles */
+/**
+ * Adenosine 200 mcg: seconds of AV block (the pressure dips with it), then it works on the arterioles. The monitor gives
+ * the numbers only: what the tracing showed during the pause is the learner's to see.
+ */
 function adenosine(s: SimState, by: By): Effect {
   const { sbp, dbp } = s.vitals;
   const own: Line[] = [
-    ['monitor', `Heart rate about 30 for 8 seconds — P waves with no QRS after them — then back to ${s.rhythm.hr} on its own. BP dips to ${Math.max(50, sbp - 14)}, then recovers to ${sbp}/${dbp}.`],
+    ['monitor', `Heart rate falls to about 30 for 8 seconds, then back to ${s.rhythm.hr} on its own. BP dips to ${Math.max(50, sbp - 14)}, then recovers to ${sbp}/${dbp}.`],
     ...awake(s, 'Whoa — my chest feels tight…'),
     ...(s.role === 5 ? [line('team', 'Nurse: "Pause — about eight seconds… and he\'s back."')] : []),
   ];
@@ -139,6 +166,9 @@ function viewOfStent(s: SimState, id: string, label: string): Effect | null {
   };
 }
 
+/** A drug pushed into the coronary during VF: with no circulation it reaches nothing (the engine's default says it acts) */
+const pulseless = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — with no circulation it goes nowhere and changes nothing.`]], flags: [flag] });
+
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;
   return {
@@ -167,10 +197,11 @@ const TECH_ASKS: LabAsk[] = [
     why: 'Say the size back to the operator and check it on the box before you open it.',
   },
   {
+    // nitroglycerin, nitroprusside and verapamil at 86 each carry their own penalty; adenosine has 'wrong-epi'
     id: 'epi', when: (s) => has(s, 'no-reflow'), wait: 3,
     ask: 'Pressure\'s 86. Draw me up epinephrine for the guide — 100 micrograms, please.',
-    accept: ['ic-epinephrine'], wrong: ['ic-nitro', 'ic-nitroprusside', 'ic-verapamil'],
-    wrongSay: 'Not that — it drops his pressure even further. Epinephrine, 100 micrograms.',
+    accept: ['ic-epinephrine'], wrong: ['ic-nitro', 'ic-nitroprusside', 'ic-verapamil', 'ic-adenosine'],
+    wrongSay: 'That\'s not what I asked for — that one lowers his pressure, it doesn\'t raise it. Epinephrine, 100 micrograms.',
     thanks: 'Thanks — pressure\'s coming up.', fallback: 'I\'ll draw up the epinephrine myself.', gives: 'epi-given',
     fallbackEffect: (s) => (stalled(s) ? epinephrine(s, 'operator') : {}),
     label: 'Epinephrine drawn up for the guide, as ordered', points: 10,
@@ -178,7 +209,7 @@ const TECH_ASKS: LabAsk[] = [
   },
   {
     id: 'imaging', when: (s) => has(s, 'epi-given'), wait: 3,
-    ask: 'Before anything else: intravascular imaging on the table, please — I want to see that stent and its edges.',
+    ask: 'Now intravascular imaging on the table, please — I want to see that stent and its edges.',
     accept: ['ivus', 'oct'],
     thanks: 'Thanks — nothing mechanical.', fallback: 'I\'ll set up the IVUS myself.', gives: 'imaging-done',
     fallbackEffect: () => ({ say: [['operator', IVUS_AFTER]], flags: ['ivus', 'mech-excluded'] }),
@@ -188,7 +219,7 @@ const TECH_ASKS: LabAsk[] = [
   {
     id: 'adenosine', when: (s) => has(s, 'mech-excluded') && !has(s, 'reflow'), wait: 3,
     ask: 'Imaging\'s clean. Adenosine for the guide next, please — 200 micrograms.',
-    accept: ['ic-adenosine'], wrong: ['ic-nitro', 'ic-nitroprusside', 'ic-verapamil'],
+    accept: ['ic-adenosine'], wrong: ['ic-nitro', 'ic-nitroprusside', 'ic-verapamil', 'ic-epinephrine'],
     wrongSay: 'That\'s not what I asked for — adenosine, 200 micrograms.',
     thanks: 'Thanks.', fallback: 'I\'ll draw up the adenosine myself.', gives: 'adenosine-given',
     fallbackEffect: (s) => (stalled(s) ? adenosine(s, 'operator') : {}),
@@ -219,11 +250,11 @@ const RN_ASKS: LabAsk[] = [
     why: 'A 2,000–3,000 unit bolus brings the ACT back to 250–300 s; with it low, clot forms on the wire and the stent — and in the small vessels beyond.',
   },
   {
-    // nitroglycerin, nitroprusside and verapamil with a pressure of 86 each carry their own penalty: the operator's word only here
+    // nitroglycerin, nitroprusside and verapamil with a pressure of 86 each carry their own penalty; adenosine has 'wrong-rn-epi'
     id: 'rn-epi', role: 4, when: (s) => has(s, 'no-reflow'), wait: 3,
     ask: 'Pressure\'s 86. I want an intracoronary drug that brings it up — draw it up for the guide, please.',
-    accept: ['ic-epinephrine'], wrong: ['ic-nitro', 'ic-nitroprusside', 'ic-verapamil'],
-    wrongSay: 'Not that — it drops his pressure even further. Epinephrine, 100 micrograms down the guide.',
+    accept: ['ic-epinephrine'], wrong: ['ic-nitro', 'ic-nitroprusside', 'ic-verapamil', 'ic-adenosine'],
+    wrongSay: 'Not that — that one lowers his pressure, it doesn\'t raise it. Epinephrine, 100 micrograms down the guide.',
     thanks: 'Thanks — pressure\'s coming up.', fallback: 'I\'ll draw up the epinephrine myself.', gives: 'epi-given',
     fallbackEffect: (s) => (stalled(s) ? epinephrine(s, 'operator') : {}),
     label: 'Intracoronary epinephrine when the pressure is low', points: 10,
@@ -291,6 +322,12 @@ export const cathlabNoReflow: Scenario = {
       ? `Sinus rhythm ${s.rhythm.hr}: the ST segments in V1–V4 are back up, with reciprocal depression in III and aVF — the anterior wall is ischemic again.`
       : `Sinus rhythm ${s.rhythm.hr}: the ST elevation in V1–V4 has come down by more than half, with early T-wave inversion — the anterior wall is reperfused.`),
     echo: 'Anterior, septal and apical akinesis; LVEF about 35 %. No pericardial effusion, no ventricular septal defect, no severe mitral regurgitation.',
+    // the same large anterior infarct the echo shows: a stiff, failing left ventricle, worse while the flow is stalled
+    lvgram: 'LV gram: the anterior wall and the apex barely move; EF about 35 %; no mitral regurgitation.',
+    lvedp: (s) => (stalled(s) ? `LV ${s.vitals.sbp}/30 mmHg: LVEDP 30 mmHg.` : `LV ${s.vitals.sbp}/22 mmHg: LVEDP 22 mmHg.`),
+    rhc: (s) => (stalled(s)
+      ? 'RA 9 · RV 36/9 · PA 36/24 (mean 28) · PCWP 26 · CO 3.9 L/min, CI 1.9.'
+      : 'RA 7 · RV 32/7 · PA 32/20 (mean 24) · PCWP 20 · CO 4.6 L/min, CI 2.2.'),
     final: FINAL_LINE,
   },
   status: (s) => {
@@ -330,8 +367,12 @@ export const cathlabNoReflow: Scenario = {
       };
     },
     'ic-epinephrine': (s) => (stalled(s) ? epinephrine(s, 'learner') : null),
-    'ic-adenosine': (s) => (stalled(s) ? adenosine(s, 'learner') : null),
+    'ic-adenosine': (s) => {
+      if (!s.pulse) return pulseless('Intracoronary adenosine', 'ic-adenosine');
+      return stalled(s) ? adenosine(s, 'learner') : null;
+    },
     'ic-verapamil': (s) => {
+      if (!s.pulse) return pulseless('Intracoronary verapamil', 'ic-verapamil');
       if (!stalled(s)) return null;
       // it relaxes the arterioles, and it lowers the pressure and slows the AV node as it washes through
       const bp = bpAfter(s, -8, -5);
@@ -357,12 +398,48 @@ export const cathlabNoReflow: Scenario = {
       // norepinephrine to a mean of 65 or more: it never brings a higher pressure down
       const sbp = Math.max(s.vitals.sbp, 96);
       const dbp = Math.max(s.vitals.dbp, 58);
-      return { say: [['you', 'Norepinephrine 0.05 mcg/kg/min running.'], ['monitor', `BP ${sbp}/${dbp}.`]], vitals: { sbp, dbp }, flags: ['pressor', 'supported'] };
+      return { say: [['you', 'Norepinephrine 0.05 mcg/kg/min running.'], ['monitor', `BP ${sbp}/${dbp}.`]], vitals: { sbp, dbp }, flags: ['pressor', 'supported', 'pressure-up'] };
     },
     'push-epi': (s) => {
       if (!s.pulse || !has(s, 'no-reflow')) return null;
       const bp = bpAfter(s, 16, 10);
-      return { say: [['you', 'Push-dose epinephrine 20 mcg IV.'], ['monitor', `BP ${bp.sbp}/${bp.dbp} for a few minutes.`]], vitals: bp, flags: ['push-epi', 'supported'] };
+      return { say: [['you', 'Push-dose epinephrine 20 mcg IV.'], ['monitor', `BP ${bp.sbp}/${bp.dbp} for a few minutes.`]], vitals: bp, flags: ['push-epi', 'supported', 'pressure-up'] };
+    },
+    // a pump holds the pressure up once it is in (it takes minutes), so the pressure does not keep falling under it;
+    // it does nothing for the plugged microvessels. Both need a femoral artery: the case runs from the radial.
+    iabp: (s) => {
+      if (s.role !== 5 || !stalled(s)) return null;
+      const bp = bpAfter(s, 6, 8, { sbp: 140, dbp: 90 });
+      return {
+        say: [['you', 'IABP in from the right femoral artery, tip 2 cm below the left subclavian; 1:1 with diastolic augmentation.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
+        vitals: bp, flags: ['iabp', 'mcs', 'supported', 'pressure-up'],
+      };
+    },
+    impella: (s) => {
+      if (s.role !== 5 || !stalled(s)) return null;
+      const bp = bpAfter(s, 14, 10, { sbp: 140, dbp: 90 });
+      return {
+        say: [['you', 'Impella CP across the aortic valve from the right femoral artery; P-6, flow 3.3 L/min.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
+        vitals: bp, flags: ['impella', 'mcs', 'supported', 'pressure-up'],
+      };
+    },
+    // the first run is already on the Imaging screen: another diagnostic run is a fresh look in standard views, described
+    // in words (the real first-run image belongs to the occluded artery, before the wire)
+    angio: (s) => {
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not during the arrest: treat the rhythm first.']] };
+      const run = { id: 'angio', view: 'Diagnostic angiography: both coronaries in standard views' };
+      if (stalled(s)) {
+        return {
+          say: [['you', 'Both coronaries in standard views: the stent edges are smooth — no flap, no contrast staining outside the lumen, no filling defect in the stent. Beyond it the LAD contrast still crawls. The right coronary has mild disease only.']],
+          image: run, flags: ['cine', 'mech-excluded'],
+        };
+      }
+      return {
+        say: [['you', has(s, 'reflow')
+          ? 'Both coronaries in standard views: the LAD fills briskly through the stent to the apex; the right coronary has mild disease only.'
+          : 'Both coronaries in standard views: the LAD is open to the apex after the balloon, with clot still lining its proximal segment; the right coronary has mild disease only.']],
+        image: run, flags: ['cine'],
+      };
     },
     'final-angio': (s) => {
       if (!has(s, 'reflow')) return { blocked: true, say: [['system', s.role === 5 ? 'Not the final pictures yet: the flow is not back.' : 'The operator is not ready for the final pictures yet.']] };
@@ -455,28 +532,37 @@ export const cathlabNoReflow: Scenario = {
     ...TECH_ASKS.map(askCritical),
     ...RN_ASKS.map(askCritical),
     { id: 'md-act', label: 'Check the ACT', why: 'Fifty minutes after the heparin bolus, in an artery full of clot: the ACT should be 250–300 s (200–250 s with a GP IIb/IIIa inhibitor) before more devices go in — and while the flow is stalled.', done: ['act'], roles: MD, points: 5, target: { within: { flag: 'no-reflow', minutes: 6 } } },
-    { id: 'md-heparin', label: 'Top up the heparin for an ACT under 250', why: 'A 2,000–3,000 unit bolus brings the ACT back to 250–300 s; with it low, clot forms on the wire and the stent — and in the small vessels beyond.', done: ['heparin', 'bivalirudin'], after: 'act-low', roles: MD, points: 5, target: { within: { flag: 'act-low', minutes: 3 } }, applies: (s) => has(s, 'act-low') },
+    // with a GP IIb/IIIa inhibitor started the target is 200–250 s, so the ACT of 212 is in range without more heparin
+    { id: 'md-heparin', label: 'Top up the heparin for an ACT under 250', why: 'A 2,000–3,000 unit bolus brings the ACT back to 250–300 s; with it low, clot forms on the wire and the stent — and in the small vessels beyond. (With a GP IIb/IIIa inhibitor running, 200–250 s is enough; bivalirudin replaces the heparin.)', done: ['heparin', 'bivalirudin', 'gp2b3a'], after: 'act-low', roles: MD, points: 5, target: { within: { flag: 'act-low', minutes: 3 } }, applies: (s) => has(s, 'act-low') },
     { id: 'md-stent', label: 'Stent the culprit', why: 'A drug-eluting stent sized to the vessel once the clot has been debulked and the flow is back.', done: ['stent-des'], roles: MD, points: 5 },
     { id: 'callout-no-reflow', label: 'Call out the falling pressure and the returning pain at once', why: 'The pressure falling to 86, the pain back and the ST segments up again right after the stent: say it out loud so the whole team switches to the problem.', done: ['callout'], after: 'no-reflow', roles: [3, 4], points: 10, target: { within: { flag: 'no-reflow', minutes: 1 } }, applies: (s) => has(s, 'no-reflow') },
     {
+      // counted from when the pressure is held up ('supported': a drug once given with a pulse, a pump once it is working —
+      // a drug pushed in VF holds nothing up); flow brought back within the 3 minutes brings the pressure back with it, so a
+      // learner who fixed the cause that fast has not neglected the pressure
       id: 'md-support', label: 'Support the pressure (intracoronary epinephrine or a pressor)', roles: MD, points: 10, target: { within: { flag: 'no-reflow', minutes: 3 } }, applies: (s) => has(s, 'no-reflow'),
       why: 'Flow through the damaged bed depends on the aortic pressure, and a systolic of 86 makes no-reflow worse. Intracoronary epinephrine lifts it and opens the microvessels; norepinephrine if more is needed.',
-      done: (s) => firstDone(s, ['ic-epinephrine', 'pressor', 'push-epi'], 'no-reflow'), uses: ['ic-epinephrine', 'pressor', 'push-epi'],
+      done: (s) => {
+        const back = has(s, 'reflow') && s.flags.reflow <= s.flags['no-reflow'] + 3 ? startedAt(s, 'reflow', MICRO) : null;
+        return earliest(startedAt(s, 'supported', ['ic-epinephrine', 'pressor', 'push-epi']), back);
+      },
+      uses: SUPPORT,
     },
     {
       id: 'md-exclude', label: 'Rule out a dissection, clot or spasm (IVUS, OCT or another view)', roles: MD, points: 15, target: { within: { flag: 'no-reflow', minutes: 6 } }, applies: (s) => has(s, 'no-reflow'),
       why: 'Slow flow after a stent can be mechanical — an edge dissection, clot in the stent, spasm, a wedged guide — and that needs a different fix: a dissection needs a stent, no-reflow never does. IVUS or OCT shows the stent and its edges; at the least, look in a second projection.',
-      done: (s) => firstDone(s, ['ivus', 'oct', ...LEFT_VIEWS], 'no-reflow'), uses: ['ivus', 'oct', ...LEFT_VIEWS],
+      done: (s) => firstDone(s, ['ivus', 'oct', 'angio', ...LEFT_VIEWS], 'no-reflow'), uses: ['ivus', 'oct', 'angio', ...LEFT_VIEWS],
     },
     {
       id: 'md-micro', label: 'An intracoronary drug for the microvessels', roles: MD, points: 15, target: { within: { flag: 'no-reflow', minutes: 4 } }, applies: (s) => has(s, 'no-reflow'),
       why: 'Adenosine, verapamil and nitroprusside open the arterioles; epinephrine does too and lifts the pressure — the one to use with a systolic under 90. Nitroglycerin works on the big artery, not the microvessels.',
-      done: (s) => firstDone(s, MICRO, 'no-reflow'), uses: MICRO,
+      // 'micro-1': the first dose that reached the stalled bed (one pushed during VF, with no circulation, reaches nothing)
+      done: (s) => startedAt(s, 'micro-1', MICRO), uses: MICRO,
     },
     {
       id: 'md-reflow', label: 'Keep treating until the flow is back', roles: MD, points: 10, target: { within: { flag: 'no-reflow', minutes: 10 } }, applies: (s) => has(s, 'no-reflow'),
       why: 'One bolus is often not enough: repeat it or add another drug (adenosine, verapamil or nitroprusside once the pressure allows), ideally delivered beyond the stent, until the LAD fills briskly.',
-      done: (s) => (has(s, 'reflow') ? s.flags.reflow : null), uses: MICRO,
+      done: (s) => startedAt(s, 'reflow', MICRO), uses: MICRO,
     },
     { id: 'callout-pause', label: 'Call out the pause after the adenosine', why: 'Intracoronary adenosine often blocks the AV node for a few seconds. Say it out loud ("pause — eight seconds — back"): it usually passes by itself; if it does not, atropine or pacing.', done: ['callout'], after: 'adenosine-pause', roles: [3, 4], points: 10, target: { within: { flag: 'adenosine-pause', minutes: 1 } }, applies: (s) => has(s, 'adenosine-pause') },
     { id: 'defib', label: 'Defibrillate VF within 1 minute', why: 'In the lab, VF is witnessed with the pads on: shock it within seconds.', done: ['defib', 'aed'], after: 'arrest', points: 15, target: { within: { flag: 'arrest', minutes: 1 } }, applies: (s) => has(s, 'arrest') },
@@ -489,19 +575,27 @@ export const cathlabNoReflow: Scenario = {
   harms: [
     { id: 'nitro-low-pressure', actions: ['nitro', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
     { id: 'verapamil-low-pressure', actions: ['ic-verapamil'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'Intracoronary verapamil with a systolic pressure under 90 mmHg. It relaxes the vessels and weakens the squeeze, so the pressure falls further — and a lower perfusion pressure makes no-reflow worse. Support the pressure first, or use intracoronary epinephrine.' },
-    { id: 'stent-for-no-reflow', actions: ['stent-des'], roles: [3, 5], when: (s) => has(s, 'no-reflow'), points: 10, severity: 'major', text: 'Another stent for slow flow in an artery that is already open. Unless imaging shows a dissection or clot at the stent, the obstruction is in the small vessels beyond it: more metal pushes more debris downstream and fixes nothing.' },
-    { id: 'balloon-for-no-reflow', actions: ['balloon-predil', 'balloon-nc'], roles: [3, 5], when: (s) => has(s, 'no-reflow'), points: 5, severity: 'minor', text: 'More balloon inflations for slow flow in a well-expanded stent. The obstruction is beyond the stent; every inflation squeezes more debris downstream.' },
+    { id: 'stent-for-no-reflow', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'no-reflow'), points: 10, severity: 'major', text: 'Another stent for slow flow in an artery that is already open. Unless imaging shows a dissection or clot at the stent, the obstruction is in the small vessels beyond it: more metal pushes more debris downstream and fixes nothing.' },
+    { id: 'balloon-for-no-reflow', actions: ['balloon-predil', 'balloon-nc'], roles: MD, when: (s) => has(s, 'no-reflow'), points: 5, severity: 'minor', text: 'More balloon inflations for slow flow in a well-expanded stent. The obstruction is beyond the stent; every inflation squeezes more debris downstream.' },
+    // the tech only opens it — the operator refuses it and nothing reaches the patient — so a smaller penalty than the operator's
+    { id: 'tech-unasked-metal', actions: ['stent-des', 'balloon-predil', 'balloon-nc'], roles: TECH, when: (s) => has(s, 'no-reflow'), points: 3, severity: 'minor', text: 'A stent or balloon opened that the operator did not ask for, while the flow was stalled. The artery is open: more metal pushes more debris downstream and fixes nothing. Open devices when the operator asks for them.' },
+    // judged on the real ACT (212 s 50 minutes after the bolus), checked or not
+    { id: 'stent-act-low', actions: ['stent-des'], roles: MD, when: (s) => !has(s, 'pci') && !has(s, 'heparin-topup') && !has(s, 'bivalirudin') && !has(s, 'gp2b3a'), points: 3, severity: 'minor', text: 'The stent went in with the ACT below range (212 s, 50 minutes after the heparin bolus). Check the ACT before more devices go in and top up the heparin when it is under 250 s: with it low, clot forms on the wire, in the stent and in the small vessels beyond.' },
+    { id: 'epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse && !stalled(s), points: 3, severity: 'minor', text: 'Intracoronary epinephrine with the flow and the pressure normal. It is for no-reflow, above all with a low pressure; without it, it only speeds the heart and raises the pressure and the oxygen need of an infarcting heart.' },
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     { id: 'protamine-in-thrombus', actions: ['protamine'], points: 10, severity: 'major', text: 'Protamine in the middle of a thrombotic PCI. Reversing the heparin lets clot form on the wire, in the fresh stent and in the small vessels: no-reflow needs full anticoagulation (ACT 250–300 s).' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. On top of heparin and two antiplatelet drugs it adds major bleeding risk; no-reflow is treated with intracoronary drugs.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'An IV beta-blocker in a large anterior STEMI with a falling pressure. It takes away output the heart needs and risks cardiogenic shock (COMMIT).' },
+    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'An IV beta-blocker in a large anterior STEMI with crackles at both lung bases. With heart failure signs, a low output or a falling pressure it takes away output the heart needs and risks cardiogenic shock (COMMIT); IV beta-blockers are not routine in STEMI.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
+    { ...askHarm(TECH_ASKS[2], 'Adenosine when the operator asked for epinephrine with a pressure of 86. Adenosine lowers the pressure, it does not hold it up. Read the order back and check the syringe label before you hand it up.'), actions: ['ic-adenosine'] },
     askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'),
+    { ...askHarm(RN_ASKS[2], 'Adenosine when the operator asked for an intracoronary drug that brings a pressure of 86 up. Adenosine is a vasodilator: of the intracoronary drugs only epinephrine raises the pressure.'), actions: ['ic-adenosine'] },
     askHarm(RN_ASKS[3], 'An IV dose of adenosine when the operator asked for 200 micrograms into the coronary. The 6–12 mg rapid push is the SVT dose and the IV infusion is for FFR — neither is what was ordered for the microvessels.'),
   ],
   timings: [
-    { label: 'Pressure supported', actions: ['ic-epinephrine', 'pressor', 'push-epi'], flag: 'supported', target: 3, from: 'no-reflow' },
+    // when the pressure came back up: by a drug or a pump, or with the flow
+    { label: 'Pressure held up', actions: [], flag: 'pressure-up', target: 3, from: 'no-reflow' },
     { label: 'First drug for the microvessels', actions: MICRO, target: 4, from: 'no-reflow' },
     { label: 'Flow back', actions: [], flag: 'reflow', target: 10, from: 'no-reflow' },
   ],
@@ -511,8 +605,9 @@ export const cathlabNoReflow: Scenario = {
     'No-reflow: the artery is open — no dissection, clot or spasm in it — but the flow beyond is slow (TIMI 2 or less, or a poor myocardial blush) because the microvessels are plugged: clot and plaque debris swept downstream, platelet plugs, spasm and swelling. The pain and the ST elevation come back, the pressure falls, and VF can follow.',
     'Risk: a heavy thrombus burden, a long ischemic time, diabetes, a large anterior infarct, aggressive dilation in fresh clot. Keep the ACT at 250–300 s on heparin alone (200–250 s with a GP IIb/IIIa inhibitor).',
     'Rule out a mechanical cause first — an edge dissection, clot in the stent, spasm, a wedged guide (a damped pressure) — with IVUS or OCT, or at least a second projection. A dissection needs a stent; no-reflow never does.',
-    'Hold the pressure up: flow through the damaged bed depends on it. With a systolic under 90, intracoronary epinephrine (50–200 mcg) lifts the pressure and opens the microvessels; add norepinephrine if needed.',
+    'Hold the pressure up: flow through the damaged bed depends on it. With a systolic under 90, intracoronary epinephrine (50–100 mcg boluses, repeated as needed) lifts the pressure and opens the microvessels; add norepinephrine if needed.',
     'Then the microvascular vasodilators, repeated or combined until the flow is back: adenosine 100–200 mcg boluses, verapamil 100–200 mcg, nitroprusside 50–200 mcg. Give them beyond the stent when you can (a microcatheter, or the aspiration catheter): a bolus into the guide while nothing runs off mostly washes back into the aorta.',
+    'The evidence is thin: no drug has been shown to lower mortality. In randomized trials pooled in a 2026 network meta-analysis, intracoronary epinephrine and verapamil improved the final TIMI 3 flow; adenosine improved ST resolution but did not clearly improve the final flow.',
     'Nitroglycerin widens the big artery, not the microvessels: it does not treat no-reflow, and with a low pressure it is harmful. Verapamil and nitroprusside also lower the pressure — not with a systolic under 90.',
     'Intracoronary adenosine often brings a few seconds of AV block or a pause (most of all in the right coronary): call it out; it passes by itself. Verapamil can block for longer.',
     'Do not add stents or balloon inflations for slow flow in an open, undissected artery: more metal and more pressure push more debris downstream.',
