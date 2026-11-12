@@ -7,8 +7,7 @@ import { openTrainer } from '@/lib/drillRun';
 import { useAppStore, type LearningLevel } from '@/store/useAppStore';
 import { useTutorStore } from '@/store/useTutorStore';
 import { scenariosFor } from '@/lib/sim/scenario/scenarios';
-import { startLesson } from '@/lib/courses';
-import { lessonKey, useCourseStore } from '@/store/useCourseStore';
+import { openLesson } from '@/lib/courses';
 import { showInPicker } from '@/components/simulator/ScenarioPicker';
 import { CASE_DATA } from '@/data/caseData';
 import { GLOSSARY } from '@/data/glossary';
@@ -95,9 +94,9 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
   const choose = (h: SearchHit) => {
     if (h.kind === 'lesson') {
       const [course, lesson] = h.id.split('/');
-      // a finished lesson starts again from the top (not on its result card); one in progress resumes
-      const done = useCourseStore.getState().progress[lessonKey(course, lesson)]?.done;
-      startLesson(course, lesson, done ? 0 : undefined);
+      // a finished lesson starts again from the top (not on its result card); a run under way — a new run of a
+      // finished lesson included — resumes where it was left, as from the course list
+      openLesson(course, lesson);
     } else if (h.kind === 'tool') TOOL_BY_ID[h.id]?.open();
     // a simulator case is started from the case list, where its briefing and Start button are: open the list at it
     // (or, while a case is open, go back to it or ask before leaving it)
@@ -153,7 +152,7 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
             >
               <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{KIND_LABEL[h.kind]}</span>
               <span className="text-slate-100 truncate min-w-0">{h.name}</span>
-              <span className="ml-auto hidden sm:block text-xs text-ui-muted truncate capitalize max-w-[45%]">{h.sub}</span>
+              <span className="ml-auto hidden sm:block text-xs text-ui-muted truncate first-letter:uppercase max-w-[45%]">{h.sub}</span>
             </button>
           ))}
         </div>

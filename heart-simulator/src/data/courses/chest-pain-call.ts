@@ -647,6 +647,7 @@ export const CHEST_PAIN_CALL: Course = {
             question: 'Read this tracing. Which wall is being injured?',
             options: ['The lateral wall', 'The anterior wall', 'The inferior wall', 'None: this tracing is normal'],
             answer: 0,
+            blind: true,
             explain: 'The ST segments are raised in I, aVL, V5 and V6, the leads that look at the side of the heart, and pushed down in III, the mirror image. V1 to V3 are not raised, so it is not anterior. III and aVF are pushed down, not raised, so it is not inferior.',
           },
           more: ['anterior-stemi', 'inferior-stemi', 'lateral-stemi'],

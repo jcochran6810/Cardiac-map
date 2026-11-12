@@ -730,6 +730,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     contraindications: [
       'PDE5 inhibitors: avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h',
       'Hypotension (SBP < 90 mmHg or ≥ 30 mmHg below baseline)',
+      'Marked bradycardia (< 50/min), or tachycardia (> 100/min) without heart failure',
       'Suspected RV infarction — avoid or use with great caution',
       'Severe aortic stenosis or obstructive HCM (preload-dependent)',
       'Riociguat therapy',

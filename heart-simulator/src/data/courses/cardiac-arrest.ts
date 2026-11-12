@@ -269,6 +269,8 @@ export const CARDIAC_ARREST: Course = {
               '30 compressions, then 5 breaths',
             ],
             answer: 0,
+            // the compression-to-breath pattern, not a rhythm's: the name on the monitor answers nothing
+            blind: false,
             explain: '30:2 until an advanced airway is in place. Continuous compressions with one breath every 6 seconds is the pattern once it is. 15:2 belongs to two-rescuer CPR in children and infants, not adults.',
           },
         },

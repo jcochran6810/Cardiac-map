@@ -29,6 +29,20 @@ describe('glossary', () => {
     expect(`${g.term} ${g.def} ${(g.aka ?? []).join(' ')}`).not.toMatch(BRITISH);
   });
 
+  it('Q wave: the pathologic criteria and the normal septal q waves', () => {
+    const q = GLOSSARY_BY_ID['q-wave'];
+    expect(q.term).toBe('Q wave');
+    expect(q.def).toMatch(/40 ms/);
+    expect(q.def).toMatch(/quarter of the R wave/);
+    expect(q.def).toMatch(/two contiguous leads/);
+    expect(q.def).toMatch(/usually means an old or evolving infarct/);
+    // Q waves follow the size of an infarct, not its depth, and other hearts can show them
+    expect(q.def).not.toMatch(/transmural|full-thickness/);
+    expect(q.def).toMatch(/LBBB, WPW and HCM can mimic it/);
+    expect(q.def).toMatch(/septal q waves are normal in I, aVL, V5 and V6/);
+    expect(q.see).toBe('anterior-stemi');
+  });
+
   it('links only to pages that exist in the library', () => {
     for (const g of GLOSSARY) if (g.see) expect(LIBRARY, `${g.id} → ${g.see}`).toContain(g.see);
     // most terms lead somewhere to read more

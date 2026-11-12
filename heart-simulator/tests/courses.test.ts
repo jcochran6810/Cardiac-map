@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { COURSES } from '@/data/courses';
 import { CATHLAB } from '@/data/content/cathlab';
 import { CASE_DATA } from '@/data/caseData';
-import { checkHidesRhythm, checksIn, courseProgress, coursesFor, drawersFor, effectiveShow, lessonInProgress, nextLesson, optionOrder, pickableOnHeart } from '@/lib/courses';
+import {
+  checkHidesRhythm, checksIn, courseProgress, coursesFor, drawersFor, effectiveShow, exitLesson, gotoStep, lessonInProgress, midSentence, nextLesson,
+  openLesson, optionOrder, pickableOnHeart, startLesson, thatIs,
+} from '@/lib/courses';
 import { PLACEMENT_PRESETS } from '@/lib/ecg/electrodes';
 import { lessonKey, useCourseStore } from '@/store/useCourseStore';
-import { searchLibrary } from '@/lib/content';
+import { loadContent, searchLibrary } from '@/lib/content';
 import { CAMERA_PRESETS } from '@/store/useSceneStore';
 import { LABEL_SETS } from '@/lib/anatomy/labelSets';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
@@ -122,7 +125,11 @@ describe('every step', () => {
     // a phone on its side has room for one picture: a check must be answerable on it
     // (what a step merely points at is the author's choice — a selected or enlarged lead shows on both pictures)
     const sideways = drawersFor(show, true);
-    if (step.check?.kind === 'tap') expect(sideways.heart, 'on a sideways phone the heart is the picture shown').toBe(true);
+    if (step.check?.kind === 'tap') {
+      expect(sideways.heart, 'on a sideways phone the heart is the picture shown').toBe(true);
+      // …on its own: side by side it is too narrow for its name tags (the step offers the other picture instead)
+      expect(sideways.ecg, 'on a sideways phone a "tap the …" check has the heart to itself').toBe(false);
+    }
     if (step.check?.kind === 'lead') expect(sideways.ecg, 'on a sideways phone the tracing is the picture shown').toBe(true);
 
     // its check
@@ -216,6 +223,41 @@ describe('what a step shows', () => {
     expect(drawersFor(effectiveShow(steps, 2), true)).toEqual({ heart: true, ecg: false });
   });
 
+  it('counts the cycle box ("the box", S1 / S2) as the heart and the pressure & volume loop as the other picture', () => {
+    const scene = { heart: 'sectioned', ecg: 'ecg', layout: 'monitor' } as const;
+    const steps: LessonStep[] = [
+      { title: 'a', text: ['x'], show: { ...scene }, look: 'Just after each QRS the box shows all valves closed and "S1" lights up.' },
+      { title: 'b', text: ['x'], show: { ecg: 'wiggers', focus: 'heart' }, look: 'The heart beats slowly.', check: { kind: 'choice', question: 'What happens at the top-right corner of the loop?', options: ['a', 'b'], answer: 0, explain: 'x' } },
+      { title: 'c', text: ['x'], look: 'Each small box is 0.04 s; five small boxes make a large box.' },
+    ];
+    expect(drawersFor(effectiveShow(steps, 0), true)).toEqual({ heart: true, ecg: true });
+    expect(drawersFor(effectiveShow(steps, 1), true)).toEqual({ heart: true, ecg: true });
+    // the ECG paper's boxes are not the cycle box
+    expect(drawersFor(effectiveShow([{ ...steps[0], look: undefined }, steps[2]], 1), true)).toEqual({ heart: false, ecg: true });
+  });
+
+  it('never puts the pictures side by side for a "tap the …" check, even when it talks about both', () => {
+    const steps: LessonStep[] = [
+      { title: 'a', text: ['x'], show: { heart: 'conduction', ecg: 'ecg', inspect: 'II' }, look: 'On the enlarged lead, the bracket marked PR measures the pause.', check: { kind: 'tap', question: 'Tap the AV node.', targets: ['av-node'], explain: 'x' } },
+      { title: 'b', text: ['x'], show: { both: true }, check: { kind: 'tap', question: 'Tap the valve that opens at the top-right corner of the loop.', targets: ['aortic-valve'], explain: 'x' } },
+    ];
+    for (const k of [0, 1]) {
+      expect(effectiveShow(steps, k).both).toBe(false);
+      expect(drawersFor(effectiveShow(steps, k), true)).toEqual({ heart: true, ecg: false });
+      // a wide screen still shows both (and on a phone on its side the step offers the other one)
+      expect(drawersFor(effectiveShow(steps, k), false)).toEqual({ heart: true, ecg: true });
+    }
+  });
+
+  it('shows the right picture at the "lub" and "dub" steps of One heartbeat on a phone on its side', () => {
+    const cycle = COURSES.flatMap((c) => c.lessons).find((l) => l.id === 'cardiac-cycle')!;
+    const at = (title: string) => drawersFor(effectiveShow(cycle.steps, cycle.steps.findIndex((s) => s.title === title)), true);
+    // the QRS on the ECG and the cycle box on the heart
+    expect(at('The valves shut: "lub"')).toEqual({ heart: true, ecg: true });
+    // "S2" lights up in the cycle box on the heart
+    expect(at('The valves shut again: "dub"')).toEqual({ heart: true, ecg: false });
+  });
+
   it('sets the cables a step reads, so it does not depend on an earlier tap', () => {
     const ids = ['standard', ...PLACEMENT_PRESETS.map((p) => p.id)];
     let set = 0;
@@ -281,6 +323,78 @@ describe('what a check hides while it is open', () => {
   it('lets a check say so itself', () => {
     const s = { title: 't', text: [], check: { kind: 'choice', question: 'What is this?', options: ['a', 'b'], answer: 0, explain: 'x', blind: true } } as LessonStep;
     expect(checkHidesRhythm(s, 'normal-sinus')).toBe(true);
+  });
+
+  it('hides the name for every strip of Mixed practice and every "which wall / which artery" question', () => {
+    let strips = 0;
+    let culprits = 0;
+    for (const c of COURSES) for (const l of c.lessons) l.steps.forEach((s, k) => {
+      if (s.check?.kind !== 'choice') return;
+      const where = `${c.id}/${l.id} step ${k + 1}: ${s.check.question}`;
+      if (l.id === 'mixed-practice' && /^Strip \d+/.test(s.check.question)) {
+        strips++;
+        expect(checkHidesRhythm(s, effectiveShow(l.steps, k).rhythm), where).toBe(true);
+      }
+      // a name such as "Lateral STEMI — LCx or diagonal occlusion" gives the wall and the artery away
+      if (/\bwhich (\w+ )?(wall|artery)\b/i.test(s.check.question)) {
+        culprits++;
+        expect(checkHidesRhythm(s, effectiveShow(l.steps, k).rhythm), where).toBe(true);
+      }
+    });
+    expect(strips).toBeGreaterThanOrEqual(10);
+    expect(culprits).toBeGreaterThanOrEqual(3);
+  });
+
+  it('hides the name for every numbered tracing of "Localize it: nine tracings"', () => {
+    // its look promises "the app keeps its own reading hidden until you answer" — for every tracing, whatever the
+    // wording ("V1 to V3 show ST elevation on tracing 7. Is this a STEMI?" is answered by "…LBBB…")
+    const l = COURSES.find((c) => c.id === 'stemi')?.lessons.find((x) => x.id === 'localize-it');
+    expect(l).toBeDefined();
+    let tracings = 0;
+    l!.steps.forEach((s, k) => {
+      if (!s.check || !/^Tracing \d+/.test(s.title)) return;
+      tracings++;
+      expect(checkHidesRhythm(s, effectiveShow(l!.steps, k).rhythm), `${s.title}: ${s.check.question}`).toBe(true);
+    });
+    expect(tracings).toBe(9);
+  });
+
+  it('reads the wordings that ask for the name, without a blind flag', () => {
+    const ask = (question: string) => checkHidesRhythm({ title: 't', text: [], check: { kind: 'choice', question, options: ['a', 'b'], answer: 0, explain: 'x' } }, 'lateral-stemi');
+    expect(ask('Read this tracing. Which wall is being injured?')).toBe(true);
+    expect(ask('Strip 7: what does it show?')).toBe(true);
+    expect(ask('ST elevation is taller in III than in II. Which artery is most likely blocked?')).toBe(true);
+    expect(ask('Which coronary artery is the culprit?')).toBe(true);
+    // …but not a question about times or the general idea of a wall
+    expect(ask('You take him straight to a PCI-capable hospital. By what time does the system aim to have the artery open?')).toBe(false);
+    expect(ask('Which finding says that a wall is being starved through its full thickness right now?')).toBe(false);
+  });
+
+  it('leaves the name and the cycle box on for questions the name does not answer', () => {
+    // "Which rhythm loses the atrial kick completely?" — the step is about watching the atrial kick in the cycle box
+    expect(hides('cardiac-cycle', 2)).toBe(false);
+    // "…What is the pattern?" — 30 compressions to 2 breaths
+    expect(hides('high-quality-cpr', 5)).toBe(false);
+  });
+});
+
+describe('check feedback', () => {
+  it('writes a structure\'s name in sentence case mid-sentence, keeping abbreviations and people\'s names', () => {
+    expect(midSentence('Right Atrium')).toBe('right atrium');
+    expect(midSentence("Bachmann's Bundle")).toBe("Bachmann's bundle");
+    expect(midSentence('Bundle of His')).toBe('bundle of His');
+    expect(midSentence('Purkinje Fibers')).toBe('Purkinje fibers');
+    expect(midSentence('AV Node')).toBe('AV node');
+    expect(midSentence('mLAD')).toBe('mLAD');
+    expect(midSentence('Pericardium (Pericardial Sac)')).toBe('pericardium (pericardial sac)');
+    expect(thatIs('Right Atrium')).toBe('That is the right atrium');
+    expect(thatIs('Pulmonary Veins')).toBe('Those are the pulmonary veins');
+    expect(thatIs('Coronary Sinus')).toBe('That is the coronary sinus');
+    expect(thatIs('Chordae Tendineae')).toBe('Those are the chordae tendineae');
+    // a possessive name takes no "the"
+    expect(thatIs("Bachmann's Bundle")).toBe("That is Bachmann's bundle");
+    expect(thatIs('Bundle of His')).toBe('That is the bundle of His');
+    expect(thatIs('Purkinje Fibers')).toBe('Those are the Purkinje fibers');
   });
 });
 
@@ -351,6 +465,91 @@ describe('course progress', () => {
     // "Do this lesson again": a new run
     st().begin(course.id, first.id, 0, { fresh: true });
     expect(st().answers).toEqual({});
+  });
+
+  it('marks a result card shown again as restored, and the card of a run just finished as not', () => {
+    const st = () => useCourseStore.getState();
+    // a run with every check skipped: its own card scores and lists that run (nothing right), not the saved best
+    st().begin(course.id, first.id, 0, { fresh: true });
+    st().setStep(first.steps.length - 1);
+    st().finish(checksIn(first));
+    expect(st()).toMatchObject({ finished: true, restored: false, answers: {} });
+    // Back to the finished lesson: its card is restored
+    st().end();
+    st().begin(course.id, first.id, first.steps.length - 1, { finished: true });
+    expect(st()).toMatchObject({ finished: true, restored: true });
+    // a step again (Back from the card): no longer the restored card
+    st().setStep(1);
+    expect(st()).toMatchObject({ finished: false, restored: false });
+    st().begin(course.id, first.id, first.steps.length - 1, { finished: true });
+    st().finish(checksIn(first));
+    expect(st().restored).toBe(false);
+    st().end();
+    expect(st().restored).toBe(false);
+  });
+
+  it('resumes an unfinished lesson picked from a list (the result card\'s "Next lesson", search) with its answers', async () => {
+    await loadContent();
+    const st = () => useCourseStore.getState();
+    st().begin(course.id, second.id, 0, { fresh: true });
+    st().answer(1, true);
+    st().setStep(3);
+    exitLesson('stay');
+    openLesson(course.id, second.id);
+    expect(st().active?.step).toBe(3);
+    expect(st().answers[1]).toMatchObject({ ok: true });
+    expect(st().progress[lessonKey(course.id, second.id)]).toMatchObject({ step: 3, done: false });
+    exitLesson('stay');
+  });
+
+  it('treats a new run of a finished lesson as a run in progress: it resumes, is offered to continue and keeps the best score', async () => {
+    await loadContent();
+    const st = () => useCourseStore.getState();
+    const key = lessonKey(course.id, first.id);
+    // a finished run with three checks right
+    st().begin(course.id, first.id, 0, { fresh: true });
+    for (let i = 0; i < 3; i++) st().answer(i, true);
+    st().finish(checksIn(first));
+    exitLesson('stay');
+    expect(st().progress[key]).toMatchObject({ done: true, correct: 3 });
+    expect(st().progress[key].rerun).toBeFalsy();
+
+    // picked again from a list (or "Do this lesson again"): a new run from the top
+    openLesson(course.id, first.id);
+    expect(st().active?.step).toBe(0);
+    expect(st().finished).toBe(false);
+    expect(st().answers).toEqual({});
+    expect(st().progress[key]).toMatchObject({ done: true, rerun: true, correct: 3 });
+    gotoStep(2);
+    st().answer(1, false);
+    exitLesson('stay');
+    // the menu offers it to continue…
+    expect(lessonInProgress(COURSES, st().progress)).toMatchObject({ lesson: { id: first.id }, step: 2 });
+
+    // …and coming back to it without a step (Back / Forward, "continue", a library page and back) resumes the run:
+    // not the old result card scored from the new run's (empty) answers
+    startLesson(course.id, first.id);
+    expect(st().finished).toBe(false);
+    expect(st().active?.step).toBe(2);
+    expect(st().answers[1]).toMatchObject({ ok: false });
+    exitLesson('stay');
+    // the course list's row resumes it too
+    openLesson(course.id, first.id);
+    expect(st().active?.step).toBe(2);
+
+    // finished: no longer a re-run, and the best score stays
+    st().finish(checksIn(first));
+    expect(st().progress[key]).toMatchObject({ done: true, rerun: false, correct: 3 });
+    exitLesson('stay');
+    expect(lessonInProgress(COURSES, st().progress)).toBeNull();
+    // Back to it now shows its result card; picked from a list it starts again from the top
+    startLesson(course.id, first.id);
+    expect(st().finished).toBe(true);
+    exitLesson('stay');
+    openLesson(course.id, first.id);
+    expect(st()).toMatchObject({ finished: false, answers: {} });
+    expect(st().active?.step).toBe(0);
+    exitLesson('stay');
   });
 
   it('counts finished lessons and names the next one', () => {

@@ -10,6 +10,7 @@ import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { useCourseStore } from '@/store/useCourseStore';
 import { useDrillStore } from '@/store/useDrillStore';
 import { useSimStore } from '@/store/useSimStore';
+import { useQuizStore } from '@/store/useQuizStore';
 
 const SHORTCUTS: [string, string][] = [
   ['Space', 'Play / pause the heartbeat'],
@@ -56,6 +57,8 @@ export default function HelpOverlay() {
     useLearningStore.getState().resetProgress();
     useCourseStore.getState().resetProgress();
     useDrillStore.getState().resetStats();
+    // the quiz round under way (its score would outlive "Progress cleared")
+    useQuizStore.getState().end();
     try { window.localStorage.removeItem('cardiosim.sim.best'); } catch { /* storage unavailable */ }
     useSimStore.setState({ best: {} });
     setCleared(true);

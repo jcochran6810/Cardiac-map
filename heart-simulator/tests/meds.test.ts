@@ -11,6 +11,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { MEDICATION_IDS } from '@/types/content';
+import { MEDICATIONS } from '@/data/content/medications';
 
 const patient = (profileId: string, hr: number, extra: Partial<Patient> = {}): Patient => ({ profileId, hr, kg: 80, given: [], ...extra });
 
@@ -596,7 +597,7 @@ describe('what the learner reads follows the current guidelines', () => {
     expect(planDose('heparin', patient('anterior-stemi', 92), 4000).verdict.tone).toBe('good');
   });
 
-  it('nitroglycerin is held for the 2025 reasons; a slow heart rate is a caution, not a contraindication', () => {
+  it('nitroglycerin is held for the reasons on the drug card: the pressure, the heart rate, RV infarction, aortic stenosis, PDE-5 inhibitors', () => {
     const g = MED_BY_ID.nitroglycerin.guide;
     expect(g).toMatch(/SBP < 90 mmHg/);
     expect(g).toMatch(/30 mmHg below baseline/);
@@ -605,15 +606,36 @@ describe('what the learner reads follows the current guidelines', () => {
     expect(g).toMatch(/tadalafil[^.]*48 h/);
     expect(g).toMatch(/RV infarction/);
     expect(g).toMatch(/aortic stenosis/);
+    expect(g).toMatch(/bradycardia \(< 50\/min\) or tachycardia \(> 100\/min\) without heart failure/);
+    // the library's drug card (and the tutor) say the same
+    const card = MEDICATIONS.nitroglycerin.contraindications.join(' ');
+    expect(card).toMatch(/bradycardia \(< 50\/min\), or tachycardia \(> 100\/min\) without heart failure/);
+    // marked bradycardia: held, in an NSTEMI and in a STEMI
     const slow = planDose('nitroglycerin', patient('nstemi', 46, { sbp: 132 }), 0.4);
-    expect(slow.verdict.tone).toBe('caution');
-    expect(slow.verdict.text).toMatch(/46\/min/);
-    expect(planDose('nitroglycerin', patient('anterior-stemi', 46, { sbp: 132 }), 0.4).verdict.tone).toBe('caution');
-    // the contraindications themselves still refuse it
+    expect(slow.verdict.tone).toBe('bad');
+    expect(slow.verdict.text).toMatch(/46\/min is marked bradycardia/);
+    expect(planDose('nitroglycerin', patient('anterior-stemi', 46, { sbp: 132 }), 0.4).verdict.tone).toBe('bad');
+    expect(planDose('nitroglycerin', patient('hfref', 46, { sbp: 132 }), 0.4).verdict.tone).toBe('bad');
+    // tachycardia without heart failure: held in every acute coronary syndrome
+    for (const [id, hr] of [['nstemi', 120], ['wellens', 115], ['anterior-stemi', 118], ['lateral-stemi', 104], ['inferior-stemi', 110]] as const) {
+      const fast = planDose('nitroglycerin', patient(id, hr, { sbp: 130 }), 0.4);
+      expect(fast.verdict.tone, `${id} at ${hr}`).toBe('bad');
+      expect(fast.verdict.text, `${id} at ${hr}`).toMatch(new RegExp(`${hr}/min without heart failure`));
+    }
+    // …but a fast heart in heart failure is no reason to hold them
+    expect(planDose('nitroglycerin', patient('hfref', 118, { sbp: 150 }), 0.4).verdict.tone).toBe('good');
+    expect(planDose('nitroglycerin', patient('hfpef', 112, { sbp: 160 }), 0.4).verdict.tone).toBe('good');
+    // the edges: 50 and 100 are not "marked"
+    expect(planDose('nitroglycerin', patient('nstemi', 50, { sbp: 130 }), 0.4).verdict.tone).toBe('good');
+    expect(planDose('nitroglycerin', patient('nstemi', 100, { sbp: 130 }), 0.4).verdict.tone).toBe('good');
+    // the other contraindications still refuse it
     expect(planDose('nitroglycerin', patient('nstemi', 46, { sbp: 84 }), 0.4).verdict.tone).toBe('bad');
     expect(planDose('nitroglycerin', patient('aortic-stenosis', 72, { sbp: 120 }), 0.4).verdict.tone).toBe('bad');
     // at an ordinary rate nothing changes
     expect(planDose('nitroglycerin', patient('nstemi', 88, { sbp: 130 }), 0.4).verdict.tone).toBe('good');
+    expect(planDose('nitroglycerin', patient('anterior-stemi', 92, { sbp: 130 }), 0.4).verdict.tone).toBe('caution');
+    // no indication stays no indication, whatever the rate
+    expect(planDose('nitroglycerin', patient('normal-sinus', 120, { sbp: 130 }), 0.4).verdict.text).toMatch(/No indication/);
     // an inferior MI with complete heart block is not "no indication": the pain is ischemic, the block is why to hold
     const chb = planDose('nitroglycerin', patient('inferior-stemi-chb', 40, { sbp: 112 }), 0.4);
     expect(chb.verdict.tone).toBe('bad');

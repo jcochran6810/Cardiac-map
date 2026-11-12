@@ -1,18 +1,29 @@
 /** The Glossary's own filter: which terms match what was typed, and in what order to list them */
 import type { GlossaryTerm } from '@/data/glossary';
 
-/** Does the term (its name, other names or definition) contain every word typed? */
-export function matchesTerm(term: GlossaryTerm, query: string): boolean {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return true;
-  const hay = `${term.term} ${(term.aka ?? []).join(' ')} ${term.def}`.toLowerCase();
-  return words.every((w) => hay.includes(w));
-}
-
 /** Lower case, with hyphens, slashes and other punctuation as spaces ("12-lead ECG" → "12 lead ecg") */
 const plain = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\u0370-\u03ff]+/g, ' ').trim();
 /** Does a word of `name` start with `q`? */
 const wordStart = (name: string, q: string) => ` ${name}`.includes(` ${q}`);
+
+/**
+ * Does the term (its name, other names or definition) contain every word typed? A word of one or two characters
+ * ("q", "mi", "st", "v1") counts only as a whole word, or as the start of a word of the term's name or other names
+ * (so "at" still finds Atrium while it is being typed). Anywhere else in a longer word it is no match: the "q" of
+ * "quiver" in a definition is not a Q wave, and the "mi" of "minute" is not an MI. Longer words match anywhere.
+ */
+export function matchesTerm(term: GlossaryTerm, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = `${term.term} ${(term.aka ?? []).join(' ')} ${term.def}`.toLowerCase();
+  const wholeWords = ` ${plain(hay)} `;
+  const names = [term.term, ...(term.aka ?? [])].map(plain);
+  return words.every((w) => {
+    const short = plain(w);
+    if (!short || short.length > 2 || short.includes(' ')) return hay.includes(w);
+    return wholeWords.includes(` ${short} `) || names.some((n) => wordStart(n, short));
+  });
+}
 
 /**
  * How well a matching term fits the query, best first:

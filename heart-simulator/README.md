@@ -46,7 +46,7 @@ bar's **←** is the same button.
 - **Search** (main menu, and the icon in the top bar) covers the library, the lessons, the tools, the simulator cases
   and the glossary, and understands everyday words ("ekg", "heart attack", "afib"): `searchLibrary` in
   `src/lib/content.ts`, the box in `src/components/layout/SearchBox.tsx`.
-- **Glossary** (main menu → More, or type a word in search): 198 terms in one or two plain sentences each, with their
+- **Glossary** (main menu → More, or type a word in search): 199 terms in one or two plain sentences each, with their
   other names and a link to the library page that teaches them. Data in `src/data/glossary.ts`, overlay in
   `src/components/layout/Glossary.tsx`. Esc and the phone's Back close it.
 - **Your progress** (main menu): lessons finished, rhythms mastered, cases completed and library pages studied

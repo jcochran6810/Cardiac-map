@@ -42,6 +42,26 @@ describe('the glossary filter puts the best match first', () => {
     expect(termRank(term, 'regular')).toBe(7);
   });
 
+  it('a one- or two-letter word is a whole word, not a letter inside another word', () => {
+    // "q wave" used to list Atrial fibrillation first ("quiver" + "waves"), then AV dissociation, Delta wave …
+    const q = names('q wave');
+    expect(q[0]).toBe('Q wave');
+    for (const wrong of ['Atrial fibrillation', 'AV dissociation', 'Delta wave', 'Depolarization']) expect(q).not.toContain(wrong);
+    expect(names('q waves')[0]).toBe('Q wave');
+    expect(names('Q-wave')[0]).toBe('Q wave');
+    // "mi" is a myocardial infarction, not the "mi" of "minute"
+    const mi = names('mi');
+    expect(mi).toContain('Infarction');
+    expect(mi).not.toContain('Bradycardia');
+    expect(names('v1')).toContain('Chest leads');
+  });
+
+  it('a short word still finds a term whose name starts with it, while it is being typed', () => {
+    expect(names('at')).toContain('Atrium');
+    expect(names('st').slice(0, 3)).toEqual(['ST segment', 'Stable or unstable', 'STEMI']);
+    expect(names('av')[0]).toBe('AV block');
+  });
+
   it('with nothing typed, lists every term A to Z', () => {
     expect(names('')).toEqual(A_TO_Z.map((t) => t.term));
     expect(names('   ')).toEqual(A_TO_Z.map((t) => t.term));

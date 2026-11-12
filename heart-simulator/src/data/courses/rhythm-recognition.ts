@@ -1146,6 +1146,7 @@ export const RHYTHM_RECOGNITION: Course = {
               'Ventricular tachycardia',
             ],
             answer: 2,
+            blind: true,
             explain: 'Sinus rhythm with a single early, wide beat that has no P wave in front and a pause after it: a PVC, here every fourth beat. A dropped beat in Mobitz II leaves a P wave standing alone with no QRS at all. One PVC at a time is not VT.',
           },
           more: ['pvcs'],

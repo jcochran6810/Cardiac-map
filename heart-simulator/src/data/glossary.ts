@@ -67,6 +67,7 @@ export const GLOSSARY: GlossaryTerm[] = [
   t('ecg', 'contiguous-leads', 'Contiguous leads', 'Leads that look at the same wall of the heart, such as II, III and aVF (bottom wall) or V3 and V4 (front wall). A finding counts when it appears in two or more of them.'),
   t('ecg', 'p-wave', 'P wave', 'The first small wave of each beat: the atria depolarizing.'),
   t('ecg', 'qrs', 'QRS complex', 'The tall, narrow spike of each beat: the ventricles depolarizing. It is normally less than 0.12 seconds (three small boxes) wide.'),
+  t('ecg', 'q-wave', 'Q wave', 'The first downward dip of the QRS, before any R wave. Small, narrow septal q waves are normal in I, aVL, V5 and V6. A pathologic Q wave — about 40 ms (one small box) wide or more, or deeper than about a quarter of the R wave, in two contiguous leads — usually means an old or evolving infarct (LBBB, WPW and HCM can mimic it).', 'anterior-stemi', ['Q-wave', 'pathologic Q wave', 'septal q waves']),
   t('ecg', 't-wave', 'T wave', 'The rounded wave after the QRS: the ventricles repolarizing.'),
   t('ecg', 'pr-interval', 'PR interval', 'From the start of the P wave to the start of the QRS: the time an impulse takes to travel from the atria through the AV node to the ventricles. Normal is 0.12–0.20 seconds (three to five small boxes).'),
   t('ecg', 'qt-interval', 'QT interval', 'From the start of the QRS to the end of the T wave: the whole electrical cycle of the ventricles. It shortens as the heart speeds up, so it is corrected for rate (QTc).'),

@@ -1467,7 +1467,7 @@ const nitroglycerin: MedDef = {
   route: 'Sublingual tablet or spray, every 5 min up to 3 doses',
   verb: 'Give',
   onset: '1–3 min',
-  guide: '0.4 mg SL every 5 min, up to 3 doses. Hold if SBP < 90 mmHg or ≥ 30 mmHg below baseline, with RV infarction or severe aortic stenosis, or after a PDE-5 inhibitor: avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h. A slow heart rate (< 50/min) calls for caution: it cannot speed up to hold the pressure.',
+  guide: '0.4 mg SL every 5 min, up to 3 doses. Hold if SBP < 90 mmHg or ≥ 30 mmHg below baseline, with marked bradycardia (< 50/min) or tachycardia (> 100/min) without heart failure, with RV infarction or severe aortic stenosis, or after a PDE-5 inhibitor: avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h.',
   usual: () => ({ low: 0.4, high: 0.4 }),
   max: () => 0.8,
   picks: () => [0.3, 0.4, 0.8, 1.2],
@@ -1481,29 +1481,44 @@ const nitroglycerin: MedDef = {
     if (['aortic-stenosis', 'hcm'].includes(prof.id)) return { verdict: bad('Dangerous: a preload-dependent heart (aortic stenosis, obstructive HCM) — nitrates can cause collapse.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
     if (lowBP(p, prof)) return { verdict: bad('Contraindicated: the patient is hypotensive (SBP < 90) — nitrates drop the pressure further.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling further.', tone: 'warn' }] };
     if (prof.id === DISSECTION) return { verdict: caution('Aortic dissection: vasodilators lower the BP only after β-blockade — alone they cause a reflex tachycardia that increases the shear on the aortic wall.'), steps: [reflex, ...drop] };
-    // A slow heart is not one of the reasons to hold nitrates, but it cannot speed up to make up for the fall in
-    // preload: the indication stands, with a warning, and no reflex tachycardia on the tracing
+    // ACC/AHA (STEMI guideline; AHA ACLS ACS): no nitrates with marked bradycardia (< 50/min) — the heart cannot speed
+    // up to make up for the fall in preload — or with tachycardia (> 100/min) without heart failure, which can mean low
+    // volume or a large infarct heading for shock, and which the reflex tachycardia only makes worse
     const slow = p.hr > 0 && p.hr < 50;
-    const slowNote = slow ? ` Caution: the heart rate is ${p.hr}/min — a slow heart cannot speed up to make up for the fall in preload, so the pressure can drop sharply. Recheck it before each dose.` : '';
-    const onRate: EffectStep = slow ? { at: 3 * MIN, note: 'The blood pressure falls a little and the slow heart barely speeds up to make up for it.', tone: 'warn' } : reflex;
-    if (c === 'stemi') {
-      return {
-        verdict: prof.id.startsWith('inferior')
-          ? caution(`Chest pain relief in STEMI if BP allows — but in inferior MI check right-sided leads (V4R) first: RV infarction makes nitrates drop the blood pressure. Nitrates do not open a thrombosed artery.${slowNote}`)
-          : caution(`Relieves ischemic pain and congestion if BP allows. It does not open a thrombosed artery — reperfusion does.${slowNote}`),
-        steps: [slow ? { ...onRate, note: `${onRate.note} The ST elevation is unchanged — nitrates cannot open an occluded artery.` } : { ...reflex, note: 'Reflex tachycardia; the ST elevation is unchanged — nitrates cannot open an occluded artery.' }, ...drop],
-      };
-    }
+    const onRate: EffectStep = slow ? { at: 3 * MIN, note: 'The blood pressure falls and the slow heart barely speeds up to make up for it.', tone: 'warn' } : reflex;
+    const inferior = prof.id.startsWith('inferior');
     // an infarct whose rhythm is a heart block: the ischemic pain is there, but so is a reason to hold the nitrates
     if (isAcs(prof) && (c === 'chb' || c === 'mobitz2')) {
       return {
-        verdict: bad(`Hold the nitrates: this infarct comes with heart block at ${p.hr}/min, and the heart cannot speed up to hold the pressure when the preload falls${prof.id.startsWith('inferior') ? ' — an inferior MI with AV block also often involves the right ventricle (check V4R), which makes the fall steeper' : ''}. Treat the rate (atropine, pacing) and reperfuse.`),
+        verdict: bad(`Hold the nitrates: this infarct comes with heart block at ${p.hr}/min, and the heart cannot speed up to hold the pressure when the preload falls${inferior ? ' — an inferior MI with AV block also often involves the right ventricle (check V4R), which makes the fall steeper' : ''}. Treat the rate (atropine, pacing) and reperfuse.`),
         steps: [onRate, ...drop],
       };
     }
+    const failure = prof.hemo === 'hfref' || prof.hemo === 'hfpef';
+    if (c === 'stemi' || ['nstemi', 'wellens', 'hfref', 'hfpef'].includes(prof.id)) {
+      if (slow) {
+        return {
+          verdict: bad(`Hold the nitrates: a heart rate of ${p.hr}/min is marked bradycardia (< 50/min), a contraindication — a slow heart cannot speed up to make up for the fall in preload, so the pressure can drop sharply${inferior ? '. A slow inferior MI also often involves the right ventricle (check V4R)' : ''}. Treat the cause of the slow rate first.`),
+          steps: [onRate, ...drop],
+        };
+      }
+      if (p.hr > 100 && !failure) {
+        return {
+          verdict: bad(`Hold the nitrates: a heart rate of ${p.hr}/min without heart failure is a contraindication — the fast rate can mean low volume or a large infarct heading for shock, and the reflex tachycardia from nitrates raises the heart's oxygen demand further. Find and treat the cause of the fast rate.`),
+          steps: [reflex, ...drop],
+        };
+      }
+    }
+    if (c === 'stemi') {
+      return {
+        verdict: inferior
+          ? caution('Chest pain relief in STEMI if BP allows — but in inferior MI check right-sided leads (V4R) first: RV infarction makes nitrates drop the blood pressure. Nitrates do not open a thrombosed artery.')
+          : caution('Relieves ischemic pain and congestion if BP allows. It does not open a thrombosed artery — reperfusion does.'),
+        steps: [{ ...reflex, note: 'Reflex tachycardia; the ST elevation is unchanged — nitrates cannot open an occluded artery.' }, ...drop],
+      };
+    }
     if (['nstemi', 'wellens', 'hfref', 'hfpef'].includes(prof.id)) {
-      const why = 'Ongoing ischemic pain or congestion: nitrates lower preload and relieve symptoms (watch the BP).';
-      return { verdict: slow ? caution(`${why}${slowNote}`) : good(why), steps: [onRate, ...drop] };
+      return { verdict: good('Ongoing ischemic pain or congestion: nitrates lower preload and relieve symptoms (watch the BP).'), steps: [onRate, ...drop] };
     }
     return { verdict: bad('No indication in this rhythm.'), steps: [onRate, ...drop] };
   },

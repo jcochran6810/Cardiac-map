@@ -10,6 +10,7 @@ import DrawerBar from '@/components/layout/DrawerBar';
 import HelpOverlay from '@/components/layout/HelpOverlay';
 import Glossary from '@/components/layout/Glossary';
 import SceneOverlay from '@/components/scene/SceneOverlay';
+import { sideBySideEcgRange, sideBySideEcgWidth } from '@/components/scene/overlayLayout';
 import TutorPanel from '@/components/tutor/TutorPanel';
 import QuizPanel from '@/components/tutor/QuizPanel';
 import SimulationDriver from '@/components/sim/SimulationDriver';
@@ -166,7 +167,9 @@ export default function AppShell() {
   eH = Math.round(eH);
   if (hH > 0) lastHeart.current = hH;
   if (eH > 0) lastEcg.current = eH;
-  const eW = clamp(ecgWidth ?? area.w * 0.55, 280, Math.max(280, area.w - 180));
+  // side by side, beside a lesson's text column the heart and the ECG share the rest half and half (see overlayLayout)
+  const lessonBeside = lessonOn && sideBySide;
+  const eW = sideBySideEcgWidth(area.w, ecgWidth, lessonBeside);
   const readingHidden = sideBySide || heart === 'full' || ecg === 'full';
 
   // The 3D heart is created the first time it opens and then kept (paused while closed), so it opens instantly next time
@@ -201,13 +204,14 @@ export default function AppShell() {
     }
     if (drag.current === 'ecg') {
       if (sideBySide) {
-        setEcgWidth(clamp(rect.right - e.clientX, 280, rect.width - 180));
+        const range = sideBySideEcgRange(rect.width, lessonBeside);
+        setEcgWidth(clamp(rect.right - e.clientX, range.min, range.max));
       } else {
         if (app.ecg === 'full') app.setEcg('open');
         setEcgSize(clamp(rect.bottom - bar - e.clientY, MIN_DRAWER, A - (app.heart !== 'closed' ? MIN_DRAWER : 0)));
       }
     }
-  }, [A, bar, sideBySide]);
+  }, [A, bar, sideBySide, lessonBeside]);
 
   const onUp = useCallback(() => {
     drag.current = null;

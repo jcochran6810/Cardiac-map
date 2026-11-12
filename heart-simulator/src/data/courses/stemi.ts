@@ -385,6 +385,7 @@ export const STEMI: Course = {
             question: 'On this tracing the ST elevation is taller in III than in II, and aVL and lead I show ST depression. Which artery is most likely blocked?',
             options: ['The right coronary artery', 'The circumflex artery', 'The left anterior descending artery', 'The left main coronary artery'],
             answer: 0,
+            blind: true,
             explain: 'ST elevation greater in III than in II, with ST depression in aVL and I, points to the RCA. A circumflex block would lift II at least as much as III and would not push I and aVL down. The LAD shows itself in V1 to V4.',
           },
         },
@@ -1137,6 +1138,8 @@ export const STEMI: Course = {
           check: {
             kind: 'choice',
             question: 'V1 to V3 show ST elevation on tracing 7. Is this a STEMI?',
+            // the name ("Sinus rhythm with left bundle branch block … appropriate discordance") is the answer
+            blind: true,
             options: [
               'Not on this evidence: it is LBBB, and each ST segment points away from its QRS',
               'Yes: ST elevation in three contiguous chest leads meets the STEMI criteria',

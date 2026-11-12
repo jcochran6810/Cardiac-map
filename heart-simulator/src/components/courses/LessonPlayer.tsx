@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useCourseStore, type StepAnswer } from '@/store/useCourseStore';
+import { lessonKey, useCourseStore, type StepAnswer } from '@/store/useCourseStore';
 import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useContent } from '@/lib/content';
 import {
-  checkHidesRhythm, checksIn, drawersFor, effectiveShow, exitLesson, findLesson, finishLesson, gotoStep, isApplyingStep, optionOrder,
-  pickableOnHeart, startLesson,
+  checkHidesRhythm, checksIn, drawersFor, effectiveShow, exitLesson, findLesson, finishLesson, gotoStep, isApplyingStep, midSentence, openLesson,
+  optionOrder, pickableOnHeart, startLesson, thatIs,
 } from '@/lib/courses';
 import { ALL_LEADS } from '@/lib/ecg/vector';
 import { PLACEMENT_PRESETS, STANDARD_PLACEMENT, applyPreset } from '@/lib/ecg/electrodes';
@@ -28,6 +28,13 @@ function leave() {
   else exitLesson();
 }
 
+/** The result card's "Back to the courses": the course list, whether the lesson was opened from it or from the main menu */
+function toCourses() {
+  const prev = useBackNavStore.getState().previous;
+  if (prev && !prev.lesson && !prev.overlay && prev.mode === 'courses') goBack();
+  else exitLesson('courses');
+}
+
 const KIND_LABEL: Record<string, string> = {
   structure: 'Anatomy', condition: 'Condition', procedure: 'Procedure', medication: 'Drug', cathlab: 'Cath lab', case: 'Case study',
 };
@@ -41,6 +48,10 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
   const active = useCourseStore((s) => s.active);
   const answers = useCourseStore((s) => s.answers);
   const finished = useCourseStore((s) => s.finished);
+  // a result card shown again (Back to a finished lesson), not one reached by finishing a run just now
+  const restored = useCourseStore((s) => s.restored);
+  // the lesson's saved progress: its best finished run, for a restored result card whose own answers are not known
+  const saved = useCourseStore((s) => (s.active ? s.progress[lessonKey(s.active.course, s.active.lesson)] : undefined));
   const role = useAppStore((s) => s.learningLevel);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -130,8 +141,10 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
             steps={lesson.steps}
             answers={answers}
             total={checksIn(lesson)}
+            best={restored && saved?.done && saved.total === checksIn(lesson) ? saved.correct : null}
             nextTitle={next?.title ?? null}
-            onNext={() => next && startLesson(course.id, next.id, 0)}
+            // the next lesson resumes where it was left if a run is under way; a finished one starts from the top
+            onNext={() => next && openLesson(course.id, next.id)}
             onAgain={() => startLesson(course.id, lesson.id, 0)}
             courseDone={!next}
             courseTitle={course.title}
@@ -219,7 +232,7 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
       // underneath is a near miss on the name tag, not a wrong answer
       if (!right && byTagOnly && pickableOnHeart(view, id)) {
         setWrong(null);
-        setSurface(nameOf(id));
+        setSurface(midSentence(nameOf(id)));
         showFeedback();
         return;
       }
@@ -227,7 +240,7 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
       const a = useCourseStore.getState().answer(step, right);
       if (right) setWrong(null);
       else {
-        setWrong(nameOf(id));
+        setWrong(thatIs(nameOf(id)));
         // out of tries: show it on the heart
         if (a.tries >= TRIES) {
           revealing = true;
@@ -251,7 +264,7 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
       if (s.selectedLead !== lead) useECGStore.setState({ selectedLead: lead });
       if (right) setWrong(null);
       else {
-        setWrong(`lead ${lead}`);
+        setWrong(`That is lead ${lead}`);
         if (a.tries >= TRIES) useECGStore.setState({ selectedLead: check.targets[0] });
       }
       showFeedback();
@@ -294,7 +307,7 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
       {check.kind !== 'choice' && !done && (
         <p className="mt-2 text-[13px] text-slate-300">
           {check.kind === 'tap' ? (byTagOnly ? 'Tap its name tag on the 3D heart.' : 'Tap it on the 3D heart (or tap its name tag).') : 'Tap the lead on the 12-lead, or pick it below.'}
-          {wrong && <span className="block mt-1 text-rose-300">That is the {wrong}. Try again.</span>}
+          {wrong && <span className="block mt-1 text-rose-300">{wrong}. Try again.</span>}
           {surface && <span className="block mt-1 text-amber-200">You tapped the surface of the {surface}. Tap the name tag of the part you mean.</span>}
         </p>
       )}
@@ -317,7 +330,8 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
       {done && (
         <div className={`mt-2.5 p-2.5 rounded-lg text-[13px] leading-snug ${right ? 'bg-emerald-500/10 text-emerald-50' : 'bg-rose-500/10 text-rose-50'}`}>
           <span className="font-semibold">
-            {right ? (answer && answer.tries > 1 ? 'Right. ' : 'Correct. ') : check.kind === 'choice' ? 'Not quite. ' : 'It is ringed for you now. '}
+            {right ? (answer && answer.tries > 1 ? 'Right. ' : 'Correct. ')
+              : check.kind === 'choice' ? 'Not quite. ' : check.kind === 'lead' ? 'It is outlined for you now. ' : 'It is ringed for you now. '}
           </span>
           {check.explain}
         </div>
@@ -350,13 +364,19 @@ function More({ ids }: { ids: string[] }) {
 
 // ─── Lesson finished ───────────────────────────────────────────────────────
 
-function Finished({ lessonTitle, goal, steps, answers, total, nextTitle, onNext, onAgain, courseDone, courseTitle }: {
-  lessonTitle: string; goal: string; steps: LessonStep[]; answers: Record<number, StepAnswer>; total: number; nextTitle: string | null;
-  onNext: () => void; onAgain: () => void; courseDone: boolean; courseTitle: string;
+function Finished({ lessonTitle, goal, steps, answers, total, best, nextTitle, onNext, onAgain, courseDone, courseTitle }: {
+  lessonTitle: string; goal: string; steps: LessonStep[]; answers: Record<number, StepAnswer>; total: number;
+  /** the best finished run's score, for a result card shown again (null: none saved, or the card of a run just finished) */
+  best: number | null;
+  nextTitle: string | null; onNext: () => void; onAgain: () => void; courseDone: boolean; courseTitle: string;
 }) {
-  const correct = steps.filter((s, k) => s.check && answers[k]?.ok).length;
+  // A card shown again with no answers kept (progress saved by an older version): the score is the best run's, and no
+  // check is listed as skipped on the strength of answers that are simply not known. The card of a run just finished
+  // (best is null) always scores and lists that run's own answers, every check skipped included.
+  const known = Object.keys(answers).length > 0 || best === null;
+  const correct = known ? steps.filter((s, k) => s.check && answers[k]?.ok).length : best ?? 0;
   // the checks to look at again: answered wrong at the first try, or skipped
-  const review = steps.flatMap((s, k) => (s.check && !answers[k]?.ok ? [{ k, title: s.title, skipped: !answers[k] }] : []));
+  const review = known ? steps.flatMap((s, k) => (s.check && !answers[k]?.ok ? [{ k, title: s.title, skipped: !answers[k] }] : [])) : [];
   return (
     <div className="py-2 text-center">
       <div className="mx-auto w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-300"><IconCheck size={30} /></div>
@@ -365,7 +385,7 @@ function Finished({ lessonTitle, goal, steps, answers, total, nextTitle, onNext,
       {total > 0 && (
         <p className="mt-3 text-[15px] text-slate-100">
           <span className="text-2xl font-bold tabular-nums text-white">{correct}</span>
-          <span className="text-slate-400"> of {total} checks right first time</span>
+          <span className="text-slate-400"> of {total} checks right first time{known ? '' : ' (your best run)'}</span>
         </p>
       )}
       <div className="mt-4 grid gap-2 max-w-xs mx-auto">
@@ -374,7 +394,7 @@ function Finished({ lessonTitle, goal, steps, answers, total, nextTitle, onNext,
             Next lesson: {nextTitle}&nbsp;→
           </button>
         )}
-        <button onClick={leave} className={`h-11 px-4 rounded-lg text-sm font-semibold ${nextTitle ? 'border border-slate-600 text-slate-200 hover:bg-cardiac-surface' : 'bg-cardiac-accent text-slate-950 hover:bg-amber-400'}`}>
+        <button onClick={toCourses} className={`h-11 px-4 rounded-lg text-sm font-semibold ${nextTitle ? 'border border-slate-600 text-slate-200 hover:bg-cardiac-surface' : 'bg-cardiac-accent text-slate-950 hover:bg-amber-400'}`}>
           Back to the courses
         </button>
         <button onClick={onAgain} className="h-10 px-4 rounded-lg text-sm text-slate-300 hover:text-white">Do this lesson again</button>
@@ -445,6 +465,8 @@ function OtherPicture({ steps, index }: { steps: LessonStep[]; index: number }) 
   const short = useAppStore((s) => s.short);
   const heart = useAppStore((s) => s.heart);
   const ecg = useAppStore((s) => s.ecg);
+  // the closed bottom panel is named by what it would open on
+  const panel = useECGStore((s) => (s.bottomView === 'ecg' ? (s.electrodeLab ? 'lab' : s.layout === 'monitor' ? 'monitor' : 'ecg') : s.bottomView));
   if (!short) return null;
   const want = drawersFor(effectiveShow(steps, index), false);
   if (!want.heart || !want.ecg) return null;
@@ -455,10 +477,12 @@ function OtherPicture({ steps, index }: { steps: LessonStep[]; index: number }) 
       onClick={() => (missing === 'heart' ? useAppStore.getState().setHeart('full') : useAppStore.getState().setEcg('full'))}
       className="mt-1.5 min-h-9 px-2.5 rounded-md border border-sky-500/50 text-[12px] font-semibold text-sky-100 hover:bg-sky-500/15"
     >
-      {missing === 'heart' ? 'Show the 3D heart too' : 'Show the ECG too'}
+      {missing === 'heart' ? 'Show the 3D heart too' : `Show the ${PANEL_NAME[panel]} too`}
     </button>
   );
 }
+
+const PANEL_NAME = { ecg: 'ECG', monitor: 'monitor', lab: 'electrode lab', wiggers: 'pressure & volume', defib: 'defibrillator' } as const;
 
 function EyeIcon() {
   return (

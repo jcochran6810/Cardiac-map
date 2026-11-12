@@ -20,6 +20,7 @@ import { ATRIAL_PATTERNS, VENT_PATTERNS } from '@/lib/anatomy/activation';
 import { useIsTouch } from '@/lib/device';
 import { showReading } from '@/lib/actions';
 import { useOverlayCover } from '@/components/scene/overlayCover';
+import { keyStartsFolded, overlaySize, stepReadsKey } from '@/components/scene/overlayLayout';
 import type { Box } from '@/components/scene/labelPlacement';
 
 const MODES: { value: ViewMode; label: string; key: string; title: string }[] = [
@@ -30,6 +31,20 @@ const MODES: { value: ViewMode; label: string; key: string; title: string }[] = 
   { value: 'territories', label: 'Territories', key: '5', title: 'Coronary perfusion territories (right-dominant)' },
   { value: 'activation', label: 'Activation', key: '6', title: 'Epicardial activation-time (isochronal) map of the current beat, like an EP mapping system' },
 ];
+
+/** The phase's name in a slim view's one-line cycle box (the full name is its tooltip) */
+const PHASE_SHORT: Record<CyclePhase, string> = {
+  'atrial-systole': 'Atrial kick',
+  'isovolumetric-contraction': 'Isovol. contraction',
+  'rapid-ejection': 'Rapid ejection',
+  'reduced-ejection': 'Reduced ejection',
+  'isovolumetric-relaxation': 'Isovol. relaxation',
+  'rapid-filling': 'Rapid filling',
+  diastasis: 'Slow filling',
+  fibrillation: 'Fibrillation',
+  pulseless: 'No pulse',
+  arrest: 'No activity',
+};
 
 interface HudState { phase: CyclePhase; mitral: number; aortic: number; atria: number; s1: boolean; s2: boolean }
 
@@ -48,16 +63,22 @@ function readHud(): HudState {
   };
 }
 
-/** A "tap the … on the heart" check of the lesson is waiting for its answer */
-function useTapCheckOpen(): boolean {
+/**
+ * The lesson step on screen: is a "tap the … on the heart" check waiting for its answer (`tapOpen`), and does the step
+ * send the learner to the territory key (`readsKey`)? (One string, so that the store hands back a stable value.)
+ */
+function useStepNeeds(): { tapOpen: boolean; readsKey: boolean } {
   const lib = useContent();
-  return useCourseStore((s) => {
-    if (!s.active || s.finished || !lib) return false;
+  const needs = useCourseStore((s) => {
+    if (!s.active || s.finished || !lib) return '';
     const found = findLesson(s.active.course, s.active.lesson, lib.courses);
-    if (!found) return false;
+    if (!found) return '';
     const at = Math.min(s.active.step, found.lesson.steps.length - 1);
-    return found.lesson.steps[at]?.check?.kind === 'tap' && !s.answers[at]?.solved;
+    const step = found.lesson.steps[at];
+    if (!step) return '';
+    return `${step.check?.kind === 'tap' && !s.answers[at]?.solved ? 'tap' : ''} ${stepReadsKey(step) ? 'key' : ''}`;
   });
+  return { tapOpen: needs.includes('tap'), readsKey: needs.includes('key') };
 }
 
 export default function SceneOverlay() {
@@ -78,6 +99,8 @@ export default function SceneOverlay() {
   const [hud, setHud] = useState<HudState>(readHud);
   const [showAngio, setShowAngio] = useState(false);
   const [narrow, setNarrow] = useState(false);
+  // a slim view (beside the ECG and a lesson's text on a phone on its side): one row of controls, a one-line cycle box
+  const [thin, setThin] = useState(false);
   // a low view (a drawer sharing an upright phone with the other one) has no height to spare for a row of pills
   const [low, setLow] = useState(false);
   // The ECG / monitor panel can be enlarged until only a sliver of the heart shows: hide the controls then
@@ -100,12 +123,18 @@ export default function SceneOverlay() {
   useEffect(() => {
     if (selectedId && coach) dismissCoach();
   }, [selectedId, coach, dismissCoach]);
-  // A small view in a lesson (or any low view): the toggles fold into a "More" menu so they stop covering the
-  // heart and the tags the lesson points at
-  const fold = narrow && (inLesson || low);
+  // A small view in a lesson (or any low or slim view): the toggles fold into a "More" menu so they stop covering the
+  // heart and the tags the lesson points at. In a slim view the camera views fold into it too.
+  const fold = narrow && (inLesson || low || thin);
   useEffect(() => {
     if (!fold) setMoreOpen(false);
   }, [fold]);
+  // The camera panel opens from the Views pill inside a slim view's More and from a small view's own Views button: a
+  // change between the two layouts, or More closing in a slim view, puts it away, so that it never opens by itself
+  useEffect(() => setShowViews(false), [thin]);
+  useEffect(() => {
+    if (thin && !moreOpen) setShowViews(false);
+  }, [thin, moreOpen]);
   useEffect(() => {
     if (!moreOpen) return;
     const away = (e: PointerEvent) => { if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false); };
@@ -127,12 +156,16 @@ export default function SceneOverlay() {
     };
   }, [moreOpen]);
   const soundsOn = useSoundStore((s) => s.heartSounds);
-  // The territory key can be put away; each new step of a lesson shows it again. While a "tap the …" check is
-  // open it drops its bull's-eye, which would cover the arteries to be tapped.
-  const tapOpen = useTapCheckOpen();
+  // The territory key can be put away; each new step of a lesson starts it afresh: open, or folded to its chip in a
+  // lesson's slim view or while a "tap the …" check is open in a low one — unless the step sends the learner to the
+  // legend (keyStartsFolded). While a tap check is open it also drops its bull's-eye, which would cover the arteries
+  // to be tapped.
+  const { tapOpen, readsKey } = useStepNeeds();
   const lessonStep = useCourseStore((s) => s.active?.step ?? -1);
-  const [keyHidden, setKeyHidden] = useState(false);
-  useEffect(() => setKeyHidden(false), [lessonStep]);
+  /** what the learner chose with the key's ✕ or its chip at this step (null: the step's default) */
+  const [keyChoice, setKeyHidden] = useState<boolean | null>(null);
+  useEffect(() => setKeyHidden(null), [lessonStep]);
+  const keyHidden = keyChoice ?? keyStartsFolded({ inLesson, thin, low, tapOpen, readsKey });
   // Hiding the key swaps it for the button that brings it back (and back again): the keyboard follows to the
   // button that took the place of the one just pressed, instead of falling to the top of the page
   const keyChip = useRef<HTMLButtonElement>(null);
@@ -153,9 +186,11 @@ export default function SceneOverlay() {
     const el = probe.current?.parentElement;
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
-      setNarrow(e.contentRect.width < 640 || e.contentRect.height < 380);
-      setLow(e.contentRect.height < 300);
-      setTiny(e.contentRect.height < 170);
+      const size = overlaySize(e.contentRect.width, e.contentRect.height);
+      setNarrow(size.narrow);
+      setThin(size.thin);
+      setLow(size.low);
+      setTiny(size.tiny);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -175,7 +210,7 @@ export default function SceneOverlay() {
   // Tell the name tags where the controls are (they are placed clear of them), and the camera how far down the
   // controls along the top of a small view reach (it frames the heart below them)
   const setCover = useOverlayCover((s) => s.setCover);
-  const layoutKey = [tiny, narrow, fold, moreOpen, viewMode, !!culprit, peek, coach, showViews, showAngio, keyHidden, bullseye, soundsOn, blind, selectedLead].join();
+  const layoutKey = [tiny, narrow, thin, fold, moreOpen, viewMode, !!culprit, peek, coach, showViews, showAngio, keyHidden, bullseye, soundsOn, blind, selectedLead].join();
   useEffect(() => {
     const root = probe.current?.parentElement;
     if (!root) return;
@@ -211,24 +246,115 @@ export default function SceneOverlay() {
       <span className={`ml-auto font-semibold ${open > 0.5 ? 'text-emerald-300' : 'text-slate-400'}`}>{open > 0.5 ? 'open' : 'closed'}</span>
     </div>
   );
+  // the heart sounds as they happen: lit while the valves shut ("S1 lights up" in the lessons). A small view keeps
+  // them as short chips.
+  const sound = (on: boolean, which: 'S1' | 'S2', compact: boolean) => (
+    <span
+      className={`rounded ${compact ? 'px-1 shrink-0' : 'px-1.5'} ${on ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-500'}`}
+      title={compact ? `${which} ${which === 'S1' ? '“lub”: the mitral and tricuspid valves close' : '“dub”: the aortic and pulmonic valves close'}` : undefined}
+    >
+      {compact ? which : `${which} ${which === 'S1' ? '“lub”' : '“dub”'}`}
+    </span>
+  );
+  const arrested = !blind && (hud.phase === 'fibrillation' || hud.phase === 'pulseless' || hud.phase === 'arrest');
+  // a slim view: the cycle box is one line under the View menu — the phase, a dot for each pair of valves
+  // (green while open) and the S1 / S2 chips. (`top`: it runs along the top edge, and the heart is framed below it.)
+  // The outflow pair is "Ao", never "AV": the app's "AV valves" are the atrioventricular (mitral and tricuspid) ones.
+  const cycleLine = (cover: 'top' | 'box') => (
+    <div
+      className="flex items-center gap-1 min-w-0 scene-panel rounded-lg px-1.5 py-1 text-[11px] leading-tight shadow-xl"
+      title={blind ? undefined : `${PHASE_LABELS[hud.phase]}: ${PHASE_DESCRIPTIONS[hud.phase]}`}
+      data-cover={cover}
+      data-cycle="line"
+    >
+      <span className={`min-w-0 flex-1 truncate font-semibold ${arrested ? 'text-red-400' : 'text-white'}`}>{blind ? 'Phase hidden' : PHASE_SHORT[hud.phase]}</span>
+      {([['MV', 'Mitral / tricuspid', hud.mitral], ['Ao', 'Aortic / pulmonic', hud.aortic]] as const).map(([short, full, open]) => (
+        <span key={short} className="flex items-center gap-0.5 shrink-0" title={`${full} valves ${open > 0.5 ? 'open' : 'closed'}`}>
+          <span className={`w-2 h-2 rounded-full ${open > 0.5 ? 'bg-emerald-400' : 'bg-slate-600 ring-1 ring-slate-400/50'}`} />
+          <span className={open > 0.5 ? 'text-emerald-300' : 'text-slate-400'}>{short}</span>
+        </span>
+      ))}
+      {sound(hud.s1, 'S1', true)}
+      {sound(hud.s2, 'S2', true)}
+    </div>
+  );
+  // the camera's presets, zoom and cath-lab projections: a panel under "Views" in a small view, inside More in a slim one
+  const cameraNav = (
+    <>
+      {showAngio && (
+        <div className="scene-panel rounded-lg p-1.5 shadow-xl">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400 px-1">Angiographic projections</div>
+          <div className="px-1 mb-1 text-[11px] text-slate-400" title="C-arm angulation equivalent to the current 3D view (detector position)">
+            This view: <b className="font-mono text-sky-300">{formatCarm(carm.primary, carm.secondary)}</b>
+          </div>
+          <div className="grid grid-cols-2 gap-0.5">
+            {CAMERA_PRESETS.filter((p) => p.group === 'angio').map((p) => (
+              <button key={p.label} onClick={() => setCameraPreset(p)} title={p.description} className="px-2 py-1 touch:py-2 text-[11px] text-slate-200 hover:bg-white/10 rounded text-left whitespace-nowrap">
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="scene-panel rounded-lg overflow-hidden">
+        <div className="grid grid-cols-3 gap-0.5 p-1">
+          {CAMERA_PRESETS.filter((p) => p.group === 'anatomic').map((p) => (
+            <button key={p.label} onClick={() => setCameraPreset(p)} title={`${p.label}: ${p.description}`} className="px-2 py-1 touch:py-2 text-[11px] font-medium text-slate-200 hover:bg-white/10 rounded">
+              {p.short}
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-slate-600/40 p-1 flex items-center gap-0.5">
+          <IconBtn onClick={() => zoom(1)} title="Zoom in"><IconZoomIn size={14} /></IconBtn>
+          <IconBtn onClick={() => zoom(-1)} title="Zoom out"><IconZoomOut size={14} /></IconBtn>
+          <IconBtn onClick={() => setCameraPreset(CAMERA_PRESETS[0])} title="Reset to anterior view"><IconHome size={14} /></IconBtn>
+          <IconBtn onClick={toggleAutoRotate} title="Auto-rotate"><IconRotate size={14} /></IconBtn>
+          <button
+            onClick={() => setShowAngio((v) => !v)}
+            className={`ml-auto px-2 py-1 touch:py-2 text-[11px] rounded ${showAngio ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:bg-white/10'}`}
+            title="Cath-lab projections (RAO / LAO / cranial / caudal)"
+          >
+            Angio
+          </button>
+        </div>
+      </div>
+    </>
+  );
 
-  if (tiny) return <div ref={probe} className="hidden" />;
+  if (tiny) {
+    // Only a strip of the heart shows (the ECG enlarged over it, or a lesson on a small phone): no controls. In a lesson
+    // the one-line cycle box stays along the bottom, for the steps that ask the learner to watch it — but not while a
+    // "tap the …" check needs all of the strip for the name tags.
+    return (
+      <>
+        <div ref={probe} className="hidden" />
+        {inLesson && !tapOpen && <div className="absolute inset-x-2 bottom-2 z-10">{cycleLine('box')}</div>}
+      </>
+    );
+  }
 
   return (
     <>
       <div ref={probe} className="hidden" />
       {/* View modes + toggles */}
-      <div ref={moreRef} className={`absolute top-2 left-2 z-10 flex flex-col gap-1.5 ${narrow ? 'max-w-[calc(100%-6rem)]' : 'max-w-[calc(100%-1rem)]'}`}>
+      <div
+        ref={moreRef}
+        // (slim: the column spans the view — the cycle line runs across it and an open More shrinks to fit above the
+        // bottom edge — so only its boxes take taps, not the room between them. An open More, with the camera views,
+        // sits above the territory key along the bottom edge, as the Views panel of a small view does.)
+        className={`absolute top-2 left-2 ${thin && moreOpen ? 'z-20' : 'z-10'} flex flex-col gap-1.5 ${thin ? 'right-2 bottom-2 pointer-events-none [&>*]:pointer-events-auto' : narrow ? 'max-w-[calc(100%-6rem)]' : 'max-w-[calc(100%-1rem)]'}`}
+      >
         {narrow && (
-          <div className="self-start flex items-center gap-1.5" data-cover="top">
+          <div className="self-start max-w-full flex items-center gap-1.5" data-cover="top">
             {/* a small view has no room for six buttons in a row: one menu shows them all */}
-            <label className="flex items-center gap-1.5 pl-2.5 pr-1 rounded-lg border border-cardiac-accent/60 bg-black/70 shadow-xl">
-              <span className="text-[11px] text-slate-300">View</span>
+            <label className={`min-w-0 flex items-center gap-1.5 pr-1 rounded-lg border border-cardiac-accent/60 bg-black/70 shadow-xl ${thin ? 'pl-1.5' : 'pl-2.5'}`}>
+              {/* (slim: the menu alone, so that it and More stay on one line) */}
+              {!thin && <span className="text-[11px] text-slate-300">View</span>}
               <select
                 value={viewMode}
                 onChange={(e) => setViewMode(e.target.value as ViewMode)}
                 aria-label="3D view"
-                className="h-9 bg-transparent text-[13px] font-semibold text-cardiac-accent pr-1 focus:outline-none"
+                className="min-w-0 max-w-full h-9 bg-transparent text-[13px] font-semibold text-cardiac-accent pr-1 focus:outline-none"
               >
                 {MODES.map((m) => <option key={m.value} value={m.value} className="bg-slate-900 text-slate-100">{m.label}</option>)}
               </select>
@@ -239,8 +365,8 @@ export default function SceneOverlay() {
                 onClick={() => setMoreOpen((v) => !v)}
                 aria-expanded={moreOpen}
                 aria-controls="scene-toggles"
-                title="Labels, cardiac vector, auto-rotate, heart sounds"
-                className={`h-[38px] px-2.5 rounded-lg border text-[11px] font-medium shadow-xl backdrop-blur-sm ${moreOpen ? 'border-cardiac-accent/60 bg-cardiac-accent/20 text-cardiac-accent' : 'border-slate-600/60 bg-black/60 text-slate-200'}`}
+                title={thin ? 'Labels, cardiac vector, auto-rotate, heart sounds, camera views' : 'Labels, cardiac vector, auto-rotate, heart sounds'}
+                className={`shrink-0 h-[38px] ${thin ? 'px-2' : 'px-2.5'} rounded-lg border text-[11px] font-medium whitespace-nowrap shadow-xl backdrop-blur-sm ${moreOpen ? 'border-cardiac-accent/60 bg-cardiac-accent/20 text-cardiac-accent' : 'border-slate-600/60 bg-black/60 text-slate-200'}`}
               >
                 More {moreOpen ? '▴' : '▾'}
               </button>
@@ -282,9 +408,10 @@ export default function SceneOverlay() {
         {(!fold || moreOpen) && (
           <div
             id="scene-toggles"
-            // folded: a small panel that opens under the View menu (a tap outside it or Escape closes it)
+            // folded: a small panel that opens under the View menu (a tap outside it or Escape closes it). Slim: it
+            // also holds the camera views, and scrolls rather than run off the bottom of the view.
             className={fold
-              ? 'self-start flex flex-wrap gap-1.5 p-1.5 max-w-[15rem] scene-panel rounded-lg shadow-xl'
+              ? `self-start flex flex-wrap gap-1.5 p-1.5 scene-panel rounded-lg shadow-xl ${thin ? 'max-w-full min-h-0 overflow-y-auto overscroll-contain' : 'max-w-[15rem]'}`
               : `flex gap-1 ${narrow ? 'overflow-x-auto no-scrollbar scroll-fade-r pr-6' : 'flex-wrap'}`}
             data-cover={fold ? 'box' : 'top'}
           >
@@ -294,6 +421,14 @@ export default function SceneOverlay() {
             <Pill active={autoRotate} onClick={toggleAutoRotate} title="Slowly rotate the heart">Auto-rotate</Pill>
             <HeartSoundsButton pill />
             {selectedLead && <Pill active onClick={() => selectLead(selectedLead)} title="Hide the lead view">Lead {selectedLead} view ✕</Pill>}
+            {thin && (
+              <>
+                <Pill active={showViews} onClick={() => setShowViews((v) => !v)} title="Camera views, zoom and cath-lab projections" expanded={showViews}>
+                  Views {showViews ? '▴' : '▾'}
+                </Pill>
+                {showViews && <div className="basis-full flex flex-col gap-1.5">{cameraNav}</div>}
+              </>
+            )}
           </div>
         )}
         {viewMode === 'conduction' && !narrow && (
@@ -301,6 +436,7 @@ export default function SceneOverlay() {
             <span className="text-amber-300">●</span> atrial · <span className="text-orange-400">●</span> AV node / His · <span className="text-red-400">●</span> bundles · <span className="text-rose-300">●</span> Purkinje. Red ✕ = block. Slow to 0.25× to follow each beat.
           </div>
         )}
+        {thin && !peek && !coach && cycleLine('top')}
         {soundsOn && (
           // what there is to hear with this heart — not named while a question is open, where it could give the answer away
           <div className={`self-start bg-black/55 rounded-md px-2 py-1 ${narrow ? 'max-w-[15rem]' : 'max-w-xs'}`} data-cover="box">
@@ -309,29 +445,32 @@ export default function SceneOverlay() {
         )}
       </div>
 
-      {/* Cardiac cycle HUD */}
-      <div
-        // small views: bottom-left, where the heart leaves room (its apex points to the viewer's right) — unless a legend sits there
-        className={`absolute z-10 scene-panel rounded-lg text-[11px] shadow-xl ${
-          narrow ? `bottom-2 w-[min(9.5rem,40%)] p-1.5 ${viewMode === 'activation' || viewMode === 'territories' || culprit ? 'right-2' : 'left-2'}` : 'right-2 top-2 w-56 p-2'
-        } ${narrow && (peek || coach) ? 'hidden' : ''}`}
-        title={blind ? undefined : PHASE_DESCRIPTIONS[hud.phase]}
-        data-cover="box"
-      >
-        {!narrow && <div className="text-[11px] uppercase tracking-wider text-slate-400">Cardiac cycle</div>}
-        <div className={`font-semibold leading-tight ${narrow ? 'text-[11px] truncate' : 'text-xs mt-0.5'} ${!blind && (hud.phase === 'fibrillation' || hud.phase === 'pulseless' || hud.phase === 'arrest') ? 'text-red-400' : 'text-white'}`}>{blind ? 'Phase hidden' : PHASE_LABELS[hud.phase]}</div>
-        {/* (the phase's name would answer a question about the rhythm: the valves and sounds below still show what happens) */}
-        {!narrow && <p className="text-[11px] text-slate-400 leading-snug mt-1 line-clamp-3">{blind ? 'Hidden while a question is open: watch the valves and the heart itself.' : PHASE_DESCRIPTIONS[hud.phase]}</p>}
-        <div className={`space-y-0.5 ${narrow ? 'mt-1' : 'mt-1.5'}`}>
-          {valve(narrow ? 'MV / TV' : 'Mitral / tricuspid', hud.mitral)}
-          {valve(narrow ? 'AV / PV' : 'Aortic / pulmonic', hud.aortic)}
+      {/* Cardiac cycle HUD (a slim view has its one-line version under the View menu, above) */}
+      {!thin && (
+        <div
+          // small views: bottom-left, where the heart leaves room (its apex points to the viewer's right) — unless a legend sits there
+          className={`absolute z-10 scene-panel rounded-lg text-[11px] shadow-xl ${
+            narrow ? `bottom-2 w-[min(9.5rem,40%)] p-1.5 ${viewMode === 'activation' || viewMode === 'territories' || culprit ? 'right-2' : 'left-2'}` : 'right-2 top-2 w-56 p-2'
+          } ${narrow && (peek || coach) ? 'hidden' : ''}`}
+          title={blind ? undefined : PHASE_DESCRIPTIONS[hud.phase]}
+          data-cover="box"
+        >
+          {!narrow && <div className="text-[11px] uppercase tracking-wider text-slate-400">Cardiac cycle</div>}
+          <div className={`font-semibold leading-tight ${narrow ? 'text-[11px] truncate' : 'text-xs mt-0.5'} ${arrested ? 'text-red-400' : 'text-white'}`}>{blind ? 'Phase hidden' : PHASE_LABELS[hud.phase]}</div>
+          {/* (the phase's name would answer a question about the rhythm: the valves and sounds below still show what happens) */}
+          {!narrow && <p className="text-[11px] text-slate-400 leading-snug mt-1 line-clamp-3">{blind ? 'Hidden while a question is open: watch the valves and the heart itself.' : PHASE_DESCRIPTIONS[hud.phase]}</p>}
+          <div className={`space-y-0.5 ${narrow ? 'mt-1' : 'mt-1.5'}`}>
+            {valve(narrow ? 'MV / TV' : 'Mitral / tricuspid', hud.mitral)}
+            {valve(narrow ? 'AV / PV' : 'Aortic / pulmonic', hud.aortic)}
+          </div>
+          {/* (a small view keeps S1 and S2 as short chips: a lesson asks the learner to watch them light up) */}
+          <div className={`flex gap-1.5 ${narrow ? 'mt-1' : 'mt-1.5'}`}>
+            {sound(hud.s1, 'S1', narrow)}
+            {sound(hud.s2, 'S2', narrow)}
+            {!narrow && <span className={`px-1.5 rounded ${hud.atria > 0.3 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-500'}`}>atrial kick</span>}
+          </div>
         </div>
-        <div className={`gap-1.5 mt-1.5 ${narrow ? 'hidden' : 'flex'}`}>
-          <span className={`px-1.5 rounded ${hud.s1 ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-500'}`}>S1 “lub”</span>
-          <span className={`px-1.5 rounded ${hud.s2 ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-500'}`}>S2 “dub”</span>
-          <span className={`px-1.5 rounded ${hud.atria > 0.3 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-500'}`}>atrial kick</span>
-        </div>
-      </div>
+      )}
 
       {/* Territory legend */}
       {viewMode === 'activation' && !(narrow && peek) && <ActivationLegend narrow={narrow} />}
@@ -347,7 +486,8 @@ export default function SceneOverlay() {
           {viewMode === 'territories' ? 'Territory key' : 'Key'} ▴
         </button>
       ) : (
-        <div ref={keyBox} className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl flex items-end gap-2 ${narrow ? 'bottom-2 p-1.5 max-w-[calc(58%-1rem)] leading-snug' : 'bottom-9 p-2'}`} data-cover="box">
+        // (slim: the whole width, so the key is a few lines high rather than a column down the heart)
+        <div ref={keyBox} className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl flex items-end gap-2 ${narrow ? `bottom-2 p-1.5 ${thin ? 'max-w-[calc(100%-1rem)]' : 'max-w-[calc(58%-1rem)]'} leading-snug` : 'bottom-9 p-2'}`} data-cover="box">
           <div>
             {viewMode === 'territories' && (
               <>
@@ -372,8 +512,8 @@ export default function SceneOverlay() {
         </div>
       ))}
 
-      {/* Camera navigation */}
-      {narrow && (
+      {/* Camera navigation (a slim view has it inside More) */}
+      {narrow && !thin && (
         <button
           onClick={() => setShowViews((v) => !v)}
           className={`absolute top-2 right-2 z-10 px-2.5 py-1.5 touch:py-2 rounded-lg border text-[11px] backdrop-blur-sm ${showViews ? 'border-cardiac-accent/60 bg-cardiac-accent/20 text-cardiac-accent' : 'border-slate-600/60 bg-black/60 text-slate-200'}`}
@@ -383,45 +523,11 @@ export default function SceneOverlay() {
           Views ▾
         </button>
       )}
-      <div className={`absolute right-2 z-20 flex-col items-end gap-1.5 ${narrow ? (showViews ? 'flex top-12 max-h-[calc(100%-3.5rem)] overflow-y-auto no-scrollbar' : 'hidden') : 'flex bottom-9'}`} data-cover="box">
-        {showAngio && (
-          <div className="scene-panel rounded-lg p-1.5 shadow-xl">
-            <div className="text-[11px] uppercase tracking-wider text-slate-400 px-1">Angiographic projections</div>
-            <div className="px-1 mb-1 text-[11px] text-slate-400" title="C-arm angulation equivalent to the current 3D view (detector position)">
-              This view: <b className="font-mono text-sky-300">{formatCarm(carm.primary, carm.secondary)}</b>
-            </div>
-            <div className="grid grid-cols-2 gap-0.5">
-              {CAMERA_PRESETS.filter((p) => p.group === 'angio').map((p) => (
-                <button key={p.label} onClick={() => setCameraPreset(p)} title={p.description} className="px-2 py-1 touch:py-2 text-[11px] text-slate-200 hover:bg-white/10 rounded text-left whitespace-nowrap">
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="scene-panel rounded-lg overflow-hidden">
-          <div className="grid grid-cols-3 gap-0.5 p-1">
-            {CAMERA_PRESETS.filter((p) => p.group === 'anatomic').map((p) => (
-              <button key={p.label} onClick={() => setCameraPreset(p)} title={`${p.label}: ${p.description}`} className="px-2 py-1 touch:py-2 text-[11px] font-medium text-slate-200 hover:bg-white/10 rounded">
-                {p.short}
-              </button>
-            ))}
-          </div>
-          <div className="border-t border-slate-600/40 p-1 flex items-center gap-0.5">
-            <IconBtn onClick={() => zoom(1)} title="Zoom in"><IconZoomIn size={14} /></IconBtn>
-            <IconBtn onClick={() => zoom(-1)} title="Zoom out"><IconZoomOut size={14} /></IconBtn>
-            <IconBtn onClick={() => setCameraPreset(CAMERA_PRESETS[0])} title="Reset to anterior view"><IconHome size={14} /></IconBtn>
-            <IconBtn onClick={toggleAutoRotate} title="Auto-rotate"><IconRotate size={14} /></IconBtn>
-            <button
-              onClick={() => setShowAngio((v) => !v)}
-              className={`ml-auto px-2 py-1 touch:py-2 text-[11px] rounded ${showAngio ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:bg-white/10'}`}
-              title="Cath-lab projections (RAO / LAO / cranial / caudal)"
-            >
-              Angio
-            </button>
-          </div>
+      {!thin && (
+        <div className={`absolute right-2 z-20 flex-col items-end gap-1.5 ${narrow ? (showViews ? 'flex top-12 max-h-[calc(100%-3.5rem)] overflow-y-auto no-scrollbar' : 'hidden') : 'flex bottom-9'}`} data-cover="box">
+          {cameraNav}
         </div>
-      </div>
+      )}
 
       {peek && <PeekCard id={selectedId!} />}
       {coach && !peek && (
@@ -439,7 +545,8 @@ export default function SceneOverlay() {
 
       <div className="absolute bottom-1.5 left-2 right-2 z-0 pointer-events-none flex justify-between text-[11px] text-slate-500">
         <span className={narrow ? 'hidden' : ''}>{touch ? 'Drag to rotate · pinch to zoom · two-finger drag to pan · tap a structure' : 'Drag to rotate · scroll to zoom · right-drag to pan · click a structure'}</span>
-        <span className="hidden md:inline ml-auto">Educational simulation — not for clinical use</span>
+        {/* (not in a slim view, where it would run across the heart's lower name tags) */}
+        <span className={thin ? 'hidden' : 'hidden md:inline ml-auto'}>Educational simulation — not for clinical use</span>
       </div>
     </>
   );
@@ -470,12 +577,14 @@ function PeekCard({ id }: { id: string }) {
   );
 }
 
-function Pill({ active, onClick, children, title }: { active: boolean; onClick: () => void; children: React.ReactNode; title?: string }) {
+function Pill({ active, onClick, children, title, expanded }: { active: boolean; onClick: () => void; children: React.ReactNode; title?: string; expanded?: boolean }) {
   return (
     <button
       onClick={onClick}
       title={title}
-      aria-pressed={active}
+      // (a pill that opens a panel says so instead of being a pressed toggle)
+      aria-pressed={expanded === undefined ? active : undefined}
+      aria-expanded={expanded}
       className={`px-2 py-0.5 touch:py-1.5 touch:px-2.5 rounded-full text-[11px] whitespace-nowrap shrink-0 border backdrop-blur-sm transition-colors ${
         active ? 'bg-sky-500/25 border-sky-400/50 text-sky-100' : 'bg-black/50 border-slate-600/60 text-slate-300 hover:text-white'
       }`}

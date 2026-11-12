@@ -257,6 +257,9 @@ export const HEART_BASICS: Course = {
             question: 'Which rhythm loses the atrial kick completely?',
             options: ['Atrial fibrillation', 'Sinus tachycardia', 'Sinus bradycardia', 'Normal sinus rhythm'],
             answer: 0,
+            // a question about rhythms in general: the name of the one on screen answers nothing, and the cycle box
+            // must show the atrial kick this step is about
+            blind: false,
             explain: 'In atrial fibrillation the atria quiver instead of squeezing, so the ventricles get only passive filling.',
           },
         },
@@ -293,7 +296,8 @@ export const HEART_BASICS: Course = {
             'Again all four valves are closed for a moment (isovolumetric relaxation). Then the pressure drops below atrial pressure, the mitral and tricuspid valves open, and filling starts again.',
           ],
           look: '"S2" lights up as ejection ends. Systole is the gap between S1 and S2; diastole is the longer gap between S2 and the next S1.',
-          show: { structure: null },
+          // the S1 / S2 chips are in the cycle box on the heart: that is the picture a phone on its side shows
+          show: { structure: null, focus: 'heart' },
           check: {
             kind: 'choice',
             question: 'What makes the first heart sound (S1, the "lub")?',

@@ -57,19 +57,47 @@ export function nextLesson(course: Course, progress: Record<string, LessonProgre
   return course.lessons.find((l) => !progress[lessonKey(course.id, l.id)]?.done) ?? null;
 }
 
-/** The lesson the learner opened most recently and has not finished: offered as "continue" on the main menu */
+/** A run of the lesson is under way: it is not finished yet, or it is a new run of a finished lesson */
+export const runUnderWay = (p: LessonProgress | undefined): p is LessonProgress => !!p && (!p.done || !!p.rerun);
+
+/**
+ * The lesson the learner opened most recently and has not finished (a new run of a finished lesson included):
+ * offered as "continue" on the main menu
+ */
 export function lessonInProgress(list: Course[], progress: Record<string, LessonProgress>): { course: Course; lesson: Lesson; step: number } | null {
   let best: { course: Course; lesson: Lesson; step: number; at: number } | null = null;
   for (const course of list) {
     for (const lesson of course.lessons) {
       const p = progress[lessonKey(course.id, lesson.id)];
-      if (p && !p.done && p.step > 0 && p.step < lesson.steps.length && (!best || p.at > best.at)) best = { course, lesson, step: p.step, at: p.at };
+      if (p && runUnderWay(p) && p.step > 0 && p.step < lesson.steps.length && (!best || p.at > best.at)) best = { course, lesson, step: p.step, at: p.at };
     }
   }
   return best;
 }
 
 export const checksIn = (lesson: Lesson) => lesson.steps.filter((s) => s.check).length;
+
+// the names in the library that stay capitalized mid-sentence (Bachmann's bundle, the bundle of His, Purkinje fibers)
+const PROPER = /^\(?(Bachmann|His|Purkinje)\b/;
+
+/** A structure's Title Case name as it reads in the middle of a sentence: "right atrium", "Bachmann's bundle", "AV node" */
+export function midSentence(name: string): string {
+  return name
+    .split(' ')
+    // a capitalized word is lower-cased; an abbreviation (AV, LAD, mLAD) and a person's name are kept
+    .map((w) => (!PROPER.test(w) && /^\(?[A-Z][a-z'’-]*\)?[,.]?$/.test(w) ? w.toLowerCase() : w))
+    .join(' ');
+}
+
+/**
+ * The wrong-tap feedback for a structure: "That is the right atrium" / "Those are the pulmonary veins" — and no "the"
+ * before a possessive name ("That is Bachmann's bundle")
+ */
+export function thatIs(name: string): string {
+  const plural = /(s|ae)$/.test(name) && !/(us|is|ss)$/.test(name);
+  const the = /^[A-Z][a-z]+['’]s\b/.test(name) ? '' : 'the ';
+  return `${plural ? 'Those are' : 'That is'} ${the}${midSentence(name)}`;
+}
 
 /**
  * The order a multiple-choice check shows its options in: shuffled, but always the same way for the same
@@ -117,18 +145,23 @@ export function effectiveShow(steps: LessonStep[], index: number): StepShow {
   const focus = focusOf(steps[index]);
   return {
     ...scene, structure: own.structure, highlight: own.highlight, camera: own.camera, lead: own.lead, inspect: own.inspect, focus,
-    both: own.both ?? needsBoth(steps[index], focus),
+    // a "tap the …" check never shares a phone on its side: the heart needs all the room for its name tags
+    both: steps[index]?.check?.kind === 'tap' ? false : own.both ?? needsBoth(steps[index], focus),
   };
 }
 
-// what a look hint or a check says about the picture on screen: the tracing, or the 3D heart
-const ECG_REF = /\b(12-lead|ECG|EKG|tracing|strip|monitor|enlarged lead|calipers?|brackets?|leads? (I|II|III|aV[RLF]|V[1-6])|lead's|QRS|P waves?|T waves?|ST segment)\b/i;
-const HEART_REF = /(3D heart|name tags?|\btags?\b|ringed|cycle box|cardiac cycle box|on the heart|the heart (turns|beats|shows|squeezes)|lit up|highlighted|Phase box)/i;
+// what a look hint or a check says about the picture on screen: the tracing (or the pressure & volume panel's chart
+// and loop), or the 3D heart (its cycle box — "the box", the S1 / S2 chips — included)
+const ECG_REF = /\b(12-lead|ECG|EKG|tracing|strip|monitor|enlarged lead|calipers?|brackets?|leads? (I|II|III|aV[RLF]|V[1-6])|lead's|QRS|P waves?|T waves?|ST segment|loop|pressure & volume|pressure trace|atrial trace)\b/i;
+const HEART_REF = /(3D heart|name tags?|\btags?\b|ringed|cycle box|cardiac cycle box|on the heart|the heart (turns|beats|shows|squeezes)|lit up|highlighted|Phase box|\b(the|cycle|phase|status) box\b|\bS[12]\b)/i;
 
 /**
  * A phone on its side has room for one picture beside the text. When the step's look hint or check talks about the
  * other one too (the heart's cycle box during an ECG step, a bracket on the enlarged lead during a heart step), both
  * are shown side by side rather than leaving the learner to find a picture that is not there.
+ *
+ * Never for a "tap the …" check: side by side the 3D heart is too narrow for its name tags and controls, so it gets
+ * the room on its own and the step offers the other picture (LessonPlayer's "Show the … too").
  */
 function needsBoth(step: LessonStep | undefined, focus: StepShow['focus']): boolean {
   if (!step) return false;
@@ -138,8 +171,10 @@ function needsBoth(step: LessonStep | undefined, focus: StepShow['focus']): bool
   return (focus ?? 'ecg') === 'ecg' ? heart : tracing;
 }
 
-// a question the rhythm's own name would answer: name the rhythm, the block, the reading of a tracing
-const NAMES_IT = /\b(what|which)\b[^.?]*\b(rhythm|block|tracing|strip|12-lead|axis|condition|pattern)\b|\bname (the|this)\b|best reading|soundest conclusion|what does this [^.?]*show|what is driving/i;
+// a question the rhythm's own name would answer: name the rhythm, the block, the reading of a tracing, the injured wall
+// or the blocked (culprit) artery — a name such as "Lateral STEMI — LCx or diagonal occlusion" says both
+// ("which wall", "which coronary artery" — but not "by what time is the artery open")
+const NAMES_IT = /\b(what|which)\b[^.?]*\b(rhythm|block(ed)?|tracing|strip|12-lead|axis|condition|pattern|culprit)\b|\b(what|which) (\w+ )?(wall|artery)\b|\bname (the|this)\b|best reading|soundest conclusion|what does (it|this) [^.?]*show|what is driving/i;
 
 /**
  * While this step's check is open, must the app hide the rhythm's name — on the monitor, the rhythm chip, the cycle
@@ -295,15 +330,26 @@ export function startLesson(courseId: string, lessonId: string, fromStep?: numbe
   cleanSlate();
   const n = found.lesson.steps.length;
   const saved = useCourseStore.getState().progress[lessonKey(courseId, lessonId)];
-  // Opened without saying where (Back to it, the menu's "continue"): a lesson in progress resumes at its step with its
-  // answers; a finished one shows its result card. A given step (0: from the top) starts a new run.
-  const result = fromStep === undefined && !!saved?.done;
-  const resume = saved && !saved.done && saved.step < n ? saved.step : 0;
+  // Opened without saying where (Back to it, the menu's "continue"): a run under way — an unfinished lesson, or a new
+  // run of a finished one — resumes at its step with its answers; a finished one shows its result card. A given step
+  // (0: from the top) starts a new run.
+  const going = runUnderWay(saved);
+  const result = fromStep === undefined && !!saved?.done && !going;
+  const resume = saved && going && saved.step < n ? saved.step : 0;
   const step = result ? n - 1 : Math.max(0, Math.min(n - 1, fromStep ?? resume));
   shownRhythm = '';
   useCourseStore.getState().begin(courseId, lessonId, step, { fresh: fromStep === 0, finished: result });
   app.setMode('learn');
   applyStep();
+}
+
+/**
+ * A lesson picked from a list (the course list, search): a finished lesson starts again from the top; a run under way
+ * — a new run of a finished lesson included — resumes where it was left.
+ */
+export function openLesson(courseId: string, lessonId: string) {
+  const saved = useCourseStore.getState().progress[lessonKey(courseId, lessonId)];
+  startLesson(courseId, lessonId, saved?.done && !runUnderWay(saved) ? 0 : undefined);
 }
 
 export function gotoStep(index: number) {

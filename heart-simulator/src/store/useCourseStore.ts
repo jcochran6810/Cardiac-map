@@ -14,6 +14,12 @@ export interface LessonProgress {
   /** when it was last opened (ms since 1970), to offer "continue" */
   at: number;
   /**
+   * a new run of a finished lesson is under way ("Do this lesson again", or picked again from a list): it resumes at
+   * `step` with its own answers and is offered to continue, like an unfinished lesson; `done`, `correct` and `total`
+   * still hold the best finished run until this one is finished
+   */
+  rerun?: boolean;
+  /**
    * the answers of the run in progress (or of the last finished run), by step index: leaving the lesson and coming
    * back — by the close button, Back, or a library page opened from a step — keeps them, so the score counts them
    */
@@ -42,6 +48,11 @@ interface CourseState {
   answers: Record<number, StepAnswer>;
   /** the last step is done: the lesson's result card is showing */
   finished: boolean;
+  /**
+   * the result card was shown again (Back to a finished lesson), not reached by finishing a run just now: only then
+   * may it fall back to the best run's score when the answers of the last run are not known
+   */
+  restored: boolean;
   progress: Record<string, LessonProgress>;
 
   /**
@@ -92,20 +103,23 @@ export const useCourseStore = create<CourseState>((set, get) => {
     active: null,
     answers: {},
     finished: false,
+    restored: false,
     progress: load(),
 
     begin: (course, lesson, step, opts = {}) => {
       const key = lessonKey(course, lesson);
       const saved = get().progress[key];
       const answers = opts.fresh ? {} : { ...(saved?.answers ?? {}) };
-      set({ active: { course, lesson, step }, answers, finished: !!opts.finished });
-      // a finished lesson shown again keeps its "done" place (step 0, to start again from the top)
-      touch(key, opts.finished ? { answers } : { step, answers });
+      set({ active: { course, lesson, step }, answers, finished: !!opts.finished, restored: !!opts.finished });
+      // a finished lesson shown again keeps its "done" place (step 0, to start again from the top); a new run of a
+      // finished lesson is marked, so that coming back to it resumes the run rather than showing the old result
+      if (opts.finished) touch(key, { answers });
+      else touch(key, opts.fresh && saved?.done ? { step, answers, rerun: true } : { step, answers });
     },
     setStep: (step) => {
       const a = get().active;
       if (!a) return;
-      set({ active: { ...a, step }, finished: false });
+      set({ active: { ...a, step }, finished: false, restored: false });
       touch(lessonKey(a.course, a.lesson), { step });
     },
     answer: (step, right, picked) => {
@@ -127,10 +141,11 @@ export const useCourseStore = create<CourseState>((set, get) => {
       const old = get().progress[key];
       // keep the best finished run's score
       const best = old?.done && old.total === total ? Math.max(old.correct, correct) : correct;
-      set({ finished: true });
-      touch(key, { step: 0, done: true, correct: best, total });
+      // the card that follows is this run's: scored from its own answers, never the saved best
+      set({ finished: true, restored: false });
+      touch(key, { step: 0, done: true, correct: best, total, rerun: false });
     },
-    end: () => set({ active: null, answers: {}, finished: false }),
+    end: () => set({ active: null, answers: {}, finished: false, restored: false }),
     resetProgress: () => {
       set({ progress: {} });
       save({});

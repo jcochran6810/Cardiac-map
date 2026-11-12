@@ -9,7 +9,7 @@ import type { AppMode, LearningLevel } from '@/store/useAppStore';
 import { LEVEL_LABELS } from '@/store/useAppStore';
 import { resolveProfile, CONDITION_TO_PROFILE } from '@/lib/ecg/profiles';
 import { CASE_DATA } from '@/data/caseData';
-import { GLOSSARY, GLOSSARY_BY_ID } from '@/data/glossary';
+import { GLOSSARY, GLOSSARY_BY_ID, type GlossaryTerm } from '@/data/glossary';
 
 export interface TutorAnswer {
   title: string;
@@ -35,8 +35,28 @@ export interface TutorContext {
   mode?: AppMode;
 }
 
-/** "What does this ECG show?" and its variations */
-const MONITOR_QUESTION = /\b(this|current|the) (ecg|ekg|rhythm|strip|monitor|tracing)\b|what (rhythm|am i looking)|on the monitor/i;
+/**
+ * "What does this ECG show?" and its variations: "which rhythm is this?", "which ECG is shown here?", "which rhythm
+ * is displayed?", "which rhythm does this show?", "which strip am I looking at?", "rhythm?". A question about rhythms
+ * in general ("which rhythm loses the atrial kick?", "what ECG is shown in hyperkalemia?", "what does the ECG look
+ * like in hyperkalemia?", "what is the ECG of a STEMI?", "the ECG changes in WPW") is not one of them: it is answered
+ * from the library. "The rhythm in lead II", "what does the ECG show in lead II?" and "the ECG in this patient" are
+ * still about the monitor.
+ */
+const MONITOR_QUESTION = new RegExp([
+  String.raw`\b(this|current) (ecg|ekg|rhythm|strip|monitor|tracing)\b`,
+  // "the ECG" — but not "the ECG changes in …", "the ECG of a STEMI" or "the ECG (looks like | shows) in hyperkalemia"
+  String.raw`\bthe (ecg|ekg|rhythm|strip|monitor|tracing)\b(?!\s+(changes?|findings?|criteria|patterns?)\b)(?!\s+(?:(?:show|shows|showing|look|looks|looking|appear|appears)(?:\s+like)?\s+)?(of|in|for|with|after|during)\s+(?!(this|the|lead|leads|v\d|i|ii|iii|avr|avl|avf)\b))`,
+  String.raw`what (rhythm|am i looking)`,
+  String.raw`on the monitor`,
+  String.raw`\b(rhythm|ecg|ekg|strip|tracing) is (this|that)\b`,
+  String.raw`\b(rhythm|ecg|ekg|strip|tracing) is (it|shown|showing|displayed|here|on (the )?(screen|monitor))(\s+(here|now|on (the )?(screen|monitor)))?\s*[?.!]*\s*$`,
+  String.raw`\bwhich (rhythm|ecg|ekg|strip|tracing) (am i|are we|do i|do we) (looking at|seeing|see)\b`,
+  String.raw`\bwhich (rhythm|ecg|ekg|strip|tracing) (does|is) (this|it|the patient|this patient|he|she) (show|showing|have|having|in)\b`,
+  String.raw`^\s*(which|what) (rhythm|ecg|ekg|strip|tracing)\s*,?\s*(please|now)?\s*[?.!]*\s*$`,
+  // "rhythm?", "rhythm, please" (a bare "ECG" is a word to look up)
+  String.raw`^\s*(rhythm|ecg|ekg|strip|tracing)\s*(,?\s*(please|now)\s*[?.!]*|\?+)\s*$`,
+].join('|'), 'i');
 
 /** How to work a tracing out without being told: what the tutor offers instead of the answer */
 const READ_IT_YOURSELF = [
@@ -147,32 +167,99 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
   },
 ];
 
+/** "not", "never", "don't", "shouldn't", "cannot" (with or without the apostrophe) */
+const NEGATION = String.raw`(?:(?:don|doesn|didn|shouldn|mustn|can|couldn|wouldn|won|isn|aren|wasn|weren)['’]?t|not|never|cannot)`;
+/** "should not", "should a patient not", "must not", "can't", "won't": what may not be done */
+const MODAL_NEGATION = String.raw`(?:(?:should|must|can|could|may|might|would|will|shall)(?:\s+\w+){0,2}?\s+not|(?:shouldn|mustn|can|couldn|wouldn|won)['’]?t|cannot)`;
+/** What is done with a drug or a treatment: "give", "be given", "use", "push" … */
+const GIVING = String.raw`(?:give|given|giving|use|used|using|administer\w*|push|pushed|pushing|start|started|starting|do|done)`;
+/** …and what the patient does with it: "who should not have tenecteplase?", "who can't take aspirin?" */
+const RECEIVING = String.raw`(?:have|has|had|get|gets|getting|got|receive|receives|received|receiving|take|takes|taken|taking)`;
+/** "not safe", "not indicated", "not recommended", "not a candidate" */
+const UNFIT = String.raw`(?:(?:a|an|always|considered|really|very)\s+)?(?:indicated|recommended|safe|appropriate|advis\w*|allowed|ok|okay|suitable|eligible|candidates?)`;
+/** the words that may stand between "not" and "give": "should I not give", "not to give", "not be given", "not give it" */
+const BETWEEN = String.raw`(?:(?:i|we|you|they|it|he|she|one|to|be|ever|a|the|this|any|patients?|him|her|them|us)\s+){0,2}`;
+/**
+ * A question about when NOT to give something: "when should I not give nitro?", "when not to give aspirin?", "who
+ * shouldn't get it?", "when is it not safe to give nitro?", "when is aspirin not indicated?", "who can't have
+ * tenecteplase?", "when do I hold nitro?". A "not" that is not about giving ("why don't I see P waves?", "why do
+ * diabetics not have chest pain?") is no such question, nor is "how to avoid bleeding" or "how long do I hold pressure".
+ */
+const CONTRA = new RegExp(
+  String.raw`\b(contraindicat\w*|avoid\w*(?!(?:\s+\w+){0,2}?\s+(?:complication|risk|bleed|hematoma|injur|infection|problem|harm|mistake|error|pitfall|damage|spasm|occlusion|nephropathy)\w*)|never|(?:hold|holding|held)(?!\s+(?:\w+\s+)?pressure)|withhold\w*|withheld|${NEGATION}\s+${BETWEEN}${GIVING}|${MODAL_NEGATION}\s+${BETWEEN}${RECEIVING}|${NEGATION}\s+${UNFIT})\b`,
+  'i',
+);
+/** a negation of any kind: what a question about the indications says when it asks the opposite */
+const NEGATED = new RegExp(String.raw`\b${NEGATION}\b`, 'i');
+/** "the risks of not giving aspirin": what happens without the drug, not what the drug does */
+const OMISSION = new RegExp(String.raw`\b(?:of|from|by|in)\s+${NEGATION}\s+(?:giving|using|treating|starting|taking|getting|receiving|doing)\b`, 'i');
+
+/**
+ * The question without its "if …" or "unless …": a "not" there says when, not what ("what is the dose of epinephrine
+ * if I can't get IV access?", "how do I treat AF if I can't use a beta-blocker?").
+ */
+const mainClause = (q: string) => q.replace(/\b(?:if|unless)\b[^,;.?!]*/gi, ' ');
+
+const DOSE = /\b(doses?|dosing|dosage|how much|mg|mcg|joules?|energy)\b/i;
+const COMPLICATIONS = /\b(complications?|risks?|dangers?|side effects?|adverse|toxicity|toxic)\b/i;
+
 // Every word form is spelled out (or ends in \w*): a bare stem such as `complication` never matches "complications"
 // because the closing \b needs the word to end there.
 const INTENTS: { key: string; re: RegExp }[] = [
   { key: 'ecg', re: /\b(ecg|ekg|12.?lead|lead|st (elevation|depression)|waves?|intervals?|rhythm strip|tracing)\b/i },
+  // before "treat": "how much amiodarone do I give?" asks for the dose
+  { key: 'dose', re: DOSE },
   { key: 'treat', re: /\b(treat|treats|treated|treating|treatments?|manage|managed|managing|management|therapy|therapies|what (do|should) (i|we) do|give|first.?line)\b/i },
-  { key: 'dose', re: /\b(doses?|dosing|dosage|how much|mg|mcg|joules?|energy)\b/i },
   { key: 'symptoms', re: /\b(symptoms?|signs?|presents?|presentation|look like clinically|exam)\b/i },
   { key: 'mechanism', re: /\b(why|cause|causes|caused|pathophys\w*|mechanisms?|how does .* work|works?)\b/i },
-  { key: 'complications', re: /\b(complications?|risks?|dangers?|side effects?|adverse|toxicity|toxic)\b/i },
+  { key: 'complications', re: COMPLICATIONS },
   { key: 'steps', re: /\b(step|steps|how is .* (done|performed)|walk me through|procedure)\b/i },
   { key: 'imaging', re: /\b(echo|imaging|ct|mri|angiograph\w*|x-?ray|tte|tee)\b/i },
-  // "when do I hold nitro?" asks when not to give it
-  { key: 'contra', re: /\b(contraindicat\w*|avoid|should not|never|hold|withhold)\b/i },
   { key: 'anatomy', re: /\b(where|location|located|anatomy|blood supply|supplied)\b/i },
 ];
 
+/**
+ * What kind of answer a question wants. "When should I NOT give nitro?" comes first: it says "give" (a treatment
+ * question) and "when" (which picks the indications), and read any other way it gets the opposite of what was asked.
+ * But a question that asks for a dose or a risk before its "not" or "never" ("what is the max dose you should never
+ * exceed?", "what are the risks of not giving aspirin?") still wants the dose or the risk.
+ */
 function intentOf(q: string): string {
+  const main = mainClause(q);
+  const contra = CONTRA.exec(main);
+  if (contra && ![DOSE, COMPLICATIONS].some((re) => { const m = re.exec(main); return m !== null && m.index < contra.index; })) return 'contra';
   for (const i of INTENTS) if (i.re.test(q)) return i.key;
   return 'overview';
 }
 
+/** "when to give …?", "who gets …?": the indications — or, asked with a "not", the contraindications */
+const whenField = (q: string): 'indications' | 'contraindications' | null => (
+  /\b(indicat\w*|used for|when|who|which patients)\b/i.test(q) ? (NEGATED.test(mainClause(q)) ? 'contraindications' : 'indications') : null
+);
+
 /** "What is …?", "define …", "what does … mean?": the learner wants to know what a word means */
 const DEFINITION = /^\s*(what\s*['’]?\s*(is|are|was|s)\b|define\b|definition of\b|meaning of\b|what does .+ mean\b)/i;
 
-/** Words that say what kind of answer is wanted, not what it is about: they are not searched for */
-const STOP = /\b(what|whats|is|are|was|be|the|a|an|of|in|on|at|for|to|how|do|does|i|we|you|me|my|our|explain|tell|about|and|or|with|why|when|where|which|should|can|could|please|give|treat|treated|treatment|manage|management|dose|dosing|ecg|ekg|signs?|symptoms?|causes?|look|like|this|that|it|steps?|work|works|done|performed|walk|through|hold|withhold|contraindications?|contraindicated|complications?|indications?|define|definition|meaning|mean|means|patients?|go|goes|put|need|needs)\b/gi;
+/** A name as a pattern that also takes "Q-wave" for "Q wave" */
+const namePattern = (name: string) => new RegExp(name.split(/[\s\-–]+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\-–]+'), 'gi');
+
+/**
+ * "What is a Q wave?", "what are delta waves?": a "what is …?" question whose only word for the kind of answer wanted
+ * ("wave", "lead") is part of the term's own name. It wants the definition, not the ECG section of the page the term
+ * points to — unlike "what is the ECG of a STEMI?".
+ */
+function definesTerm(q: string, term: GlossaryTerm): boolean {
+  if (!DEFINITION.test(q)) return false;
+  const rest = [term.term, ...(term.aka ?? [])].reduce((s, name) => s.replace(namePattern(name), ' '), q);
+  return intentOf(rest) === 'overview';
+}
+
+/**
+ * Words that say what kind of answer is wanted, not what it is about: they are not searched for. The contractions
+ * come first, so that "can't" goes whole rather than leaving a stray "'t" behind "can". "Push" goes only as a verb
+ * ("push adenosine"): "push-dose pressors" and "IV push" keep it.
+ */
+const STOP = /\b((don|doesn|didn|shouldn|mustn|can|couldn|wouldn|won|isn|aren|wasn|weren)['’]?t|not|never|cannot|avoid\w*|given|giving|use|used|using|get|gets|getting|got|receive|receives|received|receiving|have|has|had|take|takes|taken|taking|took|push(?![\s\-–]*dos)(?=\s+\w)|pushed|pushing|administer\w*|start|started|starting|safe|safely|ok|okay|appropriate|recommended|indicated|allowed|advis\w*|candidates?|suitable|eligible|must|after|much|would|will|may|might|held|holding|withheld|who|what|whats|is|are|was|be|the|a|an|of|in|on|at|for|to|how|do|does|i|we|you|me|my|our|explain|tell|about|and|or|with|why|when|where|which|should|can|could|please|give|treat|treated|treatment|manage|management|dose|dosing|ecg|ekg|signs?|symptoms?|causes?|look|like|this|that|it|steps?|work|works|done|performed|walk|through|hold|withhold|contraindications?|contraindicated|complications?|indications?|define|definition|meaning|mean|means|patients?|go|goes|put|need|needs)\b/gi;
 
 /** Glossary terms answer "what is …?" in a sentence or two */
 const GLOSSARY_EXTRAS: SearchExtra[] = GLOSSARY.map((g) => ({ kind: 'term', id: `term:${g.id}`, name: g.term, sub: g.def, keys: g.aka ?? [] }));
@@ -349,11 +436,24 @@ export function findTopic(question: string, lib: ContentLibrary): TopicMatch | n
       && (fits.some((f) => f >= 2) || ws.filter((w) => !isShort(w)).length >= 2);
     return sound ? fits : null;
   };
-  /** the hits about all of `ws`: a page they name before one that only mentions them */
+  /** how many of the words `ws` one of the page's names says: "Femoral artery access" two of "femoral access", "femoral" one */
+  const covers = (hit: SearchHit, ws: string[]) => Math.max(0, ...wordsOf(hit).names.map((name) => {
+    const set = new Set(name.flatMap(forms));
+    return ws.filter((w) => has(w, set)).length;
+  }));
+  /** whether the question says the whole of one of the page's names ("Q-wave" is all of "Q wave", half of "Non-Q-wave MI") */
+  const inQuestion = new Set(tokens(q).flatMap(forms));
+  const namesAll = (hit: SearchHit) => nameShare(wordsOf(hit), inQuestion) === 1;
+  /**
+   * the hits about all of `ws`: a page they name before one that only mentions them; then the one with a name that says
+   * the most of them ("femoral access" is two words of "Femoral artery access", one of "Vascular access" or its other
+   * name "femoral"); then one whose whole name the question says ("IVC" before "IVC Filter Placement")
+   */
   const about = (ws: string[]) => search(ws.join(' '))
-    .map((hit) => ({ hit, fits: fitting(hit, ws) }))
-    .filter((x): x is { hit: SearchHit; fits: number[] } => x.fits !== null)
-    .sort((a, b) => Number(b.fits.some((f) => f >= 2)) - Number(a.fits.some((f) => f >= 2)) || b.hit.score - a.hit.score)
+    .map((hit) => ({ hit, fits: fitting(hit, ws), cover: covers(hit, ws), whole: namesAll(hit) }))
+    .filter((x): x is { hit: SearchHit; fits: number[]; cover: number; whole: boolean } => x.fits !== null)
+    .sort((a, b) => Number(b.fits.some((f) => f >= 2)) - Number(a.fits.some((f) => f >= 2)) || b.cover - a.cover
+      || Number(b.whole) - Number(a.whole) || b.hit.score - a.hit.score)
     .map((x) => x.hit);
 
   // a question of nothing but question words ("what is an ECG?"): its last word is what it asks about
@@ -365,9 +465,10 @@ export function findTopic(question: string, lib: ContentLibrary): TopicMatch | n
     const top = asked[0];
     const pages = asked.filter((h) => h.kind !== 'term').map((h) => h.id);
     if (top.kind !== 'term') return { id: top.id, also: [] };
-    const see = GLOSSARY_BY_ID[top.id.slice(5)]?.see;
+    const term = GLOSSARY_BY_ID[top.id.slice(5)];
+    const see = term?.see;
     // "what is …?", or a term no library page teaches ("limb leads", "QT interval"): the definition itself
-    if (definition || !see) return { id: top.id, also: pages.slice(0, 2) };
+    if (definition || !see || definesTerm(q, term)) return { id: top.id, also: pages.slice(0, 2) };
     return { id: see, also: [] };
   }
 
@@ -509,7 +610,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
       };
     }
     const field = intent === 'complications' ? 'complications' : intent === 'ecg' ? 'ecg' : intent === 'contra' ? 'contraindications'
-      : /indicat|when/i.test(q) ? 'indications' : intent === 'anatomy' ? 'anatomy' : 'overview';
+      : whenField(q) ?? (intent === 'anatomy' ? 'anatomy' : 'overview');
     const bullets = (p as unknown as Record<string, string[]>)[field] ?? p.overview;
     return {
       title: `${p.name}${field !== 'overview' ? ` — ${field}` : ''}`,
@@ -521,8 +622,10 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
   }
   const m = lib.medications[targetId];
   if (m) {
-    const field = intent === 'dose' ? 'dosing' : intent === 'contra' ? 'contraindications' : intent === 'complications' ? 'adverseEffects'
-      : intent === 'ecg' ? 'ecgEffects' : intent === 'mechanism' ? 'mechanism' : /indicat|used for|when/i.test(q) ? 'indications' : 'mechanism';
+    // "the risks of not giving aspirin" are what it prevents: its indications
+    const field = intent === 'dose' ? 'dosing' : intent === 'contra' ? 'contraindications'
+      : intent === 'complications' ? (OMISSION.test(q) ? 'indications' : 'adverseEffects')
+      : intent === 'ecg' ? 'ecgEffects' : intent === 'mechanism' ? 'mechanism' : whenField(q) ?? 'mechanism';
     const bullets = (m as unknown as Record<string, string[]>)[field] ?? m.mechanism;
     const note = field === 'dosing' ? ['Typical adult dosing for education — always follow current guidelines and local protocol'] : [];
     return {

@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { lessonKey, useCourseStore } from '@/store/useCourseStore';
 import { useContent } from '@/lib/content';
-import { courseProgress, coursesFor, lessonInProgress, nextLesson, startLesson } from '@/lib/courses';
+import { courseProgress, coursesFor, lessonInProgress, nextLesson, openLesson, runUnderWay, startLesson } from '@/lib/courses';
 import type { Course } from '@/types/course';
 import { IconCheck, IconChevron, IconPlay } from '@/components/ui/icons';
 
@@ -139,12 +139,13 @@ function CourseCard({ course, open, onToggle, cardRef }: { course: Course; open:
           {course.lessons.map((l, k) => {
             const p = progress[lessonKey(course.id, l.id)];
             const isNext = upNext?.id === l.id;
-            const started = !!p && !p.done && p.step > 0;
+            // in progress: not finished yet, or a new run of a finished lesson
+            const started = runUnderWay(p) && p.step > 0;
             return (
               <li key={l.id}>
                 <button
                   // a finished lesson starts again from the top; one in progress resumes where it was left
-                  onClick={() => startLesson(course.id, l.id, p?.done ? 0 : undefined)}
+                  onClick={() => openLesson(course.id, l.id)}
                   className={`w-full text-left flex items-center gap-3 px-2.5 py-2.5 rounded-xl border transition-colors ${
                     isNext ? 'border-cardiac-accent/50 bg-cardiac-accent/10 hover:border-cardiac-accent' : 'border-transparent hover:bg-cardiac-surface/50'
                   }`}
@@ -164,7 +165,7 @@ function CourseCard({ course, open, onToggle, cardRef }: { course: Course; open:
                     {started && <span className="block text-[11px] text-cardiac-accent whitespace-nowrap">step {p.step + 1} of {l.steps.length}</span>}
                   </span>
                   <span className={`shrink-0 hidden sm:flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold ${isNext ? 'bg-cardiac-accent text-slate-950' : 'border border-slate-600 text-slate-200'}`}>
-                    {!p?.done && <IconPlay size={14} />}{p?.done ? 'Review' : started ? 'Continue' : 'Start'}
+                    {(!p?.done || started) && <IconPlay size={14} />}{started ? 'Continue' : p?.done ? 'Review' : 'Start'}
                   </span>
                 </button>
               </li>
