@@ -26,8 +26,8 @@ export default function Glossary() {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
-  // Esc closes it (also from the field, where the app-wide shortcuts do not listen). With a keyboard the focus starts
-  // in the field; on a touch screen on the title, so the on-screen keyboard does not cover the list until asked for.
+  // Esc closes it from anywhere in it, and the app's shortcuts wait until it has closed. With a keyboard the focus
+  // starts in the field; on a touch screen on the title, so the on-screen keyboard does not cover the list until asked for.
   const dialogRef = useDialogFocus<HTMLDivElement>(open, close, coarsePointer() ? titleRef : inputRef);
 
   // opened at a term (from search): start with everything listed and that term in view

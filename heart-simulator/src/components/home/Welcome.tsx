@@ -56,8 +56,6 @@ export default function Welcome({ onStart }: { onStart: () => void }) {
         <div
           ref={dialogRef}
           tabIndex={-1}
-          // the app's shortcuts ("/" search, "?" help …) belong to the menu behind the card
-          onKeyDown={(e) => e.stopPropagation()}
           className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/75 p-0 sm:p-4 outline-none focus-visible:outline-none"
           role="dialog"
           aria-modal="true"

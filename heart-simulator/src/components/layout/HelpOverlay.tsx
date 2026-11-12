@@ -67,6 +67,8 @@ export default function HelpOverlay() {
       tabIndex={-1}
       className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0 outline-none focus-visible:outline-none"
       onClick={() => setHelpOpen(false)}
+      // "?" opened it and closes it again (the app's other shortcuts wait until it has closed)
+      onKeyDown={(e) => { if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); setHelpOpen(false); } }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="help-title"
