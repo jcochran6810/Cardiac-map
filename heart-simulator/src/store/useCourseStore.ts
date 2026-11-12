@@ -13,6 +13,11 @@ export interface LessonProgress {
   total: number;
   /** when it was last opened (ms since 1970), to offer "continue" */
   at: number;
+  /**
+   * the answers of the run in progress (or of the last finished run), by step index: leaving the lesson and coming
+   * back — by the close button, Back, or a library page opened from a step — keeps them, so the score counts them
+   */
+  answers?: Record<number, StepAnswer>;
 }
 
 export interface StepAnswer {
@@ -39,7 +44,11 @@ interface CourseState {
   finished: boolean;
   progress: Record<string, LessonProgress>;
 
-  begin: (course: string, lesson: string, step: number) => void;
+  /**
+   * Open a lesson at `step`. `fresh`: a new run (its answers start empty); otherwise the answers saved with the
+   * lesson come back. `finished`: show the result card of the last finished run (a page restored by Back).
+   */
+  begin: (course: string, lesson: string, step: number, opts?: { fresh?: boolean; finished?: boolean }) => void;
   setStep: (step: number) => void;
   /** record one try at the current step's check; returns the answer so far */
   answer: (step: number, right: boolean, picked?: number) => StepAnswer;
@@ -85,9 +94,13 @@ export const useCourseStore = create<CourseState>((set, get) => {
     finished: false,
     progress: load(),
 
-    begin: (course, lesson, step) => {
-      set({ active: { course, lesson, step }, answers: {}, finished: false });
-      touch(lessonKey(course, lesson), { step });
+    begin: (course, lesson, step, opts = {}) => {
+      const key = lessonKey(course, lesson);
+      const saved = get().progress[key];
+      const answers = opts.fresh ? {} : { ...(saved?.answers ?? {}) };
+      set({ active: { course, lesson, step }, answers, finished: !!opts.finished });
+      // a finished lesson shown again keeps its "done" place (step 0, to start again from the top)
+      touch(key, opts.finished ? { answers } : { step, answers });
     },
     setStep: (step) => {
       const a = get().active;
@@ -100,7 +113,10 @@ export const useCourseStore = create<CourseState>((set, get) => {
       const next: StepAnswer = prev
         ? { ...prev, tries: prev.solved ? prev.tries : prev.tries + 1, solved: prev.solved || right }
         : { ok: right, solved: right, tries: 1, picked };
-      set({ answers: { ...get().answers, [step]: next } });
+      const answers = { ...get().answers, [step]: next };
+      set({ answers });
+      const a = get().active;
+      if (a) touch(lessonKey(a.course, a.lesson), { answers });
       return next;
     },
     finish: (total) => {

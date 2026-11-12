@@ -19,6 +19,11 @@ interface ECGState {
   showAnnotations: boolean;
   caliperMode: boolean;
   selectedLead: ECGLead | null;
+  /**
+   * the learner's last tap on a lead, counted even when it toggles the lead's outline off: a lesson's
+   * "tap a lead" check answers on each tap (a new object every time)
+   */
+  leadTap: { lead: ECGLead } | null;
   inspectLead: ECGLead | null;
   bottomView: BottomView;
   /** Which cable is attached to which electrode site (misplacement teaching) */
@@ -63,6 +68,7 @@ export const useECGStore = create<ECGState>((set) => ({
   showAnnotations: true,
   caliperMode: false,
   selectedLead: null,
+  leadTap: null,
   inspectLead: null,
   bottomView: 'ecg',
   placement: STANDARD_PLACEMENT,
@@ -79,7 +85,7 @@ export const useECGStore = create<ECGState>((set) => ({
   toggleKeyLeads: () => set((s) => ({ showKeyLeads: !s.showKeyLeads })),
   toggleAnnotations: () => set((s) => ({ showAnnotations: !s.showAnnotations })),
   toggleCalipers: () => set((s) => ({ caliperMode: !s.caliperMode })),
-  selectLead: (lead) => set((s) => ({ selectedLead: s.selectedLead === lead ? null : lead })),
+  selectLead: (lead) => set((s) => ({ selectedLead: s.selectedLead === lead ? null : lead, leadTap: lead ? { lead } : s.leadTap })),
   setInspectLead: (inspectLead) => set({ inspectLead }),
   setBottomView: (bottomView) => set({ bottomView }),
   setPlacementState: (placement, placementHidden) => set({ placement, placementHidden }),

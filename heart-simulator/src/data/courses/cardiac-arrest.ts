@@ -109,7 +109,7 @@ export const CARDIAC_ARREST: Course = {
             'CPR slows that fall. Compressions push a small but vital flow of blood through the brain and through the heart\'s own arteries, which keeps the heart muscle able to respond when the shock comes.',
             'CPR alone rarely ends VF. It buys time. The shock is what ends VF.',
           ],
-          look: 'The bottom panel draws pressures. The red line is the pressure in the aorta: in VF it lies low and flat, and the BP box reads "no pulse". The green line at the top is the ECG: busy, but moving no blood.',
+          look: 'The Pressure & volume panel at the bottom draws pressures. The red line is the pressure in the aorta: in VF it lies low and flat, and the BP box reads "no pulse". The green line at the top is the ECG: busy, but moving no blood.',
           show: { ecg: 'wiggers', focus: 'ecg' },
           check: {
             kind: 'choice',

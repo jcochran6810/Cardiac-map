@@ -676,7 +676,7 @@ export const ECG_FOUNDATIONS: Course = {
             'The most common cable error is swapping the two arm cables. Lead I then turns completely upside down: P wave, QRS and T wave. aVR and aVL trade places, so aVR, which should point down, looks upright. Leads II and III trade places too.',
             'The chest leads do not change, and that is the clue. A heart problem that flipped lead I would show in V5 and V6 as well, because they face the same wall. An upside-down lead I with normal chest leads is a cable problem until proven otherwise.',
           ],
-          look: 'Tap "LA ↔ RA" in the electrode lab (on a small screen, scroll down in the lab to find it). An amber box lists what changes, and on a wide screen lead I flips beside the lab. Leave the cables swapped for the next step.',
+          look: 'Tap "LA ↔ RA" in the electrode lab (on a small screen, scroll down in the lab to find it). An amber box lists what changes, and on a wide screen lead I flips beside the lab. The next step reads the swapped tracing.',
           check: {
             kind: 'choice',
             question: 'After the two arm cables are swapped, which leads still look exactly as they did?',
@@ -696,8 +696,8 @@ export const ECG_FOUNDATIONS: Course = {
             'The lab is closed, and this is the tracing the swapped cables produce. The machine has drawn it as neatly as any other. Nothing on a real printout says it is wrong: you have to notice.',
             'Run the clues. Lead I: everything upside down, P wave included. aVR: upright. V1 to V6: the same as before. A change in the heart itself almost never does all three. Fix the cables and record again before anyone reads the heart.',
           ],
-          look: 'An amber ⚠ above the tracing shows the cables are still swapped (if it is missing, go back one step and tap "LA ↔ RA"). Compare lead I with aVR, then look along V1 to V6.',
-          show: { ecg: 'ecg' },
+          look: 'The arm cables are swapped on this tracing: an amber ⚠ above it says so. Compare lead I with aVR, then look along V1 to V6.',
+          show: { ecg: 'ecg', placement: 'la-ra' },
           check: {
             kind: 'lead',
             question: 'Tap a lead that points down on this tracing only because the arm cables are swapped.',
@@ -733,9 +733,9 @@ export const ECG_FOUNDATIONS: Course = {
             'This is a new patient, with every cable where it belongs. Cables can be right and the electrodes still wrong. The most common chest error is placing V1 and V2 too high, in the second or third intercostal space. That can make a healthy heart look as if it has an old heart attack in the front wall or a fault in its wiring.',
             'V5 and V6 drift too high as well, when they follow the ribs upward. No warning on the machine catches a misplaced electrode: only landmarks do. Find the sternal angle, count to the fourth space, and keep V4, V5 and V6 level.',
           ],
-          look: 'A new, correctly wired tracing (if an amber ⚠ still shows above it, go back one step and tap "Reset placement"). Follow V1 to V6: the upward part of the QRS grows from V1 to V5 while the downward part shrinks.',
-          // a new rate is a new patient to the player, which puts every cable back even if the learner did not
-          show: { ecg: 'ecg', rhythm: 'normal-sinus', hr: 75 },
+          look: 'A new, correctly wired tracing: no amber ⚠ above it. Follow V1 to V6: the upward part of the QRS grows from V1 to V5 while the downward part shrinks.',
+          // every cable back where it belongs, even if the learner did not tap "Reset placement"
+          show: { ecg: 'ecg', rhythm: 'normal-sinus', hr: 75, placement: 'standard' },
           check: {
             kind: 'choice',
             question: 'In which direction are V1 and V2 most often misplaced?',

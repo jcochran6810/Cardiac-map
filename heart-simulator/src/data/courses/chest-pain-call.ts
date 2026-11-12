@@ -477,8 +477,8 @@ export const CHEST_PAIN_CALL: Course = {
             'Before the tracing leaves your hands, give it ten seconds. Are the patient\'s name or ID, the age and the time on it? Is the line clean? Does aVR point down and lead I point up? If not, check the arm electrodes before you blame the heart, and record again if they were swapped.',
             'Then transmit it, per protocol, and follow it with a short report: age and sex, the symptoms and when they started, the vital signs, and the fact that a 12-lead has been sent. A tracing that arrives before the patient lets a physician read it and start the hospital\'s response early.',
           ],
-          look: 'The electrode lab is closed. If an amber ⚠ warning shows above the tracing, the swap is still on: go back one step and tap "Reset placement". Then run the check on this tracing: aVR points down, lead I points up.',
-          show: { ecg: 'ecg' },
+          look: 'The electrode lab is closed and every cable is back in its place: no amber ⚠ above the tracing. Run the check on this tracing: aVR points down, lead I points up.',
+          show: { ecg: 'ecg', placement: 'standard' },
           check: {
             kind: 'lead',
             question: 'Tap the lead that is drawn upside down when the two arm cables are swapped.',

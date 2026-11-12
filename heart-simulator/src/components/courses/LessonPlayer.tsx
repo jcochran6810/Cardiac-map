@@ -6,10 +6,16 @@ import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useContent } from '@/lib/content';
-import { checksIn, exitLesson, findLesson, finishLesson, gotoStep, isApplyingStep, optionOrder, pickableOnHeart, startLesson } from '@/lib/courses';
+import {
+  checkHidesRhythm, checksIn, drawersFor, effectiveShow, exitLesson, findLesson, finishLesson, gotoStep, isApplyingStep, optionOrder,
+  pickableOnHeart, startLesson,
+} from '@/lib/courses';
+import { ALL_LEADS } from '@/lib/ecg/vector';
+import { PLACEMENT_PRESETS, STANDARD_PLACEMENT, applyPreset } from '@/lib/ecg/electrodes';
+import { applyPlacement } from '@/lib/ecg/placement';
 import { kindOf, nameOf, openById } from '@/lib/actions';
 import { goBack, useBackNavStore } from '@/lib/backNav';
-import type { StepCheck } from '@/types/course';
+import type { LessonStep, StepCheck } from '@/types/course';
 import { IconBack, IconCheck, IconChevron, IconClose } from '@/components/ui/icons';
 
 /** after this many wrong taps the answer is shown on the heart / the 12-lead */
@@ -38,19 +44,28 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
   const role = useAppStore((s) => s.learningLevel);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // a new step starts at its top
-  useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }); }, [active?.step, finished]);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  // a new step starts at its top, and a screen reader hears its title (focus moves there after Next or Back)
+  const firstStep = useRef(true);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+    if (firstStep.current) { firstStep.current = false; return; }
+    titleRef.current?.focus({ preventScroll: true });
+  }, [active?.step, finished]);
 
   const found = active && lib ? findLesson(active.course, active.lesson, lib.courses) : null;
   // a check is open (not answered, and its answer not yet shown): the app must not give the answer away elsewhere
   const at = found && active ? Math.min(active.step, found.lesson.steps.length - 1) : 0;
-  const openCheck = found?.lesson.steps[at]?.check;
+  const openStep = found?.lesson.steps[at];
+  const openCheck = openStep?.check;
   const given = answers[at];
   const waiting = !!openCheck && !finished && !(given && (given.solved || openCheck.kind === 'choice' || given.tries >= TRIES));
+  // the rhythm's name (and the cycle box) go only for a question the name would answer — never for "tap the …" on the heart
+  const hides = waiting && !!found && checkHidesRhythm(openStep, effectiveShow(found.lesson.steps, at).rhythm);
   useEffect(() => {
-    useECGStore.getState().setBlind('lesson', waiting);
+    useECGStore.getState().setBlind('lesson', hides);
     return () => useECGStore.getState().setBlind('lesson', false);
-  }, [waiting]);
+  }, [hides]);
   // "work out the rate": the rate numbers go too
   const hideRate = waiting && openCheck?.kind === 'choice' && !!openCheck.hideRate;
   useEffect(() => {
@@ -86,7 +101,7 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
       <header className="shrink-0 px-3 pt-2 pb-2 border-b border-slate-700/80">
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] uppercase tracking-wider text-cardiac-accent truncate">{course.title}</div>
+            <div className="text-[11px] uppercase tracking-wider text-cardiac-accent truncate">{course.title}</div>
             <div className="text-[13px] font-semibold text-white leading-tight truncate">{lesson.title}</div>
           </div>
           <span className="shrink-0 text-[11px] text-slate-400 tabular-nums" aria-label={`Step ${i + 1} of ${n}`}>{finished ? 'Done' : `${i + 1} / ${n}`}</span>
@@ -112,7 +127,8 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
           <Finished
             lessonTitle={lesson.title}
             goal={lesson.goal}
-            correct={Object.values(answers).filter((a) => a.ok).length}
+            steps={lesson.steps}
+            answers={answers}
             total={checksIn(lesson)}
             nextTitle={next?.title ?? null}
             onNext={() => next && startLesson(course.id, next.id, 0)}
@@ -122,19 +138,23 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
           />
         ) : (
           <>
-            <h2 className="text-lg sm:text-xl font-semibold text-white leading-snug">{step.title}</h2>
+            <h2 ref={titleRef} tabIndex={-1} className="text-lg sm:text-xl font-semibold text-white leading-snug outline-none">{step.title}</h2>
             <div className="mt-2 space-y-2.5">
               {step.text.map((p, k) => <p key={k} className="text-[15px] leading-relaxed text-slate-200">{p}</p>)}
             </div>
             {step.look && (
               <div className="mt-3 flex gap-2 p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/30">
                 <span className="shrink-0 mt-0.5 text-sky-300" aria-hidden><EyeIcon /></span>
-                <p className="text-[13px] leading-snug text-sky-100"><span className="font-semibold">Look: </span>{step.look}</p>
+                <div className="min-w-0">
+                  <p className="text-[13px] leading-snug text-sky-100"><span className="font-semibold">Look: </span>{step.look}</p>
+                  <LabShortcuts look={step.look} lab={effectiveShow(lesson.steps, i).ecg === 'lab'} />
+                  <OtherPicture steps={lesson.steps} index={i} />
+                </div>
               </div>
             )}
             {step.roleNote?.[role] && (
               <div className="mt-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                <div className="text-[10px] uppercase tracking-wider text-emerald-300">For {LEVEL_LABELS[role].short}</div>
+                <div className="text-[11px] uppercase tracking-wider text-emerald-300">For {LEVEL_LABELS[role].short}</div>
                 <p className="mt-0.5 text-[13px] leading-snug text-emerald-50">{step.roleNote[role]}</p>
               </div>
             )}
@@ -154,7 +174,7 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
           >
             <IconBack size={16} /> Back
           </button>
-          <span className="flex-1 text-[11px] text-slate-500 text-center truncate">{waiting ? 'Answer the question — or skip it' : ''}</span>
+          <span className="flex-1 min-w-0 text-[12px] text-slate-400 text-center truncate">{waiting ? 'Answer, or skip' : ''}</span>
           <button
             onClick={() => (last ? finishLesson() : gotoStep(i + 1))}
             className={`h-10 px-4 rounded-lg text-sm font-semibold flex items-center gap-1 ${
@@ -176,25 +196,31 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
   const [wrong, setWrong] = useState<string | null>(null);
   // tapped the heart's surface where only name tags can be picked (an artery, a node): not held against the learner
   const [surface, setSurface] = useState<string | null>(null);
+  const boxRef = useRef<HTMLElement>(null);
   const solved = !!answer?.solved;
   const revealed = !solved && !!answer && answer.tries >= TRIES;
   const view = useAppStore((s) => s.viewMode);
   // can any right answer be picked by tapping the heart itself, or only by its name tag?
   const byTagOnly = check.kind === 'tap' && !check.targets.some((id) => pickableOnHeart(view, id));
+  // after a tap on the heart or the tracing the feedback may be below the fold (an upright phone): bring it into view
+  const showFeedback = () => requestAnimationFrame(() => boxRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
 
-  // "Tap the …": listen for picks on the 3D heart
+  // "Tap the …": every tap on the 3D heart or a name tag counts — also a second tap on the same tag, or a tap on
+  // the part the step itself ringed (the selection does not change, but the count of selections does)
   useEffect(() => {
     if (check.kind !== 'tap' || solved || revealed) return;
+    // ringing the answer after the last wrong try is the lesson pointing, not the learner tapping
+    let revealing = false;
     return useSceneStore.subscribe((s, prev) => {
       const id = s.selectedStructureId;
-      // (the lesson ringing a part while it lays the step out is not an answer)
-      if (!id || id === prev.selectedStructureId || isApplyingStep()) return;
+      if (s.selectCount === prev.selectCount || !id || isApplyingStep() || revealing) return;
       const right = check.targets.includes(id as never);
       // the answer has no surface of its own to tap (an artery, part of the wiring): a tap that landed on the chamber
       // underneath is a near miss on the name tag, not a wrong answer
       if (!right && byTagOnly && pickableOnHeart(view, id)) {
         setWrong(null);
         setSurface(nameOf(id));
+        showFeedback();
         return;
       }
       setSurface(null);
@@ -203,24 +229,32 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
       else {
         setWrong(nameOf(id));
         // out of tries: show it on the heart
-        if (a.tries >= TRIES) useSceneStore.getState().selectStructure(check.targets[0]);
+        if (a.tries >= TRIES) {
+          revealing = true;
+          try { useSceneStore.getState().selectStructure(check.targets[0]); } finally { revealing = false; }
+        }
       }
+      showFeedback();
     });
   }, [check, step, solved, revealed, byTagOnly, view]);
 
-  // "Tap a lead that …": listen for picks on the 12-lead
+  // "Tap a lead that …": every tap on a lead counts, even one that turns an outlined lead's outline off
   useEffect(() => {
     if (check.kind !== 'lead' || solved || revealed) return;
     return useECGStore.subscribe((s, prev) => {
-      const lead = s.selectedLead;
-      if (!lead || lead === prev.selectedLead || isApplyingStep()) return;
-      const right = check.targets.includes(lead);
+      const tap = s.leadTap;
+      if (!tap || tap === prev.leadTap || isApplyingStep()) return;
+      const lead = tap.lead;
+      const right = check.targets.includes(lead as never);
       const a = useCourseStore.getState().answer(step, right);
+      // the tapped lead stays outlined (a tap on the lead the step outlined would otherwise clear it)
+      if (s.selectedLead !== lead) useECGStore.setState({ selectedLead: lead });
       if (right) setWrong(null);
       else {
         setWrong(`lead ${lead}`);
         if (a.tries >= TRIES) useECGStore.setState({ selectedLead: check.targets[0] });
       }
+      showFeedback();
     });
   }, [check, step, solved, revealed]);
 
@@ -228,8 +262,8 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
   const right = check.kind === 'choice' ? !!answer?.ok : solved;
 
   return (
-    <section className="mt-4 p-3 rounded-xl bg-cardiac-dark/70 border border-slate-600" aria-live="polite">
-      <div className="text-[10px] uppercase tracking-wider text-cardiac-accent">Check</div>
+    <section ref={boxRef} className="mt-4 p-3 rounded-xl bg-cardiac-dark/70 border border-slate-600 scroll-mb-2" aria-live="polite">
+      <div className="text-[11px] uppercase tracking-wider text-cardiac-accent">Check</div>
       <p className="mt-0.5 text-[15px] font-semibold text-white leading-snug">{check.question}</p>
 
       {check.kind === 'choice' && (
@@ -259,10 +293,25 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
 
       {check.kind !== 'choice' && !done && (
         <p className="mt-2 text-[13px] text-slate-300">
-          {check.kind === 'tap' ? (byTagOnly ? 'Tap its name tag on the 3D heart.' : 'Tap it on the 3D heart (or tap its name tag).') : 'Tap the lead on the 12-lead.'}
+          {check.kind === 'tap' ? (byTagOnly ? 'Tap its name tag on the 3D heart.' : 'Tap it on the 3D heart (or tap its name tag).') : 'Tap the lead on the 12-lead, or pick it below.'}
           {wrong && <span className="block mt-1 text-rose-300">That is the {wrong}. Try again.</span>}
           {surface && <span className="block mt-1 text-amber-200">You tapped the surface of the {surface}. Tap the name tag of the part you mean.</span>}
         </p>
+      )}
+
+      {/* the leads as buttons too: for the keyboard and screen readers, and for a screen where the 12-lead is small or hidden */}
+      {check.kind === 'lead' && !done && (
+        <div className="mt-2 grid grid-cols-6 gap-1" role="group" aria-label="Leads">
+          {ALL_LEADS.map((l) => (
+            <button
+              key={l}
+              onClick={() => useECGStore.getState().selectLead(l)}
+              className="h-9 touch:h-10 rounded-md border border-slate-600 text-[13px] font-semibold text-slate-100 hover:border-slate-400 hover:bg-cardiac-surface/60"
+            >
+              {l}
+            </button>
+          ))}
+        </div>
       )}
 
       {done && (
@@ -287,11 +336,11 @@ function More({ ids }: { ids: string[] }) {
   };
   return (
     <section className="mt-4">
-      <div className="text-[10px] uppercase tracking-wider text-slate-400">Read more in the library</div>
+      <div className="text-[11px] uppercase tracking-wider text-slate-400">Read more in the library</div>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {ids.map((id) => (
           <button key={id} onClick={() => open(id)} className="px-2.5 py-1.5 rounded-lg border border-slate-600 text-xs text-slate-200 hover:border-sky-400 hover:text-white">
-            <span className="text-slate-500">{KIND_LABEL[kindOf(id) ?? ''] ?? ''}</span> {nameOf(id)}
+            <span className="text-slate-400">{KIND_LABEL[kindOf(id) ?? ''] ?? ''}</span> {nameOf(id)}
           </button>
         ))}
       </div>
@@ -301,11 +350,13 @@ function More({ ids }: { ids: string[] }) {
 
 // ─── Lesson finished ───────────────────────────────────────────────────────
 
-function Finished({ lessonTitle, goal, correct, total, nextTitle, onNext, onAgain, courseDone, courseTitle }: {
-  lessonTitle: string; goal: string; correct: number; total: number; nextTitle: string | null;
+function Finished({ lessonTitle, goal, steps, answers, total, nextTitle, onNext, onAgain, courseDone, courseTitle }: {
+  lessonTitle: string; goal: string; steps: LessonStep[]; answers: Record<number, StepAnswer>; total: number; nextTitle: string | null;
   onNext: () => void; onAgain: () => void; courseDone: boolean; courseTitle: string;
 }) {
-  const all = total > 0 && correct === total;
+  const correct = steps.filter((s, k) => s.check && answers[k]?.ok).length;
+  // the checks to look at again: answered wrong at the first try, or skipped
+  const review = steps.flatMap((s, k) => (s.check && !answers[k]?.ok ? [{ k, title: s.title, skipped: !answers[k] }] : []));
   return (
     <div className="py-2 text-center">
       <div className="mx-auto w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-300"><IconCheck size={30} /></div>
@@ -317,20 +368,95 @@ function Finished({ lessonTitle, goal, correct, total, nextTitle, onNext, onAgai
           <span className="text-slate-400"> of {total} checks right first time</span>
         </p>
       )}
-      <p className="mt-3 text-[13px] text-slate-400 leading-snug max-w-sm mx-auto">You should now be able to: {goal.charAt(0).toLowerCase() + goal.slice(1)}</p>
-      {courseDone && <p className="mt-3 text-sm font-semibold text-emerald-300">That was the last lesson of “{courseTitle}”.</p>}
       <div className="mt-4 grid gap-2 max-w-xs mx-auto">
         {nextTitle && (
-          <button onClick={onNext} className="h-11 px-4 rounded-lg bg-cardiac-accent text-slate-950 text-sm font-semibold hover:bg-amber-400">
-            Next lesson: {nextTitle} →
+          <button onClick={onNext} className="min-h-11 px-4 py-2 rounded-lg bg-cardiac-accent text-slate-950 text-sm font-semibold hover:bg-amber-400 leading-snug">
+            Next lesson: {nextTitle}&nbsp;→
           </button>
         )}
-        <button onClick={() => exitLesson()} className={`h-11 px-4 rounded-lg text-sm font-semibold ${nextTitle ? 'border border-slate-600 text-slate-200 hover:bg-cardiac-surface' : 'bg-cardiac-accent text-slate-950 hover:bg-amber-400'}`}>
+        <button onClick={leave} className={`h-11 px-4 rounded-lg text-sm font-semibold ${nextTitle ? 'border border-slate-600 text-slate-200 hover:bg-cardiac-surface' : 'bg-cardiac-accent text-slate-950 hover:bg-amber-400'}`}>
           Back to the courses
         </button>
-        {!all && <button onClick={onAgain} className="h-10 px-4 rounded-lg text-sm text-slate-300 hover:text-white">Do this lesson again</button>}
+        <button onClick={onAgain} className="h-10 px-4 rounded-lg text-sm text-slate-300 hover:text-white">Do this lesson again</button>
       </div>
+      {review.length > 0 && (
+        <div className="mt-4 max-w-sm mx-auto text-left">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">Worth another look</div>
+          <ul className="mt-1.5 grid gap-1">
+            {review.map((r) => (
+              <li key={r.k}>
+                <button onClick={() => gotoStep(r.k)} className="w-full min-h-10 px-2.5 py-1.5 rounded-lg border border-slate-600 text-left text-[13px] text-slate-200 hover:border-sky-400 hover:text-white flex items-center gap-2">
+                  <span className="shrink-0 text-slate-400 tabular-nums">Step {r.k + 1}</span>
+                  <span className="flex-1 min-w-0 truncate">{r.title}</span>
+                  <span className={`shrink-0 text-[11px] ${r.skipped ? 'text-slate-400' : 'text-rose-300'}`}>{r.skipped ? 'skipped' : 'missed'}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="mt-4 text-[13px] text-slate-400 leading-snug max-w-sm mx-auto">You should now be able to: {goal.charAt(0).toLowerCase() + goal.slice(1)}</p>
+      {courseDone && <p className="mt-3 text-sm font-semibold text-emerald-300">That was the last lesson of “{courseTitle}”.</p>}
     </div>
+  );
+}
+
+// ─── The electrode lab's buttons, in the step ──────────────────────────────
+
+/**
+ * A step in the electrode lab that says "Tap "LA ↔ RA"" gets that button here too: on a small screen the lab's own
+ * buttons are below the patient, out of sight.
+ */
+function LabShortcuts({ look, lab }: { look: string; lab: boolean }) {
+  const placement = useECGStore((s) => s.placement);
+  if (!lab) return null;
+  const presets = PLACEMENT_PRESETS.filter((p) => look.includes(`"${p.label}"`));
+  const reset = look.includes('"Reset placement"');
+  if (!presets.length && !reset) return null;
+  const on = (p: (typeof PLACEMENT_PRESETS)[number]) => JSON.stringify(placement) === JSON.stringify(applyPreset(p));
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {presets.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => applyPlacement(applyPreset(p))}
+          aria-pressed={on(p)}
+          className={`min-h-9 px-2.5 rounded-md border text-[12px] font-semibold ${on(p) ? 'border-amber-400 bg-amber-500/20 text-amber-100' : 'border-sky-500/50 text-sky-100 hover:bg-sky-500/15'}`}
+        >
+          {p.label}
+        </button>
+      ))}
+      {reset && (
+        <button onClick={() => applyPlacement(STANDARD_PLACEMENT)} className="min-h-9 px-2.5 rounded-md border border-sky-500/50 text-[12px] font-semibold text-sky-100 hover:bg-sky-500/15">
+          Reset placement
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── The other picture, on a phone on its side ─────────────────────────────
+
+/**
+ * A phone on its side shows one picture beside the lesson. When the step uses both but only one is open (the
+ * learner closed one, or the step's own pick), offer the other: the two then sit side by side.
+ */
+function OtherPicture({ steps, index }: { steps: LessonStep[]; index: number }) {
+  const short = useAppStore((s) => s.short);
+  const heart = useAppStore((s) => s.heart);
+  const ecg = useAppStore((s) => s.ecg);
+  if (!short) return null;
+  const want = drawersFor(effectiveShow(steps, index), false);
+  if (!want.heart || !want.ecg) return null;
+  const missing = heart === 'closed' ? 'heart' : ecg === 'closed' ? 'ecg' : null;
+  if (!missing) return null;
+  return (
+    <button
+      onClick={() => (missing === 'heart' ? useAppStore.getState().setHeart('full') : useAppStore.getState().setEcg('full'))}
+      className="mt-1.5 min-h-9 px-2.5 rounded-md border border-sky-500/50 text-[12px] font-semibold text-sky-100 hover:bg-sky-500/15"
+    >
+      {missing === 'heart' ? 'Show the 3D heart too' : 'Show the ECG too'}
+    </button>
   );
 }
 

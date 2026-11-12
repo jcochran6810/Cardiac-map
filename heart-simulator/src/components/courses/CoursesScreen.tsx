@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { lessonKey, useCourseStore } from '@/store/useCourseStore';
 import { useContent } from '@/lib/content';
-import { courseProgress, coursesFor, nextLesson, startLesson } from '@/lib/courses';
+import { courseProgress, coursesFor, lessonInProgress, nextLesson, startLesson } from '@/lib/courses';
 import type { Course } from '@/types/course';
 import { IconCheck, IconChevron, IconPlay } from '@/components/ui/icons';
 
@@ -22,10 +22,23 @@ export default function CoursesScreen() {
   const setRole = useAppStore((s) => s.setLearningLevel);
   const progress = useCourseStore((s) => s.progress);
   const list = lib ? coursesFor(role, lib.courses) : [];
-  // the first course with something left to do starts unfolded
-  const firstOpen = list.find((c) => nextLesson(c, progress))?.id ?? list[0]?.id ?? null;
+  // the lesson in progress is offered at the top; the course last worked in starts unfolded (else the first with
+  // something left to do), and the list scrolls to it
+  const going = lessonInProgress(list, progress);
+  const recent = list
+    .map((c) => ({ c, at: Math.max(0, ...c.lessons.map((l) => progress[lessonKey(c.id, l.id)]?.at ?? 0)) }))
+    .filter((x) => x.at > 0)
+    .sort((a, b) => b.at - a.at)[0]?.c;
+  const firstOpen = recent?.id ?? list.find((c) => nextLesson(c, progress))?.id ?? list[0]?.id ?? null;
   const [open, setOpen] = useState<string | null | undefined>(undefined);
   const openId = open === undefined ? firstOpen : open;
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (scrolled.current || !lib || !recent) return;
+    scrolled.current = true;
+    cardRefs.current[recent.id]?.scrollIntoView({ block: 'start' });
+  }, [lib, recent]);
   const mine = list.filter((c) => c.roles.includes(role));
   const others = list.filter((c) => !c.roles.includes(role));
 
@@ -59,15 +72,30 @@ export default function CoursesScreen() {
 
         {!lib && <p className="mt-8 text-sm text-slate-400">Loading the courses…</p>}
 
+        {going && (
+          <button
+            onClick={() => startLesson(going.course.id, going.lesson.id)}
+            className="mt-5 w-full text-left flex items-center gap-3 p-3 rounded-2xl border border-cardiac-accent/50 bg-cardiac-accent/10 hover:border-cardiac-accent"
+          >
+            <span className="shrink-0 w-10 h-10 rounded-xl bg-cardiac-accent text-slate-950 flex items-center justify-center"><IconPlay size={18} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] uppercase tracking-wider text-cardiac-accent">Continue</span>
+              <span className="block text-sm font-semibold text-white leading-tight truncate">{going.lesson.title}</span>
+              <span className="block text-xs text-slate-300 truncate">{going.course.title} · step {going.step + 1} of {going.lesson.steps.length}</span>
+            </span>
+            <IconChevron size={18} className="shrink-0 text-slate-300" />
+          </button>
+        )}
+
         <div className="mt-5 space-y-3">
-          {mine.map((c) => <CourseCard key={c.id} course={c} open={openId === c.id} onToggle={() => setOpen(openId === c.id ? null : c.id)} />)}
+          {mine.map((c) => <CourseCard key={c.id} course={c} open={openId === c.id} onToggle={() => setOpen(openId === c.id ? null : c.id)} cardRef={(el) => { cardRefs.current[c.id] = el; }} />)}
         </div>
         {others.length > 0 && (
           <>
             <h2 className="mt-8 text-sm font-semibold text-white">More courses</h2>
             <p className="text-xs text-slate-400 mt-0.5">Written for other roles first — open to everyone.</p>
             <div className="mt-2.5 space-y-3">
-              {others.map((c) => <CourseCard key={c.id} course={c} open={openId === c.id} onToggle={() => setOpen(openId === c.id ? null : c.id)} />)}
+              {others.map((c) => <CourseCard key={c.id} course={c} open={openId === c.id} onToggle={() => setOpen(openId === c.id ? null : c.id)} cardRef={(el) => { cardRefs.current[c.id] = el; }} />)}
             </div>
           </>
         )}
@@ -76,14 +104,14 @@ export default function CoursesScreen() {
   );
 }
 
-function CourseCard({ course, open, onToggle }: { course: Course; open: boolean; onToggle: () => void }) {
+function CourseCard({ course, open, onToggle, cardRef }: { course: Course; open: boolean; onToggle: () => void; cardRef: (el: HTMLElement | null) => void }) {
   const progress = useCourseStore((s) => s.progress);
   const { done, total, minutesLeft } = courseProgress(course, progress);
   const upNext = nextLesson(course, progress);
   const level = LEVEL_TEXT[course.level];
   const complete = done === total;
   return (
-    <section className={`rounded-2xl border bg-cardiac-panel ${open ? 'border-slate-500' : 'border-slate-700'}`}>
+    <section ref={cardRef} className={`scroll-mt-3 rounded-2xl border bg-cardiac-panel ${open ? 'border-slate-500' : 'border-slate-700'}`}>
       <button onClick={onToggle} aria-expanded={open} className="w-full text-left p-3.5 sm:p-4 flex items-start gap-3">
         <span className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${complete ? 'bg-emerald-500/20 text-emerald-300' : 'bg-cardiac-accent/15 text-cardiac-accent'}`}>
           {complete ? <IconCheck size={22} /> : <span className="text-sm font-bold tabular-nums">{done}/{total}</span>}
@@ -91,14 +119,14 @@ function CourseCard({ course, open, onToggle }: { course: Course; open: boolean;
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-[15px] sm:text-base font-semibold text-white leading-tight">{course.title}</span>
-            <span className={`px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wider ${level.tone}`}>{level.label}</span>
+            <span className={`px-1.5 py-0.5 rounded border text-[11px] uppercase tracking-wider ${level.tone}`}>{level.label}</span>
           </span>
           <span className="block mt-1 text-xs sm:text-[13px] text-slate-400 leading-snug">{course.summary}</span>
           <span className="mt-2 flex items-center gap-2">
             <span className="flex-1 h-1.5 rounded-full bg-cardiac-dark overflow-hidden">
               <span className="block h-full bg-emerald-500/80 transition-[width]" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
             </span>
-            <span className="text-[11px] text-slate-500 whitespace-nowrap">
+            <span className="text-[12px] text-slate-400 whitespace-nowrap">
               {complete ? 'Finished' : `${total - done} lesson${total - done === 1 ? '' : 's'} · about ${minutesLeft} min left`}
             </span>
           </span>
@@ -115,7 +143,8 @@ function CourseCard({ course, open, onToggle }: { course: Course; open: boolean;
             return (
               <li key={l.id}>
                 <button
-                  onClick={() => startLesson(course.id, l.id)}
+                  // a finished lesson starts again from the top; one in progress resumes where it was left
+                  onClick={() => startLesson(course.id, l.id, p?.done ? 0 : undefined)}
                   className={`w-full text-left flex items-center gap-3 px-2.5 py-2.5 rounded-xl border transition-colors ${
                     isNext ? 'border-cardiac-accent/50 bg-cardiac-accent/10 hover:border-cardiac-accent' : 'border-transparent hover:bg-cardiac-surface/50'
                   }`}
@@ -130,7 +159,7 @@ function CourseCard({ course, open, onToggle }: { course: Course; open: boolean;
                     <span className="block mt-0.5 text-xs text-slate-400 leading-snug">{l.goal}</span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block text-[11px] text-slate-500 whitespace-nowrap">{l.minutes} min</span>
+                    <span className="block text-[12px] text-slate-400 whitespace-nowrap">{l.minutes} min</span>
                     {p?.done && p.total > 0 && <span className="block text-[11px] text-emerald-300/90 whitespace-nowrap">{p.correct}/{p.total} right</span>}
                     {started && <span className="block text-[11px] text-cardiac-accent whitespace-nowrap">step {p.step + 1} of {l.steps.length}</span>}
                   </span>

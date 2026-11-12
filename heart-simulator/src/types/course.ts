@@ -45,6 +45,17 @@ export interface StepShow {
   speed?: 0.1 | 0.25 | 0.5 | 1;
   /** on a phone on its side there is room for one picture: which one this step needs most */
   focus?: 'heart' | 'ecg';
+  /**
+   * on a phone on its side, show both pictures side by side (set by the player when the step's look or check
+   * refers to both; a lesson can also set it)
+   */
+  both?: boolean;
+  /**
+   * how the ECG cables are attached: 'standard', or one of the electrode lab's reversals ('la-ra', 'ra-ll' …).
+   * Carries on to the next steps like the rhythm, so a step that reads a swapped tracing sets the swap itself
+   * instead of relying on the learner having tapped it earlier.
+   */
+  placement?: string;
 }
 
 /** A multiple-choice question */
@@ -64,6 +75,8 @@ export interface ChoiceCheck {
   hideRate?: boolean;
   /** shown after any answer: why the right one is right */
   explain: string;
+  /** hide the rhythm's name (and the cycle box) while it is open; by default only a question the name answers does */
+  blind?: boolean;
 }
 
 /** "Tap the … on the heart": the learner picks a structure on the 3D heart (or its name tag) */
@@ -82,6 +95,8 @@ export interface LeadCheck {
   /** any of these leads is right */
   targets: StandardLead[];
   explain: string;
+  /** hide the rhythm's name while it is open (the default: a name like "Inferior STEMI" gives the leads away) */
+  blind?: boolean;
 }
 
 export type StepCheck = ChoiceCheck | TapCheck | LeadCheck;

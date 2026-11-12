@@ -54,6 +54,11 @@ interface SceneState {
   /** Activation patterns currently shown (keys into VENT_PATTERNS / ATRIAL_PATTERNS) and their durations */
   activation: { vent: string | null; atria: string | null; qrsMs: number; pMs: number; vFirstMs: number; aFirstMs: number };
 
+  /**
+   * counts every selection of a structure, even of the one already selected: a lesson's "tap the …" check answers
+   * on each tap, so a second tap on the same name tag (or on the part the step ringed) is not lost
+   */
+  selectCount: number;
   /** `focus: false` (a pick on the heart itself, already in view) selects without moving the camera */
   selectStructure: (id: string | null, focus?: boolean) => void;
   hoverStructure: (id: string | null) => void;
@@ -71,11 +76,16 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   highlightIds: [],
   cameraPreset: null,
   focusNonce: 0,
+  selectCount: 0,
   allLabels: false,
   carm: { primary: 0, secondary: 0 },
   activation: { vent: 'normal', atria: 'sinus', qrsMs: 92, pMs: 100, vFirstMs: 20, aFirstMs: 0 },
 
-  selectStructure: (id, focus = true) => set((s) => ({ selectedStructureId: id, focusNonce: id && focus ? s.focusNonce + 1 : s.focusNonce })),
+  selectStructure: (id, focus = true) => set((s) => ({
+    selectedStructureId: id,
+    focusNonce: id && focus ? s.focusNonce + 1 : s.focusNonce,
+    selectCount: id ? s.selectCount + 1 : s.selectCount,
+  })),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
   setHighlights: (highlightIds) => set({ highlightIds }),
   setAllLabels: (allLabels) => set((s) => (s.allLabels === allLabels ? s : { allLabels })),

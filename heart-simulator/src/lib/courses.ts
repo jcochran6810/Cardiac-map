@@ -20,6 +20,8 @@ import { loadContent, useContentStore } from '@/lib/content';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { showRhythm } from '@/lib/rhythm';
 import { cleanSlate } from '@/lib/actions';
+import { applyPlacement } from '@/lib/ecg/placement';
+import { PLACEMENT_PRESETS, STANDARD_PLACEMENT, applyPreset } from '@/lib/ecg/electrodes';
 
 // ─── Finding things ────────────────────────────────────────────────────────
 
@@ -95,7 +97,7 @@ export function optionOrder(question: string, count: number, fixed = false): num
 
 // ─── What a step shows ─────────────────────────────────────────────────────
 
-const SCENE_KEYS = ['rhythm', 'hr', 'heart', 'ecg', 'layout', 'flow', 'labels', 'vector', 'speed'] as const;
+const SCENE_KEYS = ['rhythm', 'hr', 'heart', 'ecg', 'layout', 'flow', 'labels', 'vector', 'speed', 'placement'] as const;
 
 /**
  * Everything on screen at a step: the scene carried over from the earlier steps of the lesson, plus this
@@ -112,7 +114,49 @@ export function effectiveShow(steps: LessonStep[], index: number): StepShow {
     for (const k of SCENE_KEYS) if (s[k] !== undefined) (scene as Record<string, unknown>)[k] = s[k];
   }
   const own = steps[index]?.show ?? {};
-  return { ...scene, structure: own.structure, highlight: own.highlight, camera: own.camera, lead: own.lead, inspect: own.inspect, focus: focusOf(steps[index]) };
+  const focus = focusOf(steps[index]);
+  return {
+    ...scene, structure: own.structure, highlight: own.highlight, camera: own.camera, lead: own.lead, inspect: own.inspect, focus,
+    both: own.both ?? needsBoth(steps[index], focus),
+  };
+}
+
+// what a look hint or a check says about the picture on screen: the tracing, or the 3D heart
+const ECG_REF = /\b(12-lead|ECG|EKG|tracing|strip|monitor|enlarged lead|calipers?|brackets?|leads? (I|II|III|aV[RLF]|V[1-6])|lead's|QRS|P waves?|T waves?|ST segment)\b/i;
+const HEART_REF = /(3D heart|name tags?|\btags?\b|ringed|cycle box|cardiac cycle box|on the heart|the heart (turns|beats|shows|squeezes)|lit up|highlighted|Phase box)/i;
+
+/**
+ * A phone on its side has room for one picture beside the text. When the step's look hint or check talks about the
+ * other one too (the heart's cycle box during an ECG step, a bracket on the enlarged lead during a heart step), both
+ * are shown side by side rather than leaving the learner to find a picture that is not there.
+ */
+function needsBoth(step: LessonStep | undefined, focus: StepShow['focus']): boolean {
+  if (!step) return false;
+  const said = `${step.look ?? ''} ${step.check?.question ?? ''}`;
+  const tracing = ECG_REF.test(said);
+  const heart = HEART_REF.test(said);
+  return (focus ?? 'ecg') === 'ecg' ? heart : tracing;
+}
+
+// a question the rhythm's own name would answer: name the rhythm, the block, the reading of a tracing
+const NAMES_IT = /\b(what|which)\b[^.?]*\b(rhythm|block|tracing|strip|12-lead|axis|condition|pattern)\b|\bname (the|this)\b|best reading|soundest conclusion|what does this [^.?]*show|what is driving/i;
+
+/**
+ * While this step's check is open, must the app hide the rhythm's name — on the monitor, the rhythm chip, the cycle
+ * box and the pressure model? Only when the name would answer it: a check that asks to name the rhythm or read the
+ * tracing, a "tap a lead" check (a name such as "Inferior STEMI" gives the leads away), or a check whose answer
+ * contains the name. Never a "tap the …" check on the heart: its look hints often send the learner to the cycle box.
+ */
+export function checkHidesRhythm(step: LessonStep | undefined, rhythm: string | undefined): boolean {
+  const c = step?.check;
+  if (!c) return false;
+  if (c.kind === 'tap') return false;
+  if (c.blind !== undefined) return c.blind;
+  if (c.kind === 'lead') return true;
+  if (NAMES_IT.test(c.question)) return true;
+  const p = resolveProfile(rhythm ?? 'normal-sinus');
+  const name = p.name.split(' (')[0].toLowerCase();
+  return name.length > 3 && c.options[c.answer].toLowerCase().includes(name);
 }
 
 /**
@@ -135,7 +179,7 @@ export function drawersFor(show: StepShow, short: boolean): { heart: boolean; ec
   let heart = !!show.heart;
   let ecg = !!show.ecg;
   if (!heart && !ecg) heart = true;
-  if (short && heart && ecg) {
+  if (short && heart && ecg && !show.both) {
     if ((show.focus ?? 'ecg') === 'ecg') heart = false;
     else ecg = false;
   }
@@ -184,6 +228,14 @@ function layOut(show: StepShow, relayout: boolean) {
   }
   tl.setSpeed(show.speed ?? 1);
   if (!tl.playing) tl.play();
+  // the cables: a step that reads a swapped tracing sets the swap itself (after the rhythm: a new patient is wired
+  // up correctly). Laid out again for a new screen shape, the cables stay as the learner left them.
+  if (show.placement && !relayout) {
+    const preset = PLACEMENT_PRESETS.find((p) => p.id === show.placement);
+    const want = preset ? applyPreset(preset) : STANDARD_PLACEMENT;
+    const now = useECGStore.getState();
+    if (now.placementHidden || JSON.stringify(now.placement) !== JSON.stringify(want)) applyPlacement(want);
+  }
 
   // drawers: beside the text they take the whole height; stacked above and below it they share the screen with it
   const side = !app.compact || app.short;
@@ -241,10 +293,15 @@ export function startLesson(courseId: string, lessonId: string, fromStep?: numbe
   useCaseStore.getState().resetCase();
   // standard cables, the 12-lead in the bottom panel, real time: whatever the learner left the tools in
   cleanSlate();
+  const n = found.lesson.steps.length;
   const saved = useCourseStore.getState().progress[lessonKey(courseId, lessonId)];
-  const resume = saved && !saved.done && saved.step < found.lesson.steps.length ? saved.step : 0;
+  // Opened without saying where (Back to it, the menu's "continue"): a lesson in progress resumes at its step with its
+  // answers; a finished one shows its result card. A given step (0: from the top) starts a new run.
+  const result = fromStep === undefined && !!saved?.done;
+  const resume = saved && !saved.done && saved.step < n ? saved.step : 0;
+  const step = result ? n - 1 : Math.max(0, Math.min(n - 1, fromStep ?? resume));
   shownRhythm = '';
-  useCourseStore.getState().begin(courseId, lessonId, Math.max(0, Math.min(found.lesson.steps.length - 1, fromStep ?? resume)));
+  useCourseStore.getState().begin(courseId, lessonId, step, { fresh: fromStep === 0, finished: result });
   app.setMode('learn');
   applyStep();
 }

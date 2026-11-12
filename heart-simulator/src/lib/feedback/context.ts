@@ -11,7 +11,7 @@ import { findLesson } from '@/lib/courses';
 import { useDrillStore } from '@/store/useDrillStore';
 import { DRILL_SET_BY_ID } from '@/lib/drill';
 
-const ECG_VIEW: Record<string, string> = { ecg: '12-lead', wiggers: 'Wiggers / PV', defib: 'defibrillator' };
+const ECG_VIEW: Record<string, string> = { ecg: '12-lead', wiggers: 'Pressure & volume', defib: 'defibrillator' };
 
 /** Where the learner is, in words: "Learn › Conditions › Anterior STEMI (3D heart, 12-lead open)" */
 export function describePage(): string {
