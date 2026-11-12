@@ -239,7 +239,8 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
           width: size.width, height: size.height, placed, cover: [...controls, ...dots.filter((b, j): b is Box => !!b && j !== i)], gap: touch ? TAG_GAP.touch : TAG_GAP.mouse, rows: must ? MUST_ROWS : ROWS,
         };
         const nat = NATURAL[kind];
-        const place = (s: Size) => findSlot(sx, sx + nat.x, sy + nat.y - s.h, s.w, s.h, opts);
+        // (a tag that must show skips a slot whose leader line would run through another tag: it may find a clearer one further out)
+        const place = (s: Size) => findSlot(sx, sx + nat.x, sy + nat.y - s.h, s.w, s.h, opts, must ? sy : undefined);
         let slot: Slot | null = place(sz.full);
         // a tag that must show does: by its short name (LM, pLAD, OM1…) when the full one has no room beside its dot,
         // then at the nearest free place further out (with a leader line), and where it crowds least when there is none

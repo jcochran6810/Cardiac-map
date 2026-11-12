@@ -116,6 +116,12 @@ describe('name tag placement', () => {
     expect(placed.some((p) => segmentHits(100, 100, end.x, end.y, p))).toBe(false);
     expect(s!.box.x0).toBeGreaterThanOrEqual(152);
     expect(distanceTo(s!.box, 100, 100)).toBeLessThan(60);
+    // beside the dot: tags on both sides, and one higher up. Two rows up is the first free slot, but its line would run
+    // through that tag: given the dot's height, the slot two rows down is taken instead
+    const crowd: Box[] = [{ x0: 106, y0: 80, x1: 400, y1: 106 }, { x0: 0, y0: 80, x1: 94, y1: 106 }, { x0: 90, y0: 64, x1: 200, y1: 78 }];
+    const o = opts({ rows: 2, placed: crowd });
+    expect(findSlot(100, 104, 83, 60, 20, o)?.dy).toBe(-44);
+    expect(findSlot(100, 104, 83, 60, 20, o, 100)?.dy).toBe(44);
   });
 
   it('crams a tag that must show where it crowds least: past the view\'s edge before over a control or a tag', () => {

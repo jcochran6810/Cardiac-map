@@ -78,13 +78,19 @@ function free(b: Box, o: PlaceOptions): boolean {
   return !o.placed.some((p) => boxesHit(b, p, o.gap)) && !o.cover.some((c) => boxesHit(b, c, COVER_MARGIN));
 }
 
-/** The first free slot for the tag, or null when every one is taken (or off the view) */
-export function findSlot(anchorX: number, x: number, y: number, w: number, h: number, o: PlaceOptions): Slot | null {
+/**
+ * The first free slot for the tag, or null when every one is taken (or off the view). Given the dot's height
+ * `anchorY`, a slot whose leader line would run through another tag does not count as free either (a tag that must
+ * show then looks further out, where such a line only costs extra).
+ */
+export function findSlot(anchorX: number, x: number, y: number, w: number, h: number, o: PlaceOptions, anchorY?: number): Slot | null {
   for (const s of slotOrder(o.rows)) {
     const slot = slotBox(anchorX, x, y, w, h, o.gap, s);
     const b = slot.box;
     if (b.x0 < 0 || b.y0 < 0 || b.x1 > o.width || b.y1 > o.height) continue;
-    if (free(b, o)) return slot;
+    if (!free(b, o)) continue;
+    if (anchorY !== undefined && crossings(b, anchorX, anchorY, o.placed) > 0) continue;
+    return slot;
   }
   return null;
 }
@@ -152,6 +158,13 @@ export function segmentHits(x0: number, y0: number, x1: number, y1: number, b: B
 /** How much further a place seems for each tag its leader line would cross (a line through other tags is hard to follow) */
 const CROSSING = 40;
 
+/** How many of the tags the leader line from the dot to the box would run through (none when no line is drawn) */
+function crossings(b: Box, anchorX: number, anchorY: number, placed: Box[]): number {
+  if (distanceTo(b, anchorX, anchorY) < 12) return 0;
+  const ex = Math.min(Math.max(anchorX, b.x0), b.x1), ey = Math.min(Math.max(anchorY, b.y0), b.y1);
+  return placed.filter((p) => segmentHits(anchorX, anchorY, ex, ey, p)).length;
+}
+
 /**
  * For a tag that must show and has no free slot beside its dot: the nearest free place within `reach` px of the dot,
  * anywhere around it (a leader line joins them), or null when there is none. A place whose leader line would cross
@@ -165,10 +178,7 @@ export function nearestFreeSlot(anchorX: number, anchorY: number, x: number, y: 
     if (d > best.d || (d === best.d && t >= best.t)) return; // (only a place that may be nearer is worth checking)
     const box = { x0, y0, x1: x0 + w, y1: y0 + h };
     if (!free(box, local)) return;
-    // the leader line runs from the dot to the nearest point of the tag
-    const ex = Math.min(Math.max(anchorX, x0), x0 + w), ey = Math.min(Math.max(anchorY, y0), y0 + h);
-    const crossed = d < 12 ? 0 : local.placed.filter((p) => segmentHits(anchorX, anchorY, ex, ey, p)).length;
-    const eff = d + CROSSING * crossed;
+    const eff = d + CROSSING * crossings(box, anchorX, anchorY, local.placed);
     if (eff < best.d || (eff === best.d && t < best.t)) Object.assign(best, { box, d: eff, t });
   });
   return best.box ? { dx: best.box.x0 - x, dy: best.box.y0 - y, box: best.box } : null;
