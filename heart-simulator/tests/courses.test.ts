@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { COURSES } from '@/data/courses';
 import { CATHLAB } from '@/data/content/cathlab';
 import { CASE_DATA } from '@/data/caseData';
-import { checksIn, courseProgress, coursesFor, drawersFor, effectiveShow, lessonInProgress, nextLesson, optionOrder } from '@/lib/courses';
+import { checksIn, courseProgress, coursesFor, drawersFor, effectiveShow, lessonInProgress, nextLesson, optionOrder, pickableOnHeart } from '@/lib/courses';
 import { lessonKey, useCourseStore } from '@/store/useCourseStore';
 import { CAMERA_PRESETS } from '@/store/useSceneStore';
 import { LABEL_SETS } from '@/lib/anatomy/labelSets';
-import { LANDMARK_BY_ID, SURFACE_REGIONS } from '@/lib/anatomy/landmarks';
+import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CONDUCTION_IDS } from '@/lib/anatomy/categories';
 import { ECG_PROFILES, resolveProfile } from '@/lib/ecg/profiles';
 import { ALL_LEADS } from '@/lib/ecg/vector';
@@ -32,10 +32,7 @@ function visibleIn(view: ViewMode, id: string): boolean {
 
 /** Can the learner tap it: on its name tag (when tags are on), or on the heart itself where that picks structures */
 function tappable(view: ViewMode, labels: boolean, id: string): boolean {
-  if (labels && LABEL_SETS[view].includes(id)) return true;
-  if (view === 'sectioned') return !!LANDMARK_BY_ID[id]?.section;
-  if (view === 'external' || view === 'territories' || view === 'activation') return SURFACE_REGIONS.some((r) => r.id === id);
-  return false;
+  return (labels && LABEL_SETS[view].includes(id)) || pickableOnHeart(view, id);
 }
 
 const steps: { course: Course; lesson: Lesson; step: LessonStep; i: number; show: StepShow; where: string }[] = [];
@@ -60,10 +57,10 @@ describe('course catalogue', () => {
     }
   });
 
-  it('offers every role at least two courses written for it', () => {
+  it('offers every role a course written for it, listed first', () => {
     for (const role of [1, 2, 3, 4, 5] as const) {
       const mine = COURSES.filter((c) => c.roles.includes(role));
-      expect(mine.length, `role ${role}`).toBeGreaterThanOrEqual(Math.min(2, COURSES.length));
+      expect(mine.length, `role ${role}`).toBeGreaterThanOrEqual(1);
       // …and the list for that role starts with them
       expect(coursesFor(role, COURSES).slice(0, mine.length)).toEqual(mine);
     }

@@ -42,6 +42,11 @@ interface SceneState {
   cameraPreset: CameraPreset | null;
   /** increments to request the camera to frame the current selection */
   focusNonce: number;
+  /**
+   * Show every name tag even in a small view. Normally a small 3D view shows only the most important tags so they
+   * do not bury the heart; a lesson that asks the learner to tap a tag needs them all.
+   */
+  allLabels: boolean;
   /** Equivalent C-arm projection of the current 3D view (degrees): LAO + / RAO −, cranial + / caudal − */
   carm: { primary: number; secondary: number };
   /** Activation patterns currently shown (keys into VENT_PATTERNS / ATRIAL_PATTERNS) and their durations */
@@ -51,6 +56,7 @@ interface SceneState {
   selectStructure: (id: string | null, focus?: boolean) => void;
   hoverStructure: (id: string | null) => void;
   setHighlights: (ids: string[]) => void;
+  setAllLabels: (on: boolean) => void;
   setCameraPreset: (preset: CameraPreset | null) => void;
   requestFocus: () => void;
   setCarm: (primary: number, secondary: number) => void;
@@ -63,12 +69,14 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   highlightIds: [],
   cameraPreset: null,
   focusNonce: 0,
+  allLabels: false,
   carm: { primary: 0, secondary: 0 },
   activation: { vent: 'normal', atria: 'sinus', qrsMs: 92, pMs: 100, vFirstMs: 20, aFirstMs: 0 },
 
   selectStructure: (id, focus = true) => set((s) => ({ selectedStructureId: id, focusNonce: id && focus ? s.focusNonce + 1 : s.focusNonce })),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
   setHighlights: (highlightIds) => set({ highlightIds }),
+  setAllLabels: (allLabels) => set((s) => (s.allLabels === allLabels ? s : { allLabels })),
   setCameraPreset: (cameraPreset) => set({ cameraPreset }),
   requestFocus: () => set((s) => ({ focusNonce: s.focusNonce + 1 })),
   setActivation: (activation) => {

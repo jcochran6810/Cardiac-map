@@ -6,7 +6,8 @@
  * rest of the app uses.
  */
 import type { Course, Lesson, LessonStep, StepShow } from '@/types/course';
-import { useAppStore, type LearningLevel } from '@/store/useAppStore';
+import { useAppStore, type LearningLevel, type ViewMode } from '@/store/useAppStore';
+import { LANDMARK_BY_ID, SURFACE_REGIONS } from '@/lib/anatomy/landmarks';
 import { useECGStore } from '@/store/useECGStore';
 import { CAMERA_PRESETS, useSceneStore } from '@/store/useSceneStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -123,6 +124,14 @@ export function drawersFor(show: StepShow, short: boolean): { heart: boolean; ec
     else ecg = false;
   }
   return { heart, ecg };
+}
+
+/** Can this structure be picked by tapping the heart itself in this view (rather than only its name tag)? */
+export function pickableOnHeart(view: ViewMode, id: string): boolean {
+  if (view === 'sectioned') return !!LANDMARK_BY_ID[id]?.section;
+  if (view === 'external' || view === 'territories' || view === 'activation') return SURFACE_REGIONS.some((r) => r.id === id);
+  // the see-through views pick by name tag only
+  return false;
 }
 
 /** the rhythm last put on the monitor by a lesson, so a step that keeps it does not restart the tracing */

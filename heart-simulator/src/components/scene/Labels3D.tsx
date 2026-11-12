@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { LANDMARK_BY_ID, HEART_CENTER, type Landmark } from '@/lib/anatomy/landmarks';
 import { CONDUCTION_IDS } from '@/lib/anatomy/categories';
 import type { ViewMode } from '@/store/useAppStore';
+import { useSceneStore } from '@/store/useSceneStore';
 import { LABEL_SETS } from '@/lib/anatomy/labelSets';
 
 export { LABEL_SETS };
@@ -48,6 +49,11 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
   const dotRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pillRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { size } = useThree();
+  const allLabels = useSceneStore((s) => s.allLabels);
+  // A small view (a phone, a drawer sharing the screen) shows only the most important tags — the sets list them
+  // in order of importance — so the tags do not bury the heart. Views whose tags are the only way to pick a part keep them all.
+  const room = Math.max(5, Math.floor((size.width * size.height) / 16000));
+  const cap = allLabels || mode === 'conduction' || mode === 'territories' || mode === 'xray' ? Infinity : room;
 
   const items = useMemo(() => {
     const out: { l: Landmark; kind: Kind }[] = [];
@@ -61,9 +67,17 @@ export default function Labels3D({ mode, labelsVisible, selectedId, highlightIds
     };
     if (selectedId) push(selectedId, 'selected');
     highlightIds.forEach((id) => push(id, 'highlight'));
-    if (labelsVisible) LABEL_SETS[mode].forEach((id) => push(id, 'normal'));
+    if (labelsVisible) {
+      let shown = 0;
+      for (const id of LABEL_SETS[mode]) {
+        if (shown >= cap) break;
+        const before = out.length;
+        push(id, 'normal');
+        if (out.length > before) shown++;
+      }
+    }
     return out;
-  }, [mode, labelsVisible, selectedId, highlightIds]);
+  }, [mode, labelsVisible, selectedId, highlightIds, cap]);
 
   const tmpA = useMemo(() => new THREE.Vector3(), []);
   const tmpN = useMemo(() => new THREE.Vector3(), []);

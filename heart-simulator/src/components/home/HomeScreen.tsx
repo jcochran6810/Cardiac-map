@@ -146,16 +146,21 @@ export default function HomeScreen() {
   const courseDone = useCourseStore((s) => s.progress);
   const courses = lib ? coursesFor(role, lib.courses) : [];
   const lessonOpen = lib ? lessonInProgress(lib.courses, courseDone) : null;
+  const firstCourse = courses[0] ?? null;
+  const coursesTotal = courses.length;
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-cardiac-dark" aria-label="Main menu">
       <div className="max-w-5xl mx-auto px-4 pt-4 pb-10 sm:px-6 sm:pt-7">
-        <div className="flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="" width={33} height={48} className="h-12 w-auto drop-shadow-[0_2px_8px_rgba(220,38,38,0.4)]" />
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">Main menu</h1>
-            <p className="text-sm text-slate-300">Learn the heart, read the ECG, and treat patients in realistic cases.</p>
+        <div className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-br from-cardiac-panel via-cardiac-panel to-[#16233a] px-4 py-4 sm:px-6 sm:py-5">
+          <HeroTrace />
+          <div className="relative flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.webp" alt="" width={33} height={48} className="h-12 sm:h-14 w-auto drop-shadow-[0_2px_8px_rgba(220,38,38,0.45)]" />
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">CardioSim</h1>
+              <p className="text-sm text-slate-300 leading-snug">Learn how the heart works, read the ECG, and treat patients in realistic cases.</p>
+            </div>
           </div>
         </div>
 
@@ -212,13 +217,34 @@ export default function HomeScreen() {
           {scopeOpen && <div className="mt-2 p-3 rounded-xl bg-cardiac-panel border border-slate-700"><ScopeCard level={role} /></div>}
         </section>
 
+        {/* ── Three ways in ── */}
+        <section className="mt-5 grid gap-2 sm:gap-3 sm:grid-cols-3" aria-label="Start here">
+          <StartCard
+            icon={<IconBook size={24} />} tone="sky" title="Learn step by step"
+            text={firstCourse ? `Guided lessons that set up the heart and the ECG for you. ${coursesTotal} course${coursesTotal === 1 ? '' : 's'}.` : 'Guided lessons that set up the heart and the ECG for you.'}
+            action={lessonOpen ? 'Continue your lesson' : 'Open the courses'}
+            onClick={() => (lessonOpen ? startLesson(lessonOpen.course.id, lessonOpen.lesson.id) : useAppStore.getState().setMode('courses'))}
+          />
+          <StartCard
+            icon={<IconHeartPulse size={24} />} tone="emerald" title="Practice rhythms"
+            text="Name live tracings one after another. The ones you miss come back until you know them."
+            action="Open the rhythm trainer" onClick={openTrainer}
+          />
+          <StartCard
+            icon={<IconPlay size={24} />} tone="amber" title="Treat a patient"
+            text={`What you do changes the monitor, the 12-lead and the story — then you get a score. ${cases} case${cases === 1 ? '' : 's'} for ${LEVEL_LABELS[role].short}.`}
+            action={caseInProgress ? 'Continue your case' : 'Open the case simulator'}
+            onClick={() => useAppStore.getState().setMode('simulator')}
+          />
+        </section>
+
         {/* ── Courses: the guided way in ── */}
         <section className="mt-6" aria-labelledby="menu-courses">
           <div className="flex items-baseline justify-between gap-2">
             <h2 id="menu-courses" className="text-sm font-semibold text-white">Courses</h2>
             <button onClick={() => useAppStore.getState().setMode('courses')} className="shrink-0 text-xs text-sky-300 hover:underline">All courses →</button>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5 leading-snug">New here? Start with a course: short guided lessons that set up the heart and the ECG for you and check what you learned.</p>
+          <p className="text-xs text-slate-400 mt-0.5 leading-snug">Short guided lessons, each with quick checks. Your place and your scores are kept on this device.</p>
           <div className="mt-2.5 -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar snap-x">
             {courses.map((c) => {
               const { done, total } = courseProgress(c, courseDone);
@@ -248,22 +274,6 @@ export default function HomeScreen() {
             {!lib && <span className="text-xs text-slate-500 py-6">Loading the courses…</span>}
           </div>
         </section>
-
-        {/* ── Simulator ── */}
-        <button
-          onClick={() => useAppStore.getState().setMode('simulator')}
-          className="mt-5 w-full text-left flex items-center gap-4 p-4 sm:p-5 rounded-2xl border border-cardiac-accent/50 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent hover:border-cardiac-accent transition-colors"
-        >
-          <span className="w-12 h-12 shrink-0 rounded-xl bg-cardiac-accent text-slate-950 flex items-center justify-center"><IconPlay size={28} /></span>
-          <span className="min-w-0">
-            <span className="block text-base sm:text-lg font-semibold text-white">Case simulator</span>
-            <span className="block text-xs sm:text-sm text-slate-300 leading-snug mt-0.5">
-              Treat a patient from first contact to hand-off. What you do changes the monitor, the 12-lead and the story — then you get a score and what to fix.
-              {' '}{cases} case{cases === 1 ? '' : 's'} for {LEVEL_LABELS[role].short}.
-            </span>
-          </span>
-          <span className="ml-auto text-cardiac-accent text-xl shrink-0" aria-hidden>→</span>
-        </button>
 
         {/* ── Library ── */}
         <MenuSection title="Learn" hint="Open a section, pick a topic and read. The 12-lead slides up from the bottom and the 3D heart slides down from the top whenever you want them.">
@@ -374,5 +384,38 @@ function ContinueCard({ label, title, onClick }: { label: string; title: string;
       </span>
       <IconChevron size={18} className="text-sky-300 shrink-0" />
     </button>
+  );
+}
+
+const START_TONE = {
+  sky: { ring: 'border-sky-500/40 hover:border-sky-400', icon: 'bg-sky-500/20 text-sky-300', action: 'text-sky-300' },
+  emerald: { ring: 'border-emerald-500/40 hover:border-emerald-400', icon: 'bg-emerald-500/20 text-emerald-300', action: 'text-emerald-300' },
+  amber: { ring: 'border-cardiac-accent/50 hover:border-cardiac-accent', icon: 'bg-cardiac-accent text-slate-950', action: 'text-cardiac-accent' },
+} as const;
+
+/** One of the three ways into the app, for someone who does not know where to start */
+function StartCard({ icon, tone, title, text, action, onClick }: { icon: React.ReactNode; tone: keyof typeof START_TONE; title: string; text: string; action: string; onClick: () => void }) {
+  const t = START_TONE[tone];
+  return (
+    <button onClick={onClick} className={`text-left flex sm:flex-col items-start gap-3 p-3.5 sm:p-4 rounded-2xl border bg-cardiac-panel transition-colors ${t.ring}`}>
+      <span className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${t.icon}`}>{icon}</span>
+      <span className="min-w-0 flex-1 sm:flex sm:flex-col sm:w-full">
+        <span className="block text-[15px] sm:text-base font-semibold text-white leading-tight">{title}</span>
+        <span className="block mt-1 text-xs sm:text-[13px] text-slate-400 leading-snug">{text}</span>
+        <span className={`block mt-1.5 sm:mt-auto sm:pt-2 text-xs font-semibold ${t.action}`}>{action} →</span>
+      </span>
+    </button>
+  );
+}
+
+/** One normal beat (P, QRS, T) as an SVG path 200 units wide, on a baseline at y = 40 */
+const BEAT = 'h34 c6 0 8 -9 14 -9 s8 9 14 9 h12 l4 5 l7 -40 l7 50 l5 -15 h20 c10 0 14 -18 26 -18 s16 18 26 18 h31';
+
+/** A quiet ECG tracing drawn across the menu's header, sweeping like a monitor (still for those who ask for less motion) */
+function HeroTrace() {
+  return (
+    <svg className="hero-trace pointer-events-none absolute inset-0 w-full h-full opacity-40" viewBox="0 0 1000 80" preserveAspectRatio="none" aria-hidden>
+      <path d={`M0 46 ${BEAT} ${BEAT} ${BEAT} ${BEAT} ${BEAT}`} fill="none" stroke="#34d399" strokeWidth="1.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" pathLength={1000} />
+    </svg>
   );
 }

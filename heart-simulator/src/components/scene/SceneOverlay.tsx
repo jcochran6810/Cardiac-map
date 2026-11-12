@@ -166,7 +166,10 @@ export default function SceneOverlay() {
 
       {/* Cardiac cycle HUD */}
       <div
-        className={`absolute right-2 z-10 scene-panel rounded-lg text-[11px] shadow-xl ${narrow ? 'bottom-2 w-[min(10rem,42%)] p-1.5' : 'top-2 w-56 p-2'} ${narrow && (peek || coach) ? 'hidden' : ''}`}
+        // small views: bottom-left, where the heart leaves room (its apex points to the viewer's right) — unless a legend sits there
+        className={`absolute z-10 scene-panel rounded-lg text-[11px] shadow-xl ${
+          narrow ? `bottom-2 w-[min(9.5rem,40%)] p-1.5 ${viewMode === 'activation' || viewMode === 'territories' || culprit ? 'right-2' : 'left-2'}` : 'right-2 top-2 w-56 p-2'
+        } ${narrow && (peek || coach) ? 'hidden' : ''}`}
         title={PHASE_DESCRIPTIONS[hud.phase]}
       >
         {!narrow && <div className="text-[11px] uppercase tracking-wider text-slate-400">Cardiac cycle</div>}
@@ -274,7 +277,7 @@ export default function SceneOverlay() {
 
       <div className="absolute bottom-1.5 left-2 right-2 z-0 pointer-events-none flex justify-between text-[11px] text-slate-500">
         <span className={narrow ? 'hidden' : ''}>{touch ? 'Drag to rotate · pinch to zoom · two-finger drag to pan · tap a structure' : 'Drag to rotate · scroll to zoom · right-drag to pan · click a structure'}</span>
-        <span className="hidden md:inline">Educational simulation — not for clinical use</span>
+        <span className="hidden md:inline ml-auto">Educational simulation — not for clinical use</span>
       </div>
     </>
   );

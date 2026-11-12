@@ -6,7 +6,7 @@ import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useContent } from '@/lib/content';
-import { checksIn, exitLesson, findLesson, finishLesson, gotoStep, optionOrder, startLesson } from '@/lib/courses';
+import { checksIn, exitLesson, findLesson, finishLesson, gotoStep, optionOrder, pickableOnHeart, startLesson } from '@/lib/courses';
 import { kindOf, nameOf, openById } from '@/lib/actions';
 import { goBack, useBackNavStore } from '@/lib/backNav';
 import type { StepCheck } from '@/types/course';
@@ -51,6 +51,13 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
     useECGStore.getState().setBlind('lesson', waiting);
     return () => useECGStore.getState().setBlind('lesson', false);
   }, [waiting]);
+  // "tap the …" a part that can only be picked by its name tag: every tag is offered, even in a small view that would thin them out
+  const view = useAppStore((s) => s.viewMode);
+  const tapping = waiting && openCheck?.kind === 'tap' && !openCheck.targets.some((id) => pickableOnHeart(view, id));
+  useEffect(() => {
+    useSceneStore.getState().setAllLabels(tapping);
+    return () => useSceneStore.getState().setAllLabels(false);
+  }, [tapping]);
   if (!active) return null;
   if (!found) {
     return <aside style={style} className="h-full flex items-center justify-center bg-cardiac-panel text-sm text-slate-400">Loading the lesson…</aside>;
