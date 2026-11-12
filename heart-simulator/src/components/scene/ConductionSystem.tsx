@@ -107,6 +107,11 @@ function windowsFor(t: number): Partial<Record<SegKey, Win>> & { focus?: V3; foc
         // Mobitz II: the impulse crosses the AV node and stops below it, in the His bundle or the bundle branches
         out.av = { start: a.t + 45, end: a.t + 150 };
         out.his = { start: a.t + 150, end: a.t + 200, blocked: true };
+      } else if (rhythm === 'chb' && vi >= 0 && e.vent[vi].qrsDur >= 120) {
+        // complete block with a wide ventricular escape: the block is below the AV node (infranodal), so the impulse
+        // still crosses the node and stops in the His bundle; a narrow escape means a block in the node itself
+        out.av = { start: a.t + 45, end: a.t + 150 };
+        out.his = { start: a.t + 150, end: a.t + 200, blocked: true };
       } else if (rhythm !== 'vt' && rhythm !== 'chb') out.av = { start: a.t + 45, end: a.t + 160, blocked: true };
       else out.av = { start: a.t + 45, end: a.t + 130, blocked: true };
     }

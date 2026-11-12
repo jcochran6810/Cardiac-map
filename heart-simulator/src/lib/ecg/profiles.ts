@@ -677,7 +677,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: [
       'Regular wide-complex tachycardia with no pulse',
       'Shockable: defibrillate (unsynchronized) and follow the VF / pulseless VT algorithm',
-      'Synchronised cardioversion is for VT with a pulse',
+      'Synchronized cardioversion is for VT with a pulse',
     ],
     keyLeads: ['II', 'V1'],
   },

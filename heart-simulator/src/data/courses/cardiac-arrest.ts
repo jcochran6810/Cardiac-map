@@ -54,13 +54,13 @@ export const CARDIAC_ARREST: Course = {
             'Tap the shoulders and shout. Then watch the chest for breathing while you feel for the carotid pulse in the neck, both at the same time, for no more than 10 seconds.',
             'If you do not definitely feel a pulse within 10 seconds, treat it as cardiac arrest. Compressions on someone who turns out to have a pulse do little harm. Waiting on someone who has none costs them their brain.',
           ],
-          look: 'The dots are still not moving. Every second spent checking is a second like this one, which is why the check is limited to 10 seconds.',
+          look: 'The dots have still all but stopped. Every second spent checking is a second like this one, which is why the check is limited to 10 seconds.',
           check: {
             kind: 'choice',
             question: 'An unresponsive man is not breathing. After 10 seconds you are not sure whether you feel a pulse. What do you do?',
             options: [
               'Start chest compressions and send for the defibrillator',
-              'Check for another 10 seconds to be certain',
+              'Keep feeling for another 10 seconds to be certain first',
               'Give two rescue breaths and check again',
               'Wait for the cardiac monitor before deciding',
             ],
@@ -85,7 +85,7 @@ export const CARDIAC_ARREST: Course = {
               'Normal breathing: roll her onto her side',
             ],
             answer: 0,
-            explain: 'Slow, snoring gasps in an unresponsive person are agonal gasps, a sign of cardiac arrest. After a faint or a seizure a person breathes regularly and has a pulse. Mistaking gasps for breathing is one of the most common reasons CPR starts late.',
+            explain: 'Slow, snoring gasps in an unresponsive person are agonal gasps, a sign of cardiac arrest. Someone who has fainted, or is coming round after a seizure, keeps breathing at a steady rate, even if noisily, and has a pulse. Mistaking gasps for breathing is one of the most common reasons CPR starts late.',
           },
         },
         {
@@ -117,7 +117,7 @@ export const CARDIAC_ARREST: Course = {
             options: [
               'It has kept the brain and heart supplied, so a shock can still work',
               'It has probably converted the VF to a normal rhythm by now',
-              'It has done nothing useful: only a shock helps in VF',
+              'It has done nothing useful: in VF only a shock can help at all',
               'It has made the defibrillator unnecessary for the moment',
             ],
             answer: 0,
@@ -127,7 +127,7 @@ export const CARDIAC_ARREST: Course = {
         {
           title: 'The chain of survival',
           text: [
-            'Survival depends on a chain of actions, each one handing on to the next: recognize the arrest and call for help, start CPR, defibrillate early, advanced life support, care after the pulse returns, and recovery.',
+            'Survival depends on a chain of actions, each one handing on to the next: recognize the arrest and call for help, start CPR, defibrillate early, advanced life support (ALS: drugs, advanced airways and manual defibrillation by paramedics or a hospital team), care after the pulse returns, and recovery.',
             'The 2025 AHA guidelines use one chain for every patient: adult or child, in a hospital or outside one. The early links decide the most, and they need no drugs and no advanced skills: recognition, CPR and an early shock.',
             'The rest of this course follows the chain, link by link.',
           ],
@@ -183,7 +183,7 @@ export const CARDIAC_ARREST: Course = {
             'Below 100, too little blood is moved each minute. Above 120, compressions become shallow and the heart has no time to refill between them. Faster is not better.',
             'Rescuers tend to speed up under stress. A metronome, or the feedback built into many monitors, keeps the rate honest.',
           ],
-          look: 'This is the monitor-defibrillator. Press START CPR in the panel next to it. Each compression makes one bump on the blue Pleth line. The screen holds 6 seconds: count the bumps in one sweep and multiply by 10.',
+          look: 'This is the monitor-defibrillator. Press START CPR in its control panel. Each compression makes one bump on the blue Pleth line (the pulse oximeter\'s wave). The screen holds 6 seconds: count the bumps in one sweep and multiply by 10.',
           show: { heart: false, ecg: 'defib', labels: true },
           check: {
             kind: 'choice',
@@ -223,7 +223,7 @@ export const CARDIAC_ARREST: Course = {
           title: 'Recoil: let the chest come all the way up',
           text: [
             'After every push, take your weight off and let the chest return fully to its resting position. This is recoil.',
-            'Blood returns to the heart only while the chest is coming back up, and the heart\'s own arteries are fed in that same moment. If you lean on the chest between compressions, the heart starts each push half empty and the next compression moves less blood.',
+            'Blood returns to the heart only while the chest is coming back up, and the heart\'s own arteries are fed in that same moment. If you lean on the chest between compressions, the heart starts each push less full and the next compression moves less blood.',
             'Keep your hands in contact with the skin, but carry no weight on them at the top.',
           ],
           look: 'A normal heart, slowed down, to show one thing: the ventricles fill only while they relax. Watch the dots cross the valves between squeezes. Under your hands, that filling happens during recoil.',
@@ -236,7 +236,7 @@ export const CARDIAC_ARREST: Course = {
             'So every pause is planned and short: a rhythm check, a shock, two breaths. A pulse check gets no more than 10 seconds. The defibrillator is charged while compressions continue, and compressions restart the instant a shock has been given.',
             'Nothing else stops compressions: not an IV, not a drug, and not moving the patient if that can be avoided.',
           ],
-          look: 'Back at the monitor, in VF. With CPR running, press STOP CPR: the Pleth bumps vanish and the EtCO₂ number drops at once. Press START CPR to bring them back.',
+          look: 'Back at the monitor, with a new patient in VF and CPR not yet started. Press START CPR and watch the Pleth bumps, then press STOP CPR: the bumps vanish and the yellow CO₂ number drops at once. Press START CPR to bring them back.',
           show: { heart: false, ecg: 'defib', rhythm: 'vf', speed: 1 },
           check: {
             kind: 'choice',
@@ -255,10 +255,10 @@ export const CARDIAC_ARREST: Course = {
           title: 'Breaths: 30 to 2',
           text: [
             'Without an advanced airway, the pattern is 30 compressions, then 2 breaths: 30:2. An advanced airway is a tube placed in the windpipe or a device seated right above it.',
-            'Give each breath over 1 second, with only enough air to see the chest begin to rise. Then go straight back to compressions. Big or fast breaths raise the pressure in the chest, which holds blood back from the heart.',
+            'Give each breath over 1 second, with enough air to make the chest visibly rise, and no more. Then go straight back to compressions. Big or fast breaths raise the pressure in the chest, which holds blood back from the heart.',
             'Once an advanced airway is in place, compressions run without pauses and one breath is given every 6 seconds: 10 a minute.',
           ],
-          look: 'The yellow line at the bottom of the monitor is the carbon dioxide in each breath out. Every wave is one breath. You will use its number in the last step.',
+          look: 'The yellow line at the bottom of the monitor is the carbon dioxide in each breath out: every wave is one breath. With CPR on, this trainer gives a breath every 6 seconds, the pattern once an advanced airway is in. You will use its number in the last step.',
           check: {
             kind: 'choice',
             question: 'Two EMTs are doing CPR on an adult with a bag-valve-mask. No advanced airway is in place. What is the pattern?',
@@ -269,7 +269,7 @@ export const CARDIAC_ARREST: Course = {
               '30 compressions, then 5 breaths',
             ],
             answer: 0,
-            explain: '30:2 until an advanced airway is in place. Continuous compressions with one breath every 6 seconds is the pattern once it is. 15:2 belongs to two-rescuer CPR in children, not adults.',
+            explain: '30:2 until an advanced airway is in place. Continuous compressions with one breath every 6 seconds is the pattern once it is. 15:2 belongs to two-rescuer CPR in children and infants, not adults.',
           },
         },
         {
@@ -279,7 +279,7 @@ export const CARDIAC_ARREST: Course = {
             'Change the person compressing every 2 minutes, or sooner if they tire. Make the change at the rhythm check, when compressions pause anyway, and take only a few seconds over it.',
             'Mechanical compression devices are not recommended for routine use. They may be considered where good manual compressions are hard or unsafe, such as in a moving ambulance or under the X-ray equipment of a cath lab.',
           ],
-          look: 'A CPR timer runs at the bottom of the numbers column on the monitor. At 2:00 it turns amber and adds "rhythm check": the moment to change compressors.',
+          look: 'While CPR is on, a CPR timer runs at the bottom of the numbers column on the monitor. At 2:00 it turns amber and adds "rhythm check": the moment to change compressors.',
           check: {
             kind: 'choice',
             question: 'You have been compressing for 90 seconds and feel fine. Your partner offers to take over at the 2-minute rhythm check. What is right?',
@@ -305,7 +305,7 @@ export const CARDIAC_ARREST: Course = {
             'CO2 reaches the lungs only if blood carries it there. During CPR the EtCO2 therefore follows blood flow: better compressions, higher number.',
             'A number that is low or falling is a message about the CPR: check depth, rate and recoil, and change the compressor. The 2025 guidelines give no single cutoff, and EtCO2 is never used alone to decide to stop. A sudden, lasting rise, typically to 40 mmHg or more, suggests the pulse is back.',
           ],
-          look: 'Find the yellow EtCO₂ number. With CPR running, switch between "High-quality CPR" and "Poor CPR" and watch it change. Then press STOP CPR and leave it stopped, so that no compression marks appear on later tracings.',
+          look: 'Find the yellow EtCO₂ number. Press START CPR if it is not running, then switch between "High-quality CPR" and "Poor CPR": the number falls from 18 to 9 mmHg and comes back when the CPR is good again.',
           check: {
             kind: 'choice',
             question: 'Ten minutes into a resuscitation the EtCO2 drifts down from 18 to 9 mmHg. The airway and the breaths have not changed. What do you check first?',
@@ -330,17 +330,17 @@ export const CARDIAC_ARREST: Course = {
     {
       id: 'shock-or-no-shock',
       title: 'Shock or no shock',
-      goal: 'Sort the four arrest rhythms into shockable and not shockable, and explain what a shock does to the heart.',
-      minutes: 8,
+      goal: 'Sort the four arrest rhythms into shockable and not shockable, explain what a shock does to the heart, and place the pads so that its current crosses the heart.',
+      minutes: 9,
       steps: [
         {
           title: 'Four rhythms, two groups',
           text: [
             'Once the pads are on, every arrest comes down to one question: will a shock help? The answer depends on the rhythm.',
             'Two rhythms are shockable: ventricular fibrillation (VF) and pulseless ventricular tachycardia (pulseless VT). Two are not: asystole and pulseless electrical activity (PEA).',
-            'All four have one thing in common: no pulse. The CPR is the same for all of them. Only the shock differs.',
+            'All four have one thing in common: no pulse. The CPR is the same for all of them. What differs is whether a shock can help.',
           ],
-          look: 'VF on three monitor leads: a chaotic, wavy line with no P waves, no QRS complexes and no T waves. No two stretches look the same.',
+          look: 'VF on three monitor leads: a chaotic, wavy line. A normal beat draws a P wave (the atria), a QRS complex (the ventricles) and a T wave (their recovery); here there are none, and no two stretches look the same.',
           show: { heart: false, ecg: 'ecg', layout: 'monitor', rhythm: 'vf' },
         },
         {
@@ -349,8 +349,8 @@ export const CARDIAC_ARREST: Course = {
             'In a normal beat one signal sweeps through the ventricles and the muscle squeezes as one. In VF many small waves of electricity circle through the ventricles at once, each firing a different patch of muscle. No patch waits for any other.',
             'Early on, the waves on the tracing are large: coarse VF. As the heart muscle runs out of oxygen and energy, the waves shrink to fine VF and finally to a flat line. A shock is more likely to work on coarse VF, which is one more reason for CPR and speed.',
           ],
-          look: 'The ventricles quiver, and no glow sweeps across them as it does in a normal beat. The tracing below is the same chaos, recorded from the skin.',
-          show: { heart: 'external', camera: 'Front', focus: 'heart' },
+          look: 'The tracing: waves of every size and shape, with nothing that repeats. Where the heart is shown too, its ventricles only quiver, and no glow of activation sweeps across them as it does in a normal beat.',
+          show: { heart: 'external', camera: 'Front', focus: 'ecg' },
           check: {
             kind: 'choice',
             question: 'What on this tracing tells you it is VF and not an organized rhythm?',
@@ -368,9 +368,9 @@ export const CARDIAC_ARREST: Course = {
         {
           title: 'What a shock does',
           text: [
-            'A defibrillator does not jump-start the heart. It passes a brief, large current through the chest that fires nearly every heart muscle cell at the same instant. All the circling waves are stopped at once.',
+            'A defibrillator does not jump-start the heart. It passes a brief, large current through the chest that fires most of the heart muscle at the same instant. All the circling waves are stopped at once.',
             'For a moment the heart is electrically silent. Then the cells with the fastest built-in rhythm can take charge again and send one organized signal down the normal wiring.',
-            'A shock is a reset. It can only help when the problem is electrical chaos, and the heart can only restart afterward if CPR has kept it supplied with oxygen.',
+            'A shock is a reset. It can only help when the problem is electrical chaos. After the first few minutes, the heart is far more likely to restart if CPR has kept it supplied with oxygen.',
           ],
           look: 'The heart is now see-through, showing its wiring. In VF the ventricles quiver and no signal travels down the wiring.',
           show: { heart: 'conduction', ecg: false },
@@ -383,10 +383,30 @@ export const CARDIAC_ARREST: Course = {
           more: ['defibrillation'],
         },
         {
+          title: 'Pads: the current must cross the heart',
+          text: [
+            'The shock only works if its current passes through the ventricles, so the two pads go on either side of the heart. The usual position: one pad on the upper right chest, just below the collarbone; the other on the left side of the chest, below the armpit. One pad on the front of the chest and one on the back is a good alternative.',
+            'The pads need bare, dry skin. Wipe off water or sweat, clip thick chest hair if a pad will not stick, and take off a medicine patch that is in the way. Do not put a pad right on top of an implanted pacemaker or defibrillator, the lump under the skin of the upper chest: place it beside the device, or use front and back.',
+            'Once the pads are on, they stay on, even after the pulse returns: the rhythm that stopped the heart can come back at any moment.',
+          ],
+          look: 'The heart seen from the front, as it lies in the chest. Picture one pad high on the right, above its base, and one low on the left, at its tip. The current runs between them, through both ventricles.',
+          show: { heart: 'external', camera: 'Front' },
+          check: {
+            kind: 'tap',
+            question: 'The side pad sits on the lower left chest, below the armpit. Tap the part of the heart that lies closest under it.',
+            targets: ['apex', 'left-ventricle'],
+            explain: 'The side pad lies over the apex, the tip of the left ventricle. With the other pad high on the right, the current crosses the bulk of both ventricles: the muscle that has to be reset. A side pad placed too far forward, toward the middle of the chest, sends more of the current past the heart.',
+          },
+          roleNote: {
+            1: 'Follow the pictures on the pads. Move a wet patient out of standing water and dry the chest before the pads go on. Keep compressions going while your partner places them.',
+            2: 'Use the position your protocol and your pads specify. If shocks keep failing, the 2025 guidelines rate a change of pad position (vector change) as unproven: use it only if your protocol directs.',
+          },
+        },
+        {
           title: 'Pulseless VT: organized, but far too fast',
           text: [
             'Ventricular tachycardia (VT) is a fast, regular rhythm that starts in the ventricles themselves instead of coming down the normal wiring. On the tracing it is a run of wide QRS complexes, 0.12 s (3 small boxes) or more, all the same shape.',
-            'VT can still produce a pulse. When it is very fast, the ventricles have no time to fill and the pulse disappears. Pulseless VT is treated exactly like VF: CPR and an immediate shock.',
+            'VT can still produce a pulse. When it is very fast, or the heart muscle is weak, the ventricles cannot fill and empty well enough and the pulse disappears. Pulseless VT is treated exactly like VF: CPR and an immediate shock.',
             'The tracing alone cannot tell you which of the two it is. The pulse does.',
           ],
           look: 'Wide, regular complexes at about 200 a minute, each one like the last. Compare this with VF: here the pattern repeats, and in VF nothing did.',
@@ -409,9 +429,9 @@ export const CARDIAC_ARREST: Course = {
           text: [
             'Asystole is the absence of any electrical activity: a flat or nearly flat line. No signal, no squeeze.',
             'A shock stops electrical activity. In asystole there is none to stop, so a shock does nothing useful and costs a pause in compressions. The treatment is CPR, epinephrine from the ALS crew, and a search for a cause that can be reversed.',
-            'A flat line can also be a loose electrode, a disconnected cable or the display size turned down. Check the patient, the connections and a second lead before you call it asystole. Very fine VF can look flat too.',
+            'A flat line can also be a loose electrode, a disconnected cable or the display size (gain) turned down. Check the patient, the connections and a second lead before you call it asystole. Very fine VF can look flat too.',
           ],
-          look: 'All twelve leads are flat. Seeing the same flat line in more than one lead is what separates true asystole from a loose electrode, or from very fine VF hiding in a single lead.',
+          look: 'All twelve leads are flat. A flat line in more than one lead rules out very fine VF hiding in a single lead; checking the cables and the size setting rules out a loose electrode.',
           show: { rhythm: 'asystole', layout: 'simultaneous' },
           check: {
             kind: 'choice',
@@ -430,10 +450,10 @@ export const CARDIAC_ARREST: Course = {
           title: 'PEA: a rhythm without a pulse',
           text: [
             'In pulseless electrical activity (PEA) the monitor shows an organized rhythm, sometimes one that looks almost normal, but the heart is not moving enough blood to make a pulse.',
-            'The wiring is working. The pump is not: it may be empty, squeezed from outside, blocked, or too short of oxygen to contract. A shock cannot fix any of that, because the electrical signal is already organized.',
+            'The wiring is working. The pump is not: it may be empty, squeezed from outside, blocked, or too poisoned or short of oxygen to contract. A shock cannot fix any of that, because the electrical signal is already organized.',
             'PEA is diagnosed with your fingers, not with the monitor: an organized rhythm and no pulse. The treatment is CPR, epinephrine and finding the cause. That search is lesson 5.',
           ],
-          look: 'The monitor counts a heart rate from the green ECG, but the blue Pleth line is flat and SpO₂ reads "---": no pulse reaches the finger. Press Pulse check in the panel. (If CPR is still running, press STOP CPR first.)',
+          look: 'A new patient, with CPR off. The monitor counts a heart rate from the green ECG, but the blue Pleth line is flat and SpO₂, the oxygen saturation, reads "---": no pulse reaches the finger. Press Pulse check in the panel.',
           show: { ecg: 'defib', rhythm: 'pea' },
           check: {
             kind: 'choice',
@@ -455,7 +475,7 @@ export const CARDIAC_ARREST: Course = {
             'An AED cannot feel a pulse. It is only put on a patient who is unresponsive, is not breathing normally and has no pulse. Nobody touches the patient while it analyzes: movement, including compressions, disturbs the reading.',
             '"No shock advised" does not mean the patient is better. Resume CPR at once and keep going until the AED asks to analyze again, the ALS crew takes over or the patient starts to move.',
           ],
-          look: 'VF is on the monitor. Press AED at the top of the panel, then ANALYZE, and keep your hands off while it works. When the message bar reads "SHOCK ADVISED", press SHOCK and watch the green trace.',
+          look: 'A new patient in VF. Press AED at the top of the panel, then ANALYZE, and keep your hands off while it works. It charges itself; when the message bar reads "SHOCK ADVISED", press SHOCK and watch the green trace.',
           show: { rhythm: 'vf' },
           check: {
             kind: 'choice',
@@ -512,11 +532,11 @@ export const CARDIAC_ARREST: Course = {
         {
           title: 'The rhythm of a resuscitation',
           text: [
-            'Advanced life support (ALS) is built on top of basic life support, not in place of it. Its frame is a repeating two-minute cycle: CPR for 2 minutes, a rhythm check of a few seconds, a shock if the rhythm is shockable, and straight back to CPR.',
+            'Advanced life support (ALS) is built on top of basic life support (CPR and the AED), not in place of it. Its frame is a repeating two-minute cycle: CPR for 2 minutes, a rhythm check of a few seconds, a shock if the rhythm is shockable, and straight back to CPR.',
             'Everything else, the IV, the drugs, the airway, is fitted into the 2 minutes of CPR, so that compressions never stop for it.',
             'One person leads and watches the clock. Everyone else has one job.',
           ],
-          look: 'VF on the monitor: a chaotic green trace, a flat blue Pleth line and "---" for the heart rate. Press START CPR in the panel next to it and leave it running. A CPR timer starts at the bottom of the numbers column.',
+          look: 'VF on the monitor: a chaotic green trace, a flat blue Pleth line and "---" for the heart rate. Press START CPR in the control panel and leave it running. A CPR timer starts at the bottom of the numbers column.',
           show: { heart: false, ecg: 'defib', rhythm: 'vf' },
           roleNote: {
             1: 'In this trainer the Manual and Pacer buttons and the drugs are locked for your role, as they are on the street. Use AED mode and the CPR buttons. Read the ALS steps to know what the crew next to you will do next, and what they need from you: compressions that do not stop.',
@@ -529,7 +549,7 @@ export const CARDIAC_ARREST: Course = {
             'A biphasic defibrillator uses the dose its manufacturer recommends, for example 120 to 200 J. If you do not know it, use the maximum. An older monophasic one uses 360 J. Give one shock at a time, and use the same dose or a higher one for later shocks.',
             'Charge while compressions continue. Then say "Clear", look to see that nobody is touching the patient, shock, and restart compressions at once. Do not stop to read the monitor or feel for a pulse.',
           ],
-          look: 'Press Manual. Leave the energy at 200 J and press CHARGE while CPR runs. When the monitor reads "READY": STOP CPR, SHOCK, then START CPR again at once. The next step puts VF back so that you can keep practicing.',
+          look: 'Press Manual, tap 200J and press CHARGE while CPR runs. When the monitor reads "READY": STOP CPR, SHOCK, then START CPR again at once. If the shock converts the rhythm, the next step brings VF back as a new patient.',
           check: {
             kind: 'choice',
             question: 'The defibrillator is charged and the rhythm is VF. The IV is not in yet and no drug has been given. What do you do?',
@@ -553,7 +573,7 @@ export const CARDIAC_ARREST: Course = {
             'The rhythm check is a pause of a few seconds: compressions stop, everyone looks at the monitor, and the leader calls it. Shockable: charge with compressions running, clear and shock. Asystole: back to CPR.',
             'An organized rhythm is the one time you feel for a pulse, for no more than 10 seconds. A pulse means circulation has returned. No pulse means PEA, and CPR restarts at once.',
           ],
-          look: 'VF is back on the monitor for the next cycle. Restart CPR if it has stopped. At 2:00 the CPR timer turns amber and reads "rhythm check". You do not need to wait the full 2 minutes here.',
+          look: 'VF on the monitor for the next cycle. Press START CPR if it is not running. At 2:00 the CPR timer turns amber and reads "rhythm check". You do not need to wait the full 2 minutes here.',
           check: {
             kind: 'choice',
             question: 'At the rhythm check the monitor shows an organized rhythm with narrow complexes at 70 a minute. What is the next step?',
@@ -573,7 +593,7 @@ export const CARDIAC_ARREST: Course = {
             'The drugs need a route into the bloodstream. The 2025 guidelines are clear about the order: try for an IV, a line in a vein, first. If IV attempts fail or are not feasible, place an IO line: a needle into the marrow space of a bone, usually the shin or the upper arm.',
             'Access is placed during CPR. Nobody stops compressions for it, and it never delays a shock.',
           ],
-          look: 'The Code record at the bottom of the panel lists every event with its time. In a real arrest one person keeps this record: it is how the team knows when the next drug is due.',
+          look: 'The Code record at the bottom of the control panel lists every event for this patient with its time. In a real arrest one person keeps this record: it is how the team knows when the next drug is due.',
           check: {
             kind: 'choice',
             question: 'During CPR the first IV attempt fails, and no other vein can be found. What is the next route?',
@@ -595,10 +615,10 @@ export const CARDIAC_ARREST: Course = {
           title: 'Epinephrine',
           text: [
             'Epinephrine is the main drug of cardiac arrest. It does not restart the heart. It tightens the blood vessels, which raises the pressure that CPR produces and sends more of that flow to the heart muscle and the brain.',
-            'The dose is 1 mg by IV or IO, repeated every 3 to 5 minutes for as long as the arrest lasts.',
+            'The dose is 1 mg, through the IV (or the IO line if no IV could be placed), repeated every 3 to 5 minutes for as long as the arrest lasts.',
             'In VF and pulseless VT the shocks come first: epinephrine is given once the first shocks have failed, at the point your protocol names. In asystole and PEA there is no shock to wait for, so it is given as soon as access is ready.',
           ],
-          look: 'Press Epinephrine in the Medications list. A new timer appears at the bottom of the numbers column on the monitor: "Epi 0:10 ago". At 3 minutes it turns amber and adds "due".',
+          look: 'Press Epinephrine in the Medications list. A new timer, "Epi 0:00 ago", appears at the bottom of the numbers column on the monitor and counts up. At 3:00 it turns amber and adds "due".',
           check: {
             kind: 'choice',
             question: 'The rhythm is asystole. CPR is running and the IV is now in place. When is the first epinephrine given?',
@@ -620,7 +640,7 @@ export const CARDIAC_ARREST: Course = {
         {
           title: 'Amiodarone or lidocaine',
           text: [
-            'If VF or pulseless VT is still there after repeated shocks, an antiarrhythmic drug may be added. It does not convert the rhythm by itself. It is given to help the next shock work.',
+            'If VF or pulseless VT is still there after repeated shocks, an antiarrhythmic drug may be added. It is not expected to end the rhythm by itself: it is given to help the next shock work.',
             'There are two choices: amiodarone, 300 mg by IV or IO, with one further dose of 150 mg; or lidocaine, 1 to 1.5 mg/kg, then 0.5 to 0.75 mg/kg. Your protocol names which one to use and after which shock.',
             'Neither drug has been shown to increase the number of patients who leave the hospital alive. Neither is ever a reason to delay a shock or interrupt compressions.',
           ],
@@ -630,7 +650,7 @@ export const CARDIAC_ARREST: Course = {
             question: 'VF persists after three shocks and a dose of epinephrine. The team gives amiodarone 300 mg. What happens next?',
             options: [
               'CPR continues, and the next shock is given at the next rhythm check',
-              'CPR pauses for 2 minutes to let the drug work',
+              'CPR pauses for 2 minutes to let the drug reach the heart first',
               'No more shocks are needed once amiodarone is in',
               'Lidocaine is given straight away on top of the amiodarone',
             ],
@@ -652,7 +672,7 @@ export const CARDIAC_ARREST: Course = {
             question: 'Twenty minutes into a VF arrest a team member suggests sodium bicarbonate, "because the patient must be full of acid by now". No overdose is suspected. What is the best reply?',
             options: [
               'Not as a routine: it has shown no benefit in cardiac arrest',
-              'Yes: give a dose after every 10 minutes of CPR',
+              'Yes: give one dose after every 10 minutes of CPR to clear the acid',
               'Yes, but only together with a dose of calcium',
               'Yes, once the third dose of epinephrine is in',
             ],
@@ -668,7 +688,7 @@ export const CARDIAC_ARREST: Course = {
             'CPR running. Charge during compressions. Clear, shock. CPR again at once, for 2 minutes. During those 2 minutes: access, then the drug that is due. Rhythm check, and around again.',
             'Say each step out loud as you press it, the way a team leader would.',
           ],
-          look: 'In the panel: START CPR, CHARGE, then STOP CPR, SHOCK and START CPR again. Give epinephrine during the CPR. Then read the Code record: it should show no long gap without compressions.',
+          look: 'In the panel: START CPR, CHARGE, then STOP CPR, SHOCK and START CPR again. Give epinephrine during the CPR if the Epi timer is missing or says "due". Then read the Code record: it should show no long gap without compressions.',
           show: { rhythm: 'vf' },
           check: {
             kind: 'choice',
@@ -677,7 +697,7 @@ export const CARDIAC_ARREST: Course = {
               'Shock, 2 minutes of CPR with the drugs given during it, rhythm check',
               'Drug, 2 minutes of CPR to circulate it, shock, rhythm check',
               'Rhythm check, pulse check, drug, shock, 2 minutes of CPR',
-              'Shock, pulse check, drug, 2 minutes of CPR, rhythm check',
+              'Shock, a 10-second pulse check, drug, 2 minutes of CPR, rhythm check',
             ],
             answer: 0,
             explain: 'Shock first, then 2 minutes of CPR without stopping to feel for a pulse, with access and drugs fitted into that CPR, then the rhythm check. Any order that puts a drug or a pulse check between the shock and the compressions adds a pause and gains nothing.',
@@ -693,7 +713,7 @@ export const CARDIAC_ARREST: Course = {
             'Epinephrine is given as soon as access is ready and every 3 to 5 minutes after that. The antiarrhythmic drugs have no part here. Their place is taken by the search for a cause that can be reversed, which is the next lesson.',
             'A rhythm can change back, too. If VF or pulseless VT appears at a later check, shock it.',
           ],
-          look: 'Asystole on the monitor: a flat green line. Before you leave this lesson, press STOP CPR in the panel, so that no compression marks appear on the tracings in later lessons.',
+          look: 'A new patient in asystole: a flat green line, a flat Pleth line, no heart rate, and CPR off. Press START CPR, then Epinephrine: with nothing to shock, it goes in as soon as access is ready.',
           show: { rhythm: 'asystole' },
           check: {
             kind: 'choice',
@@ -726,8 +746,8 @@ export const CARDIAC_ARREST: Course = {
             'These are the reversible causes. The search for them runs during CPR in every arrest. In PEA it is the heart of the treatment: an organized rhythm with no pulse means the wiring works and something else is wrong.',
             'They are remembered as the Hs and the Ts.',
           ],
-          look: 'PEA on the monitor again: an organized green rhythm and a flat blue Pleth line. The rhythm tells you the electrical system is working. Your task is to find out why the pump is not.',
-          show: { heart: false, ecg: 'defib', rhythm: 'pea' },
+          look: 'PEA, inside the heart: the tracing keeps an organized rhythm, but the walls barely move, the aortic valve stays shut and the blood dots stand almost still. The Cardiac cycle box reads "Electrical activity — no pulse".',
+          show: { heart: 'sectioned', flow: true, ecg: 'ecg', layout: 'monitor', rhythm: 'pea', focus: 'heart' },
         },
         {
           title: 'The Hs',
@@ -736,34 +756,34 @@ export const CARDIAC_ARREST: Course = {
             'Hypokalemia or hyperkalemia: potassium too low or too high. Hypothermia: a dangerously low body temperature.',
             'Hypoxia and visible bleeding are the two you can act on first and with the least equipment: open the airway and give breaths with oxygen, and stop any bleeding you can reach.',
           ],
-          look: 'This PEA is slow, and its QRS complexes are wide. Keep that in mind: the shape of the rhythm is a clue, and you will use it at the end of this lesson.',
+          look: 'Look at the tracing: this PEA is slow, and its QRS complexes are wide. Keep that in mind: the shape of the rhythm is a clue, and you will use it at the end of this lesson.',
           check: {
             kind: 'choice',
             question: 'A man chokes on food in a restaurant, turns blue and collapses with no pulse. Which reversible cause started this arrest, and what must the team be sure to do?',
             options: [
               'Hypoxia: clear the airway and give breaths with oxygen during CPR',
-              'Hypovolemia: give IV fluid as fast as the line allows',
+              'Hypovolemia: give IV fluid as fast as the line will run it in',
               'Hyperkalemia: give calcium as soon as an IV is in place',
               'Hypothermia: warm the patient before anything else is done',
             ],
             answer: 0,
-            explain: 'His heart stopped because no oxygen was reaching it. Compressions alone will not correct that: the airway must be cleared and breaths with oxygen given as part of the CPR. Nothing in the story points to blood loss, potassium or cold.',
+            explain: 'His heart stopped because no oxygen was reaching it, and nothing in the story points to blood loss, potassium or cold. Compressions alone will not correct it: each time the airway is opened for breaths, look in the mouth and remove the food if you can see it, then give breaths with oxygen. (While a choking adult is still awake: 5 back blows, then 5 abdominal thrusts, repeated.)',
           },
         },
         {
           title: 'Potassium: a cause the ECG can warn you about',
           text: [
-            'Potassium controls how heart cells recharge after each beat. Too much of it, hyperkalemia, slows the signal through the heart until it stops. It is the classic arrest of kidney failure and missed dialysis.',
-            'The ECG gives warning before the arrest: tall, narrow, pointed T waves first, then a longer PR interval and flattened P waves, then a QRS that widens until the tracing looks like a rolling wave.',
-            'While such a patient still has a pulse, calcium by IV is the standard first treatment, per protocol or on a physician\'s order. Once the heart has arrested, the 2025 guidelines rate calcium, bicarbonate and insulin with glucose as of uncertain benefit: none of them may interrupt CPR.',
+            'Potassium sets the electrical charge that heart cells rest at and recharge to after each beat. Too much of it, hyperkalemia, slows the signal through the heart until it stops. It is the classic arrest of kidney failure and missed dialysis.',
+            'The ECG often gives warning before the arrest: tall, narrow, pointed T waves first, then a longer PR interval and flattened P waves, then a QRS that widens until the tracing looks like a rolling wave. Not always, though: a near-normal ECG does not rule it out.',
+            'While the patient still has a pulse and the ECG shows these changes, IV calcium comes first, per protocol or on a physician\'s order: it protects the heart within minutes but does not lower the potassium. Once the heart has arrested, the 2025 guidelines rate calcium, bicarbonate and insulin with glucose as of uncertain benefit: none of them may interrupt CPR.',
           ],
           look: 'A 12-lead from a patient with high potassium, recorded before any arrest. Look at the T waves in the chest leads: tall, narrow and pointed, like a tent. The QRS is already wider than normal.',
-          show: { ecg: 'ecg', layout: 'simultaneous', rhythm: 'hyperkalemia' },
+          show: { heart: false, ecg: 'ecg', layout: 'simultaneous', rhythm: 'hyperkalemia' },
           check: {
             kind: 'lead',
             question: 'Tap a lead that shows a tall, pointed T wave.',
             targets: ['I', 'II', 'aVF', 'V2', 'V3', 'V4', 'V5', 'V6'],
-            explain: 'The tallest pointed T waves are in the chest leads V2 to V5, with smaller ones in I, II, aVF and V6. A T wave that is tall, narrow and symmetrical in a patient with kidney failure means high potassium until a blood test says otherwise.',
+            explain: 'The pointed T waves are tallest in V3 to V5, and clearly tall in V2, II, aVF, V6 and I as well. A T wave that is tall, narrow and symmetrical in a patient with kidney failure means high potassium until a blood test says otherwise.',
           },
           roleNote: {
             1: 'Reading a 12-lead is outside your scope. Your clue is the history: a dialysis patient who has missed sessions and is weak, with a slow pulse. Say so to the ALS crew, because it changes what they do.',
@@ -784,7 +804,7 @@ export const CARDIAC_ARREST: Course = {
             kind: 'tap',
             question: 'A large pulmonary embolism blocks the way out of the right side of the heart. Tap the vessel where the clot lodges.',
             targets: ['pulmonary-trunk'],
-            explain: 'A pulmonary embolism lodges in the pulmonary trunk and its branches. The right ventricle cannot empty against the blockage, so little blood crosses the lungs to fill the left side, and the pulse disappears even though the ECG still shows a rhythm.',
+            explain: 'A large embolism lodges where the pulmonary trunk divides, and in its two main branches. The right ventricle cannot empty against the blockage, so little blood crosses the lungs to fill the left side, and the pulse disappears even though the ECG still shows a rhythm.',
           },
           more: ['pulmonary-embolism'],
         },
@@ -802,17 +822,17 @@ export const CARDIAC_ARREST: Course = {
             question: 'During a coronary procedure the blood pressure falls suddenly and the patient stops responding. The monitor still shows a fast rhythm with narrow complexes, but there is no pulse. Which cause must the team think of first?',
             options: [
               'Tamponade: bleeding into the sac around the heart',
-              'Hyperkalemia: the potassium has risen',
-              'A pulmonary embolism from the leg veins',
+              'Hyperkalemia: the potassium has risen during the case',
+              'A pulmonary embolism: a clot from the leg veins',
               'An overdose of the sedative that was given',
             ],
             answer: 0,
-            explain: 'A wire or a balloon can tear a coronary artery or the heart wall, and blood then fills the pericardial sac within minutes. A fast, narrow rhythm with no pulse fits a heart that is beating but cannot fill. A clot in the lungs can look the same, but here the collapse followed a device inside the heart. The fix is drainage, with CPR until it is done.',
+            explain: 'A wire or a balloon can tear a coronary artery, and blood then fills the pericardial sac within minutes. A fast, narrow rhythm with no pulse fits a heart that is beating but cannot fill. A clot in the lungs can look the same, but here the collapse came straight after work inside a coronary artery. The fix is drainage, with CPR until it is done.',
           },
           roleNote: {
-            2: 'Needle decompression of a suspected tension pneumothorax is in your scope where protocol allows. Draining the pericardium is not: for suspected tamponade your part is to say so and to move, with CPR on the way.',
+            2: 'Needle decompression of a suspected tension pneumothorax is in your scope where protocol allows. Draining the pericardium is not, in most EMS systems: for suspected tamponade your part is to say so and to move, with CPR on the way.',
             3: 'You are often the first to see it: the arterial pressure trace falls and flattens. Call it out to the operator at once, and have the pericardiocentesis tray and the echo machine brought to the table.',
-            4: 'In the lab, a sudden fall in pressure after a wire or a device has been inside the heart is tamponade until proven otherwise. Tell the operator, bring the pericardiocentesis tray and get the echo machine to the table.',
+            4: 'In the lab, a sudden fall in pressure after a wire or a device has been in the heart or its arteries is tamponade until proven otherwise. Tell the operator, bring the pericardiocentesis tray and get the echo machine to the table.',
           },
           more: ['cardiac-tamponade', 'pericardiocentesis', 'cl-comp-tamponade'],
         },
@@ -877,7 +897,7 @@ export const CARDIAC_ARREST: Course = {
           title: 'ROSC: the pulse is back',
           text: [
             'ROSC means return of spontaneous circulation: the heart is pumping by itself again. You find it at a rhythm check, when an organized rhythm comes with a pulse you can feel.',
-            'Other signs can arrive first: a sudden, lasting jump in the EtCO2, typically to 40 mmHg or more, a pulse wave on the oximeter, or a patient who starts to breathe, cough or move.',
+            'Other signs can arrive first: a sudden, lasting jump in the EtCO2, typically to 40 mmHg or more, a pulse wave on the oximeter or the arterial line, or a patient who starts to breathe, cough or move.',
             'Whatever the first sign, confirm it with a pulse check and a blood pressure.',
           ],
           look: 'Circulation is back. The blue Pleth line pulses with every beat, SpO₂ shows a number, and the yellow CO₂ wave rises with each breath. Press Pulse check in the panel.',
@@ -960,7 +980,7 @@ export const CARDIAC_ARREST: Course = {
             kind: 'lead',
             question: 'Tap a lead that shows ST elevation.',
             targets: ['V1', 'V2', 'V3', 'V4', 'V5'],
-            explain: 'The ST segment is raised in V1 to V5, most of all in V2 to V4. These are the leads that look at the front of the heart: an anterior STEMI. Leads I and aVL are lifted only slightly, and the leads that look at the bottom of the heart are not raised at all.',
+            explain: 'The ST segment is raised in V1 to V5, most of all in V2 to V4. These are the leads that look at the front of the heart: an anterior STEMI. Leads I and aVL are lifted only slightly, and III and aVF, which look at the bottom of the heart, are pushed slightly down: the mirror image.',
           },
           roleNote: {
             1: 'Where your protocol allows, you record and transmit this 12-lead. Reading it is for the paramedic and the physician. A clean tracing sent early is your contribution: a still patient, electrodes pressed on firmly, cables untangled.',
@@ -973,7 +993,7 @@ export const CARDIAC_ARREST: Course = {
           title: 'Where the clot is',
           text: [
             'ST elevation in the front leads comes from the front wall of the left ventricle, which is fed by the LAD (left anterior descending artery). The clot is in that artery.',
-            'The muscle beyond the clot is dying minute by minute, and an injured, irritable ventricle is what set off the VF. Opening the artery treats the cause of the arrest and protects against the next one.',
+            'The muscle beyond the clot is dying minute by minute, and injured, irritable muscle like this is the most likely trigger of the VF. Opening the artery treats the cause of the arrest and protects against the next one.',
           ],
           look: 'The dusky, pulsing area on the front of the heart is the muscle that is losing its blood supply.',
           show: { ecg: false, heart: 'external', camera: 'Front' },
@@ -981,15 +1001,15 @@ export const CARDIAC_ARREST: Course = {
             kind: 'tap',
             question: 'Tap the artery that is blocked.',
             targets: ['lad-proximal', 'lad-mid', 'lad-distal'],
-            explain: 'The LAD runs down the front of the heart between the two ventricles and feeds the front wall, the front of the septum and the apex. Blocked near its start, it puts more heart muscle at risk than any other artery, which is why this heart went into VF.',
+            explain: 'The LAD runs down the front of the heart between the two ventricles and feeds the front wall, the front of the septum and the apex. Blocked near its start, it leaves a large part of the left ventricle without blood, and a large area of dying muscle readily sets off VF.',
           },
           more: ['coronary-angiography', 'pci-stent'],
         },
         {
           title: 'Temperature: control it on purpose',
           text: [
-            'A patient who does not follow commands after ROSC has a brain injury in progress, and fever makes it worse.',
-            'These patients receive temperature control in the hospital: the team chooses a target between 32 and 37.5 °C (89.6 and 99.5 °F) and holds the body there with a cooling and warming device, for at least 36 hours in all.',
+            'A patient who does not follow commands after ROSC is treated as having a brain injury in progress, and fever makes it worse.',
+            'These patients receive temperature control in the hospital: the team chooses a target between 32 and 37.5 °C (89.6 and 99.5 °F) and holds the body there, usually with a device that cools and warms, for at least 36 hours.',
             'Your part before the intensive care unit: check whether the patient follows a simple command, such as "squeeze my hand", and record that together with the time of ROSC.',
           ],
           look: 'Back at the monitor. It shows the heart, the oxygen and the breathing, but not the brain. Whether the patient follows commands is something only you can check, at the bedside.',
@@ -1014,18 +1034,18 @@ export const CARDIAC_ARREST: Course = {
             'Tell the hospital early: the time of collapse, whether bystanders gave CPR, the first rhythm, the number of shocks, the drugs, the time of ROSC, and what the 12-lead shows.',
             'Then expect the arrest to happen again on the way, and be ready for it: pads on, monitor on, a hand free for the pulse.',
           ],
-          look: 'Keep watching the green trace. If it turns chaotic again, you are back in lesson 4: pulse check, CPR, shock.',
+          look: 'Sinus tachycardia, steady for now. On a real patient, keep watching the green trace all the way: if it turns chaotic, the pads are already on and the defibrillator is ready.',
           check: {
             kind: 'choice',
             question: 'On the way to the hospital after ROSC, the monitor suddenly shows a chaotic rhythm and the patient stops moving. What do you do first?',
             options: [
-              'Check for a pulse, start CPR and defibrillate: the arrest is back',
-              'Record another 12-lead before doing anything else',
+              'Confirm there is no pulse, defibrillate at once and restart CPR',
+              'Record another 12-lead to see what has changed before acting',
               'Turn up the oxygen and keep watching the monitor',
               'Continue to the hospital and report the change on arrival',
             ],
             answer: 0,
-            explain: 'VF often returns in the first minutes and hours after ROSC. An unresponsive patient with a chaotic rhythm and no pulse is in cardiac arrest again, and the treatment is the same as the first time: CPR and an immediate shock, with the pads that are already on.',
+            explain: 'VF often returns in the first minutes and hours after ROSC. An unresponsive patient with a chaotic rhythm and no pulse is in cardiac arrest again. The pads are already on, so the shock comes at once, followed straight away by CPR. A 12-lead, more oxygen or waiting for the hospital only delay it.',
           },
           roleNote: {
             1: 'Hand over in the same order every time: what happened, what was done, when the pulse came back, and how the patient is now.',
@@ -1071,7 +1091,7 @@ export const CARDIAC_ARREST: Course = {
         {
           title: 'Fast and unstable: synchronized cardioversion',
           text: [
-            'When a fast rhythm is making a patient with a pulse unstable, the treatment is a shock called synchronized cardioversion. Like defibrillation, it fires all the heart muscle at once. That breaks the short circuit driving the fast rhythm and lets the SA node take over.',
+            'When a fast rhythm is making a patient with a pulse unstable, the treatment is a shock called synchronized cardioversion. Like defibrillation, it fires most of the heart muscle at once. That breaks the circuit driving the fast rhythm and lets the SA node take over.',
             'The difference is timing. A defibrillation shock is given the instant you press the button. A synchronized shock waits until the machine finds the next R wave, the tall peak of the QRS, and fires on it.',
             'If the patient is awake, give sedation first whenever there is time: the shock hurts.',
           ],
@@ -1085,11 +1105,11 @@ export const CARDIAC_ARREST: Course = {
         {
           title: 'Why the timing matters',
           text: [
-            'Every heartbeat has a short vulnerable period, during the T wave, when the ventricles are recharging and are electrically unstable. A shock that lands there can throw an organized rhythm into VF.',
+            'Every heartbeat has a short vulnerable period, near the peak of the T wave, when the ventricles are recharging and are electrically unstable. A shock that lands there can throw an organized rhythm into VF.',
             'A patient in VF has no R waves and no T waves: there is nothing to synchronize to and nothing to lose, so you defibrillate. A patient with an organized rhythm and a pulse has a great deal to lose, so the shock is tied to the R wave, safely away from the T wave.',
             'Two cautions. If the markers sit on T waves instead of QRS complexes, do not shock: choose another lead. And many defibrillators switch SYNC off after each shock, so check it before every one.',
           ],
-          look: 'One lead of a normal rhythm, enlarged and slowed down, with its waves labeled. The QRS is the tall narrow spike: a synchronized shock fires there. The T wave is the rounded hump after it: the vulnerable period.',
+          look: 'One lead of a normal rhythm, enlarged and slowed down, with its waves labeled. The QRS is the tall narrow spike: a synchronized shock fires there. The T wave is the rounded hump after it: the vulnerable period lies near its peak.',
           show: { ecg: 'ecg', rhythm: 'normal-sinus', hr: 70, inspect: 'II', speed: 0.5 },
           check: {
             kind: 'choice',
@@ -1109,9 +1129,9 @@ export const CARDIAC_ARREST: Course = {
           text: [
             'The 2025 AHA guidelines give a starting energy for each rhythm, for a biphasic defibrillator. Narrow and regular: 100 J. Monomorphic VT with a pulse (wide, regular, every complex the same shape): 100 J. Atrial flutter: 200 J. Atrial fibrillation (narrow and irregular): at least 200 J.',
             'If the first shock fails, raise the energy. If you do not know the right setting for your machine, use the maximum. Some of these values are higher than the ones taught before 2025, which older reference cards still show. Your protocol and your device have the last word.',
-            'Polymorphic VT, a wide rhythm whose complexes keep changing shape, is the exception. The machine cannot lock on to it, so it is given an unsynchronized shock at the defibrillation dose, like VF.',
+            'Polymorphic VT, a wide rhythm whose complexes keep changing shape, is the exception. The machine cannot lock on to it, so sustained polymorphic VT gets an immediate unsynchronized shock at the defibrillation dose, like VF, even while the patient still has a pulse.',
           ],
-          look: 'Narrow and regular: the starting energy is 100 J. With Manual and SYNC on, tap 100J, press CHARGE, then SHOCK. The shock fires on the next R wave, and the Code record reports whether the rhythm converted.',
+          look: 'A new patient; the device keeps its mode and SYNC as you set them. With Manual and SYNC on, tap 100J, press CHARGE, then SHOCK. It fires on the next R wave, and the Code record reports whether the rhythm converted.',
           show: { ecg: 'defib', rhythm: 'avnrt', hr: 190, speed: 1 },
           check: {
             kind: 'choice',
@@ -1133,14 +1153,14 @@ export const CARDIAC_ARREST: Course = {
             'A pulse with signs of instability: synchronized cardioversion, starting at 100 J. No pulse: this is pulseless VT, a cardiac arrest. SYNC off, defibrillate, CPR.',
             'These patients can lose their pulse from one minute to the next. Keep the pads on and a hand on the pulse, and be ready to change plans.',
           ],
-          look: 'Wide complexes, all the same shape, at about 170 a minute. Press Pulse check in the panel: this patient still has a pulse. If SYNC is on, a marker sits above every complex.',
+          look: 'A new patient: wide complexes, all the same shape, at about 170 a minute. Press Pulse check in the panel: a weak, thready pulse, but a pulse. If SYNC is on, a marker sits above every complex.',
           show: { rhythm: 'vt', hr: 170 },
           check: {
             kind: 'choice',
             question: 'This wide, regular rhythm at 170 a minute belongs to a man who is confused, with a weak pulse and a systolic pressure of 70. What is the treatment?',
             options: [
               'Synchronized cardioversion, starting at 100 J',
-              'An unsynchronized shock and CPR',
+              'An unsynchronized shock and CPR, as for VF',
               'Watch and wait: he still has a pulse',
               'Atropine 1 mg',
             ],
@@ -1156,13 +1176,13 @@ export const CARDIAC_ARREST: Course = {
             'First look for a cause you can correct. Lack of oxygen is one: support the airway and the breathing before anything else. Others are a heart attack, medicines that slow the heart, and high potassium.',
             'This patient is in complete heart block. No signal crosses from the atria to the ventricles, and a slow backup pacemaker in the ventricles is all that keeps the blood moving.',
           ],
-          look: 'The heart is see-through, showing its wiring. The atria fire at their own pace, and each signal stops at the red ✕. The ventricles answer to a separate, much slower pacemaker.',
+          look: 'The heart is see-through, showing its wiring. The atria fire at their own pace, and each signal crosses the AV node and stops at the red ✕ just below it, on the bundle of His. The ventricles answer to a separate, much slower pacemaker of their own.',
           show: { heart: 'conduction', ecg: 'ecg', layout: 'monitor', rhythm: 'third-degree-avb', hr: 34, focus: 'heart' },
           check: {
             kind: 'tap',
             question: 'Tap the structure where the signal from the atria is being stopped.',
             targets: ['av-node', 'bundle-of-his'],
-            explain: 'In complete heart block the signal from the atria gets no further than the AV node or the bundle of His below it. The red ✕ marks the spot. In this patient the backup rhythm of the ventricles is wide and slow, which points to a block low down, below the AV node.',
+            explain: 'In complete heart block no signal from the atria gets through the AV node and the bundle of His to the ventricles. This picture draws the stop just below the AV node, as this patient\'s wide escape suggests. A narrow escape rhythm at 40 to 60 points to a block in the AV node itself; a wide, slow one like this patient\'s points to a block lower down, at or below the bundle of His.',
           },
           more: ['third-degree-av-block'],
         },
@@ -1180,7 +1200,7 @@ export const CARDIAC_ARREST: Course = {
             question: 'Why does atropine so often fail in complete heart block with a wide, slow rhythm?',
             options: [
               'The block lies below the AV node, where atropine has no effect',
-              'A dose of 1 mg is too small to work in most adults',
+              'A dose of 1 mg is too small to work in most adult patients',
               'Atropine only acts on fast rhythms, not on slow ones',
               'It needs about 30 minutes before it takes effect',
             ],
@@ -1207,7 +1227,7 @@ export const CARDIAC_ARREST: Course = {
             options: [
               'Electrical capture with no pulse: treat it as PEA and start CPR',
               'Successful pacing: continue to the hospital as planned',
-              'Too much current: turn the output down a little',
+              'Too much current: turn the output down until the pulse returns',
               'A normal finding in the first few minutes of pacing',
             ],
             answer: 0,
@@ -1226,7 +1246,7 @@ export const CARDIAC_ARREST: Course = {
             'Fast and unstable, with a pulse: a synchronized shock. Slow and unstable, with a pulse: atropine, then pacing. No pulse: CPR, and a shock if the rhythm is VF or pulseless VT.',
             'In every case the decision starts with the patient: responsive or not, pulse or no pulse, stable or unstable. The monitor comes second.',
           ],
-          look: 'A slow, regular rhythm at 38 a minute, with a pulse on the Pleth line. If the pacer is still running from the last step, press STOP PACER.',
+          look: 'A new patient: the pacer is off. A slow, regular rhythm at 38 a minute, with narrow complexes and a pulse on the Pleth line. Press NIBP: the pressure is good.',
           show: { rhythm: 'sinus-bradycardia', hr: 38 },
           check: {
             kind: 'choice',

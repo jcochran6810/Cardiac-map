@@ -61,7 +61,7 @@ describe('course catalogue', () => {
   it('offers every role a course written for it, listed first', () => {
     for (const role of [1, 2, 3, 4, 5] as const) {
       const mine = COURSES.filter((c) => c.roles.includes(role));
-      expect(mine.length, `role ${role}`).toBeGreaterThanOrEqual(1);
+      expect(mine.length, `role ${role}`).toBeGreaterThanOrEqual(2);
       // …and the list for that role starts with them
       expect(coursesFor(role, COURSES).slice(0, mine.length)).toEqual(mine);
     }

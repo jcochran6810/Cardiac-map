@@ -185,11 +185,12 @@ export default function SceneOverlay() {
         className={`absolute z-10 scene-panel rounded-lg text-[11px] shadow-xl ${
           narrow ? `bottom-2 w-[min(9.5rem,40%)] p-1.5 ${viewMode === 'activation' || viewMode === 'territories' || culprit ? 'right-2' : 'left-2'}` : 'right-2 top-2 w-56 p-2'
         } ${narrow && (peek || coach) ? 'hidden' : ''}`}
-        title={PHASE_DESCRIPTIONS[hud.phase]}
+        title={blind ? undefined : PHASE_DESCRIPTIONS[hud.phase]}
       >
         {!narrow && <div className="text-[11px] uppercase tracking-wider text-slate-400">Cardiac cycle</div>}
-        <div className={`font-semibold leading-tight ${narrow ? 'text-[11px] truncate' : 'text-xs mt-0.5'} ${hud.phase === 'fibrillation' || hud.phase === 'pulseless' || hud.phase === 'arrest' ? 'text-red-400' : 'text-white'}`}>{PHASE_LABELS[hud.phase]}</div>
-        {!narrow && <p className="text-[11px] text-slate-400 leading-snug mt-1 line-clamp-3">{PHASE_DESCRIPTIONS[hud.phase]}</p>}
+        <div className={`font-semibold leading-tight ${narrow ? 'text-[11px] truncate' : 'text-xs mt-0.5'} ${!blind && (hud.phase === 'fibrillation' || hud.phase === 'pulseless' || hud.phase === 'arrest') ? 'text-red-400' : 'text-white'}`}>{blind ? 'Phase hidden' : PHASE_LABELS[hud.phase]}</div>
+        {/* (the phase's name would answer a question about the rhythm: the valves and sounds below still show what happens) */}
+        {!narrow && <p className="text-[11px] text-slate-400 leading-snug mt-1 line-clamp-3">{blind ? 'Hidden while a question is open: watch the valves and the heart itself.' : PHASE_DESCRIPTIONS[hud.phase]}</p>}
         <div className={`space-y-0.5 ${narrow ? 'mt-1' : 'mt-1.5'}`}>
           {valve(narrow ? 'MV / TV' : 'Mitral / tricuspid', hud.mitral)}
           {valve(narrow ? 'AV / PV' : 'Aortic / pulmonic', hud.aortic)}
