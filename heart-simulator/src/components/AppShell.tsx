@@ -8,6 +8,7 @@ import RightPanel from '@/components/layout/RightPanel';
 import BottomDock from '@/components/layout/BottomDock';
 import DrawerBar from '@/components/layout/DrawerBar';
 import HelpOverlay from '@/components/layout/HelpOverlay';
+import Glossary from '@/components/layout/Glossary';
 import SceneOverlay from '@/components/scene/SceneOverlay';
 import TutorPanel from '@/components/tutor/TutorPanel';
 import QuizPanel from '@/components/tutor/QuizPanel';
@@ -263,6 +264,7 @@ export default function AppShell() {
         case '?': app.setHelpOpen(!app.helpOpen); break;
         case 'Escape':
           if (app.helpOpen) app.setHelpOpen(false);
+          else if (app.glossaryOpen) app.setGlossaryOpen(false);
           else if (app.quizOpen) app.setQuizOpen(false);
           else if (useTutorStore.getState().tutorOpen) useTutorStore.getState().setTutorOpen(false);
           else if (useECGStore.getState().inspectLead) useECGStore.getState().setInspectLead(null);
@@ -397,6 +399,7 @@ export default function AppShell() {
       <TutorPanel />
       <QuizPanel />
       <HelpOverlay />
+      <Glossary />
       <FeedbackForm />
       <AdminPanel />
       <FeedbackService />

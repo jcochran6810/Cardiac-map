@@ -9,6 +9,7 @@ import { useTutorStore } from '@/store/useTutorStore';
 import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import { startLesson } from '@/lib/courses';
 import { CASE_DATA } from '@/data/caseData';
+import { GLOSSARY } from '@/data/glossary';
 import { IconSearch } from '@/components/ui/icons';
 
 const KIND_STYLE: Record<SearchHit['kind'], string> = {
@@ -21,12 +22,13 @@ const KIND_STYLE: Record<SearchHit['kind'], string> = {
   lesson: 'bg-orange-500/15 text-orange-300',
   tool: 'bg-teal-500/15 text-teal-300',
   simcase: 'bg-amber-500/15 text-amber-300',
+  term: 'bg-slate-500/25 text-slate-200',
 };
 
 /** What each kind of result is called (the same words the main menu uses) */
 const KIND_LABEL: Record<SearchHit['kind'], string> = {
   structure: 'Anatomy', condition: 'Condition', procedure: 'Procedure', medication: 'Drug', cathlab: 'Cath lab',
-  case: 'Case study', lesson: 'Lesson', tool: 'Tool', simcase: 'Simulator',
+  case: 'Case study', lesson: 'Lesson', tool: 'Tool', simcase: 'Simulator', term: 'Glossary',
 };
 
 /** The tools and screens, with the words people use for them */
@@ -41,11 +43,14 @@ const TOOLS: (SearchExtra & { open: () => void })[] = [
   { kind: 'tool', id: 'tool:courses', name: 'Courses', sub: 'Guided lessons', keys: ['course', 'lesson', 'learn', 'tutorial', 'guided'], open: () => useAppStore.getState().setMode('courses') },
   { kind: 'tool', id: 'tool:sim', name: 'Case simulator', sub: 'Treat a patient', keys: ['simulator', 'case', 'scenario', 'patient', 'practice'], open: () => useAppStore.getState().setMode('simulator') },
   { kind: 'tool', id: 'tool:quiz', name: 'Quiz', sub: 'Practice', keys: ['quiz', 'questions', 'test'], open: () => useAppStore.getState().setQuizOpen(true) },
+  { kind: 'tool', id: 'tool:glossary', name: 'Glossary', sub: 'Terms in plain words', keys: ['glossary', 'dictionary', 'definition', 'terms', 'what does', 'meaning'], open: () => useAppStore.getState().setGlossaryOpen(true) },
   { kind: 'tool', id: 'tool:tutor', name: 'Tutor', sub: 'Ask a question', keys: ['tutor', 'ask', 'question', 'help me'], open: () => useTutorStore.getState().setTutorOpen(true) },
 ];
 const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
 const SIM_CASES: SearchExtra[] = SCENARIOS.map((sc) => ({ kind: 'simcase', id: `sim:${sc.id}`, name: sc.title, sub: 'Simulator case', keys: [sc.summary] }));
-const EXTRAS: SearchExtra[] = [...TOOLS, ...SIM_CASES];
+// a term is found by its name and its other names only (its definition would match half the library's words)
+const TERMS: SearchExtra[] = GLOSSARY.map((g) => ({ kind: 'term', id: `term:${g.id}`, name: g.term, sub: g.def, keys: g.aka ?? [] }));
+const EXTRAS: SearchExtra[] = [...TOOLS, ...SIM_CASES, ...TERMS];
 
 const CASES = Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title }));
 
@@ -86,6 +91,7 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
     } else if (h.kind === 'tool') TOOL_BY_ID[h.id]?.open();
     // a simulator case is started from its own screen, where the role and the briefing are
     else if (h.kind === 'simcase') useAppStore.getState().setMode('simulator');
+    else if (h.kind === 'term') useAppStore.getState().setGlossaryOpen(true, h.id.slice(5));
     else openById(h.id);
     close();
     (document.activeElement as HTMLElement | null)?.blur();

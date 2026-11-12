@@ -58,7 +58,7 @@ export function useContent(): ContentLibrary | null {
   return lib;
 }
 
-export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case' | 'lesson' | 'tool' | 'simcase';
+export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case' | 'lesson' | 'tool' | 'simcase' | 'term';
 
 export interface SearchHit {
   kind: SearchKind;
@@ -73,9 +73,9 @@ function norm(s: string) {
   return s.toLowerCase().normalize('NFKD').replace(/[^\w\s/+-]/g, ' ');
 }
 
-/** Something to find that is not a library page: a tool, a simulator case */
+/** Something to find that is not a library page: a tool, a simulator case, a glossary term */
 export interface SearchExtra {
-  kind: 'tool' | 'simcase';
+  kind: 'tool' | 'simcase' | 'term';
   id: string;
   name: string;
   sub: string;
@@ -168,8 +168,8 @@ export function searchLibrary(lib: ContentLibrary, cases: { id: string; title: s
   }
   for (const x of extras) {
     const sc = score(x.name, x.keys, '');
-    // a tool named in the query is very likely what was wanted
-    if (sc) hits.push({ kind: x.kind, id: x.id, name: x.name, sub: x.sub, score: sc + (x.kind === 'tool' ? 2 : 0) });
+    // a tool named in the query is very likely what was wanted; a glossary term comes just after the library page of the same name
+    if (sc) hits.push({ kind: x.kind, id: x.id, name: x.name, sub: x.sub, score: sc + (x.kind === 'tool' ? 2 : x.kind === 'term' ? -0.2 : 0) });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }

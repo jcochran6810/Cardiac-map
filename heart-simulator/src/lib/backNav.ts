@@ -36,7 +36,7 @@ import { closeTrainer, openTrainer } from '@/lib/drillRun';
 /** the rhythm trainer's page (in `Page.lesson`) */
 export const TRAINER_PAGE = 'tool/rhythm-trainer';
 
-export type Overlay = 'quiz' | 'tutor' | 'help' | 'feedback' | 'admin' | null;
+export type Overlay = 'quiz' | 'tutor' | 'help' | 'glossary' | 'feedback' | 'admin' | null;
 export type SimPage = 'list' | 'case' | 'actions' | 'review';
 
 export interface Page {
@@ -118,7 +118,7 @@ export function currentPage(): Page {
     heart: learn ? app.heart : 'closed',
     ecg: learn ? app.ecg : 'closed',
     lab: learn && ecg.electrodeLab && ecg.bottomView === 'ecg',
-    overlay: app.helpOpen ? 'help' : app.quizOpen ? 'quiz' : useTutorStore.getState().tutorOpen ? 'tutor'
+    overlay: app.helpOpen ? 'help' : app.glossaryOpen ? 'glossary' : app.quizOpen ? 'quiz' : useTutorStore.getState().tutorOpen ? 'tutor'
       : fb.formOpen ? 'feedback' : fb.adminOpen ? 'admin' : null,
     sim: app.mode === 'simulator' ? simPage : 'list',
     run: app.mode === 'simulator' && s ? sim.run : 0,
@@ -146,6 +146,7 @@ function apply(page: Page, from: Page) {
   // hand the monitor back before an item loads its own ECG
   if (from.mode === 'simulator' && page.mode !== 'simulator') leaveSimulator();
   app.setHelpOpen(page.overlay === 'help');
+  if (app.glossaryOpen !== (page.overlay === 'glossary')) app.setGlossaryOpen(page.overlay === 'glossary', app.glossaryTerm);
   app.setQuizOpen(page.overlay === 'quiz');
   useTutorStore.getState().setTutorOpen(page.overlay === 'tutor');
   useFeedbackStore.getState().setFormOpen(page.overlay === 'feedback');

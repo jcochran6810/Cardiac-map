@@ -358,6 +358,10 @@ export default function HomeScreen() {
         {/* ── More ── */}
         <MenuSection title="More">
           <Tile
+            title="Glossary" text="The words of cardiology in one or two plain sentences each."
+            icon={<IconBook size={22} />} tint="text-sky-300 bg-sky-500/15" onClick={() => useAppStore.getState().setGlossaryOpen(true)}
+          />
+          <Tile
             title="Help & shortcuts" text="How to get around, touch gestures and keyboard shortcuts."
             icon={<IconHelp size={22} />} tint="text-slate-200 bg-slate-500/20" onClick={() => useAppStore.getState().setHelpOpen(true)}
           />
