@@ -3,6 +3,7 @@
 import React, { forwardRef, useEffect, useMemo, useState } from 'react';
 import { useContent, searchLibrary, type SearchHit } from '@/lib/content';
 import { openById } from '@/lib/actions';
+import { startLesson } from '@/lib/courses';
 import { CASE_DATA } from '@/data/caseData';
 import { IconSearch } from '@/components/ui/icons';
 
@@ -13,6 +14,7 @@ const KIND_STYLE: Record<SearchHit['kind'], string> = {
   medication: 'bg-emerald-500/15 text-emerald-300',
   cathlab: 'bg-cyan-500/15 text-cyan-300',
   case: 'bg-amber-500/15 text-amber-300',
+  lesson: 'bg-orange-500/15 text-orange-300',
 };
 
 const CASES = Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title }));
@@ -27,7 +29,7 @@ interface Props {
   onDone?: () => void;
 }
 
-/** Search the whole library (anatomy, conditions, drugs, procedures, cath lab, cases) and open a result */
+/** Search the whole library (anatomy, conditions, drugs, procedures, cath lab, cases) and the guided lessons, and open a result */
 const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
   { id, className = '', inputClassName = '', placeholder = 'Search anatomy, conditions, drugs…', onDone }, ref,
 ) {
@@ -48,7 +50,10 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
     onDone?.();
   };
   const choose = (h: SearchHit) => {
-    openById(h.id);
+    if (h.kind === 'lesson') {
+      const [course, lesson] = h.id.split('/');
+      startLesson(course, lesson);
+    } else openById(h.id);
     close();
     (document.activeElement as HTMLElement | null)?.blur();
   };

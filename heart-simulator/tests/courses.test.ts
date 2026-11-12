@@ -4,6 +4,7 @@ import { CATHLAB } from '@/data/content/cathlab';
 import { CASE_DATA } from '@/data/caseData';
 import { checksIn, courseProgress, coursesFor, drawersFor, effectiveShow, lessonInProgress, nextLesson, optionOrder, pickableOnHeart } from '@/lib/courses';
 import { lessonKey, useCourseStore } from '@/store/useCourseStore';
+import { searchLibrary } from '@/lib/content';
 import { CAMERA_PRESETS } from '@/store/useSceneStore';
 import { LABEL_SETS } from '@/lib/anatomy/labelSets';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
@@ -253,5 +254,24 @@ describe('course progress', () => {
     expect(courseProgress(course, p)).toMatchObject({ done: 1, total: course.lessons.length });
     expect(nextLesson(course, p)?.id).toBe(second.id);
     expect(courseProgress(course, p).minutesLeft).toBe(course.lessons.slice(1).reduce((a, l) => a + l.minutes, 0));
+  });
+});
+
+describe('search', () => {
+  const lib = { structures: {}, conditions: {}, procedures: {}, medications: {}, cathlab: {}, quiz: [], courses: COURSES };
+
+  it('finds a lesson by its title, by a step title and by what it teaches', () => {
+    const ids = (q: string) => searchLibrary(lib, [], q).filter((h) => h.kind === 'lesson').map((h) => h.id);
+    expect(ids('wiring')).toContain('heart-basics/conduction');
+    // a step title ("The right coronary artery") inside the coronary lesson
+    expect(ids('right coronary')).toContain('heart-basics/coronaries');
+    // the lesson's goal ("…name the four valves…")
+    expect(ids('four valves')).toContain('heart-basics/blood-path');
+    expect(ids('zzzz')).toEqual([]);
+  });
+
+  it('labels a lesson hit with its course', () => {
+    const hit = searchLibrary(lib, [], 'wiring').find((h) => h.id === 'heart-basics/conduction');
+    expect(hit).toMatchObject({ kind: 'lesson', name: 'The wiring that fires it', sub: 'Lesson · How the heart works' });
   });
 });

@@ -6,6 +6,9 @@ import { useLearningStore } from '@/store/useLearningStore';
 import { IconClose } from '@/components/ui/icons';
 import { InstallButton } from '@/components/ui/InstallApp';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { useDrillStore } from '@/store/useDrillStore';
+import { useSimStore } from '@/store/useSimStore';
 
 const SHORTCUTS: [string, string][] = [
   ['Space', 'Play / pause the heartbeat'],
@@ -41,7 +44,13 @@ const GESTURES: [string, string][] = [
 export default function HelpOverlay() {
   const helpOpen = useAppStore((s) => s.helpOpen);
   const setHelpOpen = useAppStore((s) => s.setHelpOpen);
-  const resetProgress = useLearningStore((s) => s.resetProgress);
+  const resetProgress = () => {
+    useLearningStore.getState().resetProgress();
+    useCourseStore.getState().resetProgress();
+    useDrillStore.getState().resetStats();
+    try { window.localStorage.removeItem('cardiosim.sim.best'); } catch { /* storage unavailable */ }
+    useSimStore.setState({ best: {} });
+  };
   if (!helpOpen) return null;
   return (
     <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0" onClick={() => setHelpOpen(false)} role="dialog" aria-label="Help">
@@ -53,8 +62,10 @@ export default function HelpOverlay() {
         <div className="p-4 grid md:grid-cols-2 gap-5 text-xs">
           <section className="md:col-span-2 text-slate-300 leading-relaxed">
             <h3 className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Getting around</h3>
-            <ul className="grid sm:grid-cols-3 gap-2">
+            <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Main menu</b> — everything starts here: your role, search, the case simulator, every library section, the tools (3D heart, 12-lead, electrode lab, defibrillator, pressure &amp; volume), guided starts, the quiz, the tutor and this help. <b className="text-slate-100">Menu</b> (top left) always brings you back.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Courses</b> — short guided lessons. Each step explains one idea, sets up the 3D heart and the ECG to show it, and ends with a quick check. Your place and scores are kept on this device.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Rhythm trainer</b> — name live tracings one after another. The ones you miss come back more often until you know them.</li>
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Reading</b> — pick a section, then a topic. Tap <b className="text-slate-100">12-lead EKG</b> at the bottom to slide the ECG up, and <b className="text-slate-100">3D heart</b> at the top to slide the heart down; tap again to put them away. <b className="text-slate-100">←</b> (or your phone&apos;s Back) goes to the page before.</li>
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Case simulator</b> — treat a patient case: every action in your scope is offered, the patient responds, and you get a scored review.</li>
             </ul>
@@ -84,6 +95,7 @@ export default function HelpOverlay() {
           <section className="space-y-2 text-slate-300 leading-relaxed">
             <h3 className="text-[10px] uppercase tracking-wider text-slate-500">One heartbeat, many views</h3>
             <p>The ECG, 3D contraction, conduction animation, valve states, heart sounds and pressure curves are all generated from the same beat-by-beat event list, so they always agree — including AF, dropped beats and AV dissociation.</p>
+            <p><b className="text-white">Heart sounds:</b> press <b className="text-slate-100">Heart sounds</b> on the 3D heart (or <b className="text-slate-100">Listen</b> beside the pressure curves) to hear S1 and S2 in time with the beat — and the S3, S4, opening snap and murmur of the condition on screen. Headphones bring out the low tones.</p>
             <p><b className="text-white">Give meds:</b> every condition has a <b className="text-slate-100">Give meds</b> section — set the patient&apos;s weight, choose a drug and a dose, push it, and watch the live 12-lead change as the drug acts (marked on the strip, with Skip ahead for slow drugs) and get feedback on the drug and the dose.</p>
             <p><b className="text-white">ECG:</b> calibrated at 25 mm/s and 10 mm/mV (1 small box = 40 ms / 0.1 mV). Click (or tap) a lead to see its axis on the heart, double-click (double-tap) to inspect it with labelled intervals, and drag to scrub time.</p>
             <p><b className="text-white">Roles &amp; scope of practice:</b> choose EMT, Paramedic, Cath Lab Tech, Cath Lab Nurse or Cardiologist on the main menu. The “Focus” guidance, recommended tabs (green dots), quiz questions, case roles and monitor/defibrillator permissions follow that role&apos;s scope: EMT and Paramedic per the National EMS Scope of Practice Model (NREMT); cath lab tech per RCIS / SCAI best practices and facility policy; cath lab nurse per the state Nurse Practice Act; cardiologists without limits beyond their privileges. Tap <b>What can I do?</b> next to the roles on the main menu for details. Local protocols, medical direction and facility policy always govern real practice.</p>
@@ -112,7 +124,7 @@ export default function HelpOverlay() {
         <div className="px-4 py-3 border-t border-slate-700 flex items-center justify-between text-[10px] text-slate-500">
           <span>Educational simulation only — not for diagnosis or treatment.</span>
           <button
-            onClick={() => { if (window.confirm('Reset all progress and quiz history on this device?')) resetProgress(); }}
+            onClick={() => { if (window.confirm('Reset everything you have done on this device — lessons, rhythm trainer, case scores, quiz history and what you have studied?')) resetProgress(); }}
             className="text-slate-400 hover:text-red-300"
           >
             Reset my progress

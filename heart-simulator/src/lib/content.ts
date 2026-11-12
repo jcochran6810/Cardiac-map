@@ -58,10 +58,11 @@ export function useContent(): ContentLibrary | null {
   return lib;
 }
 
-export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case';
+export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case' | 'lesson';
 
 export interface SearchHit {
   kind: SearchKind;
+  /** the library item's id; for a lesson, "course/lesson" */
   id: string;
   name: string;
   sub: string;
@@ -114,6 +115,13 @@ export function searchLibrary(lib: ContentLibrary, cases: { id: string; title: s
   for (const c of cases) {
     const sc = score(c.title, [], '');
     if (sc) hits.push({ kind: 'case', id: c.id, name: c.title, sub: 'Case scenario', score: sc });
+  }
+  // guided lessons: by title, by what the lesson teaches and by the titles of its steps
+  for (const course of lib.courses) {
+    for (const l of course.lessons) {
+      const sc = score(l.title, [course.title, ...l.steps.map((s) => s.title)], norm(l.goal));
+      if (sc) hits.push({ kind: 'lesson', id: `${course.id}/${l.id}`, name: l.title, sub: `Lesson · ${course.title}`, score: sc + 0.1 });
+    }
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }
