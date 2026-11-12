@@ -9,11 +9,13 @@ import { IconChevron, IconCollapse, IconCube, IconExpand, IconPulse } from '@/co
 const VIEW_LABEL: Record<ViewMode, string> = {
   external: 'Exterior', sectioned: 'Sectioned', xray: 'X-ray', conduction: 'Conduction', territories: 'Territories', activation: 'Activation map',
 };
-const ECG_LABEL = { ecg: '12-lead EKG', wiggers: 'Pressure & volume', defib: 'Defibrillator' } as const;
+const ECG_LABEL = { ecg: '12-lead ECG', wiggers: 'Pressure & volume', defib: 'Defibrillator' } as const;
+/** what the bottom drawer's button hides */
+const ECG_SHORT = { ecg: 'ECG', wiggers: 'pressure & volume', defib: 'defibrillator' } as const;
 
 /**
  * The learning screen's two drawer bars: "3D heart" at the top slides the heart down,
- * "12-lead EKG" at the bottom slides the ECG up. The same button closes it again; ⤢ gives it the whole screen.
+ * "12-lead ECG" at the bottom slides the ECG up. The same button closes it again; ⤢ gives it the whole screen.
  */
 export default function DrawerBar({ kind, style }: { kind: 'heart' | 'ecg'; style?: React.CSSProperties }) {
   const state = useAppStore((s) => (kind === 'heart' ? s.heart : s.ecg));
@@ -56,7 +58,7 @@ export default function DrawerBar({ kind, style }: { kind: 'heart' | 'ecg'; styl
         }`}
       >
         {heart ? <IconCube size={15} /> : <IconPulse size={15} />}
-        {open ? `Hide ${heart ? '3D heart' : 'EKG'}` : name}
+        {open ? `Hide ${heart ? '3D heart' : ECG_SHORT[bottomView]}` : name}
         <IconChevron size={14} className={down ? 'rotate-90' : '-rotate-90'} />
       </button>
 

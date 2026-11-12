@@ -346,10 +346,6 @@ export default function HomeScreen() {
         {/* ── Practise ── */}
         <MenuSection title="Practice">
           <Tile
-            title="Rhythm trainer" text="Name live tracings one after another. The ones you miss come back until you know them."
-            icon={<IconHeartPulse size={22} />} tint="text-emerald-300 bg-emerald-500/15" onClick={openTrainer}
-          />
-          <Tile
             title="Quiz yourself" text={`${lib ? `${lib.quiz.length} questions` : 'Questions'} at every level, including live rhythm strips.`}
             icon={<IconQuiz size={22} />} tint="text-orange-300 bg-orange-500/15" onClick={() => useAppStore.getState().setQuizOpen(true)}
           />

@@ -596,7 +596,7 @@ export default function HeartScene({ paused = false }: { paused?: boolean }) {
   }, []);
 
   return (
-    <div ref={wrapRef} className="w-full h-full relative heart-stage cursor-grab">
+    <div ref={wrapRef} className="w-full h-full relative isolate z-0 heart-stage cursor-grab">
       <SceneErrorBoundary>
         <Canvas
           frameloop={paused ? 'never' : 'always'}

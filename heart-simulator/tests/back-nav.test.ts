@@ -91,6 +91,26 @@ describe('the Back button moves through CardioSim pages', () => {
     expect(currentPage().mode).toBe('home');
   });
 
+  it('Back returns to the section of the page the learner left it on (a drug card opened from Give meds)', async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    openCondition('avnrt');
+    await settle();
+    const at = history.i;
+    useAppStore.getState().setRightPanelTab('treat');
+    await settle();
+    // changing section is not a step of its own
+    expect(history.i).toBe(at);
+    openMedication('adenosine');
+    await settle();
+    expect(currentPage().item).toBe('adenosine');
+    await back();
+    expect(currentPage()).toMatchObject({ item: 'avnrt', tab: 'treat' });
+    expect(useAppStore.getState().rightPanelTab).toBe('treat');
+    useAppStore.getState().setMode('home');
+    await settle();
+  });
+
   it('cath lab catalog items are pages too', async () => {
     useAppStore.getState().setMode('learn');
     await settle();

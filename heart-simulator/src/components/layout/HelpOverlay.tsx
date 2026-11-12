@@ -16,7 +16,7 @@ const SHORTCUTS: [string, string][] = [
   ['[ / ]', 'Slower / faster simulation'],
   ['1 – 6', 'Exterior · Sectioned · X-ray · Conduction · Territories · Activation map'],
   ['H', 'Slide the 3D heart down / up'],
-  ['K', 'Slide the 12-lead EKG up / down'],
+  ['K', 'Slide the 12-lead ECG up / down'],
   ['L', 'Toggle 3D labels'],
   ['F', 'Toggle blood flow (sectioned view)'],
   ['V', 'Toggle cardiac vector'],
@@ -36,9 +36,9 @@ const GESTURES: [string, string][] = [
   ['Tap a lead', 'Show its axis on the heart'],
   ['Double-tap a lead', 'Inspect it large with labelled intervals'],
   ['Drag the ECG', 'Scrub back and forth through time'],
-  ['Tap 3D heart / 12-lead EKG', 'Slide the heart down from the top, the EKG up from the bottom — tap again to put it away'],
-  ['Drag a grip bar', 'Resize the heart or the EKG (double-tap to reset)'],
-  ['⤢ button', 'Give the heart or the EKG the whole screen'],
+  ['Tap 3D heart / 12-lead ECG', 'Slide the heart down from the top, the ECG up from the bottom — tap again to put it away'],
+  ['Drag a grip bar', 'Resize the heart or the ECG (double-tap to reset)'],
+  ['⤢ button', 'Give the heart or the ECG the whole screen'],
 ];
 
 export default function HelpOverlay() {
@@ -66,7 +66,7 @@ export default function HelpOverlay() {
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Main menu</b> — everything starts here: your role, search, the case simulator, every library section, the tools (3D heart, 12-lead, electrode lab, defibrillator, pressure &amp; volume), guided starts, the quiz, the tutor and this help. <b className="text-slate-100">Menu</b> (top left) always brings you back.</li>
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Courses</b> — short guided lessons. Each step explains one idea, sets up the 3D heart and the ECG to show it, and ends with a quick check. Your place and scores are kept on this device.</li>
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Rhythm trainer</b> — name live tracings one after another. The ones you miss come back more often until you know them.</li>
-              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Reading</b> — pick a section, then a topic. Tap <b className="text-slate-100">12-lead EKG</b> at the bottom to slide the ECG up, and <b className="text-slate-100">3D heart</b> at the top to slide the heart down; tap again to put them away. <b className="text-slate-100">←</b> (or your phone&apos;s Back) goes to the page before.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Reading</b> — pick a section, then a topic. Tap <b className="text-slate-100">12-lead ECG</b> at the bottom to slide the ECG up, and <b className="text-slate-100">3D heart</b> at the top to slide the heart down; tap again to put them away. <b className="text-slate-100">←</b> (or your phone&apos;s Back) goes to the page before.</li>
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Case simulator</b> — treat a patient case: every action in your scope is offered, the patient responds, and you get a scored review.</li>
             </ul>
           </section>

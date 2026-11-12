@@ -44,6 +44,11 @@ export interface Page {
   /** Learn: the library section, and the item being read */
   cat: PanelCategory | null;
   item: string | null;
+  /**
+   * Learn: the section of the item's page that was open (Overview, Give meds, Dosing …). Changing section is not
+   * a page of its own, but Back returns to the section the learner left the item on.
+   */
+  tab?: string;
   /** Learn on tablets and phones: the section's list rather than the reading */
   list: boolean;
   /** Learn: the 3D heart (top) and ECG (bottom) drawers */
@@ -108,6 +113,7 @@ export function currentPage(): Page {
     mode: app.mode,
     cat: learn ? app.activePanelCategory : null,
     item: learn ? currentItem() : null,
+    tab: learn && currentItem() ? app.rightPanelTab : undefined,
     list: learn && app.compact && app.listOpen,
     heart: learn ? app.heart : 'closed',
     ecg: learn ? app.ecg : 'closed',
@@ -162,6 +168,7 @@ function apply(page: Page, from: Page) {
       if (page.item) openById(page.item);
       else clearItem();
     }
+    if (page.item && page.tab && useAppStore.getState().rightPanelTab !== page.tab) useAppStore.getState().setRightPanelTab(page.tab);
     if (app.compact) app.setListOpen(page.list);
     app.setHeart(page.heart);
     app.setEcg(page.ecg);
@@ -215,7 +222,14 @@ function sync() {
   scheduled = false;
   if (applying || consuming) return;
   const page = currentPage();
-  if (same(page, stack[idx])) return;
+  if (same(page, stack[idx])) {
+    // the same page, read on another of its sections: remember the section, add no step
+    if (page.tab !== stack[idx].tab) {
+      stack[idx] = page;
+      write('replace', page);
+    }
+    return;
+  }
   if (performance.now() < replaceUntil) {
     stack[idx] = page;
     write('replace', page);

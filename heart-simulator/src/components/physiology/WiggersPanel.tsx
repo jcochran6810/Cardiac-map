@@ -21,6 +21,16 @@ export default function WiggersPanel() {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const loopRef = useRef<HTMLCanvasElement>(null);
   const [summary, setSummary] = useState<HemoSummary>(() => sim.hemo.summary(sim.time));
+  // The panel can be a wide strip under the heart or a narrow column beside a lesson: lay out by its own width
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [stack, setStack] = useState(false);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setStack(e.contentRect.width < 620));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => setSummary(sim.hemo.summary(sim.time)), 400);
@@ -81,8 +91,9 @@ export default function WiggersPanel() {
           ctx.fillStyle = COLORS.systole;
           ctx.fillRect(Math.max(left, xs), press.y0, Math.min(right, xe) - Math.max(left, xs), vol.y1 - press.y0);
         }
-        const marks: [number, string][] = [[ev.mc, 'MC'], [ev.ao, 'AO'], [ev.ac, 'AC'], [ev.mo, 'MO']];
-        for (const [t, label] of marks) {
+        // each pair of events is only ~50 ms apart: the second label of a pair sits a line lower so they never collide
+        const marks: [number, string, number][] = [[ev.mc, 'MC', 9], [ev.ao, 'AO', 19], [ev.ac, 'AC', 9], [ev.mo, 'MO', 19]];
+        for (const [t, label, dy] of marks) {
           if (t > T || t < t0) continue;
           const x = X(t);
           ctx.strokeStyle = COLORS.event;
@@ -90,7 +101,7 @@ export default function WiggersPanel() {
           ctx.beginPath(); ctx.moveTo(x, press.y0); ctx.lineTo(x, H - 2); ctx.stroke();
           ctx.setLineDash([]);
           ctx.fillStyle = COLORS.text;
-          ctx.fillText(label, x + 2, press.y0 + 9);
+          ctx.fillText(label, x + 2, press.y0 + dy);
         }
       }
 
@@ -100,7 +111,10 @@ export default function WiggersPanel() {
       const PY = (p: number) => press.y1 - (p / pMax) * (press.y1 - press.y0 - 12);
       ctx.strokeStyle = COLORS.grid;
       ctx.fillStyle = COLORS.text;
-      for (let p = 0; p <= pMax; p += pMax > 160 ? 40 : 20) {
+      // fewer grid lines when the band is short, so the numbers never print on top of each other
+      let tick = pMax > 160 ? 40 : 20;
+      while ((press.y1 - press.y0 - 12) / (pMax / tick) < 12) tick *= 2;
+      for (let p = 0; p <= pMax; p += tick) {
         const y = PY(p);
         ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
         ctx.fillText(String(p), 6, y + 3);
@@ -207,25 +221,25 @@ export default function WiggersPanel() {
   }, []);
 
   return (
-    <div className="absolute inset-0 flex phone:flex-col">
+    <div ref={rootRef} className={`absolute inset-0 flex ${stack ? 'flex-col' : ''}`}>
       <div className="flex-1 min-w-0 min-h-0 relative">
         <canvas ref={chartRef} className="absolute inset-0 w-full h-full" aria-label="Wiggers diagram" role="img" />
       </div>
       {/* PV loop + numbers: a column beside the chart, or a strip under it on phones */}
-      <div className="w-[260px] shrink-0 border-l border-slate-700 flex flex-col phone:w-auto phone:h-[44%] phone:flex-row phone:border-l-0 phone:border-t">
+      <div className={`shrink-0 border-slate-700 flex ${stack ? 'h-[44%] flex-row border-t' : 'w-[260px] flex-col border-l'}`}>
         <div className="relative flex-1 min-h-0 min-w-0">
           <canvas ref={loopRef} className="absolute inset-0 w-full h-full" aria-label="Pressure-volume loop" role="img" />
         </div>
-        <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1 text-[10px] border-t border-slate-700 bg-cardiac-dark/50 phone:w-[11.5rem] phone:shrink-0 phone:grid-cols-2 phone:content-start phone:border-t-0 phone:border-l phone:overflow-y-auto">
+        <div className={`p-2 grid gap-x-2 gap-y-1 text-[11px] border-slate-700 bg-cardiac-dark/50 ${stack ? 'w-[11.5rem] shrink-0 grid-cols-2 content-start border-l overflow-y-auto' : 'grid-cols-3 border-t'}`}>
           <Stat label="BP" value={summary.noOutput ? 'no pulse' : `${summary.sbp}/${summary.dbp}`} warn={summary.noOutput || summary.sbp < 90} />
           <Stat label="MAP" value={`${summary.map}`} warn={summary.map < 65} />
           <Stat label="CO L/min" value={summary.co.toFixed(1)} warn={summary.co < 3} />
           <Stat label="EDV / ESV" value={`${summary.edv}/${summary.esv}`} />
           <Stat label="Fwd SV mL" value={`${summary.sv}`} />
           <Stat label="EF" value={`${summary.ef}%`} warn={summary.ef < 40} />
-          <div className="col-span-3 phone:col-span-2 text-slate-400 truncate" title={summary.label}>Model: <span className="text-slate-200">{summary.label}</span> · LVEDP ~{summary.lvedp}</div>
-          <HeartSoundsButton className="col-span-3 phone:col-span-2 mt-0.5" />
-          <HeardLegend className="col-span-3 phone:col-span-2" />
+          <div className={`${stack ? 'col-span-2' : 'col-span-3'} text-slate-400 truncate`} title={summary.label}>Model: <span className="text-slate-200">{summary.label}</span> · LVEDP ~{summary.lvedp}</div>
+          <HeartSoundsButton className={`${stack ? 'col-span-2' : 'col-span-3'} mt-0.5`} />
+          <HeardLegend className={stack ? 'col-span-2' : 'col-span-3'} />
         </div>
       </div>
     </div>

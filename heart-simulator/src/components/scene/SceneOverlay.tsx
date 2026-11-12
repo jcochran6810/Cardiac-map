@@ -118,8 +118,22 @@ export default function SceneOverlay() {
       <div ref={probe} className="hidden" />
       {/* View modes + toggles */}
       <div className={`absolute top-2 left-2 z-10 flex flex-col gap-1.5 ${narrow ? 'max-w-[calc(100%-6rem)]' : 'max-w-[calc(100%-1rem)]'}`}>
+        {narrow && (
+          // a small view has no room for six buttons in a row: one menu shows them all
+          <label className="self-start flex items-center gap-1.5 pl-2.5 pr-1 rounded-lg border border-cardiac-accent/60 bg-black/70 shadow-xl">
+            <span className="text-[11px] text-slate-300">View</span>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value as ViewMode)}
+              aria-label="3D view"
+              className="h-9 bg-transparent text-[13px] font-semibold text-cardiac-accent pr-1 focus:outline-none"
+            >
+              {MODES.map((m) => <option key={m.value} value={m.value} className="bg-slate-900 text-slate-100">{m.label}</option>)}
+            </select>
+          </label>
+        )}
         <div
-          className={`flex rounded-lg border border-slate-600/60 bg-black/60 backdrop-blur-sm shadow-xl ${narrow ? 'overflow-x-auto no-scrollbar' : 'flex-wrap overflow-hidden'}`}
+          className={`rounded-lg border border-slate-600/60 bg-black/60 backdrop-blur-sm shadow-xl ${narrow ? 'hidden' : 'flex flex-wrap overflow-hidden'}`}
           role="radiogroup"
           aria-label="3D view mode"
         >
@@ -149,7 +163,7 @@ export default function SceneOverlay() {
             </button>
           ))}
         </div>
-        <div className={`flex gap-1 ${narrow ? 'overflow-x-auto no-scrollbar' : 'flex-wrap'}`}>
+        <div className={`flex gap-1 ${narrow ? 'overflow-x-auto no-scrollbar scroll-fade-r pr-6' : 'flex-wrap'}`}>
           <Pill active={labelsVisible} onClick={toggleLabels} title="Toggle labels (L)">Labels</Pill>
           {viewMode === 'sectioned' && <Pill active={showFlow} onClick={toggleFlow} title="Animated blood flow (F)">Blood flow</Pill>}
           <Pill active={showVector} onClick={toggleVector} title="Show the instantaneous cardiac electrical vector (V)">Cardiac vector</Pill>

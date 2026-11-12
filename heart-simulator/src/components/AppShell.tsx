@@ -102,7 +102,7 @@ export default function AppShell() {
 
   useEffect(() => { useAppStore.getState().setCompact(compact); }, [compact]);
   useEffect(() => { useAppStore.getState().setShort(short); }, [short]);
-  // Phones get the full 12-lead too (it reads well in the EKG drawer, ⤢ enlarges it); 3-lead is one tap away
+  // Phones get the full 12-lead too (it reads well in the ECG drawer, ⤢ enlarges it); 3-lead is one tap away
   useEffect(() => { useAppStore.getState().setPhone(phone); }, [phone]);
   // A new screen shape gets the default drawer sizes again
   useEffect(() => { setHeartSize(null); setEcgSize(null); setEcgWidth(null); }, [phone, compact, short]);
@@ -288,7 +288,7 @@ export default function AppShell() {
       <p className="max-w-xs">
         {drillOn
           ? <>Choose a set on the left to start. The tracing appears here.</>
-          : <>This step is easier to follow with a picture: open the <b className="text-slate-200">3D heart</b> above or the <b className="text-slate-200">EKG</b> below.</>}
+          : <>This step is easier to follow with a picture: open the <b className="text-slate-200">3D heart</b> above or the <b className="text-slate-200">ECG</b> below.</>}
       </p>
     </div>
   ) : inLesson ? (

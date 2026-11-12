@@ -1,8 +1,12 @@
 'use client';
 
 import React, { forwardRef, useEffect, useMemo, useState } from 'react';
-import { useContent, searchLibrary, type SearchHit } from '@/lib/content';
-import { openById } from '@/lib/actions';
+import { useContent, searchLibrary, type SearchExtra, type SearchHit } from '@/lib/content';
+import { openById, openTool, openTreatment } from '@/lib/actions';
+import { openTrainer } from '@/lib/drillRun';
+import { useAppStore } from '@/store/useAppStore';
+import { useTutorStore } from '@/store/useTutorStore';
+import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import { startLesson } from '@/lib/courses';
 import { CASE_DATA } from '@/data/caseData';
 import { IconSearch } from '@/components/ui/icons';
@@ -15,7 +19,33 @@ const KIND_STYLE: Record<SearchHit['kind'], string> = {
   cathlab: 'bg-cyan-500/15 text-cyan-300',
   case: 'bg-amber-500/15 text-amber-300',
   lesson: 'bg-orange-500/15 text-orange-300',
+  tool: 'bg-teal-500/15 text-teal-300',
+  simcase: 'bg-amber-500/15 text-amber-300',
 };
+
+/** What each kind of result is called (the same words the main menu uses) */
+const KIND_LABEL: Record<SearchHit['kind'], string> = {
+  structure: 'Anatomy', condition: 'Condition', procedure: 'Procedure', medication: 'Drug', cathlab: 'Cath lab',
+  case: 'Case study', lesson: 'Lesson', tool: 'Tool', simcase: 'Simulator',
+};
+
+/** The tools and screens, with the words people use for them */
+const TOOLS: (SearchExtra & { open: () => void })[] = [
+  { kind: 'tool', id: 'tool:heart', name: '3D heart', sub: 'Tool', keys: ['3d', 'model', 'anatomy viewer', 'rotate'], open: () => openTool('heart') },
+  { kind: 'tool', id: 'tool:ecg', name: '12-lead ECG', sub: 'Tool', keys: ['12 lead', 'twelve lead', 'ecg', 'ekg', 'tracing', 'strip', 'monitor'], open: () => openTool('ecg') },
+  { kind: 'tool', id: 'tool:lab', name: 'Electrode lab', sub: 'Tool', keys: ['electrode', 'lead placement', 'cable', 'reversal', 'v1', 'limb leads'], open: () => openTool('lab') },
+  { kind: 'tool', id: 'tool:defib', name: 'Defibrillator', sub: 'Tool', keys: ['defib', 'defibrillation', 'aed', 'cardioversion', 'pacing', 'pacer', 'shock', 'cpr', 'code', 'monitor'], open: () => openTool('defib') },
+  { kind: 'tool', id: 'tool:wiggers', name: 'Pressure & volume', sub: 'Tool', keys: ['wiggers', 'pv loop', 'pressure volume', 'hemodynamics', 'heart sounds'], open: () => openTool('wiggers') },
+  { kind: 'tool', id: 'tool:meds', name: 'Give a medication', sub: 'Tool', keys: ['give meds', 'medication', 'drug', 'push', 'dose'], open: () => openTreatment('avnrt') },
+  { kind: 'tool', id: 'tool:trainer', name: 'Rhythm trainer', sub: 'Practice', keys: ['rhythm', 'practice', 'drill', 'strip', 'recognition'], open: openTrainer },
+  { kind: 'tool', id: 'tool:courses', name: 'Courses', sub: 'Guided lessons', keys: ['course', 'lesson', 'learn', 'tutorial', 'guided'], open: () => useAppStore.getState().setMode('courses') },
+  { kind: 'tool', id: 'tool:sim', name: 'Case simulator', sub: 'Treat a patient', keys: ['simulator', 'case', 'scenario', 'patient', 'practice'], open: () => useAppStore.getState().setMode('simulator') },
+  { kind: 'tool', id: 'tool:quiz', name: 'Quiz', sub: 'Practice', keys: ['quiz', 'questions', 'test'], open: () => useAppStore.getState().setQuizOpen(true) },
+  { kind: 'tool', id: 'tool:tutor', name: 'Tutor', sub: 'Ask a question', keys: ['tutor', 'ask', 'question', 'help me'], open: () => useTutorStore.getState().setTutorOpen(true) },
+];
+const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
+const SIM_CASES: SearchExtra[] = SCENARIOS.map((sc) => ({ kind: 'simcase', id: `sim:${sc.id}`, name: sc.title, sub: 'Simulator case', keys: [sc.summary] }));
+const EXTRAS: SearchExtra[] = [...TOOLS, ...SIM_CASES];
 
 const CASES = Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title }));
 
@@ -29,7 +59,7 @@ interface Props {
   onDone?: () => void;
 }
 
-/** Search the whole library (anatomy, conditions, drugs, procedures, cath lab, cases) and the guided lessons, and open a result */
+/** Search everything — the library, the guided lessons, the tools and the simulator cases — and open a result */
 const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
   { id, className = '', inputClassName = '', placeholder = 'Search anatomy, conditions, drugs…', onDone }, ref,
 ) {
@@ -38,7 +68,7 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const resultsOpen = open && q.trim().length >= 2;
-  const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q) : []), [lib, q]);
+  const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q, 24, EXTRAS) : []), [lib, q]);
 
   useEffect(() => {
     if (resultsOpen) document.getElementById(`${id}-result-${active}`)?.scrollIntoView({ block: 'nearest' });
@@ -53,7 +83,10 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
     if (h.kind === 'lesson') {
       const [course, lesson] = h.id.split('/');
       startLesson(course, lesson);
-    } else openById(h.id);
+    } else if (h.kind === 'tool') TOOL_BY_ID[h.id]?.open();
+    // a simulator case is started from its own screen, where the role and the briefing are
+    else if (h.kind === 'simcase') useAppStore.getState().setMode('simulator');
+    else openById(h.id);
     close();
     (document.activeElement as HTMLElement | null)?.blur();
   };
@@ -101,7 +134,7 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
               role="option"
               aria-selected={i === active}
             >
-              <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{h.kind}</span>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{KIND_LABEL[h.kind]}</span>
               <span className="text-slate-100 truncate min-w-0">{h.name}</span>
               <span className="ml-auto hidden sm:block text-xs text-ui-muted truncate capitalize max-w-[45%]">{h.sub}</span>
             </button>

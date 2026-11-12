@@ -78,10 +78,10 @@ function Chips({ ids, label }: { ids: string[]; label: string }) {
   if (!valid.length) return null;
   return (
     <div className="mt-3">
-      <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">{label}</div>
-      <div className="flex flex-wrap gap-1">
+      <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">{label}</div>
+      <div className="flex flex-wrap gap-1 touch:gap-1.5">
         {valid.map((id) => (
-          <button key={id} onClick={() => openById(id)} className={`px-1.5 py-0.5 touch:px-2.5 touch:py-1.5 rounded border text-[10px] transition-colors ${KIND_CHIP[kindOf(id)!]}`}>
+          <button key={id} onClick={() => openById(id)} className={`px-1.5 py-0.5 touch:px-3 touch:min-h-[40px] rounded border text-[11px] touch:text-xs transition-colors ${KIND_CHIP[kindOf(id)!]}`}>
             {nameOf(id)}
           </button>
         ))}
@@ -100,7 +100,7 @@ function Tabs({ tabs, active, onChange, level }: { tabs: TabDef[]; active: strin
   // keep the chosen section's button in view in the row (sideways only: the page itself must not jump)
   useEffect(() => {
     const r = row.current;
-    const el = r?.querySelector<HTMLElement>('[aria-selected="true"]');
+    const el = r?.querySelector<HTMLElement>('[aria-current="true"]');
     if (!r || !el) return;
     const left = el.offsetLeft - 24;
     const right = el.offsetLeft + el.offsetWidth + 24;
@@ -121,16 +121,16 @@ function Tabs({ tabs, active, onChange, level }: { tabs: TabDef[]; active: strin
   };
   return (
     <nav ref={bar} className="sticky top-0 z-10 shrink-0 border-b border-slate-700 bg-cardiac-panel" aria-label="Sections">
-      <div ref={row} className="relative flex lg:flex-wrap gap-1.5 px-2 py-2 overflow-x-auto no-scrollbar" role="tablist">
+      <div ref={row} className="relative flex lg:flex-wrap gap-1.5 px-2 py-2 overflow-x-auto no-scrollbar">
         {tabs.map((t) => {
           const rec = t.levels?.includes(level);
           return (
             <button
               key={t.key}
               onClick={() => choose(t.key)}
-              role="tab"
-              aria-selected={active === t.key}
-              title={rec ? `Recommended for ${LEVEL_LABELS[level].long}` : undefined}
+              aria-current={active === t.key ? 'true' : undefined}
+              aria-label={rec ? `${t.label} (most useful for ${LEVEL_LABELS[level].short})` : undefined}
+              title={rec ? `Most useful for ${LEVEL_LABELS[level].long}` : undefined}
               className={`relative shrink-0 whitespace-nowrap px-3 py-1.5 touch:py-2 text-[11px] phone:text-xs rounded-full border transition-colors ${
                 active === t.key
                   ? 'bg-cardiac-accent/20 border-cardiac-accent/60 text-cardiac-accent font-semibold'
@@ -143,6 +143,11 @@ function Tabs({ tabs, active, onChange, level }: { tabs: TabDef[]; active: strin
           );
         })}
       </div>
+      {tabs.some((t) => t.levels?.includes(level)) && (
+        <p className="px-3 pb-1.5 -mt-0.5 text-[11px] text-slate-400 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /> most useful for {LEVEL_LABELS[level].short}
+        </p>
+      )}
       {/* more sections off to the side: a soft edge says the row scrolls */}
       <div className="lg:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-cardiac-panel to-transparent" />
     </nav>
@@ -208,7 +213,7 @@ function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }
       {open && (
         <div className="px-2 pb-2">
           <p className="text-xs phone:text-[13px] text-slate-200 leading-relaxed">{note}</p>
-          <p className="mt-1 text-[9px] text-slate-500">Within {SCOPES[level].role} scope · {SCOPES[level].framework.split(' · ')[0]}</p>
+          <p className="mt-1 text-[11px] text-slate-400">Within {SCOPES[level].role} scope · {SCOPES[level].framework.split(' · ')[0]}</p>
           {showScope && <div className="mt-2 pt-2 border-t border-emerald-500/20"><ScopeCard level={level} compact /></div>}
         </div>
       )}
@@ -218,18 +223,18 @@ function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }
 
 function ActionBtn({ onClick, children, title }: { onClick: () => void; children: React.ReactNode; title?: string }) {
   return (
-    <button onClick={onClick} title={title} className="flex items-center gap-1 px-2 py-1 touch:py-2 touch:px-3 rounded-md text-[10px] bg-cardiac-surface/70 text-slate-200 hover:bg-cardiac-surface hover:text-white border border-slate-600/60">
+    <button onClick={onClick} title={title} className="flex items-center gap-1 px-2 py-1 touch:px-3 touch:min-h-[40px] rounded-md text-[11px] touch:text-xs bg-cardiac-surface/70 text-slate-200 hover:bg-cardiac-surface hover:text-white border border-slate-600/60">
       {children}
     </button>
   );
 }
 
-function useTab(tabs: TabDef[], resetKey: string) {
+function useTab(tabs: TabDef[], resetKey: string, first: string = tabs[0].key) {
   const tab = useAppStore((s) => s.rightPanelTab);
   const setTab = useAppStore((s) => s.setRightPanelTab);
-  const valid = tabs.some((t) => t.key === tab) ? tab : tabs[0].key;
+  const valid = tabs.some((t) => t.key === tab) ? tab : first;
   useEffect(() => {
-    if (!tabs.some((t) => t.key === tab)) setTab(tabs[0].key);
+    if (!tabs.some((t) => t.key === tab)) setTab(first);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
   return [valid, setTab] as const;
@@ -314,7 +319,16 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
       <Header title={c.name} badge={c.category} badgeClass="bg-rose-500/15 text-rose-300" summary={treating ? undefined : c.summary}>
         {!treating && <LevelFocus notes={c.levelNotes} level={level} />}
         <div className="flex flex-wrap gap-1 mt-2">
-          <ActionBtn onClick={() => { useMedStore.getState().reset(c.id); showRhythm(profile.id); showEcg('ecg'); }} title="Show this pattern on the 12-lead (and forget any drugs given)"><IconPulse size={11} /> Show the EKG</ActionBtn>
+          <ActionBtn
+            onClick={() => {
+              // drugs already given keep acting: the button only brings the tracing into view ("Reset patient" starts again)
+              if (useMedStore.getState().log.length === 0) { useMedStore.getState().reset(c.id); showRhythm(profile.id); }
+              showEcg('ecg');
+            }}
+            title="Show this pattern on the 12-lead"
+          >
+            <IconPulse size={11} /> Show the ECG
+          </ActionBtn>
           <ActionBtn onClick={() => setTab('treat')} title="Choose a drug and a dose for this patient's weight, push it, and watch the live 12-lead"><IconPill size={11} /> Give a medication</ActionBtn>
           {profile.keyLeads?.[0] && (
             <ActionBtn onClick={() => { showEcg('ecg'); ecg.setInspectLead(profile.keyLeads![0] as never); }}>Inspect lead {profile.keyLeads[0]}</ActionBtn>
@@ -458,13 +472,13 @@ const MED_TABS: TabDef[] = [
 ];
 
 function MedicationView({ m, level }: { m: MedicationContent; level: LearningLevel }) {
-  const [tab, setTab] = useTab(MED_TABS, m.id);
+  const [tab, setTab] = useTab(MED_TABS, m.id, MED_TABS.find((t) => t.levels?.includes(level))?.key);
   const body = (m as unknown as Record<string, string[]>)[tab] ?? m.mechanism;
   return (
     <>
       <Tabs tabs={MED_TABS} active={tab} onChange={setTab} level={level} />
       <Header title={m.name} badge={m.drugClass} badgeClass="bg-emerald-500/15 text-emerald-300" summary={m.summary}>
-        {m.brandNames.length > 0 && <p className="text-[10px] text-slate-500 mt-1">Brand names: {m.brandNames.join(', ')}</p>}
+        {m.brandNames.length > 0 && <p className="text-[11px] text-slate-400 mt-1">Brand names: {m.brandNames.join(', ')}</p>}
         <LevelFocus notes={m.levelNotes} level={level} />
       </Header>
       <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm">
@@ -726,7 +740,7 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
         <Vitals c={c} />
         <div className="flex flex-wrap gap-1 mt-2">
           <ActionBtn onClick={() => setTab('decisions')}>Work the case →</ActionBtn>
-          <ActionBtn onClick={() => { openCase(c.id); showEcg('ecg'); }} title="Restart the case and show its monitor"><IconPulse size={11} /> Show the EKG</ActionBtn>
+          <ActionBtn onClick={() => { openCase(c.id); showEcg('ecg'); }} title="Restart the case and show its monitor"><IconPulse size={11} /> Show the ECG</ActionBtn>
         </div>
       </Header>
       <div data-section className="flex-1 min-h-full p-3 text-[13px] phone:text-sm space-y-3">
@@ -741,7 +755,7 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
             )}
             <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">History</div><p className="text-slate-300 leading-relaxed">{c.history}</p></div>
             <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Examination</div><p className="text-slate-300 leading-relaxed">{c.physicalExam}</p></div>
-            <p className="text-[10px] text-slate-500">Tap <b>12-lead EKG</b> at the bottom to see the live ECG, then open <b>Decisions</b>.</p>
+            <p className="text-[10px] text-slate-500">Tap <b>12-lead ECG</b> at the bottom to see the live ECG, then open <b>Decisions</b>.</p>
           </>
         )}
         {tab === 'decisions' && <CaseDecisions c={c} level={level} />}
@@ -765,7 +779,7 @@ function PickPrompt() {
       <h2 className="text-base font-semibold text-white">{section.label}</h2>
       <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">
         {compact ? 'Open the list and pick a topic to read about it.' : 'Pick a topic from the list to read about it.'}
-        {' '}Tap <b className="text-slate-200">3D heart</b> at the top or <b className="text-slate-200">12-lead EKG</b> at the bottom at any time to slide them into view.
+        {' '}Tap <b className="text-slate-200">3D heart</b> at the top or <b className="text-slate-200">12-lead ECG</b> at the bottom at any time to slide them into view.
       </p>
       {compact && (
         <button onClick={() => useAppStore.getState().setListOpen(true)} className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cardiac-accent text-slate-950 text-xs font-semibold">

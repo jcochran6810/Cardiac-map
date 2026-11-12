@@ -15,6 +15,7 @@ import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { useCourseStore } from '@/store/useCourseStore';
 import { findCourse } from '@/lib/courses';
 import { useDrillStore } from '@/store/useDrillStore';
+import { useECGStore } from '@/store/useECGStore';
 import { TRAINER_PAGE } from '@/lib/backNav';
 
 /**
@@ -53,8 +54,15 @@ export default function TopBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // a tool that has the whole screen (opened from the menu, or enlarged) is what the learner is in — not the library section under it
+  const heart = useAppStore((s) => s.heart);
+  const ecgDrawer = useAppStore((s) => s.ecg);
+  const bottomView = useECGStore((s) => s.bottomView);
+  const lab = useECGStore((s) => s.electrodeLab);
+  const tool = ecgDrawer === 'full' ? (bottomView === 'defib' ? 'Defibrillator' : bottomView === 'wiggers' ? 'Pressure & volume' : lab ? 'Electrode lab' : '12-lead ECG')
+    : heart === 'full' ? '3D heart' : null;
   const title = mode === 'simulator' ? 'Case simulator' : mode === 'courses' ? 'Courses'
-    : mode === 'learn' ? (lesson ? findCourse(lesson.course, lib?.courses ?? [])?.title ?? 'Lesson' : trainer ? 'Rhythm trainer' : CATEGORY_BY_VALUE[category].label) : '';
+    : mode === 'learn' ? (lesson ? findCourse(lesson.course, lib?.courses ?? [])?.title ?? 'Lesson' : trainer ? 'Rhythm trainer' : tool ?? CATEGORY_BY_VALUE[category].label) : '';
   const backLabel = !prev ? 'Back'
     : prev.mode === 'home' ? 'Back to the main menu'
       : prev.mode === 'courses' ? 'Back to the courses'
