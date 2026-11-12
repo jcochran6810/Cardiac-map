@@ -59,6 +59,11 @@ export interface LabAsk {
   thanks: string;
   /** what the operator says when the right thing never comes */
   fallback: string;
+  /**
+   * What happens to the patient when the operator (or a teammate) does it after all — the drug given, the reading
+   * taken — so the case goes on as the story says. Leave it out when `gives` alone moves the procedure on.
+   */
+  fallbackEffect?: (s: SimState) => Effect;
   /** flag set once the operator has what they asked for (the procedure then moves on) */
   gives: string;
   label: string;
@@ -104,7 +109,10 @@ export function askEvents(a: LabAsk): ScenarioEvent[] {
     {
       id: `${a.id}-fallback`,
       when: (s) => mine(s) && has(s, asked) && !has(s, a.gives) && s.minute >= s.flags[asked] + wait,
-      effect: () => ({ say: [['operator', a.fallback, 'warn']], flags: [a.gives] }),
+      effect: (s) => {
+        const done = a.fallbackEffect?.(s) ?? {};
+        return { ...done, say: [['operator', a.fallback, 'warn'], ...(done.say ?? [])], flags: [a.gives, ...(done.flags ?? [])] };
+      },
     },
   ];
 }

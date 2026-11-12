@@ -11,7 +11,7 @@ import { useCathLabStore } from '@/store/useCathLabStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, openCase, openStructure, showCineView, showEcg, showHeart, showRhythm } from '@/lib/actions';
+import { kindOf, nameOf, openById, openCase, openStructure, showCineView, showConditionEcg, showEcg, showHeart } from '@/lib/actions';
 import { enterSimulator, useSimStore } from '@/store/useSimStore';
 import { SCENARIOS, labCasesUsing } from '@/lib/sim/scenario/scenarios';
 import { CASE_DATA, type CaseData } from '@/data/caseData';
@@ -25,7 +25,6 @@ import CArmDiagram from '@/components/cathlab/CArmDiagram';
 import { IconCheck, IconChevron, IconCube, IconFlag, IconList, IconPill, IconPlay, IconPulse } from '@/components/ui/icons';
 import { CATEGORY_BY_VALUE } from '@/lib/categories';
 import GiveMedication from '@/components/meds/GiveMedication';
-import { useMedStore } from '@/store/useMedStore';
 import ScopeCard from '@/components/ui/ScopeCard';
 import { SCOPES } from '@/lib/scope';
 
@@ -320,11 +319,8 @@ function ConditionView({ c, level }: { c: ConditionContent; level: LearningLevel
         {!treating && <LevelFocus notes={c.levelNotes} level={level} />}
         <div className="flex flex-wrap gap-1 mt-2">
           <ActionBtn
-            onClick={() => {
-              // drugs already given keep acting: the button only brings the tracing into view ("Reset patient" starts again)
-              if (useMedStore.getState().log.length === 0) { useMedStore.getState().reset(c.id); showRhythm(profile.id); }
-              showEcg('ecg');
-            }}
+            // a patient already on the monitor (drugs acting, a code under way) stays: the button only brings the tracing into view
+            onClick={() => showConditionEcg(c.id)}
             title="Show this pattern on the 12-lead"
           >
             <IconPulse size={11} /> Show the ECG

@@ -2,31 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ECGEngine } from '@/lib/ecg/engine';
 import { STANDARD_PLACEMENT, applyPreset, isStandard, PLACEMENT_PRESETS } from '@/lib/ecg/electrodes';
 import { applyPlacement } from '@/lib/ecg/placement';
-import { sim, syncRhythm } from '@/lib/sim/simulation';
+import { sim } from '@/lib/sim/simulation';
 import { newPatient, setRhythm, showRhythm } from '@/lib/rhythm';
 import {
-  cleanSlate, openCase, openCategory, openCondition, openMedication, openProcedure, openStructure, openTool, openTreatment,
+  cleanSlate, endQuizStrips, openCase, openCategory, openCondition, openMedication, openProcedure, openStructure, openTool,
+  openTreatment, showConditionEcg, showQuizStrip,
 } from '@/lib/actions';
-import { SCENARIOS, giveDrug, loadScenario, resetCode, tickDefib, toggleCPR, useDefibStore } from '@/lib/sim/defib';
-import { tickMeds, useMedStore } from '@/store/useMedStore';
+import { SCENARIOS, giveDrug, loadScenario, resetCode, toggleCPR, useDefibStore } from '@/lib/sim/defib';
+import { drugMods, useMedStore } from '@/store/useMedStore';
 import { enterSimulator, leaveSimulator, useSimStore } from '@/store/useSimStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { CASE_DATA } from '@/data/caseData';
+import { frame, monitor, run } from './helpers';
 
-/** one frame of the simulation driver */
-function frame(dt = 50) {
-  const tl = useTimelineStore.getState();
-  const mods = useAppStore.getState().mode === 'learn' ? useMedStore.getState().mods : null;
-  syncRhythm(useECGStore.getState().activeProfileId, tl.heartRate, mods);
-  if (tl.playing) sim.time += dt * tl.speed;
-  sim.engine.ensure(sim.time + 4000);
-  tickDefib(sim.time);
-  tickMeds(sim.time);
-}
-const run = (ms: number, dt = 50) => { for (let t = 0; t < ms; t += dt) frame(dt); };
-const monitor = () => `${useECGStore.getState().activeProfileId}@${useTimelineStore.getState().heartRate}`;
 const med = () => useMedStore.getState();
 const defib = () => useDefibStore.getState();
 const scenario = (id: string) => SCENARIOS.find((s) => s.id === id)!;
@@ -283,6 +273,130 @@ describe('effects on the same patient keep running', () => {
     useAppStore.getState().setMode('simulator');
     expect(monitor()).toBe('atrial-flutter@100');
   });
+
+  it('the tracing keeps showing what the drugs do to the intervals on the main menu and the course list', () => {
+    showRhythm('normal-sinus', 72);
+    run(5_000);
+    const plain = sim.engine.intervals(sim.time).qrs!;
+    med().give('procainamide', 1000);
+    for (let i = 0; i < 3; i++) { med().skipAhead(); run(2_000); }
+    expect(med().mods?.qrsWiden).toBeGreaterThan(1.1);
+    for (const mode of ['home', 'courses'] as const) {
+      useAppStore.getState().setMode(mode);
+      expect(drugMods(), mode).toEqual(med().mods);
+      run(5_000);
+      // the beats drawn while away from the Learn view are the patient's: still widened
+      expect(sim.engine.intervals(sim.time).qrs!, mode).toBeGreaterThan(plain * 1.1);
+    }
+    // only the case simulator's patient has been given none of it
+    useAppStore.getState().setMode('simulator');
+    expect(drugMods()).toBeNull();
+  });
+});
+
+describe('the quiz borrows the monitor only for its strips', () => {
+  it('closing a quiz that showed no strip leaves the drugs acting', () => {
+    openCondition('avnrt');
+    run(2_000);
+    med().give('adenosine', 6);
+    run(3_000);
+    endQuizStrips();
+    expect(med().given).toHaveLength(1);
+    expect(med().next).not.toBeNull();
+    run(60_000);
+    expect(monitor()).toBe('normal-sinus@84');
+  });
+
+  it('a strip is another patient; closing the quiz brings back the patient from before any drug', () => {
+    openCondition('avnrt');
+    run(2_000);
+    med().give('adenosine', 6);
+    run(60_000);
+    expect(monitor()).toBe('normal-sinus@84');
+    showQuizStrip('vt', 170);
+    expect(monitor()).toBe('vt@170');
+    expect(med().given).toHaveLength(0);
+    showQuizStrip('atrial-flutter', 150);
+    endQuizStrips();
+    // not "sinus rhythm" with no dose on record: the AVNRT patient, untreated
+    expect(monitor()).toBe('avnrt@180');
+    // with no drugs given, the rhythm the learner had on the monitor, at its rate
+    showRhythm('lbbb', 60);
+    showQuizStrip('vf');
+    showQuizStrip('vf');
+    endQuizStrips();
+    expect(monitor()).toBe('lbbb@60');
+  });
+
+  it('a topic opened from the quiz stays on the monitor when the quiz closes', () => {
+    openCondition('avnrt');
+    showQuizStrip('vt', 170);
+    openCondition('atrial-fibrillation');
+    const af = monitor();
+    endQuizStrips();
+    expect(monitor()).toBe(af);
+    // …and a strip shown after it hands the monitor back to that topic
+    showQuizStrip('torsades');
+    endQuizStrips();
+    expect(monitor()).toBe(af);
+  });
+
+  it('…even when the topic has the same rhythm as the strip (a VT strip, then the VT page from its links)', () => {
+    openCondition('avnrt');
+    showQuizStrip('vt', 170);
+    openCondition('monomorphic-vt');
+    run(2_000);
+    const vt = monitor();
+    endQuizStrips();
+    expect(monitor()).toBe(vt);
+    expect(med().conditionId).toBe('monomorphic-vt');
+  });
+});
+
+describe('"Show the ECG" on a condition page', () => {
+  it('does not end a code under way on the defibrillator', () => {
+    openCondition('atrial-fibrillation');
+    loadScenario(scenario('vf'));
+    toggleCPR();
+    run(5_000);
+    showConditionEcg('atrial-fibrillation');
+    expect(monitor()).toBe('vf@0');
+    expect(defib().cpr.on).toBe(true);
+    expect(defib().scenario?.id).toBe('vf');
+    expect(defib().log.length).toBeGreaterThan(1);
+    expect(useAppStore.getState().ecg).toBe('open');
+    expect(useECGStore.getState().bottomView).toBe('ecg');
+    // nor one without a scenario: CPR on a rhythm the instructor put up
+    resetCode();
+    openCondition('atrial-fibrillation');
+    showRhythm('pea', 40);
+    toggleCPR();
+    showConditionEcg('atrial-fibrillation');
+    expect(monitor()).toBe('pea@40');
+    expect(defib().cpr.on).toBe(true);
+  });
+
+  it('does not end the drugs still acting', () => {
+    openCondition('avnrt');
+    run(2_000);
+    med().give('adenosine', 6);
+    run(60_000);
+    showConditionEcg('avnrt');
+    expect(monitor()).toBe('normal-sinus@84');
+    expect(med().given).toHaveLength(1);
+  });
+
+  it('puts the pattern back when nobody is being treated, and keeps the rate the learner set when it is already up', () => {
+    openCondition('avnrt');
+    showRhythm('vt', 170);
+    showConditionEcg('avnrt');
+    expect(monitor()).toBe('avnrt@180');
+    expect(med().conditionId).toBe('avnrt');
+    expect(useAppStore.getState().ecg).toBe('open');
+    setRhythm('avnrt', 200);
+    showConditionEcg('avnrt');
+    expect(monitor()).toBe('avnrt@200');
+  });
 });
 
 describe('ECG cables go back to their standard sites', () => {
@@ -329,13 +443,24 @@ describe('ECG cables go back to their standard sites', () => {
     useSimStore.getState().startScenario('stemi-anterior-field', 2);
     expect(isStandard(useECGStore.getState().placement)).toBe(true);
     expect(leadI()).toBeCloseTo(standardLeadI, 6);
-    // the lab was open when the simulator took over: it comes back, with its cables in place
     applyPlacement(reversal());
     leaveSimulator();
     useSimStore.getState().closeScenario();
     useAppStore.getState().setMode('learn');
     expect(isStandard(useECGStore.getState().placement)).toBe(true);
     expect(leadI()).toBeCloseTo(standardLeadI, 6);
+  });
+
+  it('the electrode lab that was open when the simulator took over stays shut afterwards', () => {
+    openTool('lab');
+    useAppStore.getState().setMode('simulator');
+    enterSimulator();
+    useSimStore.getState().startScenario('stemi-anterior-field', 2);
+    expect(useECGStore.getState().electrodeLab).toBe(false);
+    leaveSimulator();
+    useSimStore.getState().closeScenario();
+    useAppStore.getState().setMode('home');
+    expect(useECGStore.getState().electrodeLab).toBe(false);
   });
 
   it('pushing a drug closes the electrode lab and puts its cables back: the effect is watched on a true 12-lead', () => {

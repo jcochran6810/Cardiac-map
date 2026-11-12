@@ -5,6 +5,7 @@ import { READ_OPTIONS, answerFor, judgeRead } from '@/lib/sim/scenario/reads';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
+import type { SimState } from '@/lib/sim/scenario/types';
 import { runScenario as run } from './helpers';
 
 const MEDIC_IDEAL = [
@@ -139,6 +140,134 @@ describe('anterior STEMI in the field', () => {
     const r = review(stemiAnterior, s);
     expect(r.outcome).toMatch(/Ended early/);
     expect(r.toFix.filter((t) => t.kind === 'missed').length).toBeGreaterThan(5);
+    expect(r.missed).toBe(r.toFix.filter((t) => t.kind === 'missed').length);
+  });
+
+  it('an ideal run says every critical item was done, and counts none missed', () => {
+    const r = review(stemiAnterior, run(stemiAnterior, 2, MEDIC_IDEAL));
+    expect(r.missed).toBe(0);
+    expect(r.outcome).toMatch(/^Every critical intervention done in \d+:\d\d\.$/);
+  });
+});
+
+describe('built-in safety rules judge what the action really did', () => {
+  it('an AED that advises no shock costs nothing, even with a pulse', () => {
+    const s = run(stemiAnterior, 2, ['primary', 'aed']);
+    expect(s.log.at(-1)!.text).toMatch(/No shock advised/);
+    expect(s.penalties).toEqual([]);
+    expect(s.rhythm).toEqual({ profile: 'anterior-stemi', hr: 96 });
+  });
+
+  it('a manual shock with a pulse is still a critical error', () => {
+    expect(run(stemiAnterior, 2, ['defib']).penalties.map((p) => p.id)).toEqual(['shock-with-pulse']);
+  });
+
+  it('synchronised cardioversion of a rhythm that is not a tachyarrhythmia is penalised, and hurts', () => {
+    const s = run(stemiAnterior, 2, ['cardiovert']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['cardiovert-no-tachycardia']);
+    expect(s.rhythm).toEqual({ profile: 'anterior-stemi', hr: 96 });
+    expect(s.log.some((l) => l.who === 'patient')).toBe(true);
+  });
+
+  it('cardioverting PEA is a shock to a non-shockable rhythm, not a sync problem; in VF it is', () => {
+    const per = SCENARIO_BY_ID['perforation-cathlab'];
+    let s = run(per, 5, ['balloon-tamponade', 'reassess', 'reassess', 'reassess', 'reassess']);
+    expect(s.rhythm.profile).toBe('pea');
+    s = perform(per, s, 'cardiovert');
+    expect(s.penalties.map((p) => p.id)).toContain('shock-nonshockable');
+    expect(s.penalties.map((p) => p.id)).not.toContain('sync-in-arrest');
+    const vf = SCENARIO_BY_ID['vf-arrest-field'];
+    expect(run(vf, 2, ['cardiovert']).penalties.map((p) => p.id)).toEqual(['sync-in-arrest']);
+  });
+
+  it('pacing a heart that is not slow (50 and up) is penalised, and the story says why it did nothing', () => {
+    const inf = SCENARIO_BY_ID['stemi-inferior-rv-field'];
+    for (const [sc, role, hr] of [[inf, 2, 58], [SCENARIO_BY_ID['stemi-inferior-cathlab'], 5, 58], [stemiAnterior, 2, 96]] as const) {
+      const s = run(sc, role, ['pace']);
+      expect(s.rhythm.hr, sc.id).toBe(hr);
+      expect(s.penalties.map((p) => p.id), sc.id).toEqual(['pace-not-slow']);
+      expect(s.log.slice(-2).map((l) => l.text).join(' '), sc.id).toMatch(new RegExp(`\\b${hr}\\b`));
+    }
+  });
+
+  it('pacing in cardiac arrest is penalised and shows no pulse', () => {
+    const vf = SCENARIO_BY_ID['vf-arrest-field'];
+    const s = run(vf, 2, ['pace']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['pace-in-arrest']);
+    expect(s.pulse).toBe(false);
+    expect(s.log.at(-1)!.text).toMatch(/no pulse/i);
+  });
+
+  it('an advanced airway cannot be placed in an awake patient, and trying is penalised', () => {
+    const s = run(stemiAnterior, 2, ['airway']);
+    expect(s.flags.airway).toBeUndefined();
+    expect(s.flags.ventilated).toBeUndefined();
+    expect(s.penalties.map((p) => p.id)).toEqual(['airway-awake']);
+  });
+
+  it('a 12-lead can only be repeated once there is a first one', () => {
+    const s = run(stemiAnterior, 2, ['ecg12-repeat']);
+    expect(s.minute).toBe(0);
+    expect(s.counts['ecg12-repeat']).toBeUndefined();
+    expect(s.log.at(-1)!.text).toMatch(/first 12-lead/);
+  });
+
+  it('nitroglycerin with a systolic pressure under 90 is a major error', () => {
+    const sc = SCENARIO_BY_ID['complete-heart-block-field'];
+    const s = run(sc, 2, ['iv', 'nitro']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['nitro-hypotension']);
+    // with a pressure of 148 it is not
+    expect(run(stemiAnterior, 2, ['vitals', 'ask-pde5', 'iv', 'nitro']).penalties).toEqual([]);
+  });
+
+  it('a scenario rule that covers the same mistake replaces the built-in one: one penalty, not two', () => {
+    const shock = SCENARIO_BY_ID['shock-cathlab'];
+    expect(run(shock, 5, ['nitro']).penalties.map((p) => p.id)).toEqual(['nitro-in-shock']);
+    const rv = SCENARIO_BY_ID['stemi-inferior-cathlab'];
+    const steps = ['consent', 'heparin', 'p2y12', 'timeout', 'access-femoral', 'cath-jl4', 'angio', 'guide-jr4', 'view-rca-lao', 'wire-workhorse', 'balloon-predil'];
+    const s = run(rv, 5, [...steps, 'nitro']);
+    expect(s.vitals.sbp).toBeLessThan(90);
+    expect(s.penalties.map((p) => p.id)).toEqual(['nitro-rv']);
+  });
+});
+
+describe('vital signs stay inside what a living patient can show', () => {
+  const lastBp = (s: SimState) => [...s.log].reverse().find((l) => /BP \d+\/\d+/.test(l.text))!.text.match(/BP (\d+)\/(\d+)/)!.slice(1).map(Number);
+
+  it('repeated vasodilators cannot push the pressure below a perfusing level, and the monitor shows what the vitals are', () => {
+    for (const id of ['stemi-cathlab', 'ffr-cathlab', 'shock-cathlab', 'contrast-cathlab']) {
+      const sc = SCENARIO_BY_ID[id];
+      let s = start(sc, 4);
+      for (let i = 0; i < 25 && !s.ended; i++) {
+        while (s.pendingRead) s = answerRead(sc, s, s.pendingRead.answer);
+        s = perform(sc, s, 'ic-nitro');
+      }
+      expect(s.pulse, id).toBe(true);
+      expect(s.vitals.sbp, id).toBeGreaterThanOrEqual(50);
+      expect(s.vitals.dbp, id).toBeGreaterThanOrEqual(25);
+      expect(s.vitals.dbp, id).toBeLessThan(s.vitals.sbp);
+      expect(lastBp(s), id).toEqual([s.vitals.sbp, s.vitals.dbp]);
+      expect(s.penalties.filter((p) => /nitro/.test(p.id)), id).toHaveLength(1);
+    }
+  });
+
+  it('repeated boluses cannot push the pressure without limit either', () => {
+    const sc = SCENARIO_BY_ID['contrast-cathlab'];
+    let s = run(sc, 4, ['iv']);
+    for (let i = 0; i < 12; i++) s = perform(sc, s, 'push-epi');
+    expect(s.vitals.sbp).toBeLessThanOrEqual(150);
+    expect(lastBp(s)).toEqual([s.vitals.sbp, s.vitals.dbp]);
+    let f = run(sc, 4, ['iv']);
+    for (let i = 0; i < 4; i++) f = perform(sc, f, 'fluid');
+    expect(f.vitals.sbp).toBeLessThanOrEqual(150);
+    expect(lastBp(f)).toEqual([f.vitals.sbp, f.vitals.dbp]);
+  });
+
+  it('drugs given in cardiac arrest do not change the rhythm or invent a pressure', () => {
+    const vf = SCENARIO_BY_ID['vf-arrest-field'];
+    const s = run(vf, 2, ['cpr', 'io', 'metoprolol', 'nitro', 'diltiazem']);
+    expect(s.rhythm).toEqual({ profile: 'vf', hr: 0 });
+    expect([s.vitals.sbp, s.vitals.dbp]).toEqual([0, 0]);
   });
 });
 

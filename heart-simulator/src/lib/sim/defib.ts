@@ -3,11 +3,11 @@
 /**
  * Monitor-defibrillator trainer: device state, ACLS logic and patient responses.
  *
- * A generic, unbranded device (monitor / AED / manual defibrillation / synchronised
+ * A generic, unbranded device (monitor / AED / manual defibrillation / synchronized
  * cardioversion / transcutaneous pacing) wired to the shared simulation clock, ECG engine and
- * hemodynamic model. Energies, doses and sequences follow the AHA ACLS algorithms
- * (2020 guidelines with 2023 focused updates). Outcome probabilities are simulation settings
- * chosen to make practice realistic, not predictions for real patients.
+ * hemodynamic model. Energies, doses and sequences follow the adult ACLS algorithms of the
+ * 2025 AHA Guidelines for CPR and Emergency Cardiovascular Care. Outcome probabilities are
+ * simulation settings chosen to make practice realistic, not predictions for real patients.
  *
  * Concept (instructor-driven monitor/defib practice with live vitals) inspired by the
  * EMSDojo student project; no code or artwork from it is used.
@@ -42,7 +42,7 @@ export const DRUGS: DrugDef[] = [
   { id: 'atropine', label: 'Atropine', dose: () => '1 mg IV every 3–5 min (max 3 mg)', indication: 'Symptomatic bradycardia' },
   { id: 'magnesium', label: 'Magnesium sulfate', dose: () => '1–2 g IV/IO', indication: 'Torsades de pointes' },
   { id: 'diltiazem', label: 'Diltiazem', dose: () => '15–20 mg (0.25 mg/kg) IV over 2 min', indication: 'Rate control of AF / flutter (not in HFrEF, hypotension or WPW)' },
-  { id: 'calcium', label: 'Calcium chloride', dose: () => '1 g IV (10 mL of 10%)', indication: 'Hyperkalaemia with ECG changes / arrest' },
+  { id: 'calcium', label: 'Calcium chloride', dose: () => '1 g IV (10 mL of 10%)', indication: 'Hyperkalemia with ECG changes; in a hyperkalemic arrest its benefit is not well established' },
 ];
 
 export interface Scenario {
@@ -61,12 +61,12 @@ export interface Scenario {
 export const SCENARIOS: Scenario[] = [
   { id: 'vf', label: 'VF cardiac arrest', profile: 'vf', baseline: null, spo2: 97, rr: 0, etco2: 38, arrest: true, story: '58-year-old man collapsed at the gym. Unresponsive, not breathing normally, no pulse. Bystander CPR in progress.' },
   { id: 'pvt', label: 'Pulseless VT', profile: 'pvt', hr: 190, baseline: null, spo2: 97, rr: 0, etco2: 38, arrest: true, story: '66-year-old with prior MI found unresponsive and pulseless in the ED waiting room.' },
-  { id: 'pea', label: 'PEA arrest', profile: 'pea', hr: 44, baseline: null, spo2: 97, rr: 0, etco2: 38, arrest: true, story: '72-year-old haemodialysis patient who missed two sessions; found unresponsive. Monitor shows organised activity, no pulse.' },
+  { id: 'pea', label: 'PEA arrest', profile: 'pea', hr: 44, baseline: null, spo2: 97, rr: 0, etco2: 38, arrest: true, story: '72-year-old hemodialysis patient who missed two sessions; found unresponsive. Monitor shows organized activity, no pulse.' },
   { id: 'asystole', label: 'Asystole', profile: 'asystole', baseline: null, spo2: 97, rr: 0, etco2: 38, arrest: true, story: 'Unwitnessed arrest at home, downtime unknown. Confirm asystole in two leads and check gain and connections.' },
   { id: 'torsades', label: 'Torsades', profile: 'torsades', baseline: null, spo2: 97, rr: 0, etco2: 38, arrest: true, story: 'Patient on methadone and ondansetron becomes unresponsive on the ward; the monitor shows a twisting polymorphic rhythm.' },
-  { id: 'svt-unstable', label: 'Unstable SVT', profile: 'avnrt', hr: 190, baseline: 'shock', spo2: 94, rr: 24, etco2: 31, arrest: false, story: '64-year-old with ischaemic cardiomyopathy: palpitations, chest pain, confusion, clammy. Regular narrow tachycardia.' },
+  { id: 'svt-unstable', label: 'Unstable SVT', profile: 'avnrt', hr: 190, baseline: 'shock', spo2: 94, rr: 24, etco2: 31, arrest: false, story: '64-year-old with ischemic cardiomyopathy: palpitations, chest pain, confusion, clammy. Regular narrow tachycardia.' },
   { id: 'svt-stable', label: 'Stable SVT', profile: 'avnrt', hr: 180, baseline: null, spo2: 98, rr: 18, etco2: 36, arrest: false, story: '28-year-old with sudden palpitations at rest, alert and well perfused.' },
-  { id: 'af-unstable', label: 'Unstable AF', profile: 'atrial-fibrillation', hr: 160, baseline: 'shock', spo2: 92, rr: 26, etco2: 30, arrest: false, story: '70-year-old with new irregular tachycardia, hypotension and acute pulmonary oedema.' },
+  { id: 'af-unstable', label: 'Unstable AF', profile: 'atrial-fibrillation', hr: 160, baseline: 'shock', spo2: 92, rr: 26, etco2: 30, arrest: false, story: '70-year-old with new irregular tachycardia, hypotension and acute pulmonary edema.' },
   { id: 'vt-pulse', label: 'Unstable VT (pulse)', profile: 'vt', hr: 170, baseline: null, spo2: 95, rr: 22, etco2: 33, arrest: false, story: '61-year-old with prior MI: wide regular tachycardia, hypotension, chest pain and confusion; weak radial pulse.' },
   { id: 'vt-stable', label: 'Stable VT', profile: 'vt', hr: 150, baseline: 'normal', spo2: 97, rr: 18, etco2: 36, arrest: false, story: '48-year-old with palpitations; alert, no chest pain or breathlessness, normal blood pressure. Regular wide-complex tachycardia.' },
   { id: 'chb', label: 'Symptomatic CHB', profile: 'third-degree-avb', hr: 34, baseline: 'hfref', spo2: 95, rr: 20, etco2: 34, arrest: false, story: '79-year-old with syncope and dizziness; pale and clammy. Slow wide escape rhythm.' },
@@ -352,13 +352,18 @@ function vulnerable(t: number): boolean {
   return t > tp - 50 && t < tp + 40;
 }
 
+/**
+ * The chance that one shock at this energy does its job. Cardioversion works best from the 2025 AHA initial energies
+ * (biphasic): AF 200 J or more, atrial flutter 200 J, a narrow regular tachycardia 100 J, monomorphic VT 100 J. Less
+ * energy is less likely to work, never impossible — flutter and re-entrant SVT often convert at 50 J.
+ */
 function energySuccess(kind: 'vf' | 'af' | 'flutter' | 'svt' | 'vt', j: number): number {
   switch (kind) {
     case 'vf': return j >= 150 ? 0.82 : j >= 120 ? 0.75 : j >= 100 ? 0.6 : 0.35;
-    case 'af': return j >= 200 ? 0.9 : j >= 150 ? 0.85 : j >= 120 ? 0.75 : j >= 100 ? 0.55 : 0.3;
-    case 'flutter': return j >= 100 ? 0.95 : 0.85;
-    case 'svt': return j >= 100 ? 0.95 : 0.88;
-    case 'vt': return j >= 100 ? 0.9 : 0.7;
+    case 'af': return j >= 200 ? 0.9 : j >= 150 ? 0.72 : j >= 120 ? 0.62 : j >= 100 ? 0.5 : j >= 75 ? 0.35 : 0.25;
+    case 'flutter': return j >= 200 ? 0.95 : j >= 150 ? 0.9 : j >= 100 ? 0.82 : j >= 75 ? 0.72 : 0.62;
+    case 'svt': return j >= 100 ? 0.95 : j >= 75 ? 0.84 : 0.75;
+    case 'vt': return j >= 100 ? 0.9 : j >= 75 ? 0.72 : 0.6;
   }
 }
 
@@ -369,7 +374,7 @@ function deliver(t: number, synced: boolean) {
   shockTimes.push(t);
   const n = s.shocks + 1;
   set({ charge: 'idle', pendingSyncSince: null, shocks: n, lastShock: t, aed: { phase: 'idle', until: 0 } });
-  log(`Shock ${n}: ${s.energy} J ${synced ? 'synchronised' : 'unsynchronised'}`, 'shock');
+  log(`Shock ${n}: ${s.energy} J ${synced ? 'synchronized' : 'unsynchronized'}`, 'shock');
   prompt(s.cpr.on ? null : 'Shock delivered — resume CPR immediately (if in arrest)');
 
   const r = prof.rhythm;
@@ -381,11 +386,11 @@ function deliver(t: number, synced: boolean) {
       respond(2200, () => {
         const o = Math.random();
         if (o < 0.55) {
-          roscNow('Shock terminated VF/VT — organised rhythm WITH a pulse (ROSC)');
+          roscNow('Shock terminated VF/VT — organized rhythm WITH a pulse (ROSC)');
           if (r === 'torsades' && !get().magnesiumGiven) respond(25000, () => {
             if (!get().magnesiumGiven && Math.random() < 0.5) changeRhythm('torsades', undefined, 'Torsades recurred — give magnesium, stop QT-prolonging drugs, correct K⁺; consider overdrive pacing');
           });
-        } else if (o < 0.8) changeRhythm('pea', 50, 'Shock terminated VF/VT — organised rhythm but NO pulse (PEA)');
+        } else if (o < 0.8) changeRhythm('pea', 50, 'Shock terminated VF/VT — organized rhythm but NO pulse (PEA)');
         else changeRhythm('asystole', undefined, 'Shock terminated VF/VT — asystole');
       });
     } else {
@@ -397,9 +402,9 @@ function deliver(t: number, synced: boolean) {
     log('Shock delivered to a NON-shockable rhythm — no benefit; interrupts CPR', 'warn');
     return;
   }
-  // Organised rhythm with a pulse
+  // Organized rhythm with a pulse
   if (!synced) {
-    log('Unsynchronised shock on an organised rhythm with a pulse — use SYNC for cardioversion', 'warn');
+    log('Unsynchronized shock on an organized rhythm with a pulse — use SYNC for cardioversion', 'warn');
     if (vulnerable(t) && Math.random() < 0.6) {
       respond(300, () => changeRhythm('vf', undefined, 'R-on-T: shock landed on the T wave and induced VF'));
       return;
@@ -418,7 +423,7 @@ function roscNow(note: string) {
   changeRhythm('sinus-tachycardia', 108, note);
   const s = get();
   if (s.cpr.on) stopCPR(true);
-  log('ROSC: check pulse and BP, SpO2 92–98%, PaCO2 35–45 mmHg, 12-lead ECG, treat hypotension (SBP ≥ 90, MAP ≥ 65)', 'rosc');
+  log('ROSC: check pulse and BP, SpO2 90–98%, PaCO2 35–45 mmHg, 12-lead ECG, avoid hypotension (MAP ≥ 65 mmHg)', 'rosc');
 }
 
 export function analyze() {
@@ -426,7 +431,7 @@ export function analyze() {
   const s = get();
   if (s.mode !== 'aed') setMode('aed');
   set({ aed: { phase: 'analyzing', until: now() + 6000 } });
-  prompt(get().cpr.on ? 'STOP CPR — motion detected. Do not touch the patient' : 'Analysing heart rhythm. Do not touch the patient');
+  prompt(get().cpr.on ? 'STOP CPR — motion detected. Do not touch the patient' : 'Analyzing heart rhythm. Do not touch the patient');
 }
 
 // ─── Pacing ─────────────────────────────────────────────────────────────────
@@ -511,9 +516,11 @@ function stopCPR(silent: boolean) {
   const dur = now() - s.cpr.since;
   set({ cpr: { ...s.cpr, on: false } });
   if (!silent) log(`CPR paused after ${fmt(dur)} — rhythm / pulse check (≤ 10 s)`, 'cpr');
-  // Simulation: non-shockable arrest may regain a pulse after a full cycle of CPR with epinephrine
+  // Simulation: non-shockable arrest may regain a pulse after a full cycle of CPR with epinephrine. In the dialysis
+  // patient's (hyperkalemic) PEA calcium may help, but its benefit is not well established (2025): it raises the odds,
+  // it does not make the outcome
   const id = useECGStore.getState().activeProfileId;
-  const odds = id === 'pea' && s.scenario?.id === 'pea' ? (s.calciumGiven ? 0.5 : 0.1) : 0.25;
+  const odds = id === 'pea' && s.scenario?.id === 'pea' ? (s.calciumGiven ? 0.3 : 0.1) : 0.25;
   if (!silent && dur >= 110000 && (id === 'pea' || id === 'asystole') && s.lastEpi !== null && now() - s.lastEpi < 300000 && Math.random() < odds) {
     roscNow('Pulse check: palpable pulse — ROSC');
   }
@@ -549,14 +556,14 @@ export function giveDrug(id: string, authority?: string) {
     }
     case 'amiodarone': {
       set({ amioDoses: s.amioDoses + 1 });
-      if (prof.rhythm === 'torsades') { log('Amiodarone prolongs the QT — avoid in torsades; give magnesium and defibrillate if pulseless', 'warn'); break; }
+      if (prof.rhythm === 'torsades') { log('Amiodarone prolongs the QT — avoid in torsades. Sustained torsades: defibrillate now (unsynchronized), pulse or not; then magnesium', 'warn'); break; }
       if (!pulse && (prof.rhythm === 'vf' || prof.rhythm === 'vt')) {
         if (s.amioDoses >= 2) { log('Arrest dosing is 300 mg then one 150 mg dose — no further boluses', 'warn'); break; }
         if (s.shocks < 3 && s.amioDoses === 0) log('Amiodarone is usually given after the 3rd shock for refractory VF/pVT', 'info');
         set({ antiarrhythmicBonus: Math.min(0.15, s.antiarrhythmicBonus + 0.1) });
       } else if (pulse && prof.rhythm === 'vt') {
-        if (sim.hemo.summary(sim.time).sbp < 90) log('Hypotension = unstable VT: synchronised cardioversion is indicated; drugs are for stable VT', 'warn');
-        respond(60000, () => { if (Math.random() < 0.35) changeRhythm('normal-sinus', 84, 'VT terminated after amiodarone'); else log('VT persists after amiodarone — consider synchronised cardioversion / expert consultation', 'rhythm'); });
+        if (sim.hemo.summary(sim.time).sbp < 90) log('Hypotension = unstable VT: synchronized cardioversion is indicated; drugs are for stable VT', 'warn');
+        respond(60000, () => { if (Math.random() < 0.35) changeRhythm('normal-sinus', 84, 'VT terminated after amiodarone'); else log('VT persists after amiodarone — consider synchronized cardioversion / expert consultation', 'rhythm'); });
       } else if (pulse && (prof.rhythm === 'af' || prof.rhythm === 'flutter')) {
         log('IV amiodarone can slow the rate in critically ill or HFrEF patients (it may also cardiovert — consider anticoagulation status)', 'info');
         respond(90000, () => slowVentricles(prof.rhythm === 'flutter' ? 100 : 98, 'amiodarone'));
@@ -624,7 +631,7 @@ export function giveDrug(id: string, authority?: string) {
     }
     case 'magnesium': {
       set({ magnesiumGiven: true });
-      if (prof.rhythm === 'torsades') log('Magnesium helps prevent recurrence, but pulseless torsades must be defibrillated now', 'info');
+      if (prof.rhythm === 'torsades') log('Magnesium helps prevent recurrence, but sustained torsades must be defibrillated now (unsynchronized), pulse or not', 'info');
       break;
     }
     case 'diltiazem': {
@@ -635,7 +642,8 @@ export function giveDrug(id: string, authority?: string) {
     }
     case 'calcium': {
       set({ calciumGiven: true });
-      if (pid === 'hyperkalemia' || s.scenario?.id === 'pea') log('Calcium stabilises the myocardium within minutes but does not lower K⁺ — add insulin/glucose, β-agonist and K⁺ removal (dialysis)', 'info');
+      if (!pulse) log('Calcium in arrest: only for suspected hyperkalemia (or hypocalcemia, calcium-channel-blocker overdose), and even then its benefit is not well established — give it without pausing CPR or shocks', 'info');
+      else if (pid === 'hyperkalemia') log('Calcium stabilizes the myocardium within minutes but does not lower K⁺ — add insulin/glucose, β-agonist and K⁺ removal (dialysis)', 'info');
       break;
     }
   }
@@ -730,6 +738,15 @@ onNewPatient(() => {
   if (clearPatient(false, true)) sim.epoch++;
 });
 
+/**
+ * Is a patient being worked on at the defibrillator — a scenario, CPR, pacing, a charge, or anything in the code
+ * record? Then putting up another rhythm for study would end that code.
+ */
+export function codeInProgress(): boolean {
+  const s = get();
+  return !!s.scenario || s.cpr.on || s.pacer.on || s.charge !== 'idle' || s.codeStart !== null || s.log.length > 0;
+}
+
 export function setTrainee(v: boolean) { set({ trainee: v }); }
 export function setSound(v: boolean) { set({ sound: v }); }
 
@@ -762,7 +779,7 @@ export function tickDefib(t: number) {
   } else if (s.charge === 'charged' && t - s.chargeDone > 60000) {
     disarm('Charge removed automatically after 60 s');
   }
-  // Synchronised discharge on the next R wave
+  // Synchronized discharge on the next R wave
   if (s.pendingSyncSince !== null) {
     const e = sim.engine;
     const i = e.lastVentIndex(t);
@@ -773,7 +790,7 @@ export function tickDefib(t: number) {
     } else if (t - s.pendingSyncSince > 3000) {
       set({ pendingSyncSince: null });
       prompt('SYNC could not find an R wave — for VF / pulseless or polymorphic VT turn SYNC off and defibrillate');
-      log('Synchronised shock not delivered: no reliable R wave', 'warn');
+      log('Synchronized shock not delivered: no reliable R wave', 'warn');
     }
   }
   // AED analysis
@@ -790,7 +807,7 @@ export function tickDefib(t: number) {
       } else {
         set({ aed: { phase: 'no-shock', until: t } });
         log('AED: no shock advised', 'info');
-        prompt('No shock advised — resume CPR immediately, starting with compressions (pulse check ≤ 10 s only if an organised rhythm is seen)');
+        prompt('No shock advised — resume CPR immediately, starting with compressions (pulse check ≤ 10 s only if an organized rhythm is seen)');
       }
     }
   }

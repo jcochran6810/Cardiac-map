@@ -174,6 +174,12 @@ export interface Harm {
   severity: Severity;
   text: string;
   roles?: LearningLevel[];
+  /**
+   * Built-in safety rules this scenario rule stands in for, because it already covers the same mistake in its
+   * own words (e.g. nitroglycerin in an RV infarct also covers nitroglycerin with a low pressure): one mistake,
+   * one penalty. A scenario rule with the same id as a built-in one replaces it anyway.
+   */
+  replaces?: string[];
 }
 
 export type FactKey =
@@ -216,7 +222,7 @@ export interface Scenario {
   critical: Critical[];
   harms: Harm[];
   timings?: Timing[];
-  /** minutes of transport to the PCI-capable heart centre (field scenarios) */
+  /** minutes of transport to the PCI-capable heart center (field scenarios) */
   transportMinutes?: number;
   /** minutes of transport to the nearest emergency department (default 8) */
   nearestMinutes?: number;
@@ -241,6 +247,8 @@ export interface Review {
   penaltyPoints: number;
   grade: 'Excellent' | 'Competent' | 'Needs practice' | 'Unsafe';
   outcome: string;
+  /** critical items for this role never done (a hand-off can end the case with some still missing) */
+  missed: number;
   timings: { label: string; minute: number | null; target?: number; met: boolean | null }[];
   wentWell: ReviewItem[];
   /** `actions`: the interventions the item is about (to link the learner to what to study) */

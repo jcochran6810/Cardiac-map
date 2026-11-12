@@ -16,8 +16,9 @@ import { resolveProfile } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
 import { READ_KIND_NAME, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
 import { angioGate } from './labKit';
+import { PERFUSING_FLOOR, bpAfter, paced } from './kit';
 import type {
-  Critical, Effect, FactKey, Harm, Intervention, PendingRead, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
+  Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
 
 const round = (m: number) => Math.round(m * 10) / 10;
@@ -37,6 +38,12 @@ export function rhythmKind(s: SimState) {
 export function shockable(s: SimState): boolean {
   const k = rhythmKind(s);
   return !s.pulse && (k === 'vf' || k === 'vt' || k === 'torsades');
+}
+
+/** Rhythms synchronized cardioversion treats (with a pulse and a fast rate): SVT, atrial fibrillation or flutter, monomorphic VT */
+const CARDIOVERTIBLE = ['svt', 'af', 'flutter', 'vt'];
+export function tachyarrhythmia(s: SimState): boolean {
+  return s.pulse && CARDIOVERTIBLE.includes(rhythmKind(s)) && s.rhythm.hr >= 100;
 }
 
 export const has = (s: SimState, flag: string) => flag in s.flags;
@@ -116,6 +123,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'ecg12':
     case 'ecg12-repeat':
       if (!s.pulse) return { blocked: true, say: [['system', 'No 12-lead in cardiac arrest: treat the rhythm on the monitor.']] };
+      if (id === 'ecg12-repeat' && !has(s, 'ecg12')) return { blocked: true, say: [['system', 'There is nothing to repeat yet: record a first 12-lead.']] };
       return { say: [['monitor', ecgLine(s, id === 'ecg12-repeat')]], flags: id === 'ecg12' ? ['ecg12', 'monitor'] : ['ecg12', 'monitor', 'ecg12-repeat'] };
     case 'ecg-transmit':
       if (!has(s, 'ecg12')) return { blocked: true, say: [['system', 'Acquire a 12-lead first.']] };
@@ -124,7 +132,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'ecg-posterior': return { say: [['monitor', fact('ecgPosterior') ?? 'V7–V9: no ST elevation.']], flags: ['ecg-posterior'] };
     case 'capno':
       return { say: [['monitor', s.pulse ? `EtCO₂ ${v.etco2} mmHg with a normal square waveform.` : `EtCO₂ ${has(s, 'cpr') ? 16 : 6} mmHg.`]], flags: ['capno'] };
-    case 'transducer': return { say: [['you', 'Transducers zeroed to air and levelled at the phlebostatic axis.']], flags: ['transducer'] };
+    case 'transducer': return { say: [['you', 'Transducers zeroed to air and leveled at the phlebostatic axis.']], flags: ['transducer'] };
     case 'labs': return { say: [['team', fact('labs') ?? 'Labs sent: troponin, electrolytes, CBC, coagulation.']], flags: ['labs'] };
     case 'act': return { say: [['team', has(s, 'heparin') ? 'ACT 286 s: therapeutic for PCI.' : 'ACT 128 s: no heparin effect yet.']], flags: ['act'] };
     case 'echo': return { say: [['you', fact('echo') ?? 'Normal biventricular function; no effusion.']], flags: ['echo'] };
@@ -147,14 +155,17 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (s.pulse && v.gcs > 8) return { say: [['patient', 'The patient pushes the mask away: they are breathing on their own.']] };
       return { say: [['you', 'Ventilating 1 breath every 6 seconds; chest rising.']], flags: ['ventilated'] };
     case 'cpap': return { say: [['you', 'CPAP applied at 5 cmH₂O.']], flags: ['cpap'] };
-    case 'airway': return { say: [['you', 'Airway placed; confirmed with waveform capnography.']], flags: ['airway', 'ventilated'] };
+    case 'airway':
+      // an awake patient gags on any airway device and protects their own airway: it cannot be placed
+      if (s.pulse && v.gcs > 8) return { say: [['patient', 'The patient gags, coughs and pushes it away: someone this awake protects their own airway. The airway comes out.', 'bad']] };
+      return { say: [['you', 'Airway placed; confirmed with waveform capnography.']], flags: ['airway', 'ventilated'] };
 
     case 'iv': return { say: [['you', 'IV established: 18 G, left forearm.']], flags: ['iv'] };
     case 'io': return { say: [['you', 'IO established: proximal humerus.']], flags: ['iv'] };
     case 'fluid': {
       if (!s.pulse) return { say: [['you', 'Fluid running.']], flags: ['fluid'] };
-      const sbp = Math.min(150, v.sbp + 8);
-      return { say: [['monitor', `Bolus in. BP ${sbp}/${Math.min(90, v.dbp + 5)}.`]], vitals: { sbp, dbp: Math.min(90, v.dbp + 5) }, flags: ['fluid'] };
+      const bp = bpAfter(s, 8, 5);
+      return { say: [['monitor', `Bolus in. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['fluid'] };
     }
 
     case 'aspirin': return { say: [['patient', 'Chews the aspirin.']], flags: ['aspirin'] };
@@ -168,8 +179,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     }
     case 'heparin': return { say: [['you', 'Heparin bolus given (weight-based).']], flags: ['heparin'] };
     case 'p2y12': return { say: [['you', 'P2Y12 loading dose given.']], flags: ['p2y12'] };
-    case 'metoprolol':
-      return { say: [['monitor', `Metoprolol given. BP ${v.sbp - 12}/${v.dbp - 8}.`]], vitals: { sbp: v.sbp - 12, dbp: v.dbp - 8 }, rhythm: { ...s.rhythm, hr: Math.max(40, s.rhythm.hr - 10) }, flags: ['beta-blocker'] };
+    case 'metoprolol': {
+      if (!s.pulse) return noCirculation('Metoprolol', 'beta-blocker');
+      const bp = bpAfter(s, -12, -8);
+      // a pacer sets the rate, so only the heart's own rate slows
+      return { say: [['monitor', `Metoprolol given. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, ...(paced(s) ? {} : { rhythm: { ...s.rhythm, hr: Math.max(40, s.rhythm.hr - 10) } }), flags: ['beta-blocker'] };
+    }
     case 'atropine':
       if (rhythmKind(s) === 'sinus' && s.rhythm.hr < 60) return { say: [['monitor', 'Heart rate rises to 74.']], rhythm: { ...s.rhythm, hr: 74 }, flags: ['atropine'] };
       return { say: [['monitor', 'No change in heart rate.']], flags: ['atropine'] };
@@ -177,58 +192,94 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'adenosine12':
       return { say: [['monitor', 'A brief pause, then the same rhythm returns.']], flags: ['adenosine'] };
     case 'diltiazem': {
-      const sbp = v.sbp - 12;
-      return { say: [['monitor', `Diltiazem in. BP ${sbp}/${v.dbp - 8}.`]], vitals: { sbp, dbp: v.dbp - 8 }, flags: ['diltiazem'] };
+      if (!s.pulse) return noCirculation('Diltiazem', 'diltiazem');
+      const bp = bpAfter(s, -12, -8);
+      return { say: [['monitor', `Diltiazem in. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['diltiazem'] };
     }
     case 'epinephrine': return { say: [['you', 'Epinephrine 1 mg IV/IO, flushed.']], flags: ['epi'] };
     case 'amio-arrest': return { say: [['you', `Amiodarone ${(s.counts['amio-arrest'] ?? 0) === 0 ? '300' : '150'} mg IV/IO, flushed.`]], flags: ['amiodarone'] };
     case 'amio-infusion': return { say: [['you', 'Amiodarone 150 mg running over 10 minutes.']], flags: ['amiodarone'] };
     case 'lidocaine': return { say: [['you', 'Lidocaine given.']], flags: ['lidocaine'] };
-    case 'push-epi':
+    case 'push-epi': {
       if (!s.pulse) return { say: [['you', 'Push-dose epinephrine given.']], flags: ['push-epi'] };
-      return { say: [['monitor', `BP ${Math.min(150, v.sbp + 16)}/${Math.min(90, v.dbp + 10)} for a few minutes.`]], vitals: { sbp: Math.min(150, v.sbp + 16), dbp: Math.min(90, v.dbp + 10) }, flags: ['push-epi'] };
-    case 'pressor':
-      return { say: [['monitor', `Infusion running. BP ${Math.min(140, v.sbp + 22)}/${Math.min(88, v.dbp + 14)}.`]], vitals: { sbp: Math.min(140, v.sbp + 22), dbp: Math.min(88, v.dbp + 14) }, flags: ['pressor'] };
+      const bp = bpAfter(s, 16, 10);
+      return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp} for a few minutes.`]], vitals: bp, flags: ['push-epi'] };
+    }
+    case 'pressor': {
+      if (!s.pulse) return { say: [['you', 'Infusion running — with no circulation there is no pressure to raise yet.']], flags: ['pressor'] };
+      const bp = bpAfter(s, 22, 14, { sbp: 140, dbp: 88 });
+      return { say: [['monitor', `Infusion running. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['pressor'] };
+    }
     case 'sedation': return { say: [['you', 'Sedated and comfortable; airway maintained, capnography on.']], flags: ['sedation'] };
     case 'tnk': return { say: [['you', 'Tenecteplase given.']], flags: ['lytic'] };
     case 'epi-im': return { say: [['you', 'Epinephrine 0.5 mg IM, lateral thigh.']], flags: ['epi-im'] };
-    case 'albuterol': return { say: [['you', 'Albuterol nebuliser running.']], flags: ['albuterol'] };
+    case 'albuterol': return { say: [['you', 'Albuterol nebulizer running.']], flags: ['albuterol'] };
     case 'diphenhydramine': return { say: [['you', 'Diphenhydramine 50 mg IV.']], flags: ['antihistamine'] };
     case 'steroid': return { say: [['you', 'Methylprednisolone 125 mg IV.']], flags: ['steroid'] };
-    case 'radial-cocktail': return { say: [['you', 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg, diluted with blood.'], ['patient', '"Ooh, that burns up my arm."']], vitals: { sbp: v.sbp - 6, dbp: v.dbp - 4 }, flags: ['cocktail'] };
-    case 'ic-nitro': return { say: [['you', 'Nitroglycerin 200 mcg intracoronary.'], ['monitor', `BP ${v.sbp - 10}/${v.dbp - 6}.`]], vitals: { sbp: v.sbp - 10, dbp: v.dbp - 6 }, flags: ['ic-nitro'] };
+    case 'radial-cocktail': return { say: [['you', 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg, diluted with blood.'], ['patient', '"Ooh, that burns up my arm."']], vitals: bpAfter(s, -6, -4), flags: ['cocktail'] };
+    case 'ic-nitro': {
+      if (!s.pulse) return noCirculation('Intracoronary nitroglycerin', 'ic-nitro');
+      const bp = bpAfter(s, -10, -6);
+      return { say: [['you', 'Nitroglycerin 200 mcg intracoronary.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['ic-nitro'] };
+    }
     case 'ic-adenosine': return { say: [['you', 'Adenosine 150 mcg intracoronary.'], ['monitor', 'A few seconds of slowing, then back to baseline.']], flags: ['ic-adenosine'] };
     case 'ic-verapamil': return { say: [['you', 'Verapamil 200 mcg intracoronary.']], flags: ['ic-verapamil'] };
     case 'adenosine-iv-ffr': return { say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['patient', '"I feel flushed… a bit short of breath."']], flags: ['hyperemia'] };
     case 'bivalirudin': return { say: [['you', 'Bivalirudin 0.75 mg/kg bolus, 1.75 mg/kg/h running.']], flags: ['bivalirudin', 'anticoagulated'] };
     case 'gp2b3a': return { say: [['you', 'Eptifibatide 180 mcg/kg bolus, infusion running.']], flags: ['gp2b3a'] };
     case 'cangrelor': return { say: [['you', 'Cangrelor 30 mcg/kg bolus, 4 mcg/kg/min running.']], flags: ['p2y12', 'cangrelor'] };
-    case 'protamine': return { say: [['you', 'Protamine 50 mg slowly IV.'], ['team', 'ACT falling.']], vitals: { sbp: v.sbp - 6, dbp: v.dbp - 4 }, flags: ['protamine'] };
+    case 'protamine': return { say: [['you', 'Protamine 50 mg slowly IV.'], ['team', 'ACT falling.']], vitals: bpAfter(s, -6, -4), flags: ['protamine'] };
 
     case 'cpr':
       if (s.pulse) return { say: [['patient', 'The patient cries out — they have a pulse and are breathing.', 'bad']] };
       return { say: [['you', '2 minutes of compressions: 100–120/min, 5–6 cm, full recoil, minimal pauses.']], flags: ['cpr'] };
     case 'aed':
+      // an AED only shocks what it reads as VF or fast VT; it cannot feel a pulse, but an organized rhythm gets no shock
       if (shockable(s)) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
       return { say: [['monitor', s.pulse ? 'AED: "No shock advised."' : 'AED: "No shock advised. Start CPR."']], flags: ['pads', 'monitor'] };
     case 'defib':
       if (shockable(s)) return { say: [['monitor', 'Shock delivered: 200 J. Resume CPR immediately.']], flags: ['pads', 'monitor', 'shocked'] };
       return { say: [['monitor', 'Shock delivered: 200 J.']], flags: ['pads', 'monitor'] };
-    case 'cardiovert':
-      if (!s.pulse) return { say: [['monitor', 'SYNC is on: no R waves to synchronise to — the device does not fire.', 'bad']], flags: ['pads', 'monitor'] };
-      return { say: [['monitor', 'Synchronised shock delivered: 100 J.']], flags: ['pads', 'monitor', 'cardioverted'] };
-    case 'pace':
-      if (s.pulse && s.rhythm.hr < 50) {
-        const sbp = Math.max(v.sbp, 102);
+    case 'cardiovert': {
+      if (!s.pulse) {
+        // SYNC fires only on an R wave: none in VF or asystole, hard to find in pulseless VT; PEA has them, so it fires
+        const k = rhythmKind(s);
+        if (k === 'vf' || k === 'torsades' || k === 'asystole') return { say: [['monitor', 'SYNC is on: no R waves to synchronize to — the device does not fire.', 'bad']], flags: ['pads', 'monitor'] };
+        if (k === 'vt') return { say: [['monitor', 'SYNC is on: the device hunts for R waves in the fast, wide complexes and does not fire.', 'bad']], flags: ['pads', 'monitor'] };
+        return { say: [['monitor', 'Synchronized shock delivered: 100 J. The same complexes come back — still no pulse.', 'bad']], flags: ['pads', 'monitor'] };
+      }
+      if (!tachyarrhythmia(s)) {
+        const awake: Line[] = v.gcs >= 13 ? [['patient', '"Aagh! What was that?"', 'bad']] : [];
+        return { say: [['monitor', 'Synchronized shock delivered: 100 J. No change on the monitor.'], ...awake], flags: ['pads', 'monitor'] };
+      }
+      return { say: [['monitor', 'Synchronized shock delivered: 100 J.']], flags: ['pads', 'monitor', 'cardioverted'] };
+    }
+    case 'pace': {
+      if (!s.pulse) {
+        return { say: [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.'], ['you', 'Pacing spikes on the screen, but no pulse with them.', 'bad']], flags: ['pads', 'monitor'] };
+      }
+      if (s.rhythm.hr < 50) {
         return {
           say: [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.']],
-          rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp, dbp: Math.max(v.dbp, 64), pain: Math.max(v.pain, 6) }, flags: ['pads', 'monitor', 'paced'],
+          rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp: Math.max(v.sbp, 102), dbp: Math.max(v.dbp, 64), pain: Math.max(v.pain, 6) }, flags: ['pads', 'monitor', 'paced'],
         };
       }
-      return { say: [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.']], flags: ['pads', 'monitor'] };
+      // a demand pacer set to 70 stays silent above 70; between 50 and 69 it would take over a rate that needs no help
+      if (s.rhythm.hr >= 70) {
+        return { say: [['monitor', `Pacer on in demand mode at 70: the heart's own rate of ${s.rhythm.hr} is faster, so it senses and does not fire.`]], flags: ['pads', 'monitor'] };
+      }
+      const teammate: Speaker = sc.setting === 'field' ? 'partner' : 'team';
+      return {
+        say: [
+          ['monitor', 'Pacer on at 70.'],
+          [teammate, `Hold on — the heart's own rate is ${s.rhythm.hr} and the patient is perfusing. Pacing is for a symptomatic rate under 50 that atropine has not fixed. Pacer off.`, 'warn'],
+        ],
+        flags: ['pads', 'monitor'],
+      };
+    }
     case 'vagal': return { say: [['monitor', 'No change.']], flags: ['vagal'] };
     case 'hs-ts':
-      return { say: [['you', 'Hs: hypoxia, hypovolaemia, acidosis, potassium, hypothermia. Ts: tension pneumothorax, tamponade, toxins, thrombosis (coronary or pulmonary).']], flags: ['hs-ts'] };
+      return { say: [['you', 'Hs: hypoxia, hypovolemia, acidosis, potassium, hypothermia. Ts: tension pneumothorax, tamponade, toxins, thrombosis (coronary or pulmonary).']], flags: ['hs-ts'] };
 
     case 'timeout': return { say: [['team', 'Time-out: patient, procedure, site, allergies and anticoagulation confirmed.']], flags: ['timeout'] };
     case 'consent': return { say: [['patient', fact('allergies') ?? 'No allergies. I understand and consent.']], flags: ['consent'] };
@@ -241,21 +292,31 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return s.role === 3
         ? { say: [['you', 'Pericardiocentesis tray open: needle, wire, drain and a drainage bag; echo probe in a sterile sleeve.']], flags: ['pericardiocentesis-ready'] }
         : { say: [['you', 'Pericardial drain in under echo guidance.']], flags: ['pericardiocentesis'] };
-    case 'closure-device': return { say: [['you', 'Femoral closure device deployed; haemostasis.']], flags: ['closure', 'hemostasis'] };
+    case 'closure-device': return { say: [['you', 'Femoral closure device deployed; hemostasis.']], flags: ['closure', 'hemostasis'] };
     case 'angio': return angioGate(s) ?? { say: [['you', 'Angiography complete.']], image: { id, view: 'Diagnostic angiography', image: sc.images?.angio }, flags: ['angio'] };
     case 'reposition': return { say: [['operator', 'Catheter disengaged and repositioned.']], flags: ['repositioned'] };
     case 'iabp':
       return s.role === 3
         ? { say: [['you', 'IABP console set up and the balloon prepped; timing on ECG trigger.']], flags: ['iabp-ready'] }
-        : { say: [['you', 'IABP in, tip 2 cm below the left subclavian; 1:1, augmented diastolic 118 mmHg.']], vitals: { sbp: Math.min(140, v.sbp + 6), dbp: Math.min(90, v.dbp + 8) }, flags: ['iabp', 'mcs'] };
+        : { say: [['you', 'IABP in, tip 2 cm below the left subclavian; 1:1, augmented diastolic 118 mmHg.']], vitals: bpAfter(s, 6, 8, { sbp: 140, dbp: 90 }), flags: ['iabp', 'mcs'] };
     case 'impella':
       return s.role === 3
         ? { say: [['you', 'Impella console primed and the purge set up; large-bore access kit and closure sutures open.']], flags: ['impella-ready'] }
-        : { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm below the valve; P-6, flow 3.3 L/min.']], vitals: { sbp: Math.min(140, v.sbp + 14), dbp: Math.min(90, v.dbp + 10) }, flags: ['impella', 'mcs'] };
-    case 'temp-wire':
-      return s.role === 3
-        ? { say: [['you', 'Pacing wire and generator ready: rate 70, output 5 mA.']], flags: ['temp-wire-ready'] }
-        : { say: [['you', 'Temporary wire in the RV apex: threshold 0.6 mA, pacing at 70, output 3 mA.']], flags: ['temp-wire'] };
+        : { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm below the valve; P-6, flow 3.3 L/min.']], vitals: bpAfter(s, 14, 10, { sbp: 140, dbp: 90 }), flags: ['impella', 'mcs'] };
+    case 'temp-wire': {
+      if (s.role === 3) return { say: [['you', 'Pacing wire and generator ready: rate 70, output 5 mA.']], flags: ['temp-wire-ready'] };
+      // a transvenous wire goes up a vein into the right ventricle, and nobody floats one during CPR
+      if (!has(s, 'venous')) return { blocked: true, say: [['system', 'A transvenous pacing wire goes in through a vein: get femoral venous access first.']] };
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not during cardiac arrest: CPR and the arrest algorithm come first.']] };
+      if (s.rhythm.hr < 50) {
+        const bp = { sbp: Math.max(v.sbp, 100), dbp: Math.max(v.dbp, 62) };
+        return {
+          say: [['you', 'Temporary wire in the RV apex: threshold 0.6 mA; pacing at 70, output 3 mA.'], ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`, 'good']],
+          rhythm: { profile: 'paced', hr: 70 }, vitals: bp, flags: ['temp-wire', 'paced'],
+        };
+      }
+      return { say: [['you', `Temporary wire in the RV apex: threshold 0.6 mA, output 3 mA, set to pace on demand below 50. The heart's own rate of ${s.rhythm.hr} is faster, so it is not pacing.`]], flags: ['temp-wire'] };
+    }
     case 'cath-tiger': case 'cath-jl4': case 'cath-jr4': case 'cath-pigtail':
     case 'guide-ebu': case 'guide-jr4': case 'guide-al1':
     case 'wire-workhorse': case 'wire-hydrophilic': case 'aspiration':
@@ -270,10 +331,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'lv-gram':
       if (!has(s, 'access')) return s.role === 5 ? noAccess : nothingToFilm;
       return { say: [['monitor', fact('lvgram') ?? 'LV gram: normal wall motion, EF about 60 %, no mitral regurgitation.']], image: { id, view: 'Left ventriculogram', image: sc.images?.[id] }, flags: ['lv-gram'] };
-    case 'ffr-equalize': return { say: [['monitor', 'Pressure wire equalised with the aortic pressure at the guide tip: Pd/Pa 1.00.']], flags: ['equalized'] };
+    case 'ffr-equalize': return { say: [['monitor', 'Pressure wire equalized with the aortic pressure at the guide tip: Pd/Pa 1.00.']], flags: ['equalized'] };
     case 'ffr':
       if (!has(s, 'wired')) return noWire(s, 'Wire the vessel with the pressure wire first.');
-      return { say: [['monitor', fact('ffr') ?? 'FFR 0.88 at maximal hyperaemia.']], flags: ['ffr'] };
+      return { say: [['monitor', fact('ffr') ?? 'FFR 0.88 at maximal hyperemia.']], flags: ['ffr'] };
     case 'ivus':
       if (!has(s, 'wired')) return noWire(s, 'Wire the vessel first.');
       return { say: [['monitor', fact('ivus') ?? 'IVUS: no significant plaque.']], flags: ['ivus'] };
@@ -303,7 +364,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (has(s, 'enroute')) return { blocked: true, say: [['system', 'You are already transporting.']] };
       const mins = id === 'transport-pci' ? sc.transportMinutes ?? 15 : sc.nearestMinutes ?? 8;
       return {
-        say: [['you', `Patient loaded; transporting to the ${id === 'transport-pci' ? 'PCI-capable heart centre' : 'nearest emergency department'} (${mins} min).`]],
+        say: [['you', `Patient loaded; transporting to the ${id === 'transport-pci' ? 'PCI-capable heart center' : 'nearest emergency department'} (${mins} min).`]],
         flags: ['enroute', id === 'transport-pci' ? 'dest-pci' : 'dest-near'], timers: { arrive: s.minute + 2 + mins },
       };
     }
@@ -318,6 +379,9 @@ const noAccess: Effect = { blocked: true, say: [['system', 'No arterial access y
 const nothingToFilm: Effect = { blocked: true, say: [['system', 'Nothing to film yet: the operator has no catheter in.']] };
 const noCatheter: Effect = { blocked: true, say: [['system', 'The operator has no catheter in yet.']] };
 const noWire = (s: SimState, mine: string): Effect => ({ blocked: true, say: [['system', s.role === 5 ? mine : 'There is no wire in the vessel yet.']] });
+
+/** A drug that acts on the heart or the vessels, given in cardiac arrest: with no circulation it reaches nothing */
+const noCirculation = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — with no circulation it goes nowhere and changes nothing.`]], flags: [flag] });
 
 /** The tech opens, prepares and hands a device; the cardiologist uses it */
 function deviceEffect(s: SimState, id: string): Effect {
@@ -352,11 +416,12 @@ function deviceEffect(s: SimState, id: string): Effect {
 }
 
 function nitroEffect(s: SimState): Effect {
-  const v = s.vitals;
-  const pain = Math.max(0, v.pain - 2);
+  if (!s.pulse) return noCirculation('Nitroglycerin', 'nitro');
+  const pain = Math.max(0, s.vitals.pain - 2);
+  const bp = bpAfter(s, -10, -6);
   return {
-    say: [['patient', pain <= 4 ? 'The pressure is easing.' : 'Maybe a little better.'], ['monitor', `BP ${v.sbp - 10}/${v.dbp - 6}.`]],
-    vitals: { pain, sbp: v.sbp - 10, dbp: v.dbp - 6 }, flags: ['nitro'],
+    say: [['patient', pain <= 4 ? 'The pressure is easing.' : 'Maybe a little better.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
+    vitals: { pain, ...bp }, flags: ['nitro'],
   };
 }
 
@@ -364,13 +429,17 @@ function nitroEffect(s: SimState): Effect {
 
 export const BUILT_IN_HARMS: Harm[] = [
   { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
-  { id: 'shock-with-pulse', actions: ['defib', 'aed'], when: (s) => s.pulse, points: 15, severity: 'critical', text: 'Unsynchronised shock to a patient with a pulse: it can land on the T wave and cause VF. Unstable tachycardia with a pulse needs synchronised cardioversion.' },
-  { id: 'shock-nonshockable', actions: ['defib'], when: (s) => !s.pulse && !shockable(s), points: 10, severity: 'major', text: 'Asystole and PEA are not shockable: shocking them interrupts CPR and does not help. Give CPR and epinephrine and look for reversible causes.' },
-  { id: 'sync-in-arrest', actions: ['cardiovert'], when: (s) => !s.pulse, points: 8, severity: 'major', text: 'Synchronised mode needs R waves; in VF or pulseless VT it may never fire. Defibrillate unsynchronised.' },
-  { id: 'arrest-epi-with-pulse', actions: ['epinephrine'], when: (s) => s.pulse, points: 15, severity: 'critical', text: '1 mg IV epinephrine is the cardiac-arrest dose. With a pulse it causes severe hypertension, arrhythmias and ischaemia; use push-dose epinephrine or an infusion.' },
+  // a manual shock fires whatever the rhythm; an AED never shocks an organized rhythm, so with a pulse it gives no shock to penalise
+  { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 15, severity: 'critical', text: 'Unsynchronized shock to a patient with a pulse: it can land on the T wave and cause VF. Unstable tachycardia with a pulse needs synchronized cardioversion.' },
+  { id: 'shock-nonshockable', actions: ['defib', 'cardiovert'], when: (s) => !s.pulse && !shockable(s), points: 10, severity: 'major', text: 'Asystole and PEA are not shockable: shocking them interrupts CPR and does not help. Give CPR and epinephrine and look for reversible causes.' },
+  { id: 'sync-in-arrest', actions: ['cardiovert'], when: (s) => shockable(s), points: 8, severity: 'major', text: 'Synchronized mode needs R waves; in VF or pulseless VT it may never fire. Defibrillate unsynchronized.' },
+  { id: 'cardiovert-no-tachycardia', actions: ['cardiovert'], when: (s) => s.pulse && !tachyarrhythmia(s), points: 8, severity: 'major', text: 'Synchronized cardioversion without a tachyarrhythmia to treat. It is for an unstable SVT, atrial fibrillation or flutter, or monomorphic VT; on any other rhythm the shock cannot help, and it hurts an awake patient.' },
+  { id: 'arrest-epi-with-pulse', actions: ['epinephrine'], when: (s) => s.pulse, points: 15, severity: 'critical', text: '1 mg IV epinephrine is the cardiac-arrest dose. With a pulse it causes severe hypertension, arrhythmias and ischemia; use push-dose epinephrine or an infusion.' },
   { id: 'arrest-amio-with-pulse', actions: ['amio-arrest'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'A 300 mg amiodarone push is for cardiac arrest. With a pulse, give 150 mg over 10 minutes.' },
   { id: 'airway-awake', actions: ['airway'], when: (s) => s.pulse && s.vitals.gcs > 8, points: 10, severity: 'major', text: 'An advanced airway is not indicated in a patient who is awake and protecting their own airway.' },
-  { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 60, points: 5, severity: 'minor', text: 'Transcutaneous pacing is for symptomatic bradycardia; the heart rate is not slow.' },
+  { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50, points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
+  { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
+  { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further: hold them until it is back above 90.' },
 ];
 
 // ─── Engine ────────────────────────────────────────────────────────────────
@@ -399,6 +468,25 @@ function applyEffect(s: SimState, e: Effect) {
   if (e.image) s.images.push({ minute: s.minute, ...e.image });
   if (e.read && s.role !== 1) askRead(s, { ...e.read, minute: s.minute, ...(e.image?.image ? { run: s.images.length } : {}) });
   if (e.end && !s.ended) s.ended = { reason: e.end, minute: s.minute };
+  boundVitals(s);
+}
+
+const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+
+/**
+ * The last safety net for the vitals (each response should already keep inside them, so its text matches): a patient
+ * with a pulse keeps a measurable pressure, the diastolic stays below the systolic, and nothing leaves its scale.
+ */
+function boundVitals(s: SimState) {
+  const v = s.vitals;
+  v.spo2 = clamp(v.spo2, 0, 100);
+  v.rr = clamp(v.rr, 0, 60);
+  v.etco2 = clamp(v.etco2, 0, 99);
+  v.pain = clamp(v.pain, 0, 10);
+  v.gcs = clamp(v.gcs, 3, 15);
+  v.sbp = clamp(v.sbp, s.pulse ? PERFUSING_FLOOR.sbp : 0, 250);
+  v.dbp = clamp(v.dbp, s.pulse ? PERFUSING_FLOOR.dbp : 0, 140);
+  if (s.pulse && v.dbp > v.sbp - 10) v.dbp = Math.max(PERFUSING_FLOOR.dbp, v.sbp - 10);
 }
 
 /** Ask the learner for a read (the next one waits if one is already open) */
@@ -409,8 +497,8 @@ function askRead(s: SimState, r: PendingRead) {
 }
 
 function harmsFor(sc: Scenario, s: SimState, id: string) {
-  // a scenario harm with the same id replaces the built-in one (more specific wording)
-  const own = new Set(sc.harms.map((h) => h.id));
+  // a scenario harm with the same id, or one that says it covers a built-in one, replaces it (more specific wording)
+  const own = new Set(sc.harms.flatMap((h) => [h.id, ...(h.replaces ?? [])]));
   for (const h of [...BUILT_IN_HARMS.filter((b) => !own.has(b.id)), ...sc.harms]) {
     if (!h.actions.includes(id)) continue;
     if (h.roles && !h.roles.includes(s.role)) continue;
@@ -579,8 +667,8 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
 const READ_COACHING: Record<PendingRead['kind'], string> = {
   ecg: 'Work through it: rate, rhythm (P waves?), axis, PR / QRS / QT, then the ST segments lead by lead — which leads, and is there a reciprocal change?',
   hemo: 'Compare each number with normal: RA 2–8, RV 15–30/2–8, PA 15–30/4–12, PCWP 6–12, LVEDP under 12–15, cardiac index above 2.2. Then look at the pattern, and at the waveform itself.',
-  physiology: 'FFR: 0.80 or less is significant. Before you trust the number, ask: was the wire equalised, and was hyperaemia adequate?',
-  sizing: 'Diameter: match the reference vessel 1:1 (round to the nearest size up). Length: cover the lesion edge to edge, with a few millimetres of healthy vessel at each end.',
+  physiology: 'FFR: 0.80 or less is significant. Before you trust the number, ask: was the wire equalized, and was hyperemia adequate?',
+  sizing: 'Diameter: match the reference vessel 1:1 (round to the nearest size up). Length: cover the lesion edge to edge, with a few millimeters of healthy vessel at each end.',
   clinical: 'Put it together: what just happened (contrast, a balloon, a wire, a drug), then the rate, the pressure, the skin, the breathing and what the patient says.',
   angio: 'Go segment by segment: left main, LAD, diagonals, circumflex, marginals, RCA, PDA. Where does the contrast stop or narrow, and how fast does it fill the vessel beyond?',
 };
@@ -695,12 +783,15 @@ export function review(sc: Scenario, s: SimState): Review {
     timings.push({ label: t.label, minute, target: t.target, met: t.target === undefined ? null : minute !== null && minute <= t.target });
   }
 
+  // a hand-off also ends the case as complete, whatever is still missing: say which it was
+  const missed = toFix.filter((t) => t.kind === 'missed').length;
+  const notDone = `${missed} critical item${missed === 1 ? '' : 's'} not done`;
   const outcome = s.ended?.reason === 'death'
     ? 'The patient died.'
     : s.ended?.reason === 'complete'
-      ? `Every critical intervention done in ${clockText(s.ended.minute)}.`
-      : `Ended early at ${clockText(s.minute)} with ${toFix.filter((t) => t.kind === 'missed').length} critical item(s) not done.`;
+      ? missed === 0 ? `Every critical intervention done in ${clockText(s.ended.minute)}.` : `Care handed over at ${clockText(s.ended.minute)} with ${notDone}.`
+      : `Ended early at ${clockText(s.minute)} with ${notDone}.`;
 
   const reads = s.reads.map((r) => ({ kind: r.kind, minute: r.minute, chosen: READ_OPTION_BY_ID[r.chosen].label, answer: READ_OPTION_BY_ID[r.answer].label, verdict: r.verdict }));
-  return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, timings, wentWell, toFix, reads, hints: s.penalties.filter(isHint).length, teaching: sc.teaching };
+  return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, missed, timings, wentWell, toFix, reads, hints: s.penalties.filter(isHint).length, teaching: sc.teaching };
 }

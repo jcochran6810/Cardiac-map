@@ -14,6 +14,7 @@ export function setRhythm(profileId: string, hr?: number) {
 // ─── A new patient ─────────────────────────────────────────────────────────
 
 const leftovers: (() => void)[] = [];
+let patients = 0;
 
 /**
  * Whatever keeps something that belongs to the patient on the monitor — drugs still acting, the defibrillator's
@@ -29,7 +30,16 @@ export function onNewPatient(drop: () => void) {
  * `showRhythm` calls it; call it directly only when a new patient arrives without a rhythm being shown.
  */
 export function newPatient() {
+  patients++;
   for (const drop of leftovers) drop();
+}
+
+/**
+ * How many patients have been shown so far. Whatever borrows the monitor for a patient of its own (a quiz strip) can
+ * tell from it whether someone else has put a patient up since — even one with the same rhythm.
+ */
+export function patientCount(): number {
+  return patients;
 }
 
 /**

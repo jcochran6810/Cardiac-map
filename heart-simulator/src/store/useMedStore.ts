@@ -197,6 +197,24 @@ function apply(job: Pending) {
   });
 }
 
+/**
+ * The drug effects on the intervals to draw on the tracing now. They belong to the patient on the monitor, wherever
+ * the learner is — the main menu and the course list included, where the clock keeps running — except in the case
+ * simulator, whose patient has been given none of them (the session ends as it takes the monitor).
+ */
+export function drugMods(): RhythmMods | null {
+  return useAppStore.getState().mode === 'simulator' ? null : useMedStore.getState().mods;
+}
+
+/**
+ * The patient before the first dose of this session (null when nothing has been given). Whatever borrows the monitor
+ * for another patient — a quiz strip — hands it back to this rhythm: the doses are forgotten once another patient
+ * has been shown, so the treated rhythm would be a patient who was never given anything.
+ */
+export function untreatedRhythm(): { profileId: string; hr: number } | null {
+  return useMedStore.getState().given.length && untreated ? { ...untreated } : null;
+}
+
 /** Called every frame by SimulationDriver: fire the effects that are due */
 export function tickMeds(t: number) {
   if (!pending.length) return;

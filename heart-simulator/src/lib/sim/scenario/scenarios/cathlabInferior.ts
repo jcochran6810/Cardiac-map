@@ -1,5 +1,5 @@
-import type { Effect, Scenario, SimState } from '../types';
-import { has, line } from '../kit';
+import type { Effect, Line, Scenario, SimState } from '../types';
+import { PADS, bpAfter, has, line, paced } from '../kit';
 import {
   LAD_VIEWS, LEFT_GUIDES, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine,
   doneAfter, nextStep, type LabAsk,
@@ -28,15 +28,36 @@ const reflexRead = {
   explain: 'The Bezold–Jarisch reflex: reflow into the inferior wall fires vagal reflexes from the LV — sudden bradycardia and vasodilation. Atropine for the rate, fluid for the pressure (her RV is preload-dependent), pacing if the rate does not come back.',
 };
 
-/** In the reflex, atropine brings the rate back and fluid the pressure */
+/** Her own rhythm under the reflex: pacing only takes over the rate, and hands it back when her own rate is faster */
+const OWN_RHYTHM = 'inferior-stemi';
+
+/** In the reflex, atropine brings her own rate back (above a pacer's 70, which then stops firing) and fluid the pressure */
 const atropine = (s: SimState): Effect | null => has(s, 'bezold') && !has(s, 'bj-atropine')
-  ? { say: [['monitor', `Heart rate 72. BP ${s.vitals.sbp}/${s.vitals.dbp}.`]], rhythm: { ...s.rhythm, hr: 72 }, flags: ['atropine', 'bj-atropine'] }
+  ? {
+    say: [['monitor', paced(s) ? `Heart rate 72: her own beats are back, faster than the pacer, so it stops firing. BP ${s.vitals.sbp}/${s.vitals.dbp}.` : `Heart rate 72. BP ${s.vitals.sbp}/${s.vitals.dbp}.`]],
+    rhythm: { profile: paced(s) ? OWN_RHYTHM : s.rhythm.profile, hr: 72 }, flags: ['atropine', 'bj-atropine'],
+  }
   : null;
 const fluid = (s: SimState): Effect | null => {
-  const v = s.vitals;
-  if (has(s, 'bezold') && !has(s, 'bj-fluid')) return { say: [['monitor', `Fluid running wide open. BP ${v.sbp + 16}/${v.dbp + 10}.`]], vitals: { sbp: v.sbp + 16, dbp: v.dbp + 10 }, flags: ['fluid', 'bj-fluid'] };
-  return { say: [['monitor', `Bolus in. BP ${Math.min(130, v.sbp + 10)}/${Math.min(80, v.dbp + 6)}.`]], vitals: { sbp: Math.min(130, v.sbp + 10), dbp: Math.min(80, v.dbp + 6) }, flags: ['fluid'] };
+  if (has(s, 'bezold') && !has(s, 'bj-fluid')) {
+    const bp = bpAfter(s, 16, 10);
+    return { say: [['monitor', `Fluid running wide open. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['fluid', 'bj-fluid'] };
+  }
+  const bp = bpAfter(s, 10, 6, { sbp: 130, dbp: 80 });
+  return { say: [['monitor', `Bolus in. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['fluid'] };
 };
+/**
+ * Pacing in the reflex: the rate comes back to 70, but her vessels stay dilated, so the pressure only partly recovers
+ * (fluid does the rest). Outside the reflex, the default response applies.
+ */
+function paceReflex(s: SimState, how: Line[], profile: 'tcp' | 'paced', flags: string[]): Effect | null {
+  if (!has(s, 'bezold') || has(s, 'recovered') || !s.pulse || s.rhythm.hr >= 50) return null;
+  const bp = bpAfter(s, 12, 8);
+  return {
+    say: [...how, ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`]],
+    rhythm: { profile, hr: 70 }, vitals: { ...bp, ...(profile === 'tcp' ? { pain: Math.max(s.vitals.pain, 6) } : {}) }, flags: ['paced', ...flags],
+  };
+}
 const nitroCrash = (s: SimState): Effect => ({
   say: [['monitor', 'BP 72/42.', 'bad'], ['patient', '"I feel like I\'m going to pass out…"']], vitals: { sbp: 72, dbp: 42 }, flags: ['nitro'],
 });
@@ -122,6 +143,7 @@ const RN_ASKS: LabAsk[] = [
     accept: ['atropine'], wrong: ['adenosine6', 'diltiazem'],
     wrongSay: 'No! Atropine, 1 milligram — her rate is 38.',
     thanks: 'Thanks — rate is coming up.', fallback: 'Tech, give me the atropine — I\'ll push it.', gives: 'atropine-given',
+    fallbackEffect: (s) => atropine(s) ?? {},
     label: 'Atropine for the reflex bradycardia',
     why: 'Atropine 1 mg IV blocks the vagal surge of the Bezold–Jarisch reflex; repeat every 3–5 minutes (max 3 mg). Pacing if it does not hold.',
   },
@@ -130,6 +152,10 @@ const RN_ASKS: LabAsk[] = [
     ask: 'And her pressure is 68 — what does she need?',
     accept: ['fluid'],
     thanks: 'Thanks — pressure\'s coming up.', fallback: 'Open the fluids, someone!', gives: 'fluids-given',
+    fallbackEffect: (s) => {
+      const f = fluid(s);
+      return f ? { ...f, say: [['team', 'Tech: fluids wide open.'], ...(f.say ?? [])] } : {};
+    },
     label: 'Fluid for the reflex hypotension',
     why: 'Vasodilation plus an infarcted, preload-dependent RV: give fluid wide open (250–500 mL boluses) and reassess. Nitrates and diuretics are the opposite of what she needs.',
   },
@@ -173,10 +199,14 @@ export const cathlabInferior: Scenario = {
     allergies: 'No allergies, no blood thinners. I\'ve never had dye before. Yes, please go ahead.',
     sample: 'No allergies. Metformin and amlodipine. Diabetes and high blood pressure.',
     opqrst: 'Pressure in the pit of my stomach, going into my back, for two hours. 6 out of 10. I feel sick.',
-    labs: 'Creatinine 1.1, potassium 4.4, haemoglobin 12.9, INR 1.0, platelets 230. Troponin pending.',
+    labs: 'Creatinine 1.1, potassium 4.4, hemoglobin 12.9, INR 1.0, platelets 230. Troponin pending.',
     ecg12: (s) => s.rhythm.profile === 'inferior-stemi-reperfused'
       ? 'Sinus rhythm: ST elevation in II, III and aVF settling, early Q waves — the inferior infarct after reperfusion.'
-      : `Sinus rhythm ${s.rhythm.hr}: ST elevation in II, III and aVF (III more than II), reciprocal depression in I and aVL — an inferior STEMI from the right coronary.`,
+      : s.rhythm.profile === 'tcp'
+        ? 'Transcutaneous pacing at 70: a wide QRS after every pacing spike (electrical capture). The paced beats hide the inferior ST elevation.'
+        : s.rhythm.profile === 'paced'
+          ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS. The paced beats hide the inferior ST elevation.`
+          : `Sinus rhythm ${s.rhythm.hr}: ST elevation in II, III and aVF (III more than II), reciprocal depression in I and aVL — an inferior STEMI from the right coronary.`,
     echo: 'Inferior hypokinesis, LVEF about 50 %; the RV is dilated and hypokinetic. No effusion.',
     rhc: 'RA 16 · RV 32/16 · PA 30/14 (mean 20) · PCWP 11 · CO 3.4 L/min, CI 1.9.',
   },
@@ -191,6 +221,10 @@ export const cathlabInferior: Scenario = {
     'final-angio': (s) => (s.role === 5 && has(s, 'access') ? { ...finalRun('you'), flags: ['final-angio'] } : null),
     atropine,
     fluid,
+    pace: (s) => paceReflex(s, [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.'], ['patient', '"Ow — what is that thumping?"']], 'tcp', ['pads', 'monitor']),
+    'temp-wire': (s) => (s.role === 5 && has(s, 'venous')
+      ? paceReflex(s, [['you', 'Temporary wire in the RV apex: threshold 0.6 mA; pacing at 70, output 3 mA.']], 'paced', ['temp-wire'])
+      : null),
     nitro: nitroCrash,
     'ic-nitro': nitroCrash,
     rhc: (s) => !has(s, 'venous') ? null : {
@@ -201,7 +235,7 @@ export const cathlabInferior: Scenario = {
   events: [
     {
       id: 'tech-setup', when: (s) => s.role !== 3,
-      effect: () => ({ say: [['team', 'Tech: both groins and the right radial prepped, transducers zeroed and levelled, monitor and defibrillator pads on.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
+      effect: () => ({ say: [['team', 'Tech: both groins and the right radial prepped, transducers zeroed and leveled, monitor and defibrillator pads on.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
     },
     {
       id: 'rn-setup-for-tech', when: (s) => s.role === 3,
@@ -243,14 +277,20 @@ export const cathlabInferior: Scenario = {
     },
     {
       id: 'bezold', when: (s) => has(s, 'predilated'),
-      effect: (s) => ({
-        say: [
-          ['monitor', 'Heart rate 38. BP 68/40.', 'bad'],
-          ['patient', '"I feel sick… and so dizzy." She yawns and goes grey.'],
-          ...(s.role === 5 ? [line('team', 'Nurse: "Doctor — her rate\'s 38 and the pressure is 68!"', 'warn')] : []),
-        ],
-        rhythm: { ...s.rhythm, hr: 38 }, vitals: { sbp: 68, dbp: 40 }, flags: ['bezold'], read: reflexRead,
-      }),
+      effect: (s) => {
+        // a temporary wire already in (on demand below 50) catches the rate at 50; it cannot undo the vasodilation
+        const wire = has(s, 'temp-wire');
+        const hr = wire ? 50 : 38;
+        const bp = wire ? { sbp: 74, dbp: 44 } : { sbp: 68, dbp: 40 };
+        return {
+          say: [
+            ['monitor', wire ? `Heart rate 38, then 50 as the wire cuts in. BP ${bp.sbp}/${bp.dbp}.` : `Heart rate 38. BP ${bp.sbp}/${bp.dbp}.`, 'bad'],
+            ['patient', '"I feel sick… and so dizzy." She yawns and goes gray.'],
+            ...(s.role === 5 ? [line('team', `Nurse: "Doctor — her rate's ${hr} and the pressure is ${bp.sbp}!"`, 'warn')] : []),
+          ],
+          rhythm: wire ? { profile: 'paced', hr } : { ...s.rhythm, hr }, vitals: bp, flags: ['bezold', ...(wire ? ['paced'] : [])], read: reflexRead,
+        };
+      },
     },
     {
       id: 'rn-treats-reflex', when: (s) => s.role === 3 && has(s, 'bezold') && (has(s, 'callout') || s.minute >= s.flags.bezold + 2),
@@ -264,17 +304,26 @@ export const cathlabInferior: Scenario = {
     },
     {
       id: 'reflex-worse', when: (s) => has(s, 'bezold') && !has(s, 'recovered') && s.minute >= s.flags.bezold + 4,
-      effect: (s) => ({
-        say: [['monitor', 'Heart rate 32. BP 58/30.', 'bad'], ['patient', 'She is barely responding.']],
-        rhythm: { ...s.rhythm, hr: has(s, 'bj-atropine') ? s.rhythm.hr : 32 }, vitals: { sbp: Math.min(s.vitals.sbp, 58), dbp: Math.min(s.vitals.dbp, 30), gcs: 11 },
-      }),
+      effect: (s) => {
+        // the vasodilation deepens; the rate falls further only if nothing holds it (atropine or a pacer)
+        const hr = has(s, 'bj-atropine') || paced(s) ? s.rhythm.hr : 32;
+        const bp = { sbp: Math.min(s.vitals.sbp, 58), dbp: Math.min(s.vitals.dbp, 30) };
+        return {
+          say: [['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ['patient', 'She is barely responding.']],
+          rhythm: { ...s.rhythm, hr }, vitals: { ...bp, gcs: 11 },
+        };
+      },
     },
     {
-      id: 'recovered', when: (s) => has(s, 'bj-atropine') && has(s, 'bj-fluid'),
-      effect: (s) => ({
-        say: [['monitor', 'Heart rate 72. BP 98/60.', 'good'], ['patient', '"Oh… that\'s better."']],
-        rhythm: { ...s.rhythm, hr: 72 }, vitals: { sbp: 98, dbp: 60, gcs: 15 }, flags: ['recovered'],
-      }),
+      // the rate back (atropine, or pacing at 70) and the pressure filled up (fluid)
+      id: 'recovered', when: (s) => (has(s, 'bj-atropine') || (paced(s) && s.rhythm.hr >= 60)) && has(s, 'bj-fluid'),
+      effect: (s) => {
+        const rhythm = paced(s) ? s.rhythm : { ...s.rhythm, hr: 72 };
+        return {
+          say: [['monitor', `Heart rate ${rhythm.hr}. BP 98/60.`, 'good'], ['patient', '"Oh… that\'s better."']],
+          rhythm, vitals: { sbp: 98, dbp: 60, gcs: 15 }, flags: ['recovered'],
+        };
+      },
     },
     {
       id: 'md-stent', when: (s) => s.role !== 5 && has(s, 'recovered') && (s.role === 4 ? s.minute >= s.flags.recovered + 1 : has(s, 'stent-in-hand')),
@@ -293,8 +342,8 @@ export const cathlabInferior: Scenario = {
     { id: 'consent', label: 'Consent, contrast allergy and anticoagulants checked', why: 'Confirm consent and allergies (contrast, heparin) before access.', done: ['consent'], roles: [4, 5], points: 10, target: { by: 6 } },
     { id: 'timeout', label: 'Procedural time-out before access', why: 'The time-out catches wrong-patient, wrong-site and allergy errors before anyone punctures an artery.', done: ['timeout'], points: 10, target: { by: 6 } },
     { id: 'prep', label: 'Prep and drape both groins and the radial', why: 'Femoral for this case, with the other groin ready for a venous sheath (pacing wire) or support.', done: ['prep'], roles: TECH, points: 5, target: { by: 6 } },
-    { id: 'transducer', label: 'Zero and level the transducers', why: 'Accurate pressures need transducers zeroed to air and levelled at the phlebostatic axis.', done: ['transducer'], roles: TECH, points: 10, target: { by: 6 } },
-    { id: 'pads', label: 'Defibrillator pads on before the wire crosses', why: 'Reperfusion brings bradycardia, AV block and VF: pads on, and the pacer ready.', done: ['pads'], roles: TECH, points: 10, target: { by: 8 } },
+    { id: 'transducer', label: 'Zero and level the transducers', why: 'Accurate pressures need transducers zeroed to air and leveled at the phlebostatic axis.', done: ['transducer'], roles: TECH, points: 10, target: { by: 6 } },
+    { id: 'pads', label: 'Defibrillator pads on before the wire crosses', why: 'Reperfusion brings bradycardia, AV block and VF: pads on, and the pacer ready.', done: PADS, roles: TECH, points: 10, target: { by: 8 } },
     { id: 'iv', label: 'IV access', why: 'For heparin, fluid and atropine.', done: ['iv', 'io'], roles: RN, points: 5 },
     { id: 'heparin', label: 'Anticoagulation before PCI (heparin 70–100 U/kg)', why: 'Primary PCI needs full anticoagulation (bivalirudin is the alternative).', done: ['heparin', 'bivalirudin'], roles: [4, 5], points: 10, target: { by: 10 } },
     { id: 'p2y12', label: 'P2Y12 loading dose', why: 'Ticagrelor 180 mg or prasugrel 60 mg as early as possible (cangrelor IV if she cannot swallow).', done: ['p2y12', 'cangrelor'], roles: [4, 5], points: 5 },
@@ -309,15 +358,15 @@ export const cathlabInferior: Scenario = {
     { id: 'callout', label: 'Call out the bradycardia and hypotension at once', why: 'A heart rate of 38 and a pressure of 68 need treating within a minute: say it out loud so the team acts.', done: ['callout'], after: 'bezold', roles: [3, 4], points: 10, target: { within: { flag: 'bezold', minutes: 1 } }, applies: (s) => has(s, 'bezold') },
     { id: 'md-atropine', label: 'Atropine for the reflex bradycardia', why: 'Atropine 1 mg IV blocks the vagal surge; repeat every 3–5 minutes, pace if it does not hold.', done: ['atropine'], after: 'bezold', roles: MD, points: 10, target: { within: { flag: 'bezold', minutes: 2 } }, applies: (s) => has(s, 'bezold') },
     { id: 'md-fluid', label: 'Fluid for the reflex hypotension', why: 'She is vasodilated and her infarcted RV is preload-dependent: fluid wide open.', done: ['fluid'], after: 'bezold', roles: MD, points: 10, target: { within: { flag: 'bezold', minutes: 2 } }, applies: (s) => has(s, 'bezold') },
-    { id: 'stent', label: 'Drug-eluting stent in the culprit', why: 'Door-to-device within 90 minutes.', done: ['stent-des'], roles: MD, points: 15, target: { by: 30 } },
+    { id: 'stent', label: 'Drug-eluting stent in the culprit', why: 'First medical contact to device within 90 minutes.', done: ['stent-des'], roles: MD, points: 15, target: { by: 30 } },
     { id: 'final', label: 'Final angiogram in two views', why: 'Confirm TIMI 3 flow to the crux and look for dissection before you leave.', done: ['final-angio'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
     { id: 'post-ecg', label: '12-lead after the procedure', why: 'ST resolution confirms reperfusion; look for AV block.', done: ['ecg12', 'ecg12-repeat'], after: 'pci', points: 5, applies: (s) => has(s, 'pci') },
     { id: 'echo', label: 'Echocardiogram after PCI', why: 'LV and RV function, and no mechanical complication (papillary muscle, VSD, effusion).', done: ['echo'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
-    { id: 'hemostasis', label: 'Femoral haemostasis', why: 'Sheath out with firm pressure (or a closure device); check the groin and distal pulses, and watch for back pain and hypotension (retroperitoneal bleed).', done: ['hemostasis', 'closure-device'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
+    { id: 'hemostasis', label: 'Femoral hemostasis', why: 'Sheath out with firm pressure (or a closure device); check the groin and distal pulses, and watch for back pain and hypotension (retroperitoneal bleed).', done: ['hemostasis', 'closure-device'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the reflex and its treatment, the RV infarct (no nitrates) and the groin.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
-    { id: 'nitro-rv', actions: ['nitro', 'ic-nitro'], points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
+    { id: 'nitro-rv', actions: ['nitro', 'ic-nitro'], replaces: ['nitro-hypotension'], points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in a patient who can give them.' },
@@ -340,7 +389,7 @@ export const cathlabInferior: Scenario = {
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     { label: 'Artery open (arrival to device)', actions: ['stent-des'], flag: 'pci', target: 30 },
-    { label: 'Reflex recognised and treated', actions: ['callout', 'atropine'], target: 2, from: 'bezold' },
+    { label: 'Reflex recognized and treated', actions: ['callout', 'atropine'], target: 2, from: 'bezold' },
   ],
   deathAfter: 10,
   completeWhen: (s) => has(s, 'pci') && has(s, 'final-angio') && has(s, 'recovered'),

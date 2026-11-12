@@ -8,6 +8,30 @@ export const shocks = (s: SimState) => count(s, 'defib') + count(s, 'aed');
 export const cprCycles = (s: SimState) => count(s, 'cpr');
 export const interpret = (s: SimState) => s.role !== 1;
 
+/** Every action that puts defibrillation pads on the chest: a "pads on" item counts any of them */
+export const PADS = ['pads', 'aed', 'defib', 'cardiovert', 'pace'];
+
+/** The rhythm is driven by a pacer (transcutaneous pads or a transvenous wire), not by the heart's own rate */
+export const paced = (s: SimState) => s.rhythm.profile === 'tcp' || s.rhythm.profile === 'paced';
+
+/** The lowest pressure a patient with a pulse shows: below it the circulation would have stopped */
+export const PERFUSING_FLOOR = { sbp: 50, dbp: 25 };
+
+/**
+ * The blood pressure after a drug or a bolus moves it, kept to what a living circulation can show: a fall stops at
+ * the perfusing floor (repeated doses never reach zero or below), a rise stops at `ceiling`, and with no pulse there
+ * is no pressure to move. Use the result for the vitals and for the text, so the monitor says what the patient has.
+ */
+export function bpAfter(s: SimState, dSbp: number, dDbp: number, ceiling = { sbp: 150, dbp: 90 }): { sbp: number; dbp: number } {
+  const { sbp, dbp } = s.vitals;
+  if (!s.pulse) return { sbp, dbp };
+  // a fall never raises a pressure that is already low, and a rise never lowers one that is already high
+  const move = (v: number, d: number, floor: number, top: number) => (d < 0 ? Math.min(v, Math.max(floor, v + d)) : Math.max(v, Math.min(top, v + d)));
+  const nSbp = move(sbp, dSbp, PERFUSING_FLOOR.sbp, ceiling.sbp);
+  const nDbp = Math.min(move(dbp, dDbp, PERFUSING_FLOOR.dbp, ceiling.dbp), nSbp - 10);
+  return { sbp: nSbp, dbp: Math.max(PERFUSING_FLOOR.dbp, nDbp) };
+}
+
 /** First minute any of these interventions was done (at or after a flag), or null */
 export function firstDone(s: SimState, ids: string[], afterFlag?: string): number | null {
   const from = afterFlag ? s.flags[afterFlag] : -Infinity;

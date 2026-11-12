@@ -1,5 +1,5 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
-import { has } from '../kit';
+import { PADS, bpAfter, has } from '../kit';
 import {
   LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
   cine, doneAfter, nextStep, operator, type LabAsk,
@@ -22,6 +22,8 @@ const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogr
   explain: 'The stented distal LAD is smooth, with no narrowing left and contrast filling it briskly to the apex: TIMI 3 flow.',
 });
 
+const IVUS_LINE = 'IVUS: proximal reference lumen 2.9 mm, distal reference lumen 2.7 mm (vessel 3.1 mm); 12 mm of plaque between healthy landing zones; minimum lumen area 1.8 mm².';
+
 const spasmBlock: Effect = { blocked: true, say: [['system', 'The guide will not pass the forearm: the radial artery is in spasm. Treat it first.']] };
 
 const sizingRead: Omit<PendingRead, 'minute'> = {
@@ -30,31 +32,31 @@ const sizingRead: Omit<PendingRead, 'minute'> = {
 };
 
 /**
- * The FFR at maximal hyperaemia (Pd 62 / Pa 98 = 0.63): the console screen to read, when the app has it.
+ * The FFR at maximal hyperemia (Pd 62 / Pa 98 = 0.63): the console screen to read, when the app has it.
  * The arterial line reads the same aortic pressure as the console (132/81, mean 98).
  */
 const ffrResult = (): Effect => ({
   vitals: { sbp: 132, dbp: 81 },
   say: [
-    ['monitor', IMAGES.ffr ? 'FFR recorded at maximal hyperaemia — the console screen is on the Imaging tab.' : 'At maximal hyperaemia the distal pressure falls: FFR 0.63 (Pd 62, Pa 98).'],
+    ['monitor', IMAGES.ffr ? 'FFR recorded at maximal hyperemia — the console screen is on the Imaging tab.' : 'At maximal hyperemia the distal pressure falls: FFR 0.63 (Pd 62, Pa 98).'],
     ['patient', '"I feel flushed… a bit short of breath."'],
   ],
-  ...(IMAGES.ffr ? { image: { id: 'ffr', view: 'Pressure-wire console at maximal hyperaemia', image: IMAGES.ffr } } : {}),
+  ...(IMAGES.ffr ? { image: { id: 'ffr', view: 'Pressure-wire console at maximal hyperemia', image: IMAGES.ffr } } : {}),
   flags: ['ffr', 'ffr-done', 'wired'],
   read: {
     kind: 'physiology', answer: 'ffr-significant', prompt: 'What does this FFR mean for him?',
-    explain: 'FFR 0.63 (Pd 62 ÷ Pa 98) is well under 0.80: the narrowing limits flow at stress, matching his angina and the anterior ischaemia on the stress test. Treat it — the pressure wire can carry the stent.',
+    explain: 'FFR 0.63 (Pd 62 ÷ Pa 98) is well under 0.80: the narrowing limits flow at stress, matching his angina and the anterior ischemia on the stress test. Treat it — the pressure wire can carry the stent.',
   },
 });
 
-/** The pressure wire reading: trustworthy only when equalised first and measured at maximal hyperaemia */
+/** The pressure wire reading: trustworthy only when equalized first and measured at maximal hyperemia */
 function ffrEffect(s: SimState): Effect | null {
-  if (!has(s, 'equalized')) return { blocked: true, say: [['system', 'Equalise the pressure wire at the guide tip first — without it the reading cannot be trusted.']] };
+  if (!has(s, 'equalized')) return { blocked: true, say: [['system', 'Equalize the pressure wire at the guide tip first — without it the reading cannot be trusted.']] };
   if (!has(s, 'hyperemia')) {
     return {
       say: [['monitor', 'Pd/Pa 0.91 and flat: no fall in the distal pressure, no change in the heart rate or blood pressure.'], ['patient', '"I don\'t feel anything."']],
       flags: ['ffr-rest'],
-      read: { kind: 'physiology', answer: 'ffr-no-hyperemia', prompt: 'What does this reading tell you?', explain: 'Pd/Pa 0.91 with nothing happening to the patient is a resting value: FFR needs maximal hyperaemia (adenosine 140 mcg/kg/min IV, or intracoronary boluses). Give it and measure again.' },
+      read: { kind: 'physiology', answer: 'ffr-no-hyperemia', prompt: 'What does this reading tell you?', explain: 'Pd/Pa 0.91 with nothing happening to the patient is a resting value: FFR needs maximal hyperemia (adenosine 140 mcg/kg/min IV, or intracoronary boluses). Give it and measure again.' },
     };
   }
   return ffrResult();
@@ -127,10 +129,11 @@ const TECH_ASKS: LabAsk[] = [
   },
   {
     id: 'equalize', when: (s) => has(s, 'guide'),
-    ask: 'Pressure wire is at the tip of the guide. Equalise, please.',
+    ask: 'Pressure wire is at the tip of the guide. Equalize, please.',
     accept: ['ffr-equalize'],
-    thanks: 'Equalised — crossing the lesion.', fallback: 'I\'ll equalise it myself.', gives: 'equalize-done',
-    label: 'Equalise the pressure wire at the guide tip',
+    thanks: 'Equalized — crossing the lesion.', fallback: 'I\'ll equalize it myself.', gives: 'equalize-done',
+    fallbackEffect: () => ({ say: [['monitor', 'Equalized at the guide tip: Pd/Pa 1.00.']], flags: ['equalized'] }),
+    label: 'Equalize the pressure wire at the guide tip',
     why: 'With the wire\'s sensor at the guide tip, both pressures must read the same (Pd/Pa 1.00) before you cross: otherwise every number after it is off.',
   },
   {
@@ -138,14 +141,16 @@ const TECH_ASKS: LabAsk[] = [
     ask: 'Adenosine is running. Record the FFR, please.',
     accept: ['ffr'],
     thanks: 'Thanks.', fallback: 'I\'ll record it myself.', gives: 'ffr-recorded',
-    label: 'Record the FFR at maximal hyperaemia',
-    why: 'FFR is the lowest Pd/Pa at steady maximal hyperaemia (about 1–2 minutes into the adenosine infusion, when the patient feels flushed and the pressure falls a little).',
+    fallbackEffect: () => ffrResult(),
+    label: 'Record the FFR at maximal hyperemia',
+    why: 'FFR is the lowest Pd/Pa at steady maximal hyperemia (about 1–2 minutes into the adenosine infusion, when the patient feels flushed and the pressure falls a little).',
   },
   {
     id: 'ivus', when: (s) => has(s, 'ffr-done'),
     ask: 'It\'s significant. IVUS catheter, please — I want to size it.',
     accept: ['ivus', 'oct'],
     thanks: 'Thanks — pulling back.', fallback: 'I\'ll set up the IVUS myself.', gives: 'ivus-done',
+    fallbackEffect: () => ({ say: [['monitor', IVUS_LINE]], flags: ['ivus', 'sized'] }),
     label: 'Intravascular imaging to size the stent',
     why: 'IVUS (or OCT) measures the true vessel and lumen size and the length of the plaque: stents placed with it expand better and fail less.',
   },
@@ -184,6 +189,7 @@ const RN_ASKS: LabAsk[] = [
     accept: ['heparin', 'bivalirudin'], wrong: ['protamine', 'gp2b3a'],
     wrongSay: 'No — he needs anticoagulation before the wire: heparin, 70 units per kilo.',
     thanks: 'Thanks. ACT in five.', fallback: 'Heparin, please — I\'ll give it myself.', gives: 'anticoag-given',
+    fallbackEffect: () => ({ flags: ['heparin'] }),
     label: 'Anticoagulate before the pressure wire',
     why: 'A pressure wire is a coronary wire: heparin 70–100 U/kg (ACT 250–300 s) before it enters the artery, or it clots.',
   },
@@ -207,12 +213,13 @@ const RN_ASKS: LabAsk[] = [
   },
   {
     id: 'hyperemia', role: 4, when: (s) => has(s, 'nitro-given'),
-    ask: 'Now the hyperaemia, please.',
+    ask: 'Now the hyperemia, please.',
     accept: ['adenosine-iv-ffr', 'ic-adenosine'], wrong: ['adenosine6', 'adenosine12'],
     wrongSay: 'Not the SVT dose! A steady infusion: adenosine 140 micrograms per kilo per minute.',
     thanks: 'Thanks — he\'ll feel flushed in a minute.', fallback: 'I\'ll start the adenosine myself.', gives: 'hyperemia-given',
-    label: 'Adenosine for maximal hyperaemia',
-    why: 'FFR needs maximal hyperaemia: an IV infusion of adenosine 140 mcg/kg/min (or intracoronary boluses). A 6 or 12 mg push is the SVT dose — seconds of AV block, not steady hyperaemia.',
+    fallbackEffect: () => ({ say: [['patient', '"I feel flushed… a bit short of breath."']], flags: ['hyperemia'] }),
+    label: 'Adenosine for maximal hyperemia',
+    why: 'FFR needs maximal hyperemia: an IV infusion of adenosine 140 mcg/kg/min (or intracoronary boluses). A 6 or 12 mg push is the SVT dose — seconds of AV block, not steady hyperemia.',
   },
   {
     id: 'load', role: 4, when: (s) => has(s, 'ffr-done'),
@@ -234,21 +241,21 @@ export const cathlabFfr: Scenario = {
   images: IMAGES,
   briefing: {
     default: [
-      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischaemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
+      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
       ['scene', 'He is awake and a little anxious on the table: no pain at rest.'],
     ],
     3: [
-      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischaemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
+      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
       ['scene', 'He is awake and a little anxious on the table: no pain at rest.'],
       ['team', 'You are the scrub tech: set-up, the transducers, the C-arm, the devices — and the pressure wire and IVUS consoles.'],
     ],
     4: [
-      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischaemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
+      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
       ['scene', 'He is awake and a little anxious on the table: no pain at rest.'],
       ['team', 'You are the procedural nurse: checks, IV, sedation, and every drug the cardiologist asks for.'],
     ],
     5: [
-      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischaemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
+      ['team', 'Elective case: 58-year-old man, three months of chest tightness walking uphill. Stress echo: anterior ischemia. On aspirin 81 mg, atorvastatin and amlodipine.'],
       ['scene', 'He is awake and a little anxious on the table: no pain at rest.'],
       ['team', 'You are the interventional cardiologist: every decision is yours — including whether this needs a stent at all.'],
     ],
@@ -261,7 +268,7 @@ export const cathlabFfr: Scenario = {
     allergies: 'No allergies. No blood thinners apart from my baby aspirin. Yes — I understand and agree.',
     sample: 'No allergies. Aspirin, atorvastatin, amlodipine. High cholesterol; ex-smoker.',
     opqrst: 'Only when I walk uphill or hurry: a tight band across my chest, gone in a few minutes when I stop. Nothing right now.',
-    labs: 'Creatinine 0.9, potassium 4.2, haemoglobin 14.6, INR 1.0, platelets 260.',
+    labs: 'Creatinine 0.9, potassium 4.2, hemoglobin 14.6, INR 1.0, platelets 260.',
     ecg12: `Sinus rhythm 68, normal axis, no ST changes.`,
     echo: 'Normal LV size and function, LVEF 60 %, no effusion.',
     ivus: 'IVUS: proximal reference lumen 2.9 mm, distal reference lumen 2.7 mm (vessel 3.1 mm); 12 mm of plaque between healthy landing zones; minimum lumen area 1.8 mm².',
@@ -276,16 +283,20 @@ export const cathlabFfr: Scenario = {
     'guide-al1': (s) => (s.role === 5 && has(s, 'spasm') && !has(s, 'spasm-eased') ? spasmBlock : null),
     'ffr-equalize': (s) => (s.role === 5 && !has(s, 'guide') ? { blocked: true, say: [['system', 'Engage a guide first: the pressure wire goes in through it.']] } : null),
     ffr: ffrEffect,
-    ivus: (s) => (has(s, 'wired') ? { say: [['monitor', 'IVUS: proximal reference lumen 2.9 mm, distal reference lumen 2.7 mm (vessel 3.1 mm); 12 mm of plaque between healthy landing zones; minimum lumen area 1.8 mm².']], flags: ['ivus', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
+    ivus: (s) => (has(s, 'wired') ? { say: [['monitor', IVUS_LINE]], flags: ['ivus', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
     oct: (s) => (has(s, 'wired') ? { say: [['monitor', 'OCT: proximal reference lumen 2.9 mm, distal reference lumen 2.7 mm; 12 mm of fibrous plaque between healthy landing zones; minimum lumen area 1.7 mm².']], flags: ['oct', 'sized'], ...(s.role !== 4 && !has(s, 'sized') ? { read: sizingRead } : {}) } : null),
-    'adenosine-iv-ffr': (s) => ({ say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['monitor', `BP ${s.vitals.sbp - 6}/${s.vitals.dbp - 2}.`], ['patient', '"I feel flushed… a bit short of breath."']], vitals: { sbp: s.vitals.sbp - 6, dbp: s.vitals.dbp - 2 }, flags: ['hyperemia'] }),
-    'ic-adenosine': () => ({ say: [['you', 'Adenosine 150 mcg intracoronary, through the guide.'], ['monitor', 'A few seconds of slowing; the distal pressure dips.']], flags: ['hyperemia'] }),
+    'adenosine-iv-ffr': (s) => {
+      const bp = bpAfter(s, -6, -2);
+      return { say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`], ['patient', '"I feel flushed… a bit short of breath."']], vitals: bp, flags: ['hyperemia'] };
+    },
+    // the intracoronary hyperemia dose is about 200 mcg in the left coronary (about 100 mcg would do in the right)
+    'ic-adenosine': () => ({ say: [['you', 'Adenosine 200 mcg intracoronary, through the left guide.'], ['monitor', 'A few seconds of slowing; the distal pressure dips.']], flags: ['hyperemia'] }),
     'radial-cocktail': (s) => (has(s, 'spasm') ? { say: [['you', 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg.'], ['patient', '"Ooh, that burns… it\'s easing."']], flags: ['cocktail', 'spasm-eased'] } : null),
   },
   events: [
     {
       id: 'tech-setup', when: (s) => s.role !== 3,
-      effect: () => ({ say: [['team', 'Tech: right radial and both groins prepped, transducers zeroed and levelled, monitor on, pressure-wire and IVUS consoles ready.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
+      effect: () => ({ say: [['team', 'Tech: right radial and both groins prepped, transducers zeroed and leveled, monitor on, pressure-wire and IVUS consoles ready.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
     },
     {
       id: 'rn-setup-for-tech', when: (s) => s.role === 3,
@@ -330,7 +341,7 @@ export const cathlabFfr: Scenario = {
     },
     {
       id: 'md-equalize', when: (s) => s.role === 4 && has(s, 'guide'),
-      effect: () => ({ say: [['operator', 'Equalised at the guide tip: Pd/Pa 1.00. Crossing the lesion.']], flags: ['equalized'] }),
+      effect: () => ({ say: [['operator', 'Equalized at the guide tip: Pd/Pa 1.00. Crossing the lesion.']], flags: ['equalized'] }),
     },
     {
       id: 'rn-hyperemia-for-tech', when: (s) => s.role === 3 && has(s, 'equalized'),
@@ -360,33 +371,33 @@ export const cathlabFfr: Scenario = {
     { id: 'consent', label: 'Consent, contrast allergy and anticoagulants checked', why: 'Consent covers the diagnostic study and a possible stent; check contrast and drug allergies.', done: ['consent'], roles: [4, 5], points: 10, target: { by: 6 } },
     { id: 'timeout', label: 'Procedural time-out before access', why: 'Patient, procedure, site, allergies, and the plan if a stent is needed.', done: ['timeout'], points: 10, target: { by: 8 } },
     { id: 'prep', label: 'Prep and drape the radial and femoral sites', why: 'Radial first, with a groin ready as the bail-out.', done: ['prep'], roles: TECH, points: 5, target: { by: 6 } },
-    { id: 'transducer', label: 'Zero and level the transducers', why: 'The FFR is a ratio of two pressures: both must be zeroed and levelled.', done: ['transducer'], roles: TECH, points: 10, target: { by: 6 } },
-    { id: 'monitor', label: 'Monitor and pads on', why: 'Adenosine slows the heart and PCI can bring arrhythmias.', done: ['monitor', 'pads'], roles: TECH, points: 5, target: { by: 6 } },
+    { id: 'transducer', label: 'Zero and level the transducers', why: 'The FFR is a ratio of two pressures: both must be zeroed and leveled.', done: ['transducer'], roles: TECH, points: 10, target: { by: 6 } },
+    { id: 'monitor', label: 'Monitor and pads on', why: 'Adenosine slows the heart and PCI can bring arrhythmias.', done: ['monitor', ...PADS], roles: TECH, points: 5, target: { by: 6 } },
     { id: 'iv', label: 'IV access', why: 'For sedation, heparin and adenosine.', done: ['iv', 'io'], roles: RN, points: 5 },
     { id: 'access', label: 'Radial arterial access', why: 'Radial first: fewer bleeding complications.', done: ['access', 'access-femoral'], roles: MD, points: 5 },
     { id: 'angio', label: 'Diagnostic angiography', why: 'Find the narrowing and judge it — then measure it if it is borderline.', done: ['angio'], roles: MD, points: 5 },
     { id: 'md-spasm', label: 'Treat the radial spasm (vasodilator through the sheath)', why: 'Verapamil and nitroglycerin through the sheath, analgesia or more sedation, and patience: forcing a catheter through a spasm tears the artery.', done: ['radial-cocktail', 'sedation', 'fentanyl'], after: 'spasm', roles: MD, points: 10, target: { within: { flag: 'spasm', minutes: 2 } }, applies: (s) => has(s, 'spasm') },
     { id: 'heparin', label: 'Anticoagulate before the pressure wire', why: 'A pressure wire is a coronary wire: heparin 70–100 U/kg before it goes in.', done: ['heparin', 'bivalirudin'], roles: MD, points: 10 },
     { id: 'guide', label: 'A left guide for the LAD (EBU)', why: 'The LAD comes off the left main.', done: LEFT_GUIDES, roles: MD, points: 5 },
-    { id: 'equalize', label: 'Equalise the pressure wire at the guide tip', why: 'Pd/Pa must read 1.00 at the guide tip before crossing, or every reading after it is off.', done: ['ffr-equalize'], roles: MD, points: 10 },
+    { id: 'equalize', label: 'Equalize the pressure wire at the guide tip', why: 'Pd/Pa must read 1.00 at the guide tip before crossing, or every reading after it is off.', done: ['ffr-equalize'], roles: MD, points: 10 },
     { id: 'ic-nitro', label: 'Intracoronary nitroglycerin before the measurement', why: 'It removes spasm so the FFR measures the fixed narrowing only.', done: (s) => doneAfter(s, ['ic-nitro'], 'guide'), roles: MD, points: 5, applies: (s) => has(s, 'guide') },
-    { id: 'hyperemia', label: 'Maximal hyperaemia for the FFR (adenosine)', why: 'IV adenosine 140 mcg/kg/min or intracoronary boluses: FFR is only valid at maximal hyperaemia.', done: ['adenosine-iv-ffr', 'ic-adenosine'], roles: MD, points: 10 },
+    { id: 'hyperemia', label: 'Maximal hyperemia for the FFR (adenosine)', why: 'IV adenosine 140 mcg/kg/min, or intracoronary boluses (about 200 mcg in the left coronary, 100 mcg in the right): FFR is only valid at maximal hyperemia.', done: ['adenosine-iv-ffr', 'ic-adenosine'], roles: MD, points: 10 },
     { id: 'ffr', label: 'Measure the FFR', why: 'FFR ≤ 0.80 → treat; > 0.80 → medical therapy (FAME, DEFER).', done: (s) => (has(s, 'ffr-done') ? s.flags['ffr-done'] : null), roles: MD, points: 10 },
     { id: 'imaging', label: 'Size the stent with IVUS or OCT', why: 'Intravascular imaging gives the true vessel size and plaque length: better expansion, fewer failures.', done: ['ivus', 'oct'], roles: MD, points: 5, applies: (s) => has(s, 'ffr-done') },
     { id: 'md-p2y12', label: 'P2Y12 loading dose before the stent', why: 'Clopidogrel 600 mg on top of aspirin once you decide to stent.', done: ['p2y12', 'cangrelor'], roles: MD, points: 5, applies: (s) => has(s, 'ffr-done') },
     { id: 'stent', label: 'Drug-eluting stent in the significant lesion', why: 'Treat the narrowing the FFR showed to be significant.', done: ['stent-des'], roles: MD, points: 10, applies: (s) => has(s, 'ffr-done') },
-    { id: 'postdil', label: 'Optimise the stent with a non-compliant balloon', why: 'Under-expansion is the strongest predictor of stent failure.', done: ['balloon-nc'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
+    { id: 'postdil', label: 'Optimize the stent with a non-compliant balloon', why: 'Under-expansion is the strongest predictor of stent failure.', done: ['balloon-nc'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
     { id: 'final', label: 'Final angiogram in two views', why: 'Look for edge dissection and confirm TIMI 3 flow.', done: ['final-angio'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
     ...TECH_ASKS.map(askCritical),
     ...RN_ASKS.map(askCritical),
     { id: 'act', label: 'Check the ACT', why: 'ACT 250–300 s before PCI.', done: ['act'], after: 'heparin', roles: [3, 4], points: 5, applies: (s) => has(s, 'heparin') },
-    { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent haemostasis: just enough pressure to stop the bleeding while the artery stays open.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
+    { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis: just enough pressure to stop the bleeding while the artery stays open.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to recovery', why: 'Report the FFR, the stent, the spasm, the drugs given and the band.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
     { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
     { id: 'stent-before-ffr', actions: ['stent-des', 'balloon-predil'], roles: MD, when: (s) => !has(s, 'ffr-done'), points: 10, severity: 'major', text: 'Treating a borderline narrowing without showing it is significant. Intermediate lesions need physiology first: about two-thirds of them do not limit flow (FAME).' },
-    { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperaemia. That is the SVT dose: seconds of AV block, not the steady hyperaemia FFR needs.' },
+    { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for the LAD. Use a left guide with back-up (EBU / XB).' },
@@ -401,7 +412,7 @@ export const cathlabFfr: Scenario = {
     askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5),
     askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'),
     askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'),
-    askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperaemia infusion.'),
+    askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'),
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
   ],
   timings: [
@@ -411,10 +422,10 @@ export const cathlabFfr: Scenario = {
   completeWhen: (s) => has(s, 'pci') && has(s, 'final-angio'),
   teaching: [
     'An intermediate (40–70 %) narrowing cannot be judged by eye: measure it. FFR ≤ 0.80 → treat; > 0.80 → medical therapy (FAME, DEFER).',
-    'FFR set-up: heparin first, guide engaged, pressure wire equalised at the guide tip (Pd/Pa 1.00), intracoronary nitroglycerin, then maximal hyperaemia (adenosine 140 mcg/kg/min IV) and the lowest Pd/Pa.',
-    'A 6 or 12 mg adenosine push is the SVT dose, not hyperaemia.',
+    'FFR set-up: heparin first, guide engaged, pressure wire equalized at the guide tip (Pd/Pa 1.00), intracoronary nitroglycerin, then maximal hyperemia (adenosine 140 mcg/kg/min IV) and the lowest Pd/Pa.',
+    'A 6 or 12 mg adenosine push is the SVT dose, not hyperemia.',
     'IVUS or OCT sizes the stent: diameter from the reference vessel, length from landing zone to landing zone. Post-dilate with a non-compliant balloon.',
     'Radial spasm: pain and resistance. More vasodilator through the sheath, analgesia or sedation, patience — never force it.',
-    'Radial band: patent haemostasis (enough pressure to stop the bleeding, not enough to stop the flow), with distal perfusion checks.',
+    'Radial band: patent hemostasis (enough pressure to stop the bleeding, not enough to stop the flow), with distal perfusion checks.',
   ],
 };

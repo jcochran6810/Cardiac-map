@@ -1,5 +1,5 @@
 import type { Effect, Scenario, SimState } from '../types';
-import { has, line } from '../kit';
+import { PADS, has, line } from '../kit';
 import {
   LAD_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, nextStep,
   operator, type LabAsk,
@@ -15,7 +15,7 @@ function shockOutcome(s: SimState): Effect | null {
   return {
     say: [
       ['monitor', 'Shock delivered: 200 J.'],
-      ['you', 'An organised rhythm returns; 116/72 on the arterial line. ROSC within seconds.', 'good'],
+      ['you', 'An organized rhythm returns; 116/72 on the arterial line. ROSC within seconds.', 'good'],
       ['patient', '"What just happened? The pain\'s almost gone."'],
     ],
     rhythm: { profile: 'anterior-stemi-reperfused', hr: 86 }, pulse: true, phase: 'post',
@@ -121,7 +121,7 @@ const RN_ASKS: LabAsk[] = [
     accept: ['fentanyl', 'sedation'],
     thanks: 'Thanks.', fallback: 'Is anyone giving him something for the pain?', gives: 'pain-treated',
     label: 'Analgesia when the operator asks (fentanyl)',
-    why: 'Balloon inflation in the occluded artery brings back the ischaemic pain: give the analgesic (fentanyl 25–50 mcg IV) and say it back (closed loop).',
+    why: 'Balloon inflation in the occluded artery brings back the ischemic pain: give the analgesic (fentanyl 25–50 mcg IV) and say it back (closed loop).',
   },
   {
     id: 'icnitro', role: 4, when: (s) => has(s, 'postdilated'),
@@ -172,7 +172,7 @@ export const cathlabStemi: Scenario = {
     allergies: 'No allergies — I had contrast for a CT last year without any problem. No blood thinners. Yes, go ahead.',
     sample: 'No allergies. Lisinopril. High blood pressure; ex-smoker.',
     opqrst: 'Crushing, central, into my jaw, for about an hour. 7 out of 10.',
-    labs: 'Creatinine 1.0, potassium 4.1, haemoglobin 14.2, INR 1.0, platelets 250. Troponin pending.',
+    labs: 'Creatinine 1.0, potassium 4.1, hemoglobin 14.2, INR 1.0, platelets 250. Troponin pending.',
     ecg12: (s) => s.rhythm.profile === 'anterior-stemi-reperfused'
       ? 'Sinus rhythm 86: ST elevation in V1–V4 down by more than 70 %, early T-wave inversion — successful reperfusion.'
       : `Sinus rhythm ${s.rhythm.hr} with ST elevation in V1–V4 and reciprocal depression in III and aVF: anterior STEMI.`,
@@ -194,7 +194,7 @@ export const cathlabStemi: Scenario = {
     'wire-hydrophilic': (s) => (s.role === 5 && has(s, 'damped') && !has(s, 'repositioned') ? wedged : null),
     lvedp: (s) => !has(s, 'access') ? null : {
       say: [['monitor', 'LV 112/26 mmHg: LVEDP 26 mmHg.']], flags: ['lvedp'],
-      read: { kind: 'hemo', answer: 'hemo-lvedp-high', explain: 'LVEDP 26 mmHg (normal is under 12–15): a stiff, failing left ventricle after a large anterior infarct. No extra fluid; watch for pulmonary oedema and shock.' },
+      read: { kind: 'hemo', answer: 'hemo-lvedp-high', explain: 'LVEDP 26 mmHg (normal is under 12–15): a stiff, failing left ventricle after a large anterior infarct. No extra fluid; watch for pulmonary edema and shock.' },
     },
     'final-angio': (s) => (s.role === 5 ? { ...finalRun('you'), flags: ['final-angio'] } : null),
     defib: shockOutcome,
@@ -203,7 +203,7 @@ export const cathlabStemi: Scenario = {
   events: [
     {
       id: 'tech-setup', when: (s) => s.role !== 3,
-      effect: () => ({ say: [['team', 'Tech: both sites prepped, transducers zeroed and levelled, monitor and defibrillator pads on.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
+      effect: () => ({ say: [['team', 'Tech: both sites prepped, transducers zeroed and leveled, monitor and defibrillator pads on.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
     },
     {
       id: 'rn-setup-for-tech', when: (s) => s.role === 3,
@@ -314,12 +314,12 @@ export const cathlabStemi: Scenario = {
     { id: 'consent', label: 'Consent, contrast allergy and anticoagulants checked', why: 'Even in an emergency, confirm consent and allergies (contrast, heparin) before access.', done: ['consent'], roles: [4, 5], points: 10, target: { by: 6 } },
     { id: 'timeout', label: 'Procedural time-out before access', why: 'The time-out catches wrong-patient, wrong-procedure and allergy errors before anyone punctures an artery.', done: ['timeout'], points: 10, target: { by: 6 } },
     { id: 'prep', label: 'Prep and drape both radial and femoral sites', why: 'Radial first, but a femoral site ready for bail-out or mechanical support.', done: ['prep'], roles: TECH, points: 5, target: { by: 6 } },
-    { id: 'transducer', label: 'Zero and level the transducers', why: 'Accurate pressures need transducers zeroed to air and levelled at the phlebostatic axis.', done: ['transducer'], roles: TECH, points: 10, target: { by: 6 } },
-    { id: 'pads', label: 'Defibrillator pads on before the wire crosses', why: 'Reperfusion of a large anterior STEMI often triggers VF.', done: ['pads'], roles: TECH, points: 10, target: { by: 8 } },
+    { id: 'transducer', label: 'Zero and level the transducers', why: 'Accurate pressures need transducers zeroed to air and leveled at the phlebostatic axis.', done: ['transducer'], roles: TECH, points: 10, target: { by: 6 } },
+    { id: 'pads', label: 'Defibrillator pads on before the wire crosses', why: 'Reperfusion of a large anterior STEMI often triggers VF.', done: PADS, roles: TECH, points: 10, target: { by: 8 } },
     { id: 'iv', label: 'IV access', why: 'For heparin, analgesia and emergency drugs.', done: ['iv', 'io'], roles: RN, points: 5 },
     { id: 'heparin', label: 'Anticoagulation before PCI (heparin 70–100 U/kg)', why: 'Primary PCI needs full anticoagulation to prevent catheter, wire and stent thrombosis (bivalirudin is the alternative).', done: ['heparin', 'bivalirudin'], roles: [4, 5], points: 10, target: { by: 10 } },
     { id: 'p2y12', label: 'P2Y12 loading dose', why: 'Ticagrelor 180 mg or prasugrel 60 mg as early as possible for primary PCI (cangrelor IV if he cannot swallow).', done: ['p2y12', 'cangrelor'], roles: [4, 5], points: 5 },
-    { id: 'analgesia', label: 'Treat the pain', why: 'Ischaemic pain drives catecholamines and heart rate: fentanyl 25–50 mcg IV, titrated.', done: ['fentanyl', 'sedation'], roles: [4, 5], points: 5, target: { by: 8 } },
+    { id: 'analgesia', label: 'Treat the pain', why: 'Ischemic pain drives catecholamines and heart rate: fentanyl 25–50 mcg IV, titrated.', done: ['fentanyl', 'sedation'], roles: [4, 5], points: 5, target: { by: 8 } },
     { id: 'act', label: 'Check the ACT', why: 'ACT about 250–300 s with heparin alone before the wire crosses.', done: ['act'], after: 'heparin', roles: [3, 4], points: 5 },
     { id: 'access', label: 'Radial arterial access', why: 'Radial access cuts bleeding and mortality in STEMI (RIVAL, MATRIX).', done: ['access', 'access-femoral'], roles: MD, points: 5, target: { by: 12 } },
     { id: 'angio', label: 'Diagnostic angiography: find the culprit', why: 'Identify the occluded artery before choosing a guide.', done: ['angio'], roles: MD, points: 5 },
@@ -330,13 +330,13 @@ export const cathlabStemi: Scenario = {
     { id: 'reposition', label: 'Back the wedged guide out at once', why: 'A wedged guide blocks coronary flow and can dissect the ostium.', done: ['reposition'], after: 'damped', roles: MD, points: 10, target: { within: { flag: 'damped', minutes: 1 } }, applies: (s) => has(s, 'damped') },
     { id: 'working-view', label: 'A working view for the LAD (cranial)', why: 'RAO cranial, AP cranial or LAO cranial lift the LAD clear of its branches, so you can see where the wire goes.', done: (s) => doneAfter(s, LAD_VIEWS, 'guide'), roles: MD, points: 5 },
     { id: 'wire', label: 'Wire across the occlusion', why: 'A workhorse wire into the distal vessel restores some flow and carries the balloon and the stent.', done: WIRES, roles: MD, points: 5 },
-    { id: 'stent', label: 'Drug-eluting stent in the culprit', why: 'Door-to-device within 90 minutes; drug-eluting stents beat bare-metal ones in STEMI.', done: ['stent-des'], roles: MD, points: 15, target: { by: 30 } },
-    { id: 'postdil', label: 'Optimise the stent with a non-compliant balloon', why: 'Under-expansion is the strongest predictor of stent thrombosis and restenosis: a short NC balloon at high pressure inside the stent.', done: ['balloon-nc'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
+    { id: 'stent', label: 'Drug-eluting stent in the culprit', why: 'First medical contact to device within 90 minutes; drug-eluting stents beat bare-metal ones in STEMI.', done: ['stent-des'], roles: MD, points: 15, target: { by: 30 } },
+    { id: 'postdil', label: 'Optimize the stent with a non-compliant balloon', why: 'Under-expansion is the strongest predictor of stent thrombosis and restenosis: a short NC balloon at high pressure inside the stent.', done: ['balloon-nc'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
     { id: 'final', label: 'Final angiogram in two views', why: 'Confirm TIMI 3 flow and look for edge dissection, thrombus or a perforation before you leave the vessel.', done: ['final-angio'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
     { id: 'defib', label: 'Defibrillate the reperfusion VF within 1 minute', why: 'In the lab, VF is witnessed with pads on: shock within seconds and most patients recover at once.', done: ['defib', 'aed'], after: 'arrest', points: 15, target: { within: { flag: 'arrest', minutes: 1 } }, applies: (s) => has(s, 'arrest') },
     { id: 'post-ecg', label: '12-lead after the procedure', why: 'ST resolution confirms reperfusion and is the baseline for later comparison.', done: ['ecg12', 'ecg12-repeat'], after: 'pci', points: 5, applies: (s) => has(s, 'pci') },
     { id: 'echo', label: 'Echocardiogram after PCI', why: 'LVEF and mechanical complications guide therapy (and a later ICD decision).', done: ['echo'], after: 'pci', roles: MD, points: 5, applies: (s) => has(s, 'pci') },
-    { id: 'hemostasis', label: 'Access-site haemostasis', why: 'Radial band with distal pulse and perfusion checks.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
+    { id: 'hemostasis', label: 'Access-site hemostasis', why: 'Radial band with distal pulse and perfusion checks.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the drugs, the VF and the access site.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [

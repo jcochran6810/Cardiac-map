@@ -163,8 +163,8 @@ describe('arterial pressure and cardiac output', () => {
   });
 
   it('tamponade shows pulsus paradoxus: the systolic pressure falls by more than 10 mmHg with each inspiration', () => {
-    const swing = (id: string) => {
-      const engine = new ECGEngine(id);
+    const swing = (id: string, hr = 0) => {
+      const engine = new ECGEngine(id, hr);
       engine.ensure(46_000);
       const model = new HemoModel(engine);
       // the systolic peak of every beat over two breaths
@@ -180,6 +180,8 @@ describe('arterial pressure and cardiac output', () => {
     expect(tamponade.fall).toBeLessThan(25);
     // hypotensive all through the breath
     expect(tamponade.highest).toBeLessThan(90);
+    // whatever the heart rate
+    for (const hr of [90, 150]) expect(swing('tamponade', hr).fall).toBeGreaterThan(10);
     // a normal heart: a few mmHg at most
     expect(swing('normal-sinus').fall).toBeLessThan(6);
   });
@@ -318,6 +320,25 @@ describe('pressure and volume traces', () => {
     expect(edv - before).toBeGreaterThan(8);
     expect(edv - before).toBeLessThan(25);
   });
+
+  it.each(([
+    ['normal-sinus', 70], ['normal-sinus', 40], ['sinus-tachycardia', 0], ['first-degree-avb', 0], ['mobitz-i', 0],
+    ['mobitz-ii', 0], ['third-degree-avb', 0], ['inferior-stemi-chb', 0], ['pvcs', 0], ['tcp', 0], ['paced', 0],
+    ['hfpef', 0], ['mitral-stenosis', 0], ['mitral-regurgitation', 0], ['aortic-stenosis', 0], ['hcm', 0],
+  ] as const).map(([id, hr]) => [id, hr || ECG_PROFILES[id].defaultHR] as const))('%s at %i/min: the LV volume only ever rises between mitral opening and closure, beat after beat', (id, hr) => {
+    const { engine, model } = heart(id, hr, 24_000);
+    for (let i = engine.lastVentIndex(12_000); i < engine.lastVentIndex(20_000); i++) {
+      const mo = model.eventsAt(engine.vent[i].t + 60)!.mo;
+      const nextMc = model.eventsAt(engine.vent[i + 1].t + 60)!.mc;
+      let prev = model.sample(mo).lvv;
+      for (let t = mo + 2; t < nextMc; t += 2) {
+        const v = model.sample(t).lvv;
+        // (no notch when the next P wave begins: its contraction only adds)
+        expect(v, `beat ${i}, ${t - mo} ms after mitral opening`).toBeGreaterThanOrEqual(prev - 0.01);
+        prev = v;
+      }
+    }
+  });
 });
 
 describe('hemodynamic summary when the beats stop or have only just returned', () => {
@@ -362,5 +383,187 @@ describe('hemodynamic summary when the beats stop or have only just returned', (
     expect(Math.abs(s.sbp - peak)).toBeLessThanOrEqual(2);
     // …and it recovers over the next beats
     expect(model.summary(first.t + 12_000).sbp).toBeGreaterThan(s.sbp + 20);
+  });
+});
+
+/** Beat k's aortic pressure as its valve opens, its systolic peak and when that comes, and its highest LV pressure */
+function beatPressures(model: HemoModel, engine: ECGEngine, k: number) {
+  const ev = model.eventsAt(engine.vent[k].t + 60)!;
+  const start = model.sample(ev.ao).aop;
+  let peak = -Infinity, peakAt = ev.ao, lv = -Infinity;
+  for (let t = ev.ao; t <= ev.ac; t++) {
+    const s = model.sample(t);
+    if (s.aop > peak) { peak = s.aop; peakAt = t; }
+    lv = Math.max(lv, s.lvp);
+  }
+  return { ev, start, peak, pulse: peak - start, peakAt: (peakAt - ev.ao) / (ev.ac - ev.ao), lv, gradient: lv - peak };
+}
+
+/** LV volume at the start and end of beat k's ejection (end-diastolic and end-systolic volume) */
+function beatVolumes(model: HemoModel, engine: ECGEngine, k: number) {
+  const ev = model.eventsAt(engine.vent[k].t + 60)!;
+  return { edv: model.sample(ev.mc).lvv, esv: model.sample(ev.mo).lvv, sv: model.sample(ev.mc).lvv - model.sample(ev.mo).lvv };
+}
+
+describe('valve lesions on the pressure traces', () => {
+  it('severe aortic stenosis: a small, slow-rising, late-peaking pulse (pulsus parvus et tardus)', () => {
+    const look = (id: string) => {
+      const engine = new ECGEngine(id);
+      engine.ensure(26_000);
+      const model = new HemoModel(engine);
+      const k = engine.lastVentIndex(20_000);
+      const b = beatPressures(model, engine, k);
+      // steepest rise of the aortic pressure (mmHg per ms)
+      let slope = 0;
+      for (let t = b.ev.ao; t < b.ev.ac; t++) slope = Math.max(slope, model.sample(t + 1).aop - model.sample(t).aop);
+      return { ...b, slope, s: model.summary(20_000) };
+    };
+    const as = look('aortic-stenosis');
+    const normal = look('normal-sinus');
+    // parvus: a narrow pulse pressure, though the stroke volume is normal
+    expect(as.s.sbp - as.s.dbp).toBeLessThan(30);
+    expect(normal.s.sbp - normal.s.dbp).toBeGreaterThan(36);
+    expect(as.s.sv).toBeGreaterThan(60);
+    // tardus: the peak comes late in ejection and the upstroke is slow
+    expect(as.peakAt).toBeGreaterThan(0.55);
+    expect(normal.peakAt).toBeLessThan(0.4);
+    expect(as.slope).toBeLessThan(normal.slope / 2);
+    // …and the ventricle still works far above the aorta (severe: a large gradient)
+    expect(as.gradient).toBeGreaterThan(50);
+  });
+
+  it('mitral regurgitation: the leak goes on through isovolumic relaxation, until the mitral valve opens', () => {
+    const engine = new ECGEngine('mitral-regurgitation');
+    engine.ensure(26_000);
+    const model = new HemoModel(engine);
+    const ev = model.eventsAt(engine.vent[engine.lastVentIndex(20_000)].t + 60)!;
+    let prev = model.sample(ev.ac).lvv;
+    for (let t = ev.ac + 2; t <= ev.mo; t += 2) {
+      const v = model.sample(t).lvv;
+      expect(v).toBeLessThanOrEqual(prev + 0.01);
+      prev = v;
+    }
+    expect(model.sample(ev.ac).lvv - model.sample(ev.mo).lvv).toBeGreaterThan(2);
+    // a competent valve: the volume really is constant
+    const n = new ECGEngine('normal-sinus', 72);
+    n.ensure(26_000);
+    const nm = new HemoModel(n);
+    const nev = nm.eventsAt(n.vent[n.lastVentIndex(20_000)].t + 60)!;
+    expect(Math.abs(nm.sample(nev.ac).lvv - nm.sample(nev.mo).lvv)).toBeLessThan(0.01);
+  });
+});
+
+describe('beat-to-beat changes in pressure and volume', () => {
+  const after = (profile: string, hr: number, override?: Parameters<HemoModel['setOverride']>[0]) => {
+    const engine = new ECGEngine(profile, hr);
+    engine.ensure(30_000);
+    const model = new HemoModel(engine);
+    if (override) model.setOverride(override);
+    // the PVCs, the beats that end their pauses, and the ordinary beats in between (not the one after a strong beat)
+    const ks = engine.vent.map((_, k) => k).filter((k) => engine.vent[k].t > 12_000 && engine.vent[k].t < 24_000);
+    const post = ks.filter((k) => engine.vent[k - 1].kind === 'pvc');
+    const ordinary = ks.filter((k) => engine.vent[k].kind === 'conducted' && engine.vent[k - 1].kind !== 'pvc' && engine.vent[k - 2].kind !== 'pvc');
+    expect(post.length).toBeGreaterThan(2);
+    expect(ordinary.length).toBeGreaterThan(2);
+    return { engine, model, post, ordinary };
+  };
+
+  it.each([60, 76, 100])('the beat after a PVC at %i/min fills more, ejects more and peaks higher than an ordinary beat (post-extrasystolic potentiation)', (hr) => {
+    const { engine, model, post, ordinary } = after('pvcs', hr);
+    const top = Math.max(...ordinary.map((k) => beatPressures(model, engine, k).peak));
+    const usual = beatVolumes(model, engine, ordinary[0]);
+    for (const k of post) {
+      const v = beatVolumes(model, engine, k);
+      // the purple line peaks higher than on any other beat and falls further
+      expect(v.edv).toBeGreaterThan(usual.edv + 5);
+      expect(v.esv).toBeLessThan(usual.esv - 3);
+      expect(v.sv).toBeGreaterThan(usual.sv * 1.15);
+      const b = beatPressures(model, engine, k);
+      // a lower diastolic after the long pause, a much bigger pulse and a higher systolic peak
+      expect(b.pulse).toBeGreaterThan(beatPressures(model, engine, ordinary[0]).pulse + 8);
+      expect(b.peak).toBeGreaterThan(top + 3);
+    }
+  });
+
+  it('obstructive HCM: after a PVC the gradient rises but the aortic pulse falls (Brockenbrough–Braunwald–Morrow)', () => {
+    const { engine, model, post, ordinary } = after('pvcs', 76, 'hcm');
+    const o = beatPressures(model, engine, ordinary[0]);
+    for (const k of post) {
+      const b = beatPressures(model, engine, k);
+      expect(b.gradient).toBeGreaterThan(o.gradient + 15);
+      expect(b.lv).toBeGreaterThan(o.lv + 10);
+      expect(b.pulse).toBeLessThan(o.pulse - 2);
+      expect(b.peak).toBeLessThan(o.peak);
+    }
+    // a fixed stenosis, by contrast: the gradient and the pulse both rise
+    const as = after('pvcs', 76, 'aortic-stenosis');
+    const ao = beatPressures(as.model, as.engine, as.ordinary[0]);
+    for (const k of as.post) {
+      const b = beatPressures(as.model, as.engine, k);
+      expect(b.gradient).toBeGreaterThan(ao.gradient + 10);
+      expect(b.pulse).toBeGreaterThan(ao.pulse + 5);
+    }
+  });
+
+  it('PVCs do not raise the mean arterial pressure: the strong beats only make up for the weak ones', () => {
+    const mean = (id: string, hr: number) => {
+      const engine = new ECGEngine(id, hr);
+      engine.ensure(44_000);
+      const model = new HemoModel(engine);
+      let sum = 0, n = 0;
+      for (let t = 30_000; t < 40_000; t += 2, n++) sum += model.sample(t).aop;
+      return sum / n;
+    };
+    for (const hr of [60, 76]) expect(mean('pvcs', hr)).toBeLessThan(mean('normal-sinus', hr) + 2.5);
+  });
+
+  it('complete heart block: each escape beat fills and ejects according to where the drifting P wave falls', () => {
+    for (const id of ['third-degree-avb', 'inferior-stemi-chb']) {
+      const engine = new ECGEngine(id);
+      engine.ensure(70_000);
+      const model = new HemoModel(engine);
+      const late: number[] = [];
+      const lost: number[] = [];
+      for (let k = engine.lastVentIndex(14_000); k < engine.lastVentIndex(64_000); k++) {
+        const v = engine.vent[k];
+        const sv = beatVolumes(model, engine, k).sv;
+        const p = engine.atrial[engine.lastAtrialIndex(v.t)];
+        const pr = v.t - p.t;
+        // a P wave a normal PR interval before the QRS: the atria top the ventricle up just before it contracts
+        if (pr > 100 && pr < 250) late.push(sv);
+        // a P wave just after the last beat or long before this one: its contraction is wasted on early filling
+        else if (pr > 550) lost.push(sv);
+      }
+      expect(late.length, id).toBeGreaterThan(2);
+      expect(lost.length, id).toBeGreaterThan(2);
+      expect(Math.min(...late), id).toBeGreaterThan(Math.max(...lost) + 4);
+    }
+  });
+});
+
+describe('a pulse to feel (the defibrillator reads the summary)', () => {
+  /** The defibrillator's rule: a palpable pulse needs a pulse pressure of ~10 mmHg and a stroke volume of ~15 mL behind it */
+  const palpable = (s: ReturnType<HemoModel['summary']>) => !s.noOutput && s.sbp >= 50 && s.sbp - s.dbp >= 10 && s.sv >= 15;
+  const always = (profile: string, hr: number, override?: Parameters<HemoModel['setOverride']>[0]) => {
+    const engine = new ECGEngine(profile, hr);
+    engine.ensure(44_000);
+    const model = new HemoModel(engine);
+    if (override) model.setOverride(override);
+    const checks: boolean[] = [];
+    for (let t = 30_000; t < 40_000; t += 250) checks.push(palpable(model.summary(t)));
+    return checks.every(Boolean) ? 'pulse' : checks.some(Boolean) ? 'sometimes' : 'none';
+  };
+
+  it.each([
+    // VT in a diseased ventricle: a (weak) pulse at the usual rates, none at flutter rates
+    ['vt', 150, null, 'pulse'], ['vt', 170, null, 'pulse'], ['vt', 180, null, 'pulse'], ['vt', 250, null, 'none'],
+    // the same VT in a normal heart is tolerated up to ~200
+    ['vt', 150, 'normal', 'pulse'], ['vt', 200, 'normal', 'pulse'],
+    // SVT, and the defibrillator scenarios' unstable patients: hypotensive but with a pulse
+    ['avnrt', 180, null, 'pulse'], ['avnrt', 210, null, 'pulse'], ['avnrt', 190, 'shock', 'pulse'],
+    ['atrial-fibrillation', 160, 'shock', 'pulse'], ['third-degree-avb', 34, 'hfref', 'pulse'],
+    ['sinus-bradycardia', 38, 'hfref', 'pulse'], ['tamponade', 118, null, 'pulse'], ['cardiogenic-shock', 118, null, 'pulse'],
+  ] as const)('%s at %i/min (heart: %s) → %s', (id, hr, override, expected) => {
+    expect(always(id, hr, override ?? undefined)).toBe(expected);
   });
 });

@@ -1,24 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { scrubTo, sim, syncRhythm } from '@/lib/sim/simulation';
+import { scrubTo, sim } from '@/lib/sim/simulation';
 import { showRhythm } from '@/lib/rhythm';
 import * as D from '@/lib/sim/defib';
 import type { HemoSummary } from '@/lib/physiology/hemodynamics';
-import { tickMeds, useMedStore } from '@/store/useMedStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
+import { frame, monitor, run } from './helpers';
 
-/** one frame of the simulation driver */
-function frame(dt = 50) {
-  const tl = useTimelineStore.getState();
-  syncRhythm(useECGStore.getState().activeProfileId, tl.heartRate, useMedStore.getState().mods);
-  if (tl.playing) sim.time += dt * tl.speed;
-  sim.engine.ensure(sim.time + 4000);
-  D.tickDefib(sim.time);
-  tickMeds(sim.time);
-}
-const run = (ms: number, dt = 50) => { for (let t = 0; t < ms; t += dt) frame(dt); };
-const monitor = () => `${useECGStore.getState().activeProfileId}@${useTimelineStore.getState().heartRate}`;
 const rate = () => useTimelineStore.getState().heartRate;
 const defib = () => D.useDefibStore.getState();
 const logged = () => defib().log.map((l) => l.text);
@@ -36,7 +25,7 @@ function patient(profileId: string, hr?: number) {
   run(12_000);
 }
 
-/** charge and deliver a synchronised shock */
+/** charge and deliver a synchronized shock */
 function cardiovert() {
   D.setMode('manual');
   if (!defib().sync) D.toggleSync();
@@ -426,6 +415,117 @@ describe('the device', () => {
   });
 });
 
+/** British spellings (as in the glossary's own check): the app is written in US English */
+const BRITISH = /haem|aemi[ac]|ischaem|oedema|fibre|litre|tumour|colour|centre|labelled|practise|synchronis|recognis|organis|stabilis|localis|minimis|visualis|catheteris|anaesth|polaris|analys(e|ed|ing)\b|paralys|manoeuvr|oesoph|paediatr|characteris|normalis|utilis|hospitalis|vascularis/i;
+
+describe('what the trainer says follows the current guidelines', () => {
+  /** a synchronized shock at this energy, with every chance in the trainer coming out at `luck` */
+  function cardiovertAt(j: number, luck: number) {
+    D.setEnergy(j);
+    vi.spyOn(Math, 'random').mockReturnValue(luck);
+    cardiovert();
+    return useECGStore.getState().activeProfileId === 'normal-sinus';
+  }
+  const tries: [string, number, string][] = [
+    // rhythm, rate, the 2025 energy
+    ['atrial-fibrillation', 150, '200 J or more'], ['atrial-flutter', 150, '200 J'], ['avnrt', 180, '100 J'], ['vt', 150, '100 J'],
+  ];
+
+  it('cardioversion works best at the 2025 energies: AF 200 J or more, flutter 200 J, narrow regular and monomorphic VT 100 J', () => {
+    const cases: [string, number, number, number, boolean][] = [
+      // rhythm, rate, joules, luck, converts
+      ['atrial-fibrillation', 150, 200, 0.8, true], ['atrial-fibrillation', 150, 150, 0.8, false], ['atrial-fibrillation', 150, 100, 0.55, false],
+      ['atrial-flutter', 150, 200, 0.9, true], ['atrial-flutter', 150, 100, 0.9, false],
+      ['avnrt', 180, 100, 0.85, true], ['avnrt', 180, 50, 0.85, false],
+      ['vt', 150, 100, 0.85, true], ['vt', 150, 50, 0.65, false],
+    ];
+    for (const [id, hr, j, luck, converts] of cases) {
+      vi.restoreAllMocks();
+      pressures({});
+      D.resetCode();
+      patient(id, hr);
+      expect(cardiovertAt(j, luck), `${id} at ${j} J`).toBe(converts);
+    }
+  });
+
+  it('a lower energy is less likely to work, never impossible', () => {
+    for (const [id, hr, best] of tries) {
+      vi.restoreAllMocks();
+      pressures({});
+      D.resetCode();
+      patient(id, hr);
+      expect(cardiovertAt(50, 0.15), `${id} at 50 J (the 2025 energy is ${best})`).toBe(true);
+    }
+  });
+
+  it('sustained torsades: an immediate unsynchronized shock, pulse or not — then magnesium', () => {
+    patient('torsades');
+    D.giveDrug('amiodarone');
+    expect(logged().at(-1)).toMatch(/unsynchronized/);
+    expect(logged().at(-1)).toMatch(/pulse or not/);
+    expect(logged().at(-1)).not.toMatch(/if pulseless/);
+    D.giveDrug('magnesium');
+    expect(logged().at(-1)).toMatch(/unsynchronized/);
+    expect(logged().at(-1)).toMatch(/pulse or not/);
+  });
+
+  it('after ROSC: SpO2 90–98% and a MAP of at least 65 mmHg', () => {
+    patient('vf');
+    D.forceRosc();
+    const rosc = defib().log.find((l) => l.kind === 'rosc')!.text;
+    expect(rosc).toMatch(/SpO2 90–98%/);
+    expect(rosc).toMatch(/MAP ≥ 65 mmHg/);
+    expect(rosc).not.toMatch(/92–98|SBP ≥ 90/);
+  });
+
+  it('calcium in a hyperkalemic arrest: 1 g, benefit not well established, given without pausing CPR or shocks', () => {
+    const ca = D.DRUGS.find((d) => d.id === 'calcium')!;
+    expect(ca.dose(defib())).toMatch(/1 g IV \(10 mL of 10%\)/);
+    expect(ca.indication).toMatch(/not well established/);
+    pressures({ sbp: 20, dbp: 20, sv: 0, noOutput: true });
+    D.loadScenario(D.SCENARIOS.find((s) => s.id === 'pea')!);
+    D.giveDrug('calcium');
+    const said = logged().slice(-2).join(' ');
+    expect(said).toMatch(/not well established/);
+    expect(said).toMatch(/without pausing CPR or shocks/);
+    // with a pulse (hyperkalemia with ECG changes) it is the first treatment
+    vi.restoreAllMocks();
+    pressures({});
+    D.resetCode();
+    patient('hyperkalemia');
+    D.giveDrug('calcium');
+    expect(logged().at(-1)).toMatch(/stabilizes/);
+  });
+
+  it('in the dialysis patient\'s PEA, calcium may help but is no cure', () => {
+    /** two minutes of CPR after epinephrine, then the pulse check, with every chance coming out at `luck` */
+    const cycle = (calcium: boolean, luck: number) => {
+      vi.restoreAllMocks();
+      pressures({ sbp: 20, dbp: 20, sv: 0, noOutput: true });
+      D.loadScenario(D.SCENARIOS.find((s) => s.id === 'pea')!);
+      D.toggleCPR();
+      D.giveDrug('epinephrine');
+      if (calcium) D.giveDrug('calcium');
+      run(115_000, 500);
+      vi.spyOn(Math, 'random').mockReturnValue(luck);
+      D.toggleCPR();
+      return defib().log.some((l) => l.kind === 'rosc');
+    };
+    expect(cycle(true, 0.2)).toBe(true);
+    expect(cycle(true, 0.4)).toBe(false);
+    expect(cycle(false, 0.2)).toBe(false);
+  });
+
+  it('the trainer is written in US English', async () => {
+    const { readFileSync } = await import('node:fs');
+    for (const file of ['../src/lib/sim/defib.ts', '../src/components/monitor/DefibPanel.tsx', '../src/lib/sim/projector.ts']) {
+      const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+      const hits = source.split('\n').filter((line) => BRITISH.test(line));
+      expect(hits, file).toEqual([]);
+    }
+  });
+});
+
 describe('the projector window only mirrors the main window', () => {
   const ages = { code: null, epi: null, shock: null, cpr: null };
 
@@ -449,7 +549,7 @@ describe('the projector window only mirrors the main window', () => {
     // "until" comes from the main window's clock, which started at another moment
     D.mirrorRemote({
       baseline: null, ages,
-      defib: { mode: 'aed', charge: 'idle', aed: { phase: 'analyzing', until: 6_000 }, nibp: { measuring: true, until: 6_000, last: null }, message: 'Analysing heart rhythm. Do not touch the patient' },
+      defib: { mode: 'aed', charge: 'idle', aed: { phase: 'analyzing', until: 6_000 }, nibp: { measuring: true, until: 6_000, last: null }, message: 'Analyzing heart rhythm. Do not touch the patient' },
     });
     run(3_000);
     expect(defib().aed.phase).toBe('analyzing');

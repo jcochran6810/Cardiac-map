@@ -75,7 +75,7 @@ export function attached(s: SimState) {
 
 let saved: null | {
   profile: string; hr: number; layout: ECGLayout; keyLeads: boolean; inspect: ECGLead | null;
-  lab: boolean; playing: boolean; speed: number;
+  playing: boolean; speed: number;
 } = null;
 
 /** Show this patient on the monitor and the 12-lead */
@@ -105,10 +105,10 @@ export function enterSimulator() {
   if (!saved) {
     saved = {
       profile: ecg.activeProfileId, hr: tl.heartRate, layout: ecg.layout, keyLeads: ecg.showKeyLeads,
-      inspect: ecg.inspectLead, lab: ecg.electrodeLab, playing: tl.playing, speed: tl.speed,
+      inspect: ecg.inspectLead, playing: tl.playing, speed: tl.speed,
     };
   }
-  // The learner reads the tracings themselves: no highlighted key leads, no labelled lead
+  // The learner reads the tracings themselves: no highlighted key leads, no labeled lead
   ecg.setLayout('simultaneous');
   ecg.setInspectLead(null);
   ecg.setElectrodeLab(false);
@@ -119,7 +119,11 @@ export function enterSimulator() {
   if (s) show(s, null);
 }
 
-/** Called when the simulator screen closes: the workspace gets its own monitor back */
+/**
+ * Called when the simulator screen closes: the workspace gets its own monitor back. The electrode lab stays shut —
+ * it is a tool of its own, and on a phone it would take the whole screen over whatever opens next; Back to the lab's
+ * own page opens it again.
+ */
 export function leaveSimulator() {
   setScriptedVitals(null);
   setNibpReading(null);
@@ -129,7 +133,6 @@ export function leaveSimulator() {
   showRhythm(saved.profile, saved.hr);
   ecg.setLayout(saved.layout);
   ecg.setInspectLead(saved.inspect);
-  ecg.setElectrodeLab(saved.lab);
   if (ecg.showKeyLeads !== saved.keyLeads) ecg.toggleKeyLeads();
   tl.setSpeed(saved.speed);
   if (saved.playing) tl.play(); else tl.pause();

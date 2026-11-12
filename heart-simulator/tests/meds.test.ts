@@ -187,8 +187,8 @@ describe('the medications', () => {
     expect(planDose('adenosine', first, 12).steps.some((s) => /maximum/.test(s.note))).toBe(false);
   });
 
-  it('calcium 0.5–1 g and bicarbonate 50 mEq are usual doses', () => {
-    expect(classifyDose(MED_BY_ID['calcium-chloride'], patient('hyperkalemia', 64), 0.5)).toBe('usual');
+  it('calcium 1 g and bicarbonate 50 mEq are usual doses', () => {
+    expect(classifyDose(MED_BY_ID['calcium-chloride'], patient('hyperkalemia', 64), 1)).toBe('usual');
     expect(classifyDose(MED_BY_ID['sodium-bicarbonate'], patient('hyperkalemia', 64), 50)).toBe('usual');
   });
 
@@ -364,7 +364,7 @@ describe('classic responses', () => {
     expect(planDose('nitroglycerin', patient('nstemi', 88, { sbp: 130 }), 0.4).verdict.tone).toBe('good');
   });
 
-  it('calcium narrows the hyperkalaemic QRS; tenecteplase reperfuses a STEMI', () => {
+  it('calcium narrows the hyperkalemic QRS; tenecteplase reperfuses a STEMI', () => {
     const ca = planDose('calcium-chloride', patient('hyperkalemia', 64), 1);
     expect(ca.steps[0].mods!.qrsWiden).toBeLessThan(1);
     const tnk = planDose('tenecteplase', patient('anterior-stemi', 92), 45);
@@ -400,6 +400,35 @@ describe('classic responses', () => {
     expect(planDose('epinephrine', patient('normal-sinus', 72), 0.1).steps.map((s) => s.profile)).toEqual(['sinus-tachycardia', 'pvcs']);
   });
 
+  it('AIVR is a ventricular rhythm, not a sinus one: it is not suppressed, and atropine can only let the sinus node take over', () => {
+    expect(category(ECG_PROFILES.aivr, 55)).toBe('aivr');
+    expect(category(ECG_PROFILES.aivr, 78)).toBe('aivr');
+    const slow = planDose('atropine', patient('aivr', 55), 1);
+    expect(slow.verdict.tone).toBe('caution');
+    expect(slow.verdict.text).not.toMatch(/sinus bradycardia/i);
+    expect(slow.steps.at(-1)).toMatchObject({ profile: 'normal-sinus' });
+    expect(slow.steps.at(-1)!.hr!).toBeGreaterThan(55);
+    expect(planDose('atropine', patient('aivr', 105), 1).verdict.text).toMatch(/No bradycardia/);
+    for (const [id, dose] of [['lidocaine', 100], ['amiodarone', 150], ['procainamide', 1000]] as const) {
+      const plan = planDose(id, patient('aivr', 78), dose);
+      expect(plan.verdict.tone, id).toBe('bad');
+      expect(plan.verdict.text, id).toMatch(/suppress/);
+      expect(plan.verdict.text, id).not.toMatch(/no effect on sinus/);
+    }
+    expect(planDose('lidocaine', patient('aivr', 78), 100).steps.map((s) => s.profile)).toContain('sinus-bradycardia');
+    // the AV node is not part of it: adenosine and the AV-nodal blockers neither block nor slow it
+    const ado = planDose('adenosine', patient('aivr', 78), 6);
+    expect(ado.steps.some((s) => s.mods?.avBlock || s.hr !== undefined)).toBe(false);
+    expect(ado.verdict.text).not.toMatch(/P waves march on/);
+    for (const id of ['diltiazem', 'metoprolol', 'esmolol', 'digoxin'] as MedId[]) {
+      const p = patient('aivr', 78, { sbp: 118 });
+      const plan = planDose(id, p, MED_BY_ID[id].usual(p).low);
+      expect(plan.verdict.tone, id).toBe('bad');
+      expect(plan.verdict.text, id).toMatch(/ventricular/);
+      expect(plan.steps.some((s) => s.hr !== undefined), id).toBe(false);
+    }
+  });
+
   it('categorises the rhythms the drugs care about', () => {
     expect(category(ECG_PROFILES.avnrt)).toBe('svt');
     expect(category(ECG_PROFILES.vf)).toBe('arrest');
@@ -407,6 +436,147 @@ describe('classic responses', () => {
     expect(category(ECG_PROFILES['inferior-stemi'])).toBe('stemi');
     expect(category(ECG_PROFILES['inferior-stemi-chb'])).toBe('chb');
     expect(category(ECG_PROFILES['sinus-tachycardia'])).toBe('sinus-tach');
+  });
+});
+
+/** British spellings (as in the glossary's own check): the app is written in US English */
+const BRITISH = /haem|aemi[ac]|ischaem|oedema|fibre|litre|tumour|colour|centre|labelled|practise|synchronis|recognis|organis|stabilis|localis|minimis|visualis|catheteris|anaesth|polaris|analys(e|ed|ing)\b|paralys|manoeuvr|oesoph|paediatr|characteris|normalis|utilis|hospitalis|vascularis/i;
+
+describe('what the learner reads follows the current guidelines', () => {
+  const text = (id: MedId, p: Patient, dose: number) => {
+    const plan = planDose(id, p, dose);
+    return [plan.verdict.text, ...plan.steps.map((s) => s.note)].join(' ');
+  };
+
+  it('every drug card, verdict and note is in US English', () => {
+    for (const m of MEDS) {
+      expect(`${m.name} ${m.route} ${m.onset} ${m.guide}`, m.id).not.toMatch(BRITISH);
+      for (const prof of Object.values(ECG_PROFILES)) {
+        for (const hr of Array.from(new Set([prof.minHR, prof.defaultHR, prof.maxHR]))) {
+          for (const sbp of [undefined, 80, 130]) {
+            const p = patient(prof.id, hr || 0, { sbp });
+            for (const dose of m.picks(p)) expect(text(m.id, p, dose), `${m.id} on ${prof.id} at ${hr}`).not.toMatch(BRITISH);
+          }
+        }
+      }
+    }
+  });
+
+  it('sustained torsades is defibrillated at once, pulse or not — then magnesium', () => {
+    const t = patient('torsades', 230);
+    for (const [id, dose] of [['amiodarone', 150], ['procainamide', 1000], ['lidocaine', 100]] as const) {
+      const says = planDose(id, t, dose).verdict.text;
+      expect(says, id).toMatch(/unsynchronized/);
+      expect(says, id).toMatch(/pulse or not/);
+      expect(says, id).not.toMatch(/if pulseless/);
+      expect(says, id).toMatch(/magnesium/i);
+    }
+    // the torsades that procainamide toxicity causes is shocked at once too
+    const tox = planDose('procainamide', patient('normal-sinus', 72), 2000).steps.find((s) => s.profile === 'torsades')!;
+    expect(tox.note).toMatch(/unsynchronized/);
+    expect(tox.note).not.toMatch(/if pulseless/);
+  });
+
+  it('calcium is 1 g (10 mL of 10%); in a hyperkalemic arrest neither calcium nor bicarbonate has an established benefit, and CPR does not pause for them', () => {
+    const ca = MED_BY_ID['calcium-chloride'];
+    expect(ca.guide).toMatch(/1 g \(10 mL of 10%\)/);
+    expect(classifyDose(ca, patient('hyperkalemia', 64), 1)).toBe('usual');
+    expect(classifyDose(ca, patient('hyperkalemia', 64), 0.5)).toBe('low');
+    for (const id of ['calcium-chloride', 'sodium-bicarbonate'] as MedId[]) {
+      for (const arrest of ['vf', 'pea', 'asystole']) {
+        const says = planDose(id, patient(arrest, 0), MED_BY_ID[id].usual(patient(arrest, 0)).low).verdict.text;
+        expect(says, `${id} in ${arrest}`).toMatch(/hyperkalemi/);
+        expect(says, `${id} in ${arrest}`).toMatch(/not well established/);
+        expect(says, `${id} in ${arrest}`).toMatch(/pausing CPR|pause CPR/);
+      }
+    }
+  });
+
+  it('aortic dissection: β-blockade to a heart rate of 60–80 and a systolic pressure below 120 mmHg; metoprolol over 2 min', () => {
+    expect(MED_BY_ID.metoprolol.route).toMatch(/over 2 min/);
+    expect(MED_BY_ID.metoprolol.route).not.toMatch(/1–2 min/);
+    for (const [id, dose] of [['metoprolol', 5], ['esmolol', 40]] as const) {
+      for (const hr of [104, 130]) {
+        const plan = planDose(id, patient('aortic-dissection', hr, { sbp: 150 }), dose);
+        expect(plan.verdict.text, id).toMatch(/60–80/);
+        expect(plan.verdict.text, id).toMatch(/below 120 mmHg/);
+        expect(plan.verdict.text, id).not.toMatch(/≈ 60|100–120/);
+      }
+      // titrated to the target, the rate does not fall below it
+      for (const hr of [62, 70, 90]) {
+        const p = patient('aortic-dissection', hr, { sbp: 150 });
+        const steps = planDose(id, p, MED_BY_ID[id].usual(p).high).steps.filter((s) => s.hr !== undefined);
+        for (const s of steps) expect(s.hr, `${id} from ${hr}`).toBeGreaterThanOrEqual(60);
+      }
+    }
+    // three doses of 5 mg of metoprolol (the 15 mg maximum) still stop at the target
+    const third = patient('aortic-dissection', 70, { sbp: 150, given: [{ id: 'metoprolol', dose: 5, at: 0 }, { id: 'metoprolol', dose: 5, at: 1 }] });
+    expect(planDose('metoprolol', third, 5).steps.find((s) => s.hr !== undefined)!.hr).toBeGreaterThanOrEqual(60);
+  });
+
+  it('adenosine is 6 mg, then 12 mg: after both, more is not offered as the cure', () => {
+    expect(MED_BY_ID.adenosine.guide).not.toMatch(/second 12 mg/);
+    const svt = patient('avnrt', 180);
+    const both = { ...svt, given: [{ id: 'adenosine' as MedId, dose: 6, at: 0 }, { id: 'adenosine' as MedId, dose: 12, at: 1 }] };
+    const third = planDose('adenosine', both, 12);
+    expect(third.verdict.tone).toBe('caution');
+    expect(third.verdict.text).toMatch(/6 mg, then 12 mg/);
+    expect(third.steps.some((s) => s.profile === 'normal-sinus')).toBe(false);
+    // the 12 mg after a failed 6 mg still works, and so does a full dose after an under-dose
+    expect(planDose('adenosine', { ...svt, given: [{ id: 'adenosine', dose: 6, at: 0 }] }, 12).steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
+    expect(planDose('adenosine', { ...svt, given: [{ id: 'adenosine', dose: 3, at: 0 }, { id: 'adenosine', dose: 6, at: 1 }] }, 12).steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
+  });
+
+  it('tenecteplase is one bolus over about 5 s; in PE it is for cardiopulmonary failure (category E), not for a PE with a normal pressure', () => {
+    const tnk = MED_BY_ID.tenecteplase;
+    expect(tnk.route).toMatch(/about 5 s/);
+    const shocked = planDose('tenecteplase', patient('pulmonary-embolism', 120, { sbp: 78 }), 45);
+    expect(shocked.verdict.text).toMatch(/cardiopulmonary failure/);
+    expect(shocked.verdict.text).toMatch(/category E/);
+    expect(shocked.verdict.text).not.toMatch(/^Massive/);
+    expect(shocked.verdict.tone).not.toBe('bad');
+    const normotensive = planDose('tenecteplase', patient('pulmonary-embolism', 114, { sbp: 124 }), 45);
+    expect(normotensive.verdict.tone).toBe('bad');
+    expect(normotensive.verdict.text).toMatch(/categor/);
+    for (const id of ['normal-sinus', 'atrial-fibrillation']) {
+      expect(planDose('tenecteplase', patient(id, 80), 45).verdict.text).not.toMatch(/massive/i);
+    }
+    // reperfusion rhythm: about 50–120/min, usually under 100
+    const reperfusion = planDose('tenecteplase', patient('anterior-stemi', 92), 45).steps.map((s) => s.note).join(' ');
+    expect(reperfusion).toMatch(/50–120\/min, usually under 100/);
+  });
+
+  it('heparin in PE: LMWH is preferred; unfractionated heparin when lysis, a procedure or rapid reversal may be needed, or the kidneys fail', () => {
+    expect(MED_BY_ID.heparin.guide).toMatch(/LMWH/);
+    const pe = planDose('heparin', patient('pulmonary-embolism', 114, { sbp: 124 }), 6400);
+    expect(pe.verdict.tone).toBe('caution');
+    expect(pe.verdict.text).toMatch(/LMWH/);
+    expect(pe.verdict.text).toMatch(/renal/);
+    const shocked = planDose('heparin', patient('pulmonary-embolism', 120, { sbp: 78 }), 6400);
+    expect(shocked.verdict.tone).toBe('good');
+    expect(shocked.verdict.text).toMatch(/lysis|procedure/);
+    // ACS is unchanged
+    expect(planDose('heparin', patient('anterior-stemi', 92), 4000).verdict.tone).toBe('good');
+  });
+
+  it('nitroglycerin is held for the 2025 reasons; a slow heart rate is a caution, not a contraindication', () => {
+    const g = MED_BY_ID.nitroglycerin.guide;
+    expect(g).toMatch(/SBP < 90 mmHg/);
+    expect(g).toMatch(/30 mmHg below baseline/);
+    expect(g).toMatch(/avanafil[^.]*12 h/);
+    expect(g).toMatch(/sildenafil or vardenafil[^.]*24 h/);
+    expect(g).toMatch(/tadalafil[^.]*48 h/);
+    expect(g).toMatch(/RV infarction/);
+    expect(g).toMatch(/aortic stenosis/);
+    const slow = planDose('nitroglycerin', patient('nstemi', 46, { sbp: 132 }), 0.4);
+    expect(slow.verdict.tone).toBe('caution');
+    expect(slow.verdict.text).toMatch(/46\/min/);
+    expect(planDose('nitroglycerin', patient('anterior-stemi', 46, { sbp: 132 }), 0.4).verdict.tone).toBe('caution');
+    // the contraindications themselves still refuse it
+    expect(planDose('nitroglycerin', patient('nstemi', 46, { sbp: 84 }), 0.4).verdict.tone).toBe('bad');
+    expect(planDose('nitroglycerin', patient('aortic-stenosis', 72, { sbp: 120 }), 0.4).verdict.tone).toBe('bad');
+    // at an ordinary rate nothing changes
+    expect(planDose('nitroglycerin', patient('nstemi', 88, { sbp: 130 }), 0.4).verdict.tone).toBe('good');
   });
 });
 

@@ -16,13 +16,14 @@ import { angio } from '@/store/useSceneStore';
 import { useECGStore, type BottomView } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
-import { useMedStore } from '@/store/useMedStore';
+import { untreatedRhythm, useMedStore } from '@/store/useMedStore';
+import { codeInProgress } from '@/lib/sim/defib';
 import { useContentStore } from '@/lib/content';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { CONDUCTION_IDS, CORONARY_IDS, SECTION_FIRST, structureCategory } from '@/lib/anatomy/categories';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CASE_DATA } from '@/data/caseData';
-import { newPatient, setRhythm, showRhythm } from '@/lib/rhythm';
+import { newPatient, patientCount, setRhythm, showRhythm } from '@/lib/rhythm';
 import { standardPlacement } from '@/lib/ecg/placement';
 import { leaveSimulator } from '@/store/useSimStore';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
@@ -196,6 +197,54 @@ export function openMedication(id: string) {
   useAppStore.getState().setActivePanelCategory('medications');
   usePharmacologyStore.getState().selectMedication(id);
   useLearningStore.getState().markMedicationReviewed(id);
+}
+
+/**
+ * A condition page's "Show the ECG": slide the 12-lead up on this condition's pattern. If a patient is already on
+ * the monitor — this condition's rhythm, drugs still acting from Give meds, or a code under way on the
+ * defibrillator — the button only brings the tracing into view: putting the pattern up again would be a new
+ * patient, and end the treatment or the code ("Reset patient" and "Reset code" are there for that).
+ */
+export function showConditionEcg(conditionId: string) {
+  const profile = resolveProfile(CONDITION_TO_PROFILE[conditionId]);
+  const med = useMedStore.getState();
+  const treating = med.given.length > 0 || med.log.length > 0 || codeInProgress();
+  if (!treating && useECGStore.getState().activeProfileId !== profile.id) {
+    med.reset(conditionId);
+    showRhythm(profile.id);
+  }
+  showEcg('ecg');
+}
+
+// ─── The quiz borrows the monitor ──────────────────────────────────────────
+
+/** whom the quiz hands the monitor back to, and which patient its last strip was (`patientCount`) */
+let quizLoan: { back: { profileId: string; hr: number }; strip: number } | null = null;
+
+/**
+ * A quiz question with a strip puts its rhythm on the monitor: another patient. The first strip remembers whom to
+ * hand the monitor back to — the patient before any drug, if Give meds has been treating one, since the doses end
+ * with the strip. So does the first strip after the learner put a patient of their own up (a topic opened from an
+ * explanation's links).
+ */
+export function showQuizStrip(profileId: string, hr?: number) {
+  if (!quizLoan || patientCount() !== quizLoan.strip) {
+    const ecg = useECGStore.getState();
+    quizLoan = { back: untreatedRhythm() ?? { profileId: ecg.activeProfileId, hr: useTimelineStore.getState().heartRate }, strip: -1 };
+  }
+  showRhythm(profileId, hr);
+  quizLoan.strip = patientCount();
+}
+
+/**
+ * The quiz closes. Only if one of its strips took the monitor, and is still the patient on it, does the monitor go
+ * back to the patient it was borrowed from; otherwise nothing changes — a quiz without strips leaves the drugs
+ * acting, and a topic opened from the quiz stays on screen.
+ */
+export function endQuizStrips() {
+  const loan = quizLoan;
+  quizLoan = null;
+  if (loan && patientCount() === loan.strip) showRhythm(loan.back.profileId, loan.back.hr);
 }
 
 /** A condition's Give meds section: choose a drug and dose for the patient, push it, watch the live 12-lead */

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useContent } from '@/lib/content';
-import { kindOf, nameOf, openById, showRhythm } from '@/lib/actions';
+import { endQuizStrips, kindOf, nameOf, openById, showQuizStrip } from '@/lib/actions';
 import type { QuizQuestion, QuizTopic } from '@/types/content';
 import { IconClose, IconQuiz } from '@/components/ui/icons';
 
@@ -39,19 +39,15 @@ export default function QuizPanel() {
   const [idx, setIdx] = useState(0);
   const [choice, setChoice] = useState<number | null>(null);
   const [score, setScore] = useState(0);
-  const saved = useRef<{ profile: string; hr: number } | null>(null);
 
   useEffect(() => { setMaxLevel(level); }, [level]);
 
-  // Remember and restore the monitor so the quiz doesn't hijack the learner's rhythm
+  // The quiz only borrows the monitor for its strips: closing it hands the monitor back if a strip took it, and
+  // leaves it alone if none did (drugs given in Give meds keep acting)
   useEffect(() => {
-    if (quizOpen) {
-      saved.current = { profile: useECGStore.getState().activeProfileId, hr: useTimelineStore.getState().heartRate };
-    } else if (saved.current) {
-      showRhythm(saved.current.profile, saved.current.hr);
-      saved.current = null;
-      setDeck(null);
-    }
+    if (quizOpen) return;
+    endQuizStrips();
+    setDeck(null);
   }, [quizOpen]);
 
   const pool = useMemo(() => {
@@ -63,7 +59,7 @@ export default function QuizPanel() {
 
   useEffect(() => {
     if (q?.ecgProfile) {
-      showRhythm(q.ecgProfile, q.heartRate);
+      showQuizStrip(q.ecgProfile, q.heartRate);
       useECGStore.getState().setBottomView('ecg');
       useECGStore.getState().setInspectLead(null);
       useTimelineStore.getState().play();
