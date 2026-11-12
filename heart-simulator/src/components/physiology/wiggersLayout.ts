@@ -31,6 +31,23 @@ export function rowLoopWidth(width: number, height: number): number {
   return Math.round(Math.max(LOOP_MIN_HEIGHT, Math.min(height, 260, width * 0.25)));
 }
 
+/**
+ * `stack` (a phone held upright): the chart is never drawn shorter than this. A shorter panel (a small phone) scrolls
+ * instead, so the chart's rows, the valve labels and the heart-sound labels keep a readable size.
+ */
+export const STACK_CHART_MIN = 84;
+/** `stack`: the strip under the chart (the loop beside the numbers) is never shorter than the numbers' three rows */
+export const STACK_STRIP_MIN = 94;
+
+/**
+ * `stack`: height of the strip under the chart — about 40% of the panel, between the numbers' height and 112 px. While
+ * the heart sounds play, what they are is written under the strip, and the strip keeps only the numbers' height.
+ */
+export function stackStripHeight(panelHeight: number, soundsOn = false): number {
+  if (soundsOn) return STACK_STRIP_MIN;
+  return Math.round(Math.min(112, Math.max(STACK_STRIP_MIN, panelHeight * 0.4)));
+}
+
 export interface Band {
   y0: number;
   y1: number;
@@ -42,8 +59,8 @@ export interface ChartRows {
   ecg: Band;
   /** the lane for the valve-event labels (MC, AO, AC, MO) above the pressure plot, so they never sit on the curves */
   lane: Band;
-  /** baselines of the lane's two staggered rows */
-  laneRows: [number, number];
+  /** baselines of the lane's rows: two staggered rows, or one on a short chart */
+  laneRows: number[];
   /** the pressure plot itself, under the lane */
   press: Band;
   vol: Band;
@@ -52,30 +69,49 @@ export interface ChartRows {
   soundRows: number[];
 }
 
+/** Charts at least this tall stagger the valve labels on two rows; a shorter one has a single row (MC and AC always) */
+export const TWO_LANE_ROWS_MIN = 110;
+/** The pressure plot keeps at least this height before the other rows give up their minimum sizes */
+const PRESS_MIN = 18;
+
 /** The chart's rows for a canvas `H` px tall: the ECG, the event-label lane, pressure, LV volume and the heart sounds */
 export function chartRows(H: number): ChartRows {
   const font = H >= 300 ? 12 : 11;
-  // (a short chart — a phone held upright — packs the label rows a pixel tighter)
+  // (a short chart — a phone held upright — packs the label rows a pixel tighter, and has room for one row of them)
   const pitch = font + (H >= 200 ? 2 : 1);
-  const laneH = 2 * pitch + 3;
-  // the rows keep their old proportions of what is left once the lane is taken out
+  const laneCount = H >= TWO_LANE_ROWS_MIN ? 2 : 1;
+  const laneH = laneCount * pitch + 3;
   const avail = H - laneH;
-  const at = (f: number) => f * avail;
-  const ecg = { y0: 4, y1: at(0.17) };
-  const lane = { y0: at(0.19), y1: at(0.19) + laneH };
-  const press = { y0: lane.y1, y1: at(0.6) + laneH };
-  const vol = { y0: at(0.62) + laneH, y1: at(0.81) + laneH };
-  const phono = { y0: at(0.83) + laneH, y1: at(0.99) + laneH };
-  const twoSoundRows = phono.y1 - phono.y0 >= 2 * pitch + 6;
+  const gap = 0.02 * avail;
+  const bottom = 0.01 * avail;
+  // The rows keep their old shares of what is left once the lane is taken out (ECG 17%, pressure 41%, volume 19%,
+  // sounds 16%), but on a short chart never less than their names and labels need, so nothing is written outside its
+  // row or off the canvas: the pressure plot gives up the difference. Only on a chart too short for even that (the
+  // panel never draws one) do the rows shrink in proportion, with the labels kept on the canvas.
+  let ecgH = Math.max(font + 1, 0.17 * avail - 4);
+  let volH = Math.max(font + 2, 0.19 * avail);
+  let phonoH = Math.max(font + 3, 0.16 * avail);
+  if (H - 4 - ecgH - laneH - volH - phonoH - 3 * gap - bottom < PRESS_MIN) {
+    ecgH = 0.17 * avail - 4;
+    volH = 0.19 * avail;
+    phonoH = 0.16 * avail;
+  }
+  const ecg = { y0: 4, y1: 4 + ecgH };
+  const lane = { y0: ecg.y1 + gap, y1: ecg.y1 + gap + laneH };
+  const phono = { y0: H - bottom - phonoH, y1: H - bottom };
+  const vol = { y0: phono.y0 - gap - volH, y1: phono.y0 - gap };
+  const press = { y0: lane.y1, y1: vol.y0 - gap };
+  const twoSoundRows = phonoH >= 2 * pitch + 6;
+  const laneRows = laneCount === 2 ? [lane.y0 + font, lane.y0 + font + pitch] : [lane.y0 + font];
   return {
     font,
     ecg,
     lane,
-    laneRows: [lane.y0 + font, lane.y0 + font + pitch],
+    laneRows,
     press,
     vol,
     phono,
-    soundRows: twoSoundRows ? [phono.y0 + font, phono.y0 + font + pitch] : [phono.y0 + font],
+    soundRows: twoSoundRows ? [phono.y0 + font, phono.y0 + font + pitch] : [Math.min(phono.y0 + font, H - 1)],
   };
 }
 
@@ -103,14 +139,25 @@ export type ValveEvent = 'MC' | 'AO' | 'AC' | 'MO';
 /**
  * Valve-event labels, each just right of its dashed line. MC and AO (and AC and MO) are only ~50 ms apart, so each pair is
  * staggered: MC and AC on the first row, AO and MO on the second. A label that would still run into its neighbour (very
- * fast rates on a narrow chart) is left out; its line is still drawn.
+ * fast rates on a narrow chart) is left out; its line is still drawn. With a single row (a short chart) MC and AC come
+ * first, and AO and MO are written only where they fit.
  */
-export function placeEventLabels(marks: { x: number; label: ValveEvent }[], width: (label: ValveEvent) => number, gap = 3) {
-  return fitRows(
-    marks.map((m) => ({ item: m, x: m.x + 3, row: m.label === 'AO' || m.label === 'MO' ? 1 : 0 })),
-    (p) => width(p.item.label),
-    gap,
-  );
+export function placeEventLabels(
+  marks: { x: number; label: ValveEvent }[],
+  width: (label: ValveEvent) => number,
+  { gap = 3, rows = 2 }: { gap?: number; rows?: number } = {},
+) {
+  const second = (l: ValveEvent) => l === 'AO' || l === 'MO';
+  const wanted = marks.map((m) => ({ item: m, x: m.x + 3, row: rows > 1 && second(m.label) ? 1 : 0 }));
+  if (rows > 1) return fitRows(wanted, (p) => width(p.item.label), gap);
+  // one row: the closures (MC, AC) are placed first, the openings fill the gaps left between them
+  const w = (p: PlacedLabel<{ x: number; label: ValveEvent }>) => width(p.item.label);
+  const firsts = fitRows(wanted.filter((p) => !second(p.item.label)), w, gap);
+  const out = [...firsts];
+  for (const p of wanted.filter((q) => second(q.item.label)).sort((a, b) => a.x - b.x)) {
+    if (out.every((q) => p.x + w(p) + gap <= q.x || q.x + w(q) + gap <= p.x)) out.push(p);
+  }
+  return out.sort((a, b) => a.x - b.x);
 }
 
 /**

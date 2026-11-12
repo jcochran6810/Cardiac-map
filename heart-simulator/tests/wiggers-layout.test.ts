@@ -4,10 +4,14 @@ import { HemoModel } from '@/lib/physiology/hemodynamics';
 import { auscultate, type SoundKind } from '@/lib/physiology/heartSounds';
 import {
   LOOP_MIN_HEIGHT,
+  STACK_CHART_MIN,
+  STACK_STRIP_MIN,
+  TWO_LANE_ROWS_MIN,
   chartRows,
   placeEventLabels,
   placeSoundLabels,
   rowLoopWidth,
+  stackStripHeight,
   wiggersLayout,
   type ValveEvent,
 } from '@/components/physiology/wiggersLayout';
@@ -75,33 +79,91 @@ describe('Wiggers panel layout', () => {
   });
 
   it('stacks the chart rows without overlap, with a lane for the valve labels above the pressure curves', () => {
-    for (let H = 100; H <= 900; H += 7) {
+    // every height the panel draws, from a phone held upright (the stacked chart never goes below STACK_CHART_MIN) up
+    for (let H = STACK_CHART_MIN; H <= 900; H += 1) {
       const r = chartRows(H);
       expect(r.font).toBeGreaterThanOrEqual(11);
       expect(r.font).toBeLessThanOrEqual(12);
       expect(r.ecg.y0).toBeLessThan(r.ecg.y1);
       expect(r.ecg.y1).toBeLessThanOrEqual(r.lane.y0);
-      // the pressure plot starts under the lane: no label sits on a curve
+      // the pressure plot starts under the lane: no label sits on a curve; and it keeps a readable height
       expect(r.press.y0).toBe(r.lane.y1);
+      expect(r.press.y1 - r.press.y0).toBeGreaterThanOrEqual(18);
       expect(r.press.y1).toBeLessThanOrEqual(r.vol.y0);
       expect(r.vol.y1).toBeLessThanOrEqual(r.phono.y0);
       expect(r.phono.y1).toBeLessThanOrEqual(H);
-      // both label rows fit in the lane, a full line apart
+      // the label rows fit in the lane, a full line apart
+      expect(r.laneRows.length).toBe(H >= TWO_LANE_ROWS_MIN ? 2 : 1);
       expect(r.laneRows[0] - r.font).toBeGreaterThanOrEqual(r.lane.y0 - 0.01);
-      expect(r.laneRows[1] - r.laneRows[0]).toBeGreaterThanOrEqual(r.font + 1 - 1e-9);
-      expect(r.laneRows[1]).toBeLessThanOrEqual(r.lane.y1 - 2);
-      // the heart-sound labels stay on the sound trace's row
+      if (r.laneRows.length > 1) expect(r.laneRows[1] - r.laneRows[0]).toBeGreaterThanOrEqual(r.font + 1 - 1e-9);
+      expect(r.laneRows[r.laneRows.length - 1]).toBeLessThanOrEqual(r.lane.y1 - 2);
+      // the heart-sound labels stay on the sound trace's row, and so on the canvas
       for (const y of r.soundRows) {
         expect(y - r.font).toBeGreaterThanOrEqual(r.phono.y0 - 0.01);
         expect(y).toBeLessThanOrEqual(r.phono.y1);
       }
       if (r.soundRows.length > 1) expect(r.soundRows[1] - r.soundRows[0]).toBeGreaterThanOrEqual(r.font + 1 - 1e-9);
+      // the rows' names (11 px, baseline 11 px under the row's top) stay inside their rows: "ECG II", "LV volume (mL)"
+      expect(r.ecg.y0 + 11).toBeLessThanOrEqual(r.ecg.y1);
+      expect(r.vol.y0 + 11).toBeLessThanOrEqual(r.vol.y1);
     }
     // labels big enough to read: 12 px on a tall chart, 11 px on a phone
     expect(chartRows(690).font).toBe(12);
     expect(chartRows(122).font).toBe(11);
     // a tall chart gives the extra heart sounds a row of their own
     expect(chartRows(690).soundRows).toHaveLength(2);
+    // a phone held upright, sounds off: two rows of valve labels and still ~38 px of pressure plot
+    const phone = chartRows(124);
+    expect(phone.laneRows).toHaveLength(2);
+    expect(phone.press.y1 - phone.press.y0).toBeGreaterThanOrEqual(36);
+  });
+
+  it('never writes a label off the canvas, even on a chart shorter than the panel ever draws', () => {
+    // (67 px was a 320 x 640 phone's chart before the stacked panel kept a minimum height)
+    for (let H = 50; H < STACK_CHART_MIN; H += 1) {
+      const r = chartRows(H);
+      for (const b of [r.ecg, r.lane, r.press, r.vol, r.phono]) {
+        expect(b.y0).toBeGreaterThanOrEqual(0);
+        expect(b.y1).toBeLessThanOrEqual(H);
+        expect(b.y1).toBeGreaterThanOrEqual(b.y0);
+      }
+      for (const y of [...r.laneRows, ...r.soundRows]) {
+        expect(y).toBeLessThanOrEqual(H - 1);
+        expect(y - r.font).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('gives a phone held upright a strip just tall enough for the three rows of numbers', () => {
+    // the default drawer, the same drawer during a lesson, a 320 x 640 phone, the drawer pulled up
+    expect(stackStripHeight(256)).toBeGreaterThanOrEqual(STACK_STRIP_MIN);
+    expect(stackStripHeight(239)).toBeGreaterThanOrEqual(STACK_STRIP_MIN);
+    expect(stackStripHeight(154)).toBe(STACK_STRIP_MIN);
+    expect(stackStripHeight(700)).toBe(112);
+    // a 390 x 844 phone keeps the chart about as tall as it was before the chart had its header row
+    expect(256 - 19 - stackStripHeight(256)).toBeGreaterThanOrEqual(134);
+    // with the sounds on, the strip keeps just the numbers' height, so the chart, the numbers and a three-line
+    // "You hear" (aortic stenosis, ~59 px) all fit the same phone's 256 px panel
+    expect(stackStripHeight(256, true)).toBe(STACK_STRIP_MIN);
+    expect(19 + STACK_CHART_MIN + stackStripHeight(256, true) + 59).toBeLessThanOrEqual(256);
+  });
+
+  it('puts every valve label on one row when the chart is short, closures first, with no collisions', () => {
+    for (const [profile, hr] of [['normal-sinus', 60], ['normal-sinus', 100], ['normal-sinus', 150], ['aortic-stenosis', 70]] as [string, number][]) {
+      for (const canvasW of [320, 390, 560]) {
+        const w = textWidth(11);
+        const { marks } = chartWindow(profile, hr, canvasW);
+        const placed = placeEventLabels(marks, w, { rows: 1 });
+        expect(placed.every((p) => p.row === 0)).toBe(true);
+        expectApart(placed.map((p) => ({ x: p.x, row: p.row, w: w(p.item.label) })));
+        for (const p of placed) expect(p.x - p.item.x).toBe(3);
+        // at a resting rate every valve closure is named
+        if (hr <= 100) {
+          const closures = marks.filter((m) => m.label === 'MC' || m.label === 'AC');
+          expect(placed.filter((p) => p.item.label === 'MC' || p.item.label === 'AC')).toHaveLength(closures.length);
+        }
+      }
+    }
   });
 
   it('staggers MC and AO (and AC and MO) on two rows so no valve label runs into another', () => {

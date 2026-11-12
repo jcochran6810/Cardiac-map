@@ -9,12 +9,31 @@ import { IconSpeaker, IconSpeakerOff } from '@/components/ui/icons';
 
 const EXTRA: Record<string, string> = { s3: 'S3 (after S2)', s4: 'S4 (just before S1)', snap: 'opening snap' };
 
-/** Switches the heart sounds on and off. `pill`: the small rounded style used over the 3D heart */
-export default function HeartSoundsButton({ pill = false, className = '' }: { pill?: boolean; className?: string }) {
+/**
+ * Switches the heart sounds on and off. `pill`: the small rounded style used over the 3D heart. `cell`: a tile the size of
+ * one number in the pressure-and-volume panel's grid, labelled Listen and lit while the sounds play (the grid keeps it
+ * in sight beside the loop, where a full-width button would push the numbers out of a phone's short strip).
+ */
+export default function HeartSoundsButton({ pill = false, cell = false, className = '' }: { pill?: boolean; cell?: boolean; className?: string }) {
   const on = useSoundStore((s) => s.heartSounds);
   const unavailable = useSoundStore((s) => s.unavailable);
   if (unavailable) return null;
   const title = on ? 'Switch the heart sounds off' : 'Listen to the heart sounds, in time with the beat (headphones bring out the low tones)';
+  if (cell) {
+    return (
+      <button
+        onClick={toggleHeartSounds}
+        title={title}
+        aria-pressed={on}
+        // (the tap area reaches a few pixels past the tile on every side: the numbers around it do not take taps)
+        className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[26px] rounded-md border text-[11px] touch:text-[12px] font-semibold leading-none transition-colors after:absolute after:-inset-1.5 ${
+          on ? 'bg-sky-500/25 border-sky-400/70 text-sky-100' : 'border-slate-500 text-slate-100 hover:bg-cardiac-surface'
+        } ${className}`}
+      >
+        {on ? <IconSpeaker size={13} /> : <IconSpeakerOff size={13} />} Listen
+      </button>
+    );
+  }
   if (pill) {
     return (
       <button

@@ -1,13 +1,25 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sim } from '@/lib/sim/simulation';
 import { cycleEvents } from '@/lib/ecg/engine';
 import type { HemoSummary } from '@/lib/physiology/hemodynamics';
 import HeartSoundsButton, { HeardLegend } from '@/components/ui/HeartSoundsButton';
+import { IconChevron } from '@/components/ui/icons';
 import { auscultate, type SoundKind } from '@/lib/physiology/heartSounds';
 import { useBlind } from '@/store/useECGStore';
-import { LOOP_MIN_HEIGHT, chartRows, placeEventLabels, placeSoundLabels, rowLoopWidth, wiggersLayout, type ValveEvent } from './wiggersLayout';
+import { useSoundStore } from '@/store/useSoundStore';
+import {
+  LOOP_MIN_HEIGHT,
+  STACK_CHART_MIN,
+  chartRows,
+  placeEventLabels,
+  placeSoundLabels,
+  rowLoopWidth,
+  stackStripHeight,
+  wiggersLayout,
+  type ValveEvent,
+} from './wiggersLayout';
 
 const SOUND_LABEL: Record<SoundKind, string> = { s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', snap: 'OS' };
 
@@ -45,6 +57,7 @@ export default function WiggersPanel() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 1000, h: 600 });
   const blind = useBlind();
+  const soundsOn = useSoundStore((s) => s.heartSounds);
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -58,6 +71,28 @@ export default function WiggersPanel() {
   }, []);
   const mode = wiggersLayout(box.w, box.h);
   const stack = mode === 'stack';
+
+  // Stacked on a panel shorter than its contents (a small phone), the panel scrolls rather than squeeze the chart: a fade
+  // and an arrow at the bottom edge say there is more below until the end is reached
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  const checkMore = useCallback(() => {
+    const el = rootRef.current;
+    setMore(!!el && el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+  }, []);
+  useEffect(() => {
+    if (!stack) {
+      setMore(false);
+      return;
+    }
+    const content = contentRef.current;
+    const root = rootRef.current;
+    if (!content || !root) return;
+    const ro = new ResizeObserver(checkMore);
+    ro.observe(content);
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [stack, checkMore]);
 
   useEffect(() => {
     const id = window.setInterval(() => setSummary(sim.hemo.summary(sim.time)), 400);
@@ -123,17 +158,19 @@ export default function WiggersPanel() {
         }
       }
       // The labels sit in their own lane above the pressure curves, staggered on two rows (each pair of events is only
-      // ~50 ms apart). A second-row label's line starts under the first row, so it never strikes through its partner.
+      // ~50 ms apart; a short chart has one row). A second-row label's line starts under the first row, so it never
+      // strikes through its partner.
       ctx.font = labelFont;
       ctx.strokeStyle = COLORS.event;
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
+      const twoLaneRows = rows.laneRows.length > 1;
       for (const m of marks) {
-        const top = m.label === 'AO' || m.label === 'MO' ? rows.laneRows[0] + 4 : lane.y0;
+        const top = twoLaneRows && (m.label === 'AO' || m.label === 'MO') ? rows.laneRows[0] + 4 : lane.y0;
         ctx.beginPath(); ctx.moveTo(m.x, top); ctx.lineTo(m.x, H - 2); ctx.stroke();
       }
       ctx.setLineDash([]);
-      for (const p of placeEventLabels(marks, (l) => ctx.measureText(l).width)) {
+      for (const p of placeEventLabels(marks, (l) => ctx.measureText(l).width, { rows: rows.laneRows.length })) {
         haloText(ctx, p.item.label, p.x, rows.laneRows[p.row], COLORS.label);
       }
 
@@ -226,11 +263,14 @@ export default function WiggersPanel() {
       lc.fillStyle = BG;
       lc.fillRect(0, 0, L.W, L.H);
       if (L.W < 60 || L.H < 60) return;
-      // room on the left for the pressure numbers and the axis title beside them, and under the plot for the volumes
-      const padL = 36;
+      // room on the left for the pressure numbers and the axis title beside them, and under the plot for the volumes. A
+      // narrow loop (a small phone) gives the width to the plot: the pressure unit goes above the axis instead of a
+      // title turned on its side.
+      const narrowLoop = L.W < 200;
+      const padL = narrowLoop ? 26 : 36;
       const padB = 28;
-      const padT = 8;
-      const padR = 10;
+      const padT = narrowLoop ? 14 : 8;
+      const padR = narrowLoop ? 6 : 10;
       const vx = (v: number) => padL + (v / vMax) * (L.W - padL - padR);
       const py = (p: number) => L.H - padB - (p / pMax) * (L.H - padB - padT);
       lc.strokeStyle = COLORS.grid;
@@ -255,13 +295,17 @@ export default function WiggersPanel() {
       }
       const xTitle = 'LV volume (mL)';
       lc.fillText(xTitle, (padL + L.W - padR) / 2 - lc.measureText(xTitle).width / 2, L.H - 3);
-      const yFull = 'LV pressure (mmHg)';
-      const yTitle = lc.measureText(yFull).width <= L.H - padB - padT ? yFull : 'mmHg';
-      lc.save();
-      lc.translate(10, (padT + L.H - padB) / 2 + lc.measureText(yTitle).width / 2);
-      lc.rotate(-Math.PI / 2);
-      lc.fillText(yTitle, 0, 0);
-      lc.restore();
+      if (narrowLoop) {
+        lc.fillText('LV mmHg', padL + 2, padT - 4);
+      } else {
+        const yFull = 'LV pressure (mmHg)';
+        const yTitle = lc.measureText(yFull).width <= L.H - padB - padT ? yFull : 'mmHg';
+        lc.save();
+        lc.translate(10, (padT + L.H - padB) / 2 + lc.measureText(yTitle).width / 2);
+        lc.rotate(-Math.PI / 2);
+        lc.fillText(yTitle, 0, 0);
+        lc.restore();
+      }
       // trail: older fades
       const pts = Math.min(lvv.length, Math.floor(lvv.length * 0.75));
       for (let k = lvv.length - pts + 1; k < lvv.length; k++) {
@@ -284,53 +328,88 @@ export default function WiggersPanel() {
   // the model's name is the answer to "what is this?": hidden while a question is open
   const model = blind ? 'Hidden while a question is open' : summary.label;
 
-  return (
-    <div ref={rootRef} className={`absolute inset-0 flex ${stack ? 'flex-col' : ''}`}>
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-        {/* what is on the chart, and the key to its pressure lines: outside the plot, so it never covers a curve or a label */}
-        <div className="shrink-0 flex items-center gap-x-3 px-2 py-px border-b border-slate-800 text-[11px] touch:text-xs leading-tight" style={{ background: BG }}>
-          <span className={`min-w-0 flex-1 truncate ${blind ? 'text-slate-400' : 'text-slate-200'}`} title={model}>
-            {!stack && <span className="text-slate-400">Model: </span>}
-            {model}
-          </span>
-          <span className="shrink-0 flex items-center gap-2 text-slate-300">
-            {PRESSURE_KEY.map(([name, color]) => (
-              <span key={name} className="flex items-center gap-1">
-                <span aria-hidden className="w-2.5 h-[3px] rounded-full" style={{ background: color }} />
-                {name}
-              </span>
-            ))}
-            <span className="text-slate-500">mmHg</span>
-          </span>
-        </div>
-        <div className="relative flex-1 min-h-0">
-          <canvas ref={chartRef} className="absolute inset-0 w-full h-full" aria-label="Wiggers diagram" role="img" />
+  const chart = (
+    // (stacked, the chart keeps a readable height: a panel too short for it and the strip scrolls instead)
+    <div className={`flex-1 min-w-0 flex flex-col ${stack ? '' : 'min-h-0'}`}>
+      {/* what is on the chart, and the key to its pressure lines: outside the plot, so it never covers a curve or a label */}
+      <div className="shrink-0 flex items-center gap-x-3 px-2 py-px border-b border-slate-800 text-[11px] touch:text-xs leading-tight" style={{ background: BG }}>
+        <span className={`min-w-0 flex-1 truncate ${blind ? 'text-slate-400' : 'text-slate-200'}`} title={model}>
+          {!stack && <span className="text-slate-400">Model: </span>}
+          {model}
+        </span>
+        <span className="shrink-0 flex items-center gap-2 text-slate-300">
+          {PRESSURE_KEY.map(([name, color]) => (
+            <span key={name} className="flex items-center gap-1">
+              <span aria-hidden className="w-2.5 h-[3px] rounded-full" style={{ background: color }} />
+              {name}
+            </span>
+          ))}
+          <span className="text-slate-500">mmHg</span>
+        </span>
+      </div>
+      <div className="relative flex-1 min-h-0" style={stack ? { minHeight: STACK_CHART_MIN } : undefined}>
+        <canvas ref={chartRef} className="absolute inset-0 w-full h-full" aria-label="Wiggers diagram" role="img" />
+      </div>
+    </div>
+  );
+  const loopCanvas = <canvas ref={loopRef} className="absolute inset-0 w-full h-full" aria-label="Pressure-volume loop" role="img" />;
+  // Listen sits in the numbers, next to the loop, as one tile of the grid: in sight on every screen without pushing a
+  // number out of a phone's short strip. What it plays is written under the numbers.
+  const numbers = (
+    <div className={`grid grid-cols-3 gap-y-1 text-[11px] ${stack ? 'gap-x-1.5' : 'gap-x-2'}`}>
+      <HeartSoundsButton cell />
+      <Stat label="BP" value={summary.noOutput ? 'no pulse' : `${summary.sbp}/${summary.dbp}`} warn={summary.noOutput || summary.sbp < 90} />
+      <Stat label="MAP" value={`${summary.map}`} warn={summary.map < 65} />
+      {/* red below a cardiac index of about 2.2 L/min/m² for an average adult (1.9 m²) */}
+      <Stat label="CO L/min" value={summary.co.toFixed(1)} warn={summary.co < 4.2} />
+      {/* (the narrow strip on a phone: the same names, closed up to fit their cells) */}
+      <Stat label={stack ? 'EDV/ESV' : 'EDV / ESV'} value={`${summary.edv}/${summary.esv}`} />
+      <Stat label={stack ? 'Fwd SV' : 'Fwd SV mL'} value={`${summary.sv}`} />
+      <Stat label="EF" value={`${summary.ef}%`} warn={summary.ef < 40} />
+      <Stat label="LVEDP" value={summary.noOutput ? '—' : `~${summary.lvedp}`} warn={!summary.noOutput && summary.lvedp >= 18} />
+      <Stat label="LA mean" value={summary.noOutput ? '—' : `~${summary.laMean}`} warn={!summary.noOutput && summary.laMean >= 18} />
+      {/* (the pulse pressure is the BP's two numbers apart: left out where three rows are all there is room for) */}
+      {mode === 'column' && <Stat label="Pulse pr." value={summary.noOutput ? '—' : `${summary.sbp - summary.dbp}`} warn={!summary.noOutput && summary.sbp - summary.dbp < 25} />}
+    </div>
+  );
+
+  if (stack) {
+    // A phone held upright: the chart, then the loop beside the numbers, then (while the sounds play) what they are,
+    // across the full width where it takes the fewest lines
+    return (
+      <div ref={rootRef} onScroll={checkMore} className="absolute inset-0 overflow-y-auto overscroll-contain">
+        <div ref={contentRef} className="min-h-full flex flex-col">
+          {chart}
+          <div className="shrink-0 flex border-t border-slate-700" style={{ height: stackStripHeight(box.h, soundsOn) }}>
+            <div className="relative flex-1 min-w-0">{loopCanvas}</div>
+            <div className="w-[11.5rem] shrink-0 border-l border-slate-700 bg-cardiac-dark/50 px-1.5 py-1">{numbers}</div>
+          </div>
+          <HeardLegend className="shrink-0 px-2 py-0.5 border-t border-slate-700 bg-cardiac-dark/50" />
+          {more && (
+            // there is more below (the panel is shorter than its contents): say so at the bottom edge
+            <div aria-hidden className="pointer-events-none sticky bottom-0 -mt-4 h-4 shrink-0 flex items-end justify-center bg-gradient-to-t from-black/70 to-transparent">
+              <IconChevron size={12} className="rotate-90 text-slate-200" />
+            </div>
+          )}
         </div>
       </div>
-      {/* PV loop + numbers: a strip under the chart (phones), a column beside it, or side by side beside it when the panel is short */}
-      <div className={`shrink-0 flex border-slate-700 ${stack ? 'h-[44%] border-t' : mode === 'column' ? 'w-[260px] flex-col border-l' : 'border-l'}`}>
+    );
+  }
+
+  return (
+    <div ref={rootRef} className="absolute inset-0 flex">
+      {chart}
+      {/* PV loop + numbers: a column beside the chart, or side by side beside it when the panel is short */}
+      <div className={`shrink-0 flex border-l border-slate-700 ${mode === 'column' ? 'w-[260px] flex-col' : ''}`}>
         <div
           className={`relative min-w-0 min-h-0 ${mode === 'row' ? 'shrink-0' : 'flex-1'}`}
-          style={mode === 'row' ? { width: rowLoopWidth(box.w, box.h) } : mode === 'column' ? { minHeight: LOOP_MIN_HEIGHT } : undefined}
+          style={mode === 'row' ? { width: rowLoopWidth(box.w, box.h) } : { minHeight: LOOP_MIN_HEIGHT }}
         >
-          <canvas ref={loopRef} className="absolute inset-0 w-full h-full" aria-label="Pressure-volume loop" role="img" />
+          {loopCanvas}
         </div>
-        {/* Listen and what it plays come first, so they stay in sight when the strip is short and the numbers scroll */}
-        <div className={`min-h-0 overflow-y-auto overscroll-contain border-slate-700 bg-cardiac-dark/50 ${mode === 'column' ? 'border-t' : 'shrink-0 border-l'} ${stack ? 'w-[13.5rem] p-1.5 space-y-1' : mode === 'row' ? 'w-56 p-2 space-y-1.5' : 'p-2 space-y-1.5'}`}>
-          <HeartSoundsButton className="w-full" />
+        <div className={`min-h-0 overflow-y-auto overscroll-contain border-slate-700 bg-cardiac-dark/50 p-2 space-y-1.5 ${mode === 'column' ? 'border-t' : 'w-56 shrink-0 border-l'}`}>
+          {numbers}
           <HeardLegend />
-          <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-[11px]">
-            <Stat label="BP" value={summary.noOutput ? 'no pulse' : `${summary.sbp}/${summary.dbp}`} warn={summary.noOutput || summary.sbp < 90} />
-            <Stat label="MAP" value={`${summary.map}`} warn={summary.map < 65} />
-            {/* red below a cardiac index of about 2.2 L/min/m² for an average adult (1.9 m²) */}
-            <Stat label="CO L/min" value={summary.co.toFixed(1)} warn={summary.co < 4.2} />
-            <Stat label="EDV / ESV" value={`${summary.edv}/${summary.esv}`} />
-            <Stat label="Fwd SV mL" value={`${summary.sv}`} />
-            <Stat label="EF" value={`${summary.ef}%`} warn={summary.ef < 40} />
-            <Stat label="LVEDP" value={summary.noOutput ? '—' : `~${summary.lvedp}`} warn={!summary.noOutput && summary.lvedp >= 18} />
-            <Stat label="LA mean" value={summary.noOutput ? '—' : `~${summary.laMean}`} warn={!summary.noOutput && summary.laMean >= 18} />
-            <Stat label="Pulse pr." value={summary.noOutput ? '—' : `${summary.sbp - summary.dbp}`} warn={!summary.noOutput && summary.sbp - summary.dbp < 25} />
-          </div>
         </div>
       </div>
     </div>
@@ -339,9 +418,9 @@ export default function WiggersPanel() {
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0" title={`${label}: ${value}`}>
       <div className="text-slate-500 leading-none truncate">{label}</div>
-      <div className={`font-mono font-semibold ${warn ? 'text-red-400' : 'text-slate-100'}`}>{value}</div>
+      <div className={`font-mono font-semibold leading-tight mt-0.5 truncate ${warn ? 'text-red-400' : 'text-slate-100'}`}>{value}</div>
     </div>
   );
 }
