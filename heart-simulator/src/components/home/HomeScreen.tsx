@@ -27,6 +27,9 @@ import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { useCourseStore } from '@/store/useCourseStore';
 import { courseProgress, coursesFor, lessonInProgress, nextLesson, startLesson } from '@/lib/courses';
 import { openTrainer } from '@/lib/drillRun';
+import { useDrillStore } from '@/store/useDrillStore';
+import { summarize } from '@/lib/progress';
+import Welcome from '@/components/home/Welcome';
 import {
   IconBook, IconChart, IconChevron, IconClipboard, IconCube, IconDownload, IconHeart, IconHeartPulse, IconHelp, IconMessage, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
 } from '@/components/ui/icons';
@@ -148,6 +151,18 @@ export default function HomeScreen() {
   const lessonOpen = lib ? lessonInProgress(lib.courses, courseDone) : null;
   const firstCourse = courses[0] ?? null;
   const coursesTotal = courses.length;
+  const drillStats = useDrillStore((s) => s.stats);
+  const best = useSimStore((s) => s.best);
+  const progress = summarize({
+    courses: lib?.courses ?? [], lessonProgress: courseDone, drillStats, caseIds: scenariosFor(role).map((sc) => sc.id), best, role,
+    quizAttempts: learning.quizAttempts,
+  });
+  const startFirstLesson = () => {
+    const c = lib ? coursesFor(useAppStore.getState().learningLevel, lib.courses)[0] : null;
+    const l = c ? nextLesson(c, useCourseStore.getState().progress) ?? c.lessons[0] : null;
+    if (c && l) startLesson(c.id, l.id);
+    else useAppStore.getState().setMode('courses');
+  };
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-cardiac-dark" aria-label="Main menu">
@@ -237,6 +252,24 @@ export default function HomeScreen() {
             onClick={() => useAppStore.getState().setMode('simulator')}
           />
         </section>
+
+        {/* ── What you have done so far ── */}
+        {!progress.empty && (
+          <section className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2" aria-label="Your progress">
+            <ProgressStat label="Lessons finished" value={`${progress.lessons.done}`} of={`${progress.lessons.total}`} share={progress.lessons.done / Math.max(1, progress.lessons.total)} onClick={() => useAppStore.getState().setMode('courses')} />
+            <ProgressStat label="Rhythms mastered" value={`${progress.rhythms.mastered}`} of={`${progress.rhythms.total}`} share={progress.rhythms.mastered / Math.max(1, progress.rhythms.total)} onClick={openTrainer} />
+            <ProgressStat
+              label="Cases scored" value={`${progress.cases.done}`} of={`${progress.cases.total}`}
+              note={progress.cases.average !== null ? `average ${progress.cases.average}%` : undefined}
+              share={progress.cases.done / Math.max(1, progress.cases.total)} onClick={() => useAppStore.getState().setMode('simulator')}
+            />
+            <ProgressStat
+              label="Quiz, last answers" value={progress.quiz.answered ? `${Math.round((progress.quiz.right / progress.quiz.answered) * 100)}%` : '—'}
+              note={progress.quiz.answered ? `${progress.quiz.right} of ${progress.quiz.answered} right` : 'not tried yet'}
+              share={progress.quiz.answered ? progress.quiz.right / progress.quiz.answered : 0} onClick={() => useAppStore.getState().setQuizOpen(true)}
+            />
+          </section>
+        )}
 
         {/* ── Courses: the guided way in ── */}
         <section className="mt-6" aria-labelledby="menu-courses">
@@ -350,7 +383,25 @@ export default function HomeScreen() {
 
         <AdminFooter />
       </div>
+      <Welcome onStart={startFirstLesson} />
     </div>
+  );
+}
+
+/** One number of the progress strip; tapping it goes to where that number is earned */
+function ProgressStat({ label, value, of, note, share, onClick }: { label: string; value: string; of?: string; note?: string; share: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left px-3 py-2 rounded-xl bg-cardiac-panel/70 border border-slate-700 hover:border-slate-500 transition-colors">
+      <span className="block text-[10px] uppercase tracking-wider text-slate-400 truncate">{label}</span>
+      <span className="flex items-baseline gap-1">
+        <span className="text-lg font-semibold text-white tabular-nums leading-tight">{value}</span>
+        {of && <span className="text-xs text-slate-500">of {of}</span>}
+        {note && <span className="text-[11px] text-slate-500 truncate">{of ? '· ' : ''}{note}</span>}
+      </span>
+      <span className="mt-1 block h-1 rounded-full bg-cardiac-dark overflow-hidden">
+        <span className="block h-full bg-emerald-500/80" style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }} />
+      </span>
+    </button>
   );
 }
 
