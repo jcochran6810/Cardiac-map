@@ -9,6 +9,9 @@ import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useDefibStore, type DefibState } from '@/lib/sim/defib';
 import { sim } from '@/lib/sim/simulation';
+import { drugMods, useMedStore } from '@/store/useMedStore';
+import type { RhythmMods } from '@/lib/ecg/mods';
+import type { Placement } from '@/lib/ecg/electrodes';
 
 export const CHANNEL = 'cardiosim-monitor';
 
@@ -21,6 +24,14 @@ export interface MonitorMessage {
   defib: Pick<DefibState, 'mode' | 'energy' | 'sync' | 'charge' | 'message' | 'pacer' | 'vitals' | 'nibp' | 'shocks' | 'trainee' | 'cpr' | 'aed'>;
   /** ages (ms) rather than absolute times, because each window has its own clock */
   ages: { code: number | null; epi: number | null; shock: number | null; cpr: number | null };
+  /** what the drugs given are doing to the intervals (a longer PR, a wider QRS): the projected tracing shows it too */
+  mods: RhythmMods | null;
+  /** the ECG cables as attached (a reversal being taught), and whether that is a mystery */
+  placement: Placement;
+  placementHidden: boolean;
+  /** a question is open on the main screen (a quiz, the trainer, a lesson check): the projected monitor keeps the answer to itself too */
+  blind: boolean;
+  rateHidden: boolean;
 }
 
 let channel: BroadcastChannel | null = null;
@@ -29,8 +40,14 @@ let started = false;
 function snapshot(): MonitorMessage {
   const d = useDefibStore.getState();
   const tl = useTimelineStore.getState();
+  const ecg = useECGStore.getState();
   const t = sim.time;
   return {
+    mods: drugMods(),
+    placement: ecg.placement,
+    placementHidden: ecg.placementHidden,
+    blind: ecg.blindBy.length > 0,
+    rateHidden: ecg.rateHidden,
     profileId: useECGStore.getState().activeProfileId,
     hr: tl.heartRate,
     playing: tl.playing,
@@ -54,6 +71,7 @@ function startBroadcast() {
   useDefibStore.subscribe(send);
   useECGStore.subscribe(send);
   useTimelineStore.subscribe(send);
+  useMedStore.subscribe(send);
   channel.onmessage = (e) => { if (e.data === 'hello') send(); };
   window.setInterval(send, 2000);
   send();
