@@ -15,6 +15,7 @@ import { scrubTo, sim } from '@/lib/sim/simulation';
 import type { LearningLevel } from '@/store/useAppStore';
 import { useECGStore, type ECGLayout, type ECGLead } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
+import { untreatedRhythm } from '@/store/useMedStore';
 
 const BEST_KEY = 'cardiosim.sim.best';
 
@@ -103,8 +104,12 @@ export function enterSimulator() {
   const ecg = useECGStore.getState();
   const tl = useTimelineStore.getState();
   if (!saved) {
+    // The doses given in Give meds end when the case takes the monitor, so the workspace gets back its patient from
+    // before the first of them: the rhythm a drug produced, with no dose on record, would be a patient never treated
+    // (a condition page's "Practice it" button gets here before the case starts and before the screen changes)
+    const back = untreatedRhythm();
     saved = {
-      profile: ecg.activeProfileId, hr: tl.heartRate, layout: ecg.layout, keyLeads: ecg.showKeyLeads,
+      profile: back?.profileId ?? ecg.activeProfileId, hr: back?.hr ?? tl.heartRate, layout: ecg.layout, keyLeads: ecg.showKeyLeads,
       inspect: ecg.inspectLead, playing: tl.playing, speed: tl.speed,
     };
   }

@@ -261,7 +261,16 @@ export const cathlabShock: Scenario = {
     { id: 'transducer', label: 'Zero and level the transducers', why: 'The right heart numbers decide the support: they must be right.', done: ['transducer'], roles: TECH, points: 5, target: { by: 6 } },
     { id: 'pads', label: 'Defibrillator pads on', why: 'Shock and a large anterior infarct: VT and VF are likely.', done: PADS, roles: TECH, points: 10, target: { by: 6 } },
     { id: 'iv', label: 'IV access', why: 'For the pressor and the drugs.', done: ['iv', 'io'], roles: RN, points: 5 },
-    { id: 'oxygen', label: 'Oxygen for an SpO₂ below 90 %', why: 'He is hypoxic from pulmonary edema: oxygen (and be ready to ventilate).', done: ['o2-nc', 'o2-nrb', 'airway'], roles: [4, 5], points: 5, target: { by: 5 } },
+    {
+      id: 'oxygen', label: 'Oxygen for an SpO₂ below 90 %', why: 'He is hypoxic from pulmonary edema: oxygen (and be ready to ventilate).', roles: [4, 5], points: 5, target: { by: 5 },
+      // an airway counts only once it is in: tried on him awake, it comes straight out
+      done: (s) => {
+        const mask = firstDone(s, ['o2-nc', 'o2-nrb']);
+        const tube = has(s, 'airway') ? firstDone(s, ['airway']) : null;
+        return mask === null ? tube : tube === null ? mask : Math.min(mask, tube);
+      },
+      uses: ['o2-nc', 'o2-nrb', 'airway'],
+    },
     { id: 'md-pressor', label: 'A vasopressor early (norepinephrine)', why: 'Norepinephrine first in cardiogenic shock; MAP 65 or more while you get support in.', done: ['pressor', 'push-epi'], roles: MD, points: 10, target: { by: 6 } },
     { id: 'access', label: 'Femoral arterial access (large-bore ready)', why: 'The pump needs a large-bore femoral sheath; ultrasound-guided, over the femoral head.', done: ['access-femoral', 'access'], roles: MD, points: 5 },
     { id: 'venous', label: 'Femoral venous access for the right heart catheter', why: 'The PA catheter measures the shock and guides the support.', done: ['access-venous'], roles: MD, points: 5 },

@@ -618,15 +618,18 @@ export function giveDrug(id: string, authority?: string) {
           if (Math.random() < 0.5) changeRhythm(CONDUCTING[pid] ?? 'normal-sinus', 70, 'AV conduction returns after atropine — the block was in the AV node');
           else log('Little response to atropine — pace, and do not delay reperfusion in an inferior MI', 'rhythm');
         });
-      } else if (kind === 'wenckebach' || pid === 'first-degree-avb' || (kind === 'junctional' && slow)) {
+      } else if (kind === 'wenckebach' || ((pid === 'first-degree-avb' || kind === 'junctional') && slow)) {
         respond(20000, () => { if (Math.random() < 0.7) changeRhythm('normal-sinus', 78, 'Improved AV-nodal conduction after atropine'); else log('Little response to atropine', 'rhythm'); });
+      } else if (pid === 'hyperkalemia' && slow) {
+        // the potassium, not vagal tone, is slowing this heart
+        respond(20000, () => log('Little response to atropine: in hyperkalemia the potassium, not vagal tone, slows the heart — calcium first, then insulin + dextrose and a β-agonist; be ready to pace', 'rhythm'));
       } else if ((kind === 'sinus' || kind === 'pvc') && slow) {
         // the "sinus bradycardia" rhythm becomes normal sinus rhythm; any other keeps its own QRS and ST segments
         if (pid === 'sinus-bradycardia') respond(20000, () => changeRhythm('normal-sinus', 76, 'Heart rate rising after atropine'));
         else respond(20000, () => changeRhythm(pid, Math.max(70, Math.min(90, hr + 30)), 'Heart rate rising after atropine'));
       } else if ((kind === 'af' || kind === 'flutter') && slow) {
         respond(20000, () => { if (Math.random() < 0.7) changeRhythm(pid, Math.min(90, Math.round(hr * 1.3)), 'Ventricular rate rising after atropine (faster AV-nodal conduction)'); else log('Little response to atropine', 'rhythm'); });
-      } else log('No bradycardia to treat', 'warn');
+      } else log(pid === 'first-degree-avb' ? 'No bradycardia to treat — first-degree AV block alone needs no treatment' : 'No bradycardia to treat', 'warn');
       break;
     }
     case 'magnesium': {
@@ -814,8 +817,9 @@ export function tickDefib(t: number) {
   // NIBP
   if (s.nibp.measuring && t >= s.nibp.until) {
     const h = sim.hemo.summary(t);
-    // an oscillometric cuff measures the pulsations in the artery: no pulse pressure, no reading
-    const ok = !h.noOutput && h.sbp >= 45 && h.sbp - h.dbp >= 10;
+    // an oscillometric cuff measures the pulsations in the artery: where no pulse can be felt it finds none to read
+    // either (a reading of 67/53 beside "No pulse" would make a pulseless VT look like one that perfuses)
+    const ok = palpable(h);
     set({ nibp: { measuring: false, until: 0, last: ok ? { sbp: h.sbp, dbp: h.dbp, map: h.map } : 'fail' } });
     log(ok ? `NIBP ${h.sbp}/${h.dbp} (${h.map})` : 'NIBP: unable to measure', 'info');
   }

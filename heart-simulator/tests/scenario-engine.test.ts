@@ -162,7 +162,7 @@ describe('built-in safety rules judge what the action really did', () => {
     expect(run(stemiAnterior, 2, ['defib']).penalties.map((p) => p.id)).toEqual(['shock-with-pulse']);
   });
 
-  it('synchronised cardioversion of a rhythm that is not a tachyarrhythmia is penalised, and hurts', () => {
+  it('synchronized cardioversion of a rhythm that is not a tachyarrhythmia is penalized, and hurts', () => {
     const s = run(stemiAnterior, 2, ['cardiovert']);
     expect(s.penalties.map((p) => p.id)).toEqual(['cardiovert-no-tachycardia']);
     expect(s.rhythm).toEqual({ profile: 'anterior-stemi', hr: 96 });

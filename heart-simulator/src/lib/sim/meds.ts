@@ -118,9 +118,17 @@ const isAcs = (p: ECGProfile) => ACS.has(p.id);
 const DISSECTION = 'aortic-dissection';
 /** anti-impulse therapy in acute aortic syndrome (2022 ACC/AHA aortic disease guideline) */
 const DISSECTION_TARGET = 'target heart rate 60–80/min and systolic BP below 120 mmHg, or the lowest that keeps the organs perfused';
+/**
+ * β-blockade in dissection once the rate is already inside its target: the next step for a pressure still above
+ * target is a vasodilator, which is safe now that the rate is controlled (no reflex tachycardia).
+ */
+const dissectionAtTarget = (hr: number): Verdict =>
+  caution(`Acute aortic dissection with the heart rate already ${hr}/min — inside the 60–80/min target. If the systolic pressure is still above 120 mmHg, add a vasodilator now (nicardipine, clevidipine or nitroprusside); more β-blocker mainly adds bradycardia.`);
 
 /** below this rate the heart is slow, whatever the rhythm is called */
 const SLOW = 60;
+/** the bradycardia algorithm is for rates typically below this: from here to SLOW the rate alone seldom explains symptoms */
+const BRADY_ALGORITHM = 50;
 
 /**
  * What kind of rhythm the drugs see. With the rate on the monitor (`hr`), a sinus rhythm below 60/min is a
@@ -215,6 +223,15 @@ const uniq = (xs: number[]) => Array.from(new Set(xs.map((x) => Math.round(x * 1
 const noEcg = (at: number, note: string): EffectStep[] => [{ at, note, tone: 'info' }];
 
 /**
+ * A drug for a symptomatic bradycardia given at 50–59/min: the AHA algorithm is for rates typically below 50, and a
+ * rate just under 60 seldom causes the symptoms by itself — so "the right drug" becomes "look for the cause first".
+ */
+const mildBrady = (p: Patient, v: Verdict): Verdict =>
+  v.tone === 'good' && p.hr >= BRADY_ALGORITHM && p.hr < SLOW
+    ? caution(`At ${p.hr}/min the rate alone seldom explains symptoms (the bradycardia algorithm is for rates typically below ${BRADY_ALGORITHM}/min) — look for another cause first. ${v.text}`)
+    : v;
+
+/**
  * The rhythm to show once a slow sinus rate has come up: the "sinus bradycardia" page becomes normal sinus rhythm;
  * any other rhythm (an infarct, a bundle branch block) keeps its own QRS and ST segments.
  */
@@ -262,7 +279,8 @@ const adenosine: MedDef = {
     const c = category(prof, p.hr);
     const arrive = 12 * S;
     const pause = cls === 'toxic' ? 9 * S : cls === 'high' ? 6 * S : dose >= 12 ? 4 * S : 3 * S;
-    // the regimen is 6 mg, then 12 mg: once a full first dose and a 12 mg dose have both failed, it is spent
+    // the SVT regimen is 6 mg, then 12 mg: once a full first dose and a 12 mg dose have both failed, it is spent. (In
+    // any other rhythm a further dose still blocks the AV node for a few seconds, as each dose does.)
     const full = dosesOf(p, 'adenosine').filter((g) => g.dose >= 6);
     const spent = full.length >= 2 && full.some((g) => g.dose >= 12);
     const flush: EffectStep = { at: arrive - 2500, note: 'Flushing, chest tightness, a feeling of doom — warn the patient first: it passes in seconds.', tone: 'info' };
@@ -272,7 +290,7 @@ const adenosine: MedDef = {
     if (c === 'arrest' || c === 'torsades') {
       return { verdict: bad('Adenosine has no place in cardiac arrest: CPR, defibrillate a shockable rhythm, epinephrine.'), steps: noEcg(arrive, 'No effect on the arrest rhythm.') };
     }
-    if (spent) {
+    if (spent && c === 'svt') {
       return { verdict: caution('Adenosine is given as 6 mg, then 12 mg — both have been given, and more is unlikely to help. Think again about the rhythm, and about a calcium-channel blocker, a β-blocker or synchronized cardioversion.'), steps: noEcg(arrive, 'No further effect.') };
     }
     switch (c) {
@@ -466,10 +484,13 @@ const metoprolol: MedDef = {
     const mods: RhythmMods = { prAdd: Math.round(10 * f) };
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not an arrest drug.'), steps: noEcg(2 * MIN, 'No effect on the arrest rhythm.') };
     if (prof.id === DISSECTION && !lowBP(p, prof) && c !== 'brady') {
+      const atTarget = p.hr <= 80;
       return {
-        verdict: good(`Acute aortic dissection: IV β-blockade first (${DISSECTION_TARGET}) to cut the force of each ejection on the torn wall; add a vasodilator only after the rate is controlled. Then imaging and surgery for type A.`),
+        verdict: atTarget
+          ? dissectionAtTarget(p.hr)
+          : good(`Acute aortic dissection: IV β-blockade first (${DISSECTION_TARGET}) to cut the force of each ejection on the torn wall; add a vasodilator only after the rate is controlled. Then imaging and surgery for type A.`),
         // titrated in 5 mg steps to the target, not past it (an overdose can overshoot)
-        steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.3 * f, total > 15 ? 45 : 60), mods, note: 'The heart rate falls toward the target of 60–80/min.', tone: 'good', mark: 'rate ↓' }, ...over],
+        steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.3 * f, total > 15 ? 45 : 60), mods, note: atTarget ? 'The heart rate falls a little further, toward the bottom of the target range.' : 'The heart rate falls toward the target of 60–80/min.', tone: atTarget ? 'effect' : 'good', mark: 'rate ↓' }, ...over],
       };
     }
     if (failing(p, prof)) {
@@ -527,9 +548,12 @@ const esmolol: MedDef = {
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not an arrest drug.'), steps: noEcg(90 * S, 'No effect on the arrest rhythm.') };
     const warn: EffectStep[] = cls === 'toxic' ? [{ at: 2 * MIN, note: 'Overdose: profound bradycardia and hypotension — stop the infusion (it wears off in minutes).', tone: 'warn' }] : [];
     if (prof.id === DISSECTION && !lowBP(p, prof) && c !== 'brady') {
+      const atTarget = p.hr <= 80;
       return {
-        verdict: good(`Acute aortic dissection: IV β-blockade first (${DISSECTION_TARGET}) — esmolol is easy to titrate and stop; add a vasodilator only after the rate is controlled.`),
-        steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.22 * f, cls === 'toxic' ? 45 : 60), note: 'The heart rate falls toward the target of 60–80/min.', tone: 'good', mark: 'rate ↓' }, ...warn],
+        verdict: atTarget
+          ? dissectionAtTarget(p.hr)
+          : good(`Acute aortic dissection: IV β-blockade first (${DISSECTION_TARGET}) — esmolol is easy to titrate and stop; add a vasodilator only after the rate is controlled.`),
+        steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.22 * f, cls === 'toxic' ? 45 : 60), note: atTarget ? 'The heart rate falls a little further, toward the bottom of the target range.' : 'The heart rate falls toward the target of 60–80/min.', tone: atTarget ? 'effect' : 'good', mark: 'rate ↓' }, ...warn],
       };
     }
     if (failing(p, prof)) return { verdict: bad('Dangerous in decompensated heart failure or shock (negative inotrope) — though esmolol wears off fastest of the β-blockers.'), steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.15 * f), note: 'The rate falls — and so does the output.', tone: 'warn' }, ...warn] };
@@ -818,13 +842,13 @@ const atropine: MedDef = {
           : 'Symptomatic bradycardia in acute MI (give no more than is needed: a fast rate raises the oxygen demand of the infarct)';
       if (cls === 'low') {
         return {
-          verdict: good(`${why}: atropine — the current dose is 1 mg (0.5 mg was the pre-2020 dose).`),
+          verdict: mildBrady(p, good(`${why}: atropine — the current dose is 1 mg (0.5 mg was the pre-2020 dose).`)),
           steps: [{ at: 60 * S, profile: faster(prof), hr: 62, note: 'The sinus rate rises a little — 1 mg gives a fuller response.', tone: 'effect', mark: 'rate ↑' }],
         };
       }
       const over = cls === 'high' || cls === 'toxic';
       return {
-        verdict: good(`${why}: atropine 1 mg blocks vagal tone at the sinus node (every 3–5 min, max 3 mg).`),
+        verdict: mildBrady(p, good(`${why}: atropine 1 mg blocks vagal tone at the sinus node (every 3–5 min, max 3 mg).`)),
         steps: [
           { at: 60 * S, profile: faster(prof), hr: 66, note: 'The sinus rate rises.', tone: 'effect', mark: 'rate ↑' },
           { at: 150 * S, profile: over && faster(prof) ? 'sinus-tachycardia' : faster(prof), hr: over ? 118 : 84, note: over ? 'Overshoot into sinus tachycardia.' : 'Sinus rhythm at a normal rate.', tone: over ? 'warn' : 'good' },
@@ -841,9 +865,9 @@ const atropine: MedDef = {
     switch (c) {
       case 'junctional':
         if (!slow) return { verdict: bad('No bradycardia to treat: a junctional rhythm at this rate is accelerated, not slow — look for the cause (digoxin toxicity, ischemia, recent heart surgery).'), steps: noEcg(60 * S, 'No useful change.') };
-        return { verdict: good('A slow junctional rhythm from vagal tone or a sick sinus node often responds: atropine speeds the sinus node so it takes over again.'), steps: [{ at: 75 * S, profile: 'normal-sinus', hr: 78, note: 'The sinus node takes over again: P waves before every QRS.', tone: 'good', mark: 'sinus' }, ...tachy] };
+        return { verdict: mildBrady(p, good('A slow junctional rhythm from vagal tone or a sick sinus node often responds: atropine speeds the sinus node so it takes over again.')), steps: [{ at: 75 * S, profile: 'normal-sinus', hr: 78, note: 'The sinus node takes over again: P waves before every QRS.', tone: 'good', mark: 'sinus' }, ...tachy] };
       case 'avb1':
-        return { verdict: slow ? good('Symptomatic bradycardia with a long PR interval: atropine speeds the sinus node and shortens the AV-nodal delay (1 mg every 3–5 min, max 3 mg).') : caution('First-degree AV block alone needs no treatment — but atropine does shorten AV-nodal delay.'), steps: [{ at: 60 * S, hr: rate(p.hr, 1.25), mods: { prAdd: -80 }, note: 'The PR shortens and the rate rises (vagal block at the AV node).', tone: 'effect', mark: 'PR ↓' }, ...tachy] };
+        return { verdict: slow ? mildBrady(p, good('Symptomatic bradycardia with a long PR interval: atropine speeds the sinus node and shortens the AV-nodal delay (1 mg every 3–5 min, max 3 mg).')) : caution('First-degree AV block alone needs no treatment — but atropine does shorten AV-nodal delay.'), steps: [{ at: 60 * S, hr: rate(p.hr, 1.25), mods: { prAdd: -80 }, note: 'The PR shortens and the rate rises (vagal block at the AV node).', tone: 'effect', mark: 'PR ↓' }, ...tachy] };
       case 'wenckebach':
         return { verdict: good('Mobitz I (Wenckebach) is AV-nodal — if symptomatic it usually responds to atropine.'), steps: [{ at: 75 * S, profile: 'first-degree-avb', hr: 92, mods: { prAdd: -40 }, note: 'Every P now conducts (1:1), with a still-long PR: the Wenckebach pattern has gone.', tone: 'good', mark: '1:1' }, ...tachy] };
       case 'mobitz2':
@@ -1198,7 +1222,7 @@ const nitroglycerin: MedDef = {
     // A slow heart is not one of the reasons to hold nitrates, but it cannot speed up to make up for the fall in
     // preload: the indication stands, with a warning, and no reflex tachycardia on the tracing
     const slow = p.hr > 0 && p.hr < 50;
-    const slowNote = slow ? ` Caution: the heart rate is ${p.hr}/min — a slow heart cannot speed up to make up for the fall in preload, so the pressure can drop sharply. Recheck it before each dose${prof.id.startsWith('inferior') ? ', and rule out RV infarction (V4R)' : ''}.` : '';
+    const slowNote = slow ? ` Caution: the heart rate is ${p.hr}/min — a slow heart cannot speed up to make up for the fall in preload, so the pressure can drop sharply. Recheck it before each dose.` : '';
     const onRate: EffectStep = slow ? { at: 3 * MIN, note: 'The blood pressure falls a little and the slow heart barely speeds up to make up for it.', tone: 'warn' } : reflex;
     if (c === 'stemi') {
       return {
@@ -1206,6 +1230,13 @@ const nitroglycerin: MedDef = {
           ? caution(`Chest pain relief in STEMI if BP allows — but in inferior MI check right-sided leads (V4R) first: RV infarction makes nitrates drop the blood pressure. Nitrates do not open a thrombosed artery.${slowNote}`)
           : caution(`Relieves ischemic pain and congestion if BP allows. It does not open a thrombosed artery — reperfusion does.${slowNote}`),
         steps: [slow ? { ...onRate, note: `${onRate.note} The ST elevation is unchanged — nitrates cannot open an occluded artery.` } : { ...reflex, note: 'Reflex tachycardia; the ST elevation is unchanged — nitrates cannot open an occluded artery.' }, ...drop],
+      };
+    }
+    // an infarct whose rhythm is a heart block: the ischemic pain is there, but so is a reason to hold the nitrates
+    if (isAcs(prof) && (c === 'chb' || c === 'mobitz2')) {
+      return {
+        verdict: bad(`Hold the nitrates: this infarct comes with heart block at ${p.hr}/min, and the heart cannot speed up to hold the pressure when the preload falls${prof.id.startsWith('inferior') ? ' — an inferior MI with AV block also often involves the right ventricle (check V4R), which makes the fall steeper' : ''}. Treat the rate (atropine, pacing) and reperfuse.`),
+        steps: [onRate, ...drop],
       };
     }
     if (['nstemi', 'wellens', 'hfref', 'hfpef'].includes(prof.id)) {

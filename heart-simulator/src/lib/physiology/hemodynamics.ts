@@ -660,9 +660,11 @@ export class HemoModel {
       return { sbp: Math.round(s.aop), dbp: Math.round(s.aop), map: Math.round(s.aop), edv: Math.round(s.lvv), esv: Math.round(s.lvv), sv: 0, ef: 0, co: 0, lvedp: Math.round(s.lvp), laMean: Math.round(s.lap), label: p.label, noOutput: true };
     }
     // Average the last few beats of this run: not across a standstill or an arrest (the first beats after one
-    // build the pressure up again), nor across a change of heart
+    // build the pressure up again), nor across a change of heart. A pulse check or a cuff reading takes in a few
+    // seconds of beats, so at fast rates the average spans ~3 s (not just four beats): a weak heart in fast AF
+    // then does not lose its pulse, or its reading, to a run of three or four short cycles.
     let n = 0, sbp = 0, dbp = 0, edv = 0, esv = 0, sv = 0, la = 0;
-    for (let k = i; k >= 0 && n < 4; k--, n++) {
+    for (let k = i; k >= 0 && n < 10 && (n < 4 || last.ev.qrs - this.engine.vent[k].t < 3000); k--, n++) {
       const b = this.beat(k)!;
       if (n > 0 && (b.params !== last.params || this.engine.vent[k + 1].t - b.ev.qrs > pauseLimit(b))) break;
       sbp += b.ps; dbp += b.pd; edv += b.edv; esv += b.esv; sv += b.sv * (1 - b.params.mr); la += b.laMean;

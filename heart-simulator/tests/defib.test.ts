@@ -277,6 +277,30 @@ describe('atropine is judged by the heart rate, not by the name of the rhythm', 
     }
   });
 
+  it('first-degree AV block at a normal rate needs no atropine; a slow one can respond', () => {
+    patient('first-degree-avb', 68);
+    lucky();
+    D.giveDrug('atropine');
+    expect(logged().at(-1)).toMatch(/No bradycardia to treat — first-degree AV block alone needs no treatment/);
+    run(21_000);
+    expect(monitor()).toBe('first-degree-avb@68');
+    D.resetCode();
+    patient('first-degree-avb', 48);
+    lucky();
+    D.giveDrug('atropine');
+    run(21_000);
+    expect(monitor()).toBe('normal-sinus@78');
+  });
+
+  it('the slow heart of hyperkalemia hardly responds: the potassium is treated', () => {
+    patient('hyperkalemia', 45);
+    lucky();
+    D.giveDrug('atropine');
+    run(21_000);
+    expect(monitor()).toBe('hyperkalemia@45');
+    expect(logged().at(-1)).toMatch(/Little response.*potassium.*calcium/);
+  });
+
   it('a response does not land on a patient whose bradycardia was meanwhile paced', () => {
     patient('sinus-bradycardia', 38);
     D.giveDrug('atropine');
@@ -385,6 +409,16 @@ describe('pulse check', () => {
     D.measureNibp();
     run(7_000);
     expect(defib().nibp.last).toMatchObject({ sbp: 84, dbp: 56 });
+  });
+
+  it('the cuff and the pulse check agree: no reading where no pulse can be felt (VT at 190/min: 67/53, 14 mL)', () => {
+    pressures({ sbp: 67, dbp: 53, sv: 14 });
+    D.checkPulse();
+    expect(defib().pulseCheck).toBe('No pulse');
+    D.measureNibp();
+    run(7_000);
+    expect(defib().nibp.last).toBe('fail');
+    expect(D.vitalsAt(sim.time).spo2).toBeNull();
   });
 });
 

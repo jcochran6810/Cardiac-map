@@ -280,6 +280,21 @@ describe('classic responses', () => {
     expect(planDose('atropine', patient('atrial-fibrillation', 130), 1).verdict.tone).toBe('bad');
   });
 
+  it('at 50–59/min atropine is not simply "the right drug": the bradycardia algorithm is for rates typically below 50', () => {
+    for (const [id, hr] of [['normal-sinus', 55], ['sinus-bradycardia', 52], ['inferior-stemi', 58], ['first-degree-avb', 55], ['junctional', 50]] as const) {
+      for (const dose of [0.5, 1]) {
+        const plan = planDose('atropine', patient(id, hr), dose);
+        expect(plan.verdict.tone, `${id} ${hr} ${dose} mg`).toBe('caution');
+        expect(plan.verdict.text, `${id} ${hr} ${dose} mg`).toMatch(/typically below 50\/min.*another cause/);
+        // what atropine does to the heart is the same: the rate still rises
+        expect(plan.steps.some((s) => s.hr !== undefined && s.hr > hr), `${id} ${hr} ${dose} mg`).toBe(true);
+      }
+    }
+    for (const [id, hr] of [['normal-sinus', 49], ['sinus-bradycardia', 46], ['first-degree-avb', 45], ['junctional', 44]] as const) {
+      expect(planDose('atropine', patient(id, hr), 1).verdict.tone, `${id} ${hr}`).toBe('good');
+    }
+  });
+
   it('a small dose of atropine is "the right drug, too little" only when there is a bradycardia', () => {
     const slow = planDose('atropine', patient('normal-sinus', 40), 0.4);
     expect(slow.verdict.tone).toBe('caution');
@@ -512,6 +527,16 @@ describe('what the learner reads follows the current guidelines', () => {
     // three doses of 5 mg of metoprolol (the 15 mg maximum) still stop at the target
     const third = patient('aortic-dissection', 70, { sbp: 150, given: [{ id: 'metoprolol', dose: 5, at: 0 }, { id: 'metoprolol', dose: 5, at: 1 }] });
     expect(planDose('metoprolol', third, 5).steps.find((s) => s.hr !== undefined)!.hr).toBeGreaterThanOrEqual(60);
+    // once the rate is inside the target, the pressure is the next job: a vasodilator, not more β-blocker
+    for (const [id, dose] of [['metoprolol', 5], ['esmolol', 40]] as const) {
+      for (const hr of [62, 70, 80]) {
+        const plan = planDose(id, patient('aortic-dissection', hr, { sbp: 150 }), dose);
+        expect(plan.verdict.tone, `${id} at ${hr}`).toBe('caution');
+        expect(plan.verdict.text, `${id} at ${hr}`).toMatch(/inside the 60–80\/min target.*vasodilator/);
+        expect(plan.steps.map((s) => s.note).join(' '), `${id} at ${hr}`).not.toMatch(/toward the target of 60–80/);
+      }
+      expect(planDose(id, patient('aortic-dissection', 81, { sbp: 150 }), dose).verdict.tone, id).toBe('good');
+    }
   });
 
   it('adenosine is 6 mg, then 12 mg: after both, more is not offered as the cure', () => {
@@ -525,6 +550,17 @@ describe('what the learner reads follows the current guidelines', () => {
     // the 12 mg after a failed 6 mg still works, and so does a full dose after an under-dose
     expect(planDose('adenosine', { ...svt, given: [{ id: 'adenosine', dose: 6, at: 0 }] }, 12).steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
     expect(planDose('adenosine', { ...svt, given: [{ id: 'adenosine', dose: 3, at: 0 }, { id: 'adenosine', dose: 6, at: 1 }] }, 12).steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
+    // in a rhythm adenosine does not treat, a further dose still blocks the AV node for a few seconds
+    const given = both.given;
+    const af = planDose('adenosine', patient('atrial-fibrillation', 112, { given }), 12);
+    expect(af.verdict.text).toMatch(/does not convert atrial fibrillation/);
+    expect(af.steps.find((s) => s.hr !== undefined)!.hr).toBeLessThan(112);
+    expect(af.steps.some((s) => s.restore)).toBe(true);
+    const flutter = planDose('adenosine', patient('atrial-flutter', 150, { given }), 12);
+    expect(flutter.steps.some((s) => s.mark === 'F waves')).toBe(true);
+    const sinus = planDose('adenosine', patient('normal-sinus', 72, { given }), 12);
+    expect(sinus.verdict.tone).toBe('bad');
+    expect(sinus.steps.some((s) => s.mods?.avBlock)).toBe(true);
   });
 
   it('tenecteplase is one bolus over about 5 s; in PE it is for cardiopulmonary failure (category E), not for a PE with a normal pressure', () => {
@@ -577,6 +613,14 @@ describe('what the learner reads follows the current guidelines', () => {
     expect(planDose('nitroglycerin', patient('aortic-stenosis', 72, { sbp: 120 }), 0.4).verdict.tone).toBe('bad');
     // at an ordinary rate nothing changes
     expect(planDose('nitroglycerin', patient('nstemi', 88, { sbp: 130 }), 0.4).verdict.tone).toBe('good');
+    // an inferior MI with complete heart block is not "no indication": the pain is ischemic, the block is why to hold
+    const chb = planDose('nitroglycerin', patient('inferior-stemi-chb', 40, { sbp: 112 }), 0.4);
+    expect(chb.verdict.tone).toBe('bad');
+    expect(chb.verdict.text).not.toMatch(/No indication/);
+    expect(chb.verdict.text).toMatch(/heart block at 40\/min.*right ventricle.*V4R/);
+    // the slow inferior STEMI names V4R once, not twice
+    const slowInferior = planDose('nitroglycerin', patient('inferior-stemi', 45, { sbp: 120 }), 0.4).verdict.text;
+    expect(slowInferior.match(/V4R/g)).toHaveLength(1);
   });
 });
 

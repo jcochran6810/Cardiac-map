@@ -267,7 +267,7 @@ describe('unstable SVT', () => {
     expect(s.penalties).toEqual([]);
   });
 
-  it('the AED shocks the VF an unsynchronised shock caused, and converts it as the manual shock does', () => {
+  it('the AED shocks the VF an unsynchronized shock caused, and converts it as the manual shock does', () => {
     for (const shock of ['aed', 'defib']) {
       const s = run(sc, 2, ['pads', 'defib', shock]);
       expect(s.pulse, shock).toBe(true);
@@ -620,6 +620,12 @@ describe('cardiogenic shock in the cath lab', () => {
     expect(s.penalties.map((p) => p.id)).toContain('wrong-p2y12');
   });
 
+  it('an airway tried on an awake patient is not placed, and does not count as oxygen', () => {
+    const s = run(sc, 5, ['airway']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['airway-awake']);
+    expect(review(sc, stop(s)).toFix.some((t) => t.kind === 'missed' && /^Oxygen/.test(t.label))).toBe(true);
+  });
+
   it('when the nurse never starts the pressor, the operator does — and the pressure responds', () => {
     const s = run(sc, 4, ['iv', ...R(5)]);
     expect(s.fired).toContain('pressor-fallback');
@@ -691,9 +697,10 @@ describe('contrast reaction', () => {
     expect(s.ended).toBeNull();
     // the arrest dose in the arrest is right: no penalty for it
     expect(s.penalties.map((p) => p.id)).not.toContain('arrest-epi-with-pulse');
-    // IM epinephrine does nothing without a circulation
+    // IM epinephrine does nothing without a circulation, and does not count as the epinephrine she needed
     const im = run(sc, 5, [...toReaction, ...R(3), 'cpr', 'epi-im', 'fluid', 'cpr']);
     expect(im.pulse).toBe(false);
+    expect(review(sc, stop(im)).toFix.find((t) => /^Epinephrine first/.test(t.label))?.kind).toBe('missed');
   });
 });
 

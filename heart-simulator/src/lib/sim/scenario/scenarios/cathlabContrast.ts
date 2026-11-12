@@ -206,7 +206,20 @@ export const cathlabContrast: Scenario = {
     { id: 'stop', label: 'Stop the contrast at once', why: 'Every further injection adds to the reaction.', done: ['stop-contrast'], after: 'reaction', roles: [3, 5], points: 10, target: { within: { flag: 'reaction', minutes: 1 } }, applies: (s) => has(s, 'reaction') },
     { id: 'callout', label: 'Call out the reaction at once', why: 'Hives, wheeze, a tight throat and a falling pressure after contrast: say it out loud so everyone switches to the anaphylaxis plan.', done: ['callout'], after: 'reaction', roles: [3, 4], points: 10, target: { within: { flag: 'reaction', minutes: 1 } }, applies: (s) => has(s, 'reaction') },
     { id: 'help', label: 'Call for help', why: 'More hands for the drugs, the airway and the documentation.', done: ['call-help'], after: 'reaction', roles: TECH, points: 5, target: { within: { flag: 'reaction', minutes: 2 } }, applies: (s) => has(s, 'reaction') },
-    { id: 'epi', label: 'Epinephrine first (0.5 mg IM, or 10–20 mcg IV boluses)', why: 'Epinephrine is the treatment for anaphylaxis: it raises the pressure, opens the airway and stops the release. Antihistamines and steroids are second-line.', done: EPI, after: 'reaction', roles: [4, 5], points: 15, target: { within: { flag: 'reaction', minutes: 2 } }, applies: (s) => has(s, 'reaction') },
+    {
+      id: 'epi', label: 'Epinephrine first (0.5 mg IM, or 10–20 mcg IV boluses)', why: 'Epinephrine is the treatment for anaphylaxis: it raises the pressure, opens the airway and stops the release. Antihistamines and steroids are second-line.',
+      roles: [4, 5], points: 15, target: { within: { flag: 'reaction', minutes: 2 } }, applies: (s) => has(s, 'reaction'),
+      // a dose given while she had no pulse reached nothing, so it does not count
+      done: (s) => {
+        const from = s.flags.reaction;
+        if (from === undefined) return null;
+        const arrest = s.flags.pea ?? Infinity;
+        const back = s.flags.rosc ?? Infinity;
+        const hit = s.performed.find((p) => EPI.includes(p.id) && p.minute >= from && (p.minute < arrest || p.minute >= back));
+        return hit ? hit.minute : null;
+      },
+      uses: EPI,
+    },
     { id: 'fluid', label: 'Fluid wide open', why: 'Anaphylaxis leaks fluid out of the vessels: 1–2 L of crystalloid, fast.', done: ['fluid'], after: 'reaction', roles: [4, 5], points: 10, target: { within: { flag: 'reaction', minutes: 3 } }, applies: (s) => has(s, 'reaction') },
     { id: 'oxygen', label: 'Oxygen for an SpO₂ below 90 %', why: 'Bronchospasm and airway swelling drop the oxygen: high-flow oxygen.', done: ['o2-nrb', 'o2-nc'], after: 'reaction', points: 5, target: { within: { flag: 'reaction', minutes: 3 } }, applies: (s) => has(s, 'reaction') },
     { id: 'albuterol', label: 'Albuterol for the wheeze', why: 'A nebulized bronchodilator for bronchospasm that remains after epinephrine.', done: ['albuterol'], after: 'reaction', roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },

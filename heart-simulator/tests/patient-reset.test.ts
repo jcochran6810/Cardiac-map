@@ -11,6 +11,7 @@ import {
 import { SCENARIOS, giveDrug, loadScenario, resetCode, toggleCPR, useDefibStore } from '@/lib/sim/defib';
 import { drugMods, useMedStore } from '@/store/useMedStore';
 import { enterSimulator, leaveSimulator, useSimStore } from '@/store/useSimStore';
+import { SCENARIOS as SIM_SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import { useAppStore } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -265,6 +266,25 @@ describe('effects on the same patient keep running', () => {
     expect(med().mods).toBeNull();
     expect(monitor()).toBe('avnrt@180');
     run(60 * 60_000, 2_000);
+    expect(monitor()).toBe('avnrt@180');
+  });
+
+  it('"Practice it in the case simulator" on a condition page hands back the untreated patient as well', () => {
+    openCondition('avnrt');
+    run(2_000);
+    med().give('adenosine', 6);
+    run(60_000);
+    expect(monitor()).toBe('normal-sinus@84');
+    // the button's own order: save the workspace, start the case, then change screens
+    const sc = SIM_SCENARIOS.find((s) => s.conditionId === 'avnrt')!;
+    enterSimulator();
+    useSimStore.getState().startScenario(sc.id, sc.roles[0]);
+    useAppStore.getState().setMode('simulator');
+    expect(med().given).toHaveLength(0);
+    leaveSimulator();
+    useSimStore.getState().closeScenario();
+    useAppStore.getState().setMode('learn');
+    // not sinus rhythm with no dose on record: the AVNRT patient, untreated
     expect(monitor()).toBe('avnrt@180');
   });
 

@@ -566,4 +566,15 @@ describe('a pulse to feel (the defibrillator reads the summary)', () => {
   ] as const)('%s at %i/min (heart: %s) → %s', (id, hr, override, expected) => {
     expect(always(id, hr, override ?? undefined)).toBe(expected);
   });
+
+  it.each([140, 150, 160])('fast AF at %i/min in cardiogenic shock keeps a (weak, irregular) pulse minute after minute', (hr) => {
+    // the unstable-AF patient: some short cycles eject next to nothing, but a pulse check never finds no pulse
+    const engine = new ECGEngine('atrial-fibrillation', hr);
+    engine.ensure(184_000);
+    const model = new HemoModel(engine);
+    model.setOverride('shock');
+    const lost: number[] = [];
+    for (let t = 5_000; t < 180_000; t += 100) if (!palpable(model.summary(t))) lost.push(t);
+    expect(lost).toEqual([]);
+  });
 });
