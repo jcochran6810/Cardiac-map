@@ -38,7 +38,7 @@ const fake = vi.hoisted(() => {
   return ctl;
 });
 
-import { currentPage, startBackNav, useBackNavStore } from '@/lib/backNav';
+import { backOutOfTrainer, currentPage, startBackNav, useBackNavStore } from '@/lib/backNav';
 import { useAppStore } from '@/store/useAppStore';
 import { useSimStore } from '@/store/useSimStore';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
@@ -355,6 +355,51 @@ describe('the Back button moves through CardioSim pages', () => {
     expect(currentPage().mode).toBe('home');
     expect(useDrillStore.getState().open).toBe(false);
     expect(useAppStore.getState().ecg).toBe('closed');
+  });
+
+  it("the trainer's ✕ from a set opened from the menu steps back over the set and the list: Back on the menu does not reopen it", async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    const menu = history.i;
+    openTrainer();
+    await settle();
+    startSet('core');
+    await settle();
+    useDrillStore.getState().answer('unsure');
+    nextTracing();
+    await settle();
+    expect(history.i).toBe(menu + 2);
+    // (what the ✕ does)
+    expect(backOutOfTrainer()).toBe(true);
+    await settle();
+    expect(history.i).toBe(menu);
+    expect(currentPage()).toMatchObject({ mode: 'home', lesson: null });
+    expect(useDrillStore.getState().open).toBe(false);
+    // Forward still finds the list and then the set as it was left
+    history.go(1);
+    await settle();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: null });
+    history.go(1);
+    await settle();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: 'core' });
+    expect(useDrillStore.getState().asked).toBe(1);
+    // the ✕ on the list of sets: one step back
+    startSet('blocks');
+    await settle();
+    useDrillStore.getState().leaveSet();
+    await settle();
+    expect(backOutOfTrainer()).toBe(true);
+    await settle();
+    expect(currentPage().mode).toBe('home');
+    // not opened from the menu (from the library's search): the ✕ is not a step back
+    openCondition('atrial-fibrillation');
+    await settle();
+    openTrainer();
+    await settle();
+    expect(backOutOfTrainer()).toBe(false);
+    closeTrainer();
+    await settle();
+    expect(currentPage().mode).toBe('home');
   });
 
   it('"read its page" leaves a set for the library, and Back returns to the set, the tracing and the answer', async () => {

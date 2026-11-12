@@ -391,3 +391,18 @@ export function startBackNav(): () => void {
 export function goBack() {
   if (useBackNavStore.getState().canGoBack) window.history.back();
 }
+
+/**
+ * The rhythm trainer's own ✕, when the trainer was opened from the main menu: step back over all of its entries (the
+ * list of sets, the set in play, …) to the menu, so that Back there does not reopen the trainer. False when the
+ * trainer came from somewhere else; the caller then closes it and goes to the menu (a new entry).
+ */
+export function backOutOfTrainer(): boolean {
+  if (stack[idx]?.lesson !== TRAINER_PAGE) return false;
+  let i = idx;
+  while (i > 0 && stack[i - 1]?.lesson === TRAINER_PAGE) i -= 1;
+  const before = stack[i - 1];
+  if (!before || before.mode !== 'home' || before.lesson || before.overlay) return false;
+  window.history.go(i - 1 - idx);
+  return true;
+}

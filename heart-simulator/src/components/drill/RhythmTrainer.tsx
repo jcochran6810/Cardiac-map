@@ -8,16 +8,17 @@ import { DRILL_SETS, DRILL_SET_BY_ID, MASTERED, labelOf, mastery, statKey } from
 import { closeTrainer, leaveSet, nextTracing, startSet } from '@/lib/drillRun';
 import { CONDITION_TO_PROFILE, ECG_PROFILES } from '@/lib/ecg/profiles';
 import { openById } from '@/lib/actions';
-import { goBack, useBackNavStore } from '@/lib/backNav';
+import { backOutOfTrainer } from '@/lib/backNav';
 import { IconBack, IconCheck, IconChevron, IconClose, IconPlay } from '@/components/ui/icons';
 
 const PAGE_OF: Record<string, string> = Object.fromEntries(Object.entries(CONDITION_TO_PROFILE).map(([condition, profile]) => [profile, condition]));
 
-/** Leave for the main menu, like the Back button when the trainer was opened from it */
+/**
+ * Leave for the main menu. When the trainer was opened from it, that is Back over the trainer's pages (from a set in
+ * play, the set and the list of sets), so that Back on the menu does not open the trainer again.
+ */
 function leave() {
-  const prev = useBackNavStore.getState().previous;
-  if (prev && !prev.lesson && prev.mode === 'home') goBack();
-  else closeTrainer();
+  if (!backOutOfTrainer()) closeTrainer();
 }
 
 /**
