@@ -21,7 +21,7 @@ const SHORTCUTS: [string, string][] = [
   ['L', 'Toggle 3D labels'],
   ['F', 'Toggle blood flow (sectioned view)'],
   ['V', 'Toggle cardiac vector'],
-  ['E', 'Switch ECG ↔ Wiggers / PV loop'],
+  ['E', 'Switch ECG ↔ Pressure & volume (Wiggers diagram, PV loop)'],
   ['M', 'Monitor / defibrillator trainer'],
   ['/  or  Ctrl+K', 'Search everything'],
   ['Q · T', 'Open quiz · tutor'],

@@ -34,7 +34,7 @@ const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
 
 const VIEWS: { v: 'ecg' | 'wiggers' | 'defib'; l: string; short: string; t?: string }[] = [
   { v: 'ecg', l: 'ECG', short: 'ECG' },
-  { v: 'wiggers', l: 'Wiggers / PV', short: 'Wiggers / PV' },
+  { v: 'wiggers', l: 'Pressure & volume', short: 'Pressures', t: 'Pressure & volume: the Wiggers diagram, the pressure–volume loop and the heart sounds (E)' },
   { v: 'defib', l: 'Defibrillator', short: 'Defibrillator', t: 'Monitor-defibrillator trainer: defibrillation, cardioversion, pacing, CPR, drugs (M)' },
 ];
 
