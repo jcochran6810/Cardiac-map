@@ -13,19 +13,22 @@ import type { RhythmMods } from '@/lib/ecg/mods';
 
 const engine = new ECGEngine('normal-sinus', 72);
 
+/** How much of the recent past a rewrite covers: more than any tracing keeps on screen */
+export const REWRITE_MS = 30000;
+
 export const sim = {
   engine,
   hemo: new HemoModel(engine),
-  /** simulation time in ms */
-  time: 0,
+  /**
+   * simulation time in ms. It starts half a minute in, with the heart already beating since 0, so the first tracing
+   * a learner opens is full from edge to edge instead of being drawn in from an empty strip.
+   */
+  time: REWRITE_MS,
   /** bumps whenever time jumps non-continuously (scrub) so renderers can fully redraw */
   epoch: 0,
   /** set by showRhythm: the next sync rewrites the recent past in the new rhythm */
   rewrite: false,
 };
-
-/** How much of the recent past a rewrite covers: more than any tracing keeps on screen */
-export const REWRITE_MS = 30000;
 
 /**
  * Keep the engine on the selected rhythm, rate and drug effects — called every frame by the simulation driver.
