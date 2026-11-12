@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { useLearningStore } from '@/store/useLearningStore';
 import { IconClose } from '@/components/ui/icons';
 import { InstallButton } from '@/components/ui/InstallApp';
@@ -41,22 +42,38 @@ const GESTURES: [string, string][] = [
   ['⤢ button', 'Give the heart or the ECG the whole screen'],
 ];
 
+/** What "Reset my progress" leaves alone, said before and after */
+const KEPT = 'Your role and any case in progress are kept.';
+
 export default function HelpOverlay() {
   const helpOpen = useAppStore((s) => s.helpOpen);
   const setHelpOpen = useAppStore((s) => s.setHelpOpen);
+  const dialogRef = useDialogFocus<HTMLDivElement>(helpOpen, () => setHelpOpen(false));
+  // "Progress cleared" stays until Help is closed
+  const [cleared, setCleared] = useState(false);
+  useEffect(() => { if (!helpOpen) setCleared(false); }, [helpOpen]);
   const resetProgress = () => {
     useLearningStore.getState().resetProgress();
     useCourseStore.getState().resetProgress();
     useDrillStore.getState().resetStats();
     try { window.localStorage.removeItem('cardiosim.sim.best'); } catch { /* storage unavailable */ }
     useSimStore.setState({ best: {} });
+    setCleared(true);
   };
   if (!helpOpen) return null;
   return (
-    <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0" onClick={() => setHelpOpen(false)} role="dialog" aria-label="Help">
+    <div
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0 outline-none focus-visible:outline-none"
+      onClick={() => setHelpOpen(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="help-title"
+    >
       <div className="w-full max-w-2xl max-h-[85dvh] overflow-y-auto bg-cardiac-panel border border-slate-600 rounded-xl shadow-2xl phone:max-w-none phone:h-full phone:max-h-none phone:rounded-none phone:border-0" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-cardiac-panel flex items-center justify-between px-4 py-3 border-b border-slate-700">
-          <h2 className="text-sm font-semibold text-white">How to use CardioSim</h2>
+          <h2 id="help-title" tabIndex={-1} data-autofocus className="text-sm font-semibold text-white outline-none focus-visible:outline-none">How to use CardioSim</h2>
           <button onClick={() => setHelpOpen(false)} className="p-1 touch:p-2 text-slate-400 hover:text-white" aria-label="Close help"><IconClose size={16} /></button>
         </div>
         <div className="p-4 grid md:grid-cols-2 gap-5 text-xs">
@@ -121,14 +138,27 @@ export default function HelpOverlay() {
         <InstallButton className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/25">
           Install CardioSim on this device — full screen, works offline
         </InstallButton>
-        <div className="px-4 py-3 border-t border-slate-700 flex items-center justify-between text-[10px] text-slate-500">
-          <span>Educational simulation only — not for diagnosis or treatment.</span>
+        <section className="mx-4 mb-4 p-3 rounded-lg bg-cardiac-dark/60 border border-slate-700 flex flex-wrap items-center gap-x-3 gap-y-2" aria-labelledby="help-progress">
+          <div className="flex-1 min-w-[13rem] text-xs leading-snug">
+            <h3 id="help-progress" className="font-semibold text-slate-200">Your progress</h3>
+            <p id="help-progress-what" className="text-slate-400">Lessons, rhythm trainer scores, case scores, quiz history and what you have studied are saved on this device.</p>
+          </div>
           <button
-            onClick={() => { if (window.confirm('Reset everything you have done on this device — lessons, rhythm trainer, case scores, quiz history and what you have studied?')) resetProgress(); }}
-            className="text-slate-400 hover:text-red-300"
+            onClick={() => {
+              if (window.confirm(`Reset your progress on this device? This clears your lessons, rhythm trainer scores, case scores, quiz history and what you have studied. ${KEPT}`)) resetProgress();
+            }}
+            aria-describedby="help-progress-what"
+            className="h-10 touch:h-11 px-4 shrink-0 rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 text-xs font-semibold hover:bg-red-500/20"
           >
             Reset my progress
           </button>
+          {/* kept in the page (empty) so a screen reader reads the result out */}
+          <p role="status" className={cleared ? 'basis-full text-xs font-semibold text-emerald-300' : 'sr-only'}>
+            {cleared ? `Progress cleared. ${KEPT}` : ''}
+          </p>
+        </section>
+        <div className="px-4 py-3 border-t border-slate-700 text-[10px] text-slate-500">
+          Educational simulation only — not for diagnosis or treatment.
         </div>
       </div>
     </div>
