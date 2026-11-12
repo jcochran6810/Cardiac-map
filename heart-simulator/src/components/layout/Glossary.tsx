@@ -2,19 +2,16 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { GLOSSARY, GLOSSARY_GROUPS, type GlossaryGroup, type GlossaryTerm } from '@/data/glossary';
+import { GLOSSARY, GLOSSARY_GROUPS, type GlossaryGroup } from '@/data/glossary';
+import { findTerms } from '@/lib/glossarySearch';
 import { kindOf, nameOf, openById } from '@/lib/actions';
 import { IconClose, IconSearch } from '@/components/ui/icons';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
+
+/** A finger-driven screen (the same test as Tailwind's `touch:` variant) */
+const coarsePointer = () => typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none) and (pointer: coarse)').matches;
 
 const SORTED = [...GLOSSARY].sort((a, b) => a.term.localeCompare(b.term, 'en', { sensitivity: 'base' }));
-
-/** Does the term (its name, other names or definition) contain every word typed? */
-export function matchesTerm(term: GlossaryTerm, query: string): boolean {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return true;
-  const hay = `${term.term} ${(term.aka ?? []).join(' ')} ${term.def}`.toLowerCase();
-  return words.every((w) => hay.includes(w));
-}
 
 /**
  * Glossary: the words of cardiology in one or two plain sentences each, with a way on to the page that
@@ -28,6 +25,10 @@ export default function Glossary() {
   const [group, setGroup] = useState<GlossaryGroup | 'all'>('all');
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  // Esc closes it (also from the field, where the app-wide shortcuts do not listen). With a keyboard the focus starts
+  // in the field; on a touch screen on the title, so the on-screen keyboard does not cover the list until asked for.
+  const dialogRef = useDialogFocus<HTMLDivElement>(open, close, coarsePointer() ? titleRef : inputRef);
 
   // opened at a term (from search): start with everything listed and that term in view
   useEffect(() => {
@@ -41,26 +42,21 @@ export default function Glossary() {
     return () => window.clearTimeout(id);
   }, [open, termId]);
 
-  // Escape closes it (the field keeps the keyboard, so the app-wide shortcut handler does not see the key)
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); useAppStore.getState().setGlossaryOpen(false); } };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [open]);
+  // a new search starts at the top of the list, where its best match is
+  useEffect(() => { if (q) listRef.current?.scrollTo({ top: 0 }); }, [q]);
 
-  const shown = useMemo(() => SORTED.filter((t) => (group === 'all' || t.group === group) && matchesTerm(t, q)), [q, group]);
+  const shown = useMemo(() => findTerms(group === 'all' ? SORTED : SORTED.filter((t) => t.group === group), q), [q, group]);
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0" onClick={close} role="dialog" aria-modal="true" aria-label="Glossary">
+    <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0 outline-none focus-visible:outline-none" onClick={close} role="dialog" aria-modal="true" aria-label="Glossary">
       <div
         className="w-full max-w-2xl h-[85dvh] flex flex-col bg-cardiac-panel border border-slate-600 rounded-xl shadow-2xl phone:max-w-none phone:h-full phone:rounded-none phone:border-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 flex items-center justify-between pl-4 pr-2 py-2 border-b border-slate-700">
           <div>
-            <h2 className="text-sm font-semibold text-white">Glossary</h2>
+            <h2 ref={titleRef} tabIndex={-1} className="text-sm font-semibold text-white outline-none focus-visible:outline-none">Glossary</h2>
             <p className="text-[11px] text-slate-400">{GLOSSARY.length} terms in plain words</p>
           </div>
           <button onClick={close} className="w-9 h-9 touch:w-11 touch:h-11 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-cardiac-surface" aria-label="Close the glossary"><IconClose size={18} /></button>
