@@ -86,6 +86,7 @@ export default function SceneOverlay() {
   const [moreOpen, setMoreOpen] = useState(false);
   /** the controls at the top left: a tap anywhere else closes the folded toggles */
   const moreRef = useRef<HTMLDivElement>(null);
+  const moreButton = useRef<HTMLButtonElement>(null);
   const probe = useRef<HTMLDivElement>(null);
   const touch = useIsTouch();
   const selectedId = useSceneStore((s) => s.selectedStructureId);
@@ -108,7 +109,16 @@ export default function SceneOverlay() {
   useEffect(() => {
     if (!moreOpen) return;
     const away = (e: PointerEvent) => { if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMoreOpen(false); };
+    // Escape closes the panel. With the keyboard in it (or on More), the key is spent here — the app-wide Escape
+    // would also clear the selected part — and the keyboard goes back to More rather than to the top of the page.
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (moreRef.current?.contains(document.activeElement)) {
+        e.stopPropagation();
+        moreButton.current?.focus();
+      }
+      setMoreOpen(false);
+    };
     document.addEventListener('pointerdown', away);
     document.addEventListener('keydown', esc);
     return () => {
@@ -123,6 +133,20 @@ export default function SceneOverlay() {
   const lessonStep = useCourseStore((s) => s.active?.step ?? -1);
   const [keyHidden, setKeyHidden] = useState(false);
   useEffect(() => setKeyHidden(false), [lessonStep]);
+  // Hiding the key swaps it for the button that brings it back (and back again): the keyboard follows to the
+  // button that took the place of the one just pressed, instead of falling to the top of the page
+  const keyChip = useRef<HTMLButtonElement>(null);
+  const keyBox = useRef<HTMLDivElement>(null);
+  const keyFocus = useRef(false);
+  const toggleKey = (hide: boolean) => {
+    keyFocus.current = true;
+    setKeyHidden(hide);
+  };
+  useEffect(() => {
+    if (!keyFocus.current) return;
+    keyFocus.current = false;
+    (keyHidden ? keyChip.current : keyBox.current?.querySelector<HTMLButtonElement>('[data-hide-key]'))?.focus();
+  }, [keyHidden]);
 
   // Condense the overlay when the 3D viewport is small (phone, or a phone on its side)
   useEffect(() => {
@@ -211,6 +235,7 @@ export default function SceneOverlay() {
             </label>
             {fold && (
               <button
+                ref={moreButton}
                 onClick={() => setMoreOpen((v) => !v)}
                 aria-expanded={moreOpen}
                 aria-controls="scene-toggles"
@@ -313,7 +338,8 @@ export default function SceneOverlay() {
 
       {(viewMode === 'territories' || (culprit && viewMode !== 'activation')) && !(narrow && peek) && (keyHidden ? (
         <button
-          onClick={() => setKeyHidden(false)}
+          ref={keyChip}
+          onClick={() => toggleKey(false)}
           className={`absolute left-2 z-10 ${narrow ? 'bottom-2' : 'bottom-9'} px-2.5 py-1.5 touch:py-2 rounded-lg border border-slate-600/60 bg-black/60 backdrop-blur-sm text-[11px] text-slate-200 shadow-xl`}
           aria-expanded={false}
           data-cover="box"
@@ -321,13 +347,13 @@ export default function SceneOverlay() {
           {viewMode === 'territories' ? 'Territory key' : 'Key'} ▴
         </button>
       ) : (
-        <div className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl flex items-end gap-2 ${narrow ? 'bottom-2 p-1.5 max-w-[calc(58%-1rem)] leading-snug' : 'bottom-9 p-2'}`} data-cover="box">
+        <div ref={keyBox} className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl flex items-end gap-2 ${narrow ? 'bottom-2 p-1.5 max-w-[calc(58%-1rem)] leading-snug' : 'bottom-9 p-2'}`} data-cover="box">
           <div>
             {viewMode === 'territories' && (
               <>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[11px] uppercase tracking-wider text-slate-400">Perfusion territory</span>
-                  <HideKey onClick={() => setKeyHidden(true)} />
+                  <HideKey onClick={() => toggleKey(true)} />
                 </div>
                 <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#26d973]" /> LAD — anterior wall, anterior septum, apex</div>
                 <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#4d8cff]" /> LCx — lateral &amp; posterolateral LV</div>
@@ -338,7 +364,7 @@ export default function SceneOverlay() {
             {culprit && (
               <div className="flex items-center gap-1.5 mt-1 text-fuchsia-300">
                 <span className="w-3 h-2 rounded-sm bg-fuchsia-700 animate-pulse" /> Ischemic territory (pulsing): {culprit} culprit lesion
-                {viewMode !== 'territories' && <HideKey onClick={() => setKeyHidden(true)} />}
+                {viewMode !== 'territories' && <HideKey onClick={() => toggleKey(true)} />}
               </div>
             )}
           </div>
@@ -462,7 +488,7 @@ function Pill({ active, onClick, children, title }: { active: boolean; onClick: 
 /** Puts the territory key away (a "Territory key" button brings it back) */
 function HideKey({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="shrink-0 ml-auto -my-1 -mr-1 p-1 touch:p-2 touch:-m-2 rounded text-slate-400 hover:text-white hover:bg-white/10" aria-label="Hide the key" title="Hide the key">
+    <button onClick={onClick} data-hide-key className="shrink-0 ml-auto -my-1 -mr-1 p-1 touch:p-2 touch:-m-2 rounded text-slate-400 hover:text-white hover:bg-white/10" aria-label="Hide the key" title="Hide the key">
       <IconClose size={12} />
     </button>
   );
