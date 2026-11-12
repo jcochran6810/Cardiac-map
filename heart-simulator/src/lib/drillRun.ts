@@ -59,9 +59,18 @@ export function openTrainer() {
   showQuestion();
 }
 
+/**
+ * A set chosen from the list of sets (or reached by Back / Forward): the set that was left carries on as it was (its
+ * tracing, the answer if one was given, this visit's score), as Forward to it would; any other set starts afresh
+ */
 export function startSet(setId: string) {
   if (!useDrillStore.getState().open) openTrainer();
-  useDrillStore.getState().begin(setId);
+  if (parked?.setId === setId) {
+    useDrillStore.setState({ ...parked, open: true });
+    parked = null;
+  } else {
+    useDrillStore.getState().begin(setId);
+  }
   showQuestion();
 }
 
@@ -80,6 +89,12 @@ function park() {
   const { setId, question, picked, asked, right, streak } = useDrillStore.getState();
   if (setId && question) parked = { setId, question, picked, asked, right, streak };
 }
+
+// "Reset my progress" (the stats emptied) drops the set that was left as well: choosing it again starts at 0 / 0,
+// and a streak carried over from before could not write a new best run into the cleared scores
+useDrillStore.subscribe((s, p) => {
+  if (s.stats !== p.stats && Object.keys(s.stats).length === 0) parked = null;
+});
 
 export function leaveSet() {
   park();
@@ -100,7 +115,7 @@ export function closeTrainer(to: 'home' | 'stay' = 'home') {
 
 /**
  * Back or Forward to one of the trainer's pages: its list of sets (`setId` null), or a set in play — the one
- * that was left, as it was, or else a fresh run of it
+ * that was left, as it was, or else a fresh run of it (`startSet`)
  */
 export function showTrainerPage(setId: string | null) {
   if (!useDrillStore.getState().open) openTrainer();
@@ -109,10 +124,6 @@ export function showTrainerPage(setId: string | null) {
     useAppStore.getState().setMode('learn');
   } else if (!setId) {
     leaveSet();
-  } else if (parked?.setId === setId) {
-    useDrillStore.setState({ ...parked, open: true });
-    parked = null;
-    showQuestion();
   } else {
     startSet(setId);
   }

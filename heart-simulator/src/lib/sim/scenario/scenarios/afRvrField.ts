@@ -355,6 +355,13 @@ export const afRvrField: Scenario = {
     },
   ],
   critical: [
+    // only once he has arrested: the VF an unsynchronized shock causes is witnessed, with the pads already on. First, so
+    // that a hint in the arrest names the shock, not an item from before it
+    {
+      id: 'arrest-shock', label: 'No pulse: defibrillate within 2 minutes', points: 15,
+      why: 'The unsynchronized shock caused VF: witnessed, with the pads on, VF is defibrillated at once (now an unsynchronized shock is the right one) — every minute without a shock lowers survival.',
+      done: ['defib', 'aed'], after: 'arrest', target: { within: { flag: 'arrest', minutes: 2 } }, applies: (s) => has(s, 'arrest'),
+    },
     // a hint can name these before the 12-lead is read or the history taken: they say what to look for, not what he has
     { id: 'instability', label: 'Check for instability: blood pressure and mental status', why: 'Stable or unstable decides drug or shock: hypotension, acutely altered mental status, signs of shock, ischemic chest pain or acute heart failure make a tachycardia unstable.', done: ['vitals', 'nibp'], points: 5, target: { by: 4 } },
     { id: 'ecg', label: '12-lead ECG', why: 'The 12-lead names the rhythm, and shows what the monitor cannot: a delta wave (pre-excitation, where every AV-nodal drug, amiodarone included, is dangerous) or ST elevation.', done: ['ecg12'], points: 10, target: { by: 8 } },

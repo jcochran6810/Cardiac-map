@@ -47,7 +47,7 @@ import { openById, openCategory, openCondition, openMedication, openTool, showEc
 import { exitLesson, gotoStep, startLesson } from '@/lib/courses';
 import { useCourseStore } from '@/store/useCourseStore';
 import { loadContent } from '@/lib/content';
-import { closeTrainer, nextTracing, openTrainer, startSet } from '@/lib/drillRun';
+import { closeTrainer, leaveSet, nextTracing, openTrainer, startSet } from '@/lib/drillRun';
 import { useDrillStore } from '@/store/useDrillStore';
 import { useECGStore } from '@/store/useECGStore';
 
@@ -363,11 +363,13 @@ describe('the Back button moves through CardioSim pages', () => {
     const menu = history.i;
     openTrainer();
     await settle();
+    // (Core rhythms was the set left last, in the test before: it carries on with that visit's score)
     startSet('core');
     await settle();
     useDrillStore.getState().answer('unsure');
     nextTracing();
     await settle();
+    const asked = useDrillStore.getState().asked;
     expect(history.i).toBe(menu + 2);
     // (what the ✕ does)
     expect(backOutOfTrainer()).toBe(true);
@@ -382,7 +384,7 @@ describe('the Back button moves through CardioSim pages', () => {
     history.go(1);
     await settle();
     expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: 'core' });
-    expect(useDrillStore.getState().asked).toBe(1);
+    expect(useDrillStore.getState().asked).toBe(asked);
     // the ✕ on the list of sets: one step back
     startSet('blocks');
     await settle();
@@ -423,6 +425,35 @@ describe('the Back button moves through CardioSim pages', () => {
     expect(useECGStore.getState().activeProfileId).toBe(question!.profile);
     await back();
     expect(currentPage().drill).toBeNull();
+    useAppStore.getState().setMode('home');
+    await settle();
+  });
+
+  it('"Continue" on the set just left (via Sets) carries on as browser Forward does: the same tracing and score', async () => {
+    openTrainer();
+    await settle();
+    startSet('core');
+    await settle();
+    useDrillStore.getState().answer('unsure');
+    nextTracing();
+    await settle();
+    const { question, asked, right, streak } = useDrillStore.getState();
+    const was = { setId: 'core', question, picked: null, asked, right, streak };
+    // (the trainer's "Sets" button), then "Continue" on Core rhythms
+    leaveSet();
+    await settle();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: null });
+    startSet('core');
+    await settle();
+    expect(currentPage().drill).toBe('core');
+    expect(useDrillStore.getState()).toMatchObject(was);
+    expect(useECGStore.getState().activeProfileId).toBe(question!.profile);
+    // Back to the list and Forward again: the same
+    await back();
+    expect(useDrillStore.getState().setId).toBeNull();
+    history.go(1);
+    await settle();
+    expect(useDrillStore.getState()).toMatchObject(was);
     useAppStore.getState().setMode('home');
     await settle();
   });

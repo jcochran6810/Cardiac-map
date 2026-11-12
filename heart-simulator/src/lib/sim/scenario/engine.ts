@@ -726,6 +726,8 @@ function applyEffect(s: SimState, e: Effect) {
   for (const f of e.flags ?? []) setFlag(s, f);
   for (const f of e.clear ?? []) delete s.flags[f];
   if (e.timers) s.timers = { ...s.timers, ...e.timers };
+  // the flag keeps the first shock's minute; the death line needs to know whether one was delivered in this arrest
+  if (e.flags?.includes('shocked')) s.timers.lastShockAt = s.minute;
   if (e.image) s.images.push({ minute: s.minute, ...e.image });
   if (e.read && s.role !== 1) askRead(s, { ...e.read, minute: s.minute, ...(e.image?.image ? { run: s.images.length } : {}) });
   if (e.end && !s.ended) s.ended = { reason: e.end, minute: s.minute };
@@ -806,9 +808,24 @@ function advance(sc: Scenario, s: SimState) {
     if (!fired) break;
   }
   if (!s.pulse && s.timers.arrestAt !== undefined && s.minute - s.timers.arrestAt >= (sc.deathAfter ?? 15)) {
-    say(s, 'system', 'Despite resuscitation there is no return of circulation. The patient has died.', 'bad');
+    // say what happened: a resuscitation that failed, or none at all from you in this arrest (a bystander's CPR is not yours).
+    // Only compressions, or a shock that was delivered to VF or pulseless VT, resuscitate: a SYNC shock that never fired, an AED
+    // that advised no shock, or a shock on PEA or asystole does not
+    const from = s.timers.arrestAt;
+    const cpr = s.performed.some((p) => p.id === 'cpr' && p.minute >= from);
+    const shocked = s.timers.lastShockAt !== undefined && s.timers.lastShockAt >= from;
+    // PEA and asystole are not shockable, so a missing shock is no omission there
+    const none = shockable(s) ? 'You gave no CPR and no shock in this arrest.' : 'You gave no CPR in this arrest.';
+    say(s, 'system', cpr || shocked
+      ? 'Despite resuscitation there is no return of circulation. The patient has died.'
+      : `${none} There is no return of circulation: the patient has died.`, 'bad');
     s.ended = { reason: 'death', minute: s.minute };
   }
+}
+
+/** The critical items for your role that apply now and are not done (the review counts the same ones as missed) */
+function missingCriticals(sc: Scenario, s: SimState): number {
+  return criticalsFor(sc, s.role).filter((c) => (!c.applies || c.applies(s)) && achieved(c, s) === null).length;
 }
 
 /** The case ends by itself once everything is done (never while a 12-lead read is pending) */
@@ -820,8 +837,13 @@ function finish(sc: Scenario, s: SimState) {
   } else if (has(s, 'handoff')) {
     // a hand-off ends your care, whatever is still missing — in an arrest too: the receiving team takes over the CPR. The
     // review scores a hand-over without ROSC as it scores a death: it is no finished case
-    if (s.pulse) say(s, 'system', 'Care handed over — scenario complete.', 'info');
-    else say(s, 'system', 'Care handed over in cardiac arrest: the emergency department team takes over the resuscitation.', 'warn');
+    // never "scenario complete" here: the case is not complete (isComplete failed), and the story must not read as if it were
+    if (!s.pulse) say(s, 'system', 'Care handed over in cardiac arrest: the emergency department team takes over the resuscitation.', 'warn');
+    else {
+      const missing = missingCriticals(sc, s);
+      if (missing > 0) say(s, 'system', `Care handed over with ${missing} critical item${missing === 1 ? '' : 's'} still not done.`, 'warn');
+      else say(s, 'system', 'Care handed over before the case was over.', 'info');
+    }
     s.ended = { reason: 'complete', minute: s.minute };
   }
 }

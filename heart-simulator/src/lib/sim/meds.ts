@@ -97,6 +97,11 @@ export interface MedDef {
   step: number;
   /** how far from the usual range still counts as usual (default 15%: rounding to a syringe) */
   tolerance?: number;
+  /**
+   * A load given once (the P2Y12 inhibitors): the dose is judged on everything given of this drug so far, so a repeat
+   * counts toward the load instead of passing as another "usual dose". `usual` and `max` are then totals.
+   */
+  cumulative?: boolean;
   /** what the drug does to this rhythm; `cls` is the dose class */
   plan(p: Patient, dose: number, cls: DoseClass): { verdict: Verdict; steps: EffectStep[] };
 }
@@ -336,7 +341,9 @@ const adenosine: MedDef = {
         };
       case 'vt':
         return {
-          verdict: caution('VT does not involve the AV node, so adenosine does not stop it (it is only a diagnostic option for a regular, monomorphic wide-complex tachycardia). Use procainamide or amiodarone, or synchronized cardioversion if unstable.'),
+          verdict: lowBP(p, prof)
+            ? bad('This VT is unstable (hypotensive): synchronized cardioversion now. Adenosine does not stop VT — the AV node is not part of its circuit — and it is only a diagnostic option for a regular, monomorphic wide-complex tachycardia in a stable patient.')
+            : caution('VT does not involve the AV node, so adenosine does not stop it (it is only a diagnostic option for a regular, monomorphic wide-complex tachycardia). Use procainamide or amiodarone, or synchronized cardioversion if unstable.'),
           steps: noEcg(arrive, 'No change — the tachycardia carries on.'),
         };
       case 'junctional':
@@ -495,7 +502,7 @@ const metoprolol: MedDef = {
     }
     if (failing(p, prof)) {
       return {
-        verdict: bad('Dangerous here: a β-blocker is a negative inotrope — in decompensated heart failure or shock it can cause collapse.'),
+        verdict: bad(`Dangerous here: a β-blocker is a negative inotrope — in decompensated heart failure or shock it can cause collapse.${c === 'vt' ? ' This VT is unstable: synchronized cardioversion now.' : ''}`),
         steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.15 * f), mods, note: 'The rate falls — and so does the cardiac output.', tone: 'warn' }, ...over],
       };
     }
@@ -556,7 +563,7 @@ const esmolol: MedDef = {
         steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.22 * f, cls === 'toxic' ? 45 : 60), note: atTarget ? 'The heart rate falls a little further, toward the bottom of the target range.' : 'The heart rate falls toward the target of 60–80/min.', tone: atTarget ? 'effect' : 'good', mark: 'rate ↓' }, ...warn],
       };
     }
-    if (failing(p, prof)) return { verdict: bad('Dangerous in decompensated heart failure or shock (negative inotrope) — though esmolol wears off fastest of the β-blockers.'), steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.15 * f), note: 'The rate falls — and so does the output.', tone: 'warn' }, ...warn] };
+    if (failing(p, prof)) return { verdict: bad(`Dangerous in decompensated heart failure or shock (negative inotrope) — though esmolol wears off fastest of the β-blockers.${c === 'vt' ? ' This VT is unstable: synchronized cardioversion now.' : ''}`), steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.15 * f), note: 'The rate falls — and so does the output.', tone: 'warn' }, ...warn] };
     switch (c) {
       case 'af':
       case 'flutter':
@@ -605,11 +612,19 @@ const amiodarone: MedDef = {
       case 'torsades':
         return { verdict: bad(`Avoid in torsades: amiodarone prolongs the QT. ${TORSADES}`), steps: [{ at: 30 * S, mods: { qtcAdd: 30 }, note: 'No improvement — and the QT gets longer.', tone: 'warn' }] };
       case 'vt':
+        // unstable first: whatever the dose, the treatment is the shock — the drug is not waited for
+        if (lowBP(p, prof)) {
+          return {
+            verdict: caution('This VT is unstable — the patient is hypotensive: synchronized cardioversion now (sedate if possible). Amiodarone is for stable VT, or to keep it from coming back after cardioversion.'),
+            steps: [
+              { at: 5 * MIN, hr: rate(p.hr, 0.92), mods, note: 'VT slows a little but carries on, and the blood pressure stays low: do not wait for the drug — synchronized cardioversion.', tone: 'warn', mark: 'slower' },
+              ...fast,
+            ],
+          };
+        }
         if (cls === 'low') return { verdict: good('For stable monomorphic VT (and VT with structural heart disease) — but the dose was low.'), steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.9), mods, note: 'VT slows slightly but carries on: give 150 mg over 10 min.', tone: 'warn' }] };
         return {
-          verdict: lowBP(p, prof)
-            ? caution('This VT is unstable — the patient is hypotensive: synchronized cardioversion now (sedate if possible). Amiodarone is for stable VT, or to keep it from coming back after cardioversion.')
-            : good('Stable monomorphic VT: amiodarone 150 mg over 10 min (in trials it terminates only about a third — procainamide does better; synchronized cardioversion if it fails or the patient becomes unstable).'),
+          verdict: good('Stable monomorphic VT: amiodarone 150 mg over 10 min (in trials it terminates only about a third — procainamide does better; synchronized cardioversion if it fails or the patient becomes unstable).'),
           steps: [
             { at: 5 * MIN, hr: rate(p.hr, 0.88), mods, note: 'VT slowing.', tone: 'effect', mark: 'slower' },
             ...fast,
@@ -1064,6 +1079,15 @@ const magnesium: MedDef = {
     }
     if (c === 'af') return { verdict: caution('Magnesium modestly helps rate control in AF (and replaces a low level) — not a first-line drug.'), steps: [{ at: 5 * MIN, hr: rate(p.hr, 0.93), note: 'A small fall in the ventricular rate.', tone: 'effect' }, ...toxic] };
     if (c === 'arrest') return { verdict: caution('Only for torsades (or suspected low magnesium) in arrest — it does not help VF in general.'), steps: noEcg(60 * S, 'No change.') };
+    if (c === 'vt') {
+      const why = 'Magnesium does not stop monomorphic VT with a normal QT — it is the drug for torsades (and it replaces a low level).';
+      return {
+        verdict: lowBP(p, prof)
+          ? bad(`This VT is unstable (hypotensive): synchronized cardioversion now. ${why}`)
+          : caution(`${why} For stable monomorphic VT: procainamide or amiodarone; synchronized cardioversion if it fails or the patient becomes unstable.`),
+        steps: [...noEcg(2 * MIN, 'VT carries on.'), ...toxic],
+      };
+    }
     return { verdict: caution('No direct ECG effect at normal levels: magnesium corrects a low level (which can provoke ectopy and torsades).'), steps: [...noEcg(2 * MIN, 'No visible change.'), ...toxic] };
   },
 };
@@ -1197,21 +1221,70 @@ const albuterol: MedDef = {
   },
 };
 
+type P2y12 = 'ticagrelor' | 'clopidogrel' | 'prasugrel';
+const P2Y12: P2y12[] = ['ticagrelor', 'clopidogrel', 'prasugrel'];
+/** a fibrinolytic has been given: the P2Y12 inhibitor, and its load, follow from that */
+const lysed = (p: Patient) => p.given.some((g) => g.id === 'tenecteplase');
+/** the post-lysis clopidogrel load depends on an age the simulator does not set: say which age the 300 mg is for */
+const LYSIS_AGE = 'This patient\'s age is not set: 300 mg is the load at 75 or younger.';
+
 /** One plan for the three oral P2Y12 inhibitors: who gets the load, who must not, and what it does (nothing on the ECG) */
-function p2y12Plan(p: Patient, drug: 'ticagrelor' | 'clopidogrel' | 'prasugrel'): { verdict: Verdict; steps: EffectStep[] } {
+function p2y12Plan(p: Patient, drug: P2y12, dose: number, cls: DoseClass): { verdict: Verdict; steps: EffectStep[] } {
   const prof = resolveProfile(p.profileId);
   const c = category(prof, p.hr);
   const none = noEcg(60 * S, 'No ECG change: the load stops platelets adding to the clot (onset ~30 min for ticagrelor and prasugrel, 2–6 h for clopidogrel). It does not open the artery.');
   if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest — nothing by mouth.'), steps: noEcg(60 * S, 'No change.') };
   if (prof.id === DISSECTION) return { verdict: bad('Contraindicated: aortic dissection can mimic an MI — a P2Y12 inhibitor feeds the bleeding and delays surgery.'), steps: noEcg(60 * S, 'No ECG change.') };
   if (!isAcs(prof)) return { verdict: bad('No indication: a P2Y12 load is for an acute coronary syndrome or a planned stent.'), steps: none };
-  // after a fibrinolytic the P2Y12 inhibitor is clopidogrel (2025 ACC/AHA, class 1): the others were not tested in the first hours after lysis
-  if (p.given.some((g) => g.id === 'tenecteplase')) {
-    return drug === 'clopidogrel'
-      ? { verdict: good('After fibrinolysis the P2Y12 inhibitor is clopidogrel: 300 mg (75 mg with no load over 75 years), then 75 mg daily, with aspirin and an anticoagulant. 600 mg is the PCI load.'), steps: none }
-      : { verdict: caution(`Not with a fibrinolytic: ${drug} was not tested in the first hours after lysis and adds bleeding. Give clopidogrel 300 mg (75 mg over 75 years); any later switch is the interventionalist's decision at PCI.`), steps: none };
+  // aspirin plus ONE P2Y12 inhibitor, loaded once (2025 ACC/AHA ACS): a second load — the same drug again or another —
+  // only adds bleeding, and a switch between them has its own timing rules. A load given in parts is still one load:
+  // a dose that adds to too little of this same drug (ticagrelor 90 mg, then 90 mg) is judged with it, on the total.
+  const loaded = P2Y12.filter((id) => dosesOf(p, id).length);
+  const before = totalOf(p, drug);
+  const def = MED_BY_ID[drug];
+  const short = before < def.usual(p).low * (1 - (def.tolerance ?? 0.15)) - 1e-6;
+  const partial = loaded.length === 1 && loaded[0] === drug && short;
+  if (loaded.length && !partial) {
+    const what = loaded.map((id) => `${id} ${fmtDose(totalOf(p, id))} mg`).join(', then ');
+    return {
+      verdict: bad(`A P2Y12 inhibitor has already been loaded (${what}): one at a time, with aspirin. A second load — the same drug again or another one — adds bleeding with no benefit. A switch, or a top-up load before PCI, is the cardiologist's decision, with its own timing rules.`),
+      steps: noEcg(60 * S, 'No ECG change — only more bleeding risk.'),
+    };
   }
-  const stemi = c === 'stemi' || ['inferior-stemi-chb', 'cardiogenic-shock', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused'].includes(prof.id);
+  const plan = p2y12Load(p, drug, before + dose, partial, cls, c, prof.id, none);
+  // after lysis the clopidogrel verdict already says what a total other than 300 mg means
+  if (!partial || (lysed(p) && drug === 'clopidogrel' && cls !== 'usual')) return plan;
+  const sum = `${fmtDose(before)} mg given before, ${fmtDose(before + dose)} mg in all`;
+  const note = cls === 'usual'
+    ? `This dose completes the load (${sum}).`
+    : cls === 'low'
+      ? `The load is still short (${sum}).`
+      : `With the earlier dose this is more than one load (${sum}): more bleeding, no more benefit.`;
+  return { ...plan, verdict: { ...plan.verdict, text: `${plan.verdict.text} ${note}` } };
+}
+
+/** The first load of a P2Y12 inhibitor (`amount`: everything of it given, this dose included; `partial`: given in parts) */
+function p2y12Load(p: Patient, drug: P2y12, amount: number, partial: boolean, cls: DoseClass, c: Category, profId: string, none: EffectStep[]): { verdict: Verdict; steps: EffectStep[] } {
+  // after a fibrinolytic the P2Y12 inhibitor is clopidogrel (2025 ACC/AHA, class 1): the others were not tested in the first hours after lysis
+  if (lysed(p)) {
+    if (drug !== 'clopidogrel') {
+      return { verdict: caution(`Not with a fibrinolytic: ${drug} was not tested in the first hours after lysis and adds bleeding. Give clopidogrel 300 mg (75 mg with no load over 75 years); any later switch is the interventionalist's decision at PCI.`), steps: none };
+    }
+    const mg = `${fmtDose(amount)} mg${partial ? ' in all' : ''}`;
+    const doseNote = cls === 'high' || cls === 'toxic'
+      ? ` ${mg} is more than the load after lysis: it adds bleeding on top of the fibrinolytic.`
+      : cls === 'low'
+        ? (Math.abs(amount - 75) < 1e-6 ? ' 75 mg with no load is the dose over 75 years; at 75 or younger the load after lysis is 300 mg.' : ` ${mg} is short of the 300 mg load after lysis (over 75 years: 75 mg, no load).`)
+        : '';
+    const warn: EffectStep[] = cls === 'high' || cls === 'toxic'
+      ? [{ at: 60 * S, note: `${mg} is more than the load with a fibrinolytic (300 mg; no load over 75 years) — 600 mg is the PCI load: more bleeding risk, no extra benefit.`, tone: 'warn' }]
+      : [];
+    return {
+      verdict: good(`After fibrinolysis the P2Y12 inhibitor is clopidogrel: a 300 mg load (75 mg with no load over 75 years), then 75 mg daily, with aspirin and an anticoagulant. 600 mg is the PCI load. ${LYSIS_AGE}${doseNote}`),
+      steps: [...none, ...warn],
+    };
+  }
+  const stemi = c === 'stemi' || ['inferior-stemi-chb', 'cardiogenic-shock', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused'].includes(profId);
   const lysisNote = 'With fibrinolysis the P2Y12 inhibitor is clopidogrel (300 mg, or 75 mg with no load over 75 years).';
   if (drug === 'ticagrelor') {
     if (c === 'chb' || c === 'mobitz2' || c === 'wenckebach') return { verdict: caution(`ACS with second- or third-degree AV block: ticagrelor can cause ventricular pauses and AV block (FDA warning; PLATO excluded such patients without a pacemaker). Clopidogrel, or prasugrel at PCI, avoids this — or give it once pacing protects the rate. ${lysisNote}`), steps: none };
@@ -1232,22 +1305,23 @@ const ticagrelor: MedDef = {
   id: 'ticagrelor', name: 'Ticagrelor', group: 'Coronary care & other', unit: 'mg', route: 'By mouth (tablets may be crushed)', verb: 'Give',
   onset: '~30 min; peak ~2 h',
   guide: 'ACS: 180 mg load, then 90 mg twice daily, with aspirin 81 mg (no more than 100 mg a day). Preferred over clopidogrel. Not with a previous intracranial hemorrhage or active bleeding.',
-  usual: () => ({ low: 180, high: 180 }), max: () => 360, picks: () => [90, 180, 360], step: 90, tolerance: 0.02,
-  plan: (p) => p2y12Plan(p, 'ticagrelor'),
+  usual: () => ({ low: 180, high: 180 }), max: () => 360, picks: () => [90, 180, 360], step: 90, tolerance: 0.02, cumulative: true,
+  plan: (p, dose, cls) => p2y12Plan(p, 'ticagrelor', dose, cls),
 };
 const clopidogrel: MedDef = {
   id: 'clopidogrel', name: 'Clopidogrel', group: 'Coronary care & other', unit: 'mg', route: 'By mouth', verb: 'Give',
   onset: '~2 h after 600 mg, ~6 h after 300 mg',
   guide: 'PCI: 600 mg load. With fibrinolysis: 300 mg (no load, 75 mg, over 75 years). Then 75 mg daily. The P2Y12 inhibitor with an oral anticoagulant and after lysis.',
-  usual: () => ({ low: 300, high: 600 }), max: () => 900, picks: () => [75, 300, 600, 900], step: 75, tolerance: 0.02,
-  plan: (p) => p2y12Plan(p, 'clopidogrel'),
+  // with a fibrinolytic the load is 300 mg: the 600 mg PCI load adds bleeding on top of the lysis
+  usual: (p) => (lysed(p) ? { low: 300, high: 300 } : { low: 300, high: 600 }), max: () => 900, picks: () => [75, 300, 600, 900], step: 75, tolerance: 0.02, cumulative: true,
+  plan: (p, dose, cls) => p2y12Plan(p, 'clopidogrel', dose, cls),
 };
 const prasugrel: MedDef = {
   id: 'prasugrel', name: 'Prasugrel', group: 'Coronary care & other', unit: 'mg', route: 'By mouth', verb: 'Give',
   onset: '~30 min',
   guide: '60 mg load at PCI once the anatomy is known, then 10 mg daily (5 mg under 60 kg). Contraindicated after a stroke or TIA; generally avoided from 75 years.',
-  usual: () => ({ low: 60, high: 60 }), max: () => 120, picks: () => [10, 60, 120], step: 10, tolerance: 0.02,
-  plan: (p) => p2y12Plan(p, 'prasugrel'),
+  usual: () => ({ low: 60, high: 60 }), max: () => 120, picks: () => [10, 60, 120], step: 10, tolerance: 0.02, cumulative: true,
+  plan: (p, dose, cls) => p2y12Plan(p, 'prasugrel', dose, cls),
 };
 
 const aspirin: MedDef = {
@@ -1496,13 +1570,17 @@ export const MED_BY_ID = Object.fromEntries(MEDS.map((m) => [m.id, m])) as Recor
 
 // ─── Doses ─────────────────────────────────────────────────────────────────
 
+/** The amount the dose class is judged on: this dose, plus what was given before for a drug judged on its total */
+const judgedAmount = (def: MedDef, p: Patient, dose: number) => dose + (def.cumulative ? totalOf(p, def.id) : 0);
+
 export function classifyDose(def: MedDef, p: Patient, dose: number): DoseClass {
   const u = def.usual(p);
   const tol = def.tolerance ?? 0.15;
   const eps = 1e-6;
-  if (dose > def.max(p) + eps) return 'toxic';
-  if (dose < u.low * (1 - tol) - eps) return 'low';
-  if (dose > u.high * (1 + tol) + eps) return 'high';
+  const amount = judgedAmount(def, p, dose);
+  if (amount > def.max(p) + eps) return 'toxic';
+  if (amount < u.low * (1 - tol) - eps) return 'low';
+  if (amount > u.high * (1 + tol) + eps) return 'high';
   return 'usual';
 }
 
@@ -1523,7 +1601,9 @@ export function describeDose(def: MedDef, p: Patient, dose: number, cls = classi
   const u = def.usual(p);
   const usual = u.low === u.high ? `${fmtDose(u.low)} ${def.unit}` : `${fmtDose(u.low)}–${fmtDose(u.high)} ${def.unit}`;
   const what = { low: `below the usual ${usual}`, usual: 'the usual dose', high: `above the usual ${usual}`, toxic: `an overdose (usual ${usual})` }[cls];
-  return `${fmtDose(dose)} ${def.unit}${PER_KG[def.id] ? ` = ${perKg}` : ''} — ${what}`;
+  const amount = judgedAmount(def, p, dose);
+  const total = amount !== dose ? ` (${fmtDose(amount)} ${def.unit} in all)` : '';
+  return `${fmtDose(dose)} ${def.unit}${PER_KG[def.id] ? ` = ${perKg}` : ''}${total} — ${what}`;
 }
 
 /** Everything that happens when this dose is given to this patient now */

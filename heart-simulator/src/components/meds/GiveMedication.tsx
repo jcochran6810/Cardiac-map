@@ -2,13 +2,15 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MEDS, MED_BY_ID, MED_GROUPS, PER_KG, fmtDose, type MedId } from '@/lib/sim/meds';
-import { useMedStore, type MedLogEntry } from '@/store/useMedStore';
+import { applyVtHeart, presentsEitherWay, untreatedRhythm, useMedStore, type MedLogEntry, type VtPresentation } from '@/store/useMedStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useAppStore, type LearningLevel } from '@/store/useAppStore';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { openMedication, showEcg, showRhythm } from '@/lib/actions';
+import { patientCount } from '@/lib/rhythm';
 import { sim } from '@/lib/sim/simulation';
+import { useDefibStore, vitalsAt } from '@/lib/sim/defib';
 import { IconCheck, IconFlag, IconPill } from '@/components/ui/icons';
 
 /** What each role may do with IV medications (src/lib/scope.ts) */
@@ -46,6 +48,25 @@ export function useNextEffect() {
   return next ? { ...next, inMs: next.fireAt - now } : null;
 }
 
+/** The blood pressure on the monitor (what the drugs are judged on), refreshed twice a second; null without a pulse */
+function useMonitorBp() {
+  const read = () => {
+    const v = vitalsAt(sim.time);
+    return v.pulse ? `${v.sbp}/${v.dbp}` : null;
+  };
+  const [bp, setBp] = useState<string | null>(read);
+  useEffect(() => {
+    const id = window.setInterval(() => setBp(read()), 500);
+    return () => window.clearInterval(id);
+  }, []);
+  return bp;
+}
+
+const PRESENTATIONS: { id: VtPresentation; label: string; title: string }[] = [
+  { id: 'stable', label: 'Stable', title: 'Alert, no chest pain, a blood pressure that holds: the VT the drug cards teach' },
+  { id: 'unstable', label: 'Unstable', title: 'Hypotensive, in shock: synchronized cardioversion, not a drug' },
+];
+
 /**
  * The condition page's "Give meds" tab: the patient's weight, the drug, the dose, Push — then the live 12-lead
  * shows what the drug does, with a timeline of each effect and a verdict on the drug and the dose.
@@ -59,9 +80,14 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
   const give = useMedStore((s) => s.give);
   const skipAhead = useMedStore((s) => s.skipAhead);
   const reset = useMedStore((s) => s.reset);
+  const vt = useMedStore((s) => s.vt);
+  const setVt = useMedStore((s) => s.setVt);
+  // a defibrillator scenario's patient: its story says how its VT presents, and its heart stays (applyVtHeart)
+  const scenario = useDefibStore((s) => s.scenario);
   const profileId = useECGStore((s) => s.activeProfileId);
   const hr = useTimelineStore((s) => s.heartRate);
   const displayHR = useTimelineStore((s) => s.displayHR);
+  const bp = useMonitorBp();
   const next = useNextEffect();
   const [drug, setDrug] = useState<MedId | ''>('');
   const [dose, setDose] = useState('');
@@ -89,6 +115,22 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
     if (useMedStore.getState().conditionId !== conditionId) reset(conditionId);
   }, [conditionId, reset]);
 
+  // A VT that can present either way gets the heart of the chosen presentation — now, and again whenever another
+  // patient has been put on the monitor meanwhile (showing a rhythm starts a patient with the rhythm's own heart)
+  const eitherWay = presentsEitherWay(CONDITION_TO_PROFILE[conditionId] ?? '');
+  const shownVt: VtPresentation | null = !scenario ? vt : presentsEitherWay(scenario.profile) ? (scenario.baseline === 'normal' ? 'stable' : 'unstable') : null;
+  useEffect(() => {
+    if (!eitherWay) return;
+    let seen = patientCount();
+    applyVtHeart(conditionId);
+    const id = window.setInterval(() => {
+      if (patientCount() === seen) return;
+      seen = patientCount();
+      applyVtHeart(conditionId);
+    }, 300);
+    return () => window.clearInterval(id);
+  }, [conditionId, eitherWay, vt]);
+
   const def = drug ? MED_BY_ID[drug] : null;
   // weight-based picks only depend on the patient's weight and doses so far
   const patient = useMemo(() => ({ profileId, hr, kg, given }), [profileId, hr, kg, given]);
@@ -112,6 +154,18 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
   const restart = () => {
     reset(conditionId);
     showRhythm(CONDITION_TO_PROFILE[conditionId] ?? 'normal-sinus');
+    applyVtHeart(conditionId);
+  };
+  // Another presentation is another patient: the doses given were judged for this one, so they go — the rate the
+  // learner set before the first dose stays
+  const present = (v: VtPresentation) => {
+    if (v === vt || scenario) return;
+    if (given.length || log.length) {
+      const back = untreatedRhythm();
+      reset(conditionId);
+      showRhythm(back?.profileId ?? CONDITION_TO_PROFILE[conditionId] ?? 'normal-sinus', back?.hr);
+    }
+    setVt(v);
   };
 
   return (
@@ -139,8 +193,31 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
           </div>
           <span className="text-[11px] text-slate-400">kg ({lb} lb) · adult</span>
         </div>
+        {eitherWay && (
+          <div className="flex items-center gap-2" role="group" aria-label="How the VT presents">
+            <span className="shrink-0 text-[11px] text-slate-300">Presents</span>
+            <div className="flex shrink-0 rounded-md border border-slate-600 overflow-hidden">
+              {PRESENTATIONS.map((o) => (
+                <button
+                  key={o.id}
+                  onClick={() => present(o.id)}
+                  aria-pressed={shownVt === o.id}
+                  disabled={!!scenario}
+                  title={scenario ? 'Set by the defibrillator scenario: Reset patient to choose' : o.title}
+                  className={`px-2 py-1 touch:py-2 text-[11px] disabled:cursor-not-allowed ${shownVt === o.id ? 'bg-cardiac-accent/20 text-cardiac-accent font-semibold' : `text-slate-300 ${scenario ? 'opacity-50' : 'hover:bg-white/10'}`}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <span className="min-w-0 text-[11px] text-slate-400">
+              {scenario ? `set by the scenario “${scenario.label}”` : vt === 'stable' ? 'alert, pressure holding' : 'hypotensive, in shock'}
+            </span>
+          </div>
+        )}
         <p className="text-[11px] text-slate-300">
           On the monitor: <b className="text-white">{profile.name}</b>{displayHR > 0 ? `, ${displayHR}/min` : ''}
+          {' · '}{bp ? <>BP <b className="text-white tabular-nums">{bp}</b> mmHg</> : <b className="text-red-300">no pulse</b>}
         </p>
       </div>
 

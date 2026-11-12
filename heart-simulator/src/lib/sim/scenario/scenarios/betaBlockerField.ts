@@ -1,4 +1,4 @@
-import type { Effect, Line, Scenario, SimState, Vitals } from '../types';
+import type { Effect, Line, Scenario, ScenarioEvent, SimState, Vitals } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LOW_GLUCOSE, PADS, PERFUSING_FLOOR, canSwallow, count, firstDone, has } from '../kit';
 
@@ -185,6 +185,29 @@ function settle(s: SimState, next: SimState, at: number, before: Line[], lines: 
     vitals: { ...more.vitals, sbp: p.sbp, dbp: p.dbp, gcs: p.gcs },
     flags: [...flags, ...(more.flags ?? []), ...(p.gcs <= 8 ? ['obtunded'] : [])],
   };
+}
+
+/**
+ * A short-acting drug wears off when its timer runs out: the patient is recomputed then, not only at the next look at
+ * her (an assessment, the 10-minute worsening), so the monitor stops showing a rate and a pressure the drug no longer
+ * gives. Each dose's end is marked as faded (`<timer>Faded`), so it acts once; an event fires only once, so there is
+ * one copy per dose that can wear off. A drug whose end changes nothing (the pacer holds the rate) passes quietly.
+ */
+function fades(timer: string, said: string, copies: number): ScenarioEvent[] {
+  const faded = `${timer}Faded`;
+  const due = (s: SimState) => s.pulse && s.timers[timer] !== undefined && s.minute >= s.timers[timer] && s.timers[faded] !== s.timers[timer];
+  return Array.from({ length: copies }, (_, i) => ({
+    id: `${timer}-fades${i ? `-${i + 1}` : ''}`,
+    when: due,
+    effect: (s: SimState): Effect => {
+      const timers = { [faded]: s.timers[timer] };
+      const p = picture(s);
+      const changed = p.rhythm.profile !== s.rhythm.profile || p.rhythm.hr !== s.rhythm.hr || p.sbp !== s.vitals.sbp || p.dbp !== s.vitals.dbp || p.gcs !== s.vitals.gcs;
+      if (!changed) return { timers };
+      const e = settle(s, s, s.minute, [['partner', said, 'bad']], (q) => [['monitor', numbers(q), 'bad']]);
+      return { ...e, timers: { ...e.timers, ...timers } };
+    },
+  }));
 }
 
 /** A drug that only takes away: it is in, and the monitor shows what it did */
@@ -478,6 +501,10 @@ export const betaBlockerField: Scenario = {
       when: (s) => s.pulse && s.fired.includes('glucagon-fades') && s.timers.glucagonUntil > s.flags['glucagon-faded'] && !has(s, 'pressor') && s.minute >= s.timers.glucagonUntil,
       effect: (s) => settle(s, s, s.minute, [['partner', 'The second dose is wearing off as well.', 'bad']], (p) => [['monitor', numbers(p), 'bad']]),
     },
+    // the other short-acting drugs: atropine is timed once (a repeat dose does nothing), the epinephrine doses each time
+    ...fades('atropineUntil', 'The atropine has worn off.', 1),
+    ...fades('pushEpiUntil', 'The push-dose epinephrine has worn off.', 12),
+    ...fades('epiBolusUntil', 'The epinephrine surge has worn off.', 6),
     {
       // extended-release tablets keep releasing the drug: unsupported, she gets worse
       id: 'worse',
@@ -512,6 +539,23 @@ export const betaBlockerField: Scenario = {
     },
   ],
   critical: [
+    // only once she has arrested (an AV-nodal blocker on top of the overdose, or no support): PEA, worked on scene.
+    // First, so that a hint in the arrest names CPR and epinephrine, not the pacing pads or the 12-lead. The why names
+    // no drug: as a hint it can show before the history has found the bottle
+    {
+      id: 'arrest-cpr', label: 'Cardiac arrest: CPR at once', why: 'PEA is not shockable: high-quality CPR at once, without pauses, then epinephrine — and the cause, the poison. No pacing in arrest.',
+      done: ['cpr'], after: 'arrest', points: 10, target: { within: { flag: 'arrest', minutes: 1 } }, applies: (s) => has(s, 'arrest'),
+    },
+    {
+      id: 'arrest-epi', label: 'Cardiac arrest: epinephrine as soon as possible', why: 'For PEA, epinephrine 1 mg IV/IO as soon as possible, then every 3–5 minutes.',
+      done: ['epinephrine'], after: 'arrest', points: 5, target: { within: { flag: 'arrest', minutes: 5 } }, applies: (s) => has(s, 'arrest'),
+    },
+    // a pulse needs more than the first cycle: until it returns, a hint keeps naming the resuscitation, not the pads
+    {
+      id: 'arrest-cycles', label: 'Cardiac arrest: keep up CPR cycles until a pulse returns',
+      why: 'Compressions straight back on after each 2-minute rhythm and pulse check, epinephrine every 3–5 minutes, and the cause — the poison — in mind. No pacing in arrest.',
+      done: (s) => s.flags.rosc ?? null, uses: ['cpr'], points: 5, applies: (s) => has(s, 'arrest'),
+    },
     { id: 'pads', label: 'Monitor and pacing pads on at once', why: 'A slow rate with a systolic pressure in the 70s: with pads on you can pace in seconds if the drugs fail.', done: PADS, points: 10, target: { by: 5 } },
     // a hint shows these before the history is taken, so they point to the question, not to the answer
     { id: 'ecg', label: '12-lead ECG', why: 'The rhythm, the QRS width and the QT (some overdoses widen the QRS or lengthen the QT), and no inferior STEMI behind the slow rate.', done: ['ecg12'], points: 5, target: { by: 15 } },

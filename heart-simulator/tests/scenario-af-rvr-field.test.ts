@@ -265,6 +265,36 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(review(sc, stop(s)).toFix.find((t) => /^Control the rate safely/.test(t.label))?.kind).toBe('missed');
   });
 
+  it('the VF an unsynchronized shock causes is scored like any witnessed arrest: a shock within 2 minutes; only once he has arrested', () => {
+    const label = 'No pulse: defibrillate within 2 minutes';
+    // shocked at once: on time
+    const prompt = run(sc, 2, [...READY, 'defib', 'defib']);
+    expect(review(sc, stop(prompt)).wentWell.map((w) => w.label)).toContain(label);
+    // the reviewers' run: VF left for minutes (two reassessments, a cycle of CPR) before the shock — late, half marks
+    const late = run(sc, 2, [...READY, 'defib', 'reassess', 'reassess', 'cpr', 'defib']);
+    expect(late.pulse).toBe(true);
+    const item = review(sc, stop(late)).toFix.find((t) => t.label === label);
+    expect(item?.kind).toBe('late');
+    expect(item?.points).toBe(7.5);
+    // never shocked: missed
+    const none = run(sc, 2, [...READY, 'defib', 'cpr', 'cpr']);
+    expect(review(sc, stop(none)).toFix.find((t) => t.label === label)?.kind).toBe('missed');
+    // no arrest, no item: the ideal run is untouched
+    const ideal = review(sc, run(sc, 2, IDEAL));
+    expect([...ideal.wentWell, ...ideal.toFix].map((t) => t.label)).not.toContain(label);
+  });
+
+  it('a hint in the VF names the shock, not an item from before the arrest', () => {
+    // the reviewers' run: an unsynchronized shock, VF — and the hint said "Check for instability"
+    const vf = run(sc, 2, ['primary', 'monitor', 'iv', 'defib']);
+    expect(vf.pulse).toBe(false);
+    expect(takeHint(sc, vf).log.at(-1)!.text).toMatch(/^Hint: No pulse: defibrillate within 2 minutes\./);
+    // once the shock has brought him back, the hints go on as before
+    const back = perform(sc, vf, 'defib');
+    expect(back.pulse).toBe(true);
+    expect(takeHint(sc, back).log.at(-1)!.text).toMatch(/^Hint: Check for instability/);
+  });
+
   it('fluid floods the lungs of a failing heart; a pressor speeds the rate; oxygen costs nothing', () => {
     const fluid = run(sc, 2, [...READY, 'fluid']);
     expect(ids(fluid)).toEqual(['fluid-hf']);

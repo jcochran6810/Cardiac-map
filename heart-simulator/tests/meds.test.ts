@@ -4,8 +4,9 @@ import { ECG_PROFILES } from '@/lib/ecg/profiles';
 import { applyMods, combineMods, describeMods, modsKey } from '@/lib/ecg/mods';
 import { MEDS, MED_BY_ID, category, classifyDose, describeDose, planDose, type MedId, type Patient } from '@/lib/sim/meds';
 import { sim } from '@/lib/sim/simulation';
-import { setRhythm } from '@/lib/rhythm';
-import { useMedStore, tickMeds } from '@/store/useMedStore';
+import { setRhythm, showRhythm } from '@/lib/rhythm';
+import { SCENARIOS, loadScenario, useDefibStore } from '@/lib/sim/defib';
+import { applyVtHeart, useMedStore, tickMeds } from '@/store/useMedStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -900,6 +901,211 @@ describe('hyperkalemia shifters and the P2Y12 loads', () => {
       expect(planDose(id, patient('aortic-dissection', 100), MED_BY_ID[id].usual(patient('aortic-dissection', 100)).low).verdict.tone).toBe('bad');
       expect(planDose(id, patient('normal-sinus', 72), MED_BY_ID[id].usual(patient('normal-sinus', 72)).low).verdict.tone).toBe('bad');
     }
+  });
+});
+
+describe('the P2Y12 inhibitors: one at a time, and the load after lysis', () => {
+  const t180 = { id: 'ticagrelor' as const, dose: 180, at: 1000 };
+  const lysis = { id: 'tenecteplase' as const, dose: 45, at: 500 };
+
+  it('a second load — the same drug again or another one — is refused, and a repeat is judged on the total', () => {
+    const loaded = patient('anterior-stemi', 90, { given: [t180] });
+    for (const id of ['ticagrelor', 'clopidogrel', 'prasugrel'] as const) {
+      const plan = planDose(id, loaded, MED_BY_ID[id].usual(loaded).high);
+      expect(plan.verdict.tone, id).toBe('bad');
+      expect(plan.verdict.text, id).toMatch(/already been loaded \(ticagrelor 180 mg\): one at a time, with aspirin/);
+      expect(plan.verdict.text, id).toMatch(/cardiologist's decision/);
+    }
+    // the reviewers' run: the last ticagrelor 180 mg was "the usual dose" with 360 mg given in all
+    const again = planDose('ticagrelor', loaded, 180);
+    expect(again.doseClass).toBe('high');
+    expect(again.doseText).toBe('180 mg (360 mg in all) — above the usual 180 mg');
+    const chain = patient('anterior-stemi', 90, { given: [t180, { id: 'clopidogrel', dose: 600, at: 2000 }, { id: 'prasugrel', dose: 60, at: 3000 }] });
+    expect(planDose('ticagrelor', chain, 180).verdict.text).toMatch(/ticagrelor 180 mg, then clopidogrel 600 mg, then prasugrel 60 mg/);
+    expect(classifyDose(MED_BY_ID.clopidogrel, patient('anterior-stemi', 90, { given: [{ id: 'clopidogrel', dose: 600, at: 1 }] }), 600)).toBe('toxic');
+    // a first load is judged as before, and other drugs given before it do not count toward it
+    expect(planDose('clopidogrel', patient('anterior-stemi', 90, { given: [{ id: 'aspirin', dose: 325, at: 1 }] }), 600))
+      .toMatchObject({ doseClass: 'usual', doseText: '600 mg — the usual dose', verdict: { tone: 'caution' } });
+    expect(planDose('ticagrelor', patient('anterior-stemi', 90), 180)).toMatchObject({ doseClass: 'usual', verdict: { tone: 'good' } });
+  });
+
+  it('a load given in parts is one load: the dose that completes it is judged with it, not as a second load', () => {
+    // the reviewers' run: ticagrelor 90 mg, then 90 mg, was "not the right drug … a second load" — "(180 mg in all) — the usual dose"
+    const half = patient('anterior-stemi', 90, { given: [{ id: 'ticagrelor', dose: 90, at: 1000 }] });
+    const rest = planDose('ticagrelor', half, 90);
+    expect(rest.doseClass).toBe('usual');
+    expect(rest.doseText).toBe('90 mg (180 mg in all) — the usual dose');
+    expect(rest.verdict.tone).toBe('good');
+    expect(rest.verdict.text).toMatch(/completes the load \(90 mg given before, 180 mg in all\)/);
+    expect(rest.verdict.text).not.toMatch(/already been loaded/);
+    // still short, or past the load: judged on the total, never as a second load
+    const quarter = patient('anterior-stemi', 90, { given: [{ id: 'clopidogrel', dose: 75, at: 1000 }] });
+    expect(planDose('clopidogrel', quarter, 75)).toMatchObject({ doseClass: 'low', verdict: { tone: 'caution' } });
+    expect(planDose('clopidogrel', quarter, 75).verdict.text).toMatch(/still short \(75 mg given before, 150 mg in all\)/);
+    expect(planDose('clopidogrel', quarter, 825).doseClass).toBe('high');
+    expect(planDose('clopidogrel', quarter, 825).verdict.text).toMatch(/more than one load/);
+    // a full load already given, or another P2Y12 inhibitor started: a second load
+    const full = patient('anterior-stemi', 90, { given: [t180] });
+    expect(planDose('ticagrelor', full, 180).verdict.tone).toBe('bad');
+    expect(planDose('ticagrelor', full, 180).verdict.text).toMatch(/already been loaded \(ticagrelor 180 mg\)/);
+    expect(planDose('clopidogrel', half, 600).verdict.tone).toBe('bad');
+    expect(planDose('clopidogrel', half, 600).verdict.text).toMatch(/already been loaded \(ticagrelor 90 mg\)/);
+    // after lysis: clopidogrel 75 mg, then 225 mg, is the 300 mg load
+    const lysed75 = patient('anterior-stemi', 90, { given: [lysis, { id: 'clopidogrel', dose: 75, at: 1000 }] });
+    const lysisRest = planDose('clopidogrel', lysed75, 225);
+    expect(lysisRest).toMatchObject({ doseClass: 'usual', doseText: '225 mg (300 mg in all) — the usual dose', verdict: { tone: 'good' } });
+    expect(lysisRest.verdict.text).toMatch(/completes the load/);
+    const lysisOver = planDose('clopidogrel', lysed75, 525);
+    expect(lysisOver.doseClass).toBe('high');
+    expect(lysisOver.verdict.text).toMatch(/600 mg in all is more than the load after lysis/);
+    expect(lysisOver.steps.some((s) => s.tone === 'warn' && /600 mg in all .* 600 mg is the PCI load/.test(s.note))).toBe(true);
+    expect(planDose('clopidogrel', lysed75, 75).verdict.text).toMatch(/150 mg in all is short of the 300 mg load after lysis/);
+    // the clopidogrel 300 mg load after lysis already given: a second load
+    expect(planDose('clopidogrel', patient('anterior-stemi', 90, { given: [lysis, { id: 'clopidogrel', dose: 300, at: 1000 }] }), 300).verdict.tone).toBe('bad');
+  });
+
+  it('after tenecteplase the clopidogrel load is 300 mg (no load over 75): 600 mg is classed high, and the text says the age is not set', () => {
+    const lysed = patient('anterior-stemi', 90, { given: [lysis] });
+    const right = planDose('clopidogrel', lysed, 300);
+    expect(right).toMatchObject({ doseClass: 'usual', verdict: { tone: 'good' } });
+    expect(right.verdict.text).toMatch(/age is not set: 300 mg is the load at 75 or younger/);
+    // the reviewers' run: 600 mg after lysis was "the usual dose"
+    const pci = planDose('clopidogrel', lysed, 600);
+    expect(pci.doseClass).toBe('high');
+    expect(pci.doseText).toBe('600 mg — above the usual 300 mg');
+    expect(pci.verdict.text).toMatch(/600 mg is more than the load after lysis/);
+    expect(pci.steps.some((s) => s.tone === 'warn' && /PCI load/.test(s.note))).toBe(true);
+    const old = planDose('clopidogrel', lysed, 75);
+    expect(old.doseClass).toBe('low');
+    expect(old.verdict.text).toMatch(/75 mg with no load is the dose over 75 years/);
+    // without lysis, 600 mg is the PCI load
+    expect(classifyDose(MED_BY_ID.clopidogrel, patient('anterior-stemi', 90), 600)).toBe('usual');
+  });
+});
+
+describe('VT with a pulse: every antiarrhythmic reads right for a stable and an unstable patient', () => {
+  const stable = (id: MedId, dose: number) => planDose(id, patient('vt', 150, { sbp: 112 }), dose);
+  const unstable = (id: MedId, dose: number) => planDose(id, patient('vt', 150, { sbp: 72 }), dose);
+
+  it('the stable-VT drugs end a stable VT; an unstable one is sent to synchronized cardioversion, whatever the dose', () => {
+    for (const [id, dose] of [['procainamide', 17 * 80], ['amiodarone', 150], ['sotalol', 120]] as const) {
+      expect(stable(id, dose).verdict.tone, id).toBe('good');
+      expect(stable(id, dose).steps.some((s) => s.profile === 'normal-sinus'), id).toBe(true);
+      const u = unstable(id, dose);
+      expect(u.verdict.tone, id).not.toBe('good');
+      expect(u.verdict.text, id).toMatch(/synchronized cardioversion now/i);
+      // the drug is not waited for: the timeline does not end the unstable VT
+      expect(u.steps.some((s) => s.profile === 'normal-sinus'), id).toBe(false);
+    }
+    // too little of a stable-VT drug in an unstable patient is not "the right drug, too little"
+    for (const [id, dose] of [['procainamide', 400], ['amiodarone', 75], ['sotalol', 60]] as const) {
+      expect(stable(id, dose).verdict.tone, id).toBe('good');
+      expect(unstable(id, dose).verdict.tone, id).not.toBe('good');
+    }
+  });
+
+  it('the drugs that do not stop VT are never "a good choice", and in an unstable patient they say to cardiovert', () => {
+    for (const [id, dose] of [['adenosine', 6], ['lidocaine', 80], ['metoprolol', 5], ['esmolol', 40], ['magnesium-sulfate', 2], ['diltiazem', 20]] as const) {
+      expect(stable(id, dose).verdict.tone, id).not.toBe('good');
+      expect(unstable(id, dose).verdict.tone, id).not.toBe('good');
+      if (id !== 'diltiazem') expect(unstable(id, dose).verdict.text, id).toMatch(/synchronized cardioversion now/i);
+    }
+    expect(unstable('adenosine', 6).verdict.tone).toBe('bad');
+    expect(stable('magnesium-sulfate', 2).verdict.text).toMatch(/does not stop monomorphic VT/);
+  });
+});
+
+describe('the VT condition page: the Give-meds patient presents stable or unstable', () => {
+  /** run the shared clock, as SimulationDriver does */
+  function run(ms: number, dt = 20) {
+    for (let t = 0; t < ms; t += dt) {
+      sim.engine.setRhythm(useECGStore.getState().activeProfileId, useTimelineStore.getState().heartRate, sim.time, useMedStore.getState().mods);
+      sim.time += dt;
+      sim.engine.ensure(sim.time + 4000);
+      tickMeds(sim.time);
+    }
+  }
+  const sbp = () => sim.hemo.summary(sim.time).sbp;
+  beforeEach(() => {
+    useAppStore.getState().setMode('learn');
+    useMedStore.getState().reset('monomorphic-vt');
+    useMedStore.setState({ vt: 'stable' });
+    sim.time = 400_000;
+    showRhythm('vt');
+    setRhythm('vt', 120);
+    sim.rewrite = false;
+    sim.engine.setRhythm('vt', 120, sim.time, null);
+    run(6_000);
+  });
+
+  it('stable by default: a normal heart behind the VT, a pressure that holds, and the stable-VT drugs are right', () => {
+    // the VT rhythm's own heart is the failing one: hypotensive
+    expect(sim.hemo.baseline).toBeNull();
+    expect(sbp()).toBeLessThan(90);
+    applyVtHeart('monomorphic-vt');
+    expect(sim.hemo.baseline).toBe('normal');
+    expect(sbp()).toBeGreaterThanOrEqual(90);
+    // the reviewers' run: sotalol at 120/min was "not the right drug … this VT is unstable"
+    const plan = useMedStore.getState().give('sotalol', 120);
+    expect(plan.verdict.tone).toBe('good');
+    expect(plan.verdict.text).toMatch(/may be considered/);
+  });
+
+  it('unstable by choice: the rhythm\'s own failing heart, and the drugs give way to synchronized cardioversion', () => {
+    applyVtHeart('monomorphic-vt');
+    useMedStore.getState().setVt('unstable');
+    expect(sim.hemo.baseline).toBeNull();
+    expect(sbp()).toBeLessThan(90);
+    expect(useMedStore.getState().give('procainamide', 1000).verdict.text).toMatch(/unstable \(hypotensive\)/);
+    useMedStore.getState().setVt('stable');
+    expect(sim.hemo.baseline).toBe('normal');
+  });
+
+  it('a defibrillator scenario keeps its own heart: its story says how its VT presents, not the Give-meds choice', () => {
+    const vtPulse = SCENARIOS.find((x) => x.id === 'vt-pulse')!;
+    const vtStable = SCENARIOS.find((x) => x.id === 'vt-stable')!;
+    // the reviewers' run: Give meds open on the VT page (stable), then the trainer's "Unstable VT (pulse)"
+    applyVtHeart('monomorphic-vt');
+    expect(sim.hemo.baseline).toBe('normal');
+    loadScenario(vtPulse);
+    sim.rewrite = false;
+    expect(useDefibStore.getState().scenario?.id).toBe('vt-pulse');
+    applyVtHeart('monomorphic-vt');
+    expect(sim.hemo.baseline).toBeNull();
+    // …and the other way round: Presents unstable, then the trainer's "Stable VT" (a normal heart)
+    useMedStore.getState().setVt('unstable');
+    loadScenario(vtStable);
+    sim.rewrite = false;
+    applyVtHeart('monomorphic-vt');
+    expect(sim.hemo.baseline).toBe('normal');
+    useMedStore.getState().setVt('stable');
+    useMedStore.getState().setVt('unstable');
+    expect(sim.hemo.baseline).toBe('normal');
+    // a new patient ends the scenario: the condition's own VT shown again gets the chosen heart
+    showRhythm('vt');
+    sim.rewrite = false;
+    expect(useDefibStore.getState().scenario).toBeNull();
+    useMedStore.getState().setVt('stable');
+    expect(sim.hemo.baseline).toBe('normal');
+  });
+
+  it('only this condition\'s VT, and only while it is on the monitor', () => {
+    // a VT a drug caused on another condition's page keeps its own heart
+    useMedStore.getState().reset('sinus-bradycardia');
+    applyVtHeart('sinus-bradycardia');
+    expect(sim.hemo.baseline).toBeNull();
+    // the rhythm a drug has turned this VT into is left alone too
+    useMedStore.getState().reset('monomorphic-vt');
+    setRhythm('normal-sinus', 84);
+    applyVtHeart('monomorphic-vt');
+    expect(sim.hemo.baseline).toBeNull();
+    // and a new patient starts with the rhythm's own heart
+    setRhythm('vt', 120);
+    applyVtHeart('monomorphic-vt');
+    expect(sim.hemo.baseline).toBe('normal');
+    showRhythm('vt');
+    sim.rewrite = false;
+    expect(sim.hemo.baseline).toBeNull();
   });
 });
 

@@ -295,6 +295,49 @@ describe('beta-blocker overdose (field): the right treatments work as they would
     expect(bolus.vitals.sbp).toBeGreaterThan(150);
     expect(run(sc, 2, [...READY, 'epinephrine', ...R(2)]).vitals.sbp).toBeLessThan(90);
   });
+
+  it('a short-acting drug is recomputed when it wears off, not at the next assessment: the monitor shows her own rate again', () => {
+    // the reviewers' run: push-dose epinephrine, then only questions and checks that do not recompute her
+    const QUIET = ['sample', 'opqrst', 'perfusion', 'neuro', 'scene', 'ask-pde5'];
+    /** questions and checks (none of them recomputes her) until the clock reaches `until` */
+    const idle = (from: SimState, until: number) => {
+      let st = from;
+      for (let i = 0; st.minute < until && i < 40; i++) {
+        const id = QUIET.find((q) => !st.performed.some((p) => p.id === q)) ?? (i % 2 ? 'lungs' : 'glucose');
+        expect(unavailableReason(sc, st, id), id).toBeNull();
+        st = perform(sc, st, id);
+      }
+      expect(st.minute).toBeGreaterThanOrEqual(until);
+      return st;
+    };
+    const before = run(sc, 2, ['monitor', 'iv']);
+    let s = perform(sc, before, 'push-epi');
+    expect(s.rhythm.hr).toBeGreaterThan(before.rhythm.hr);
+    s = idle(s, s.timers.pushEpiUntil);
+    expect(s.minute).toBeLessThan(10); // before she gets worse at 10 minutes
+    expect(s.rhythm).toEqual(before.rhythm);
+    expect([s.vitals.sbp, s.vitals.dbp]).toEqual([before.vitals.sbp, before.vitals.dbp]);
+    expect(s.log.some((l) => l.text === 'The push-dose epinephrine has worn off.')).toBe(true);
+    // a survey after it reads her as she is now
+    s = perform(sc, s, 'primary');
+    expect(s.log.at(-1)!.text).toMatch(new RegExp(`radial pulse ${before.rhythm.hr}/min`));
+    // atropine and the 1 mg surge wear off the same way, each once
+    let a = perform(sc, before, 'atropine');
+    expect(a.rhythm.hr).toBeGreaterThan(before.rhythm.hr);
+    a = idle(a, a.timers.atropineUntil);
+    expect(a.rhythm.hr).toBe(before.rhythm.hr);
+    a = idle(a, a.minute + 1);
+    expect(a.log.filter((l) => l.text === 'The atropine has worn off.')).toHaveLength(1);
+    let b = perform(sc, before, 'epinephrine');
+    expect(b.vitals.sbp).toBeGreaterThan(150);
+    b = idle(b, b.timers.epiBolusUntil);
+    expect(b.vitals.sbp).toBe(before.vitals.sbp);
+    // a second push dose, after the first wore off: it wears off too
+    let twice = perform(sc, s, 'push-epi');
+    expect(twice.rhythm.hr).toBeGreaterThan(before.rhythm.hr);
+    twice = idle(twice, twice.timers.pushEpiUntil);
+    expect(twice.log.filter((l) => l.text === 'The push-dose epinephrine has worn off.')).toHaveLength(2);
+  });
 });
 
 describe('beta-blocker overdose (field): the glucose', () => {
@@ -459,6 +502,54 @@ describe('beta-blocker overdose (field): delay', () => {
     for (let i = 0; i < 10 && !dead.ended; i++) dead = perform(sc, dead, 'reassess');
     expect(dead.ended?.reason).toBe('death');
     expect(review(sc, dead).percent).toBeLessThanOrEqual(40);
+  });
+
+  it('her arrest is scored as an arrest: CPR at once and epinephrine as soon as possible — only once she has arrested', () => {
+    const cpr = 'Cardiac arrest: CPR at once';
+    const epi = 'Cardiac arrest: epinephrine as soon as possible';
+    // the reviewers' run: metoprolol and diltiazem crash her into PEA, and the crew reassesses before starting CPR
+    let s = run(sc, 2, ['primary', 'monitor', 'iv', 'metoprolol', 'diltiazem']);
+    while (s.pulse && s.minute < 30) s = perform(sc, s, 'reassess');
+    expect(s.pulse).toBe(false);
+    const late = run(sc, 2, ['primary', 'monitor', 'iv', 'metoprolol', 'diltiazem', ...R(s.performed.length - 5), 'reassess', 'reassess', 'cpr', 'epinephrine', 'cpr']);
+    expect(late.pulse).toBe(true);
+    const r = review(sc, stop(late));
+    expect(r.toFix.find((t) => t.label === cpr)?.kind).toBe('late');
+    expect(r.toFix.find((t) => t.label === epi)?.kind).toBe('late');
+    // CPR straight away, epinephrine with the second cycle: both on time
+    const prompt = run(sc, 2, ['primary', 'monitor', 'iv', 'metoprolol', 'diltiazem', ...R(s.performed.length - 5), 'cpr', 'epinephrine', 'cpr']);
+    expect(prompt.pulse).toBe(true);
+    const good = review(sc, stop(prompt)).wentWell.map((w) => w.label);
+    expect(good).toEqual(expect.arrayContaining([cpr, epi]));
+    // no arrest, no item: the ideal run is untouched
+    const ideal = review(sc, run(sc, 2, IDEAL));
+    expect([...ideal.wentWell, ...ideal.toFix].map((t) => t.label)).not.toEqual(expect.arrayContaining([cpr]));
+    expect([...ideal.wentWell, ...ideal.toFix].map((t) => t.label)).not.toEqual(expect.arrayContaining([epi]));
+  });
+
+  it('a hint in her arrest names CPR and epinephrine until a pulse returns — never the pacing pads or the 12-lead', () => {
+    // the reviewers' run: metoprolol and diltiazem crash her into PEA, and the hint said "Monitor and pacing pads on at once"
+    let s = run(sc, 2, ['primary', 'monitor', 'iv', 'metoprolol', 'diltiazem']);
+    while (s.pulse && s.minute < 30) s = perform(sc, s, 'reassess');
+    expect(s.pulse).toBe(false);
+    const hint = (x: SimState) => takeHint(sc, x).log.at(-1)!.text;
+    expect(hint(s)).toMatch(/^Hint: Cardiac arrest: CPR at once\./);
+    s = perform(sc, s, 'cpr');
+    expect(hint(s)).toMatch(/^Hint: Cardiac arrest: epinephrine as soon as possible\./);
+    s = perform(sc, s, 'epinephrine');
+    // still no pulse after one cycle and the epinephrine: the hint keeps to the resuscitation
+    expect(s.pulse).toBe(false);
+    expect(hint(s)).toMatch(/^Hint: Cardiac arrest: keep up CPR cycles until a pulse returns\./);
+    for (const x of [hint(s), hint(perform(sc, s, 'reassess'))]) expect(x).not.toMatch(/pads|pace in seconds|12-lead/);
+    s = perform(sc, s, 'cpr');
+    expect(s.pulse).toBe(true);
+    // before SAMPLE an arrest hint names no drug the history has not found yet
+    expect(sc.critical.find((c) => c.id === 'arrest-cpr')!.why).not.toMatch(/glucagon/i);
+    // the item is scored only in an arrest, and met by the pulse coming back
+    const r = review(sc, stop(s));
+    expect(r.wentWell.map((w) => w.label)).toContain('Cardiac arrest: keep up CPR cycles until a pulse returns');
+    const ideal = review(sc, run(sc, 2, IDEAL));
+    expect([...ideal.wentWell, ...ideal.toFix].map((t) => t.label)).not.toContain('Cardiac arrest: keep up CPR cycles until a pulse returns');
   });
 
   it('a call back in her arrest gets the arrest\'s orders — no pacing, no glucagon, no infusion until ROSC — and following them costs nothing', () => {

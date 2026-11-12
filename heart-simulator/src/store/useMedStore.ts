@@ -10,12 +10,19 @@
  * A session belongs to one patient. It ends when another patient is shown (`showRhythm`: a condition, a case, a
  * quiz strip, a lesson step, a defibrillator scenario) and when the case simulator takes the monitor. The main menu
  * and the course list are not another patient: the clock keeps running there, and so do the effects still to come.
+ *
+ * A VT with a pulse presents as stable or unstable, and the drugs are judged on the blood pressure on the monitor.
+ * The VT rhythm's own heart is the failing one of an unstable VT, so on a condition page the learner chooses: stable
+ * (the default — the VT the drug cards teach — with a normal heart behind it, as the case simulator and the
+ * defibrillator trainer give a stable VT) or unstable (the rhythm's own heart: hypotensive, in shock).
  */
 import { create } from 'zustand';
 import { sim } from '@/lib/sim/simulation';
 import { onNewPatient, setRhythm } from '@/lib/rhythm';
 import { combineMods, type RhythmMods } from '@/lib/ecg/mods';
 import { standardPlacement } from '@/lib/ecg/placement';
+import { CONDITION_TO_PROFILE, resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
+import { setBaseline, useDefibStore } from '@/lib/sim/defib';
 import { MED_BY_ID, fmtDose, planDose, type DosePlan, type EffectStep, type Given, type MedId } from '@/lib/sim/meds';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -65,10 +72,24 @@ let untreated: Rhythm | null = null;
 const onMonitor = (): Rhythm => ({ profileId: useECGStore.getState().activeProfileId, hr: useTimelineStore.getState().heartRate });
 const same = (a: Rhythm, b: Rhythm) => a.profileId === b.profileId && a.hr === b.hr;
 
+/** How a VT with a pulse presents: stable (a normal heart behind it) or unstable (hypotensive, in shock) */
+export type VtPresentation = 'stable' | 'unstable';
+
+/**
+ * A rhythm that can present either way: a VT with a pulse whose own heart is the failing one of an unstable VT (the
+ * VT profile). The same test as the case simulator's caseBaseline.
+ */
+export function presentsEitherWay(profileId: string): boolean {
+  const p = resolveProfile(profileId);
+  return p.rhythm === 'vt' && p.hemo === 'shock';
+}
+
 interface MedState {
   /** the condition (patient) this session belongs to */
   conditionId: string | null;
   kg: number;
+  /** how this condition's VT presents (only VT with a pulse has the choice) */
+  vt: VtPresentation;
   given: Given[];
   log: MedLogEntry[];
   /** labels drawn on the ECG strip where they happened */
@@ -81,6 +102,8 @@ interface MedState {
   last: { drug: MedId; dose: number; plan: DosePlan } | null;
 
   setKg: (kg: number) => void;
+  /** choose how the VT presents, and put the heart that goes with it behind the monitor */
+  setVt: (vt: VtPresentation) => void;
   give: (drug: MedId, dose: number) => DosePlan;
   skipAhead: () => void;
   reset: (conditionId?: string | null) => void;
@@ -91,6 +114,7 @@ const nextOf = (): MedState['next'] => (pending.length ? { fireAt: pending[0].fi
 export const useMedStore = create<MedState>((set, get) => ({
   conditionId: null,
   kg: 80,
+  vt: 'stable',
   given: [],
   log: [],
   marks: [],
@@ -99,6 +123,11 @@ export const useMedStore = create<MedState>((set, get) => ({
   last: null,
 
   setKg: (kg) => set({ kg: Math.max(40, Math.min(200, Math.round(kg))) }),
+
+  setVt: (vt) => {
+    set({ vt });
+    applyVtHeart();
+  },
 
   give: (drug, dose) => {
     const t = sim.time;
@@ -146,6 +175,24 @@ export const useMedStore = create<MedState>((set, get) => ({
     set({ conditionId: conditionId === undefined ? get().conditionId : conditionId, given: [], log: [], marks: [], mods: null, next: null, last: null });
   },
 }));
+
+/**
+ * Put the heart that goes with the chosen VT presentation behind the monitor: stable — a normal heart (the pressure
+ * holds at the usual VT rates; a very fast VT still drops it); unstable — the VT rhythm's own failing one. Only for a
+ * condition whose patient is such a VT, and only while that VT is on the monitor: a VT that a drug has caused on
+ * another condition's page keeps its own heart, and so does the rhythm a drug has turned this VT into.
+ * Showing a rhythm starts a new patient with the rhythm's own heart, so this is called again after every new patient.
+ * A defibrillator scenario's patient is not this condition's: its own heart stays (the scenario's story says how its
+ * VT presents). A new patient ends the scenario, so the condition's own VT shown again gets the chosen heart.
+ */
+export function applyVtHeart(conditionId = useMedStore.getState().conditionId) {
+  if (useDefibStore.getState().scenario) return;
+  const profileId = conditionId ? CONDITION_TO_PROFILE[conditionId] : undefined;
+  if (!profileId || !presentsEitherWay(profileId)) return;
+  if (useECGStore.getState().activeProfileId !== resolveProfile(profileId).id) return;
+  const want: HemoProfile | null = useMedStore.getState().vt === 'stable' ? 'normal' : null;
+  if (sim.hemo.baseline !== want) setBaseline(want);
+}
 
 function apply(job: Pending) {
   const { step, dose } = job;
