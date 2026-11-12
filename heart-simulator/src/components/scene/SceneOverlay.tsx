@@ -37,7 +37,8 @@ function readHud(): HudState {
     phase: m.phase,
     mitral: m.mitralOpen,
     aortic: m.aorticOpen,
-    atria: m.atrialContraction,
+    // (fibrillating or fluttering atria give no kick)
+    atria: m.fibrillating === 'atria' || sim.engine.segmentAt(t).profile.rhythm === 'flutter' ? 0 : m.atrialContraction,
     s1: !!ev && t - ev.mc >= 0 && t - ev.mc < 90,
     s2: !!ev && t - ev.ac >= 0 && t - ev.ac < 90,
   };
@@ -187,7 +188,7 @@ export default function SceneOverlay() {
         title={PHASE_DESCRIPTIONS[hud.phase]}
       >
         {!narrow && <div className="text-[11px] uppercase tracking-wider text-slate-400">Cardiac cycle</div>}
-        <div className={`font-semibold leading-tight ${narrow ? 'text-[11px] truncate' : 'text-xs mt-0.5'} ${hud.phase === 'fibrillation' || hud.phase === 'arrest' ? 'text-red-400' : 'text-white'}`}>{PHASE_LABELS[hud.phase]}</div>
+        <div className={`font-semibold leading-tight ${narrow ? 'text-[11px] truncate' : 'text-xs mt-0.5'} ${hud.phase === 'fibrillation' || hud.phase === 'pulseless' || hud.phase === 'arrest' ? 'text-red-400' : 'text-white'}`}>{PHASE_LABELS[hud.phase]}</div>
         {!narrow && <p className="text-[11px] text-slate-400 leading-snug mt-1 line-clamp-3">{PHASE_DESCRIPTIONS[hud.phase]}</p>}
         <div className={`space-y-0.5 ${narrow ? 'mt-1' : 'mt-1.5'}`}>
           {valve(narrow ? 'MV / TV' : 'Mitral / tricuspid', hud.mitral)}

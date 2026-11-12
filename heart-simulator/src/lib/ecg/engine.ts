@@ -831,6 +831,17 @@ export class ECGEngine {
       ? 1 - smoothstep(ev.mc - 20, ev.mc, t)
       : smoothstep(ev.mo, ev.mo + 30, t) * (1 - (next ? smoothstep(ev.nextMc - 20, ev.nextMc, t) : 0));
 
+    // Electrical activity without a pulse (PEA, pulseless VT, torsades): the wave still sweeps the ventricles, but
+    // they barely move, the aortic valve stays shut and there is nothing to hear
+    if (seg.profile.hemo === 'no-output') {
+      out.phase = 'pulseless';
+      out.ventContraction *= 0.12;
+      out.aorticOpen = 0;
+      out.mitralOpen = 0.6;
+      out.events = null;
+      return out;
+    }
+
     // Phase label (ventricular-centred)
     if (t < ev.mc) out.phase = prevPhase(t, prev, v);
     else if (t < ev.ao) out.phase = 'isovolumetric-contraction';
@@ -856,6 +867,7 @@ export type CyclePhase =
   | 'rapid-filling'
   | 'diastasis'
   | 'fibrillation'
+  | 'pulseless'
   | 'arrest';
 
 export interface CycleEvents {
@@ -924,17 +936,19 @@ export const PHASE_LABELS: Record<CyclePhase, string> = {
   'rapid-filling': 'Rapid (passive) filling',
   diastasis: 'Diastasis (slow filling)',
   fibrillation: 'Fibrillation — no effective contraction',
+  pulseless: 'Electrical activity — no pulse',
   arrest: 'No electrical or mechanical activity',
 };
 
 export const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
-  'atrial-systole': 'Atria contract after the P wave, topping up ventricular filling (~15–25% of filling volume). AV valves open, semilunar valves closed.',
+  'atrial-systole': 'Atria contract after the P wave, topping up ventricular filling (~20–30% of filling volume). AV valves open, semilunar valves closed.',
   'isovolumetric-contraction': 'Begins at S1 (mitral/tricuspid closure) just after the QRS. All four valves closed; pressure rises with no change in volume.',
   'rapid-ejection': 'LV pressure exceeds aortic pressure and the aortic valve opens. Most of the stroke volume is ejected. Corresponds to the ST segment.',
-  'reduced-ejection': 'Ejection slows as ventricular repolarisation (T wave) begins. Aortic pressure starts to fall.',
+  'reduced-ejection': 'Ejection slows as ventricular repolarization (T wave) begins. Aortic pressure starts to fall.',
   'isovolumetric-relaxation': 'Starts at S2 (aortic/pulmonic closure, ~end of T wave). All valves closed; pressure falls with no change in volume.',
   'rapid-filling': 'Ventricular pressure drops below atrial pressure, the AV valves open and blood rushes in (an S3 here is normal in the young, pathological in HF / volume overload).',
-  diastasis: 'Slow filling as atrial and ventricular pressures equalise. Shortens first when heart rate rises.',
-  fibrillation: 'Disorganised electrical activity: the ventricles quiver, no stroke volume, no pulse. CPR + defibrillation.',
+  diastasis: 'Slow filling as atrial and ventricular pressures equalize. Shortens first when heart rate rises.',
+  fibrillation: 'Disorganized electrical activity: the ventricles quiver, no stroke volume, no pulse. CPR + defibrillation.',
+  pulseless: 'The ventricles are being activated but are not pumping: no stroke volume, no pulse, no heart sounds (PEA, pulseless VT, torsades). CPR, a shock if the rhythm is shockable, and the cause.',
   arrest: 'No electrical activity and no contraction. CPR, epinephrine, reversible causes.',
 };

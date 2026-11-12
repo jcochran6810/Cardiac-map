@@ -80,7 +80,7 @@ describe('the medications', () => {
   it('cover drugs that exist in the Library, with sensible doses for an adult', () => {
     for (const m of MEDS) {
       expect(MEDICATION_IDS as readonly string[]).toContain(m.id);
-      for (const kg of [50, 80, 120]) {
+      for (const kg of [40, 50, 80, 120, 200]) {
         const p = patient('normal-sinus', 72, { kg });
         const u = m.usual(p);
         expect(u.low).toBeGreaterThan(0);
@@ -91,21 +91,40 @@ describe('the medications', () => {
     }
   });
 
-  it('every drug gives a verdict and a timeline on every rhythm, and never points at a missing rhythm', () => {
+  it('every drug gives a verdict and a timeline on every rhythm at its slowest, usual and fastest rate, and never points at a missing rhythm', () => {
     for (const m of MEDS) {
       for (const prof of Object.values(ECG_PROFILES)) {
-        const p = patient(prof.id, prof.defaultHR || 0);
-        for (const dose of m.picks(p)) {
-          const plan = planDose(m.id, p, dose);
-          expect(plan.verdict.text.length, `${m.id} on ${prof.id}`).toBeGreaterThan(10);
-          expect(plan.steps.length, `${m.id} on ${prof.id}`).toBeGreaterThan(0);
-          for (const s of plan.steps) {
-            expect(s.at).toBeGreaterThan(0);
-            if (s.profile) expect(ECG_PROFILES[s.profile], `${m.id} → ${s.profile}`).toBeDefined();
-            if (s.hr !== undefined) expect(s.hr).toBeGreaterThanOrEqual(0);
+        for (const hr of Array.from(new Set([prof.minHR, prof.defaultHR, prof.maxHR]))) {
+          const p = patient(prof.id, hr || 0);
+          const where = `${m.id} on ${prof.id} at ${hr}`;
+          for (const dose of m.picks(p)) {
+            const plan = planDose(m.id, p, dose);
+            expect(plan.verdict.text.length, where).toBeGreaterThan(10);
+            expect(plan.steps.length, where).toBeGreaterThan(0);
+            for (const s of plan.steps) {
+              expect(s.at).toBeGreaterThan(0);
+              if (s.profile) expect(ECG_PROFILES[s.profile], `${m.id} → ${s.profile}`).toBeDefined();
+              if (s.hr !== undefined) {
+                expect(s.hr, where).toBeGreaterThanOrEqual(0);
+                expect(s.hr, where).toBeLessThanOrEqual(250);
+                expect(Number.isInteger(s.hr), where).toBe(true);
+              }
+            }
+            for (let i = 1; i < plan.steps.length; i++) expect(plan.steps[i].at).toBeGreaterThanOrEqual(plan.steps[i - 1].at);
           }
-          for (let i = 1; i < plan.steps.length; i++) expect(plan.steps[i].at).toBeGreaterThanOrEqual(plan.steps[i - 1].at);
         }
+      }
+    }
+  });
+
+  it('a drug that is given to slow the heart is never called a good choice when the heart is already slow', () => {
+    const slowing: MedId[] = ['diltiazem', 'metoprolol', 'esmolol', 'amiodarone', 'digoxin', 'adenosine'];
+    for (const prof of Object.values(ECG_PROFILES)) {
+      if (prof.hemo === 'no-output' || prof.minHR >= 60 || prof.rhythm === 'paced' || prof.rhythm === 'vpaced') continue;
+      const p = patient(prof.id, Math.max(prof.minHR, 30), { sbp: 110 });
+      for (const id of slowing) {
+        const plan = planDose(id, p, MED_BY_ID[id].usual(p).low);
+        expect(plan.verdict.tone, `${id} on ${prof.id} at ${p.hr}`).not.toBe('good');
       }
     }
   });
@@ -118,6 +137,39 @@ describe('the medications', () => {
     expect(classifyDose(d, p, 5)).toBe('low');
     expect(classifyDose(d, p, 50)).toBe('toxic');
     expect(classifyDose(d, { ...p, kg: 120 }, 20)).toBe('low');
+  });
+
+  it('a light patient: doses far above the weight-based dose are overdoses, not just "high"', () => {
+    const light = patient('atrial-fibrillation', 150, { kg: 40 });
+    // diltiazem 35 mg is 0.875 mg/kg — three and a half times the 0.25 mg/kg dose
+    expect(classifyDose(MED_BY_ID.diltiazem, light, 35)).toBe('toxic');
+    expect(classifyDose(MED_BY_ID.diltiazem, light, 20)).toBe('toxic');
+    expect(classifyDose(MED_BY_ID.diltiazem, light, 10)).toBe('usual');
+    expect(describeDose(MED_BY_ID.diltiazem, light, 35)).toMatch(/overdose/);
+    // the dose offered as the overdose example is one, at every weight
+    for (const kg of [40, 50, 60, 80, 120]) {
+      const p = { ...light, kg };
+      expect(classifyDose(MED_BY_ID.diltiazem, p, Math.max(...MED_BY_ID.diltiazem.picks(p))), `${kg} kg`).toBe('toxic');
+    }
+    // the second dose (0.35 mg/kg) is still a usual dose
+    const second = { ...patient('atrial-fibrillation', 150), given: [{ id: 'diltiazem' as MedId, dose: 20, at: 0 }] };
+    expect(classifyDose(MED_BY_ID.diltiazem, second, 28)).toBe('usual');
+    expect(classifyDose(MED_BY_ID.diltiazem, { ...second, kg: 40 }, 14)).toBe('usual');
+
+    // heparin 5000 units is 125 units/kg at 40 kg — above even the PCI dose (70–100 units/kg)
+    const acs = patient('anterior-stemi', 92, { kg: 40 });
+    expect(classifyDose(MED_BY_ID.heparin, acs, 5000)).toBe('toxic');
+    expect(classifyDose(MED_BY_ID.heparin, acs, 2400)).toBe('usual');
+    expect(classifyDose(MED_BY_ID.heparin, acs, 3500)).toBe('high');
+    expect(classifyDose(MED_BY_ID.heparin, { ...acs, kg: 80 }, 5000)).toBe('high');
+    expect(classifyDose(MED_BY_ID.heparin, { ...acs, kg: 80 }, 10000)).toBe('toxic');
+
+    // bicarbonate: the usual range never reaches past the overdose line
+    const k = patient('hyperkalemia', 64, { kg: 40 });
+    expect(classifyDose(MED_BY_ID['sodium-bicarbonate'], k, 50)).toBe('usual');
+    expect(MED_BY_ID['sodium-bicarbonate'].usual(k).high).toBeLessThanOrEqual(MED_BY_ID['sodium-bicarbonate'].max(k));
+    expect(classifyDose(MED_BY_ID['sodium-bicarbonate'], k, 100)).toBe('toxic');
+    expect(describeDose(MED_BY_ID['sodium-bicarbonate'], k, 100)).not.toMatch(/usual 50–100/);
   });
 
   it('adenosine: 6 mg first, 12 mg after a full first dose; after an under-dose 6 mg still works', () => {
@@ -200,6 +252,74 @@ describe('classic responses', () => {
     expect(paradox.steps[0].hr).toBeLessThan(46);
   });
 
+  it('atropine is judged by the heart rate, not by the name of the rhythm', () => {
+    // a slow sinus rhythm is a bradycardia whatever the page is called — and it keeps its own QRS and ST segments
+    for (const [id, hr] of [['normal-sinus', 35], ['lbbb', 38], ['inferior-stemi', 40], ['nstemi', 45], ['pvcs', 44]] as const) {
+      const plan = planDose('atropine', patient(id, hr), 1);
+      expect(plan.verdict.tone, id).toBe('good');
+      expect(plan.verdict.text, id).not.toMatch(/No bradycardia/);
+      expect(plan.steps.at(-1)!.hr, id).toBeGreaterThanOrEqual(60);
+      expect(plan.steps.every((s) => s.profile === undefined || s.profile === id), id).toBe(true);
+    }
+    expect(planDose('atropine', patient('inferior-stemi', 40), 1).verdict.text).toMatch(/inferior/i);
+    // the sinus bradycardia page ends in normal sinus rhythm, as before
+    expect(planDose('atropine', patient('sinus-bradycardia', 46), 1).steps.at(-1)).toMatchObject({ profile: 'normal-sinus', hr: 84 });
+    // 60/min and above is not a bradycardia
+    for (const [id, hr] of [['normal-sinus', 60], ['normal-sinus', 72], ['inferior-stemi', 64], ['lbbb', 100]] as const) {
+      const plan = planDose('atropine', patient(id, hr), 1);
+      expect(plan.verdict.tone, `${id} ${hr}`).toBe('bad');
+      expect(plan.verdict.text, `${id} ${hr}`).toMatch(/No bradycardia/);
+    }
+    // an accelerated junctional rhythm is not slow; a slow one is
+    expect(planDose('atropine', patient('junctional', 96), 1).verdict.tone).toBe('bad');
+    expect(planDose('atropine', patient('junctional', 44), 1).verdict.tone).toBe('good');
+    // slow AF: the AV node is the brake, and atropine releases it
+    const slowAf = planDose('atropine', patient('atrial-fibrillation', 48), 1);
+    expect(slowAf.verdict.tone).not.toBe('bad');
+    expect(slowAf.steps[0].hr).toBeGreaterThan(48);
+    expect(planDose('atropine', patient('atrial-fibrillation', 130), 1).verdict.tone).toBe('bad');
+  });
+
+  it('a small dose of atropine is "the right drug, too little" only when there is a bradycardia', () => {
+    const slow = planDose('atropine', patient('normal-sinus', 40), 0.4);
+    expect(slow.verdict.tone).toBe('caution');
+    expect(slow.verdict.text).toMatch(/right drug/);
+    const normal = planDose('atropine', patient('normal-sinus', 72), 0.4);
+    expect(normal.verdict.tone).toBe('bad');
+    expect(normal.verdict.text).toMatch(/No bradycardia/);
+    expect(normal.verdict.text).not.toMatch(/right drug|Give 1 mg/);
+    // the paradoxical slowing itself happens either way
+    expect(normal.steps[0].hr).toBeLessThan(72);
+    expect(slow.steps[0].hr).toBeLessThan(40);
+  });
+
+  it('other drugs see a slow sinus rhythm as a bradycardia too', () => {
+    for (const id of ['metoprolol', 'diltiazem', 'esmolol', 'amiodarone', 'digoxin'] as MedId[]) {
+      const p = patient('normal-sinus', 38);
+      const plan = planDose(id, p, MED_BY_ID[id].usual(p).low);
+      expect(plan.verdict.tone, id).toBe('bad');
+      expect(plan.verdict.text, id).toMatch(/bradycardia|slows the sinus node/i);
+    }
+    // an inferior MI at 40/min: a β-blocker is harmful, and fibrinolysis is still fibrinolysis for a STEMI
+    const mi = patient('inferior-stemi', 40);
+    expect(planDose('metoprolol', mi, 5).verdict.tone).toBe('bad');
+    expect(planDose('esmolol', mi, 40).verdict.tone).toBe('bad');
+    expect(planDose('tenecteplase', mi, 45).verdict.tone).toBe('good');
+    // push-dose epinephrine for a slow rhythm keeps the patient's own QRS
+    const epi = planDose('epinephrine', patient('lbbb', 38), 0.02);
+    expect(epi.verdict.tone).toBe('caution');
+    expect(epi.steps[0].profile).toBeUndefined();
+    expect(epi.steps[0].hr).toBeGreaterThan(38);
+    // nothing changes at an ordinary rate
+    expect(planDose('metoprolol', patient('inferior-stemi', 64), 5).verdict.tone).toBe('caution');
+    expect(category(ECG_PROFILES['normal-sinus'])).toBe('sinus');
+    expect(category(ECG_PROFILES['normal-sinus'], 72)).toBe('sinus');
+    expect(category(ECG_PROFILES['normal-sinus'], 59)).toBe('brady');
+    expect(category(ECG_PROFILES['cardiogenic-shock'], 50)).toBe('brady');
+    expect(category(ECG_PROFILES['inferior-stemi'], 40)).toBe('stemi');
+    expect(category(ECG_PROFILES.avnrt, 50)).toBe('svt');
+  });
+
   it('magnesium is the drug for torsades, but pulseless torsades still needs the shock', () => {
     const mg = planDose('magnesium-sulfate', patient('torsades', 230), 2);
     expect(mg.verdict.tone).toBe('good');
@@ -262,6 +382,24 @@ describe('classic responses', () => {
     expect(push.steps.some((s) => s.profile === 'vt')).toBe(false);
   });
 
+  it('an overdose does not turn a tachycardia or a heart block into sinus rhythm', () => {
+    // digoxin toxicity: sinus rhythm gets PVCs, but VT at 170 does not become "sinus rhythm with PVCs at 170"
+    expect(planDose('digoxin', patient('normal-sinus', 72), 2).steps.map((s) => s.profile)).toEqual(['pvcs']);
+    for (const [id, hr] of [['vt', 170], ['avnrt', 180], ['third-degree-avb', 36], ['mobitz-ii', 80], ['paced', 72]] as const) {
+      const plan = planDose('digoxin', patient(id, hr), 2);
+      expect(plan.verdict.tone, id).toBe('bad');
+      expect(plan.steps.some((s) => s.profile !== undefined || s.hr !== undefined), id).toBe(false);
+    }
+    // epinephrine 0.1 mg IV with a pulse: AF gets faster, it does not become sinus tachycardia; 1 mg still ends in VT
+    const af = planDose('epinephrine', patient('atrial-fibrillation', 112), 0.1);
+    expect(af.steps.some((s) => s.profile !== undefined)).toBe(false);
+    expect(af.steps[0].hr).toBeGreaterThan(112);
+    expect(planDose('epinephrine', patient('third-degree-avb', 36), 0.1).steps.some((s) => s.profile !== undefined)).toBe(false);
+    expect(planDose('epinephrine', patient('paced', 72), 0.1).steps.some((s) => s.profile !== undefined || s.hr !== undefined)).toBe(false);
+    expect(planDose('epinephrine', patient('atrial-fibrillation', 112), 1).steps.map((s) => s.profile)).toEqual([undefined, 'vt']);
+    expect(planDose('epinephrine', patient('normal-sinus', 72), 0.1).steps.map((s) => s.profile)).toEqual(['sinus-tachycardia', 'pvcs']);
+  });
+
   it('categorises the rhythms the drugs care about', () => {
     expect(category(ECG_PROFILES.avnrt)).toBe('svt');
     expect(category(ECG_PROFILES.vf)).toBe('arrest');
@@ -281,14 +419,22 @@ describe('a medication session on the live clock', () => {
     sim.engine.setRhythm('avnrt', 180, sim.time, null);
   });
 
-  /** run the simulation like SimulationDriver does, 16 ms at a time */
-  function run(ms: number) {
-    for (let t = 0; t < ms; t += 16) {
+  /** run the simulation like SimulationDriver does, 16 ms at a time (coarser steps for long waits) */
+  function run(ms: number, dt = 16) {
+    for (let t = 0; t < ms; t += dt) {
       const ecg = useECGStore.getState();
       sim.engine.setRhythm(ecg.activeProfileId, useTimelineStore.getState().heartRate, sim.time, useMedStore.getState().mods);
-      sim.time += 16;
+      sim.time += dt;
       sim.engine.ensure(sim.time + 4000);
       tickMeds(sim.time);
+    }
+  }
+  const monitor = () => `${useECGStore.getState().activeProfileId}@${useTimelineStore.getState().heartRate}`;
+  /** let every effect still to come happen, one skip at a time */
+  function playOut() {
+    for (let i = 0; i < 40 && useMedStore.getState().next; i++) {
+      useMedStore.getState().skipAhead();
+      run(2_000);
     }
   }
 
@@ -330,11 +476,171 @@ describe('a medication session on the live clock', () => {
     expect(useMedStore.getState().mods).toBeNull();
   });
 
-  it('leaving the Learn view drops the effects still to come', () => {
+  it('the case simulator taking the monitor ends the session: nothing still to come, no dose record, the untreated rhythm back', () => {
+    setRhythm('atrial-fibrillation', 150);
+    useMedStore.getState().give('procainamide', 1000);
+    useMedStore.getState().skipAhead();
+    run(2_000);
+    expect(useMedStore.getState().mods).not.toBeNull();
     useMedStore.getState().give('diltiazem', 20);
+    playOut();
+    expect(useTimelineStore.getState().heartRate).toBeLessThan(150);
     useAppStore.getState().setMode('simulator');
     tickMeds(sim.time + 10 * 60_000);
     expect(useMedStore.getState().next).toBeNull();
     expect(useMedStore.getState().mods).toBeNull();
+    expect(useMedStore.getState().given).toHaveLength(0);
+    expect(useMedStore.getState().log).toHaveLength(0);
+    expect(monitor()).toBe('atrial-fibrillation@150');
+  });
+
+  it('the main menu is not another patient: the effects still to come arrive, and the dose record stays', () => {
+    setRhythm('normal-sinus', 72);
+    useMedStore.getState().give('epinephrine', 0.04);
+    run(40_000);
+    expect(monitor()).toBe('normal-sinus@97');
+    useAppStore.getState().setMode('home');
+    run(1_000);
+    expect(useMedStore.getState().next).not.toBeNull();
+    useAppStore.getState().setMode('learn');
+    run(8 * 60_000, 100);
+    expect(monitor()).toBe('normal-sinus@72');
+    expect(useMedStore.getState().given).toHaveLength(1);
+    expect(useMedStore.getState().log.at(-1)!.text).toMatch(/Wears off/);
+  });
+
+  it('a new rhythm comes at its own rate: procainamide toxicity is torsades at ~230/min, not at the sinus rate', () => {
+    setRhythm('normal-sinus', 72);
+    const plan = useMedStore.getState().give('procainamide', 2000);
+    expect(plan.doseClass).toBe('toxic');
+    playOut();
+    expect(monitor()).toBe(`torsades@${ECG_PROFILES.torsades.defaultHR}`);
+    // from AF as well
+    useMedStore.getState().reset();
+    setRhythm('atrial-fibrillation', 112);
+    useMedStore.getState().give('procainamide', 2000);
+    playOut();
+    expect(monitor()).toBe(`torsades@${ECG_PROFILES.torsades.defaultHR}`);
+  });
+
+  it('a step that only changes the rate keeps the rhythm, and one that names the rhythm on the monitor keeps its rate', () => {
+    setRhythm('atrial-fibrillation', 150);
+    useMedStore.getState().give('diltiazem', 20);
+    playOut();
+    expect(useECGStore.getState().activeProfileId).toBe('atrial-fibrillation');
+    expect(useTimelineStore.getState().heartRate).toBe(102);
+  });
+
+  it('a small dose of atropine wearing off does not undo the full dose given after it', () => {
+    setRhythm('sinus-bradycardia', 46);
+    useMedStore.getState().give('atropine', 0.4);
+    run(20_000);
+    useMedStore.getState().give('atropine', 1);
+    run(200_000, 100);
+    expect(useMedStore.getState().next).toBeNull();
+    expect(monitor()).toBe('normal-sinus@84');
+    // the log does not claim the rhythm went "back to where it was"
+    expect(useMedStore.getState().log.at(-1)!.text).not.toMatch(/Back to where it was/);
+  });
+
+  it('a pressor wearing off does not bring back the SVT that adenosine stopped meanwhile', () => {
+    useMedStore.getState().give('phenylephrine', 100);
+    run(60_000, 50);
+    expect(monitor()).toBe('avnrt@155');
+    useMedStore.getState().give('adenosine', 6);
+    run(120_000, 50);
+    expect(monitor()).toBe('normal-sinus@84');
+    run(12 * 60_000, 200);
+    expect(useMedStore.getState().next).toBeNull();
+    expect(monitor()).toBe('normal-sinus@84');
+  });
+
+  it('a transient effect on its own still wears off to the rhythm it started from', () => {
+    useMedStore.getState().give('phenylephrine', 100);
+    run(60_000, 50);
+    expect(monitor()).toBe('avnrt@155');
+    run(12 * 60_000, 200);
+    expect(monitor()).toBe('avnrt@180');
+    expect(useMedStore.getState().log.at(-1)!.text).toBe('Wears off.');
+  });
+
+  it('two transient doses on top of each other both wear off: the patient ends where they started', () => {
+    setRhythm('sinus-bradycardia', 46);
+    useMedStore.getState().give('epinephrine', 0.02);
+    run(60_000, 50);
+    expect(monitor()).toBe('normal-sinus@74');
+    useMedStore.getState().give('epinephrine', 0.02);
+    run(60_000, 50);
+    expect(useTimelineStore.getState().heartRate).toBeGreaterThan(74);
+    run(10 * 60_000, 200);
+    expect(useMedStore.getState().next).toBeNull();
+    expect(monitor()).toBe('sinus-bradycardia@46');
+  });
+
+  it('a short effect inside a long one: each wears off to what was there before it', () => {
+    setRhythm('normal-sinus', 80);
+    useMedStore.getState().give('phenylephrine', 100);
+    run(60_000, 50);
+    expect(monitor()).toBe('normal-sinus@69');
+    useMedStore.getState().give('adenosine', 6);
+    run(30_000, 50);
+    // adenosine's seconds of AV block are over: back to the rate the pressor holds
+    expect(monitor()).toBe('normal-sinus@69');
+    expect(useMedStore.getState().mods).toBeNull();
+    run(12 * 60_000, 200);
+    expect(monitor()).toBe('normal-sinus@80');
+  });
+
+  it('a step planned for a rhythm that another drug has already ended does not act on the new rhythm', () => {
+    useMedStore.getState().give('diltiazem', 20);
+    run(30_000, 50);
+    useMedStore.getState().give('adenosine', 6);
+    const rates: string[] = [];
+    for (let i = 0; i < 60; i++) {
+      run(5_000, 50);
+      rates.push(monitor());
+    }
+    // adenosine stops the SVT; diltiazem's "the SVT slows slightly" (to 166/min) must not then speed the sinus rhythm up
+    expect(rates.at(-1)).toBe('normal-sinus@84');
+    expect(rates.filter((r) => r.startsWith('normal-sinus')).every((r) => Number(r.split('@')[1]) <= 96)).toBe(true);
+    // diltiazem is still on board: its longer PR shows on the sinus rhythm
+    expect(useMedStore.getState().mods).toMatchObject({ prAdd: 30 });
+    expect(useMedStore.getState().log.filter((l) => /SVT terminated/.test(l.text))).toHaveLength(0);
+    expect(useMedStore.getState().log.filter((l) => /the SVT is terminated/.test(l.text))).toHaveLength(1);
+  });
+
+  it('a second rate-control drug never speeds the heart up to "its" rate', () => {
+    setRhythm('atrial-fibrillation', 150);
+    useMedStore.getState().give('diltiazem', 20);
+    run(60_000, 50);
+    useMedStore.getState().give('metoprolol', 5);
+    let last = 150;
+    for (let i = 0; i < 80; i++) {
+      run(5_000, 50);
+      const hr = useTimelineStore.getState().heartRate;
+      expect(hr).toBeLessThanOrEqual(last);
+      last = hr;
+    }
+    expect(useMedStore.getState().next).toBeNull();
+    expect(last).toBe(102);
+    // …and a drug that speeds the heart up is not undone by one that was already acting: atropine after a pressor
+    useMedStore.getState().reset();
+    setRhythm('lbbb', 40);
+    useMedStore.getState().give('phenylephrine', 100);
+    run(10_000, 50);
+    useMedStore.getState().give('atropine', 1);
+    run(200_000, 100);
+    expect(monitor()).toBe('lbbb@84');
+    run(12 * 60_000, 200);
+    expect(monitor()).toBe('lbbb@84');
+  });
+
+  it('a transient effect does not come back over a rate the learner set by hand', () => {
+    setRhythm('normal-sinus', 80);
+    useMedStore.getState().give('phenylephrine', 100);
+    run(60_000, 50);
+    useTimelineStore.getState().setHeartRate(110);
+    run(12 * 60_000, 200);
+    expect(monitor()).toBe('normal-sinus@110');
   });
 });

@@ -54,7 +54,7 @@ function StreamMesh({ stream }: { stream: Stream }) {
     if (stream.valve === 'av') open = m.mitralOpen;
     else if (stream.valve === 'semilunar') open = m.aorticOpen;
     else open = 0.55 - 0.35 * m.atrialContraction;
-    if (m.phase === 'fibrillation' || m.phase === 'arrest') open = stream.valve === 'venous' ? 0.08 : 0;
+    if (m.phase === 'fibrillation' || m.phase === 'pulseless' || m.phase === 'arrest') open = stream.valve === 'venous' ? 0.08 : 0;
     const dt = Math.max(0, Math.min(100, sim.time - lastT.current));
     lastT.current = sim.time;
     phase.current = (phase.current + dt * stream.speed * open) % 1;

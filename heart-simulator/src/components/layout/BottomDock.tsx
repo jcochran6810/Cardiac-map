@@ -352,7 +352,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         {/* Phase (smaller screens show it on the heart instead) */}
         {!fold && (
         <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-cardiac-dark border border-slate-700" title="Current mechanical phase of the cardiac cycle">
-          <span className={`w-2 h-2 rounded-full ${currentPhase.includes('ejection') || currentPhase.includes('contraction') ? 'bg-red-500' : currentPhase === 'fibrillation' || currentPhase === 'arrest' ? 'bg-red-600 animate-pulse' : 'bg-sky-400'}`} />
+          <span className={`w-2 h-2 rounded-full ${currentPhase.includes('ejection') || currentPhase.includes('contraction') ? 'bg-red-500' : currentPhase === 'fibrillation' || currentPhase === 'pulseless' || currentPhase === 'arrest' ? 'bg-red-600 animate-pulse' : 'bg-sky-400'}`} />
           <span className="text-[11px] text-slate-200 whitespace-nowrap">{PHASE_LABELS[currentPhase]}</span>
         </div>
         )}

@@ -116,7 +116,14 @@ const ACS = new Set(['anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'infer
 const isAcs = (p: ECGProfile) => ACS.has(p.id);
 const DISSECTION = 'aortic-dissection';
 
-export function category(p: ECGProfile): Category {
+/** below this rate the heart is slow, whatever the rhythm is called */
+const SLOW = 60;
+
+/**
+ * What kind of rhythm the drugs see. With the rate on the monitor (`hr`), a sinus rhythm below 60/min is a
+ * bradycardia whatever its page is called: normal sinus rhythm slowed to 35, a bundle branch block at 38.
+ */
+export function category(p: ECGProfile, hr?: number): Category {
   if (p.rhythm === 'torsades') return 'torsades';
   if (p.hemo === 'no-output') return 'arrest';
   if (p.id === 'hyperkalemia') return 'hyperk';
@@ -135,6 +142,7 @@ export function category(p: ECGProfile): Category {
     default:
       if (p.id === 'sinus-bradycardia') return 'brady';
       if (p.id === 'first-degree-avb') return 'avb1';
+      if (hr !== undefined && hr > 0 && hr < SLOW) return 'brady';
       if (COMPENSATORY.has(p.id)) return 'sinus-tach';
       return 'sinus';
   }
@@ -142,6 +150,21 @@ export function category(p: ECGProfile): Category {
 
 const BRADY: Category[] = ['brady', 'junctional', 'avb1', 'wenckebach', 'mobitz2', 'chb'];
 const isBrady = (c: Category) => BRADY.includes(c);
+/** rhythms driven by the sinus node with every beat conducted: the ones that can turn into "sinus rhythm with …" */
+const SINUS: Category[] = ['sinus', 'sinus-tach', 'brady', 'avb1', 'stemi', 'pvcs', 'hyperk'];
+const isSinus = (c: Category) => SINUS.includes(c);
+/**
+ * A slow sinus rate in a rhythm that keeps its own category, because the drugs still need to know what it is:
+ * an infarct at 40/min is still an infarct (fibrinolysis, aspirin), and it is also a bradycardia.
+ */
+const slowSinus = (c: Category, p: Patient) => (c === 'stemi' || c === 'pvcs' || c === 'hyperk') && p.hr > 0 && p.hr < SLOW;
+/** AF or flutter that is not fast: for a rate-control drug there is no rate to control */
+function noRateToControl(c: Category, p: Patient): Verdict | null {
+  if (c !== 'af' && c !== 'flutter') return null;
+  if (p.hr < SLOW) return bad(`The ventricular rate is already slow (${p.hr}/min): more AV-nodal block risks pauses, heart block and hypotension. Look for the cause of the slow rate (AV-nodal drugs, digoxin toxicity, ischaemia, a diseased conduction system).`);
+  if (p.hr < 110) return caution(`The rate is already controlled (${p.hr}/min — the goal is below 110 at rest, below 80 if symptoms persist): more AV-nodal block is not needed and risks bradycardia and hypotension.`);
+  return null;
+}
 /** hypotensive now (SBP < 90) */
 const lowBP = (p: Patient, prof: ECGProfile) => (p.sbp !== undefined ? p.sbp < 90 : prof.hemo === 'shock' || prof.hemo === 'no-output');
 /** heart failure or hypotension: negative inotropes are dangerous */
@@ -163,6 +186,12 @@ const totalOf = (p: Patient, id: MedId) => dosesOf(p, id).reduce((s, g) => s + g
 const uniq = (xs: number[]) => Array.from(new Set(xs.map((x) => Math.round(x * 1000) / 1000))).sort((a, b) => a - b);
 
 const noEcg = (at: number, note: string): EffectStep[] => [{ at, note, tone: 'info' }];
+
+/**
+ * The rhythm to show once a slow sinus rate has come up: the "sinus bradycardia" page becomes normal sinus rhythm;
+ * any other rhythm (an infarct, a bundle branch block) keeps its own QRS and ST segments.
+ */
+const faster = (prof: ECGProfile): string | undefined => (prof.id === 'sinus-bradycardia' ? 'normal-sinus' : undefined);
 
 /** Effect of an AV-nodal blocker on a slow or blocked rhythm (always unwanted) */
 function slowsBrady(p: Patient, prof: ECGProfile, c: Category, at: number, f: number, prAdd: number): EffectStep[] {
@@ -203,7 +232,7 @@ const adenosine: MedDef = {
   step: 1,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const arrive = 12 * S;
     const pause = cls === 'toxic' ? 9 * S : cls === 'high' ? 6 * S : dose >= 12 ? 4 * S : 3 * S;
     const total = totalOf(p, 'adenosine') + dose;
@@ -307,12 +336,13 @@ const diltiazem: MedDef = {
   onset: 'Starts in 2–3 min, full effect in ~5–10 min, lasts 1–3 h',
   guide: '0.25 mg/kg actual body weight (≈15–20 mg) IV over 2 min; if not enough after 15 min, 0.35 mg/kg (≈20–25 mg). Infusion 5–15 mg/h.',
   usual: (p) => (dosesOf(p, 'diltiazem').length ? { low: 0.3 * p.kg, high: 0.4 * p.kg } : { low: 0.2 * p.kg, high: 0.3 * p.kg }),
-  max: (p) => Math.max(35, 0.45 * p.kg),
+  // by weight only: a fixed ceiling would let a light patient have three times the weight-based dose
+  max: (p) => 0.45 * p.kg,
   picks: (p) => uniq([5, round(0.15 * p.kg, 2.5), round(0.25 * p.kg, 2.5), round(0.35 * p.kg, 2.5), round(0.6 * p.kg, 5)]),
   step: 2.5,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const f = { low: 0.92, usual: 0.68, high: 0.55, toxic: 0.42 }[cls];
     const prAdd = { low: 10, usual: 30, high: 50, toxic: 90 }[cls];
     const hypo: EffectStep[] = cls === 'high' || cls === 'toxic'
@@ -326,10 +356,13 @@ const diltiazem: MedDef = {
         return {
           verdict: failing(p, prof)
             ? bad(`Harmful here: IV diltiazem in HFrEF or hypotension can cause collapse (AF guideline 2023: class 3, harm). Use a β-blocker with care, amiodarone or digoxin — or cardiovert if unstable.${failingNote}`)
-            : good(`Rate control for ${c === 'af' ? 'AF' : 'atrial flutter'}: a non-dihydropyridine calcium-channel blocker slows AV-nodal conduction (avoid in HFrEF, hypotension and pre-excitation). Goal: resting rate < 110.`),
+            : noRateToControl(c, p)
+              ?? good(`Rate control for ${c === 'af' ? 'AF' : 'atrial flutter'}: a non-dihydropyridine calcium-channel blocker slows AV-nodal conduction (avoid in HFrEF, hypotension and pre-excitation). Goal: resting rate < 110.`),
           steps: [
             { at: 2 * MIN, hr: rate(p.hr, (1 + f) / 2, 40), note: `The ventricular rate begins to fall${c === 'flutter' ? ' — in flutter it steps down as the conduction ratio changes (2:1 → 3:1 → 4:1)' : ''}.`, tone: 'effect', mark: 'slowing' },
-            { at: 5 * MIN, hr: rate(p.hr, f, 40), note: cls === 'low' ? 'Only a small fall in rate: the dose was below 0.25 mg/kg.' : 'Rate controlled. The atria are still in AF/flutter — rate control does not restore sinus rhythm.', tone: cls === 'low' ? 'warn' : 'good', mark: 'rate ↓' },
+            p.hr < 110
+              ? { at: 5 * MIN, hr: rate(p.hr, f, 40), note: 'The rate was not fast to begin with, and now it is slower still: watch for bradycardia and a falling blood pressure.', tone: 'warn', mark: 'rate ↓' }
+              : { at: 5 * MIN, hr: rate(p.hr, f, 40), note: cls === 'low' ? 'Only a small fall in rate: the dose was below 0.25 mg/kg.' : 'Rate controlled. The atria are still in AF/flutter — rate control does not restore sinus rhythm.', tone: cls === 'low' ? 'warn' : 'good', mark: 'rate ↓' },
             ...hypo,
           ],
         };
@@ -390,13 +423,13 @@ const metoprolol: MedDef = {
   step: 2.5,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const total = totalOf(p, 'metoprolol') + dose;
     const f = Math.min(total / 15, 1.4);
     const over: EffectStep[] = total > 15 ? [{ at: 3 * MIN, note: `${total} mg in total — above the 15 mg maximum: bradycardia, hypotension, heart block.`, tone: 'warn' }] : [];
     const mods: RhythmMods = { prAdd: Math.round(10 * f) };
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not an arrest drug.'), steps: noEcg(2 * MIN, 'No effect on the arrest rhythm.') };
-    if (prof.id === DISSECTION && !lowBP(p, prof)) {
+    if (prof.id === DISSECTION && !lowBP(p, prof) && c !== 'brady') {
       return {
         verdict: good('Acute aortic dissection: IV β-blockade first (target heart rate ≈ 60, systolic BP 100–120) to cut the force of each ejection on the torn wall; add a vasodilator only after the rate is controlled. Then imaging and surgery for type A.'),
         steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.3 * f, 50), mods, note: 'The heart rate falls toward the target of ~60.', tone: 'good', mark: 'rate ↓' }, ...over],
@@ -412,7 +445,7 @@ const metoprolol: MedDef = {
       case 'af':
       case 'flutter':
         return {
-          verdict: good('Rate control: β-blockers slow AV-nodal conduction (avoid in decompensated HF, hypotension, bronchospasm and pre-excitation).'),
+          verdict: noRateToControl(c, p) ?? good('Rate control: β-blockers slow AV-nodal conduction (avoid in decompensated HF, hypotension, bronchospasm and pre-excitation).'),
           steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.3 * f, 45), note: `Ventricular rate slowing (${total} mg given so far; up to 15 mg in 5 mg steps).`, tone: 'effect', mark: 'rate ↓' }, ...over],
         };
       case 'svt':
@@ -424,6 +457,7 @@ const metoprolol: MedDef = {
       case 'sinus-tach':
         return { verdict: bad('Usually wrong: sinus tachycardia is compensating for something (bleeding, sepsis, PE, tamponade, low output) — slowing it can cause collapse. Treat the cause.'), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.25 * f), mods, note: 'The sinus rate falls.', tone: 'effect', mark: 'rate ↓' }, ...over] };
       case 'stemi':
+        if (slowSinus(c, p)) return { verdict: bad(`Harmful here: the heart rate is already ${p.hr}/min. A β-blocker in an infarct with bradycardia (often vagal, or an ischaemic AV node in inferior MI) invites heart block and low output.`), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.18 * f, 25), mods, note: 'The rate falls further — bradycardia gets worse.', tone: 'warn', mark: 'slower' }, ...over] };
         return { verdict: caution('IV β-blocker in acute MI only for hypertension or ongoing ischaemia with tachycardia, and never with signs of heart failure, low output, shock risk or AV block. Oral β-blockade within 24 h is the routine.'), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.18 * f), mods, note: 'The sinus rate falls and the PR lengthens slightly.', tone: 'effect', mark: 'rate ↓' }, ...over] };
       case 'paced':
         return { verdict: bad('No indication.'), steps: noEcg(3 * MIN, 'No change: the pacemaker sets the rate.') };
@@ -449,11 +483,11 @@ const esmolol: MedDef = {
   step: 5,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const f = Math.min(dose / (0.5 * p.kg), 2);
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not an arrest drug.'), steps: noEcg(90 * S, 'No effect on the arrest rhythm.') };
     const warn: EffectStep[] = cls === 'toxic' ? [{ at: 2 * MIN, note: 'Overdose: profound bradycardia and hypotension — stop the infusion (it wears off in minutes).', tone: 'warn' }] : [];
-    if (prof.id === DISSECTION && !lowBP(p, prof)) {
+    if (prof.id === DISSECTION && !lowBP(p, prof) && c !== 'brady') {
       return {
         verdict: good('Acute aortic dissection: IV β-blockade first (target heart rate ≈ 60, systolic BP 100–120) — esmolol is easy to titrate and stop; add a vasodilator only after the rate is controlled.'),
         steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.22 * f, 50), note: 'The heart rate falls toward ~60.', tone: 'good', mark: 'rate ↓' }, ...warn],
@@ -463,7 +497,7 @@ const esmolol: MedDef = {
     switch (c) {
       case 'af':
       case 'flutter':
-        return { verdict: good('Rate control with a short-acting β-blocker — useful when you may need to stop quickly (e.g. after surgery).'), steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.22 * f, 45), note: 'The ventricular rate falls within a couple of minutes.', tone: 'effect', mark: 'rate ↓' }, ...warn] };
+        return { verdict: noRateToControl(c, p) ?? good('Rate control with a short-acting β-blocker — useful when you may need to stop quickly (e.g. after surgery).'), steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.22 * f, 45), note: 'The ventricular rate falls within a couple of minutes.', tone: 'effect', mark: 'rate ↓' }, ...warn] };
       case 'svt':
         return { verdict: caution('Second line for AVNRT; adenosine or a calcium-channel blocker is more reliable.'), steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.1 * f), note: 'The SVT slows but carries on.', tone: 'effect' }, ...warn] };
       case 'vt':
@@ -471,7 +505,9 @@ const esmolol: MedDef = {
       default:
         if (isBrady(c)) return { verdict: bad('Not indicated: worsens bradycardia and AV block.'), steps: slowsBrady(p, prof, c, 90 * S, 0.8, 40) };
         return {
-          verdict: c === 'sinus-tach' ? bad('Usually wrong: sinus tachycardia is compensating for something — treat the cause.') : c === 'stemi' ? caution('Short-acting β-blockade in MI only without heart failure, low output or AV block.') : bad('No indication in this rhythm.'),
+          verdict: c === 'sinus-tach' ? bad('Usually wrong: sinus tachycardia is compensating for something — treat the cause.')
+            : slowSinus(c, p) ? bad(`Harmful here: the heart rate is already ${p.hr}/min — a β-blocker worsens bradycardia and AV block.`)
+              : c === 'stemi' ? caution('Short-acting β-blockade in MI only without heart failure, low output or AV block.') : bad('No indication in this rhythm.'),
           steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.18 * f), mods: { prAdd: Math.round(8 * f) }, note: 'The sinus rate falls.', tone: 'effect', mark: 'rate ↓' }, ...warn],
         };
     }
@@ -493,7 +529,7 @@ const amiodarone: MedDef = {
   step: 50,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const mods: RhythmMods = { qtcAdd: 25, prAdd: 15 };
     const fast: EffectStep[] = cls === 'high' || cls === 'toxic' ? [{ at: 3 * MIN, note: `${dose} mg at once in a patient with a pulse: hypotension and bradycardia — give 150 mg over 10 min.`, tone: 'warn' }] : [];
     switch (c) {
@@ -546,7 +582,7 @@ const procainamide: MedDef = {
   tolerance: 0.02,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const T = Math.max(3 * MIN, (dose / 30) * MIN);
     const perKg = dose / p.kg;
     const m = (frac: number): RhythmMods => ({ qrsWiden: 1 + 0.3 * ((perKg * frac) / 17), qtcAdd: Math.round(60 * ((perKg * frac) / 17)) });
@@ -605,7 +641,7 @@ const lidocaine: MedDef = {
   step: 10,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const total = (totalOf(p, 'lidocaine') + dose) / p.kg;
     const tox: EffectStep[] = cls === 'toxic' || total > 3
       ? [{ at: 2 * MIN, note: `${total.toFixed(1)} mg/kg in total — above 3 mg/kg: lidocaine toxicity (perioral numbness, confusion, seizures, then bradycardia).`, tone: 'warn' },
@@ -651,7 +687,7 @@ const digoxin: MedDef = {
   step: 0.125,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const total = totalOf(p, 'digoxin') + dose;
     const effect: RhythmMods = { scoop: 0.07, tScale: 0.6, qtcAdd: -25, prAdd: 20 };
     const toxic = cls === 'toxic' || total > 1.5;
@@ -661,7 +697,10 @@ const digoxin: MedDef = {
         verdict: bad(`${total} mg is a toxic load: digoxin toxicity causes ectopy, AV block, junctional rhythms and bidirectional VT (with nausea and yellow vision). Antidote: digoxin-specific Fab.`),
         steps: c === 'af' || c === 'flutter'
           ? [{ at: 30 * MIN, profile: 'junctional', hr: 56, mods: effect, note: 'AF with a regular, slow ventricular rhythm: complete AV block with a junctional escape — a classic sign of digoxin toxicity.', tone: 'warn', mark: 'toxicity' }]
-          : [{ at: 30 * MIN, profile: 'pvcs', hr: p.hr, mods: { ...effect, prAdd: 80 }, note: 'Ectopy (PVCs) and a long PR: digoxin toxicity.', tone: 'warn', mark: 'toxicity' }],
+          : isSinus(c)
+            ? [{ at: 30 * MIN, profile: 'pvcs', hr: p.hr, mods: { ...effect, prAdd: 80 }, note: 'Ectopy (PVCs) and a long PR: digoxin toxicity.', tone: 'warn', mark: 'toxicity' }]
+            // a tachycardia, a heart block or a paced rhythm does not turn into sinus rhythm with PVCs: it stays what it is
+            : [{ at: 30 * MIN, mods: effect, note: 'Digoxin toxicity. The rhythm is unchanged for now — watch for new ectopy, a slower rate, more AV block or ventricular tachycardia.', tone: 'warn', mark: 'toxicity' }],
       };
     }
     if (c === 'af' || c === 'flutter') {
@@ -696,36 +735,62 @@ const atropine: MedDef = {
   step: 0.1,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const before = totalOf(p, 'atropine');
     if (before >= 3) return { verdict: bad('3 mg already given — the maximum (full vagal block). More will not help: pace, or start epinephrine or dopamine.'), steps: noEcg(60 * S, 'No further effect.') };
-    if (dose < 0.5 && (c === 'brady' || c === 'junctional' || c === 'avb1' || c === 'wenckebach' || c === 'sinus')) {
+    // The indication is the rate, not the name of the rhythm: a slow sinus node (the bradycardia page, or any
+    // sinus rhythm below 60 — an inferior MI at 40, a bundle branch block at 38) or a slow AV node
+    const sinusBrady = c === 'brady' || slowSinus(c, p);
+    const slow = p.hr > 0 && p.hr < SLOW;
+    const nodal = (c === 'junctional' && slow) || (c === 'avb1' && slow) || c === 'wenckebach';
+    const sinusNode = sinusBrady || c === 'sinus' || c === 'sinus-tach' || c === 'stemi' || c === 'pvcs' || c === 'hyperk' || c === 'junctional' || c === 'avb1' || c === 'wenckebach';
+    if (c === 'hyperk' && sinusBrady) {
       return {
-        verdict: caution('The right drug for a symptomatic sinus or AV-nodal bradycardia — but below 0.5 mg it can paradoxically slow the heart. Give 1 mg.'),
+        verdict: caution('The bradycardia of hyperkalaemia often does not respond to atropine: treat the potassium — calcium first, then insulin + dextrose and a β-agonist — and be ready to pace.'),
+        steps: [{ at: 60 * S, hr: rate(p.hr, 1.1), note: 'Little change in the rate: the potassium, not vagal tone, is slowing this heart.', tone: 'warn' }],
+      };
+    }
+    if (dose < 0.5 && sinusNode) {
+      return {
+        verdict: sinusBrady || nodal
+          ? caution('The right drug for a symptomatic sinus or AV-nodal bradycardia — but below 0.5 mg it can paradoxically slow the heart. Give 1 mg.')
+          : bad('No bradycardia to treat — and a dose below 0.5 mg can paradoxically slow the heart.'),
         steps: [{ at: 45 * S, hr: rate(p.hr, 0.85, 25), note: 'Paradoxical slowing (a central vagal effect of a small dose).', tone: 'warn', mark: 'slower' }, { at: 3 * MIN, restore: true, note: 'Back to where it was.', tone: 'info' }],
       };
     }
     const tachy: EffectStep[] = cls === 'high' || cls === 'toxic' ? [{ at: 2 * MIN, note: 'More than 1 mg at once: tachycardia, confusion, urinary retention, hot dry skin.', tone: 'warn' }] : [];
-    switch (c) {
-      case 'brady':
-        if (cls === 'low') {
-          return {
-            verdict: good('Symptomatic sinus bradycardia: atropine — the current dose is 1 mg (0.5 mg was the pre-2020 dose).'),
-            steps: [{ at: 60 * S, profile: 'normal-sinus', hr: 62, note: 'The sinus rate rises a little — 1 mg gives a fuller response.', tone: 'effect', mark: 'rate ↑' }],
-          };
-        }
+    if (sinusBrady) {
+      const why = c !== 'stemi' ? 'Symptomatic sinus bradycardia'
+        : prof.id.startsWith('inferior') ? 'Bradycardia in inferior MI is usually vagal (the Bezold–Jarisch reflex) or an ischaemic AV node. If it is symptomatic (hypotension, poor perfusion)'
+          : 'Symptomatic bradycardia in acute MI (give no more than is needed: a fast rate raises the oxygen demand of the infarct)';
+      if (cls === 'low') {
         return {
-          verdict: good('Symptomatic sinus bradycardia: atropine 1 mg blocks vagal tone at the sinus node (every 3–5 min, max 3 mg).'),
-          steps: [
-            { at: 60 * S, profile: 'normal-sinus', hr: 66, note: 'The sinus rate rises.', tone: 'effect', mark: 'rate ↑' },
-            { at: 150 * S, profile: cls === 'high' || cls === 'toxic' ? 'sinus-tachycardia' : 'normal-sinus', hr: cls === 'high' || cls === 'toxic' ? 118 : 84, note: cls === 'high' || cls === 'toxic' ? 'Overshoot into sinus tachycardia.' : 'Sinus rhythm at a normal rate.', tone: cls === 'high' || cls === 'toxic' ? 'warn' : 'good' },
-            ...tachy,
-          ],
+          verdict: good(`${why}: atropine — the current dose is 1 mg (0.5 mg was the pre-2020 dose).`),
+          steps: [{ at: 60 * S, profile: faster(prof), hr: 62, note: 'The sinus rate rises a little — 1 mg gives a fuller response.', tone: 'effect', mark: 'rate ↑' }],
         };
+      }
+      const over = cls === 'high' || cls === 'toxic';
+      return {
+        verdict: good(`${why}: atropine 1 mg blocks vagal tone at the sinus node (every 3–5 min, max 3 mg).`),
+        steps: [
+          { at: 60 * S, profile: faster(prof), hr: 66, note: 'The sinus rate rises.', tone: 'effect', mark: 'rate ↑' },
+          { at: 150 * S, profile: over && faster(prof) ? 'sinus-tachycardia' : faster(prof), hr: over ? 118 : 84, note: over ? 'Overshoot into sinus tachycardia.' : 'Sinus rhythm at a normal rate.', tone: over ? 'warn' : 'good' },
+          ...tachy,
+        ],
+      };
+    }
+    if ((c === 'af' || c === 'flutter') && slow) {
+      return {
+        verdict: caution(`A slow ventricular rate in ${c === 'af' ? 'AF' : 'flutter'} means the AV node is letting too few impulses through. If the patient is symptomatic, atropine speeds AV-nodal conduction — look for the cause (AV-nodal drugs, digoxin toxicity, ischaemia, a diseased conduction system) and be ready to pace.`),
+        steps: [{ at: 60 * S, hr: rate(p.hr, 1.3, 30, 90), note: 'The ventricular rate rises as more impulses cross the AV node.', tone: 'effect', mark: 'rate ↑' }, ...tachy],
+      };
+    }
+    switch (c) {
       case 'junctional':
+        if (!slow) return { verdict: bad('No bradycardia to treat: a junctional rhythm at this rate is accelerated, not slow — look for the cause (digoxin toxicity, ischaemia, recent heart surgery).'), steps: noEcg(60 * S, 'No useful change.') };
         return { verdict: good('A slow junctional rhythm from vagal tone or a sick sinus node often responds: atropine speeds the sinus node so it takes over again.'), steps: [{ at: 75 * S, profile: 'normal-sinus', hr: 78, note: 'The sinus node takes over again: P waves before every QRS.', tone: 'good', mark: 'sinus' }, ...tachy] };
       case 'avb1':
-        return { verdict: caution('First-degree AV block alone needs no treatment — but atropine does shorten AV-nodal delay.'), steps: [{ at: 60 * S, hr: rate(p.hr, 1.25), mods: { prAdd: -80 }, note: 'The PR shortens and the rate rises (vagal block at the AV node).', tone: 'effect', mark: 'PR ↓' }, ...tachy] };
+        return { verdict: slow ? good('Symptomatic bradycardia with a long PR interval: atropine speeds the sinus node and shortens the AV-nodal delay (1 mg every 3–5 min, max 3 mg).') : caution('First-degree AV block alone needs no treatment — but atropine does shorten AV-nodal delay.'), steps: [{ at: 60 * S, hr: rate(p.hr, 1.25), mods: { prAdd: -80 }, note: 'The PR shortens and the rate rises (vagal block at the AV node).', tone: 'effect', mark: 'PR ↓' }, ...tachy] };
       case 'wenckebach':
         return { verdict: good('Mobitz I (Wenckebach) is AV-nodal — if symptomatic it usually responds to atropine.'), steps: [{ at: 75 * S, profile: 'first-degree-avb', hr: 92, mods: { prAdd: -40 }, note: 'Every P now conducts (1:1), with a still-long PR: the Wenckebach pattern has gone.', tone: 'good', mark: '1:1' }, ...tachy] };
       case 'mobitz2':
@@ -767,7 +832,7 @@ const epinephrine: MedDef = {
   step: 0.01,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     if (c === 'arrest') {
       return prof.rhythm === 'vf' || prof.rhythm === 'vt'
         ? { verdict: good('Shockable arrest: epinephrine 1 mg after the second shock, then every 3–5 min.'), steps: noEcg(30 * S, 'No change on the monitor: epinephrine raises coronary perfusion pressure during CPR but does not convert VF. Shock it.') }
@@ -792,16 +857,21 @@ const epinephrine: MedDef = {
       return {
         verdict: bad(`${dose} mg IV to a patient with a pulse is a massive overdose: severe hypertension, ischaemia and ventricular arrhythmias. With a pulse use an infusion or push-dose 10–20 mcg.`),
         steps: [
-          { at: 15 * S, profile: 'sinus-tachycardia', hr: 165, note: 'Extreme sinus tachycardia and hypertension.', tone: 'warn', mark: 'tachy' },
+          // only a sinus rhythm becomes a sinus tachycardia: AF stays AF and a heart block stays blocked, just faster
+          isSinus(c)
+            ? { at: 15 * S, profile: 'sinus-tachycardia', hr: 165, note: 'Extreme sinus tachycardia and hypertension.', tone: 'warn', mark: 'tachy' }
+            : { at: 15 * S, hr: c === 'paced' ? undefined : rate(p.hr, 1.4, 40, 220), note: c === 'paced' ? 'Severe hypertension (the pacemaker still sets the rate).' : 'The rate jumps and the blood pressure surges.', tone: 'warn', mark: 'surge' },
           ...(dose >= 0.5
             ? [{ at: 45 * S, profile: 'vt', hr: 190, note: 'Ventricular tachycardia — epinephrine overdose.', tone: 'warn' as const, mark: 'VT' }]
-            : [{ at: 45 * S, profile: 'pvcs', hr: 130, note: 'Frequent PVCs.', tone: 'warn' as const, mark: 'PVCs' }]),
+            : isSinus(c)
+              ? [{ at: 45 * S, profile: 'pvcs', hr: 130, note: 'Frequent PVCs.', tone: 'warn' as const, mark: 'PVCs' }]
+              : [{ at: 45 * S, note: 'Ventricular ectopy and chest pain: the heart is being driven too hard.', tone: 'warn' as const }]),
         ],
       };
     }
-    if (isBrady(c)) {
-      const up: EffectStep = c === 'brady'
-        ? { at: 30 * S, profile: 'normal-sinus', hr: 74, note: 'The sinus rate rises.', tone: 'effect', mark: 'rate ↑' }
+    if (isBrady(c) || slowSinus(c, p)) {
+      const up: EffectStep = c === 'brady' || slowSinus(c, p)
+        ? { at: 30 * S, profile: faster(prof), hr: 74, note: 'The sinus rate rises.', tone: 'effect', mark: 'rate ↑' }
         : c === 'chb' ? { at: 30 * S, hr: Math.min(60, p.hr + 10), note: 'The escape rhythm speeds up a little.', tone: 'effect', mark: 'rate ↑' }
           : { at: 30 * S, hr: rate(p.hr, 1.3, 30, 140), note: 'The rate rises.', tone: 'effect', mark: 'rate ↑' };
       return {
@@ -831,7 +901,7 @@ const magnesium: MedDef = {
   step: 0.5,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const toxic: EffectStep[] = cls === 'toxic' ? [{ at: 2 * MIN, hr: rate(p.hr, 0.85, 30), mods: { prAdd: 40 }, note: 'Hypermagnesaemia: bradycardia, AV block, lost reflexes, respiratory depression. Antidote: calcium.', tone: 'warn' }] : [];
     if (c === 'torsades') {
       if (cls === 'low') return { verdict: good('Magnesium is the drug for torsades — but give 1–2 g.'), steps: noEcg(2 * MIN, 'Torsades carries on.') };
@@ -864,7 +934,7 @@ const calcium: MedDef = {
   step: 0.5,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const toxic: EffectStep[] = cls === 'toxic' ? [{ at: 2 * MIN, hr: rate(p.hr, 0.85, 30), note: 'Too much, too fast: bradycardia (dangerous with digoxin). Tissue necrosis if it leaks.', tone: 'warn' }] : [];
     if (c === 'hyperk') {
       return {
@@ -889,13 +959,14 @@ const bicarbonate: MedDef = {
   verb: 'Push',
   onset: 'Minutes',
   guide: '50 mEq IV over 5 min for hyperkalaemia (up to 1 mEq/kg, typically 50–100 mEq). For hyperkalaemia with acidosis and for sodium-channel-blocker (TCA) overdose; not routine in arrest.',
-  usual: (p) => ({ low: 50, high: Math.max(100, p.kg) }),
+  // (in a light patient the usual range stops at the overdose line, 2 mEq/kg)
+  usual: (p) => ({ low: 50, high: Math.min(Math.max(100, p.kg), 2 * p.kg) }),
   max: (p) => 2 * p.kg,
   picks: (p) => uniq([50, round(p.kg, 10), 100, round(2.5 * p.kg, 50)]),
   step: 10,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const alk: EffectStep[] = cls === 'toxic' ? [{ at: 5 * MIN, note: 'Alkalosis and sodium overload: hypokalaemia, hypocalcaemia, fluid overload.', tone: 'warn' }] : [];
     if (c === 'hyperk') return { verdict: caution('Shifts K⁺ into cells modestly — most useful when the patient is acidotic. Calcium comes first, then insulin + dextrose.'), steps: [{ at: 5 * MIN, mods: { qrsWiden: 0.92 }, note: 'The QRS narrows slightly.', tone: 'effect', mark: 'QRS ↓' }, ...alk] };
     if (c === 'arrest') return { verdict: caution('Not routine in arrest: only for hyperkalaemia, TCA overdose or pre-existing metabolic acidosis.'), steps: [...noEcg(60 * S, 'No change.'), ...alk] };
@@ -918,7 +989,7 @@ const aspirin: MedDef = {
   step: 81,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const none = 'No direct ECG change: aspirin stops platelets building the clot — it does not reopen the artery, so the ST segments stay as they are.';
     const big: EffectStep[] = cls === 'toxic' ? [{ at: 30 * MIN, note: 'High doses add bleeding and stomach injury with no extra benefit.', tone: 'warn' }] : [];
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest — nothing by mouth.'), steps: noEcg(60 * S, 'No change.') };
@@ -954,7 +1025,7 @@ const tenecteplase: MedDef = {
   tolerance: 0.02,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const bleed: EffectStep[] = cls === 'high' || cls === 'toxic' ? [{ at: 10 * MIN, note: 'Above the weight band: more bleeding (intracranial haemorrhage ~1%) with no extra benefit.', tone: 'warn' }] : [];
     if (prof.id === DISSECTION) {
       return { verdict: bad('Absolutely contraindicated: aortic dissection — fibrinolysis can cause fatal bleeding into the dissection (it can mimic an MI: check before lysis).'), steps: [...noEcg(10 * MIN, 'No benefit — and catastrophic bleeding risk.'), ...bleed] };
@@ -1005,12 +1076,13 @@ const heparin: MedDef = {
   guide: 'ACS: 60 units/kg IV bolus (max 4000 units), then 12 units/kg/h (max 1000 units/h). PE: 80 units/kg, then 18 units/kg/h. Primary PCI: 70–100 units/kg to a target ACT.',
   // ACS / AF: 60 units/kg (max 4000); PE: 80 units/kg, no cap
   usual: (p) => (p.profileId === 'pulmonary-embolism' ? { low: 75 * p.kg, high: 85 * p.kg } : { low: Math.min(4000, 50 * p.kg), high: Math.min(4000, 60 * p.kg) }),
-  max: (p) => (p.profileId === 'pulmonary-embolism' ? 100 * p.kg : Math.max(5000, 100 * p.kg)),
+  // 100 units/kg is the top of any bolus (PCI); the old habit of a flat 5000 units is 125 units/kg in a 40 kg patient
+  max: (p) => 100 * p.kg,
   picks: (p) => uniq([2000, Math.min(4000, round(60 * p.kg, 500)), 5000, 10000]),
   step: 500,
   plan(p) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     if (prof.id === DISSECTION) return { verdict: bad('Contraindicated: aortic dissection — anticoagulation feeds the bleeding into the wall.'), steps: noEcg(60 * S, 'No ECG change.') };
     const useful = isAcs(prof) || prof.id === 'pulmonary-embolism' || c === 'af' || c === 'flutter';
     return {
@@ -1035,12 +1107,13 @@ const nitroglycerin: MedDef = {
   step: 0.1,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const reflex: EffectStep = { at: 2 * MIN, hr: rate(p.hr, 1.08, 30, 180), note: 'Reflex tachycardia as the blood pressure falls a little.', tone: 'effect' };
     const drop: EffectStep[] = cls === 'high' || cls === 'toxic' ? [{ at: 3 * MIN, note: 'A large dose: headache and hypotension.', tone: 'warn' }] : [];
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in arrest.'), steps: noEcg(2 * MIN, 'No change.') };
     if (['aortic-stenosis', 'hcm'].includes(prof.id)) return { verdict: bad('Dangerous: a preload-dependent heart (aortic stenosis, obstructive HCM) — nitrates can cause collapse.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
     if (lowBP(p, prof)) return { verdict: bad('Contraindicated: the patient is hypotensive (SBP < 90) — nitrates drop the pressure further.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling further.', tone: 'warn' }] };
+    if (p.hr > 0 && p.hr < 50) return { verdict: bad(`Avoid: the heart rate is ${p.hr}/min. Below 50 the heart cannot make up for the fall in preload with a faster rate, so nitrates can drop the blood pressure sharply (in inferior MI, think of RV infarction too).`), steps: [{ at: 3 * MIN, note: 'Blood pressure falling — the slow heart cannot compensate.', tone: 'warn' }] };
     if (prof.id === DISSECTION) return { verdict: caution('Aortic dissection: vasodilators lower the BP only after β-blockade — alone they cause a reflex tachycardia that increases the shear on the aortic wall.'), steps: [reflex, ...drop] };
     if (c === 'stemi') {
       return {
@@ -1070,7 +1143,7 @@ const fentanyl: MedDef = {
   step: 25,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     const resp: EffectStep[] = cls === 'toxic' ? [{ at: 3 * MIN, note: 'Respiratory depression (and chest-wall rigidity with large fast doses): support the airway; naloxone.', tone: 'warn' }] : [];
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in arrest.'), steps: noEcg(2 * MIN, 'No change.') };
     return {
@@ -1095,11 +1168,11 @@ const phenylephrine: MedDef = {
   step: 10,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
-    const c = category(prof);
+    const c = category(prof, p.hr);
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not an arrest drug.'), steps: noEcg(60 * S, 'No change.') };
     const fall = cls === 'toxic' ? 0.7 : cls === 'high' ? 0.78 : 0.86;
     return {
-      verdict: isBrady(c) ? bad('Avoid in bradycardia: the reflex slowing makes it worse.') : caution('A vasopressor for hypotension from vasodilation (e.g. anaesthesia) — not for a rhythm problem. Note the reflex slowing.'),
+      verdict: isBrady(c) || slowSinus(c, p) ? bad('Avoid in bradycardia: the reflex slowing makes it worse.') : caution('A vasopressor for hypotension from vasodilation (e.g. anaesthesia) — not for a rhythm problem. Note the reflex slowing.'),
       steps: [{ at: 40 * S, hr: rate(p.hr, fall, 25), note: 'The blood pressure rises and the heart rate falls (baroreceptor reflex).', tone: 'effect', mark: 'reflex ↓' }, { at: 12 * MIN, restore: true, note: 'Wears off.', tone: 'info' }],
     };
   },

@@ -14,10 +14,11 @@
  */
 import { create } from 'zustand';
 import { sim } from '@/lib/sim/simulation';
-import { setRhythm, showRhythm } from '@/lib/rhythm';
+import { onNewPatient, setRhythm, showRhythm } from '@/lib/rhythm';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
+import { QRS_TEMPLATES, resolveProfile, type ECGProfile, type HemoProfile } from '@/lib/ecg/profiles';
+import type { HemoSummary } from '@/lib/physiology/hemodynamics';
 import type { AnyLead } from '@/lib/ecg/vector';
 
 export type DefibMode = 'monitor' | 'aed' | 'manual' | 'pacer';
@@ -104,6 +105,8 @@ export interface DefibState {
   lastShock: number;
   message: string | null;
   scenario: Scenario | null;
+  /** this window only shows another window's device (the projector): it runs no device logic of its own */
+  mirror: boolean;
 }
 
 const initial = (): DefibState => ({
@@ -138,6 +141,7 @@ const initial = (): DefibState => ({
   lastShock: -1e9,
   message: null,
   scenario: null,
+  mirror: false,
 });
 
 export const useDefibStore = create<DefibState>(() => initial());
@@ -205,18 +209,71 @@ function currentProfile() {
   return resolveProfile(useECGStore.getState().activeProfileId);
 }
 
-export function pulseNow(): boolean {
-  const s = sim.hemo.summary(sim.time);
-  return !s.noOutput && s.sbp >= 50;
+/**
+ * Is there a pulse to feel? A pressure reading alone does not make one. At extreme rates the ventricle hardly
+ * fills: 66/62 mmHg with 5 mL behind each beat is a pressure, not a pulse. Feeling one takes a beat-to-beat swing
+ * (a pulse pressure of about 10 mmHg or more) and something to cause it (a stroke volume of about 15 mL or more).
+ */
+function palpable(s: HemoSummary): boolean {
+  return !s.noOutput && s.sbp >= 50 && s.sbp - s.dbp >= 10 && s.sv >= 15;
 }
 
-function changeRhythm(profileId: string, hr?: number, note?: string) {
+export function pulseNow(): boolean {
+  return palpable(sim.hemo.summary(sim.time));
+}
+
+function changeRhythm(profileId: string, hr?: number, note?: string, kind: LogKind = 'rhythm') {
   setRhythm(profileId, hr);
-  if (note) log(note, 'rhythm');
+  if (note) log(note, kind);
 }
 
 const scheduled: { at: number; fn: () => void }[] = [];
-function after(ms: number, fn: () => void) { scheduled.push({ at: now() + ms, fn }); }
+/** while a scheduled response runs: the moment it was due (the clock may have jumped past it) */
+let due: number | null = null;
+function after(ms: number, fn: () => void) { scheduled.push({ at: (due ?? now()) + ms, fn }); }
+
+/**
+ * The patient's delayed response to a drug or a shock. It belongs to the rhythm it was aimed at: if that rhythm is
+ * no longer on the monitor when the time comes (a shock converted it, another drug acted first, the instructor
+ * changed it, the pacer captured), nothing happens. A response may schedule the next one, which then belongs to the
+ * rhythm the first one left.
+ */
+function respond(ms: number, fn: () => void) {
+  const aimedAt = currentProfile().id;
+  after(ms, () => { if (currentProfile().id === aimedAt) fn(); });
+}
+
+/**
+ * A rate-control drug taking effect in AF or flutter. It can only slow the ventricles: a rate already at or below
+ * the usual result falls a little further instead of jumping up to it.
+ */
+function slowVentricles(target: number, drug: string) {
+  const pid = currentProfile().id;
+  const hr = useTimelineStore.getState().heartRate;
+  if (hr > target) changeRhythm(pid, target, `Ventricular rate slowing after ${drug}`);
+  else changeRhythm(pid, Math.max(40, Math.round(hr * 0.85)), `The rate was already controlled — ${drug} slows it further: watch for bradycardia and hypotension`, 'warn');
+}
+
+/**
+ * Adenosine's few seconds of slowing in a rhythm it does not convert. `slower` gives the rate during them (never
+ * above the rate before); afterwards that rate comes back — unless something else has changed it meanwhile.
+ */
+function transientSlowing(slower: (hr: number) => number, lasts: number, note: string) {
+  respond(4000, () => {
+    const pid = currentProfile().id;
+    const hr = useTimelineStore.getState().heartRate;
+    const slow = Math.min(hr, slower(hr));
+    changeRhythm(pid, slow, note);
+    respond(lasts, () => { if (useTimelineStore.getState().heartRate === slow) changeRhythm(pid, hr); });
+  });
+}
+
+/** A complete heart block with a narrow escape rhythm: the block is in the AV node itself (inferior MI, vagal tone) */
+function nodalBlock(p: ECGProfile): boolean {
+  return p.rhythm === 'chb' && (QRS_TEMPLATES[p.qrs]?.duration ?? 0) < 120;
+}
+/** the same patient once the AV node conducts again */
+const CONDUCTING: Record<string, string> = { 'inferior-stemi-chb': 'inferior-stemi' };
 
 function isArrestRhythm(id: string) {
   const p = resolveProfile(id);
@@ -255,8 +312,11 @@ export function toggleSync() {
 
 export function charge() {
   install();
+  // Charging belongs to the defibrillator: from the monitor or the pacer screen the device goes to manual
+  // defibrillation — which stops the pacer, as changing mode always does (it cannot pace and charge at once)
+  const mode = get().mode;
+  if (mode === 'monitor' || mode === 'pacer') setMode('manual');
   const s = get();
-  if (s.mode === 'monitor' || s.mode === 'pacer') set({ mode: 'manual' });
   if (s.charge === 'charging') return;
   const ms = 2500 + (s.energy / 200) * 3500;
   set({ charge: 'charging', chargeDone: now() + ms });
@@ -318,11 +378,11 @@ function deliver(t: number, synced: boolean) {
   if (r === 'vf' || r === 'torsades' || (r === 'vt' && !pulse)) {
     const p = Math.min(0.95, energySuccess('vf', s.energy) + s.antiarrhythmicBonus + (s.lastEpi !== null ? 0.03 : 0));
     if (rand < p) {
-      after(2200, () => {
+      respond(2200, () => {
         const o = Math.random();
         if (o < 0.55) {
           roscNow('Shock terminated VF/VT — organised rhythm WITH a pulse (ROSC)');
-          if (r === 'torsades' && !get().magnesiumGiven) after(25000, () => {
+          if (r === 'torsades' && !get().magnesiumGiven) respond(25000, () => {
             if (!get().magnesiumGiven && Math.random() < 0.5) changeRhythm('torsades', undefined, 'Torsades recurred — give magnesium, stop QT-prolonging drugs, correct K⁺; consider overdrive pacing');
           });
         } else if (o < 0.8) changeRhythm('pea', 50, 'Shock terminated VF/VT — organised rhythm but NO pulse (PEA)');
@@ -341,7 +401,7 @@ function deliver(t: number, synced: boolean) {
   if (!synced) {
     log('Unsynchronised shock on an organised rhythm with a pulse — use SYNC for cardioversion', 'warn');
     if (vulnerable(t) && Math.random() < 0.6) {
-      after(300, () => changeRhythm('vf', undefined, 'R-on-T: shock landed on the T wave and induced VF'));
+      respond(300, () => changeRhythm('vf', undefined, 'R-on-T: shock landed on the T wave and induced VF'));
       return;
     }
   }
@@ -350,7 +410,7 @@ function deliver(t: number, synced: boolean) {
     log('No shockable or cardiovertible rhythm — the shock was not indicated', 'warn');
     return;
   }
-  if (rand < energySuccess(kind, s.energy)) after(1500, () => changeRhythm('normal-sinus', 88, 'Cardioversion successful — sinus rhythm'));
+  if (rand < energySuccess(kind, s.energy)) respond(1500, () => changeRhythm('normal-sinus', 88, 'Cardioversion successful — sinus rhythm'));
   else log('Cardioversion unsuccessful — consider escalating energy', 'rhythm');
 }
 
@@ -496,10 +556,10 @@ export function giveDrug(id: string, authority?: string) {
         set({ antiarrhythmicBonus: Math.min(0.15, s.antiarrhythmicBonus + 0.1) });
       } else if (pulse && prof.rhythm === 'vt') {
         if (sim.hemo.summary(sim.time).sbp < 90) log('Hypotension = unstable VT: synchronised cardioversion is indicated; drugs are for stable VT', 'warn');
-        after(60000, () => { if (currentProfile().rhythm === 'vt' && Math.random() < 0.35) changeRhythm('normal-sinus', 84, 'VT terminated after amiodarone'); else log('VT persists after amiodarone — consider synchronised cardioversion / expert consultation', 'rhythm'); });
+        respond(60000, () => { if (Math.random() < 0.35) changeRhythm('normal-sinus', 84, 'VT terminated after amiodarone'); else log('VT persists after amiodarone — consider synchronised cardioversion / expert consultation', 'rhythm'); });
       } else if (pulse && (prof.rhythm === 'af' || prof.rhythm === 'flutter')) {
         log('IV amiodarone can slow the rate in critically ill or HFrEF patients (it may also cardiovert — consider anticoagulation status)', 'info');
-        after(90000, () => { if (currentProfile().id === pid) changeRhythm(pid, prof.rhythm === 'flutter' ? 100 : 98, 'Ventricular rate slowing after amiodarone'); });
+        respond(90000, () => slowVentricles(prof.rhythm === 'flutter' ? 100 : 98, 'amiodarone'));
       } else {
         log('No clear indication for amiodarone in this rhythm', 'warn');
       }
@@ -516,23 +576,22 @@ export function giveDrug(id: string, authority?: string) {
       const dose12 = s.adenosineDoses === 1;
       set({ adenosineDoses: s.adenosineDoses + 1 });
       if (!pulse) { log('Adenosine has no role in cardiac arrest', 'warn'); break; }
-      const hr = useTimelineStore.getState().heartRate;
       if (prof.rhythm === 'svt') {
         if (Math.random() < (dose12 ? 0.85 : 0.6)) {
-          after(4000, () => changeRhythm('asystole', undefined, 'Adenosine: transient AV block — brief pause'));
-          after(8500, () => changeRhythm('normal-sinus', 82, 'SVT terminated — sinus rhythm'));
-        } else after(5000, () => log('No conversion — SVT persists', 'rhythm'));
+          respond(4000, () => {
+            changeRhythm('asystole', undefined, 'Adenosine: transient AV block — brief pause');
+            respond(4500, () => changeRhythm('normal-sinus', 82, 'SVT terminated — sinus rhythm'));
+          });
+        } else respond(5000, () => log('No conversion — SVT persists', 'rhythm'));
       } else if (prof.rhythm === 'flutter') {
-        after(4000, () => changeRhythm(pid, 75, 'Adenosine: transient high-grade AV block reveals flutter waves (does not convert flutter)'));
-        after(12000, () => changeRhythm(pid, hr));
+        // 2:1 conduction becomes 4:1; flutter that is already slow doubles its block again
+        transientSlowing((hr) => (hr > 100 ? 75 : Math.max(30, Math.round(hr / 2))), 8000, 'Adenosine: transient high-grade AV block reveals flutter waves (does not convert flutter)');
       } else if (prof.rhythm === 'af') {
-        after(4000, () => changeRhythm(pid, 60, 'Adenosine: transient slowing — irregular baseline confirms AF (does not convert AF)'));
-        after(12000, () => changeRhythm(pid, hr));
+        transientSlowing((hr) => (hr > 80 ? 60 : Math.max(30, Math.round(hr * 0.7))), 8000, 'Adenosine: transient slowing — irregular baseline confirms AF (does not convert AF)');
       } else if (prof.rhythm === 'vt') {
         log('Adenosine does not terminate (most) VT — treat as VT', 'warn');
       } else if (prof.rhythm === 'sinus') {
-        after(4000, () => changeRhythm(pid, Math.max(40, Math.round(hr * 0.6)), 'Adenosine: transient sinus slowing / AV block'));
-        after(11000, () => changeRhythm(pid, hr));
+        transientSlowing((hr) => Math.max(25, Math.round(hr * 0.6)), 7000, 'Adenosine: transient sinus slowing / AV block');
       }
       break;
     }
@@ -540,10 +599,27 @@ export function giveDrug(id: string, authority?: string) {
       if (s.atropineMg >= 3) { log('Atropine: 3 mg maximum reached', 'warn'); break; }
       set({ atropineMg: s.atropineMg + 1 });
       if (!pulse) { log('Atropine is no longer recommended in cardiac arrest', 'warn'); break; }
-      if (pid === 'sinus-bradycardia') after(20000, () => changeRhythm('normal-sinus', 76, 'Heart rate rising after atropine'));
-      else if (pid === 'junctional' || pid === 'mobitz-i' || pid === 'first-degree-avb') after(20000, () => { if (Math.random() < 0.7) changeRhythm('normal-sinus', 78, 'Improved AV-nodal conduction after atropine'); else log('Little response to atropine', 'rhythm'); });
-      else if (pid === 'mobitz-ii' || pid === 'third-degree-avb') after(15000, () => log('No response: block below the AV node with a wide escape rarely responds to atropine (a narrow junctional escape sometimes does) — pace or start a chronotropic infusion', 'rhythm'));
-      else log('No bradycardia to treat', 'warn');
+      // The indication is the heart rate and where the slowing comes from — not the name of the rhythm:
+      // sinus rhythm at 35/min, an inferior MI at 40/min and slow AF are bradycardias too
+      const hr = useTimelineStore.getState().heartRate;
+      const slow = hr < 60;
+      const kind = prof.rhythm;
+      if (kind === 'mobitz2' || (kind === 'chb' && !nodalBlock(prof))) {
+        respond(15000, () => log('No response: block below the AV node with a wide escape rarely responds to atropine (a narrow junctional escape sometimes does) — pace or start a chronotropic infusion', 'rhythm'));
+      } else if (kind === 'chb') {
+        respond(20000, () => {
+          if (Math.random() < 0.5) changeRhythm(CONDUCTING[pid] ?? 'normal-sinus', 70, 'AV conduction returns after atropine — the block was in the AV node');
+          else log('Little response to atropine — pace, and do not delay reperfusion in an inferior MI', 'rhythm');
+        });
+      } else if (kind === 'wenckebach' || pid === 'first-degree-avb' || (kind === 'junctional' && slow)) {
+        respond(20000, () => { if (Math.random() < 0.7) changeRhythm('normal-sinus', 78, 'Improved AV-nodal conduction after atropine'); else log('Little response to atropine', 'rhythm'); });
+      } else if ((kind === 'sinus' || kind === 'pvc') && slow) {
+        // the "sinus bradycardia" rhythm becomes normal sinus rhythm; any other keeps its own QRS and ST segments
+        if (pid === 'sinus-bradycardia') respond(20000, () => changeRhythm('normal-sinus', 76, 'Heart rate rising after atropine'));
+        else respond(20000, () => changeRhythm(pid, Math.max(70, Math.min(90, hr + 30)), 'Heart rate rising after atropine'));
+      } else if ((kind === 'af' || kind === 'flutter') && slow) {
+        respond(20000, () => { if (Math.random() < 0.7) changeRhythm(pid, Math.min(90, Math.round(hr * 1.3)), 'Ventricular rate rising after atropine (faster AV-nodal conduction)'); else log('Little response to atropine', 'rhythm'); });
+      } else log('No bradycardia to treat', 'warn');
       break;
     }
     case 'magnesium': {
@@ -553,8 +629,8 @@ export function giveDrug(id: string, authority?: string) {
     }
     case 'diltiazem': {
       if (s.baseline === 'hfref' || s.baseline === 'shock' || !pulse) log('Avoid diltiazem in decompensated HFrEF, hypotension or shock', 'warn');
-      if ((prof.rhythm === 'af' || prof.rhythm === 'flutter') && pulse) after(60000, () => changeRhythm(pid, prof.rhythm === 'flutter' ? 75 : 88, 'Ventricular rate slowing after diltiazem'));
-      else if (prof.rhythm === 'svt' && pulse) after(30000, () => { if (Math.random() < 0.5) changeRhythm('normal-sinus', 80, 'SVT terminated after diltiazem'); });
+      if ((prof.rhythm === 'af' || prof.rhythm === 'flutter') && pulse) respond(60000, () => slowVentricles(prof.rhythm === 'flutter' ? 75 : 88, 'diltiazem'));
+      else if (prof.rhythm === 'svt' && pulse) respond(30000, () => { if (Math.random() < 0.5) changeRhythm('normal-sinus', 80, 'SVT terminated after diltiazem'); });
       break;
     }
     case 'calcium': {
@@ -570,7 +646,8 @@ export function giveDrug(id: string, authority?: string) {
 export function checkPulse() {
   const s = sim.hemo.summary(sim.time);
   const cpr = get().cpr.on;
-  const text = cpr ? 'Stop compressions to check for a pulse' : s.noOutput || s.sbp < 50 ? 'No pulse' : s.sbp < 80 ? 'Weak, thready pulse' : 'Pulse present';
+  // thready: little pressure, or little difference between systole and diastole
+  const text = cpr ? 'Stop compressions to check for a pulse' : !palpable(s) ? 'No pulse' : s.sbp < 80 || s.sbp - s.dbp < 20 ? 'Weak, thready pulse' : 'Pulse present';
   set({ pulseCheck: text });
   log(`Pulse check: ${text}`, 'info');
 }
@@ -583,10 +660,13 @@ export function measureNibp() {
 
 export function loadScenario(sc: Scenario) {
   install();
-  resetCode(true);
+  // A scenario is a new patient: showing its rhythm ends everything done to the last one — here (code record,
+  // delayed responses) and elsewhere (drugs given in the Learn view). It also hands the trainee a device at its
+  // defaults (200 J, SYNC off). Then this patient's own heart and vital signs.
+  showRhythm(sc.profile, sc.hr);
+  resetCode();
   sim.hemo.setOverride(sc.baseline);
   set({ baseline: sc.baseline, vitals: { spo2: sc.spo2, rr: sc.rr, etco2: sc.etco2 }, scenario: sc, codeStart: sc.arrest ? now() : null });
-  showRhythm(sc.profile, sc.hr);
   log(`Scenario: ${sc.label}`, 'info');
 }
 
@@ -614,6 +694,17 @@ export function setVitals(p: Partial<DefibState['vitals']>) {
 export function forceRosc() { roscNow('Instructor: ROSC'); }
 
 export function resetCode(keepVitals = false) {
+  clearPatient(keepVitals, false);
+  sim.epoch++;
+}
+
+/**
+ * Forget the patient: the code record, counters and timers, CPR, pacing, a charge, delayed responses, the heart
+ * behind the pressures. `keepSettings` leaves the device as it was set (energy, SYNC) for the next patient.
+ * Returns whether the tracings must be redrawn (artefacts gone, another heart behind the pressures).
+ */
+function clearPatient(keepVitals: boolean, keepSettings: boolean): boolean {
+  const drawn = cprIntervals.length + pacerIntervals.length + shockTimes.length > 0 || sim.hemo.baseline !== null;
   cprIntervals.length = 0;
   pacerIntervals.length = 0;
   shockTimes.length = 0;
@@ -626,10 +717,18 @@ export function resetCode(keepVitals = false) {
     trainee: s.trainee,
     sound: s.sound,
     vitals: keepVitals ? s.vitals : fresh.vitals,
+    ...(keepSettings ? { energy: s.energy, sync: s.mode === 'manual' && s.sync } : null),
   });
   sim.hemo.setOverride(null);
-  sim.epoch++;
+  return drawn;
 }
+
+// A new patient: no shocks, drugs or CPR yet, nothing still on its way from the last patient, the heart that goes
+// with the rhythm shown (not a scenario's), and a device that is neither charged nor pacing. The device itself
+// stays as the learner set it: mode, energy and SYNC (a lesson sets them in one step and shocks in a later one).
+onNewPatient(() => {
+  if (clearPatient(false, true)) sim.epoch++;
+});
 
 export function setTrainee(v: boolean) { set({ trainee: v }); }
 export function setSound(v: boolean) { set({ sound: v }); }
@@ -637,17 +736,25 @@ export function setSound(v: boolean) { set({ sound: v }); }
 // ─── Tick (called from the simulation loop) ────────────────────────────────
 
 export function tickDefib(t: number) {
-  const s = get();
-  if (!installed && (s.log.length || s.cpr.on || s.pacer.on)) install();
-  // Scheduled patient responses
-  if (scheduled.length) {
-    for (let i = scheduled.length - 1; i >= 0; i--) {
-      if (t >= scheduled[i].at) {
-        const job = scheduled.splice(i, 1)[0];
-        job.fn();
-      }
+  const before = get();
+  if (!installed && (before.log.length || before.cpr.on || before.pacer.on)) install();
+  // The projector shows what the main window's device does. Its own clock started at another moment, so running
+  // the device here too would finish a charge, an analysis or a blood-pressure reading at the wrong time.
+  if (before.mirror) return;
+  // Scheduled patient responses, in the order they were due: a jump of the clock (the strip dragged forward) can
+  // make several due in the same frame, and a response may schedule the next one
+  for (;;) {
+    let k = -1;
+    for (let i = 0; i < scheduled.length; i++) {
+      if (scheduled[i].at <= t && (k < 0 || scheduled[i].at < scheduled[k].at)) k = i;
     }
+    if (k < 0) break;
+    const job = scheduled.splice(k, 1)[0];
+    due = job.at;
+    try { job.fn(); } finally { due = null; }
   }
+  // (read after the responses: they may have changed the device, e.g. ROSC stops CPR)
+  const s = get();
   // Charging
   if (s.charge === 'charging' && t >= s.chargeDone) {
     set({ charge: 'charged', chargeDone: t });
@@ -690,7 +797,8 @@ export function tickDefib(t: number) {
   // NIBP
   if (s.nibp.measuring && t >= s.nibp.until) {
     const h = sim.hemo.summary(t);
-    const ok = !h.noOutput && h.sbp >= 45;
+    // an oscillometric cuff measures the pulsations in the artery: no pulse pressure, no reading
+    const ok = !h.noOutput && h.sbp >= 45 && h.sbp - h.dbp >= 10;
     set({ nibp: { measuring: false, until: 0, last: ok ? { sbp: h.sbp, dbp: h.dbp, map: h.map } : 'fail' } });
     log(ok ? `NIBP ${h.sbp}/${h.dbp} (${h.map})` : 'NIBP: unable to measure', 'info');
   }
@@ -739,7 +847,7 @@ export function vitalsAt(t: number): Vitals {
     const v = scripted;
     return { hr: sim.engine.heartRate(t), pulse: v.pulse, spo2: v.pulse ? v.spo2 : null, etco2: v.etco2, rr: v.rr, sbp: v.sbp, dbp: v.dbp, co: h.co, wave: [h.sbp, h.dbp] };
   }
-  const pulse = !h.noOutput && h.sbp >= 50;
+  const pulse = palpable(h);
   const hr = sim.engine.heartRate(t);
   const lastShockAgo = t - s.lastShock;
   let spo2: number | null = null;
@@ -817,6 +925,7 @@ export function mirrorRemote(m: {
   if (m.ages.shock !== null && m.ages.shock < 2500 && Math.abs(shockAt - prev.lastShock) > 500) shockTimes.push(shockAt);
   set({
     ...m.defib,
+    mirror: true,
     baseline: m.baseline,
     codeStart: m.ages.code !== null ? t - m.ages.code : null,
     lastEpi: m.ages.epi !== null ? t - m.ages.epi : null,

@@ -10,6 +10,8 @@
  *  - systole shortens with rate and early filling is fast, so moderate tachycardia preserves
  *    stroke volume while very fast rates (SVT, VT) or slow-filling lesions (MS) cut it;
  *  - a simple baroreflex adjusts arterial tone so mean pressure is defended when output changes.
+ * A mechanical cycle runs from one mitral closure to the next, and every phase starts from the pressure
+ * and volume the one before it ended with, so the traces have no steps — whatever the rhythm does.
  * Each profile's representative values apply at its reference rate (refHR).
  * Values are representative teaching values, not patient-specific predictions.
  */
@@ -31,7 +33,7 @@ export interface HemoParams {
   mr: number;
   /** Mean diastolic LA–LV gradient (mitral stenosis) */
   msGradient: number;
-  /** Isovolumic relaxation time constant (ms) */
+  /** LV relaxation time constant (ms): how slowly the last of the systolic pressure dies away in early diastole */
   tauRelax: number;
   /** Aortic Windkessel time constant (ms) */
   tauAorta: number;
@@ -40,7 +42,7 @@ export interface HemoParams {
   s3: boolean;
   s4: boolean;
   murmur: 'none' | 'as' | 'mr' | 'ms' | 'hcm';
-  /** Respiratory variation of stroke volume (pulsus paradoxus) */
+  /** Fraction by which inspiration cuts LV filling, and so stroke volume (large in tamponade: pulsus paradoxus) */
   respVar: number;
   /** Heart rate at which the representative values above apply */
   refHR: number;
@@ -62,9 +64,13 @@ export const HEMO_PROFILES: Record<HemoProfile, HemoParams> = {
   hfref: { ...BASE, label: 'HFrEF (LVEF ~25%)', edv: 220, esv: 165, sbp: 102, dbp: 66, lvedp: 24, laMean: 24, mr: 0.15, tauRelax: 60, s3: true, murmur: 'mr', kick: 0.15, refHR: 95 },
   hfpef: { ...BASE, label: 'HFpEF (stiff LV)', edv: 108, esv: 44, sbp: 152, dbp: 86, lvedp: 22, laMean: 20, tauRelax: 70, s4: true, kick: 0.3, refHR: 80 },
   hcm: { ...BASE, label: 'Obstructive HCM', edv: 100, esv: 28, sbp: 118, dbp: 74, lvedp: 18, laMean: 16, gradient: 55, gradientType: 'dynamic', mr: 0.08, tauRelax: 70, s4: true, murmur: 'hcm', kick: 0.3, refHR: 66 },
-  shock: { ...BASE, label: 'Cardiogenic shock', edv: 190, esv: 155, sbp: 80, dbp: 52, lvedp: 28, laMean: 26, tauRelax: 65, s3: true, kick: 0.12, refHR: 118 },
-  tamponade: { ...BASE, label: 'Cardiac tamponade', edv: 72, esv: 32, sbp: 88, dbp: 68, lvedp: 19, laMean: 19, respVar: 0.22, kick: 0.1, refHR: 118, pericardial: 16 },
-  pe: { ...BASE, label: 'Acute PE with RV strain (underfilled LV)', edv: 88, esv: 38, sbp: 96, dbp: 66, lvedp: 5, laMean: 5, refHR: 114 },
+  // Low-output states: the stroke volumes give a cardiac index well under 2.2 L/min/m² at their usual rates
+  // (shock ~28 mL × 118/min ≈ 3.3 L/min; tamponade and PE ~30 mL from a small, underfilled but vigorous LV).
+  // Tamponade's values are those at end-expiration: every inspiration halves LV filling, so the systolic
+  // pressure swings by well over 10 mmHg (pulsus paradoxus) and the averages are lower.
+  shock: { ...BASE, label: 'Cardiogenic shock', edv: 190, esv: 162, sbp: 80, dbp: 52, lvedp: 28, laMean: 26, tauRelax: 65, s3: true, kick: 0.12, refHR: 118 },
+  tamponade: { ...BASE, label: 'Cardiac tamponade', edv: 62, esv: 24, sbp: 90, dbp: 68, lvedp: 19, laMean: 19, respVar: 0.5, kick: 0.1, refHR: 118, pericardial: 16 },
+  pe: { ...BASE, label: 'Acute PE with RV strain (underfilled LV)', edv: 58, esv: 26, sbp: 96, dbp: 66, lvedp: 5, laMean: 5, refHR: 114 },
   stemi: { ...BASE, label: 'Acute MI (reduced EF)', edv: 135, esv: 76, sbp: 126, dbp: 80, lvedp: 18, laMean: 16, tauRelax: 55, s4: true, kick: 0.25, refHR: 85 },
   'no-output': { ...BASE, label: 'No effective output', edv: 140, esv: 140, sbp: 20, dbp: 12, lvedp: 12, laMean: 12, noOutput: true, kick: 0 },
 };
@@ -82,6 +88,14 @@ interface BeatHemo {
   /** end-systolic (dicrotic notch) pressure */
   pes: number;
   kick: boolean;
+  /** when the atrial contraction that topped up this beat's filling began (null without an atrial kick) */
+  kickAt: number | null;
+  /** volume a whole atrial contraction adds to this beat's filling… */
+  kickFull: number;
+  /** …and what this one added: the part of it that fell between mitral opening and mitral closure */
+  kickVol: number;
+  /** volume taken in just before this beat when it followed too soon for the ventricle to fill */
+  topUp: number;
   floor: number;
   /** effective arterial (Windkessel) time constant for this beat */
   tau: number;
@@ -90,6 +104,10 @@ interface BeatHemo {
   rrAvg: number;
   /** mean LA pressure for the filling period that ended at this beat */
   laMean: number;
+  /** LV pressure at this beat's mitral closure, handed over by the cycle before it */
+  lvp0: number;
+  /** LA pressure handed over the same way (null for a first beat: nothing came before it) */
+  lap0: number | null;
 }
 
 export interface HemoSample {
@@ -135,6 +153,57 @@ function fillFraction(d: number, stenotic: boolean): number {
   if (stenotic) return 1 - Math.exp(-d / 260);
   // Rapid early filling (~75%, τ≈70 ms) plus slow diastasis
   return 0.75 * (1 - Math.exp(-d / 70)) + 0.25 * (1 - Math.exp(-d / 500));
+}
+
+/** Height of the LA v wave above the LA baseline (giant in mitral regurgitation) */
+function vWave(p: HemoParams): number {
+  return 6 + p.mr * 55;
+}
+
+/**
+ * Aortic pressure through ejection (s = 0..1): a fast upstroke to the peak (~30% of ejection; late in AS =
+ * pulsus tardus), then a decline to the end-systolic pressure.
+ */
+function ejectionPressure(b: BeatHemo, s: number): number {
+  const p = b.params;
+  const peakAt = p.gradientType === 'fixed' ? 0.5 : 0.3;
+  const up = s < peakAt ? Math.sin((Math.PI / 2) * (s / peakAt)) : 1 - (1 - (b.pes - b.pd) / Math.max(1, b.ps - b.pd)) * smooth(peakAt, 1, s);
+  let aop = b.pd + (b.ps - b.pd) * up;
+  // spike-and-dome: early peak, mid-systolic dip as obstruction develops
+  if (p.gradientType === 'dynamic') aop -= (b.ps - b.pd) * 0.28 * Math.exp(-Math.pow((s - 0.55) / 0.16, 2));
+  return aop;
+}
+
+/** LV pressure above the aortic pressure during ejection (s = 0..1): the AS or HCM gradient, a few mmHg otherwise */
+function ejectionGradient(b: BeatHemo, s: number): number {
+  const p = b.params;
+  if (p.gradientType === 'fixed') return p.gradient * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.05)), 1.1) * (b.sv / Math.max(1, p.edv - p.esv));
+  if (p.gradientType === 'dynamic') return p.gradient * Math.pow(smooth(0.15, 0.7, s), 1.3) * (1 - smooth(0.85, 1, s));
+  return 4 * Math.sin(Math.PI * s) - 2 * smooth(0.7, 1, s);
+}
+
+/** The dicrotic notch and the small rebound after it, dt ms after aortic closure (starts from 0: no step at closure) */
+function dicrotic(dt: number): number {
+  return -5 * Math.exp(-Math.pow((dt - 12) / 10, 2)) * (1 - Math.exp(-dt / 4)) + 2.5 * Math.exp(-Math.pow((dt - 45) / 22, 2));
+}
+
+/**
+ * No ventricular beat for this long is a standstill, not a slow rhythm: the monitor's heart rate reads 0 after
+ * the same wait.
+ */
+const STANDSTILL_MS = 3500;
+
+/** …or, in a rhythm slower than that, more than twice its own cycle: longer than this after beat b, no beat is coming */
+function pauseLimit(b: BeatHemo): number {
+  return Math.max(STANDSTILL_MS, 2.2 * b.rrAvg);
+}
+
+/** Arrested heart: what the ventricle fills to and the pressures settle at once nothing is pumped */
+const ARREST = { settle: 300, aorta: 1900, aop: 10, lap: 8 };
+
+/** Fraction of its volume an atrial contraction that began at c0 has delivered by time t (it lasts ~110 ms) */
+function atrialEmptying(c0: number, t: number): number {
+  return smooth(c0, c0 + 110, t);
 }
 
 /** Open-mitral diastolic time for a narrow-QRS beat at a given steady heart rate (matches cycleEvents) */
@@ -190,6 +259,8 @@ export class HemoModel {
     const v = vent[i];
     const next = i + 1 < vent.length ? vent[i + 1] : null;
     const ev = cycleEvents(v, next);
+    // A next beat whose mitral closure comes before this ejection is due to end cuts it short there
+    if (next && ev.ac > ev.nextMc) ev.ac = ev.nextMc;
     const seg = this.engine.segmentAt(v.t);
     const p = this.paramsAt(v.t);
     const stenotic = p.msGradient > 0;
@@ -199,29 +270,40 @@ export class HemoModel {
     const refDiastole = nominalDiastole(p.refHR, stenotic);
     const prevMo = prev ? prev.ev.mo : ev.mc - refDiastole;
     const diast = Math.max(0, ev.mc - prevMo);
+    // Breathing: inspiration fills the right heart at the expense of the left. Normally that is hardly noticeable;
+    // in tamponade the two ventricles share a fixed space, so LV filling — and with it the stroke volume and the
+    // systolic pressure — falls markedly with every inspiration (pulsus paradoxus).
+    const resp = 1 - p.respVar * (0.5 + 0.5 * Math.sin((2 * Math.PI * v.t) / 5000));
     // Frank–Starling: passive filling scaled so the reference rate reproduces the profile's EDV
-    const fill = (sv0 - kickVol) * fillFraction(diast, stenotic) / fillFraction(refDiastole, stenotic);
+    const fill = resp * (sv0 - kickVol) * fillFraction(diast, stenotic) / fillFraction(refDiastole, stenotic);
     // Atrial kick only if an organised atrial contraction falls in diastole (it may fuse with early
     // filling at fast rates); lost in AF/flutter and with retrograde or dissociated P waves
-    let kick = false;
+    let kickAt: number | null = null;
     if (seg.profile.rhythm !== 'af' && seg.profile.rhythm !== 'flutter') {
       const ai = this.engine.lastAtrialIndex(ev.mc - 20);
       for (let k = ai; k >= 0 && k > ai - 3; k--) {
         const a = this.engine.atrial[k];
         const c0 = a.t + 70;
-        if (c0 > prevMo - 20 && c0 < ev.mc - 25 && a.kind === 'sinus') { kick = true; break; }
+        if (c0 > prevMo - 20 && c0 < ev.mc - 25 && a.kind === 'sinus') { kickAt = c0; break; }
         if (c0 < prevMo) break;
       }
     }
-    // Preload reserve is limited: the ventricle can only dilate a little beyond its usual EDV
-    let edv = Math.max(prevEsv + 5, Math.min(p.edv + 0.15 * sv0, prevEsv + fill + (kick ? kickVol : 0)));
+    const kick = kickAt !== null;
+    // …and it adds only what it pushes through an open mitral valve: a contraction cut off by mitral closure
+    // (a P wave just before the QRS) or begun before the valve opens gives part of its volume
+    const kickFull = resp * kickVol;
+    const kicked = kickAt === null ? 0 : kickFull * (atrialEmptying(kickAt, ev.mc) - atrialEmptying(kickAt, Math.max(kickAt, prevMo)));
+    const filled = prevEsv + fill + kicked;
+    // Preload reserve is limited: the ventricle can only dilate a little beyond its usual EDV. A beat that
+    // follows too soon to fill still takes in a few mL.
+    let edv = Math.max(prevEsv + 5, Math.min(p.edv + 0.15 * sv0, filled));
     if (p.noOutput) edv = p.edv;
-    const resp = 1 - p.respVar * (0.5 + 0.5 * Math.sin((2 * Math.PI * v.t) / 5000));
+    const topUp = p.noOutput ? 0 : Math.max(0, edv - filled);
     // Disease profiles already include their usual conduction (e.g. LBBB in HFrEF), so only beats
     // that differ from it (ectopic, VT) are penalised; in a normal heart LBBB/pacing costs a little.
     const usualLbbb = p !== BASE && QRS_TEMPLATES[seg.profile.qrs]?.conduction === 'lbbb';
     const contractile = p.noOutput ? 0.05 : Math.min(1, v.efficiency / (usualLbbb ? 0.85 : 1));
-    const sv = Math.max(0, (edv - p.esv) * contractile * resp);
+    const sv = Math.max(0, (edv - p.esv) * contractile);
     const esv = edv - sv;
     const forwardSv = sv * (1 - p.mr);
     const fwd0 = Math.max(1, sv0 * (1 - p.mr));
@@ -231,7 +313,7 @@ export class HemoModel {
     // Baroreflex: arterial tone adapts (over several beats) so mean pressure is largely defended
     // when output changes; beat-to-beat variation (AF, PVCs, dropped beats) still shows through.
     const nominal = 60000 / Math.max(30, seg.hr || p.refHR);
-    const cycle = prev ? Math.max(250, v.t - this.engine.vent[i - 1].t) : nominal;
+    const cycle = prev ? Math.max(150, v.t - this.engine.vent[i - 1].t) : nominal;
     const same = !!prev && prev.params === p && prev.ev.qrs >= seg.start;
     const svAvg = same ? prev!.svAvg + (forwardSv - prev!.svAvg) * 0.45 : forwardSv;
     const rrAvg = same ? prev!.rrAvg + (cycle - prev!.rrAvg) * 0.45 : nominal;
@@ -241,162 +323,234 @@ export class HemoModel {
     const ppAvg = ppBase * Math.min(1.8, svAvg / fwd0);
     const floor = p.noOutput ? 10 : 6;
     const pdTarget = Math.max(floor + 4, mapTarget - ppAvg / 3);
-    const runoff = Math.max(150, rrAvg - (ev.ac - ev.ao));
+    // The arterial time constant is the one that brings the pressure down to that diastolic target in the time
+    // the aorta really has to run off between two ejections. At very fast rates that is under 100 ms: assuming
+    // more would leave the diastolic (and so the mean) pressure too high just as the output collapses.
+    const runoff = Math.max(40, rrAvg - (ev.ac - ev.ao));
     const x = Math.max(0.05, Math.min(0.97, (pdTarget - floor) / (pdTarget + 0.62 * ppAvg - floor)));
     const tau = p.noOutput ? p.tauAorta : Math.max(300, Math.min(6000, -runoff / Math.log(x)));
-    let pd: number;
-    if (prev) {
-      pd = prev.floor + (prev.pes - prev.floor) * Math.exp(-(ev.ao - prev.ev.ac) / prev.tau);
-    } else pd = pdTarget;
-    if (p.noOutput) pd = Math.max(10, pd);
+    // This beat ejects into whatever the run-off after the last one has left
+    const pd = prev ? this.runoff(prev, this.arrestFrom(prev, v.t), ev.ao) : p.noOutput ? Math.max(ARREST.aop, pdTarget) : pdTarget;
     const ps = pd + pp;
     const pes = pd + 0.62 * pp;
     // MS: the transmitral gradient climbs as diastole shortens (flow must cross in less time)
     const laMean = stenotic
       ? p.laMean + p.msGradient * (Math.min(2.5, Math.max(0.6, refDiastole / Math.max(60, diast))) - 1)
       : Math.max(p.laMean, edpvr(p, edv) - 3);
-    return { ev, params: p, edv, esv, sv, pd, ps, pes, kick, floor, tau, svAvg, rrAvg, laMean };
+    const b: BeatHemo = { ev, params: p, edv, esv, sv, pd, ps, pes, kick, kickAt, kickFull, kickVol: kicked, topUp, floor, tau, svAvg, rrAvg, laMean, lvp0: edpvr(p, edv), lap0: null };
+    if (prev) {
+      // The cycle before this one runs on until this beat's mitral closure: take the pressures over from it
+      const end = this.chambers(prev, b, ev.mc, this.arrestFrom(prev, v.t));
+      b.lvp0 = end.lvp;
+      b.lap0 = end.lap;
+    }
+    return b;
   }
 
   sample(t: number): HemoSample {
     const engine = this.engine;
     const i = engine.lastVentIndex(t);
-    const pNow = this.paramsAt(t);
     if (i < 0) {
+      const pNow = this.paramsAt(t);
       return { lvp: edpvr(pNow, pNow.edv), aop: pNow.dbp, lap: pNow.laMean, lvv: pNow.edv, phono: 0 };
     }
-    const b = this.beat(i)!;
-    const nb = this.beat(i + 1);
+    const bi = this.beat(i)!;
+    // The very first beat has no cycle before it: the ventricle waits, filled, for its first contraction
+    if (i === 0 && t < bi.ev.mc) {
+      const nb = this.beat(1);
+      return { lvp: bi.lvp0, aop: this.paramsAt(t).dbp, lap: this.la(bi, nb, t, bi.lvp0), lvv: bi.edv, phono: this.phono(t, bi, nb) };
+    }
+    // A mechanical cycle runs from one mitral closure (S1) to the next: in the few ms between a QRS and its S1
+    // the heart is still in the cycle of the beat before (filling — or, when beats come very early, still
+    // relaxing or even ejecting)
+    const j = t < bi.ev.mc ? i - 1 : i;
+    const b = j === i ? bi : this.beat(j)!;
+    const nb = j === i ? this.beat(i + 1) : bi;
+    const stop = this.arrestFrom(b, nb ? nb.ev.qrs : Infinity);
+    const c = this.chambers(b, nb, t, stop);
+    let aop: number;
+    if (t >= b.ev.ac) aop = this.runoff(b, stop, t);
+    else if (t >= b.ev.ao) aop = ejectionPressure(b, (t - b.ev.ao) / (b.ev.ac - b.ev.ao));
+    else {
+      // until this beat's aortic valve opens the aorta is still running off after the beat before
+      const pb = this.beat(j - 1);
+      aop = pb ? this.runoff(pb, this.arrestFrom(pb, b.ev.qrs), t) : this.paramsAt(t).dbp;
+    }
+    return { lvp: c.lvp, aop, lap: c.lap, lvv: c.lvv, phono: t > stop ? 0 : this.phono(t, bi, this.beat(i + 1)) };
+  }
+
+  /**
+   * When the heart stops pumping in the cycle that follows beat b (`until` = the next beat's QRS, if there is
+   * one): 200 ms after its mitral valve opens when the beat itself gave no output (PEA, pulseless VT), otherwise
+   * when a rhythm without output (VF, asystole…) begins before the next beat. Infinity while it goes on beating.
+   */
+  private arrestFrom(b: BeatHemo, until: number): number {
+    const settled = b.ev.mo + 200;
+    if (b.params.noOutput) return settled;
+    const segs = this.engine.segments;
+    // first rhythm segment that starts after this beat (segments are in time order)
+    let lo = 0;
+    let hi = segs.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (segs[mid].start > b.ev.qrs) hi = mid;
+      else lo = mid + 1;
+    }
+    for (let k = lo; k < segs.length && segs[k].start < until; k++) {
+      if ((HEMO_PROFILES[segs[k].profile.hemo] ?? BASE).noOutput) return Math.max(settled, segs[k].start);
+    }
+    return Infinity;
+  }
+
+  /**
+   * LV pressure and volume and LA pressure at t, anywhere in the cycle from beat b's mitral closure to the next
+   * beat's. `stop` is when the heart stops pumping in this cycle (see arrestFrom).
+   */
+  private chambers(b: BeatHemo, nb: BeatHemo | null, t: number, stop: number): { lvp: number; lvv: number; lap: number } {
+    // (a next beat that comes before the output has stopped: an ordinary cycle)
+    if (stop === Infinity || (nb && nb.ev.mc <= stop)) {
+      const lv = this.lv(b, nb, t);
+      return { lvp: lv.lvp, lvv: lv.lvv, lap: this.la(b, nb, t, lv.lvp) };
+    }
+    // The beat before an arrest is drawn without looking ahead to the beat that ends it (which may be minutes
+    // away and appears only once the rhythm is restored): what is already on the screen never changes afterwards
+    const lv = this.lv(b, null, Math.min(t, stop));
+    let { lvp, lvv } = lv;
+    let lap = this.la(b, null, Math.min(t, stop), lvp);
+    const still = HEMO_PROFILES['no-output'];
+    const settle = (from: number, to: number, ms: number) => to + (from - to) * Math.exp(-ms / ARREST.settle);
+    if (t > stop) {
+      // Nothing is pumped any more: the ventricle fills to the arrested heart's volume and the pressures settle
+      // at its resting values, starting from where they were when the output stopped
+      const rest = edpvr(still, still.edv);
+      lvp = settle(lvp, rest, t - stop);
+      lap = settle(lap, Math.max(rest, ARREST.lap), t - stop);
+      lvv = settle(lvv, still.edv, t - stop);
+    }
+    // The first beat after the arrest sets off from its own end-diastolic volume: the difference is taken up
+    // in the moments before it
+    if (nb && t > nb.ev.qrs - 300) {
+      const stopped = t > stop ? lv.lvv : this.lv(b, null, stop).lvv;
+      lvv += (nb.edv - settle(stopped, still.edv, nb.ev.mc - stop)) * smooth(nb.ev.qrs - 300, nb.ev.mc, t);
+    }
+    return { lvp, lvv, lap };
+  }
+
+  /**
+   * LV pressure and volume from beat b's mitral closure until the next beat's (nb, if it is known yet).
+   * Each phase starts from the pressure and volume the phase before it ended with.
+   */
+  private lv(b: BeatHemo, nb: BeatHemo | null, t: number): { lvp: number; lvv: number } {
     const p = b.params;
     const ev = b.ev;
-    const nextMc = nb ? nb.ev.mc : ev.mo + 4000;
-
-    // Long pause after the last beat (VF/asystole): pressures decay, no ejection
-    if (pNow.noOutput && t > ev.mo + 200) {
-      const el = t - ev.ac;
-      const aop = 10 + (b.pes - 10) * Math.exp(-el / 1900);
-      const lvv = b.esv + (pNow.edv - b.esv) * (1 - Math.exp(-(t - ev.mo) / 300));
-      const lvp = edpvr(pNow, lvv);
-      return { lvp, aop, lap: Math.max(lvp, 8), lvv, phono: 0 };
+    if (t < ev.ao) {
+      // isovolumic contraction: from the pressure the last cycle left behind up to the aortic pressure
+      const s = Math.max(0, (t - ev.mc) / (ev.ao - ev.mc));
+      return {
+        lvp: b.lvp0 + (b.pd - b.lvp0) * (0.5 - 0.5 * Math.cos(Math.PI * s)),
+        lvv: b.edv - (p.mr > 0 ? b.sv * p.mr * 0.25 * s : 0),
+      };
     }
-
-    let lvv: number;
-    let lvp: number;
-    let aop: number;
-    const ejDur = ev.ac - ev.ao;
-    const svDia = (vol: number) => edpvr(p, vol);
-    const nextEdv = nb ? nb.edv : b.edv;
-
-    if (t < ev.mc) {
-      // late diastole of this beat (between QRS onset and MC)
-      lvv = b.edv;
-      lvp = svDia(lvv);
-      aop = this.aorticDiastolic(i, t);
-    } else if (t < ev.ao) {
-      const s = (t - ev.mc) / (ev.ao - ev.mc);
-      const edp = svDia(b.edv);
-      lvp = edp + (b.pd - edp) * (0.5 - 0.5 * Math.cos(Math.PI * s));
-      lvv = b.edv - (p.mr > 0 ? b.sv * p.mr * 0.25 * s : 0);
-      aop = this.aorticDiastolic(i, t);
-    } else if (t < ev.ac) {
-      const s = (t - ev.ao) / ejDur;
+    // The same heart goes on beating — unless a new rhythm brings another one with it (VT in a failing ventricle
+    // after sinus rhythm in a normal one): then this cycle is drawn for the heart it belongs to, and the next
+    // beat's volume is taken over just before that beat
+    const same = !!nb && nb.params === p;
+    const filling = !nb || ev.mo < nb.ev.mc;
+    // A next beat that begins before the ventricle has had time to fill (even before this beat's mitral valve
+    // has opened) takes in the few mL it ejects just before its own mitral closure
+    const owed = !nb ? 0 : same ? (filling ? nb.topUp : nb.edv - b.esv) : nb.edv - (filling ? b.edv : b.esv);
+    const unfilled = nb ? owed * smooth(nb.ev.qrs, nb.ev.mc, t) : 0;
+    if (t < ev.ac) {
+      const s = (t - ev.ao) / (ev.ac - ev.ao);
       const mrPre = p.mr > 0 ? b.sv * p.mr * 0.25 : 0;
-      const ej = 1 - Math.pow(1 - s, 2.2);
-      lvv = b.edv - mrPre - (b.sv - mrPre) * ej;
-      // aortic: fast upstroke to peak (~30% of ejection; delayed in AS = pulsus tardus), then decline to Pes
-      const peakAt = p.gradientType === 'fixed' ? 0.5 : 0.3;
-      const up = s < peakAt ? Math.sin((Math.PI / 2) * (s / peakAt)) : 1 - (1 - (b.pes - b.pd) / Math.max(1, b.ps - b.pd)) * smooth(peakAt, 1, s);
-      aop = b.pd + (b.ps - b.pd) * up;
-      if (p.gradientType === 'dynamic') {
-        // spike-and-dome: early peak, mid-systolic dip as obstruction develops
-        aop -= (b.ps - b.pd) * 0.28 * Math.exp(-Math.pow((s - 0.55) / 0.16, 2));
-      }
-      let grad = 4 * Math.sin(Math.PI * s) - 2 * smooth(0.7, 1, s);
-      if (p.gradientType === 'fixed') grad = p.gradient * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.05)), 1.1) * (b.sv / Math.max(1, p.edv - p.esv));
-      if (p.gradientType === 'dynamic') grad = p.gradient * Math.pow(smooth(0.15, 0.7, s), 1.3) * (1 - smooth(0.85, 1, s));
-      lvp = aop + grad;
-    } else if (t < ev.mo) {
-      const s = t - ev.ac;
-      lvv = b.esv;
-      const pmin = Math.max(2, svDia(b.esv) - 1);
-      lvp = pmin + (b.pes - 4 - pmin) * Math.exp(-s / p.tauRelax);
-      aop = this.aorticDiastolic(i, t);
-    } else {
-      // filling toward next beat's EDV
-      const s = t - ev.mo;
-      const span = Math.max(1, nextMc - ev.mo);
-      const passive = fillFraction(s, p.msGradient > 0) / Math.max(1e-3, fillFraction(span, p.msGradient > 0));
-      const kickVol = nb && nb.kick ? p.kick * (p.edv - p.esv) : 0;
-      const passiveTarget = nextEdv - kickVol;
-      lvv = b.esv + (passiveTarget - b.esv) * Math.min(1, passive);
-      if (kickVol > 0) lvv += kickVol * this.kickProgress(t, nextMc);
-      lvp = svDia(lvv) - 2.5 * Math.exp(-s / 50) * (1 - Math.exp(-s / 15));
-      aop = this.aorticDiastolic(i, t);
+      return {
+        lvp: ejectionPressure(b, s) + ejectionGradient(b, s),
+        lvv: b.edv - mrPre - (b.sv - mrPre) * (1 - Math.pow(1 - s, 2.2)) + unfilled,
+      };
     }
+    // Isovolumic relaxation. The mitral valve opens when the LV pressure has fallen to the LA pressure (the top
+    // of the v wave), so the pressure falls from its end-systolic value to exactly that level by mitral opening.
+    const start = b.pes + ejectionGradient(b, 1);
+    const rest = edpvr(p, b.esv);
+    const cross = Math.max(rest + 1, (nb ? nb.laMean : b.laMean) - 2 + vWave(p));
+    const ivrt = Math.max(1, ev.mo - ev.ac);
+    // (a beat with next to no output never gets above the LA pressure: it just relaxes at its own rate)
+    const tau = start > cross + 0.5 ? ivrt / Math.log((start - rest) / (cross - rest)) : p.tauRelax;
+    if (t < ev.mo) return { lvp: rest + (start - rest) * Math.exp(-(t - ev.ac) / tau), lvv: b.esv + unfilled };
 
-    const lap = this.laPressure(t, i, b, nb, lvp);
-    const phono = this.phono(t, b, nb);
-    return { lvp, aop, lap, lvv, phono };
-  }
-
-  /** 0→1 as the atrial kick completes before next MC */
-  private kickProgress(t: number, nextMc: number): number {
-    const ai = this.engine.lastAtrialIndex(t);
-    if (ai < 0) return 0;
-    const a = this.engine.atrial[ai];
-    const c0 = a.t + 70;
-    if (c0 > nextMc) return 0;
-    return smooth(c0, c0 + 110, t);
-  }
-
-  private aorticDiastolic(i: number, t: number): number {
-    // decay from the most recent aortic closure before t
-    let k = i;
-    while (k >= 0) {
-      const b = this.beat(k)!;
-      if (b.ev.ac <= t) {
-        const dt = t - b.ev.ac;
-        let p = b.floor + (b.pes - b.floor) * Math.exp(-dt / b.tau);
-        // dicrotic notch and rebound
-        p += -5 * Math.exp(-Math.pow((dt - 12) / 10, 2)) + 2.5 * Math.exp(-Math.pow((dt - 45) / 22, 2));
-        return p;
-      }
-      k--;
+    // Filling toward the next beat's EDV
+    const s = t - ev.mo;
+    const stenotic = p.msGradient > 0;
+    const span = Math.max(1, (nb ? nb.ev.mc : ev.mo + 4000) - ev.mo);
+    const passive = Math.min(1, fillFraction(s, stenotic) / Math.max(1e-3, fillFraction(span, stenotic)));
+    // the atrial kick arrives while the atria contract (after the P wave), through the open mitral valve
+    let kicked = 0;
+    if (same && nb.kickAt !== null) {
+      kicked = nb.kickFull * Math.max(0, atrialEmptying(nb.kickAt, t) - atrialEmptying(nb.kickAt, Math.max(nb.kickAt, ev.mo)));
     }
-    return this.paramsAt(t).dbp;
+    const passiveTarget = same ? nb.edv - nb.kickVol - nb.topUp : b.edv;
+    // (the pressure goes with the volume this heart holds itself, not with one taken over for another heart)
+    const own = b.esv + (passiveTarget - b.esv) * passive + kicked + (same ? unfilled : 0);
+    // The ventricle is still relaxing as it starts to fill: what is left of its systolic pressure at mitral
+    // opening dies away at the heart's own relaxation rate (slowly in a stiff or ischaemic ventricle, which keeps
+    // the early diastolic pressure up), on top of the passive pressure for the volume and a little early suction
+    const left = (start - rest) * Math.exp(-ivrt / tau);
+    const lvp = edpvr(p, own) + left * Math.exp(-s / p.tauRelax) - 2.5 * Math.exp(-s / 50) * (1 - Math.exp(-s / 15));
+    return { lvp, lvv: same ? own : own + unfilled };
   }
 
-  private laPressure(t: number, i: number, b: BeatHemo, nb: BeatHemo | null, lvp: number): number {
+  /** Aortic pressure running off after beat b's aortic closure (`stop`: when the heart stops pumping, see arrestFrom) */
+  private runoff(b: BeatHemo, stop: number, t: number): number {
+    const decay = (dt: number) => b.floor + (b.pes - b.floor) * Math.exp(-dt / b.tau) + dicrotic(dt);
+    if (t <= stop) return decay(t - b.ev.ac);
+    // no more beats: from where it was, the pressure drains away toward the arrested circulation's
+    return ARREST.aop + (decay(stop - b.ev.ac) - ARREST.aop) * Math.exp(-(t - stop) / ARREST.aorta);
+  }
+
+  /** LA pressure in the cycle from beat b's mitral closure to the next beat's; lvp is the LV pressure at t */
+  private la(b: BeatHemo, nb: BeatHemo | null, t: number, lvp: number): number {
+    const lap = this.laWaves(b, nb, t, lvp);
+    if (b.lap0 === null) return lap;
+    // start from the pressure the last cycle ended with; the difference fades in early systole
+    return lap + (b.lap0 - this.laWaves(b, nb, b.ev.mc, b.lvp0)) * Math.exp(-(t - b.ev.mc) / 60);
+  }
+
+  private laWaves(b: BeatHemo, nb: BeatHemo | null, t: number, lvp: number): number {
     const p = b.params;
     const ev = b.ev;
     const laMean = nb ? nb.laMean : b.laMean;
-    const msGrad = p.msGradient + (laMean - p.laMean);
     let lap = laMean - 2;
-    // a wave (or cannon a wave if the atrium contracts against a closed mitral valve)
+    // a wave (or cannon a wave if the atrium contracts against a closed mitral valve). Every atrial contraction
+    // runs its course: the last two are looked at, in case a new P wave begins before the wave before it is over.
+    // (AF and flutter have no P waves, so no a waves.)
     const ai = this.engine.lastAtrialIndex(t);
-    const rhythm = this.engine.segmentAt(t).profile.rhythm;
-    if (ai >= 0 && rhythm !== 'af' && rhythm !== 'flutter') {
-      const a = this.engine.atrial[ai];
-      const c0 = a.t + 70;
+    for (let k = ai; k >= 0 && k > ai - 2; k--) {
+      const c0 = this.engine.atrial[k].t + 70;
       if (t >= c0 && t <= c0 + 160) {
         const closed = (c0 >= ev.mc && c0 <= ev.mo);
         const amp = (closed ? 14 : 5) * (p.s4 ? 1.6 : 1);
         lap += amp * Math.sin((Math.PI * (t - c0)) / 160);
       }
     }
-    // c wave at mitral closure, x descent through ejection
+    // c wave at mitral closure (and the first of the next one), x descent through ejection
     lap += 2 * Math.exp(-Math.pow((t - ev.mc - 25) / 18, 2));
+    if (nb) lap += 2 * Math.exp(-Math.pow((t - nb.ev.mc - 25) / 18, 2));
     if (t > ev.ao && t < ev.ac) lap -= 3 * Math.sin((Math.PI * (t - ev.ao)) / (ev.ac - ev.ao));
     // v wave builds during ventricular systole, peaks at mitral opening; giant v in MR
-    const vAmp = 6 + p.mr * 55;
+    const vAmp = vWave(p);
     if (t >= ev.ao && t < ev.mo) lap += vAmp * smooth(ev.ao, ev.mo, t);
-    else if (t >= ev.mo) lap += vAmp * Math.exp(-(t - ev.mo) / (p.msGradient > 0 ? 260 : 70)) - 2 * Math.exp(-Math.pow((t - ev.mo - 90) / 60, 2));
-    else if (t >= ev.mc) lap += 0;
-    // During diastole with an open mitral valve LA tracks LV (+ stenotic gradient)
-    if (t >= ev.mo && (!nb || t < nb.ev.mc)) {
-      lap = Math.max(lap, lvp + 1 + msGrad);
+    else if (t >= ev.mo) {
+      const s = t - ev.mo;
+      // y descent as the atrium empties
+      lap += vAmp * Math.exp(-s / (p.msGradient > 0 ? 260 : 70)) - 2 * Math.exp(-Math.pow((s - 90) / 60, 2)) * smooth(0, 60, s);
+      // With the mitral valve open the LA stays above the LV: just above it normally, by the stenotic gradient
+      // in MS (which builds up as flow across the valve starts)
+      const msGrad = p.msGradient + (laMean - p.laMean);
+      const short = lvp + (1 + msGrad) * smooth(0, 40, s) - lap;
+      // (eased in over the first ms: the two pressures normally meet at mitral opening, and where they do not —
+      // the heart changed under a new rhythm — the LA pressure must not jump)
+      if (short > 0) lap += short * smooth(0, 15, s);
     }
-    if (p.mr > 0 && t >= ev.mc && t < ev.mo) lap += 0; // already in v wave
     return lap;
   }
 
@@ -439,14 +593,20 @@ export class HemoModel {
     const p = this.paramsAt(t);
     const i = this.engine.lastVentIndex(t);
     const hr = this.engine.heartRate(t);
-    if (i < 0 || p.noOutput) {
+    const last = i >= 0 ? this.beat(i)! : null;
+    // No beats, a rhythm without output, or the ventricles standing still in a rhythm that normally perfuses
+    // (a long pause, every P wave blocked): report the pressures as they are now — the arterial pressure
+    // running off — not the reading of beats that are no longer coming.
+    if (!last || p.noOutput || t - last.ev.qrs > pauseLimit(last)) {
       const s = this.sample(t);
       return { sbp: Math.round(s.aop), dbp: Math.round(s.aop), map: Math.round(s.aop), edv: Math.round(s.lvv), esv: Math.round(s.lvv), sv: 0, ef: 0, co: 0, lvedp: Math.round(s.lvp), laMean: Math.round(s.lap), label: p.label, noOutput: true };
     }
-    // average the last few beats
+    // Average the last few beats of this run: not across a standstill or an arrest (the first beats after one
+    // build the pressure up again), nor across a change of heart
     let n = 0, sbp = 0, dbp = 0, edv = 0, esv = 0, sv = 0, la = 0;
     for (let k = i; k >= 0 && n < 4; k--, n++) {
       const b = this.beat(k)!;
+      if (n > 0 && (b.params !== last.params || this.engine.vent[k + 1].t - b.ev.qrs > pauseLimit(b))) break;
       sbp += b.ps; dbp += b.pd; edv += b.edv; esv += b.esv; sv += b.sv * (1 - b.params.mr); la += b.laMean;
     }
     sbp /= n; dbp /= n; edv /= n; esv /= n; sv /= n; la /= n;
@@ -456,7 +616,7 @@ export class HemoModel {
       edv: Math.round(edv), esv: Math.round(esv), sv: Math.round(sv),
       ef: Math.round((totalSv / Math.max(1, edv)) * 100),
       co: Math.round(((sv * hr) / 1000) * 10) / 10,
-      lvedp: Math.round(edpvr(p, edv)), laMean: Math.round(la), label: p.label, noOutput: false,
+      lvedp: Math.round(edpvr(last.params, edv)), laMean: Math.round(la), label: p.label, noOutput: false,
     };
   }
 
