@@ -178,7 +178,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     medications: [
       'Atropine 1 mg IV bolus every 3–5 min, maximum 3 mg (ACLS)',
       'If atropine fails: dopamine 5–20 mcg/kg/min or epinephrine 2–10 mcg/min infusion, titrated to response',
-      'Atropine is unlikely to work in heart transplant recipients because the heart is denervated',
+      'Avoid atropine in heart transplant recipients (denervated heart): it does not help and can cause paradoxical AV block or sinus arrest',
       'Toxin-specific therapy: calcium, glucagon or high-dose insulin for β-blocker/CCB toxicity; digoxin immune Fab for digoxin',
       'Stop or reduce offending rate-slowing medications',
     ],
@@ -407,7 +407,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     ],
     medications: [
       'Rate control (no HFrEF): diltiazem 0.25 mg/kg IV over 2 min, or metoprolol 2.5–5 mg IV, repeated as needed',
-      'Avoid nondihydropyridine CCBs when LVEF < 40%; use a β-blocker, digoxin or IV amiodarone instead',
+      'Avoid nondihydropyridine CCBs when LVEF ≤ 40%; use a β-blocker, digoxin or IV amiodarone instead',
       'Anticoagulate when annual stroke risk ≥ 2% (CHA2DS2-VASc ≥ 2 men, ≥ 3 women); reasonable at 1 in men, 2 in women',
       'DOACs (e.g. apixaban) preferred over warfarin except with a mechanical valve or moderate–severe rheumatic mitral stenosis',
       'Aspirin is not an acceptable alternative to anticoagulation for stroke prevention',
@@ -422,7 +422,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Perform a stroke assessment and document last known well time for any neurologic deficit',
     ],
     hospitalCare: [
-      'Unstable: synchronized cardioversion; higher initial biphasic energy (~200 J) improves first-shock success',
+      'Unstable: synchronized cardioversion starting at ≥ 200 J biphasic, which improves first-shock success; escalate if it fails',
       'AF ≥ 48 h or unknown duration: ≥ 3 weeks anticoagulation or TEE before cardioversion, then ≥ 4 weeks after',
       'Labs: electrolytes, magnesium, TSH, renal function, CBC, and troponin if ischemic symptoms',
       'Treat triggers: sepsis, thyrotoxicosis, PE, alcohol, hypoxia, postoperative state',
@@ -431,7 +431,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     ],
     cardiologyCare: [
       'Calculate CHA2DS2-VASc; use bleeding scores to fix modifiable risks, not to withhold anticoagulation',
-      'Risk factor modification is Class 1: weight loss ≥ 10%, exercise, alcohol reduction, BP, diabetes and sleep apnea control',
+      'Risk factor modification is Class 1: weight loss ≥ 10%, exercise, alcohol reduction, BP and diabetes control; sleep apnea screening may be reasonable (Class 2b)',
       'Early rhythm control (within ~1 year of diagnosis) improves outcomes in selected patients (EAST-AFNET 4)',
       'Catheter ablation is first-line for symptomatic paroxysmal AF in selected, generally younger patients',
       'Ablation is recommended in selected patients with HFrEF to improve symptoms, LVEF and outcomes',
@@ -507,7 +507,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'A macroreentrant atrial rhythm, typically circling the tricuspid annulus through the cavotricuspid isthmus at ~300/min. With 2:1 AV conduction the ventricular rate is ~150 bpm, which is easily mistaken for sinus tachycardia.',
     levelNotes: [
       'A rapid regular pulse that stays fixed (often near 150 bpm) despite rest is a reason to request ALS; check perfusion, give oxygen if hypoxemic, and acquire and transmit a 12-lead where protocols allow.',
-      'Suspect flutter whenever a narrow regular rate is fixed near 150 bpm and look for sawtooth waves in II, III, aVF and V1; unstable patients need synchronized cardioversion per protocol (often ~50–100 J), and adenosine or vagal maneuvers only unmask the waves.',
+      'Suspect flutter whenever a narrow regular rate is fixed near 150 bpm and look for sawtooth waves in II, III, aVF and V1; unstable patients need synchronized cardioversion per protocol (200 J biphasic initially per the 2025 AHA algorithm), and adenosine or vagal maneuvers only unmask the waves.',
       'Flutter may be induced deliberately during EP study or CTI ablation; run the recording system and stimulator as directed, label intracardiac channels, record cycle length for the operator, and keep the defibrillator ready for cardioversion.',
       'Confirm anticoagulation status (same rules as AF) before cardioversion or ablation; give ibutilide only on order after checking potassium and magnesium, with continuous ECG and QT monitoring for ≥ 4 h, and give moderate sedation on order with the practitioner present.',
       'CTI ablation is first-line for symptomatic typical flutter (> 90% success), but AF often follows, so tie anticoagulation to stroke risk. Confirm CTI dependence by entrainment (PPI − TCL < ~20–30 ms) and prove bidirectional isthmus block; atypical left atrial flutters need 3D activation mapping.',
@@ -562,7 +562,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Acquire and transmit a 12-lead ECG so it can be reviewed for flutter, especially when the rate is fixed near 150 bpm',
-      'ALS: Unstable: synchronized cardioversion; flutter often converts at low energy (~50–100 J biphasic)',
+      'ALS: Unstable: synchronized cardioversion per protocol, 200 J biphasic initially (2025 AHA; older algorithms used 50–100 J)',
       'ALS: Stable: vagal maneuvers or adenosine may slow the rate and reveal flutter waves but will not convert flutter',
       'ALS: Record a continuous rhythm strip during any maneuver or adenosine dose for later diagnosis',
       'ALS: Rate control with diltiazem or metoprolol per protocol if stable and no decompensated heart failure',
@@ -580,7 +580,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Flutter that emerges during class IC therapy for AF can be treated with CTI ablation while continuing the drug',
     ],
     procedure: [
-      'Synchronized cardioversion at low energy has a very high success rate',
+      'Synchronized cardioversion has a very high success rate; the 2025 AHA algorithm starts at 200 J biphasic',
       'CTI ablation creates a linear lesion from the tricuspid annulus to the IVC; success > 90–95%',
       'Procedural endpoint is bidirectional conduction block across the isthmus',
       'Atypical flutter ablation uses 3D electroanatomic mapping to find and transect the critical isthmus',
@@ -716,7 +716,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Slow-pathway ablation at the posteroseptal tricuspid annulus near the coronary sinus ostium',
       'Accelerated junctional rhythm during radiofrequency delivery signals effective lesion location',
       'Success ~95% or higher with AV block risk < 1%; cryoablation further lowers AV block risk near the node',
-      'Synchronized cardioversion (often ~50–100 J biphasic) for unstable patients',
+      'Synchronized cardioversion (100 J biphasic initially, 2025 AHA) for unstable patients',
     ],
     complications: [
       'Hemodynamic compromise in patients with structural heart disease',

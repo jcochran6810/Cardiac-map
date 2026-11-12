@@ -112,7 +112,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     redFlags: [
       'New RBBB with chest pain or ST elevation (proximal LAD occlusion)',
-      'New RBBB with hypoxia, tachycardia or hypotension (massive PE)',
+      'New RBBB with hypoxia, tachycardia or hypotension (acute PE with RV strain)',
       'Syncope with RBBB plus left or right axis deviation (bifascicular block)',
       'Alternating RBBB and LBBB on serial ECGs',
       'Coved ST elevation in V1–V2 with syncope or family history of sudden death (Brugada pattern)',
@@ -517,7 +517,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Adenosine 6 mg rapid IV push (then 12 mg) only if the WCT is regular and monomorphic; it can diagnose SVT with aberrancy',
       'Procainamide 20–50 mg/min IV until suppression, hypotension, QRS widening > 50% or max 17 mg/kg; avoid with long QT or heart failure',
       'Amiodarone 150 mg IV over 10 min, repeated as needed, then 1 mg/min infusion for 6 h',
-      'Sotalol 100 mg (1.5 mg/kg) IV over 5 min; avoid with prolonged QT',
+      'Sotalol 1.5 mg/kg IV over 5 min is still a "may be considered" option in the 2025 AHA guideline but was dropped from its tachycardia algorithm; avoid with prolonged QT',
       'Lidocaine is an alternative, more effective when VT is ischemia-related',
       'Avoid verapamil or diltiazem in wide-complex tachycardia unless SVT or fascicular VT is certain',
     ],
@@ -584,9 +584,9 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'In ventricular fibrillation the ventricles quiver chaotically instead of contracting, so there is no pulse and no blood flow. It is the classic shockable cardiac arrest rhythm: survival depends on immediate CPR and early defibrillation.',
     levelNotes: [
       'Unresponsive and not breathing normally (gasping counts as not breathing): start high-quality CPR, attach the AED as soon as it arrives, shock when advised and resume compressions immediately. Minimize pauses and request ALS.',
-      'Defibrillate VF immediately and resume CPR for 2 min; epinephrine 1 mg IV/IO every 3–5 min after the second shock, amiodarone 300 mg or lidocaine after the third. For refractory VF consider vector change or double sequential defibrillation per protocol.',
+      'Defibrillate VF immediately and resume CPR for 2 min; epinephrine 1 mg IV (IO if IV access fails) every 3–5 min after the second shock, amiodarone 300 mg or lidocaine after the third. For refractory VF, vector change and double sequential defibrillation are of unproven benefit (2025 AHA): use only if local protocol directs.',
       'VF in the lab often follows coronary injection, ischemia or reperfusion. Call it out immediately, have the defibrillator ready (pads pre-placed in high-risk cases), participate in CPR and defibrillation per ACLS certification and facility policy, and keep recording shock times.',
-      'Lead or support ACLS: immediate defibrillation, high-quality CPR, epinephrine and amiodarone per ACLS protocol, with timed documentation. After ROSC, monitor MAP (≥ 65 mmHg), SpO2 (92–98%) and temperature, and prepare for emergent angiography or temperature control as ordered.',
+      'Lead or support ACLS: immediate defibrillation, high-quality CPR, epinephrine and amiodarone per ACLS protocol, with timed documentation. After ROSC, monitor MAP (≥ 65 mmHg), SpO2 (90–98%) and temperature, and prepare for emergent angiography or temperature control as ordered.',
       'Post-arrest STEMI needs emergent angiography; routine immediate angiography does not benefit comatose survivors without STE or shock. ICD for VF not due to a reversible cause; evaluate channelopathies; consider ECPR or MCS for refractory VF and Purkinje-trigger ablation for storm.',
     ],
     overview: [
@@ -622,7 +622,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Post-ROSC 12-lead may reveal STEMI, long QT, Brugada pattern or pre-excitation',
     ],
     imaging: [
-      'Point-of-care ultrasound during pulse checks can identify tamponade, massive PE or cardiac activity without extending pauses',
+      'Point-of-care ultrasound during pulse checks can identify tamponade, signs of a large PE or cardiac activity without extending pauses',
       'Post-ROSC echocardiography for LV function, wall motion abnormalities and structural causes',
       'Coronary angiography after ROSC for STEMI or suspected ongoing ischemia',
       'Cardiac MRI in survivors without a clear cause to look for scar, myocarditis or cardiomyopathy',
@@ -640,16 +640,16 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'ALS: Manual defibrillation as soon as possible: biphasic 120–200 J per manufacturer (maximum if unknown), monophasic 360 J',
       'Resume compressions immediately after each shock for 2 min before rhythm check',
       '30:2 compressions to breaths without an advanced airway; 1 breath every 6 s with one',
-      'ALS: Refractory VF: vector change (anterior-posterior pads) or double sequential defibrillation may be considered per protocol',
+      'ALS: Refractory VF (≥ 3 shocks): the benefit of vector change (anterior-posterior pads) or double sequential defibrillation is not established (2025 AHA); use only per local protocol',
       'Rotate compressors every 2 min to limit fatigue',
-      'ALS: Use waveform ETCO2 to monitor CPR quality; IV/IO epinephrine and amiodarone or lidocaine per protocol',
+      'ALS: Use waveform ETCO2 to monitor CPR quality; IV access first (IO if IV fails) for epinephrine and amiodarone or lidocaine per protocol',
     ],
     hospitalCare: [
-      'ETCO2 < 10 mmHg suggests inadequate CPR; an abrupt sustained rise suggests ROSC',
+      'A low or falling ETCO2 should prompt a check of CPR quality; an abrupt sustained rise suggests ROSC; never stop resuscitation on ETCO2 alone',
       'Search for reversible causes (Hs and Ts): hypoxia, hypovolemia, H+ acidosis, hypo/hyperkalemia, hypothermia, tension pneumothorax, tamponade, toxins, thrombosis',
-      'DOSE-VF found improved survival with vector change or double sequential defibrillation for refractory VF; 2023 AHA focused update rates evidence as limited (may be considered)',
+      'DOSE-VF found improved survival with vector change or double sequential defibrillation for refractory VF, but the 2025 AHA guidelines state their usefulness has not been established',
       'ECPR is reasonable for selected refractory arrest within trained, equipped systems',
-      'Post-ROSC: SpO2 92–98%, avoid hypotension (MAP ≥ 65 mmHg), 12-lead ECG and deliberate temperature control (32–37.5 °C) if not following commands',
+      'Post-ROSC: SpO2 90–98%, avoid hypotension (MAP ≥ 65 mmHg), 12-lead ECG and deliberate temperature control (32–37.5 °C for ≥ 36 h) if not following commands',
     ],
     cardiologyCare: [
       'Emergent angiography for post-arrest STEMI; routine immediate angiography is not beneficial for comatose patients without STE and without shock',
@@ -700,7 +700,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Torsades de pointes is a polymorphic ventricular tachycardia in which the QRS axis twists around the baseline, occurring in the setting of a prolonged QT interval. It often stops on its own but can cause syncope or degenerate into ventricular fibrillation.',
     levelNotes: [
       'Recurrent fainting or “seizures” can be a dangerous rhythm caused by medications or low electrolytes. Request ALS, bring all medication bottles and recent drug changes, and if the patient becomes pulseless start CPR and use the AED.',
-      'Polymorphic VT twisting around the baseline with a long QT: give magnesium sulfate 1–2 g IV per protocol, and defibrillate (unsynchronized) if pulseless or unstable. Avoid amiodarone and procainamide, keep pads on, and capture a 12-lead between episodes.',
+      'Polymorphic VT twisting around the baseline with a long QT: defibrillate (unsynchronized) at once if sustained or pulseless, and give magnesium sulfate 1–2 g IV per protocol. Avoid amiodarone and procainamide, keep pads on, and capture a 12-lead between episodes.',
       'Recognize polymorphic VT on the monitor and alert the operator immediately; have the defibrillator ready and prepare temporary pacing equipment if overdrive pacing is planned. Torsades is pause-dependent, so report long pauses and frequent PVCs.',
       'Administer magnesium sulfate as ordered or per ACLS protocol, replace potassium as ordered (target often ~4.5–5.0 mmol/L), and flag QT-prolonging drugs for physician review. Monitor QTc and telemetry for pauses and R-on-T PVCs, keep pads on, and escalate any recurrence.',
       'Separate acquired (drugs, electrolytes, bradycardia) from congenital LQTS. Magnesium, potassium repletion, stopping culprit drugs and isoproterenol or overdrive pacing (~90–110 bpm) suppress pause-dependent torsades; congenital LQTS needs nonselective beta-blockers, genetic testing, ICD after arrest and LCSD if refractory.',
@@ -752,7 +752,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     fieldCare: [
       'Pulseless: start CPR, attach the AED as soon as available and follow cardiac arrest care',
-      'ALS: Unstable with a pulse: defibrillate (unsynchronized; synchronization is usually unreliable)',
+      'ALS: Sustained polymorphic VT, even with a pulse: defibrillate immediately (unsynchronized; synchronization is usually unreliable)',
       'ALS: Give magnesium sulfate 1–2 g IV per protocol for torsades with or without a pulse',
       'Keep AED or defibrillator pads in place after an episode; episodes often recur',
       'Document and bring all medications and recent drug changes',
@@ -773,7 +773,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'ICD for survivors of cardiac arrest from congenital LQTS',
     ],
     procedure: [
-      'Unsynchronized defibrillation for pulseless or sustained unstable torsades',
+      'Unsynchronized defibrillation for pulseless or sustained torsades',
       'Temporary transvenous pacing for overdrive suppression of pause-dependent torsades',
       'Permanent pacing when bradycardia or AV block underlies recurrent torsades',
       'ICD implantation in high-risk congenital LQTS',
@@ -786,7 +786,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Misdiagnosis as a seizure disorder delaying treatment',
     ],
     teaching: [
-      'Magnesium first, even if the serum level is normal',
+      'Magnesium is the first-line drug, even if the serum level is normal',
       'Polymorphic VT with a normal QT is usually ischemic: treat ischemia, not with magnesium alone',
       'Drugs that prolong the QT make torsades worse: do not give amiodarone or procainamide',
       'Faster heart rate shortens QT: pacing or isoproterenol prevents pause-dependent episodes',
@@ -864,7 +864,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     medications: [
       'Aspirin 162–325 mg chewed (non-enteric-coated), then 81 mg daily',
-      'P2Y12 loading for primary PCI: ticagrelor 180 mg or prasugrel 60 mg (avoid prasugrel with prior stroke/TIA), or clopidogrel 600 mg',
+      'P2Y12 loading for primary PCI: ticagrelor 180 mg or prasugrel 60 mg preferred (no prasugrel with prior stroke/TIA); clopidogrel 600 mg if neither can be used',
       'Anticoagulation: weight-based UFH or bivalirudin for PCI; UFH or enoxaparin with fibrinolysis',
       'Fibrinolytic (e.g., tenecteplase, weight-based bolus) when PCI cannot occur in time; clopidogrel is the P2Y12 inhibitor used with lytics',
       'Nitroglycerin 0.4 mg SL every 5 min up to 3 doses for ongoing pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor use',
@@ -879,7 +879,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'ALS: Pads on, IV access, and prepare for VF; treat pain per protocol (e.g., fentanyl)',
     ],
     hospitalCare: [
-      'Door-to-device ≤ 90 min; FMC-to-device ≤ 120 min if transferred (door-in-door-out ≤ 30 min)',
+      'FMC-to-device ≤ 90 min at a PCI-capable hospital; ≤ 120 min if transferred (door-in-door-out ≤ 30 min)',
       'If PCI is not achievable within 120 min: fibrinolysis within 30 min of arrival for symptoms < 12 h without contraindications',
       'After fibrinolysis: rescue PCI if < 50% ST resolution at 60–90 min, otherwise angiography within 2–24 h',
       'Monitor for VF, new RBBB/LAFB, Mobitz II or complete heart block (infranodal; atropine often fails, pacing needed)',
@@ -999,7 +999,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'ALS: Symptomatic bradycardia: atropine, then transcutaneous pacing if ineffective',
     ],
     hospitalCare: [
-      'Door-to-device ≤ 90 min (≤ 120 min if transferred); fibrinolysis within 30 min if timely PCI is not possible',
+      'FMC-to-device ≤ 90 min (≤ 120 min if transferred); fibrinolysis within 30 min if timely PCI is not possible',
       'Right-sided and posterior leads to define RV and posterior involvement',
       'RV infarction: maintain preload, avoid nitrates and diuretics, support with inotropes as needed',
       'Maintain AV synchrony; AV sequential pacing is preferred if pacing is needed with RV infarction',
@@ -1098,7 +1098,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     medications: [
       'Aspirin 162–325 mg chewed, then 81 mg daily',
-      'P2Y12 loading (ticagrelor, prasugrel or clopidogrel) and anticoagulation (UFH or bivalirudin) for PCI',
+      'P2Y12 loading (ticagrelor or prasugrel preferred over clopidogrel) and anticoagulation (UFH or bivalirudin) for PCI',
       'Fibrinolysis (e.g., tenecteplase) when timely PCI is not available and criteria are met',
       'Nitroglycerin for ongoing pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor use',
       'High-intensity statin and oral beta-blocker when stable; ACE inhibitor if LVEF ≤ 40%, HF, diabetes or hypertension',
@@ -1111,7 +1111,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'ALS: Pads on, continuous monitoring and IV access; prepare for arrhythmias',
     ],
     hospitalCare: [
-      'Door-to-device ≤ 90 min (≤ 120 min if transferred); fibrinolysis within 30 min if timely PCI is not possible',
+      'FMC-to-device ≤ 90 min (≤ 120 min if transferred); fibrinolysis within 30 min if timely PCI is not possible',
       'Serial ECGs every 15–30 min and posterior leads when the initial ECG is nondiagnostic',
       'Refractory ischemic pain, instability or arrhythmia warrant emergent angiography even without STEMI criteria',
       'Bedside echo for regional wall motion abnormality when the ECG is equivocal',
@@ -1207,7 +1207,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     ],
     medications: [
       'Aspirin 162–325 mg chewed, then 81 mg daily',
-      'P2Y12 inhibitor (ticagrelor or clopidogrel; prasugrel once anatomy is known and PCI planned); routine pretreatment before angiography is debated',
+      'P2Y12 inhibitor: ticagrelor, or prasugrel once anatomy is known and PCI is planned, preferred over clopidogrel for PCI; routine pretreatment before angiography is debated',
       'Anticoagulation: UFH or enoxaparin 1 mg/kg SC every 12 h (renally adjusted); fondaparinux (add UFH at PCI to prevent catheter thrombosis) or bivalirudin are alternatives',
       'Nitroglycerin for ongoing ischemic pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor use',
       'Oral beta-blocker within 24 h if no contraindication; high-intensity statin; ACE inhibitor when indicated',
@@ -1229,8 +1229,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Selective invasive strategy after noninvasive testing for low-risk patients',
     ],
     cardiologyCare: [
-      'DAPT typically for 12 months, shortened or de-escalated in high bleeding risk',
-      'High-intensity statin with further LDL lowering (ezetimibe, PCSK9 inhibitor) when goals are not met',
+      'DAPT typically for 12 months; to cut bleeding, ticagrelor monotherapy from ≥ 1 month after PCI, or shortened/de-escalated DAPT in high bleeding risk',
+      'High-intensity statin; add a nonstatin (ezetimibe, PCSK9 inhibitor) when LDL-C stays ≥ 70 mg/dL on a maximally tolerated statin',
       'Beta-blocker, ACE inhibitor/ARB and MRA when LVEF ≤ 40% or other indications',
       'Investigate type 2 MI triggers and MINOCA causes rather than defaulting to DAPT',
       'Cardiac rehabilitation and risk factor control',
@@ -1319,7 +1319,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Aspirin 162–325 mg chewed, then 81 mg daily',
       'Anticoagulation (UFH or enoxaparin) as for NSTE-ACS',
       'P2Y12 inhibitor timing coordinated with the cath plan (CABG may be needed)',
-      'Nitroglycerin for recurrent pain if SBP ≥ 90 mmHg',
+      'Nitroglycerin for recurrent pain if SBP ≥ 90 mmHg and no PDE-5 inhibitor use',
       'High-intensity statin; beta-blocker if no contraindication',
     ],
     fieldCare: [
