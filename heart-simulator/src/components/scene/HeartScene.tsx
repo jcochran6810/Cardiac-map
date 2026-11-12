@@ -19,6 +19,7 @@ import { FRAME_EULER, TILT_EULER, modelToWorld } from '@/lib/anatomy/frames';
 import { HEART_CENTER, LANDMARK_BY_ID, LANDMARKS, PROFILE_TERRITORY, SURFACE_REGIONS } from '@/lib/anatomy/landmarks';
 import { structureCategory } from '@/lib/anatomy/categories';
 import CArmTracker from '@/components/scene/CArmTracker';
+import { useOverlayCover } from '@/components/scene/overlayCover';
 import {
   ATRIAL_PATTERNS, VENT_PATTERNS, buildGraph, computeActivation, ventPatternKey, type MeshGraph, type Region,
 } from '@/lib/anatomy/activation';
@@ -432,6 +433,24 @@ function CameraRig({ viewMode }: { viewMode: ViewMode }) {
   return null;
 }
 
+/**
+ * In a small view the controls along the top cover part of the picture: the heart is drawn lower by half their
+ * height (at most a tenth of the view), so it sits below them. Only the projection moves — turning, zooming,
+ * picking and the name tags all follow it.
+ */
+function FrameBelowControls() {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const size = useThree((s) => s.size);
+  const top = useOverlayCover((s) => s.top);
+  useEffect(() => {
+    const shift = Math.round(Math.min(top / 2, size.height * 0.1));
+    if (shift > 0 && size.width > 1 && size.height > 1) camera.setViewOffset(size.width, size.height, 0, -shift, size.width, size.height);
+    else camera.clearViewOffset();
+  }, [camera, top, size.width, size.height]);
+  useEffect(() => () => camera.clearViewOffset(), [camera]);
+  return null;
+}
+
 // ─── Controls tuning: the same feel on every screen and device ─────────────
 
 /**
@@ -542,6 +561,7 @@ function SceneContents({ onHover }: { onHover: (id: string | null, e?: ThreeEven
     <>
       <UniformSync viewMode={viewMode} />
       <CameraRig viewMode={viewMode} />
+      <FrameBelowControls />
       <group rotation={TILT_EULER}>
         <group rotation={FRAME_EULER}>
           <HeartModel viewMode={viewMode} onHover={onHover} onPick={onPick} />
