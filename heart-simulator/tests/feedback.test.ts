@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  CONTACT_MAX, MESSAGE_MAX, QUEUE_KEY, flushQueue, loadQueue, makeReport, newReportId, postReport, submitReport, timeAgo, toCsv, validateFeedback,
-  type Backend, type FeedbackContext, type FeedbackItem, type FeedbackReport, type KeyValue,
+  CONTACT_MAX, MESSAGE_MAX, QUEUE_KEY, QUEUE_MAX, flushQueue, loadQueue, makeReport, newReportId, postReport, submitReport, timeAgo, toCsv, validateFeedback,
+  type Backend, type FeedbackContext, type FeedbackItem, type FeedbackReport, type KeyValue, type SendDeps,
 } from '@/lib/feedback/feedback';
 
 const CONTEXT: FeedbackContext = {
@@ -136,6 +136,42 @@ describe('reports that can’t go now wait on the device', () => {
     expect((await submitReport(now, { backend: BACKEND, storage, fetch })).status).toBe('sent');
     await vi.waitFor(() => expect(loadQueue(storage)).toHaveLength(0));
     expect(bodies).toEqual([now.id, waiting.id]);
+  });
+
+  it('is never called saved when the device couldn’t keep it, and the learner is told so', async () => {
+    const r = report('Report that has nowhere to wait');
+    // storage full (quota) or a storage that accepts a write and keeps nothing
+    const full: KeyValue = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); }, removeItem: () => {} };
+    const forgetful: KeyValue = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+    const busy = vi.fn(async () => response(503));
+    const cases: SendDeps[] = [
+      { backend: null, storage: null },
+      { backend: BACKEND, storage: null, online: false, fetch: busy },
+      { backend: null, storage: full },
+      { backend: BACKEND, storage: full, online: false, fetch: busy },
+      { backend: BACKEND, storage: full, fetch: busy }, // the server is busy and the device is full
+      { backend: BACKEND, storage: forgetful, online: false, fetch: busy },
+    ];
+    for (const deps of cases) {
+      const res = await submitReport(r, deps);
+      expect(res.status).toBe('error');
+      expect(res).toMatchObject({ reason: expect.stringMatching(/couldn’t be saved on this device/) });
+      expect(res).toMatchObject({ reason: expect.stringMatching(/still here/) });
+    }
+    expect(busy).toHaveBeenCalledTimes(1);
+  });
+
+  it('a full queue turns a new report away rather than drop one the learner was told would be sent', async () => {
+    const storage = memory();
+    const waiting = Array.from({ length: QUEUE_MAX }, (_, i) => report(`Waiting report number ${i + 1}`));
+    storage.setItem(QUEUE_KEY, JSON.stringify(waiting));
+    const res = await submitReport(report('One report too many'), { backend: BACKEND, storage, online: false });
+    expect(res).toMatchObject({ status: 'error', reason: expect.stringMatching(/already waiting/) });
+    expect(loadQueue(storage).map((r) => r.id)).toEqual(waiting.map((r) => r.id));
+    // once one has gone there is room again
+    storage.setItem(QUEUE_KEY, JSON.stringify(waiting.slice(1)));
+    expect((await submitReport(report('Room for this one now'), { backend: BACKEND, storage, online: false })).status).toBe('queued');
+    expect(loadQueue(storage)).toHaveLength(QUEUE_MAX);
   });
 
   it('ignores a corrupt queue', () => {
