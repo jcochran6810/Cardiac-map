@@ -8,7 +8,8 @@ function returnable(el: Element | null): HTMLElement | null {
 }
 
 /**
- * Keyboard focus for a panel that opens over the screen (the quiz, the tutor).
+ * Keyboard focus for a panel that opens over the screen without being modal (the quiz, the tutor): focus moves in and
+ * back, but Tab is not held inside — for the modal dialogs (Welcome, Help, Glossary) see `src/hooks/useDialogFocus.ts`.
  *
  * On opening, focus moves into the panel: to whatever `target` returns, after `delay` ms if one is given (the tutor
  * waits a moment, so the "T" that opened it is not typed into its question box). On closing, focus goes back to the
@@ -20,7 +21,7 @@ function returnable(el: Element | null): HTMLElement | null {
  * that control. (A panel that takes focus at once is rendered after the one it replaces, which has handed focus back
  * by then.)
  */
-export function useDialogFocus(open: boolean, target: () => HTMLElement | null, delay = 0) {
+export function usePanelFocus(open: boolean, target: () => HTMLElement | null, delay = 0) {
   const opener = useRef<HTMLElement | null>(null);
   const targetRef = useRef(target);
   targetRef.current = target;

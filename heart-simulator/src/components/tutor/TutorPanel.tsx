@@ -12,7 +12,7 @@ import { useContent } from '@/lib/content';
 import { answerQuestion, canReadMonitor } from '@/lib/tutor';
 import { kindOf, nameOf, openById } from '@/lib/actions';
 import { IconChevron, IconClose, IconTutor } from '@/components/ui/icons';
-import { useDialogFocus } from '@/components/tutor/useDialogFocus';
+import { usePanelFocus } from '@/components/tutor/usePanelFocus';
 
 const READ_MONITOR = 'What does this ECG show?';
 /** a question chip: 12 px text, and at least 40 px tall on a touch screen */
@@ -46,7 +46,7 @@ export default function TutorPanel() {
   }, [messages, tutorOpen]);
 
   // the tutor waits a moment before taking focus, so the "T" that opened it is not typed into the box
-  useDialogFocus(tutorOpen, () => inputRef.current, 50);
+  usePanelFocus(tutorOpen, () => inputRef.current, 50);
 
   // The tutor and the quiz open in the same place (all of a phone's screen): opening the quiz puts the tutor away
   useEffect(() => useAppStore.subscribe((s, prev) => {

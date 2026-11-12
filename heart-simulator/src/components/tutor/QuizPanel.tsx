@@ -12,7 +12,7 @@ import type { QuizTopic } from '@/types/content';
 import { IconClose, IconQuiz } from '@/components/ui/icons';
 import QuizStrip from '@/components/tutor/QuizStrip';
 import { leadNamedIn } from '@/components/tutor/stripLead';
-import { useDialogFocus } from '@/components/tutor/useDialogFocus';
+import { usePanelFocus } from '@/components/tutor/usePanelFocus';
 
 const TOPIC_LABEL: Record<QuizTopic, string> = {
   anatomy: 'Anatomy', physiology: 'Physiology', ecg: 'ECG', 'rhythm-id': 'Rhythm ID (live)', conduction: 'Conduction', coronary: 'Coronary',
@@ -75,7 +75,7 @@ export default function QuizPanel() {
     if (s.tutorOpen && !prev.tutorOpen && useAppStore.getState().quizOpen) useAppStore.getState().setQuizOpen(false);
   }), []);
 
-  useDialogFocus(quizOpen, () => panelRef.current);
+  usePanelFocus(quizOpen, () => panelRef.current);
 
   const pool = useMemo(() => {
     if (!lib) return [];

@@ -62,7 +62,7 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
       ],
       links: [],
       followUps: ['What is ejection fraction?', 'Explain preload and afterload'],
-      text: 'Open “Wiggers / PV” below the ECG to see pressures, volume and heart sounds move in time with this heart.',
+      text: 'Open “Pressure & volume” below the ECG to see pressures, volume and heart sounds move in time with this heart.',
     },
   },
   {
@@ -108,7 +108,7 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
       ],
       links: ['left-ventricle', 'hfref', 'hfpef'],
       followUps: ['Explain preload and afterload'],
-      text: 'The Wiggers / PV panel shows EDV, ESV, stroke volume, EF and cardiac output for the current condition.',
+      text: 'The Pressure & volume panel (Wiggers diagram and PV loop) shows EDV, ESV, stroke volume, EF and cardiac output for the current condition.',
     },
   },
   {
