@@ -200,10 +200,14 @@ library section or tool also resets the speed to real time and closes the electr
   counts half), what went well, your times against the goals and the teaching points. A **Hint** names the
   next critical step for 2 points. Best scores are kept on the device.
 - **Cases:** field — anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,
-  paramedic) · complete heart block · unstable SVT · VF cardiac arrest (EMT, paramedic). Cath lab (tech, nurse,
-  cardiologist) — anterior STEMI (damped guide, reperfusion VF) · inferior STEMI from the groin (Bezold–Jarisch
-  reflex) · FFR- and IVUS-guided PCI (radial spasm) · cardiogenic shock (right heart numbers, Impella) ·
-  coronary perforation and tamponade · contrast reaction. Tests play every case's ideal run for each role
+  paramedic) · complete heart block · beta-blocker (metoprolol) overdose · unstable SVT · AF with a rapid response
+  and a weak heart · stable VT after an old infarct · hyperkalemia in a dialysis patient · VF cardiac arrest (EMT,
+  paramedic) · PEA cardiac arrest from hypoxia (EMT, paramedic). Cath lab (tech, nurse, cardiologist) — anterior STEMI
+  (damped guide, reperfusion VF) · inferior STEMI from the groin (Bezold–Jarisch reflex) · FFR- and IVUS-guided PCI
+  (radial spasm) · cardiogenic shock (right heart numbers, Impella) · no-reflow after the stent (heavy clot burden) ·
+  coronary perforation and tamponade · contrast reaction. Each new case was written to the 2025 AHA and ACC/AHA
+  guidelines and checked by an independent clinical reviewer, with its own test file (`tests/scenario-*.test.ts`)
+  covering the ideal runs, the traps and every in-scope action. Tests play every case's ideal run for each role
   and its main traps (`tests/scenarios.test.ts`).
 - The engine is pure and deterministic (`engine.ts`: `start`, `perform`, `takeHint`, `stop`, `review`), so a new
   case is one file in `scenarios/` plus a line in `scenarios/index.ts` and an ideal run in the tests.
