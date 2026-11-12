@@ -132,7 +132,15 @@ lists the changes. The section then judges the choice of drug for this rhythm, t
 condition (e.g. β-blocker first in aortic dissection; cardioversion, not antiarrhythmics, for hypotensive VT)
 and the dose (low, usual, high, overdose) with the reason. **Details** on the bar above the ECG brings the Give
 meds section back into view. The model is deterministic and shows the classic response (notes say where real patients differ);
-doses follow the drug cards and current guidelines, adult only. Opening another condition starts a new patient.
+doses follow the drug cards and current guidelines, adult only.
+
+**A new patient starts clean** (`newPatient()` / `onNewPatient()` in `src/lib/rhythm.ts`): opening another condition,
+a case study, a quiz strip, a lesson step with a different rhythm, a defibrillator scenario or a simulator case ends the
+Give-meds session (doses, pending effects, interval changes), clears the defibrillator's code record, CPR, pacing,
+charge and delayed responses, and puts swapped ECG cables back on their own electrodes. Effects on the same patient keep
+running — also while the learner visits the main menu or the course list. The quiz borrows the monitor only for its
+strip questions and hands it back afterwards; "Show the ECG" never ends a treatment or a code in progress. Opening a
+library section or tool also resets the speed to real time and closes the electrode lab.
 
 ## Case simulator
 

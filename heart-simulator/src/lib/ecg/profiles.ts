@@ -439,10 +439,10 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   // Accelerated idioventricular rhythm: a ventricular focus a little faster than the sinus node (classically just after
   // a blocked artery reopens). Not VT: the beats are drawn as escape beats, so nothing treats it as shockable
   aivr: {
-    id: 'aivr', name: 'Accelerated Idioventricular Rhythm (AIVR)', rhythm: 'aivr', rateControl: 'ventricular', defaultHR: 78, minHR: 50, maxHR: 110,
+    id: 'aivr', name: 'Accelerated Idioventricular Rhythm (AIVR)', rhythm: 'aivr', rateControl: 'ventricular', defaultHR: 78, minHR: 50, maxHR: 120,
     pr: 0, p: 'normal', qrs: 'vt', qtc: 440, hemo: 'normal',
     headline: 'Accelerated idioventricular rhythm (AIVR)',
-    findings: ['Regular wide QRS (> 120 ms) at about 50–110 a minute, usually under 100: close to the sinus rate', 'AV dissociation: sinus P waves march through; fusion and capture beats as the two pacemakers compete', 'Common in the minutes after an infarct artery reopens; also digoxin toxicity and cardiomyopathy', 'Usually well tolerated and ends by itself: do not suppress it with antiarrhythmics; treat only if the lost atrial kick drops the pressure'],
+    findings: ['Regular wide QRS (> 120 ms) at about 50–120 a minute, usually under 100: close to the sinus rate', 'AV dissociation: sinus P waves march through; fusion and capture beats as the two pacemakers compete', 'Common in the minutes after an infarct artery reopens; also digoxin toxicity and cardiomyopathy', 'Usually well tolerated and ends by itself: do not suppress it with antiarrhythmics; treat only if the lost atrial kick drops the pressure'],
     keyLeads: ['II', 'V1'],
   },
   asystole: {
