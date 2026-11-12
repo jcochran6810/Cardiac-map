@@ -438,12 +438,12 @@ describe('no-reflow in the cath lab: fair scoring and a consistent patient (inde
     expect(r.toFix.find((t) => t.label.startsWith('Support the pressure'))?.kind).toBe('late');
   });
 
-  it('an intracoronary drug pushed during VF reaches nothing and is not the microvascular drug', () => {
+  it('an intracoronary drug pushed during VF treats nothing and is not the microvascular drug', () => {
     let s = run(sc, 5, NO_REFLOW);
     while (s.pulse) s = perform(sc, s, 'reassess');
     for (const drug of ['ic-adenosine', 'ic-verapamil']) {
       const t = perform(sc, s, drug);
-      expect(t.log.at(-1)!.text, drug).toMatch(/with no circulation it goes nowhere/);
+      expect(t.log.at(-1)!.text, drug).toMatch(/it has no place in cardiac arrest and changes nothing on the monitor/);
       expect(t.flags['micro-1'], drug).toBeUndefined();
       expect(missed(t), drug).toContain('An intracoronary drug for the microvessels');
     }

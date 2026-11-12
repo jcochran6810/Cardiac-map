@@ -70,8 +70,8 @@ function rosc(s: SimState): Effect {
   };
 }
 
-/** A drug for the heart or the vessels pushed in arrest: with no circulation it reaches nothing */
-const noCirculation = (what: string, flag: string): Effect => ({ say: [['you', `${what} pushed — with no circulation it reaches nothing, and nothing changes.`]], flags: [flag] });
+/** A drug with no role in her arrest, pushed during it: the compressions carry it, but it has nothing to treat */
+const noRoleInArrest = (what: string, flag: string): Effect => ({ say: [['you', `${what} pushed — it has no place in her arrest, and nothing changes on the monitor.`]], flags: [flag] });
 
 export const peaArrestField: Scenario = {
   id: 'pea-arrest-field',
@@ -219,18 +219,18 @@ export const peaArrestField: Scenario = {
       const hr = Math.min(150, s.rhythm.hr + 10);
       return { say: [['monitor', `Heart rate ${hr}.`]], rhythm: { ...s.rhythm, hr }, flags: ['atropine'] };
     },
-    adenosine6: (s) => (s.pulse ? null : noCirculation('Adenosine', 'adenosine')),
-    adenosine12: (s) => (s.pulse ? null : noCirculation('Adenosine', 'adenosine')),
+    adenosine6: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
+    adenosine12: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
     // with a pulse it is absorbed: the rate and the pressure rise a little — and it is still the wrong drug for her
     'epi-im': (s) => {
-      if (!s.pulse) return { say: [['you', 'Epinephrine 0.5 mg IM in the thigh — with no circulation, nothing carries it out of the muscle.']], flags: ['epi-im'] };
+      if (!s.pulse) return { say: [['you', 'Epinephrine 0.5 mg IM in the thigh — a muscle barely absorbs it during CPR, and it is not the arrest dose.']], flags: ['epi-im'] };
       const bp = bpAfter(s, 8, 4);
       const hr = Math.min(150, s.rhythm.hr + 6);
       return { say: [['you', 'Epinephrine 0.5 mg IM in the thigh.'], ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, rhythm: { ...s.rhythm, hr }, flags: ['epi-im'] };
     },
     // the drugs that slow or convert a rhythm, given after ROSC: they weaken the squeeze and widen the vessels
     'amio-infusion': (s) => {
-      if (!s.pulse) return { say: [['you', 'Amiodarone 150 mg infusion started — with no circulation it reaches nothing, and nothing changes.']], flags: ['amiodarone'] };
+      if (!s.pulse) return { say: [['you', 'Amiodarone 150 mg infusion started — it has no place in her arrest, and nothing changes on the monitor.']], flags: ['amiodarone'] };
       const bp = bpAfter(s, -10, -6);
       return { say: [['you', 'Amiodarone 150 mg running over 10 minutes.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad']], vitals: bp, flags: ['amiodarone'] };
     },
@@ -300,8 +300,8 @@ export const peaArrestField: Scenario = {
     'stemi-alert': (s) => (s.pulse && has(s, 'ecg12')
       ? { say: [['hospital', 'The interventional cardiologist reviews your 12-lead: no ST elevation — the cath lab is not activated. Bring her to the emergency department.']], flags: ['alert-declined'] }
       : null),
-    // arriving in the arrest: the resuscitation team takes over the CPR, and her care is no longer the crew's
-    // (the engine would otherwise wait for a pulse before a hand-off ends the case)
+    // arriving in the arrest: the resuscitation team takes over the CPR, and her care is no longer the crew's (the review
+    // scores a hand-over without ROSC as it scores a death)
     handoff: (s) => (!s.pulse && has(s, 'arrived')
       ? { say: [['you', 'Hand-off to the resuscitation team: CPR continues in the emergency department.']], flags: ['handoff'], end: 'complete' }
       : null),
@@ -483,7 +483,7 @@ export const peaArrestField: Scenario = {
     },
     {
       // in the arrest, and after ROSC on a heart that is already fast: one rule, so one mistake costs once
-      id: 'atropine-no-indication', actions: ['atropine'], when: (s) => !s.pulse || s.rhythm.hr >= 60, points: 3, severity: 'minor',
+      id: 'atropine-no-indication', actions: ['atropine'], when: (s) => !s.pulse || s.rhythm.hr >= 60, points: 3, severity: 'minor', replaces: ['atropine-fast', 'atropine-in-arrest'],
       text: 'Atropine with no slow pulse to treat. It has not been part of the cardiac arrest algorithm since 2010: the slow complexes of her PEA came from a heart starved of oxygen, not from the vagus — CPR, epinephrine and breaths with oxygen treat it. After ROSC her heart is already fast, and atropine only makes it faster.',
     },
     {

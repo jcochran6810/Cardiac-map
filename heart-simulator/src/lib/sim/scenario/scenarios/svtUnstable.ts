@@ -46,11 +46,17 @@ export const svtUnstable: Scenario = {
     lungs: 'Clear.',
     perfusion: 'Pale and sweaty; weak radial pulse, too fast to count; neck pulsations.',
     neuro: 'Alert and oriented, very anxious.',
-    ecg12: (s) => s.rhythm.profile === 'avnrt'
-      ? 'Regular narrow-complex tachycardia at 190 with no visible P waves (retrograde P waves hidden in the QRS): SVT, most likely AVNRT.'
-      : s.rhythm.profile === 'normal-sinus'
-        ? 'Sinus rhythm 94, normal PR and QRS, no delta wave (no pre-excitation), no ST changes.'
-        : 'No 12-lead possible right now.',
+    // after conversion (or ROSC) the sinus rhythm takes the name of its rate: a drug can still speed or slow it
+    ecg12: (s) => {
+      const after = 'normal PR and QRS, no delta wave (no pre-excitation), no ST changes.';
+      switch (s.rhythm.profile) {
+        case 'avnrt': return `Regular narrow-complex tachycardia at ${s.rhythm.hr} with no visible P waves (retrograde P waves hidden in the QRS): SVT, most likely AVNRT.`;
+        case 'normal-sinus': return `Sinus rhythm ${s.rhythm.hr}: ${after}`;
+        case 'sinus-tachycardia': return `Sinus tachycardia ${s.rhythm.hr}: ${after}`;
+        case 'sinus-bradycardia': return `Sinus bradycardia ${s.rhythm.hr}: ${after}`;
+        default: return 'No 12-lead possible right now.';
+      }
+    },
   },
   status: (s) => {
     if (!s.pulse) return 'Unresponsive.';

@@ -99,8 +99,8 @@ export const hyperkalemiaField: Scenario = {
     },
   },
   status: (s) => {
-    // nobody is doing compressions until the learner starts them
-    if (!s.pulse) return has(s, 'cpr') ? 'Unresponsive; CPR continues.' : 'Unresponsive, not breathing normally, no pulse — and no CPR yet.';
+    // nobody is doing compressions until the learner starts them, and a reassessment is not a CPR cycle: it must not say they go on
+    if (!s.pulse) return has(s, 'cpr') ? 'Unresponsive, no pulse.' : 'Unresponsive, not breathing normally, no pulse — and no CPR yet.';
     // bagging during the arrest does not mean anyone is bagging him now: the rate of 10 is the crew's, 8 is his own
     if (s.vitals.gcs <= 8) return has(s, 'ventilated') && s.vitals.rr >= 10 ? `Comatose; ventilated at ${s.vitals.rr}/min.` : `Comatose, breathing ${s.vitals.rr}/min on his own.`;
     if (s.vitals.gcs < 13) return 'Drowsy, barely answering.';
@@ -403,7 +403,7 @@ export const hyperkalemiaField: Scenario = {
       id: 'pace-before-calcium', actions: ['pace'], when: (s) => s.pulse && has(s, 'iv') && !has(s, 'calcium'), points: 3, severity: 'minor',
       text: 'Pacing before calcium, with the line already in. In a dialysis patient this slow and wide the cause comes first: a high potassium raises the pacing threshold, so the pacer often cannot take over, and the attempt hurts. Give calcium first; pacing or an epinephrine infusion is for a rate still too slow after it.',
     },
-    { id: 'atropine-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in PEA. It has not been part of the cardiac-arrest algorithm since 2010: CPR, epinephrine and the reversible cause — here the potassium.' },
+    { id: 'atropine-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['atropine-in-arrest'], text:'Atropine in PEA. It has not been part of the cardiac-arrest algorithm since 2010: CPR, epinephrine and the reversible cause — here the potassium.' },
     {
       // one rule for all of them, in its own words; it stands in for the built-in procainamide and arrest-amiodarone rules
       id: 'antiarrhythmic-wide', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], points: 15, severity: 'critical',
@@ -421,7 +421,7 @@ export const hyperkalemiaField: Scenario = {
       id: 'sedation-no-pain', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp', points: 3, severity: 'minor',
       text: 'An opioid or sedation for a patient with no pain and nothing to sedate him for. With his pressure this low and his breathing muscles weak, it only adds hypotension and slower, shallower breathing.',
     },
-    { id: 'false-alert', actions: ['stemi-alert'], points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. It calls the cath lab team in for an artery that is not blocked, and points the patient at a lab when what he needs is dialysis.' },
+    { id: 'false-alert', actions: ['stemi-alert'], points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. It calls the cath lab team in for an artery that is not blocked, and points the patient at a lab when what he needs is dialysis.' },
     {
       id: 'magnesium-renal', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest'],
       text: 'Magnesium for a dialysis patient. Nothing here calls for it, and failed kidneys cannot clear it: a high magnesium adds weakness, slows the heart and lowers the pressure.',

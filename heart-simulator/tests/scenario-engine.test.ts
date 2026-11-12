@@ -7,7 +7,7 @@ import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
 import type { Problem, Scenario, SimState } from '@/lib/sim/scenario/types';
-import { runScenario as run } from './helpers';
+import { UNTIL_ARRIVED, runScenario as run } from './helpers';
 
 const MEDIC_IDEAL = [
   'primary', 'opqrst', 'sample', 'vitals', 'ecg12', 'pads', 'aspirin', 'iv', 'stemi-alert', 'ask-pde5', 'nitro',
@@ -537,7 +537,7 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
     const neb = perform(withProblems(vf, 'hyperkalemia'), arrest, 'albuterol-hyperk');
     expect(neb.minute).toBe(arrest.minute);
     expect(neb.counts['albuterol-hyperk']).toBeUndefined();
-    expect(neb.log.at(-1)!.text).toMatch(/not recommended in arrest/);
+    expect(neb.log.at(-1)!.text).toMatch(/albuterol has no proven benefit in arrest \(2025 AHA\)/);
     const gel = perform(vf, start(vf, 1), 'oral-glucose');
     expect(gel.counts['oral-glucose']).toBeUndefined();
   });
@@ -598,5 +598,394 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
     expect(epi.log.at(-1)).toMatchObject({ who: 'monitor', text: 'Heart rate 104. BP 98/58.' });
     // the arrest dose of epinephrine is a separate drug: no penalty meant for it applies here
     expect(penalties(epi)).not.toContain('arrest-epi-with-pulse');
+  });
+});
+
+describe('default responses follow the patient in front of them', () => {
+  const vf = SCENARIO_BY_ID['vf-arrest-field'];
+  const lab = SCENARIO_BY_ID['stemi-cathlab'];
+  const penalties = (s: SimState) => s.penalties.map((p) => p.id);
+  const missed = (r: ReturnType<typeof review>) => r.toFix.filter((t) => t.kind === 'missed').map((t) => t.label);
+  /** The anterior STEMI patient (a case that keeps the default responses) with an IV in, in the given rhythm and vitals */
+  const medic = (rhythm?: SimState['rhythm'], vitals: Partial<SimState['vitals']> = {}, pulse = true): SimState => {
+    const s = run(stemiAnterior, 2, ['iv']);
+    return { ...s, rhythm: rhythm ?? s.rhythm, vitals: { ...s.vitals, ...vitals }, pulse };
+  };
+  /** What was said after a state */
+  const saidSince = (s: SimState, before: SimState) => s.log.slice(before.log.length);
+  const blocked = (s: SimState, before: SimState, id: string) => {
+    expect(s.minute, id).toBe(before.minute);
+    expect(s.counts[id], id).toBeUndefined();
+  };
+
+  it('1: atropine speeds a slow sinus node only — not PEA, and not a heart slowed by potassium', () => {
+    const pea = medic({ profile: 'pea', hr: 40 }, { sbp: 0, dbp: 0 }, false);
+    const inPea = perform(stemiAnterior, pea, 'atropine');
+    expect(inPea.rhythm).toEqual({ profile: 'pea', hr: 40 });
+    expect(inPea.log.at(-1)!.text).toMatch(/no place in cardiac arrest/);
+    const hyperK = medic({ profile: 'hyperkalemia', hr: 40 });
+    expect(perform(stemiAnterior, hyperK, 'atropine').rhythm).toEqual({ profile: 'hyperkalemia', hr: 40 });
+    // nor do the adrenergic drugs speed it
+    expect(perform(stemiAnterior, hyperK, 'albuterol-hyperk').rhythm).toEqual({ profile: 'hyperkalemia', hr: 40 });
+    const md = start(lab, 5);
+    expect(perform(lab, { ...md, rhythm: { profile: 'hyperkalemia', hr: 40 } }, 'ic-epinephrine').rhythm).toEqual({ profile: 'hyperkalemia', hr: 40 });
+  });
+
+  it('2: a rate change renames a plain sinus rhythm (bradycardia under 60, tachycardia over 100); other rhythms keep theirs', () => {
+    expect(perform(stemiAnterior, medic({ profile: 'sinus-bradycardia', hr: 46 }), 'atropine').rhythm).toEqual({ profile: 'normal-sinus', hr: 74 });
+    expect(perform(stemiAnterior, medic({ profile: 'sinus-tachycardia', hr: 110 }), 'metoprolol').rhythm).toEqual({ profile: 'normal-sinus', hr: 100 });
+    expect(perform(stemiAnterior, medic({ profile: 'normal-sinus', hr: 64 }), 'metoprolol').rhythm).toEqual({ profile: 'sinus-bradycardia', hr: 54 });
+    expect(perform(stemiAnterior, medic({ profile: 'normal-sinus', hr: 96 }), 'albuterol-hyperk').rhythm).toEqual({ profile: 'sinus-tachycardia', hr: 104 });
+    const md = start(lab, 5);
+    expect(perform(lab, { ...md, rhythm: { profile: 'sinus-bradycardia', hr: 56 } }, 'ic-epinephrine').rhythm).toEqual({ profile: 'normal-sinus', hr: 66 });
+    // a STEMI keeps its name at any rate; a beta-blocker never brings a rate under 40 up to 40
+    expect(perform(stemiAnterior, medic(), 'metoprolol').rhythm).toEqual({ profile: 'anterior-stemi', hr: 86 });
+    expect(perform(stemiAnterior, medic({ profile: 'junctional', hr: 36 }), 'metoprolol').rhythm).toEqual({ profile: 'junctional', hr: 36 });
+    // the renamed rhythm is a new tracing: a repeat 12-lead asks for a new read
+    let s = run(stemiAnterior, 2, ['iv']);
+    s = { ...s, rhythm: { profile: 'sinus-bradycardia', hr: 46 } };
+    s = perform(stemiAnterior, s, 'ecg12');
+    s = answerRead(stemiAnterior, s, 'sinus-brady');
+    s = perform(stemiAnterior, perform(stemiAnterior, s, 'atropine'), 'ecg12-repeat');
+    expect(s.pendingRead).toMatchObject({ kind: 'ecg', answer: 'nsr' });
+  });
+
+  it('3: fentanyl in arrest treats nothing; it never speeds a slow breathing rate, and only an awake patient says how it feels', () => {
+    const arrest = run(vf, 2, ['cpr', 'io']);
+    const f = perform(vf, arrest, 'fentanyl');
+    expect(f.log.at(-1)!.text).toBe('Fentanyl given — it has no place in cardiac arrest and changes nothing on the monitor.');
+    expect(f.vitals.rr).toBe(0);
+    expect(f.flags.analgesia).toBeUndefined();
+    const slow = perform(stemiAnterior, medic(undefined, { rr: 8 }), 'fentanyl');
+    expect(slow.vitals.rr).toBe(8);
+    expect(perform(stemiAnterior, medic(undefined, { rr: 20 }), 'fentanyl').vitals.rr).toBe(19);
+    const before = medic(undefined, { gcs: 7 });
+    expect(saidSince(perform(stemiAnterior, before, 'fentanyl'), before).some((l) => l.who === 'patient')).toBe(false);
+  });
+
+  it('4: sedation in cardiac arrest is refused: nobody is awake to sedate', () => {
+    const arrest = run(vf, 2, ['cpr', 'io']);
+    const s = perform(vf, arrest, 'sedation');
+    blocked(s, arrest, 'sedation');
+    expect(s.log.at(-1)!.text).toMatch(/^Not in cardiac arrest/);
+  });
+
+  it('5: compressions on a comatose patient with a pulse: a teammate stops them; an awake one cries out', () => {
+    const coma = perform(stemiAnterior, medic(undefined, { gcs: 6 }), 'cpr');
+    expect(coma.log.at(-1)).toMatchObject({ who: 'partner', text: expect.stringMatching(/^Stop — there is a pulse/) });
+    expect(penalties(coma)).toEqual(['cpr-with-pulse']);
+    expect(perform(stemiAnterior, medic(), 'cpr').log.at(-1)).toMatchObject({ who: 'patient', text: expect.stringMatching(/cries out/) });
+  });
+
+  it('6: nitroglycerin and fentanyl: no relief to report without pain, and nothing said by an unresponsive patient', () => {
+    const noPain = medic(undefined, { pain: 0 });
+    for (const id of ['nitro', 'fentanyl']) {
+      const s = perform(stemiAnterior, noPain, id);
+      expect(saidSince(s, noPain).some((l) => /easing|better|edge off|less/.test(l.text)), id).toBe(false);
+    }
+    const unresponsive = medic(undefined, { gcs: 7 });
+    const n = perform(stemiAnterior, unresponsive, 'nitro');
+    expect(saidSince(n, unresponsive).some((l) => l.who === 'patient')).toBe(false);
+    expect(n.log.at(-1)).toMatchObject({ who: 'monitor', text: `BP ${n.vitals.sbp}/${n.vitals.dbp}.` });
+    // with pain (8) and awake, the patient says it helps a little
+    const pain = perform(stemiAnterior, medic(), 'nitro');
+    expect(pain.log.some((l) => l.who === 'patient' && l.text === '"Maybe a little better."')).toBe(true);
+    expect(perform(stemiAnterior, medic(undefined, { pain: 5 }), 'fentanyl').log.at(-1)).toMatchObject({ who: 'patient', text: '"That takes the edge off."' });
+  });
+
+  it('7: right-sided and posterior leads are a 12-lead too: none during CPR', () => {
+    const arrest = start(vf, 2);
+    for (const id of ['ecg-right', 'ecg-posterior']) {
+      const s = perform(vf, arrest, id);
+      blocked(s, arrest, id);
+      expect(s.log.at(-1)!.text, id).toMatch(/No 12-lead in cardiac arrest/);
+    }
+  });
+
+  it('8: the arrest dose of epinephrine with a pulse surges for a few minutes in words only, and never counts as arrest epinephrine', () => {
+    const before = medic();
+    const s = perform(stemiAnterior, before, 'epinephrine');
+    expect(penalties(s)).toEqual(['arrest-epi-with-pulse']);
+    expect(saidSince(s, before).some((l) => l.who === 'monitor' && /surges.*for a few minutes, then it settles back/.test(l.text))).toBe(true);
+    // the surge passes: nothing lasting is written into the rate, the rhythm or the pressure
+    expect(s.rhythm).toEqual(before.rhythm);
+    expect([s.vitals.sbp, s.vitals.dbp]).toEqual([before.vitals.sbp, before.vitals.dbp]);
+    expect(s.flags.epi).toBeUndefined();
+    expect(s.flags['epi-with-pulse']).toBeDefined();
+    // in arrest it is the arrest drug
+    expect(perform(vf, run(vf, 2, ['cpr', 'io']), 'epinephrine').flags.epi).toBeDefined();
+  });
+
+  it('8: after ROSC the arrest dose does not "treat" the low pressure: it stays low for the vasopressor or fluid it needs', () => {
+    // the VF case leaves epinephrine with a pulse to the default: ROSC at 84/50, rate 104
+    const ROSC = ['cpr', 'pads', 'defib', 'iv', 'bvm', 'capno', 'cpr', 'defib', 'epinephrine', 'amio-arrest', 'cpr', 'defib'];
+    const rosc = run(vf, 2, ROSC);
+    expect(rosc.pulse).toBe(true);
+    const s = run(vf, 2, [...ROSC, 'epinephrine', 'reassess', 'reassess', 'vitals']);
+    expect(penalties(s)).toContain('arrest-epi-with-pulse');
+    expect([s.vitals.sbp, s.vitals.dbp, s.rhythm.hr]).toEqual([rosc.vitals.sbp, rosc.vitals.dbp, rosc.rhythm.hr]);
+    expect(missed(review(vf, stop(s)))).toContain('Treat post-arrest hypotension (fluid, vasopressor)');
+    // nor does it hide a hypotension another rule is watching: diltiazem in the hypotensive SVT is still the case's critical error
+    const svt = SCENARIO_BY_ID['svt-unstable-field'];
+    const blocked = run(svt, 2, ['iv', 'epinephrine', 'reassess', 'diltiazem']);
+    expect(blocked.log.some((l) => /BP 1[0-9]{2}\//.test(l.text))).toBe(false);
+    expect(penalties(blocked)).toEqual(['arrest-epi-with-pulse', 'av-blocker-shock']);
+  });
+
+  it('9: atropine with no slow pulse to treat (60 or more) is a minor error; in cardiac arrest it is one too', () => {
+    const fast = perform(stemiAnterior, medic({ profile: 'anterior-stemi', hr: 110 }), 'atropine');
+    expect(penalties(fast)).toEqual(['atropine-fast']);
+    expect(fast.rhythm.hr).toBe(120);
+    // the anterior STEMI at 96: a faster rate only adds to the oxygen demand of the ischemic heart
+    const stemi = perform(stemiAnterior, medic(), 'atropine');
+    expect(penalties(stemi)).toEqual(['atropine-fast']);
+    expect(stemi.penalties[0].text).toMatch(/^Atropine with no slow pulse to treat\./);
+    // VT does not speed up with it, and the rule does not say it does
+    const vt = perform(stemiAnterior, medic({ profile: 'vt', hr: 170 }), 'atropine');
+    expect(vt.log.at(-1)!.text).toBe('No change in heart rate.');
+    expect(penalties(vt)).toEqual(['atropine-fast']);
+    expect(vt.penalties[0].text).not.toMatch(/beats faster/);
+    // a slow sinus rate is what it is for; over a pacer the paced 70 hides a slow rate of the heart's own
+    expect(penalties(perform(stemiAnterior, medic({ profile: 'sinus-bradycardia', hr: 46 }), 'atropine'))).toEqual([]);
+    expect(penalties(perform(stemiAnterior, medic({ profile: 'tcp', hr: 70 }), 'atropine'))).toEqual([]);
+    // during CPR: it has been out of the arrest algorithm since 2010
+    const arrest = perform(vf, run(vf, 2, ['cpr', 'io', 'cpr']), 'atropine');
+    expect(penalties(arrest)).toEqual(['atropine-in-arrest']);
+    // a case rule for it stands in for the built-in one: one mistake, one penalty
+    const hyperK = SCENARIO_BY_ID['hyperkalemia-dialysis-field'];
+    const hk = run(hyperK, 2, ['iv']);
+    expect(penalties(perform(hyperK, { ...hk, pulse: false, rhythm: { profile: 'pea', hr: 24 } }, 'atropine'))).toEqual(['atropine-arrest']);
+    const pea = SCENARIO_BY_ID['pea-arrest-field'];
+    expect(penalties(run(pea, 2, ['cpr', 'iv', 'atropine']))).toEqual(['atropine-no-indication']);
+  });
+
+  it('10: calcium for the low pressure diltiazem caused is not "without an indication" — once the pressure is back, or in an arrest, it is', () => {
+    const low = perform(stemiAnterior, medic(undefined, { sbp: 84, dbp: 52 }), 'diltiazem');
+    expect(low.vitals.sbp).toBeLessThan(90);
+    expect(penalties(perform(stemiAnterior, low, 'calcium-chloride'))).toEqual([]);
+    // one therapeutic dose that left a normal pressure is no overdose
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem', 'calcium-chloride']))).toEqual(['calcium-no-indication']);
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'calcium-chloride']))).toEqual(['calcium-no-indication']);
+    // diltiazem, then the VF an unsynchronized shock causes: routine calcium in the arrest has no benefit (2025 AHA)
+    const svt = SCENARIO_BY_ID['svt-unstable-field'];
+    const vfArrest = run(svt, 2, ['iv', 'diltiazem', 'defib']);
+    expect(vfArrest.pulse).toBe(false);
+    expect(penalties(perform(svt, vfArrest, 'calcium-chloride'))).toContain('calcium-no-indication');
+    // the AF case leaves it to the built-in rule: after diltiazem drops his pressure, calcium is right
+    const af = SCENARIO_BY_ID['af-rvr-field'];
+    expect(af.harms.some((h) => h.id === 'calcium-no-indication')).toBe(false);
+  });
+
+  it('11: synchronized cardioversion at the 2025 energies: 200 J for atrial fibrillation and flutter, 100 J otherwise', () => {
+    const energy = (profile: string, hr: number) => perform(stemiAnterior, medic({ profile, hr }), 'cardiovert').log.find((l) => /^Synchronized shock/.test(l.text))!.text;
+    expect(energy('atrial-fibrillation', 150)).toMatch(/200 J/);
+    expect(energy('atrial-flutter', 150)).toMatch(/200 J/);
+    expect(energy('avnrt', 190)).toMatch(/100 J/);
+    expect(energy('vt', 170)).toMatch(/100 J/);
+    expect(INTERVENTION_BY_ID.cardiovert.detail).toBe('100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J)');
+  });
+
+  it('12: the cath lab is activated only for a 12-lead that shows a STEMI; a false alert is stood down and costs points', () => {
+    const stemi = run(stemiAnterior, 2, ['ecg12', 'stemi-alert']);
+    expect(stemi.flags.alert).toBeDefined();
+    expect(penalties(stemi)).toEqual([]);
+    const s0 = run(stemiAnterior, 2, ['iv']);
+    let s = perform(stemiAnterior, { ...s0, rhythm: { profile: 'normal-sinus', hr: 80 } }, 'ecg12');
+    s = perform(stemiAnterior, answerRead(stemiAnterior, s, 'nsr'), 'stemi-alert');
+    expect(s.flags.alert).toBeUndefined();
+    expect(s.flags['alert-declined']).toBeDefined();
+    // "does not meet STEMI criteria", never "no ST elevation": pericarditis, LBBB, LVH or a high potassium can raise it
+    expect(s.log.at(-1)!.text).toMatch(/does not meet STEMI criteria — the cath lab is not activated/);
+    expect(penalties(s)).toEqual(['stemi-alert-no-ste']);
+    expect(review(stemiAnterior, stop(s)).toFix.find((t) => t.kind === 'harm')?.label).toBe('A STEMI alert for a 12-lead that does not meet STEMI criteria.');
+    // a case rule for the same mistake stands in for it: one penalty
+    const hyperK = SCENARIO_BY_ID['hyperkalemia-dialysis-field'];
+    expect(penalties(run(hyperK, 2, ['monitor', 'ecg12', 'stemi-alert']))).toEqual(['false-alert']);
+    const bb = SCENARIO_BY_ID['beta-blocker-overdose-field'];
+    expect(penalties(run(bb, 2, ['primary', 'pads', 'ecg12', 'stemi-alert']))).toEqual(['false-stemi-alert']);
+  });
+
+  it('12: a STEMI on an earlier 12-lead still activates the cath lab after a later tracing hides it (paced beats)', () => {
+    // the reviewers' run: inferior STEMI read, complete heart block at 9 minutes, paced, a repeat 12-lead of the paced beats
+    const rv = SCENARIO_BY_ID['stemi-inferior-rv-field'];
+    const s = run(rv, 2, ['vitals', 'ecg12', 'iv', 'reassess', 'reassess', 'reassess', 'reassess', 'pads', 'pace', 'ecg12-repeat', 'stemi-alert']);
+    expect(s.fired).toContain('chb');
+    expect(s.lastEcg?.profile).toBe('tcp');
+    expect(s.flags['ecg-stemi']).toBeDefined();
+    expect(s.flags.alert).toBeDefined();
+    expect(s.flags['alert-declined']).toBeUndefined();
+    expect(s.log.at(-1)).toMatchObject({ who: 'hospital', text: expect.stringMatching(/^Cath lab activated/) });
+    expect(penalties(s)).not.toContain('stemi-alert-no-ste');
+    // and the review agrees with the hospital: the alert is the critical step it asks for (done, if late here)
+    expect(missed(review(rv, stop(s)))).not.toContain('STEMI alert from the field');
+    // an EMT's tracing counts too: the flag is set whatever the role
+    expect(run(rv, 1, ['ecg12']).flags['ecg-stemi']).toBeDefined();
+    // a 12-lead with no STEMI never sets it
+    const s0 = run(stemiAnterior, 2, ['iv']);
+    expect(perform(stemiAnterior, { ...s0, rhythm: { profile: 'normal-sinus', hr: 80 } }, 'ecg12').flags['ecg-stemi']).toBeUndefined();
+  });
+
+  it('13: a hand-off in cardiac arrest on arrival ends the case — the emergency department takes over the CPR — but never as a finished case', () => {
+    const s = run(vf, 2, ['cpr', 'transport-near', UNTIL_ARRIVED, 'handoff']);
+    expect(s.pulse).toBe(false);
+    expect(s.ended?.reason).toBe('complete');
+    expect(s.log.some((l) => /CPR continues in the emergency department/.test(l.text))).toBe(true);
+    expect(s.log.at(-1)!.text).toMatch(/^Care handed over in cardiac arrest/);
+    // loading in the arrest is a mistake of its own (2025 AHA: on-scene resuscitation until ROSC for most adults)
+    expect(penalties(s)).toContain('transport-in-arrest');
+    const r = review(vf, s);
+    expect(r.outcome).toMatch(/^Handed over in cardiac arrest at \d+:\d\d, without ROSC/);
+    expect(r.percent).toBeLessThanOrEqual(40);
+    expect(r.grade).toBe('Unsafe');
+  });
+
+  it('13: "load and go" in the arrest scores no better than a death, even with every pre-ROSC item done', () => {
+    // the reviewers' runs: the EMT with one shock and CPR to the door; the paramedic with the whole arrest algorithm
+    const emt = run(vf, 1, ['cpr', 'aed', 'cpr', 'bvm', 'transport-pci', 'cpr', 'cpr', 'cpr', 'cpr', 'cpr', 'cpr', 'handoff']);
+    expect(emt.pulse).toBe(false);
+    expect(emt.ended?.reason).toBe('complete');
+    expect(penalties(emt)).toEqual(['transport-in-arrest']);
+    expect(review(vf, emt).percent).toBeLessThanOrEqual(40);
+    const medic2 = run(vf, 2, ['cpr', 'pads', 'defib', 'iv', 'bvm', 'capno', 'cpr', 'defib', 'epinephrine', 'amio-arrest', 'transport-near', UNTIL_ARRIVED, 'handoff']);
+    expect(medic2.pulse).toBe(false);
+    const r = review(vf, medic2);
+    expect(r.outcome).not.toMatch(/before the case was over/);
+    expect(r.percent).toBeLessThanOrEqual(40);
+    // a case with its own rule for loading in the arrest keeps its words: one penalty
+    const pea = SCENARIO_BY_ID['pea-arrest-field'];
+    expect(penalties(run(pea, 2, ['cpr', 'transport-near'])).filter((id) => id === 'transport-in-arrest')).toHaveLength(1);
+    expect(run(pea, 2, ['cpr', 'transport-near']).penalties[0].text).toMatch(/^Loading her for transport/);
+    // an arrest that begins en route is worked in the ambulance: no penalty for the loading, done with a pulse
+    const enRoute = run(stemiAnterior, 2, ['iv', 'transport-pci', 'reassess', 'reassess']);
+    expect(enRoute.pulse).toBe(false);
+    expect(penalties(enRoute)).not.toContain('transport-in-arrest');
+  });
+
+  it('13: in the lab there is no hand-off mid-arrest, during the procedure or after it', () => {
+    const per = SCENARIO_BY_ID['perforation-cathlab'];
+    const pea = run(per, 5, ['balloon-tamponade', 'reassess', 'reassess', 'reassess', 'reassess']);
+    expect(pea.pulse).toBe(false);
+    const h = perform(per, pea, 'handoff');
+    blocked(h, pea, 'handoff');
+    expect(h.ended).toBeNull();
+    // the procedure is over (its completeWhen holds), but the patient is in VF: the arrest is run in the room
+    const done = { ...start(lab, 5), flags: { pci: 1, 'final-angio': 2 }, pulse: false, rhythm: { profile: 'vf', hr: 0 } };
+    expect(lab.completeWhen!(done)).toBe(true);
+    const v = perform(lab, done, 'handoff');
+    blocked(v, done, 'handoff');
+    expect(v.ended).toBeNull();
+    expect(v.log.at(-1)!.text).toMatch(/^Not in the middle of a cardiac arrest/);
+  });
+
+  it('14: calling for help in the field promises nothing that never comes', () => {
+    for (const role of [1, 2] as const) {
+      const s = run(stemiAnterior, role, ['call-help']);
+      expect(s.log.at(-1)!.who, `role ${role}`).toBe('dispatch');
+      expect(s.log.at(-1)!.text, `role ${role}`).not.toMatch(/on the way/);
+    }
+    expect(run(stemiAnterior, 1, ['call-help']).log.at(-1)!.text).toMatch(/ALS intercept/);
+    expect(run(lab, 3, ['call-help']).log.at(-1)).toMatchObject({ who: 'team', text: 'Help is on the way.' });
+  });
+
+  it('16: a poison center call (EMT and paramedic, field) and ondansetron (paramedic, nurse, cardiologist, IV)', () => {
+    for (const role of [1, 2] as const) expect(interventionsFor(role, 'field').map((i) => i.id), `role ${role}`).toContain('poison-control');
+    for (const role of [3, 4, 5] as const) expect(interventionsFor(role, 'cathlab').map((i) => i.id), `role ${role}`).not.toContain('poison-control');
+    for (const role of [2, 4, 5] as const) expect(interventionsFor(role, role === 2 ? 'field' : 'cathlab').map((i) => i.id), `role ${role}`).toContain('ondansetron');
+    for (const role of [1, 3] as const) expect(interventionsFor(role, role === 1 ? 'field' : 'cathlab').map((i) => i.id), `role ${role}`).not.toContain('ondansetron');
+    expect(INTERVENTION_BY_ID.ondansetron.needsAccess).toBe(true);
+    const call = run(stemiAnterior, 2, ['poison-control']);
+    expect(call.log.at(-1)).toMatchObject({ who: 'hospital', text: expect.stringMatching(/^Poison center: /) });
+    expect(call.flags['poison-control']).toBeDefined();
+    // a poisoning case says what the specialist advises
+    const poisoned: Scenario = { ...stemiAnterior, facts: { ...stemiAnterior.facts, poisonControl: 'Poison center: "Metoprolol: glucagon and high-dose insulin."' } };
+    expect(run(poisoned, 2, ['poison-control']).log.at(-1)!.text).toMatch(/glucagon/);
+    // a case that lists an overdose but says nothing gets the specialist's questions — never "no poisoning"
+    const overdose: Scenario = { ...stemiAnterior, problems: ['ccb-overdose'] };
+    const asked = run(overdose, 2, ['poison-control']).log.at(-1)!.text;
+    expect(asked).toMatch(/What was taken, how much, and when\?/);
+    expect(asked).not.toMatch(/Nothing you describe/);
+    // the crew can call back once they know more
+    expect(INTERVENTION_BY_ID['poison-control'].repeatable).toBe(true);
+    expect(run(stemiAnterior, 2, ['poison-control', 'poison-control']).counts['poison-control']).toBe(2);
+    // ondansetron waits for access; with a long QT it is a major error
+    expect(run(stemiAnterior, 2, ['ondansetron']).counts.ondansetron).toBeUndefined();
+    const z = run(stemiAnterior, 2, ['iv', 'ondansetron']);
+    expect(z.flags.antiemetic).toBeDefined();
+    expect(penalties(z)).toEqual([]);
+    expect(penalties(run({ ...stemiAnterior, problems: ['long-qt'] }, 2, ['iv', 'ondansetron']))).toEqual(['ondansetron-long-qt']);
+  });
+
+  it('23: a reassessment in the arrest does not say CPR goes on (it is not a CPR cycle)', () => {
+    const s = run(vf, 2, ['cpr', 'reassess']);
+    expect(s.log.at(-1)).toMatchObject({ who: 'patient', text: 'Unresponsive, no pulse.' });
+  });
+
+  it('24: the review rounds the clock before judging a target, so floating-point sums are not "late"', () => {
+    expect(9.3 - 7.3).toBeGreaterThan(2);
+    const sc: Scenario = {
+      ...stemiAnterior,
+      critical: [
+        { id: 'within', label: 'Within 2 minutes of the flag', why: '', done: () => 9.3, target: { within: { flag: 'cue', minutes: 2 } } },
+        { id: 'by', label: 'By 0.3 minutes', why: '', done: () => 0.1 + 0.2, target: { by: 0.3 } },
+      ],
+    };
+    const s = stop({ ...start(sc, 2), flags: { cue: 7.3 } });
+    const r = review(sc, s);
+    expect(r.toFix.filter((t) => t.kind === 'late')).toEqual([]);
+    expect(r.wentWell.map((t) => t.label)).toEqual(['Within 2 minutes of the flag', 'By 0.3 minutes']);
+  });
+
+  it('25: intracoronary adenosine and verapamil in cardiac arrest treat nothing', () => {
+    const md = { ...start(lab, 5), pulse: false, rhythm: { profile: 'vf', hr: 0 } };
+    for (const id of ['ic-adenosine', 'ic-verapamil']) {
+      const s = perform(lab, md, id);
+      expect(saidSince(s, md).map((l) => l.text).join(' '), id).toMatch(/it has no place in cardiac arrest and changes nothing on the monitor/);
+      expect(saidSince(s, md).some((l) => /slowing/.test(l.text)), id).toBe(false);
+    }
+  });
+
+  it('6: a drug with no role in the arrest is never said to "go nowhere": CPR carries IV drugs (that is how epinephrine works)', () => {
+    // after two CPR cycles, as the reviewers ran it
+    const cpr = run(vf, 2, ['cpr', 'io', 'cpr']);
+    for (const id of ['atropine', 'fentanyl', 'metoprolol', 'diltiazem', 'procainamide', 'glucagon', 'ondansetron', 'nitro']) {
+      const said = saidSince(perform(vf, cpr, id), cpr).map((l) => l.text).join(' ');
+      expect(said, id).toMatch(/no place in cardiac arrest/);
+      expect(said, id).not.toMatch(/no circulation|goes nowhere|reaches nothing/);
+    }
+    // nor in the cases' own words
+    for (const sc of Object.values(SCENARIO_BY_ID)) {
+      const arrest = { ...start(sc, sc.roles.includes(2) ? 2 : 5), pulse: false, rhythm: { profile: 'vf', hr: 0 }, flags: { iv: 0, access: 0 } };
+      for (const id of ['atropine', 'glucagon', 'adenosine6', 'amio-infusion', 'ic-adenosine', 'ic-verapamil', 'epi-im', 'push-epi']) {
+        if (unavailableReason(sc, arrest, id)) continue;
+        const said = saidSince(perform(sc, arrest, id), arrest).map((l) => l.text).join(' ');
+        expect(said, `${sc.id} ${id}`).not.toMatch(/with no circulation|goes nowhere|reaches nothing/);
+      }
+    }
+  });
+
+  it('14: the SVT case reads every sinus rhythm after conversion, at its own rate', () => {
+    const svt = SCENARIO_BY_ID['svt-unstable-field'];
+    // converted to 94, then atropine (a rate of 60 or more speeds by 10): sinus tachycardia 104
+    const s = run(svt, 2, ['pads', 'iv', 'sedation', 'cardiovert', 'atropine', 'ecg12'], undefined, 'manual');
+    expect(s.rhythm).toEqual({ profile: 'sinus-tachycardia', hr: 104 });
+    expect(s.pendingRead).toMatchObject({ answer: 'sinus-tach', explain: expect.stringMatching(/^Sinus tachycardia 104: normal PR and QRS, no delta wave/) });
+    for (const [profile, name] of [['normal-sinus', 'Sinus rhythm 84'], ['sinus-bradycardia', 'Sinus bradycardia 54']] as const) {
+      const t = perform(svt, { ...run(svt, 2, ['pads']), rhythm: { profile, hr: Number(name.split(' ').at(-1)) } }, 'ecg12');
+      expect(t.pendingRead?.explain, profile).toMatch(new RegExp(`^${name}: `));
+    }
+    // and the VF-to-ROSC path (sinus tachycardia 108) gets a real explanation too
+    const rosc = run(svt, 2, ['pads', 'defib', 'defib', 'ecg12'], undefined, 'manual');
+    expect(rosc.rhythm.profile).toBe('sinus-tachycardia');
+    expect(rosc.pendingRead?.explain).not.toMatch(/No 12-lead possible/);
+  });
+
+  it('27: diltiazem with heart failure or in VT is a critical error; a case rule for it stands in for the built-in one', () => {
+    expect(penalties(run({ ...stemiAnterior, problems: ['heart-failure'] }, 2, ['iv', 'diltiazem']))).toEqual(['diltiazem-heart-failure']);
+    expect(penalties(perform(stemiAnterior, medic({ profile: 'vt', hr: 170 }), 'diltiazem'))).toEqual(['diltiazem-vt']);
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem']))).toEqual([]);
+    const af = SCENARIO_BY_ID['af-rvr-field'];
+    expect(penalties(run(af, 2, ['iv', 'diltiazem']))).toEqual(['diltiazem-hfref']);
+    const vt = SCENARIO_BY_ID['stable-vt-field'];
+    expect(penalties(run(vt, 2, ['iv', 'diltiazem']))).toEqual(['ccb-wide-complex']);
   });
 });

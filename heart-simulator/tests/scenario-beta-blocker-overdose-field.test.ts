@@ -269,6 +269,22 @@ describe('beta-blocker overdose (field): the right treatments work as they would
     expect(missed(run(sc, 2, ['primary', 'notify', 'sample']))).toContain('Expert advice early: medical control and the poison center');
   });
 
+  it('the poison center asks what she took; once SAMPLE has found the bottle it advises as medical control does, and the call is the consult', () => {
+    // before the history: the specialist's questions, never "no poisoning"
+    const early = run(sc, 2, ['primary', 'poison-control']);
+    expect(early.log.at(-1)).toMatchObject({ who: 'hospital', text: expect.stringMatching(/^Poison center: "Tell us what she took: read us the bottle/) });
+    expect(early.log.at(-1)!.text).not.toMatch(/Nothing you describe/);
+    expect(missed(early)).toContain('Expert advice early: medical control and the poison center');
+    // the reviewers' run: primary, SAMPLE (the empty extended-release metoprolol bottle), the call
+    const s = run(sc, 2, ['primary', 'sample', 'poison-control']);
+    const advice = s.log.at(-1)!.text;
+    expect(advice).toMatch(/^Poison center: "Extended-release metoprolol/);
+    for (const part of [/glucagon/i, /epinephrine infusion to a MAP of 65/, /pace/, /glucose/, /high-dose insulin/, /24 hours/]) expect(advice).toMatch(part);
+    expect(missed(s)).not.toContain('Expert advice early: medical control and the poison center');
+    // a first call before the history can be followed by a real one
+    expect(missed(run(sc, 2, ['primary', 'poison-control', 'sample', 'poison-control']))).not.toContain('Expert advice early: medical control and the poison center');
+  });
+
   it('the push-dose and the arrest dose of epinephrine wear off; the arrest dose with a pulse is a critical error', () => {
     let s = run(sc, 2, [...READY, 'push-epi']);
     expect(s.vitals.sbp).toBe(90);
@@ -445,10 +461,10 @@ describe('beta-blocker overdose (field): delay', () => {
     expect(review(sc, dead).percent).toBeLessThanOrEqual(40);
   });
 
-  it('glucagon given in the arrest reaches nothing and does not count as the glucagon she needed', () => {
+  it('glucagon given in the arrest changes nothing and does not count as the glucagon she needed', () => {
     const s = run(sc, 2, [...READY, ...R(14), 'glucagon']);
     expect(s.pulse).toBe(false);
-    expect(s.log.at(-1)!.text).toMatch(/no circulation/);
+    expect(s.log.at(-1)!.text).toMatch(/in the arrest it changes nothing on the monitor: CPR and epinephrine come first/);
     expect(missed(s)).toContain('Glucagon IV for the slow rate and the low pressure');
   });
 

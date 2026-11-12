@@ -281,6 +281,7 @@ function isArrestRhythm(id: string) {
   return p.hemo === 'no-output';
 }
 
+/** What an AED advises a shock for: the rhythm alone — VF, torsades, pulseless VT, and VT at 150 or more with or without a pulse */
 function shockable(id: string): boolean {
   const p = resolveProfile(id);
   return p.rhythm === 'vf' || p.rhythm === 'torsades' || (p.rhythm === 'vt' && (p.hemo === 'no-output' || useTimelineStore.getState().heartRate >= 150));
@@ -427,9 +428,17 @@ function roscNow(note: string) {
   log('ROSC: check pulse and BP, SpO2 90–98%, PaCO2 35–45 mmHg, 12-lead ECG, avoid hypotension (MAP ≥ 65 mmHg)', 'rosc');
 }
 
+/**
+ * An AED reads only the rhythm: it cannot feel a pulse, so it advises a shock for VF and for VT fast enough, pulse or
+ * not. That is why it goes only on someone unresponsive, not breathing normally and pulseless — and why the trainer
+ * says so when it is put on a patient with a pulse (and still analyzes the rhythm, as a real AED would).
+ */
+export const AED_WITH_PULSE = 'AED on a patient with a pulse. An AED reads only the rhythm, never the pulse: it is for someone unresponsive, not breathing normally and pulseless, and on a fast VT it advises a shock even with a pulse. With a pulse, use the monitor and synchronized cardioversion if a shock is needed.';
+
 export function analyze() {
   install();
   const s = get();
+  if (pulseNow()) log(AED_WITH_PULSE, 'warn');
   if (s.mode !== 'aed') setMode('aed');
   set({ aed: { phase: 'analyzing', until: now() + 6000 } });
   prompt(get().cpr.on ? 'STOP CPR — motion detected. Do not touch the patient' : 'Analyzing heart rhythm. Do not touch the patient');

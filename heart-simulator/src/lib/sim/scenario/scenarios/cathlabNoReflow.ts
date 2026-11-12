@@ -166,8 +166,8 @@ function viewOfStent(s: SimState, id: string, label: string): Effect | null {
   };
 }
 
-/** A drug pushed into the coronary during VF: with no circulation it reaches nothing (the engine's default says it acts) */
-const pulseless = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — with no circulation it goes nowhere and changes nothing.`]], flags: [flag] });
+/** A microvascular drug pushed into the coronary during VF: it has nothing to treat in the arrest (and is not the dose for the no-reflow) */
+const pulseless = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — it has no place in cardiac arrest and changes nothing on the monitor.`]], flags: [flag] });
 
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;

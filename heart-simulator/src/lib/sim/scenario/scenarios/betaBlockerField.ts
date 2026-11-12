@@ -245,6 +245,10 @@ export const betaBlockerField: Scenario = {
       if (s.rhythm.profile === 'tcp') return 'Paced at 70: a wide QRS after every pacing spike — electrical capture. Feel for a femoral pulse at 70 to confirm the pacing moves blood.';
       return `Sinus rhythm at ${hr}: normal PR, QRS and QT, no ST elevation.`;
     },
+    // the poison center needs what the bottle says; once SAMPLE has found it, it advises as medical control does
+    poisonControl: (s) => (has(s, 'sample')
+      ? 'Poison center: "Extended-release metoprolol, up to 3 grams, about two hours ago: expect her to get worse, and for it to last. Glucagon 5 mg IV, once more if needed; an epinephrine infusion to a MAP of 65; pace if she stays slow; treat her glucose. The hospital should have high-dose insulin ready, and she needs at least 24 hours of monitoring for an extended-release tablet."'
+      : 'Poison center: "Tell us what she took: read us the bottle — the drug, the strength and whether it is extended-release — how many are missing, and when. Then call us back."'),
   },
   status: (s) => status(s, picture(s)),
   respond: {
@@ -305,14 +309,15 @@ export const betaBlockerField: Scenario = {
 
     // ── the slow rate and the low pressure
     atropine: (s) => {
-      if (!s.pulse) return { say: [['you', 'Atropine given — with no circulation it goes nowhere and changes nothing.']], flags: ['atropine'] };
+      if (!s.pulse) return { say: [['you', 'Atropine given — it has no place in cardiac arrest and changes nothing on the monitor.']], flags: ['atropine'] };
       if (count(s, 'atropine') > 0) return { say: [['monitor', has(s, 'paced') ? 'No change: the pacer holds 70.' : 'No change in heart rate.']], flags: ['atropine'] };
       const until = end(s, 'atropine') + ATROPINE_LASTS;
       return settle(s, after(s, { id: 'atropine', timers: { atropineUntil: until } }), end(s, 'atropine'), [],
         (p) => [['monitor', numbers(p)]], ['atropine'], { timers: { atropineUntil: until } });
     },
     glucagon: (s) => {
-      if (!s.pulse) return { say: [['you', 'Glucagon given — with no circulation it goes nowhere and changes nothing.']] };
+      // the bolus she needed was for her slow rate and low pressure: in the arrest it is CPR and epinephrine, and it does not count
+      if (!s.pulse) return { say: [['you', 'Glucagon given — in the arrest it changes nothing on the monitor: CPR and epinephrine come first.']] };
       const done = end(s, 'glucagon');
       const timers = { glucagonUntil: done + GLUCAGON_LASTS, glucagonGiven: s.timers.glucagonGiven ?? s.minute };
       const glucose = s.vitals.glucose + 30;
@@ -494,7 +499,7 @@ export const betaBlockerField: Scenario = {
       why: 'A vasopressor is recommended for hypotension from a beta-blocker overdose (AHA 2023 poisoning update); epinephrine adds rate and squeeze as well as tone and, unlike a glucagon bolus, it lasts. Titrate to a MAP of 65 or more.',
       done: ['pressor'], points: 15, target: { by: 18 },
     },
-    { id: 'consult', label: 'Expert advice early: medical control and the poison center', why: 'Glucagon and an infusion are often an online-medical-control order, and the poison center (1-800-222-1222) and the hospital can get high-dose insulin, pacing and ECMO ready before she arrives.', done: ['med-control', 'notify'], after: 'sample', points: 5 },
+    { id: 'consult', label: 'Expert advice early: medical control and the poison center', why: 'Glucagon and an infusion are often an online-medical-control order, and the poison center (1-800-222-1222) and the hospital can get high-dose insulin, pacing and ECMO ready before she arrives.', done: ['med-control', 'notify', 'poison-control'], after: 'sample', points: 5 },
     { id: 'capture', label: 'Confirm mechanical capture with a pulse', why: 'Spikes followed by wide complexes are electrical capture only: feel a femoral pulse at the paced rate (or check the BP).', done: ['pulse-check', 'nibp', 'vitals'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
     {
       id: 'analgesia', label: 'Analgesia for pacing', why: 'Transcutaneous pacing hurts: a small dose of fentanyl (or sedation) just before the pacer goes on, or as soon as it captures.',
@@ -524,7 +529,7 @@ export const betaBlockerField: Scenario = {
     // a dose while she is slow and failing may be premedication for the pacer: judged at the hand-off, by whether pacing followed
     { id: 'sedative-no-indication', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'An opioid or a sedative with no pain to treat and no pacing to cover. In a drowsy patient with a low pressure it deepens the sedation and the hypotension.' },
     { id: 'premed-no-pacing', actions: ['handoff'], when: (s) => premedUnused(s), points: 5, severity: 'minor', text: 'Fentanyl or sedation given before pacing that never came. Premedicate just before the pacer goes on; with no pacing, an opioid or a sedative in a drowsy patient with a low pressure only deepens the sedation and the hypotension.' },
-    { id: 'false-stemi-alert', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. Her 12-lead shows none: the slow rate and the low pressure have another cause, and the cath lab team is called in for nothing.' },
+    { id: 'false-stemi-alert', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. Her 12-lead shows none: the slow rate and the low pressure have another cause, and the cath lab team is called in for nothing.' },
     { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse, points: 6, severity: 'major', text: 'CPAP for a patient who is not short of breath. It cuts the venous return; with a systolic pressure in the 70s it deepens the shock.' },
     { id: 'magnesium-no-indication', actions: ['magnesium-sulfate'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Magnesium without torsades or a long QT. It has no role in a metoprolol overdose and drops the pressure (sotalol, which lengthens the QT, is the exception).' },
     // stands in for the engine's rule (a rate of 50 or more): here a rate of 50–59 with the pressure still low may be paced

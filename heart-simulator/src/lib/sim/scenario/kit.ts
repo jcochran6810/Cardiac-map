@@ -14,6 +14,18 @@ export const PADS = ['pads', 'aed', 'defib', 'cardiovert', 'pace'];
 /** The rhythm is driven by a pacer (transcutaneous pads or a transvenous wire), not by the heart's own rate */
 export const paced = (s: SimState) => s.rhythm.profile === 'tcp' || s.rhythm.profile === 'paced';
 
+/** The plain sinus rhythms, which are named by their rate */
+const PLAIN_SINUS = ['sinus-bradycardia', 'normal-sinus', 'sinus-tachycardia'];
+
+/**
+ * The rhythm at a new rate: a plain sinus rhythm takes the name that rate has (bradycardia under 60, tachycardia over
+ * 100, normal sinus between), so a sinus bradycardia sped to 74 reads as normal sinus rhythm; every other rhythm keeps its profile
+ */
+export function atRate(s: SimState, hr: number): { profile: string; hr: number } {
+  if (!PLAIN_SINUS.includes(s.rhythm.profile)) return { profile: s.rhythm.profile, hr };
+  return { profile: hr < 60 ? 'sinus-bradycardia' : hr > 100 ? 'sinus-tachycardia' : 'normal-sinus', hr };
+}
+
 /** mg/dL: a blood glucose under this is low (hypoglycemia), what oral glucose and IV dextrose treat */
 export const LOW_GLUCOSE = 70;
 

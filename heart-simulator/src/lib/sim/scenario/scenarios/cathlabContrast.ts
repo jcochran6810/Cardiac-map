@@ -15,12 +15,13 @@ const CONTRAST = ['angio', 'lv-gram', 'final-angio', 'view-rao-caudal', 'view-ra
 
 /**
  * Epinephrine for the reaction, IM or as a small IV bolus (the response is called before the action is recorded, so
- * each route has its own). In cardiac arrest neither reaches the heart: an IM dose is not absorbed without a
- * circulation and 20 mcg is far too small — the arrest dose is 1 mg IV.
+ * each route has its own). In cardiac arrest neither is the arrest drug: a muscle barely absorbs an IM dose during CPR,
+ * and 20 mcg IV, though the compressions carry it, is far too small — the arrest dose is 1 mg IV.
  */
 const epi = (route: 'im' | 'iv') => (s: SimState): Effect => {
   const dose = route === 'iv' ? 'Epinephrine 20 mcg IV.' : 'Epinephrine 0.5 mg IM, lateral thigh.';
-  if (!s.pulse) return { say: [['you', `${dose} With no circulation it does nothing: in cardiac arrest the dose is 1 mg IV.`, 'warn']] };
+  const why = route === 'iv' ? '20 mcg is far too small a dose' : 'a muscle barely absorbs it during CPR';
+  if (!s.pulse) return { say: [['you', `${dose} In cardiac arrest it does nothing — ${why}: the arrest dose is 1 mg IV.`, 'warn']] };
   const bp = bpAfter(s, 18, 12);
   return { say: [['you', dose], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['epi-given'] };
 };

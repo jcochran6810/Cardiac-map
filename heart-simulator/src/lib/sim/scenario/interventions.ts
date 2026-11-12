@@ -142,12 +142,13 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'glucagon', label: 'Glucagon 3–10 mg IV (beta- or calcium-channel-blocker overdose)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'slowly over 3–5 min, then an infusion; expect vomiting', repeatable: true, maxTimes: 2, needsAccess: true },
   { id: 'oral-glucose', label: 'Oral glucose 15 g (one tube of gel)', category: 'meds', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'between cheek and gum, only if awake enough to swallow', repeatable: true, maxTimes: 2 },
   { id: 'dextrose', label: 'Dextrose 25 g IV/IO (hypoglycemia)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'D10 in 100 mL (10 g) steps up to 250 mL, or D50 50 mL; recheck the glucose', repeatable: true, maxTimes: 2, needsAccess: true },
+  { id: 'ondansetron', label: 'Ondansetron 4 mg IV (nausea and vomiting)', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'slowly over at least 30 seconds; it lengthens the QT', needsAccess: true },
 
   // Resuscitation & electrical
   { id: 'cpr', label: 'High-quality CPR (2-minute cycle)', category: 'resus', roles: ALL, minutes: 2, repeatable: true },
   { id: 'aed', label: 'AED: analyze and shock if advised', category: 'resus', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'defib', label: 'Defibrillate, unsynchronized', category: 'resus', roles: MANUAL, minutes: 0.3, detail: '200 J biphasic', repeatable: true },
-  { id: 'cardiovert', label: 'Synchronized cardioversion', category: 'resus', roles: MANUAL, minutes: 0.5, detail: '100 J biphasic (atrial fibrillation or flutter: 200 J)', repeatable: true },
+  { id: 'cardiovert', label: 'Synchronized cardioversion', category: 'resus', roles: MANUAL, minutes: 0.5, detail: '100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J)', repeatable: true },
   { id: 'pace', label: 'Transcutaneous pacing', category: 'resus', roles: MANUAL, minutes: 1, detail: 'rate 70, raise mA until capture' },
   { id: 'vagal', label: 'Vagal maneuver (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5], minutes: 0.5 },
   { id: 'hs-ts', label: 'Look for reversible causes (Hs and Ts)', category: 'resus', roles: ALS_RN_MD, minutes: 0.5 },
@@ -191,6 +192,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'callout', label: 'Call it out to the operator (closed loop)', category: 'team', roles: [3, 4], settings: LAB, minutes: 0.1, repeatable: true },
   { id: 'als', label: 'Request a paramedic (ALS) intercept', category: 'team', roles: [1], settings: FIELD, minutes: 0.3 },
   { id: 'med-control', label: 'Contact online medical control', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
+  // a call back with what the bottle says is part of the job: the first call often only brings the questions
+  { id: 'poison-control', label: 'Call the poison center', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'Poison Help line 1-800-222-1222: what was taken, how much, when, and the weight', repeatable: true, maxTimes: 3 },
   { id: 'stemi-alert', label: 'STEMI alert: activate the cath lab from the field', category: 'team', roles: [2], settings: FIELD, minutes: 0.5 },
   { id: 'notify', label: 'Radio report to the receiving hospital', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
   { id: 'transport-pci', label: 'Transport to the PCI-capable heart center', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2 },

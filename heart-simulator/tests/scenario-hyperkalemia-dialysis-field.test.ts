@@ -236,7 +236,7 @@ describe('hyperkalemia in a dialysis patient — delay matters', () => {
     expect(s.flags.arrest).toBeGreaterThanOrEqual(15);
     // nobody is doing compressions yet, and the reassessment does not pretend otherwise
     expect(sc.status!(s)).not.toMatch(/CPR continues/);
-    expect(sc.status!(perform(sc, s, 'cpr'))).toBe('Unresponsive; CPR continues.');
+    expect(sc.status!(perform(sc, s, 'cpr'))).toBe('Unresponsive, no pulse.');
   });
 
   it('once the shift has worked his strength and his saturation come back', () => {

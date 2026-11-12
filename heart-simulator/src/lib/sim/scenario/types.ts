@@ -99,7 +99,10 @@ export interface SimState {
   reads: { kind: ReadKind; minute: number; answer: string; chosen: string; verdict: Verdict }[];
   /** cine runs recorded (cath lab), newest last: the view (intervention id and name) and the real image for it, if the app has one */
   images: { minute: number; id?: string; view: string; image?: string }[];
-  /** the last 12-lead recorded: when, and the rhythm on it (an unchanged repeat needs no new read) */
+  /**
+   * the last 12-lead recorded: when, and the rhythm on it (an unchanged repeat needs no new read). Whether any tracing so
+   * far met STEMI criteria is the flag 'ecg-stemi': a later tracing that hides the ST elevation does not undo it
+   */
   lastEcg: null | { minute: number; profile: string };
 }
 
@@ -197,13 +200,18 @@ export type Problem =
   | 'ccb-overdose'
   /** tricyclics and other sodium-channel blockers: a wide QRS that bicarbonate narrows */
   | 'sodium-channel-blocker-overdose'
-  /** a reduced ejection fraction (40 % or less) or decompensated heart failure */
+  /**
+   * heart failure with a reduced ejection fraction (40 % or less), decompensated or not: IV diltiazem and verapamil are
+   * harmful (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm) and procainamide is to be avoided
+   */
   | 'heart-failure'
   | 'long-qt';
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'
   | 'labs' | 'echo' | 'ownNitro' | 'allergies'
+  /** what the poison center advises (field: the 'poison-control' call) */
+  | 'poisonControl'
   | 'angio' | 'lvgram' | 'lvedp' | 'rhc' | 'ivus' | 'oct' | 'ffr' | 'final';
 
 export interface Timing {

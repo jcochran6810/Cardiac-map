@@ -50,7 +50,8 @@ export const vfArrest: Scenario = {
       : 'No 12-lead during CPR.'),
   },
   status: (s) => {
-    if (!s.pulse) return 'Unresponsive; CPR continues.';
+    // a reassessment is not a CPR cycle (only those count), so it must not say that compressions go on
+    if (!s.pulse) return 'Unresponsive, no pulse.';
     if (s.vitals.gcs > 8) return 'Stirring.';
     return s.vitals.rr >= 10 ? 'Comatose; breathing 8/min on his own, ventilated to 10/min.' : 'Comatose, breathing 8/min on his own.';
   },

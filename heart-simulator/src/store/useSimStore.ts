@@ -10,7 +10,8 @@ import { setRhythm, showRhythm } from '@/lib/rhythm';
 import { answerRead, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Review, SimState } from '@/lib/sim/scenario/types';
-import { resetCode, setNibpReading, setScriptedVitals, useDefibStore, type ScriptedVitals } from '@/lib/sim/defib';
+import { resetCode, setBaseline, setNibpReading, setScriptedVitals, useDefibStore, type ScriptedVitals } from '@/lib/sim/defib';
+import { resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
 import { scrubTo, sim } from '@/lib/sim/simulation';
 import type { LearningLevel } from '@/store/useAppStore';
 import { useECGStore, type ECGLayout, type ECGLead } from '@/store/useECGStore';
@@ -55,12 +56,54 @@ function loadBest(): Record<string, number> {
 
 export const bestKey = (scenarioId: string, role: number) => `${scenarioId}:${role}`;
 
-/** What the monitor's sensors would show for this patient */
-export function monitorVitals(s: SimState): ScriptedVitals {
+/**
+ * EtCO₂ in cardiac arrest when the case gives no number for it. A capnograph reads only what is breathed out: with
+ * no breaths it reads almost nothing, however good the compressions (the air they move is less than the dead space:
+ * Deakin et al., Resuscitation 2007). With breaths it follows the blood flow: compressions carry CO₂ to the lungs,
+ * and with none almost nothing reaches them. The engine's default capnography line must give the same numbers.
+ */
+export const ARREST_ETCO2 = { noBreaths: 3, cpr: 16, noFlow: 6 };
+
+/** Someone is breathing for the patient: a bag-mask or an advanced airway */
+const ventilated = (s: Pick<SimState, 'flags'>) => 'ventilated' in s.flags || 'airway' in s.flags;
+
+/** What the capnograph reads in cardiac arrest for a case that gives no number of its own (see ARREST_ETCO2) */
+export function arrestEtco2(s: Pick<SimState, 'flags'>): number {
+  if (!ventilated(s)) return ARREST_ETCO2.noBreaths;
+  return 'cpr' in s.flags ? ARREST_ETCO2.cpr : ARREST_ETCO2.noFlow;
+}
+
+/**
+ * Whether the EtCO₂ in `next` is a number left from before an arrest: the patient lost the pulse (in this step, or
+ * earlier with nothing since) and the case did not give a number for the arrest. A case that starts in arrest, or
+ * that sets one when the pulse goes or later (no breaths yet, the first breaths, ventilated CPR), gives its own.
+ */
+export function staleEtco2(prev: SimState | null, next: SimState, wasStale: boolean): boolean {
+  if (next.pulse || !prev || prev.scenarioId !== next.scenarioId) return false;
+  if (next.vitals.etco2 !== prev.vitals.etco2) return false;
+  return prev.pulse || wasStale;
+}
+
+/**
+ * What the monitor's sensors would show for this patient. In cardiac arrest the case's own EtCO₂ is what the
+ * capnograph reads; only a number left from before the arrest (`stale`: a perfusing 30–40, which during CPR would
+ * look like ROSC) gives way to the engine's arrest numbers (arrestEtco2).
+ */
+export function monitorVitals(s: SimState, stale = false): ScriptedVitals {
   const v = s.vitals;
   if (s.pulse) return { pulse: true, sbp: v.sbp, dbp: v.dbp, spo2: v.spo2, rr: v.rr, etco2: v.etco2 };
-  const ventilated = 'ventilated' in s.flags || 'airway' in s.flags;
-  return { pulse: false, sbp: 0, dbp: 0, spo2: v.spo2, rr: ventilated ? 10 : 0, etco2: 'cpr' in s.flags ? 18 : v.etco2 };
+  return { pulse: false, sbp: 0, dbp: 0, spo2: v.spo2, rr: ventilated(s) ? 10 : 0, etco2: stale ? arrestEtco2(s) : v.etco2 };
+}
+
+/**
+ * The heart behind the monitor's pressure waveforms and the heart sounds. The VT profile's own heart is the failing
+ * one of an unstable VT (cardiogenic shock: a small pleth, an S3); in a case the patient's numbers say whether this
+ * VT is stable, so a VT with a pulse and a systolic of 90 or more gets the normal heart a stable VT has (as the
+ * defibrillator trainer's stable VT does). Every other rhythm keeps its own.
+ */
+export function caseBaseline(s: SimState): HemoProfile | null {
+  const p = resolveProfile(s.rhythm.profile);
+  return s.pulse && p.rhythm === 'vt' && p.hemo === 'shock' && s.vitals.sbp >= 90 ? 'normal' : null;
 }
 
 /** Which monitor channels are connected */
@@ -79,12 +122,18 @@ let saved: null | {
   playing: boolean; speed: number;
 } = null;
 
+/** The EtCO₂ of the case on the monitor is still the one from before its arrest (see staleEtco2) */
+let etco2Stale = false;
+
 /** Show this patient on the monitor and the 12-lead */
 function show(s: SimState, prev: SimState | null) {
   // a new (or resumed) case fills the monitor with the patient's rhythm; changes during the case sweep in, as on a real monitor
   if (!prev) showRhythm(s.rhythm.profile, s.rhythm.hr);
   else if (prev.rhythm.profile !== s.rhythm.profile || prev.rhythm.hr !== s.rhythm.hr) setRhythm(s.rhythm.profile, s.rhythm.hr);
-  setScriptedVitals(monitorVitals(s));
+  // after the rhythm: showing a new patient's rhythm drops any baseline, so the case's is set again here
+  const baseline = caseBaseline(s);
+  if (sim.hemo.baseline !== baseline) setBaseline(baseline);
+  setScriptedVitals(monitorVitals(s, etco2Stale));
   const newLines = prev ? s.log.slice(prev.log.length) : [];
   const last = s.performed.at(-1);
   if (prev && last && s.performed.length > prev.performed.length) {
@@ -159,6 +208,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   const update = (next: SimState) => {
     const prev = get().state;
     if (next === prev) return;
+    etco2Stale = staleEtco2(prev, next, etco2Stale);
     show(next, prev);
     set({ state: next, ...(next.ended ? { ...finish(next), sheetOpen: false } : {}) });
   };
@@ -179,6 +229,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       resetCode(true);
       setNibpReading(null);
       const s = start(sc, sc.roles.includes(role) ? role : sc.roles[0]);
+      etco2Stale = false;
       show(s, null);
       set((st) => ({ scenarioId: id, state: s, review: null, reviewOpen: false, sheetOpen: false, run: st.run + 1 }));
     },
@@ -205,6 +256,8 @@ export const useSimStore = create<SimStore>((set, get) => {
     closeScenario: () => {
       setScriptedVitals(null);
       setNibpReading(null);
+      etco2Stale = false;
+      if (sim.hemo.baseline !== null) setBaseline(null);
       set({ scenarioId: null, state: null, review: null, reviewOpen: false, sheetOpen: false });
     },
     setReviewOpen: (reviewOpen) => set((st) => ({ reviewOpen: reviewOpen && !!st.state?.ended })),

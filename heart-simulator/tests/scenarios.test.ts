@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CONDITIONS } from '@/data/content';
-import { resolveProfile } from '@/lib/ecg/profiles';
+import { ECG_PROFILES, resolveProfile } from '@/lib/ecg/profiles';
 import { answerRead, criticalsFor, perform, review, start, stop } from '@/lib/sim/scenario/engine';
 import { INTERVENTIONS, INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { READ_SETS } from '@/lib/sim/scenario/reads';
 import { SCENARIOS, SCENARIO_BY_ID, scenariosFor } from '@/lib/sim/scenario/scenarios';
 import type { LearningLevel } from '@/store/useAppStore';
 import { CATH_IMAGES } from '@/data/cathImages';
+import { CATHLAB_C } from '@/data/content/cathlab-c';
 import { UNTIL_ARRIVED, readAfter, runScenario as run } from './helpers';
 
 const R = (n: number) => Array<string>(n).fill('reassess');
@@ -798,7 +799,11 @@ describe('contrast reaction', () => {
 });
 
 describe('US spelling in everything a learner reads', () => {
-  const BRITISH = /haem|aemia|ischaem|oedem|synchronis|equalis|hyperaem|centre|levell|manoeuvre|nebulis|analyse\b|organis|colour|\bgrey|litres|metres|optimis|minimis|catheteris|heparinis|recognis|shovell|ventricularis/i;
+  const BRITISH = /haem|aemia|ischaem|oedem|synchronis|equalis|hyperaem|centre|levell|manoeuvre|nebulis|analyse\b|organis|colour|\bgrey|litres|metres|optimis|minimis|catheteris|heparinis|recognis|shovell|ventricularis|favour/i;
+
+  it('the 12-lead feedback quotes the ECG profiles: their headlines and findings use US spelling too', () => {
+    for (const p of Object.values(ECG_PROFILES)) expect([p.name, p.headline, ...p.findings].join(' '), p.id).not.toMatch(BRITISH);
+  });
 
   it('actions, reads and every scenario text use US spelling', () => {
     for (const iv of INTERVENTIONS) expect(`${iv.label} ${iv.detail ?? ''}`, iv.id).not.toMatch(BRITISH);
@@ -881,6 +886,16 @@ describe('real angiograms in the cath lab cases', () => {
       // the arterial line reads the same aortic pressure as the console: mean 98
       expect(Math.round((s.vitals.sbp + 2 * s.vitals.dbp) / 3), `role ${role}`).toBe(98);
     }
+  });
+
+  it('the no-reflow read says what the catalog says no-reflow is: TIMI 2 or less once the artery is open', () => {
+    const option = READ_SETS.angio.options.find((o) => o.id === 'angio-no-reflow')!;
+    const entry = CATHLAB_C.find((c) => c.id === 'cl-comp-no-reflow')!;
+    expect(entry.summary).toMatch(/TIMI ≤ 2/);
+    expect(option.label).toMatch(/TIMI ≤ 2/);
+    // slow flow is no-reflow too: "TIMI 0–1" would make a TIMI 2 run read as an open artery
+    expect(option.label).not.toMatch(/TIMI 0–1/);
+    expect(option.label).toMatch(/slow flow/);
   });
 
   it('a thrombus read of the anterior STEMI run is partly right', () => {

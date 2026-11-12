@@ -421,7 +421,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'vt', name: 'Monomorphic Ventricular Tachycardia', rhythm: 'vt', rateControl: 'ventricular', defaultHR: 170, minHR: 120, maxHR: 250,
     pr: 0, p: 'normal', qrs: 'vt', qtc: 440, hemo: 'shock',
     headline: 'Monomorphic ventricular tachycardia',
-    findings: ['Regular wide-complex tachycardia (QRS often > 140–160 ms)', 'AV dissociation: sinus P waves march independently through the tachycardia', 'Fusion and capture beats are diagnostic', 'Extreme ("northwest") axis and precordial concordance favour VT', 'Treat any wide-complex tachycardia as VT until proven otherwise'],
+    findings: ['Regular wide-complex tachycardia (QRS often > 140–160 ms)', 'AV dissociation: sinus P waves march independently through the tachycardia', 'Fusion and capture beats are diagnostic', 'Extreme ("northwest") axis and precordial concordance favor VT', 'Treat any wide-complex tachycardia as VT until proven otherwise'],
     keyLeads: ['V1', 'II', 'aVR'],
   },
   vf: {
@@ -543,7 +543,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     // Apical/mid-ventricular injury points leftward: STE V3–V6 with little or none in V1, ST depression in aVR
     injury: scale(norm([0.8, -0.5, -0.3]), 0.18),
     headline: 'Anterior ST elevation without reciprocal inferior change',
-    findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favour takotsubo', 'Evolves to deep, widespread T inversion with QT prolongation', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
+    findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favor takotsubo', 'Evolves to deep, widespread T inversion with QT prolongation', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
     keyLeads: ['V2', 'V3', 'V4', 'V5', 'aVR'],
   },
   hfref: {

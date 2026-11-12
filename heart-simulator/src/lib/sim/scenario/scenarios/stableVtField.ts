@@ -368,7 +368,7 @@ export const stableVtField: Scenario = {
     { id: 'handoff', label: 'Hand-off', why: 'Report both 12-leads, the drug and dose, when it stopped and any shocks.', done: ['handoff'], points: 5 },
   ],
   harms: [
-    { id: 'ccb-wide-complex', actions: ['diltiazem'], when: (s) => inVt(s), points: 15, severity: 'critical', text: 'Diltiazem for a regular wide-complex tachycardia. Treat it as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest — COR 3: Harm (2025 AHA). For a stable one the drugs are procainamide or amiodarone.' },
+    { id: 'ccb-wide-complex', actions: ['diltiazem'], when: (s) => inVt(s), points: 15, severity: 'critical', replaces: ['diltiazem-vt'], text: 'Diltiazem for a regular wide-complex tachycardia. Treat it as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest — COR 3: Harm (2025 AHA). For a stable one the drugs are procainamide or amiodarone.' },
     // a manual shock only: with his pulse the AED advises no shock, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock to a patient with a pulse. It can land on the T wave and set off VF. A tachycardia with a pulse that needs a shock gets synchronized cardioversion: 100 J for monomorphic VT (2025).' },
     {

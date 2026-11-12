@@ -475,6 +475,42 @@ describe('the device', () => {
   });
 });
 
+describe('the AED reads the rhythm, never the pulse', () => {
+  /** let the AED analyze what is on the monitor: true if it advises a shock */
+  function aed() {
+    D.analyze();
+    run(7_000);
+    return defib().aed.phase === 'shock';
+  }
+
+  it('on a fast VT it advises a shock whether or not there is a pulse — and says an AED is not for a patient with one', () => {
+    patient('vt', 170);
+    expect(aed()).toBe(true);
+    expect(logged()).toContain(D.AED_WITH_PULSE);
+    expect(defib().log.find((l) => l.text === D.AED_WITH_PULSE)!.kind).toBe('warn');
+
+    D.resetCode();
+    pressures({ sbp: 20, dbp: 20, sv: 0, noOutput: true });
+    patient('vt', 170);
+    expect(aed()).toBe(true);
+    expect(logged()).not.toContain(D.AED_WITH_PULSE);
+  });
+
+  it('no warning in the arrest it is made for, and no shock for an organized rhythm with a pulse', () => {
+    pressures({ sbp: 20, dbp: 20, sv: 0, noOutput: true });
+    patient('vf');
+    expect(aed()).toBe(true);
+    expect(logged()).not.toContain(D.AED_WITH_PULSE);
+
+    vi.restoreAllMocks();
+    pressures({});
+    D.resetCode();
+    patient('normal-sinus', 80);
+    expect(aed()).toBe(false);
+    expect(logged()).toContain(D.AED_WITH_PULSE);
+  });
+});
+
 /** British spellings (as in the glossary's own check): the app is written in US English */
 const BRITISH = /haem|aemi[ac]|ischaem|oedema|fibre|litre|tumour|colour|centre|labelled|practise|synchronis|recognis|organis|stabilis|localis|minimis|visualis|catheteris|anaesth|polaris|analys(e|ed|ing)\b|paralys|manoeuvr|oesoph|paediatr|characteris|normalis|utilis|hospitalis|vascularis/i;
 

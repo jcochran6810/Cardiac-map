@@ -15,9 +15,9 @@
 import type { LearningLevel } from '@/store/useAppStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
-import { READ_KIND_NAME, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
+import { READ_KIND_NAME, READ_OPTIONS, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
 import { angioGate } from './labKit';
-import { LOW_GLUCOSE, PERFUSING_FLOOR, bpAfter, canSwallow, paced } from './kit';
+import { LOW_GLUCOSE, PERFUSING_FLOOR, atRate, bpAfter, canSwallow, paced } from './kit';
 import type {
   Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
@@ -123,14 +123,19 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'pads': return { say: [['you', 'Pads on: anterior–lateral.']], flags: ['pads', 'monitor'] };
     case 'ecg12':
     case 'ecg12-repeat':
-      if (!s.pulse) return { blocked: true, say: [['system', 'No 12-lead in cardiac arrest: treat the rhythm on the monitor.']] };
+      if (!s.pulse) return noEcgInArrest;
       if (id === 'ecg12-repeat' && !has(s, 'ecg12')) return { blocked: true, say: [['system', 'There is nothing to repeat yet: record a first 12-lead.']] };
       return { say: [['monitor', ecgLine(s, id === 'ecg12-repeat')]], flags: id === 'ecg12' ? ['ecg12', 'monitor'] : ['ecg12', 'monitor', 'ecg12-repeat'] };
     case 'ecg-transmit':
       if (!has(s, 'ecg12')) return { blocked: true, say: [['system', 'Acquire a 12-lead first.']] };
       return { say: [['hospital', 'ECG received; the physician is reviewing it.']], flags: ['transmitted'] };
-    case 'ecg-right': return { say: [['monitor', fact('ecgRight') ?? 'V4R: no ST elevation.']], flags: ['ecg-right'] };
-    case 'ecg-posterior': return { say: [['monitor', fact('ecgPosterior') ?? 'V7–V9: no ST elevation.']], flags: ['ecg-posterior'] };
+    // extra leads are a 12-lead too: none during CPR
+    case 'ecg-right':
+      if (!s.pulse) return noEcgInArrest;
+      return { say: [['monitor', fact('ecgRight') ?? 'V4R: no ST elevation.']], flags: ['ecg-right'] };
+    case 'ecg-posterior':
+      if (!s.pulse) return noEcgInArrest;
+      return { say: [['monitor', fact('ecgPosterior') ?? 'V7–V9: no ST elevation.']], flags: ['ecg-posterior'] };
     case 'capno':
       return { say: [['monitor', s.pulse ? `EtCO₂ ${v.etco2} mmHg with a normal square waveform.` : `EtCO₂ ${has(s, 'cpr') ? 16 : 6} mmHg.`]], flags: ['capno'] };
     case 'transducer': return { say: [['you', 'Transducers zeroed to air and leveled at the phlebostatic axis.']], flags: ['transducer'] };
@@ -175,29 +180,54 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return nitroEffect(s);
     case 'nitro': return nitroEffect(s);
     case 'fentanyl': {
+      // no flag 'analgesia' in arrest: nothing was relieved, and it must not count as analgesia for a later shock
+      if (!s.pulse) return noRoleInArrest('Fentanyl', 'fentanyl');
       const pain = Math.max(0, v.pain - 3);
-      return { say: [['patient', pain <= 3 ? 'That takes the edge off.' : 'Still hurts, but a bit less.']], vitals: { pain, rr: Math.max(10, v.rr - 1) }, flags: ['analgesia'] };
+      // an opioid slows the breathing a little (not below 10 on this dose); it never speeds a slow one
+      const rr = Math.min(v.rr, Math.max(10, v.rr - 1));
+      const feels = v.pain === 0 ? '"I feel a bit floaty."' : pain <= 3 ? '"That takes the edge off."' : '"Still hurts, but a bit less."';
+      return { say: [['you', 'Fentanyl IV given.'], ...ifAwake(s, feels)], vitals: { pain, rr }, flags: ['analgesia'] };
     }
     case 'heparin': return { say: [['you', 'Heparin bolus given (weight-based).']], flags: ['heparin'] };
     case 'p2y12': return { say: [['you', 'P2Y12 loading dose given.']], flags: ['p2y12'] };
     case 'metoprolol': {
-      if (!s.pulse) return noCirculation('Metoprolol', 'beta-blocker');
+      if (!s.pulse) return noRoleInArrest('Metoprolol', 'beta-blocker');
       const bp = bpAfter(s, -12, -8);
-      // a pacer sets the rate, so only the heart's own rate slows
-      return { say: [['monitor', `Metoprolol given. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, ...(paced(s) ? {} : { rhythm: { ...s.rhythm, hr: Math.max(40, s.rhythm.hr - 10) } }), flags: ['beta-blocker'] };
+      // a pacer sets the rate, so only the heart's own rate slows — by 10, not below 40, and never up to 40 from a slower one
+      const hr = Math.min(s.rhythm.hr, Math.max(40, s.rhythm.hr - 10));
+      return { say: [['monitor', `Metoprolol given. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, ...(paced(s) ? {} : { rhythm: atRate(s, hr) }), flags: ['beta-blocker'] };
     }
-    case 'atropine':
-      if (rhythmKind(s) === 'sinus' && s.rhythm.hr < 60) return { say: [['monitor', 'Heart rate rises to 74.']], rhythm: { ...s.rhythm, hr: 74 }, flags: ['atropine'] };
+    case 'atropine': {
+      if (!s.pulse) return noRoleInArrest('Atropine', 'atropine');
+      // it blocks the vagus at the sinus node: a slow sinus rate comes up to 74, a faster one climbs a little. A rhythm
+      // the vagus does not hold down (a block below the node, a high potassium) is the case's to answer
+      if (sinusNode(s) && s.rhythm.hr < 60) return { say: [['monitor', 'Heart rate rises to 74.']], rhythm: atRate(s, 74), flags: ['atropine'] };
+      const hr = sinusFaster(s, 10, 150);
+      if (hr) return { say: [['monitor', `Heart rate ${hr}.`]], rhythm: atRate(s, hr), flags: ['atropine'] };
       return { say: [['monitor', 'No change in heart rate.']], flags: ['atropine'] };
+    }
     case 'adenosine6':
     case 'adenosine12':
       return { say: [['monitor', 'A brief pause, then the same rhythm returns.']], flags: ['adenosine'] };
     case 'diltiazem': {
-      if (!s.pulse) return noCirculation('Diltiazem', 'diltiazem');
+      if (!s.pulse) return noRoleInArrest('Diltiazem', 'diltiazem');
       const bp = bpAfter(s, -12, -8);
       return { say: [['monitor', `Diltiazem in. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['diltiazem'] };
     }
-    case 'epinephrine': return { say: [['you', 'Epinephrine 1 mg IV/IO, flushed.']], flags: ['epi'] };
+    case 'epinephrine': {
+      if (!s.pulse) return { say: [['you', 'Epinephrine 1 mg IV/IO, flushed.']], flags: ['epi'] };
+      // the arrest dose with a pulse (the built-in rule scores it): a surge of rate and pressure that passes in a few
+      // minutes. In words only: written into the vitals it would last for the rest of the case and "treat" a low pressure
+      // that needs fluid or an infusion. Its own flag, so a case never counts it as the arrest epinephrine
+      return {
+        say: [
+          ['you', 'Epinephrine 1 mg IV, flushed.'],
+          ['monitor', 'The heart races and the pressure surges, with runs of extra beats — for a few minutes, then it settles back where it was.', 'bad'],
+          ...ifAwake(s, '"My heart is pounding — and my head is splitting!"'),
+        ],
+        flags: ['epi-with-pulse'],
+      };
+    }
     case 'amio-arrest': return { say: [['you', `Amiodarone ${(s.counts['amio-arrest'] ?? 0) === 0 ? '300' : '150'} mg IV/IO, flushed.`]], flags: ['amiodarone'] };
     case 'amio-infusion': return { say: [['you', 'Amiodarone 150 mg running over 10 minutes.']], flags: ['amiodarone'] };
     case 'lidocaine': return { say: [['you', 'Lidocaine given.']], flags: ['lidocaine'] };
@@ -211,7 +241,9 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       const bp = bpAfter(s, 22, 14, { sbp: 140, dbp: 88 });
       return { say: [['monitor', `Infusion running. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['pressor'] };
     }
-    case 'sedation': return { say: [['you', 'Sedated and comfortable; airway maintained, capnography on.']], flags: ['sedation'] };
+    case 'sedation':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: there is no one awake to sedate. CPR, the rhythm and the cause come first.']] };
+      return { say: [['you', 'Sedated and comfortable; airway maintained, capnography on.']], flags: ['sedation'] };
     case 'tnk': return { say: [['you', 'Tenecteplase given.']], flags: ['lytic'] };
     case 'epi-im': return { say: [['you', 'Epinephrine 0.5 mg IM, lateral thigh.']], flags: ['epi-im'] };
     case 'albuterol': return { say: [['you', 'Albuterol nebulizer running.']], flags: ['albuterol'] };
@@ -219,30 +251,34 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'steroid': return { say: [['you', 'Methylprednisolone 125 mg IV.']], flags: ['steroid'] };
     case 'radial-cocktail': return { say: [['you', 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg, diluted with blood.'], ['patient', '"Ooh, that burns up my arm."']], vitals: bpAfter(s, -6, -4), flags: ['cocktail'] };
     case 'ic-nitro': {
-      if (!s.pulse) return noCirculation('Intracoronary nitroglycerin', 'ic-nitro');
+      if (!s.pulse) return noRoleInArrest('Intracoronary nitroglycerin', 'ic-nitro');
       const bp = bpAfter(s, -10, -6);
       return { say: [['you', 'Nitroglycerin 200 mcg intracoronary.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['ic-nitro'] };
     }
-    case 'ic-adenosine': return { say: [['you', 'Adenosine 150 mcg intracoronary.'], ['monitor', 'A few seconds of slowing, then back to baseline.']], flags: ['ic-adenosine'] };
-    case 'ic-verapamil': return { say: [['you', 'Verapamil 200 mcg intracoronary.']], flags: ['ic-verapamil'] };
+    case 'ic-adenosine':
+      if (!s.pulse) return noRoleInArrest('Intracoronary adenosine', 'ic-adenosine');
+      return { say: [['you', 'Adenosine 150 mcg intracoronary.'], ['monitor', 'A few seconds of slowing, then back to baseline.']], flags: ['ic-adenosine'] };
+    case 'ic-verapamil':
+      if (!s.pulse) return noRoleInArrest('Intracoronary verapamil', 'ic-verapamil');
+      return { say: [['you', 'Verapamil 200 mcg intracoronary.']], flags: ['ic-verapamil'] };
     case 'adenosine-iv-ffr': return { say: [['you', 'Adenosine 140 mcg/kg/min IV running.'], ['patient', '"I feel flushed… a bit short of breath."']], flags: ['hyperemia'] };
     case 'bivalirudin': return { say: [['you', 'Bivalirudin 0.75 mg/kg bolus, 1.75 mg/kg/h running.']], flags: ['bivalirudin', 'anticoagulated'] };
     case 'gp2b3a': return { say: [['you', 'Eptifibatide 180 mcg/kg bolus, infusion running.']], flags: ['gp2b3a'] };
     case 'cangrelor': return { say: [['you', 'Cangrelor 30 mcg/kg bolus, 4 mcg/kg/min running.']], flags: ['p2y12', 'cangrelor'] };
     case 'protamine': return { say: [['you', 'Protamine 50 mg slowly IV.'], ['team', 'ACT falling.']], vitals: bpAfter(s, -6, -4), flags: ['protamine'] };
     case 'ic-nitroprusside': {
-      if (!s.pulse) return noCirculation('Intracoronary nitroprusside', 'ic-nitroprusside');
+      if (!s.pulse) return noRoleInArrest('Intracoronary nitroprusside', 'ic-nitroprusside');
       const bp = bpAfter(s, -12, -8);
       return { say: [['you', 'Nitroprusside 100 mcg intracoronary.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['ic-nitroprusside'] };
     }
     case 'ic-epinephrine': {
-      if (!s.pulse) return noCirculation('Intracoronary epinephrine', 'ic-epinephrine');
+      if (!s.pulse) return noRoleInArrest('Intracoronary epinephrine', 'ic-epinephrine');
       // it washes out of the coronary into the whole circulation: the pressure and the sinus rate rise for a few minutes
       const bp = bpAfter(s, 16, 8);
       const hr = sinusFaster(s, 10);
       return {
         say: [['you', 'Epinephrine 100 mcg intracoronary.'], ['monitor', `${hr ? `Heart rate ${hr}. ` : ''}BP ${bp.sbp}/${bp.dbp}.`]],
-        vitals: bp, ...(hr ? { rhythm: { ...s.rhythm, hr } } : {}), flags: ['ic-epinephrine'],
+        vitals: bp, ...(hr ? { rhythm: atRate(s, hr) } : {}), flags: ['ic-epinephrine'],
       };
     }
 
@@ -258,12 +294,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       // the dextrose covers the insulin for now; the low glucose it can bring comes hours later, after most cases end
       return { say: [['you', 'Regular insulin 10 units IV (dose double-checked), then dextrose 25 g (D50 50 mL).']], flags: ['insulin'] };
     case 'albuterol-hyperk': {
-      // a nebulizer needs someone breathing, and inhaled beta-agonists are not recommended in arrest (2025 AHA)
-      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: a nebulizer needs a patient who is breathing, and inhaled albuterol is not recommended in arrest.']] };
+      // a nebulizer needs someone breathing, and albuterol has no proven benefit in arrest (2025 AHA)
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: a nebulizer needs a patient who is breathing, and albuterol has no proven benefit in arrest (2025 AHA).']] };
       const hr = sinusFaster(s, 8);
       return {
         say: [['you', 'High-dose albuterol nebulizer running.'], ...ifAwake(s, '"I feel shaky."'), ...(hr ? [['monitor', `Heart rate ${hr}.`] as Line] : [])],
-        ...(hr ? { rhythm: { ...s.rhythm, hr } } : {}), flags: ['albuterol-hyperk'],
+        ...(hr ? { rhythm: atRate(s, hr) } : {}), flags: ['albuterol-hyperk'],
       };
     }
     case 'magnesium-sulfate': {
@@ -273,13 +309,13 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'Magnesium sulfate 2 g running over 15 minutes.'], ...ifAwake(s, '"I feel warm and flushed."'), ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['magnesium'] };
     }
     case 'procainamide': {
-      if (!s.pulse) return noCirculation('Procainamide', 'procainamide');
+      if (!s.pulse) return noRoleInArrest('Procainamide', 'procainamide');
       // it vasodilates and weakens the squeeze: the pressure falls; whether the arrhythmia stops is the case's to say
       const bp = bpAfter(s, -10, -6);
       return { say: [['you', 'Procainamide running at 30 mg/min; BP and QRS width checked every few minutes.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['procainamide'] };
     }
     case 'glucagon': {
-      if (!s.pulse) return noCirculation('Glucagon', 'glucagon');
+      if (!s.pulse) return noRoleInArrest('Glucagon', 'glucagon');
       // vomiting is the rule at these doses, and it raises the glucose; what it does to the rate and pressure depends on the overdose
       const sick: Line = v.gcs >= 13 ? ['patient', '"I\'m going to be sick…" — and vomits.'] : [teammate(sc), 'Vomiting: rolled onto the side and suctioned.', 'warn'];
       const dose = (s.counts.glucagon ?? 0) === 0 ? 'Glucagon 5 mg IV over 3 minutes.' : 'Another 5 mg of glucagon IV (10 mg in all).';
@@ -291,9 +327,18 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['patient', 'Swallows the glucose gel.']], vitals: { glucose: v.glucose + 40 }, flags: ['oral-glucose'] };
     case 'dextrose':
       return { say: [['you', s.pulse ? 'Dextrose 25 g IV in.' : 'Dextrose 25 g pushed; compressions go on.']], vitals: { glucose: v.glucose + 120 }, flags: ['dextrose'] };
+    case 'ondansetron':
+      if (!s.pulse) return noRoleInArrest('Ondansetron', 'antiemetic');
+      // it settles nausea and treats nothing else: whether there was nausea to settle is the case's to say
+      return { say: [['you', 'Ondansetron 4 mg IV, slowly over 30 seconds.']], flags: ['antiemetic'] };
 
     case 'cpr':
-      if (s.pulse) return { say: [['patient', 'The patient cries out — they have a pulse and are breathing.', 'bad']] };
+      if (s.pulse) {
+        // only a patient awake enough to feel it cries out; otherwise a teammate stops it
+        return v.gcs >= 9
+          ? { say: [['patient', 'The patient cries out — they have a pulse and are breathing.', 'bad']] }
+          : { say: [[teammate(sc), 'Stop — there is a pulse. No compressions on a beating heart.', 'bad']] };
+      }
       return { say: [['you', '2 minutes of compressions: 100–120/min, 5–6 cm, full recoil, minimal pauses.']], flags: ['cpr'] };
     case 'aed':
       // an AED only shocks what it reads as VF or fast VT; it cannot feel a pulse, but an organized rhythm gets no shock
@@ -312,9 +357,9 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       }
       if (!tachyarrhythmia(s)) {
         const awake: Line[] = v.gcs >= 13 ? [['patient', '"Aagh! What was that?"', 'bad']] : [];
-        return { say: [['monitor', 'Synchronized shock delivered: 100 J. No change on the monitor.'], ...awake], flags: ['pads', 'monitor'] };
+        return { say: [['monitor', `Synchronized shock delivered: ${syncEnergy(s)}. No change on the monitor.`], ...awake], flags: ['pads', 'monitor'] };
       }
-      return { say: [['monitor', 'Synchronized shock delivered: 100 J.']], flags: ['pads', 'monitor', 'cardioverted'] };
+      return { say: [['monitor', `Synchronized shock delivered: ${syncEnergy(s)}.`]], flags: ['pads', 'monitor', 'cardioverted'] };
     }
     case 'pace': {
       if (!s.pulse) {
@@ -417,12 +462,33 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         ? { say: [['you', 'Femoral sheath out; firm pressure for 15 minutes, then a dressing. Distal pulses checked; no hematoma.']], flags: ['hemostasis'] }
         : { say: [['you', 'Radial band on; distal pulse and perfusion checked.']], flags: ['hemostasis'] };
 
-    case 'call-help': return { say: [['team', 'Help is on the way.']], flags: ['help'] };
+    case 'call-help':
+      // in the lab the code team is down the hall; in the field nobody comes without a named request, so nothing is promised
+      if (sc.setting === 'cathlab') return { say: [['team', 'Help is on the way.']], flags: ['help'] };
+      return {
+        say: [['dispatch', s.role === 1
+          ? '"Copy. What do you need? For a paramedic, request an ALS intercept."'
+          : '"Copy. No other unit is free right now: it is your crew for the moment. Tell us if you need something specific."']],
+        flags: ['help'],
+      };
     case 'callout': return { say: [['operator', 'Copy.']], flags: ['callout'] };
     case 'als': return { say: [['dispatch', 'Medic unit assigned, about 6 minutes out.']], flags: ['als'] };
     case 'med-control': return { say: [['hospital', 'Medical control: continue per protocol.']], flags: ['med-control'] };
+    case 'poison-control': {
+      // a case with a poisoning says what the specialist advises (fact 'poisonControl'); one that lists an overdose but
+      // says nothing gets the specialist's first questions, never "no poisoning"
+      const reply = fact('poisonControl') ?? (hasProblem(sc, OVERDOSES)
+        ? 'Poison center: "What was taken, how much, and when? Read us the label on the bottle, and call back with what you find."'
+        : 'Poison center: "Nothing you describe points to a poisoning or an overdose. Treat what you find, and call us back if you learn of an exposure."');
+      return { say: [['hospital', reply]], flags: ['poison-control'] };
+    }
     case 'stemi-alert':
       if (!has(s, 'ecg12')) return { blocked: true, say: [['system', 'You need a 12-lead showing a STEMI first.']] };
+      // the physician reviews the 12-leads you describe: none meets STEMI criteria, so no cath lab (the built-in rule scores
+      // the call). Not "no ST elevation": pericarditis, a bundle branch block, LVH or a high potassium can raise it too
+      if (!ecgShowsStemi(s)) {
+        return { say: [['hospital', 'The interventional cardiologist reviews your 12-lead: it does not meet STEMI criteria — the cath lab is not activated. Bring the patient to the emergency department.', 'warn']], flags: ['alert-declined'] };
+      }
       return { say: [['hospital', 'Cath lab activated — the team will meet you at the door.']], flags: ['alert'] };
     case 'notify': return { say: [['hospital', "Copy. We'll be ready for you."]], flags: ['notified'] };
     case 'transport-pci':
@@ -438,6 +504,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (sc.setting === 'field' && !has(s, 'arrived')) return { blocked: true, say: [['system', 'Hand off on arrival: keep caring for the patient en route (reassess) until you get there.']] };
       // in the lab the patient leaves the table (and your care) only once the procedure is over
       if (sc.setting === 'cathlab' && sc.completeWhen && !sc.completeWhen(s)) return { blocked: true, say: [['system', 'The procedure is not over yet: keep caring for the patient (reassess) and hand off at the end.']] };
+      if (!s.pulse) {
+        // in the lab the resuscitation team is already in the room: the arrest is run there, not handed over
+        if (sc.setting === 'cathlab') return { blocked: true, say: [['system', 'Not in the middle of a cardiac arrest: run the arrest here, and hand off once there is a pulse.']] };
+        // arriving in the arrest: the emergency department team takes over the CPR, and the case ends there
+        return { say: [['you', 'Hand-off to the resuscitation team: CPR continues in the emergency department.']], flags: ['handoff'] };
+      }
       return { say: [['you', 'SBAR hand-off given; the receiving team takes over.']], flags: ['handoff'] };
   }
   return { say: [['you', 'Done.']] };
@@ -448,8 +520,11 @@ const nothingToFilm: Effect = { blocked: true, say: [['system', 'Nothing to film
 const noCatheter: Effect = { blocked: true, say: [['system', 'The operator has no catheter in yet.']] };
 const noWire = (s: SimState, mine: string): Effect => ({ blocked: true, say: [['system', s.role === 5 ? mine : 'There is no wire in the vessel yet.']] });
 
-/** A drug that acts on the heart or the vessels, given in cardiac arrest: with no circulation it reaches nothing */
-const noCirculation = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — with no circulation it goes nowhere and changes nothing.`]], flags: [flag] });
+/**
+ * A drug with no role in cardiac arrest, given in one. Not "it cannot circulate": compressions move enough blood to carry
+ * an IV/IO drug (that is how epinephrine and amiodarone work during CPR) — this one simply has nothing to treat there.
+ */
+const noRoleInArrest = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — it has no place in cardiac arrest and changes nothing on the monitor.`]], flags: [flag] });
 
 /** The crew member or teammate who speaks up beside the learner */
 const teammate = (sc: Scenario): Speaker => (sc.setting === 'field' ? 'partner' : 'team');
@@ -457,11 +532,45 @@ const teammate = (sc: Scenario): Speaker => (sc.setting === 'field' ? 'partner' 
 /** Only a patient awake enough to talk says how a drug feels */
 const ifAwake = (s: SimState, text: string): Line[] => (s.pulse && s.vitals.gcs >= 13 ? [['patient', text]] : []);
 
+const noEcgInArrest: Effect = { blocked: true, say: [['system', 'No 12-lead in cardiac arrest: treat the rhythm on the monitor.']] };
+
 /**
- * The heart rate after an adrenergic drug speeds the sinus node, or null: other rhythms are left to the case (an
- * agonist does not simply speed a VT, and a pacer holds its own rate)
+ * The sinus node sets the rate, with a pulse. Not in PEA (organized complexes, no output), and not with a high potassium:
+ * its slow rate comes from the potassium, which neither the vagus nor an adrenergic drug undoes — the case says what helps.
  */
-const sinusFaster = (s: SimState, by: number): number | null => (s.pulse && rhythmKind(s) === 'sinus' ? s.rhythm.hr + by : null);
+const sinusNode = (s: SimState) => s.pulse && rhythmKind(s) === 'sinus' && s.rhythm.profile !== 'hyperkalemia';
+
+/**
+ * The heart rate after an adrenergic or vagolytic drug speeds the sinus node (up to `cap`), or null: other rhythms are left
+ * to the case (an agonist does not simply speed a VT, and a pacer holds its own rate)
+ */
+const sinusFaster = (s: SimState, by: number, cap = Infinity): number | null =>
+  (sinusNode(s) ? Math.max(s.rhythm.hr, Math.min(cap, s.rhythm.hr + by)) : null);
+
+/** The first synchronized energy (2025 AHA, biphasic): atrial fibrillation 200 J or more, flutter 200 J, a regular narrow or monomorphic VT 100 J */
+function syncEnergy(s: SimState): string {
+  const k = rhythmKind(s);
+  return k === 'af' || k === 'flutter' ? '200 J' : '100 J';
+}
+
+/**
+ * 12-lead patterns whose ST elevation meets STEMI criteria, so the cath lab is activated (a Takotsubo pattern looks the
+ * same until the angiogram shows open arteries)
+ */
+const STEMI_READS = ['stemi-anterior', 'stemi-inferior', 'stemi-lateral', 'stemi-inferior-chb', 'takotsubo'];
+
+/** A tracing of this rhythm meets STEMI criteria */
+function profileShowsStemi(profile: string): boolean {
+  const read = READ_OPTIONS.find((o) => o.profiles?.includes(profile));
+  return !!read && STEMI_READS.includes(read.id);
+}
+
+/**
+ * A 12-lead recorded so far showed a STEMI (flag 'ecg-stemi', set as each tracing is recorded). The diagnostic tracing
+ * decides: a later one that hides the ST elevation (paced beats, a new bundle branch block) does not open the artery,
+ * so the patient still needs primary PCI (2025 ACC/AHA ACS guideline).
+ */
+const ecgShowsStemi = (s: SimState) => has(s, 'ecg-stemi');
 
 /** The tech opens, prepares and hands a device; the cardiologist uses it */
 function deviceEffect(s: SimState, id: string): Effect {
@@ -496,11 +605,13 @@ function deviceEffect(s: SimState, id: string): Effect {
 }
 
 function nitroEffect(s: SimState): Effect {
-  if (!s.pulse) return noCirculation('Nitroglycerin', 'nitro');
+  if (!s.pulse) return noRoleInArrest('Nitroglycerin', 'nitro');
   const pain = Math.max(0, s.vitals.pain - 2);
   const bp = bpAfter(s, -10, -6);
+  // only a patient who has chest pain, and is awake enough to say so, says how it feels
+  const feels = s.vitals.pain > 0 ? ifAwake(s, pain <= 4 ? '"The pressure is easing."' : '"Maybe a little better."') : [];
   return {
-    say: [['patient', pain <= 4 ? 'The pressure is easing.' : 'Maybe a little better.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
+    say: [...feels, ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
     vitals: { pain, ...bp }, flags: ['nitro'],
   };
 }
@@ -512,6 +623,8 @@ function hasProblem(sc: Scenario, problems: Problem[]): boolean {
   return problems.some((p) => sc.problems?.includes(p));
 }
 const CALCIUM_FOR: Problem[] = ['hyperkalemia', 'hypocalcemia', 'ccb-overdose', 'beta-blocker-overdose'];
+/** The poisonings a case can list: the poison center has something to say about them */
+const OVERDOSES: Problem[] = ['beta-blocker-overdose', 'ccb-overdose', 'sodium-channel-blocker-overdose'];
 const BICARBONATE_FOR: Problem[] = ['hyperkalemia', 'metabolic-acidosis', 'sodium-channel-blocker-overdose'];
 /** Second- and third-degree AV block */
 const AV_BLOCKS = ['wenckebach', 'mobitz2', 'chb'];
@@ -525,16 +638,31 @@ export const BUILT_IN_HARMS: Harm[] = [
   { id: 'cardiovert-no-tachycardia', actions: ['cardiovert'], when: (s) => s.pulse && !tachyarrhythmia(s), points: 8, severity: 'major', text: 'Synchronized cardioversion without a tachyarrhythmia to treat. It is for an unstable SVT, atrial fibrillation or flutter, or monomorphic VT; on any other rhythm the shock cannot help, and it hurts an awake patient.' },
   { id: 'arrest-epi-with-pulse', actions: ['epinephrine'], when: (s) => s.pulse, points: 15, severity: 'critical', text: '1 mg IV epinephrine is the cardiac-arrest dose. With a pulse it causes severe hypertension, arrhythmias and ischemia; use push-dose epinephrine or an infusion.' },
   { id: 'arrest-amio-with-pulse', actions: ['amio-arrest'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'A 300 mg amiodarone push is for cardiac arrest. With a pulse, give 150 mg over 10 minutes.' },
+  // on-scene resuscitation until a sustained ROSC, for most adults (2025 AHA Systems of Care). Only the loading is judged:
+  // an arrest that begins en route is worked in the ambulance, and that is no mistake
+  { id: 'transport-in-arrest', actions: ['transport-near', 'transport-pci'], when: (s, sc) => sc.setting === 'field' && !s.pulse, points: 6, severity: 'major', text: 'Loading the patient for transport during cardiac arrest. Compressions on a stretcher and in a moving ambulance are poorer and keep being interrupted, and what the arrest needs — high-quality CPR, a shock for VF or pulseless VT, epinephrine and the reversible causes — works right here. For most adults, work the arrest on scene until there is a sustained ROSC, then transport (2025 AHA).' },
   { id: 'airway-awake', actions: ['airway'], when: (s) => s.pulse && s.vitals.gcs > 8, points: 10, severity: 'major', text: 'An advanced airway is not indicated in a patient who is awake and protecting their own airway.' },
   // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
   { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
   { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
   { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further: hold them until it is back above 90.' },
   { id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.' },
+  // atropine is for symptomatic bradycardia. With a pulse: a rate of 60 or more has nothing for it to treat (over a pacer,
+  // whose 70 hides a slow rate of the heart's own, it is still a fair try). In arrest: out of the algorithm since 2010
+  { id: 'atropine-fast', actions: ['atropine'], when: (s) => s.pulse && s.rhythm.hr >= 60 && !paced(s), points: 3, severity: 'minor', text: 'Atropine with no slow pulse to treat. It is for symptomatic bradycardia: with a normal or fast rate it has nothing to treat, and any speeding only adds to the heart\'s oxygen demand — in an acute MI that can worsen the ischemia.' },
+  { id: 'atropine-in-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in cardiac arrest. It has not been part of the cardiac arrest algorithm since 2010: routine atropine does not help PEA or asystole, and it does nothing for VF. CPR, epinephrine, a shock for VF or pulseless VT, and the reversible causes.' },
+  // the physician stands the cath lab down (the default response); a case can say it in its own words
+  { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => !ecgShowsStemi(s), points: 3, severity: 'minor', text: 'A STEMI alert for a 12-lead that does not meet STEMI criteria. The alert calls the cath lab team in for an artery that is not known to be blocked (pericarditis, a bundle branch block, a thick heart muscle or a high potassium can raise the ST segments too). Transmit the 12-lead or give a radio report, and let the hospital decide.' },
+  // diltiazem's contraindications (verapamil is the same drug class; the simulator offers it only intracoronary)
+  { id: 'diltiazem-heart-failure', actions: ['diltiazem'], when: (s, sc) => s.pulse && hasProblem(sc, ['heart-failure']), points: 15, severity: 'critical', text: 'Diltiazem in a patient with heart failure. Calcium-channel blockers weaken the squeeze and open the vessels: with a reduced ejection fraction (40 % or less), with or without decompensated heart failure, IV diltiazem and verapamil must not be given (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm). Control the rate with amiodarone, or a beta-blocker if the lungs are not congested; an unstable patient needs synchronized cardioversion.' },
+  { id: 'diltiazem-vt', actions: ['diltiazem'], when: (s) => s.pulse && ['vt', 'torsades'].includes(rhythmKind(s)), points: 15, severity: 'critical', text: 'Diltiazem for ventricular tachycardia. Treat a wide-complex tachycardia as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest (2025 AHA: 3 — Harm). A stable monomorphic VT gets procainamide or amiodarone; an unstable one, synchronized cardioversion.' },
+  { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => hasProblem(sc, ['long-qt']) || rhythmKind(s) === 'torsades', points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
 
   // Drugs for a specific problem: without it they cannot help and only bring their risks. The case lists what the patient
   // has (Scenario.problems); "not well established" in a hyperkalemic arrest (2025 AHA) is never penalized.
-  { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (_s, sc) => !hasProblem(sc, CALCIUM_FOR), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose or a low calcium; otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
+  // calcium also reverses part of the low pressure IV diltiazem causes: for that low pressure (a pulse, a systolic under 90)
+  // it is a fair answer. Not routinely in a later arrest, and not once the pressure is back: one therapeutic dose is no overdose
+  { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (s, sc) => !hasProblem(sc, CALCIUM_FOR) && !(has(s, 'diltiazem') && s.pulse && s.vitals.sbp < 90), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose (or the low pressure IV diltiazem causes) or a low calcium; otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
   { id: 'bicarbonate-no-indication', actions: ['sodium-bicarbonate'], when: (_s, sc) => !hasProblem(sc, BICARBONATE_FOR), points: 3, severity: 'minor', text: 'Sodium bicarbonate without an indication. It is for hyperkalemia, metabolic acidosis or a sodium-channel-blocker (e.g. tricyclic) overdose; routine bicarbonate in cardiac arrest has no benefit (2025 AHA), and it adds a sodium load and CO₂ the lungs must clear.' },
   { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s) => s.vitals.glucose < LOW_GLUCOSE, points: 10, severity: 'major', text: 'Insulin with a blood glucose under 70 mg/dL. Treat the low glucose first: insulin drives it lower, and the worst lows come 1–3 hours later.' },
   // 10 units is the potassium dose; a beta- or calcium-channel-blocker overdose needs far more, so it is too little there, not a mistake
@@ -672,9 +800,11 @@ function finish(sc: Scenario, s: SimState) {
   if (isComplete(sc, s)) {
     say(s, 'system', 'All critical interventions are done — scenario complete.', 'good');
     s.ended = { reason: 'complete', minute: s.minute };
-  } else if (has(s, 'handoff') && s.pulse) {
-    // a hand-off ends your care, whatever is still missing
-    say(s, 'system', 'Care handed over — scenario complete.', 'info');
+  } else if (has(s, 'handoff')) {
+    // a hand-off ends your care, whatever is still missing — in an arrest too: the receiving team takes over the CPR. The
+    // review scores a hand-over without ROSC as it scores a death: it is no finished case
+    if (s.pulse) say(s, 'system', 'Care handed over — scenario complete.', 'info');
+    else say(s, 'system', 'Care handed over in cardiac arrest: the emergency department team takes over the resuscitation.', 'warn');
     s.ended = { reason: 'complete', minute: s.minute };
   }
 }
@@ -689,6 +819,8 @@ function requestRead(sc: Scenario, s: SimState) {
   if (s.ended || !s.pulse) return;
   const unchanged = s.lastEcg?.profile === s.rhythm.profile;
   s.lastEcg = { minute: s.minute, profile: s.rhythm.profile };
+  // remembered for good, for every role: the STEMI alert rests on the tracing that showed it
+  if (profileShowsStemi(s.rhythm.profile)) setFlag(s, 'ecg-stemi');
   if (s.role === 1) return;
   if (unchanged) say(s, 'monitor', 'Unchanged from the previous 12-lead.');
   else {
@@ -826,6 +958,9 @@ export function stop(prev: SimState): SimState {
 
 // ─── Review ────────────────────────────────────────────────────────────────
 
+/** The highest score a case can earn when it ends with the patient in cardiac arrest: dead, or handed over still in arrest */
+const NO_ROSC_CAP = 40;
+
 function gradeFor(p: number): Review['grade'] {
   if (p >= 90) return 'Excellent';
   if (p >= 75) return 'Competent';
@@ -850,12 +985,13 @@ export function review(sc: Scenario, s: SimState): Review {
     }
     let onTime = true;
     let target = '';
-    if (c.target?.by !== undefined && m > c.target.by) {
+    // minutes are sums of tenths: round before comparing, so 9.3 − 7.3 (2.000000000000001) is on time for "within 2"
+    if (c.target?.by !== undefined && round(m) > c.target.by) {
       onTime = false;
       target = `done at ${clockText(m)}; the goal is by ${clockText(c.target.by)}`;
     }
     const w = c.target?.within;
-    if (w && s.flags[w.flag] !== undefined && m - s.flags[w.flag] > w.minutes) {
+    if (w && s.flags[w.flag] !== undefined && round(m - s.flags[w.flag]) > w.minutes) {
       onTime = false;
       target = `done ${clockText(m - s.flags[w.flag])} after it was needed; the goal is within ${clockText(w.minutes)}`;
     }
@@ -884,7 +1020,10 @@ export function review(sc: Scenario, s: SimState): Review {
     }
   }
   let percent = max > 0 ? Math.round((100 * Math.max(0, earned - penaltyPoints)) / max) : 0;
-  if (s.ended?.reason === 'death') percent = Math.min(percent, 40);
+  // handed over still in cardiac arrest (a hand-off on arrival, or a case's own): the items that wait for ROSC drop out,
+  // so without a cap a pulseless "load and go" would score as a finished case
+  const arrestHandover = s.ended?.reason === 'complete' && !s.pulse;
+  if (s.ended?.reason === 'death' || arrestHandover) percent = Math.min(percent, NO_ROSC_CAP);
   const sev = { critical: 0, major: 1, minor: 2 };
   const rank = (t: Review['toFix'][number]) => (t.kind === 'harm' ? sev[t.severity ?? 'minor'] : t.kind === 'read' ? 2.5 : t.kind === 'hint' ? 4 : 3);
   toFix.sort((a, b) => rank(a) - rank(b) || b.points - a.points);
@@ -900,16 +1039,21 @@ export function review(sc: Scenario, s: SimState): Review {
   }
 
   // a hand-off also ends the case as complete, whatever is still missing: say which it was. Items that had not come up
-  // yet are not counted as missed, so the count alone cannot tell a finished case from an early hand-off.
+  // yet are not counted as missed, so the count alone cannot tell a finished case from an early hand-off — and a hand-over
+  // in cardiac arrest says so, since every item that waits for ROSC has dropped out.
   const missed = toFix.filter((t) => t.kind === 'missed').length;
   const notDone = `${missed} critical item${missed === 1 ? '' : 's'} not done`;
-  const outcome = s.ended?.reason === 'death'
-    ? 'The patient died.'
-    : s.ended?.reason === 'complete'
-      ? isComplete(sc, s)
-        ? `Every critical intervention done in ${clockText(s.ended.minute)}.`
-        : `Care handed over at ${clockText(s.ended.minute)}${missed === 0 ? ', before the case was over' : ` with ${notDone}`}.`
-      : `Ended early at ${clockText(s.minute)} with ${notDone}.`;
+  let outcome: string;
+  if (s.ended?.reason === 'death') outcome = 'The patient died.';
+  else if (arrestHandover) {
+    const how = has(s, 'rosc') ? ', after the pulse was lost again' : ', without ROSC';
+    outcome = `Handed over in cardiac arrest at ${clockText(s.ended!.minute)}${how}${missed === 0 ? '' : `, with ${notDone}`}.`;
+  }
+  else if (s.ended?.reason === 'complete') {
+    outcome = isComplete(sc, s)
+      ? `Every critical intervention done in ${clockText(s.ended.minute)}.`
+      : `Care handed over at ${clockText(s.ended.minute)}${missed === 0 ? ', before the case was over' : ` with ${notDone}`}.`;
+  } else outcome = `Ended early at ${clockText(s.minute)} with ${notDone}.`;
 
   const reads = s.reads.map((r) => ({ kind: r.kind, minute: r.minute, chosen: READ_OPTION_BY_ID[r.chosen].label, answer: READ_OPTION_BY_ID[r.answer].label, verdict: r.verdict }));
   return { percent, earned, max, penaltyPoints, grade: gradeFor(percent), outcome, missed, timings, wentWell, toFix, reads, hints: s.penalties.filter(isHint).length, teaching: sc.teaching };

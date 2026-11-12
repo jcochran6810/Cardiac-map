@@ -134,7 +134,8 @@ const ANGIO_OPTIONS: ReadOption[] = [
   { id: 'angio-thrombus', label: 'Thrombus', group: 'Findings' },
   { id: 'angio-dissection', label: 'Dissection', group: 'Complications' },
   { id: 'angio-perforation', label: 'Perforation with contrast extravasation', group: 'Complications' },
-  { id: 'angio-no-reflow', label: 'No-reflow (TIMI 0–1 after stenting)', group: 'Complications' },
+  // the catalog's definition (cathlab no-reflow): TIMI 2 or less once the artery is open, not only TIMI 0–1
+  { id: 'angio-no-reflow', label: 'No-reflow / slow flow (TIMI ≤ 2 once the artery is open)', group: 'Complications' },
   { id: 'angio-timi3', label: 'Open artery with TIMI 3 flow', group: 'Findings' },
 ];
 

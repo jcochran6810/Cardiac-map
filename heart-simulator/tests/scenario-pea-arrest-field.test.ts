@@ -458,7 +458,7 @@ describe('PEA arrest in the field — the traps', () => {
     const s = emt(['cpr', 'epi-im']);
     expect(penalties(s)).toEqual(['epi-im-no-anaphylaxis']);
     expect(s.flags.epi).toBeUndefined();
-    expect(s.log.at(-1)!.text).toMatch(/nothing carries it out of the muscle/);
+    expect(s.log.at(-1)!.text).toMatch(/a muscle barely absorbs it during CPR, and it is not the arrest dose/);
     // after ROSC it is absorbed, but she has no anaphylaxis: it still costs, and it is not the treatment for her pressure
     const rosc = emt(IDEAL[1].slice(0, IDEAL[1].indexOf('bvm', 4) + 1));
     expect(rosc.pulse).toBe(true);
@@ -589,7 +589,7 @@ describe('PEA arrest in the field — the traps', () => {
     expect(beforeRosc).not.toMatch(/pulse check|no pulse/i);
   });
 
-  it('loading her in the arrest: the transport item counts from ROSC, and arriving in the arrest a hand-off ends the case', () => {
+  it('loading her in the arrest: the transport item counts from ROSC, and arriving in the arrest a hand-off ends the case, scored as no ROSC', () => {
     const s = medic(['cpr', 'pads', 'pulse-check', 'transport-near', 'bvm', 'iv', 'epinephrine', 'cpr', 'cpr']);
     expect(s.pulse).toBe(true);
     expect(penalties(s)).toEqual(['transport-in-arrest']);
@@ -602,7 +602,8 @@ describe('PEA arrest in the field — the traps', () => {
     arrived = perform(sc, arrived, 'handoff');
     expect(arrived.ended?.reason).toBe('complete');
     const r = review(sc, arrived);
-    expect(r.outcome).toMatch(/^Care handed over at .* with \d+ critical items? not done\.$/);
+    expect(r.outcome).toMatch(/^Handed over in cardiac arrest at \d+:\d\d, without ROSC, with \d+ critical items? not done\.$/);
+    expect(r.percent).toBeLessThanOrEqual(40);
     expect(r.toFix.some((t) => t.kind === 'missed' && /^Treat the cause/.test(t.label))).toBe(true);
     // before arrival the hand-off is still refused
     expect(perform(sc, medic(['cpr', 'transport-near']), 'handoff').ended).toBeNull();
