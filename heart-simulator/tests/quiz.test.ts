@@ -6,6 +6,7 @@ import { useTimelineStore } from '@/store/useTimelineStore';
 import { endQuizStrips, showQuizStrip } from '@/lib/actions';
 import { showRhythm } from '@/lib/rhythm';
 import type { QuizQuestion } from '@/types/content';
+import { leadNamedIn } from '@/components/tutor/stripLead';
 import { frame, monitor } from './helpers';
 
 const question = (id: string, correctIndex = 1): QuizQuestion => ({
@@ -97,5 +98,30 @@ describe('a quiz strip on the monitor', () => {
     useAppStore.setState({ mode: 'home', ecg: 'closed' });
     showQuizStrip('vf');
     expect(useAppStore.getState()).toMatchObject({ mode: 'home', ecg: 'closed' });
+  });
+});
+
+describe('the lead a quiz card strip starts on', () => {
+  it('is the first lead the question names, so the finding it describes is on screen', () => {
+    expect(leadNamedIn('A 12-lead for chest pain shows ST elevation in V1–V4 (the monitor shows the elevated ST segments).')).toBe('V1');
+    expect(leadNamedIn('The ECG shows a QRS of 136 ms with an rSR′ ("M-shaped") complex in V1 and a broad, slurred S wave in I and V6.')).toBe('V1');
+    expect(leadNamedIn('Today the ECG shows deep, symmetric T-wave inversion in V2–V3 with preserved R waves.')).toBe('V2');
+    expect(leadNamedIn('A patient with chest pain has ST elevation in II, III and aVF with reciprocal ST depression in aVL.')).toBe('II');
+    expect(leadNamedIn('The delta wave is negative in leads I and aVL.')).toBe('I');
+    expect(leadNamedIn('In the inferior leads you can see a sawtooth baseline at ~300/min.')).toBe('II');
+  });
+
+  it('is lead II when the question names none, and a "II" that is not a lead does not count', () => {
+    expect(leadNamedIn('The monitor shows chaotic, irregular waves with no identifiable QRS complexes. What is the rhythm?')).toBe('II');
+    expect(leadNamedIn('Is this Mobitz I or Mobitz II? What should I do first?')).toBe('II');
+    expect(leadNamedIn('A dialysis patient has tall, narrow, peaked T waves and an IV line. What is the first treatment?')).toBe('II');
+  });
+
+  it('every strip question in the library starts on a lead it names, or on II', async () => {
+    const { QUIZ_QUESTIONS } = await import('@/data/content/quiz');
+    for (const q of QUIZ_QUESTIONS.filter((x) => x.ecgProfile)) {
+      const lead = leadNamedIn(q.question);
+      if (lead !== 'II') expect(q.question, q.id).toMatch(new RegExp(`\\b${lead}\\b`));
+    }
   });
 });

@@ -11,6 +11,7 @@ import { endQuizStrips, kindOf, nameOf, openById, showEcg, showQuizStrip } from 
 import type { QuizTopic } from '@/types/content';
 import { IconClose, IconQuiz } from '@/components/ui/icons';
 import QuizStrip from '@/components/tutor/QuizStrip';
+import { leadNamedIn } from '@/components/tutor/stripLead';
 import { useDialogFocus } from '@/components/tutor/useDialogFocus';
 
 const TOPIC_LABEL: Record<QuizTopic, string> = {
@@ -36,11 +37,12 @@ export default function QuizPanel() {
   const setQuizOpen = useAppStore((s) => s.setQuizOpen);
   const level = useAppStore((s) => s.learningLevel);
   // The ECG drawer can sit under the quiz only on the learning screen of a tablet or a computer (a phone's quiz fills
-  // the screen; the other screens have no drawer). When it is up on the tracing the quiz points at it; anywhere else
-  // the card draws the strip itself.
+  // the screen; the other screens have no drawer). When it is up on the tracing the quiz points at it — the electrode
+  // lab keeps the live 12-lead beside its torso, so that counts too; anywhere else the card draws the strip itself.
   const drawerPossible = useAppStore((s) => s.mode === 'learn' && !s.phone);
   const drawerUp = useAppStore((s) => s.ecg !== 'closed');
-  const drawerOnTracing = useECGStore((s) => s.bottomView === 'ecg' && !s.electrodeLab);
+  const drawerOnTracing = useECGStore((s) => s.bottomView === 'ecg');
+  const inLab = useECGStore((s) => s.electrodeLab);
   const ecgInView = drawerPossible && drawerUp && drawerOnTracing;
   const lib = useContent();
   const recordQuizAttempt = useLearningStore((s) => s.recordQuizAttempt);
@@ -129,6 +131,14 @@ export default function QuizPanel() {
     <div
       ref={panelRef}
       tabIndex={-1}
+      // the app's shortcuts skip form fields, so Esc on the strip's lead picker is handled here
+      onKeyDown={(e) => {
+        const tag = (e.target as HTMLElement).tagName;
+        if (e.key === 'Escape' && (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA')) {
+          e.preventDefault();
+          setQuizOpen(false);
+        }
+      }}
       className="fixed right-2 top-16 z-40 w-[min(30rem,calc(100vw-1rem))] max-h-[max(calc(100dvh-var(--dock-h,340px)-5rem),min(70dvh,520px))] min-h-[280px] bg-cardiac-panel/95 border border-slate-600 rounded-xl flex flex-col shadow-2xl backdrop-blur focus:outline-none phone:inset-x-0 phone:top-12 short:top-11 phone:bottom-0 phone:w-full phone:max-h-none phone:min-h-0 phone:rounded-none phone:border-x-0 phone:border-b-0 phone:animate-slide-in-up"
       role="dialog"
       aria-labelledby="quiz-title"
@@ -200,10 +210,11 @@ export default function QuizPanel() {
             {q.ecgProfile && (ecgInView ? (
               <div className="mb-2 px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-200">
                 ▶ The live ECG below is showing this rhythm — study the strip (try Inspect or Calipers).
+                {inLab && ' Cables you swap in the electrode lab change it too.'}
               </div>
             ) : (
               <>
-                <QuizStrip key={q.id} />
+                <QuizStrip key={q.id} startLead={leadNamedIn(q.question)} />
                 {drawerPossible && (
                   <button onClick={() => showEcg('ecg')} className="-mt-1 mb-2 px-1 py-1 touch:min-h-10 text-xs text-emerald-300 underline underline-offset-2 hover:text-emerald-100">
                     Show all 12 leads below (Inspect, Calipers)

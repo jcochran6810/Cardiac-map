@@ -22,11 +22,12 @@ const COLORS = { bg: '#04070c', minor: 'rgba(255,70,70,0.09)', major: 'rgba(255,
 
 /**
  * A small live rhythm strip for the quiz card. A phone's quiz covers the whole screen, and the main menu has no ECG
- * drawer, so the strip a question asks about is drawn here: one lead (II unless the learner picks another), sweeping
- * with the simulation like the monitor, on calibrated paper so the boxes can be counted.
+ * drawer, so the strip a question asks about is drawn here: one lead (`startLead`, the first one the question names,
+ * until the learner picks another), sweeping with the simulation like the monitor, on calibrated paper so the boxes
+ * can be counted.
  */
-export default function QuizStrip() {
-  const [lead, setLead] = useState<StandardLead>('II');
+export default function QuizStrip({ startLead = 'II' }: { startLead?: StandardLead }) {
+  const [lead, setLead] = useState<StandardLead>(startLead);
   /** seconds across the strip as drawn (more than SECONDS when its height is capped, on a phone on its side) */
   const [shown, setShown] = useState(SECONDS);
   const playing = useTimelineStore((s) => s.playing);
