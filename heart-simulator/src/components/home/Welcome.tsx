@@ -4,7 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { SCOPES } from '@/lib/scope';
 import { closeWelcome, useWelcomeStore, welcomeSeen } from '@/lib/welcome';
-import { useBackNavStore } from '@/lib/backNav';
+import { onOverlayOpen, useBackNavStore } from '@/lib/backNav';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
@@ -14,7 +14,8 @@ const NOTICE_MS = 7000;
 /**
  * First visit: ask who the learner is, because the role decides what the app teaches and which actions
  * it offers (each role is held to its scope of practice). One tap, changeable any time from the main menu.
- * Esc and the phone's Back put it off like "Decide later"; then a note says which role the learner has.
+ * Esc and the phone's Back put it off like "Decide later"; then a note at the foot of the main menu says which
+ * role the learner has, until the learner moves on.
  */
 export default function Welcome({ onStart }: { onStart: () => void }) {
   const open = useWelcomeStore((s) => s.open);
@@ -22,7 +23,7 @@ export default function Welcome({ onStart }: { onStart: () => void }) {
   const notice = useWelcomeStore((s) => s.notice);
   const role = useAppStore((s) => s.learningLevel);
   const setRole = useAppStore((s) => s.setLearningLevel);
-  // the Back button's "press Back again to leave" takes the note's place
+  // the Back button's "press Back again to leave" takes the note's place for good
   const exitHint = useBackNavStore((s) => s.exitHint);
   const dialogRef = useDialogFocus<HTMLDivElement>(open, closeWelcome);
   const confirmRef = useRef<HTMLParagraphElement>(null);
@@ -44,11 +45,16 @@ export default function Welcome({ onStart }: { onStart: () => void }) {
     else if (was !== null) roleRefs.current[was]?.focus();
   }, [open, picked]);
 
+  // the note is about the main menu: it goes after a while, when "press Back again to leave" takes its place,
+  // or when Help, the Glossary, the quiz … opens over the menu (it would sit on top of them)
   useEffect(() => {
     if (!notice) return;
-    const id = window.setTimeout(() => useWelcomeStore.setState({ notice: false }), NOTICE_MS);
-    return () => window.clearTimeout(id);
-  }, [notice]);
+    const end = () => useWelcomeStore.setState({ notice: false });
+    if (exitHint) { end(); return; }
+    const id = window.setTimeout(end, NOTICE_MS);
+    const stop = onOverlayOpen(end);
+    return () => { window.clearTimeout(id); stop(); };
+  }, [notice, exitHint]);
 
   return (
     <>
@@ -111,7 +117,8 @@ export default function Welcome({ onStart }: { onStart: () => void }) {
       {/* kept in the page (empty) so a screen reader reads the note out when it appears */}
       <div role="status">
         {!open && notice && !exitHint && (
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[85] w-max max-w-[calc(100vw-2rem)] px-4 py-2.5 rounded-xl bg-slate-900/95 border border-slate-600 text-sm text-white text-center leading-snug shadow-2xl animate-fade-in pointer-events-none">
+          // under every panel and dialog (z-40 and up), in case one opens without ending it (the iPhone install steps)
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[35] w-max max-w-[calc(100vw-2rem)] px-4 py-2.5 rounded-xl bg-slate-900/95 border border-slate-600 text-sm text-white text-center leading-snug shadow-2xl animate-fade-in pointer-events-none">
             You’re set up as <b className="text-cardiac-accent">{LEVEL_LABELS[role].short}</b>. Change your role any time under “Your role” on the main menu.
           </div>
         )}

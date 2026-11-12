@@ -99,6 +99,21 @@ function clearItem() {
   }
 }
 
+/** What is open over the screen — Help, the Glossary, the quiz, the tutor, the feedback form, the admin panel — if anything */
+export const currentOverlay = (): Overlay => currentPage().overlay;
+
+/** Calls `fn` each time an overlay opens (or another takes its place); returns the clean-up */
+export function onOverlayOpen(fn: (overlay: Exclude<Overlay, null>) => void): () => void {
+  let was = currentOverlay();
+  const check = () => {
+    const now = currentOverlay();
+    if (now !== was && now) fn(now);
+    was = now;
+  };
+  const stops = [useAppStore, useTutorStore, useFeedbackStore].map((st) => st.subscribe(check));
+  return () => stops.forEach((stop) => stop());
+}
+
 export function currentPage(): Page {
   const app = useAppStore.getState();
   const sim = useSimStore.getState();
