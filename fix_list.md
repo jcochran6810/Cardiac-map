@@ -11,6 +11,15 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-11-12 — **Try the new teaching features on your phone** (all tested only in emulated phone, tablet and
+  desktop browsers): Menu → **Learn step by step** → take a lesson, leave it with the ✕ and come back (your answers
+  are kept); **Practice rhythms** → a set (Back goes set → sets → menu); **Quiz yourself** → Rhythm ID (a live strip
+  in the card); **Ask the tutor** ("when do I hold nitro"); **Glossary**; the six new **Simulator** cases; turn the
+  phone on its side in a lesson that shows both the heart and the ECG.
+- [ ] 2026-11-12 — **Try the projector with a class** (optional): Defibrillator tab → **Projector** opens a second
+  window to drag onto the projector; start a quiz or the rhythm trainer on the laptop — the projected monitor hides
+  the rhythm's name until the question is answered. Tested only with two browser tabs.
+
 - [ ] 2026-10-26 — **Try the admin dashboard:** main menu → scroll to the very bottom → **Admin login** → sign in with
   the same email and password as Where's my note. The bell (top right) shows new reports. Three test reports from
   Claude's checks are there ("TEST from Claude …"): open them and press **Delete**.
@@ -139,14 +148,17 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
+- [ ] 2026-11-12 — A frozen 12-lead per recording in the case simulator (today the 12-lead tab is live, with a "the
+  patient has changed — repeat it" note): needs a renderer that draws a fixed 10 s window for a profile and rate,
+  not tied to the shared clock (`heart-simulator/src/components/ecg/ECGRenderer.tsx` is tied to it).
+- [ ] 2026-11-12 — The VT condition page outside Give meds (Overview, Hemodynamics) still shows the VT profile's
+  cardiogenic-shock heart until Give meds is opened (`src/components/panels/RightPanel.tsx`, `src/lib/actions.ts`);
+  Give meds now offers stable / unstable.
+- [ ] 2026-11-12 — Stacking two antiarrhythmics in Give meds (e.g. sotalol then procainamide) is not judged; a
+  second P2Y12 load now is.
 - [ ] 2026-10-22 — The start hook lists only `claude/*` and `codex/*` branches, but web sessions now get `ccr-*`
   branches, so unmerged work there goes unreported (it missed `ccr-fcd6b419-beq5mr`). Add `ccr-*` to the fetch
   refspec and listing (`.claude/hooks/session-start.sh:275`) and a case to `session-start.test.sh`.
-- [ ] 2026-10-19 — **Give meds: more drugs for the common cases** (`heart-simulator/src/lib/sim/meds.ts`; each needs
-  a Library drug card first): insulin 10 units + dextrose 25 g and nebulised salbutamol 10–20 mg for hyperkalaemia,
-  a P2Y12 loading dose (ticagrelor 180 mg / clopidogrel 300–600 mg) for STEMI, sotalol 1.5 mg/kg for stable VT.
-- [ ] 2026-10-19 — **Check the drug doses and algorithms against the AHA 2025 guidelines** (the app's drug cards,
-  defibrillator trainer and Give meds model follow ACLS 2020 + the 2023 focused update).
 
 - [ ] 2026-10-18 — **Better-fitting images where the catalog uses a near match** (every item has a real
   image; captions say when the setting differs): damping at a coronary ostium (now: innominate artery), a
@@ -157,23 +169,16 @@ Add new items at the top of their group. Use the format:
   CC BY / CC BY-SA / CC0 / public domain — check the article's own licence **text** (one "CC BY"-linked
   article said NonCommercial), credit and link it, mark crops. Wikimedia: ask for standard thumbnail widths
   (960 / 1280 px), not original files — originals were throttled (HTTP 429, 10-minute waits).
-- [ ] 2026-10-18 — Spelling: the app mixes UK (simulator text: haemostasis, hyperaemia, equalise) and US
-  (library content) spelling; pick US throughout (the users train for US certifications). Read-option ids
-  such as `ischaemia` can stay.
-- [ ] 2026-10-18 — More simulator cases (one file each in
-  `heart-simulator/src/lib/sim/scenario/scenarios/` + an ideal run in `tests/scenarios.test.ts`): PEA /
-  asystole arrest, AF with RVR, stable VT, symptomatic bradycardia from a beta-blocker, hyperkalaemia; in the
-  lab, no-reflow, a left main case, an EP / pacing case.
+- [ ] 2026-11-12 — More simulator cases (one file each in `heart-simulator/src/lib/sim/scenario/scenarios/`, its own
+  `tests/scenario-*.test.ts` and an ideal run in `tests/scenarios.test.ts`; see how the six of 2026-11-12 were written
+  and independently checked): a left main case and an EP / pacing case in the lab; asystole; a calcium-channel-blocker
+  overdose. A 'terminate resuscitation' action needs case-level design (each arrest case decides when stopping is
+  right) — the engine deliberately has none.
 - [ ] 2026-10-18 — Simulator 12-lead is live (always the current rhythm, with a "the patient has
   changed — repeat it" note); a frozen tracing per recording would be more realistic.
 
-- [ ] 2026-10-16 — Role permissions used by the monitor/defibrillator and tutor can't be unit-tested
-  directly: `MANUAL_OK` / `DRUG_AUTHORITY` live inside the DefibPanel component
-  (`heart-simulator/src/components/monitor/DefibPanel.tsx:16`) and `careField` is a private helper in
-  `heart-simulator/src/lib/tutor.ts:148`.
-  Move them into `heart-simulator/src/lib/scope.ts` and test that each role only gets its scope.
-- [ ] 2026-10-16 — No component or end-to-end tests yet; unit tests cover `src/lib` only. A
-  Playwright smoke test of the main layouts (phone, tablet, desktop) would catch layout regressions.
+- [ ] 2026-10-16 — The tutor's `careField` (`heart-simulator/src/lib/tutor.ts`) is still a private helper; move it
+  into `heart-simulator/src/lib/scope.ts` with a test, as was done for the defibrillator's permissions on 2026-11-12.
 - [ ] 2026-10-16 — `next lint` is removed in Next.js 16. Before upgrading Next, switch
   `heart-simulator` to the ESLint CLI with a flat config (`eslint.config.mjs`).
 - [ ] 2026-10-16 — `heart-3d-model/index.html` is an unused legacy page from the first commit.
@@ -181,6 +186,15 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-11-12 — **A teaching app to be proud of** (session `claude/vigilant-goodall-e7bs4b`, see SESSION_LOG.md):
+  eight guided courses with checks, a rhythm trainer, audible heart sounds, a 198-term glossary, a first-visit
+  welcome, a pulse-ox waveform and capnogram, the whole library brought up to the 2025 AHA and ACC/AHA guidelines,
+  an ECG engine that never drops beats, AIVR, six new simulator cases (beta-blocker overdose, AF with RVR, stable
+  VT, hyperkalemia in dialysis, PEA arrest, no-reflow) each independently checked, six more Give-meds drugs
+  (insulin + dextrose, albuterol, sotalol, ticagrelor, clopidogrel, prasugrel), the case simulator's shared rules
+  corrected, two screen reviews (40 findings) and a final integration review (26 findings) fixed and re-checked,
+  a Playwright browser test (64 checks on five screen sizes) in CI, and the defibrillator's role permissions in
+  `scope.ts` with tests.
 - [x] 2026-10-26 — A small **Feedback** button in the top-right corner of every screen opens the feedback form
   (`81c2c6b`).
 - [x] 2026-10-26 — Feedback from learners (bugs, improvements, feature ideas; offline-safe) with the owner's admin
