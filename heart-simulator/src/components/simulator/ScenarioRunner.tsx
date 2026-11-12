@@ -133,7 +133,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
             <button onClick={() => setSheet(true)} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
               What do you do next?
             </button>
-            <button onClick={stopNow} className="xs:hidden px-3 h-12 rounded-xl border border-red-500/40 text-xs text-red-200">End</button>
+            <button onClick={stopNow} aria-label="End case" title="End case" className="xs:hidden px-3 h-12 rounded-xl border border-red-500/40 text-xs text-red-200">End</button>
           </>
         )}
       </div>
