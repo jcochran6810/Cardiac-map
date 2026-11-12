@@ -226,6 +226,12 @@ let quizLoan: { back: { profileId: string; hr: number }; strip: number } | null 
  * hand the monitor back to — the patient before any drug, if Give meds has been treating one, since the doses end
  * with the strip. So does the first strip after the learner put a patient of their own up (a topic opened from an
  * explanation's links).
+ *
+ * The strip plays live, and the ECG drawer is set to the 12-lead (not an enlarged lead), so it shows the strip
+ * whenever it is up. Nothing else on screen moves: the quiz card draws the strip itself wherever the 12-lead is not in
+ * view (a phone, whose quiz fills the screen; the main menu; a closed drawer; the electrode lab) and offers to slide
+ * the 12-lead up on a wide learning screen. Opening the drawer unasked would also leave an extra step for Back to undo
+ * before the quiz closes.
  */
 export function showQuizStrip(profileId: string, hr?: number) {
   if (!quizLoan || patientCount() !== quizLoan.strip) {
@@ -234,6 +240,10 @@ export function showQuizStrip(profileId: string, hr?: number) {
   }
   showRhythm(profileId, hr);
   quizLoan.strip = patientCount();
+  const ecg = useECGStore.getState();
+  ecg.setInspectLead(null);
+  ecg.setBottomView('ecg');
+  useTimelineStore.getState().play();
 }
 
 /**
