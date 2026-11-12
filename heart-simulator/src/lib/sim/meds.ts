@@ -17,8 +17,8 @@ import type { MedicationId } from '@/types/content';
 
 export type MedId = Extract<MedicationId,
   | 'adenosine' | 'diltiazem' | 'metoprolol' | 'esmolol' | 'amiodarone' | 'procainamide' | 'lidocaine' | 'digoxin'
-  | 'atropine' | 'epinephrine' | 'magnesium-sulfate' | 'calcium-chloride' | 'sodium-bicarbonate'
-  | 'aspirin' | 'tenecteplase' | 'heparin' | 'nitroglycerin' | 'fentanyl' | 'phenylephrine'>;
+  | 'atropine' | 'epinephrine' | 'magnesium-sulfate' | 'calcium-chloride' | 'sodium-bicarbonate' | 'insulin-dextrose' | 'albuterol'
+  | 'aspirin' | 'ticagrelor' | 'clopidogrel' | 'prasugrel' | 'tenecteplase' | 'heparin' | 'nitroglycerin' | 'fentanyl' | 'phenylephrine'>;
 
 export type DoseUnit = 'mg' | 'mcg' | 'g' | 'mEq' | 'units';
 export type DoseClass = 'low' | 'usual' | 'high' | 'toxic';
@@ -1062,6 +1062,122 @@ const bicarbonate: MedDef = {
   },
 };
 
+const insulinDextrose: MedDef = {
+  id: 'insulin-dextrose',
+  name: 'Insulin (regular) + dextrose 25 g',
+  group: 'Electrolytes',
+  unit: 'units',
+  route: 'Regular insulin IV push, with dextrose 25 g IV (50 mL of D50)',
+  verb: 'Give',
+  onset: '10–20 min; peak 30–60 min; lasts 4–6 h',
+  guide: 'Hyperkalemia: regular insulin 10 units IV with dextrose 25 g (if the glucose is below about 250 mg/dL). 5 units, or a dextrose infusion afterwards, when hypoglycemia is likely (kidney failure, low weight, no diabetes, a low starting glucose). Lowers K⁺ by about 0.6–1.0 mmol/L. Check the glucose hourly for 6 h.',
+  usual: () => ({ low: 5, high: 10 }),
+  max: () => 20,
+  picks: () => [5, 10, 20],
+  step: 1,
+  plan(p, dose, cls) {
+    const prof = resolveProfile(p.profileId);
+    const c = category(prof, p.hr);
+    const low: EffectStep[] = cls === 'high' || cls === 'toxic'
+      ? [{ at: 90 * MIN, note: 'Above 10 units: more hypoglycemia (most lows come at 1–3 h) with little extra fall in K⁺. Check the glucose and give more dextrose.', tone: 'warn' }]
+      : [{ at: 90 * MIN, note: 'Check the glucose: hypoglycemia is the common harm, at 1–3 h. Recheck K⁺ at 1 h — it rebounds as the insulin wears off unless K⁺ is removed.', tone: 'info' }];
+    if (c === 'hyperk') {
+      return {
+        verdict: good('Hyperkalemia: insulin drives K⁺ into the cells (by about 0.6–1.0 mmol/L at 30–60 min); the dextrose prevents hypoglycemia. It follows calcium when the ECG has changed, and buys time for K⁺ removal (dialysis, binders, diuretics).'),
+        steps: [
+          { at: 20 * MIN, mods: { tScale: cls === 'low' ? 0.85 : 0.72, qrsWiden: 0.92 }, note: 'K⁺ falling: the T waves shrink and the QRS narrows a little.', tone: 'good', mark: 'K⁺ ↓' },
+          ...low,
+        ],
+      };
+    }
+    if (c === 'arrest') return { verdict: caution(`Only when hyperkalemia is the suspected cause. ${ARREST_K}`), steps: noEcg(60 * S, 'No change during the arrest.') };
+    return {
+      verdict: bad('No indication here: insulin with dextrose treats hyperkalemia (very high doses are a specialist treatment for a beta- or calcium-channel-blocker overdose). Given at a normal K⁺ it risks hypokalemia and hypoglycemia.'),
+      steps: [...noEcg(30 * MIN, 'No useful ECG change.'), ...low],
+    };
+  },
+};
+
+const albuterol: MedDef = {
+  id: 'albuterol',
+  name: 'Albuterol (nebulized)',
+  group: 'Electrolytes',
+  unit: 'mg',
+  route: 'Nebulized over about 10 min',
+  verb: 'Give',
+  onset: 'K⁺ falls from ~30 min, most at 60–90 min',
+  guide: 'Hyperkalemia with a pulse: 10–20 mg nebulized (4–8 times the asthma dose), alongside insulin + dextrose; lowers K⁺ by about 0.5–1.0 mmol/L. Bronchospasm: 2.5–5 mg. Not a cardiac-arrest drug. Watch for tachycardia, tremor and chest pain.',
+  usual: (p) => (category(resolveProfile(p.profileId), p.hr) === 'hyperk' ? { low: 10, high: 20 } : { low: 2.5, high: 5 }),
+  max: () => 20,
+  picks: () => [2.5, 5, 10, 20],
+  step: 2.5,
+  plan(p, dose, cls) {
+    const prof = resolveProfile(p.profileId);
+    const c = category(prof, p.hr);
+    const tachy: EffectStep = { at: 10 * MIN, hr: rate(p.hr, dose >= 10 ? 1.12 : 1.06, 30, 200), note: 'The heart rate rises (β₂ stimulation) and a fine tremor appears.', tone: 'effect', mark: 'rate ↑' };
+    if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest: a nebulizer delivers nothing without breathing and a circulation. Calcium, and insulin + dextrose, are the options when hyperkalemia is suspected.'), steps: noEcg(60 * S, 'No change.') };
+    if (c === 'hyperk') {
+      return {
+        verdict: cls === 'low'
+          ? caution('Hyperkalemia needs 10–20 mg — four to eight times the asthma dose. At 2.5–5 mg the fall in K⁺ is small.')
+          : good('Hyperkalemia: nebulized albuterol shifts K⁺ into the cells (about 0.5–1.0 mmol/L), adding to insulin. Calcium comes first when the ECG has changed.'),
+        steps: [tachy, { at: 45 * MIN, mods: { tScale: cls === 'low' ? 0.92 : 0.8 }, note: 'K⁺ falling: the peaked T waves shrink.', tone: 'good', mark: 'K⁺ ↓' }],
+      };
+    }
+    if (['svt', 'af', 'flutter', 'vt', 'sinus-tach'].includes(c)) {
+      return { verdict: bad('Avoid: it speeds the heart and can provoke arrhythmias — the rate is already fast.'), steps: [tachy] };
+    }
+    if (isAcs(prof)) return { verdict: caution('Only for real bronchospasm: the faster rate raises the oxygen demand of an ischemic heart.'), steps: [tachy] };
+    return { verdict: caution('A bronchodilator (2.5–5 mg for wheezing) — no indication for the rhythm on the monitor.'), steps: [tachy] };
+  },
+};
+
+/** One plan for the three oral P2Y12 inhibitors: who gets the load, who must not, and what it does (nothing on the ECG) */
+function p2y12Plan(p: Patient, drug: 'ticagrelor' | 'clopidogrel' | 'prasugrel'): { verdict: Verdict; steps: EffectStep[] } {
+  const prof = resolveProfile(p.profileId);
+  const c = category(prof, p.hr);
+  const none = noEcg(60 * S, 'No ECG change: the load stops platelets adding to the clot (onset ~30 min for ticagrelor and prasugrel, 2–6 h for clopidogrel). It does not open the artery.');
+  if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest — nothing by mouth.'), steps: noEcg(60 * S, 'No change.') };
+  if (prof.id === DISSECTION) return { verdict: bad('Contraindicated: aortic dissection can mimic an MI — a P2Y12 inhibitor feeds the bleeding and delays surgery.'), steps: noEcg(60 * S, 'No ECG change.') };
+  if (!isAcs(prof)) return { verdict: bad('No indication: a P2Y12 load is for an acute coronary syndrome or a planned stent.'), steps: none };
+  const stemi = c === 'stemi' || prof.id === 'inferior-stemi-chb' || prof.id === 'cardiogenic-shock';
+  const lysisNote = 'With fibrinolysis the P2Y12 inhibitor is clopidogrel (300 mg, or 75 mg with no load over 75 years).';
+  if (drug === 'ticagrelor') {
+    return { verdict: good(`ACS with aspirin: ticagrelor 180 mg is preferred over clopidogrel (PLATO), then 90 mg twice daily. It can cause breathlessness and pauses. ${lysisNote}`), steps: none };
+  }
+  if (drug === 'prasugrel') {
+    return {
+      verdict: stemi
+        ? caution('Prasugrel 60 mg at PCI is reasonable once the anatomy is known — never with a previous stroke or TIA, generally not from 75 years, 5 mg maintenance under 60 kg. In NSTE-ACS it is loaded at PCI, not before angiography.')
+        : caution('NSTE-ACS: prasugrel is loaded at PCI once the anatomy is known (pretreatment added bleeding without benefit, ACCOAST). Never with a previous stroke or TIA.'),
+      steps: none,
+    };
+  }
+  return { verdict: caution(`Clopidogrel 600 mg before PCI works, but slower and less reliably than ticagrelor or prasugrel — it is the choice with fibrinolysis or an oral anticoagulant, or when the others cannot be used. ${lysisNote}`), steps: none };
+}
+
+const ticagrelor: MedDef = {
+  id: 'ticagrelor', name: 'Ticagrelor', group: 'Coronary care & other', unit: 'mg', route: 'By mouth (tablets may be crushed)', verb: 'Give',
+  onset: '~30 min; peak ~2 h',
+  guide: 'ACS: 180 mg load, then 90 mg twice daily, with aspirin 81 mg (no more than 100 mg a day). Preferred over clopidogrel. Not with a previous intracranial hemorrhage or active bleeding.',
+  usual: () => ({ low: 180, high: 180 }), max: () => 360, picks: () => [90, 180, 360], step: 90, tolerance: 0.02,
+  plan: (p) => p2y12Plan(p, 'ticagrelor'),
+};
+const clopidogrel: MedDef = {
+  id: 'clopidogrel', name: 'Clopidogrel', group: 'Coronary care & other', unit: 'mg', route: 'By mouth', verb: 'Give',
+  onset: '~2 h after 600 mg, ~6 h after 300 mg',
+  guide: 'PCI: 600 mg load. With fibrinolysis: 300 mg (no load, 75 mg, over 75 years). Then 75 mg daily. The P2Y12 inhibitor with an oral anticoagulant and after lysis.',
+  usual: () => ({ low: 300, high: 600 }), max: () => 900, picks: () => [75, 300, 600, 900], step: 75, tolerance: 0.02,
+  plan: (p) => p2y12Plan(p, 'clopidogrel'),
+};
+const prasugrel: MedDef = {
+  id: 'prasugrel', name: 'Prasugrel', group: 'Coronary care & other', unit: 'mg', route: 'By mouth', verb: 'Give',
+  onset: '~30 min',
+  guide: '60 mg load at PCI once the anatomy is known, then 10 mg daily (5 mg under 60 kg). Contraindicated after a stroke or TIA; generally avoided from 75 years.',
+  usual: () => ({ low: 60, high: 60 }), max: () => 120, picks: () => [10, 60, 120], step: 10, tolerance: 0.02,
+  plan: (p) => p2y12Plan(p, 'prasugrel'),
+};
+
 const aspirin: MedDef = {
   id: 'aspirin',
   name: 'Aspirin',
@@ -1300,8 +1416,8 @@ const phenylephrine: MedDef = {
 export const MEDS: MedDef[] = [
   adenosine, diltiazem, metoprolol, esmolol, amiodarone, procainamide, lidocaine, digoxin,
   atropine, epinephrine,
-  magnesium, calcium, bicarbonate,
-  aspirin, tenecteplase, heparin, nitroglycerin, fentanyl, phenylephrine,
+  magnesium, calcium, bicarbonate, insulinDextrose, albuterol,
+  aspirin, ticagrelor, clopidogrel, prasugrel, tenecteplase, heparin, nitroglycerin, fentanyl, phenylephrine,
 ];
 
 export const MED_BY_ID = Object.fromEntries(MEDS.map((m) => [m.id, m])) as Record<MedId, MedDef>;

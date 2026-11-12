@@ -858,3 +858,40 @@ describe('a medication session on the live clock', () => {
     expect(monitor()).toBe('normal-sinus@110');
   });
 });
+
+describe('hyperkalemia shifters and the P2Y12 loads', () => {
+  it('insulin with dextrose lowers the potassium on the ECG of hyperkalemia, and warns about the glucose', () => {
+    const plan = planDose('insulin-dextrose', patient('hyperkalemia', 70), 10);
+    expect(plan.doseClass).toBe('usual');
+    expect(plan.verdict.tone).toBe('good');
+    expect(plan.steps.some((s) => (s.mods?.tScale ?? 1) < 1)).toBe(true);
+    expect(plan.steps.map((s) => s.note).join(' ')).toMatch(/glucose/);
+    expect(planDose('insulin-dextrose', patient('normal-sinus', 72), 10).verdict.tone).toBe('bad');
+    expect(planDose('insulin-dextrose', patient('hyperkalemia', 70), 20).doseClass).toBe('high');
+  });
+
+  it('albuterol for hyperkalemia needs the big dose, speeds the heart, and is no arrest drug', () => {
+    const big = planDose('albuterol', patient('hyperkalemia', 70), 10);
+    expect(big.doseClass).toBe('usual');
+    expect(big.verdict.tone).toBe('good');
+    expect(big.steps.some((s) => (s.hr ?? 0) > 70)).toBe(true);
+    const small = planDose('albuterol', patient('hyperkalemia', 70), 2.5);
+    expect(small.doseClass).toBe('low');
+    expect(small.verdict.tone).toBe('caution');
+    // the wheezing dose is the usual dose when there is no hyperkalemia
+    expect(planDose('albuterol', patient('normal-sinus', 72), 2.5).doseClass).toBe('usual');
+    expect(planDose('albuterol', patient('vf', 0), 10).verdict.tone).toBe('bad');
+    expect(planDose('albuterol', patient('atrial-fibrillation', 150), 5).verdict.tone).toBe('bad');
+  });
+
+  it('a P2Y12 load belongs to ACS — ticagrelor preferred, prasugrel at PCI, never with a dissection', () => {
+    expect(planDose('ticagrelor', patient('anterior-stemi', 90), 180)).toMatchObject({ doseClass: 'usual', verdict: { tone: 'good' } });
+    expect(planDose('prasugrel', patient('nstemi', 85), 60).verdict.text).toMatch(/at PCI/);
+    expect(planDose('prasugrel', patient('nstemi', 85), 60).verdict.text).toMatch(/stroke or TIA/);
+    expect(planDose('clopidogrel', patient('inferior-stemi', 70), 600).verdict.text).toMatch(/fibrinolysis/);
+    for (const id of ['ticagrelor', 'clopidogrel', 'prasugrel'] as const) {
+      expect(planDose(id, patient('aortic-dissection', 100), MED_BY_ID[id].usual(patient('aortic-dissection', 100)).low).verdict.tone).toBe('bad');
+      expect(planDose(id, patient('normal-sinus', 72), MED_BY_ID[id].usual(patient('normal-sinus', 72)).low).verdict.tone).toBe('bad');
+    }
+  });
+});
