@@ -24,6 +24,9 @@ import { InstallButton } from '@/components/ui/InstallApp';
 import SearchBox from '@/components/layout/SearchBox';
 import { AdminFooter } from '@/components/admin/AdminEntry';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { courseProgress, coursesFor, lessonInProgress, nextLesson, startLesson } from '@/lib/courses';
+import { openTrainer } from '@/lib/drillRun';
 import {
   IconBook, IconChart, IconChevron, IconClipboard, IconCube, IconDownload, IconHeart, IconHeartPulse, IconHelp, IconMessage, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
 } from '@/components/ui/icons';
@@ -140,6 +143,9 @@ export default function HomeScreen() {
   };
 
   const caseInProgress = simState && !simState.ended ? SCENARIO_BY_ID[simState.scenarioId] : null;
+  const courseDone = useCourseStore((s) => s.progress);
+  const courses = lib ? coursesFor(role, lib.courses) : [];
+  const lessonOpen = lib ? lessonInProgress(lib.courses, courseDone) : null;
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-cardiac-dark" aria-label="Main menu">
@@ -162,8 +168,15 @@ export default function HomeScreen() {
         />
 
         {/* ── Pick up where you left off ── */}
-        {(caseInProgress || lastItem) && (
+        {(caseInProgress || lastItem || lessonOpen) && (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {lessonOpen && (
+              <ContinueCard
+                label={`Continue your lesson · step ${lessonOpen.step + 1} of ${lessonOpen.lesson.steps.length}`}
+                title={lessonOpen.lesson.title}
+                onClick={() => startLesson(lessonOpen.course.id, lessonOpen.lesson.id)}
+              />
+            )}
             {caseInProgress && (
               <ContinueCard label="Continue your case" title={caseInProgress.title} onClick={() => useAppStore.getState().setMode('simulator')} />
             )}
@@ -197,6 +210,43 @@ export default function HomeScreen() {
             ))}
           </div>
           {scopeOpen && <div className="mt-2 p-3 rounded-xl bg-cardiac-panel border border-slate-700"><ScopeCard level={role} /></div>}
+        </section>
+
+        {/* ── Courses: the guided way in ── */}
+        <section className="mt-6" aria-labelledby="menu-courses">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 id="menu-courses" className="text-sm font-semibold text-white">Courses</h2>
+            <button onClick={() => useAppStore.getState().setMode('courses')} className="shrink-0 text-xs text-sky-300 hover:underline">All courses →</button>
+          </div>
+          <p className="text-xs text-slate-400 mt-0.5 leading-snug">New here? Start with a course: short guided lessons that set up the heart and the ECG for you and check what you learned.</p>
+          <div className="mt-2.5 -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar snap-x">
+            {courses.map((c) => {
+              const { done, total } = courseProgress(c, courseDone);
+              const up = nextLesson(c, courseDone);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => (up ? startLesson(c.id, up.id) : useAppStore.getState().setMode('courses'))}
+                  className="snap-start shrink-0 w-[15.5rem] sm:w-64 text-left p-3 sm:p-3.5 rounded-xl bg-cardiac-panel border border-slate-700 hover:border-cardiac-accent/60 transition-colors flex flex-col"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-9 h-9 rounded-lg flex items-center justify-center text-cardiac-accent bg-cardiac-accent/15"><IconPlay size={20} /></span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400">{c.roles.includes(role) ? `For ${LEVEL_LABELS[role].short}` : 'Open to all'}</span>
+                  </span>
+                  <span className="block mt-2 text-[13px] sm:text-sm font-semibold text-white leading-tight">{c.title}</span>
+                  <span className="block mt-1 text-[11px] sm:text-xs text-slate-400 leading-snug line-clamp-3">{c.summary}</span>
+                  <span className="mt-auto pt-2 flex items-center gap-1.5 w-full">
+                    <span className="flex-1 h-1 rounded-full bg-cardiac-dark overflow-hidden">
+                      <span className="block h-full bg-emerald-500/80" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
+                    </span>
+                    <span className="text-[10px] text-slate-500 whitespace-nowrap">{done}/{total} lessons</span>
+                  </span>
+                  <span className="block mt-1.5 text-[11px] font-semibold text-cardiac-accent truncate">{up ? `${done > 0 ? 'Next' : 'Start'}: ${up.title} →` : 'Finished — review →'}</span>
+                </button>
+              );
+            })}
+            {!lib && <span className="text-xs text-slate-500 py-6">Loading the courses…</span>}
+          </div>
         </section>
 
         {/* ── Simulator ── */}
@@ -251,7 +301,11 @@ export default function HomeScreen() {
         </MenuSection>
 
         {/* ── Practise ── */}
-        <MenuSection title="Practise">
+        <MenuSection title="Practice">
+          <Tile
+            title="Rhythm trainer" text="Name live tracings one after another. The ones you miss come back until you know them."
+            icon={<IconHeartPulse size={22} />} tint="text-emerald-300 bg-emerald-500/15" onClick={openTrainer}
+          />
           <Tile
             title="Quiz yourself" text={`${lib ? `${lib.quiz.length} questions` : 'Questions'} at every level, including live rhythm strips.`}
             icon={<IconQuiz size={22} />} tint="text-orange-300 bg-orange-500/15" onClick={() => useAppStore.getState().setQuizOpen(true)}

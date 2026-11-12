@@ -3,13 +3,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
 import { useSceneStore, CAMERA_PRESETS } from '@/store/useSceneStore';
-import { useECGStore } from '@/store/useECGStore';
+import { useECGStore, useBlind } from '@/store/useECGStore';
 import { sim } from '@/lib/sim/simulation';
 import { PHASE_DESCRIPTIONS, PHASE_LABELS, type CyclePhase } from '@/lib/ecg/engine';
 import { LANDMARK_BY_ID, PROFILE_TERRITORY } from '@/lib/anatomy/landmarks';
 import { IconClose, IconHome, IconRotate, IconZoomIn, IconZoomOut } from '@/components/ui/icons';
 import { useContent } from '@/lib/content';
 import { useOnceHint } from '@/lib/hints';
+import { useCourseStore } from '@/store/useCourseStore';
+import HeartSoundsButton from '@/components/ui/HeartSoundsButton';
 import Bullseye from '@/components/anatomy/Bullseye';
 import { formatCarm } from '@/components/scene/CArmTracker';
 import { ATRIAL_PATTERNS, VENT_PATTERNS } from '@/lib/anatomy/activation';
@@ -67,8 +69,11 @@ export default function SceneOverlay() {
   const selectedId = useSceneStore((s) => s.selectedStructureId);
   // Tapping the heart while the reading is out of sight (list page, or a drawer taking the whole screen) shows a short card instead
   const readingShown = useAppStore((s) => s.heart !== 'full' && s.ecg !== 'full' && !(s.short && s.ecg !== 'closed') && !(s.compact && s.listOpen));
-  const peek = !!selectedId && !readingShown;
-  const [coach, dismissCoach] = useOnceHint('heart');
+  // in a lesson the lesson's own text says what is ringed (and checks what was tapped)
+  const inLesson = useCourseStore((s) => !!s.active);
+  const peek = !!selectedId && !readingShown && !inLesson;
+  const [coachHint, dismissCoach] = useOnceHint('heart');
+  const coach = coachHint && !inLesson;
   useEffect(() => {
     if (selectedId && coach) dismissCoach();
   }, [selectedId, coach, dismissCoach]);
@@ -90,7 +95,9 @@ export default function SceneOverlay() {
     return () => window.clearInterval(id);
   }, []);
 
-  const culprit = PROFILE_TERRITORY[activeProfileId];
+  // a question about the tracing is open: the legend must not name the culprit artery
+  const blind = useBlind();
+  const culprit = blind ? undefined : PROFILE_TERRITORY[activeProfileId];
   const carm = useSceneStore((s) => s.carm);
   const zoom = (dir: 1 | -1) => {
     const canvas = document.querySelector('.heart-stage canvas');
@@ -147,6 +154,7 @@ export default function SceneOverlay() {
           {viewMode === 'sectioned' && <Pill active={showFlow} onClick={toggleFlow} title="Animated blood flow (F)">Blood flow</Pill>}
           <Pill active={showVector} onClick={toggleVector} title="Show the instantaneous cardiac electrical vector (V)">Cardiac vector</Pill>
           <Pill active={autoRotate} onClick={toggleAutoRotate} title="Slowly rotate the heart">Auto-rotate</Pill>
+          <HeartSoundsButton pill />
           {selectedLead && <Pill active onClick={() => selectLead(selectedLead)} title="Hide the lead view">Lead {selectedLead} view ✕</Pill>}
         </div>
         {viewMode === 'conduction' && !narrow && (
@@ -252,13 +260,14 @@ export default function SceneOverlay() {
 
       {peek && <PeekCard id={selectedId!} />}
       {coach && !peek && (
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex justify-center px-4 pointer-events-none">
-          <div className="pointer-events-auto scene-panel rounded-xl px-4 py-3 text-center max-w-xs shadow-2xl animate-fade-in">
-            <div className="text-sm font-semibold text-white">{touch ? 'Tap' : 'Click'} any part of the heart</div>
-            <p className="text-xs text-slate-300 mt-1 leading-snug">
-              to see what it is and what it does. {touch ? 'Drag to turn it, pinch to zoom' : 'Drag to turn it, scroll to zoom'}, and try the views at the top left of the heart.
+        // a first-time tip along the bottom edge: it must never cover the heart it is talking about
+        <div className="absolute inset-x-0 bottom-2 z-20 flex justify-center px-2 pointer-events-none">
+          <div className="pointer-events-auto scene-panel rounded-full pl-3.5 pr-1.5 py-1.5 flex items-center gap-2 max-w-full shadow-2xl animate-fade-in">
+            <p className="min-w-0 text-xs text-slate-100 leading-snug">
+              <b>{touch ? 'Tap' : 'Click'} any part of the heart</b> to see what it is.
+              <span className="hidden sm:inline text-slate-300"> {touch ? 'Drag to turn it, pinch to zoom.' : 'Drag to turn it, scroll to zoom.'}</span>
             </p>
-            <button onClick={dismissCoach} className="mt-2.5 px-4 py-1.5 touch:py-2 rounded-lg bg-cardiac-accent text-slate-950 text-xs font-semibold">Got it</button>
+            <button onClick={dismissCoach} className="shrink-0 px-3 py-1 touch:py-2 rounded-full bg-cardiac-accent text-slate-950 text-xs font-semibold">Got it</button>
           </div>
         </div>
       )}

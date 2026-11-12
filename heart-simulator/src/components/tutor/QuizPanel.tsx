@@ -70,6 +70,13 @@ export default function QuizPanel() {
     }
   }, [q]);
 
+  // while a strip question is unanswered the ECG panel must not name the rhythm
+  const asking = quizOpen && !!q?.ecgProfile && choice === null;
+  useEffect(() => {
+    useECGStore.getState().setBlind('quiz', asking);
+    return () => useECGStore.getState().setBlind('quiz', false);
+  }, [asking]);
+
   if (!quizOpen) return null;
 
   const start = () => {

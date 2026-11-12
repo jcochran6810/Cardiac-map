@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { useECGStore, ECGLayout } from '@/store/useECGStore';
+import { useECGStore, ECGLayout, useBlind } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { PHASE_LABELS } from '@/lib/ecg/engine';
 import { sim } from '@/lib/sim/simulation';
@@ -14,6 +14,8 @@ import { openProjector } from '@/lib/sim/projector';
 import { useIsTouch } from '@/lib/device';
 import { IconClose } from '@/components/ui/icons';
 import { useOnceHint } from '@/lib/hints';
+import { useCourseStore } from '@/store/useCourseStore';
+import { useDrillStore } from '@/store/useDrillStore';
 import { useMedStore } from '@/store/useMedStore';
 import { describeMods } from '@/lib/ecg/mods';
 
@@ -58,7 +60,9 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   const atrialRate = useTimelineStore((s) => s.atrialRate);
 
   const ecg = useECGStore();
+  // trainee mode, or a question open about the tracing: the app keeps its reading of the rhythm to itself
   const trainee = useDefibStore((s) => s.trainee);
+  const asked = useBlind();
   const role = useAppStore((s) => s.learningLevel);
   const profile = resolveProfile(ecg.activeProfileId);
   const touch = useIsTouch();
@@ -78,6 +82,9 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   const [showInterp, setShowInterp] = useState(() => typeof window === 'undefined' || window.innerWidth >= 900);
   const [optsOpen, setOptsOpen] = useState(false);
   const [leadTip, dismissLeadTip] = useOnceHint('ecg-leads');
+  // a lesson or the rhythm trainer is using the tracing: no first-time tip over it
+  const lessonOn = useCourseStore((s) => !!s.active);
+  const guided = useDrillStore((s) => s.open) || lessonOn;
   // A drug was just given: clear the first-time lead tip so nothing covers the 12-lead while it acts
   const medActive = useMedStore((s) => s.log.length > 0);
   const medMods = useMedStore((s) => s.mods);
@@ -113,7 +120,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
     return () => window.clearInterval(id);
   }, []);
 
-  const rateLabel = profile.rateControl === 'sinus' ? 'Sinus rate' : profile.rateControl === 'ventricular'
+  const rateLabel = asked ? 'Rate' : profile.rateControl === 'sinus' ? 'Sinus rate' : profile.rateControl === 'ventricular'
     ? (profile.rhythm === 'chb' ? 'Escape rate' : 'Ventricular rate') : 'Rate';
   const noRate = profile.rateControl === 'none';
   const arrest = profile.hemo === 'no-output';
@@ -167,12 +174,14 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   const interpretation = (
     <>
       <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Rhythm / pattern</div>
-      {role === 1 && !trainee && (
+      {role === 1 && !trainee && !asked && (
         <p className="mb-1.5 text-[10px] leading-snug rounded bg-amber-500/10 border border-amber-500/30 text-amber-200/90 p-1.5">
           EMT scope: acquire and transmit the 12-lead per protocol — interpretation is a paramedic / physician skill. Shown here for awareness only.
         </p>
       )}
-      {trainee ? (
+      {asked ? (
+        <p className="text-slate-400 leading-snug">Hidden while a question is open — read the tracing yourself. It comes back when you have answered.</p>
+      ) : trainee ? (
         <p className="text-slate-400 leading-snug">Hidden in trainee mode — interpret the rhythm yourself. Turn trainee mode off in the Defibrillator tab to reveal it.</p>
       ) : (
       <>
@@ -380,7 +389,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           {ecg.bottomView === 'ecg' ? <ECGRenderer /> : ecg.bottomView === 'wiggers' ? <WiggersPanel /> : (
             <div className="absolute inset-0 p-1.5"><MonitorDisplay /></div>
           )}
-          {ecg.bottomView === 'ecg' && leadTip && !ecg.electrodeLab && (
+          {ecg.bottomView === 'ecg' && leadTip && !ecg.electrodeLab && !guided && (
             <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 w-max max-w-[calc(100%-1rem)] pl-3 pr-1 py-1 rounded-xl bg-sky-950/95 border border-sky-500/50 text-[11px] leading-snug text-sky-100 shadow-lg">
               <span>{touch ? 'Tap' : 'Click'} a lead to see where it looks at the heart · {touch ? 'double-tap' : 'double-click'} to enlarge it</span>
               <button onClick={dismissLeadTip} className="p-1 text-sky-300 hover:text-white shrink-0" aria-label="Dismiss tip"><IconClose size={13} /></button>

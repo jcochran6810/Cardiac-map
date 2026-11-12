@@ -15,8 +15,8 @@ export type ViewMode = 'external' | 'sectioned' | 'xray' | 'conduction' | 'terri
 
 export type PanelCategory = 'anatomy' | 'coronary' | 'conduction' | 'conditions' | 'procedures' | 'medications' | 'cathlab' | 'cases';
 
-/** Top-level screens: the main menu, the learning workspace (library, 3D heart, ECG) and the case simulator */
-export type AppMode = 'home' | 'learn' | 'simulator';
+/** Top-level screens: the main menu, the course list, the learning workspace (library or a lesson, 3D heart, ECG) and the case simulator */
+export type AppMode = 'home' | 'courses' | 'learn' | 'simulator';
 
 /**
  * The 3D heart slides down from the top of the learning screen and the ECG slides up from the bottom.

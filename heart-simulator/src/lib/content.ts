@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import type { CathLabItem, ConditionContent, MedicationContent, ProcedureContent, QuizQuestion, StructureContent } from '@/types/content';
+import type { Course } from '@/types/course';
 
 /**
  * The teaching library is large (~1 MB of text), so it is code-split and loaded
@@ -16,6 +17,8 @@ export interface ContentLibrary {
   /** the cath lab catalog: views, devices, drugs, pressures, complications, team */
   cathlab: Record<string, CathLabItem>;
   quiz: QuizQuestion[];
+  /** guided courses: lessons that set up the heart and the ECG step by step */
+  courses: Course[];
 }
 
 interface ContentState {
@@ -35,7 +38,7 @@ export function loadContent(): Promise<void> {
   pending = import('@/data/content')
     .then((m) => {
       useContentStore.setState({
-        lib: { structures: m.STRUCTURES, conditions: m.CONDITIONS, procedures: m.PROCEDURES, medications: m.MEDICATIONS, cathlab: m.CATHLAB, quiz: m.QUIZ_QUESTIONS },
+        lib: { structures: m.STRUCTURES, conditions: m.CONDITIONS, procedures: m.PROCEDURES, medications: m.MEDICATIONS, cathlab: m.CATHLAB, quiz: m.QUIZ_QUESTIONS, courses: m.COURSES },
         loading: false,
       });
     })

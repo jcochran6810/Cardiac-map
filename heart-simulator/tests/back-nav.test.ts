@@ -44,6 +44,11 @@ import { useSimStore } from '@/store/useSimStore';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { describePage } from '@/lib/feedback/context';
 import { openById, openCategory, openCondition, openMedication, openTool, showEcg, showHeart } from '@/lib/actions';
+import { exitLesson, gotoStep, startLesson } from '@/lib/courses';
+import { useCourseStore } from '@/store/useCourseStore';
+import { loadContent } from '@/lib/content';
+import { nextTracing, openTrainer, startSet } from '@/lib/drillRun';
+import { useDrillStore } from '@/store/useDrillStore';
 
 const history = fake.history;
 vi.spyOn(performance, 'now').mockImplementation(() => fake.clock);
@@ -236,6 +241,86 @@ describe('the Back button moves through CardioSim pages', () => {
     expect(describePage()).toMatch(/^Learn › Conditions & rhythms › anterior stemi \(.*12-lead open\)$/);
     useAppStore.getState().setMode('home');
     await settle();
+  });
+
+  it('a lesson is one page however many steps it has; Back leaves it and its place is kept', async () => {
+    await loadContent();
+    useAppStore.getState().setMode('home');
+    await settle();
+    useAppStore.getState().setMode('courses');
+    await settle();
+    expect(currentPage().mode).toBe('courses');
+    expect(describePage()).toBe('Courses');
+    const list = history.i;
+
+    startLesson('heart-basics', 'chambers');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: 'heart-basics/chambers', item: null, heart: 'closed', ecg: 'closed' });
+    expect(history.i).toBe(list + 1);
+    // the lesson shows its pictures itself: the heart is open although the page does not record it
+    expect(useAppStore.getState().heart).not.toBe('closed');
+    gotoStep(1);
+    await settle();
+    gotoStep(2);
+    await settle();
+    expect(history.i).toBe(list + 1);
+    expect(describePage()).toBe('Course › How the heart works › Four chambers, two pumps (step 3 of 6)');
+
+    await back();
+    expect(currentPage().mode).toBe('courses');
+    expect(useCourseStore.getState().active).toBeNull();
+    expect(useAppStore.getState().heart).toBe('closed');
+
+    // opened again it resumes where it was left; its own exit steps back over its entry
+    startLesson('heart-basics', 'chambers');
+    await settle();
+    expect(useCourseStore.getState().active?.step).toBe(2);
+    exitLesson();
+    await settle();
+    expect(currentPage().mode).toBe('courses');
+    expect(history.i).toBe(list);
+  });
+
+  it('"read more" leaves a lesson for the library page, and Back returns to the lesson', async () => {
+    startLesson('heart-basics', 'chambers');
+    await settle();
+    const lesson = history.i;
+    exitLesson('stay');
+    openById('left-ventricle');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: null, item: 'left-ventricle' });
+    expect(history.i).toBe(lesson + 1);
+    await back();
+    expect(currentPage().lesson).toBe('heart-basics/chambers');
+    expect(useCourseStore.getState().active).toMatchObject({ course: 'heart-basics', lesson: 'chambers', step: 2 });
+    await back();
+    expect(currentPage().mode).toBe('courses');
+    useAppStore.getState().setMode('home');
+    await settle();
+  });
+
+  it('the rhythm trainer is one page: its questions add no steps, and Back leaves it', async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    const menu = history.i;
+    openTrainer();
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: 'tool/rhythm-trainer', item: null });
+    expect(describePage()).toBe('Rhythm trainer');
+    expect(history.i).toBe(menu + 1);
+    startSet('core');
+    await settle();
+    useDrillStore.getState().answer('unsure');
+    nextTracing();
+    await settle();
+    expect(history.i).toBe(menu + 1);
+    expect(describePage()).toBe('Rhythm trainer › Core rhythms');
+    // a question is open: the ECG panel is showing its tracing
+    expect(useAppStore.getState().ecg).not.toBe('closed');
+    await back();
+    expect(currentPage().mode).toBe('home');
+    expect(useDrillStore.getState().open).toBe(false);
+    expect(useAppStore.getState().ecg).toBe('closed');
   });
 
   it('on Home, the first Back asks and the second one leaves', async () => {

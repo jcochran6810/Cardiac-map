@@ -26,6 +26,11 @@ interface ECGState {
   /** Mystery mode: the misplacement is not disclosed */
   placementHidden: boolean;
   electrodeLab: boolean;
+  /**
+   * Who has a question open about the tracing (a quiz strip, a lesson's check, the rhythm trainer). While anyone
+   * does, the app keeps its own reading to itself: no rhythm name, interpretation or key-lead tint.
+   */
+  blindBy: string[];
 
   setActiveProfile: (id: string) => void;
   setLayout: (layout: ECGLayout) => void;
@@ -41,6 +46,7 @@ interface ECGState {
   setPlacementState: (p: Placement, hidden: boolean) => void;
   revealPlacement: () => void;
   setElectrodeLab: (open: boolean) => void;
+  setBlind: (who: string, on: boolean) => void;
 }
 
 export const useECGStore = create<ECGState>((set) => ({
@@ -59,6 +65,7 @@ export const useECGStore = create<ECGState>((set) => ({
   placement: STANDARD_PLACEMENT,
   placementHidden: false,
   electrodeLab: false,
+  blindBy: [],
 
   setActiveProfile: (activeProfileId) => set({ activeProfileId }),
   setLayout: (layout) => set({ layout }),
@@ -74,4 +81,12 @@ export const useECGStore = create<ECGState>((set) => ({
   setPlacementState: (placement, placementHidden) => set({ placement, placementHidden }),
   revealPlacement: () => set({ placementHidden: false }),
   setElectrodeLab: (electrodeLab) => set({ electrodeLab }),
+  setBlind: (who, on) => set((s) => {
+    const has = s.blindBy.includes(who);
+    if (on === has) return s;
+    return { blindBy: on ? [...s.blindBy, who] : s.blindBy.filter((w) => w !== who) };
+  }),
 }));
+
+/** True while a question about the tracing is open: components hide whatever would give the answer away */
+export const useBlind = () => useECGStore((s) => s.blindBy.length > 0);

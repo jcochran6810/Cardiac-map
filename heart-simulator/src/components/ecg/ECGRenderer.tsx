@@ -354,7 +354,7 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
 
       const profile = resolveProfile(engine.segmentAt(T).profile.id);
       if (profile.id !== lastProfile) lastProfile = profile.id;
-      const keyLeads = ecg.showKeyLeads && !ecg.inspectLead ? new Set(profile.keyLeads ?? []) : new Set<string>();
+      const keyLeads = ecg.showKeyLeads && !ecg.inspectLead && ecg.blindBy.length === 0 ? new Set(profile.keyLeads ?? []) : new Set<string>();
 
       L.strips.forEach((s, i) => {
         const isRhythm = !ecg.inspectLead && ecg.layout !== 'monitor' && i === L!.strips.length - 1;

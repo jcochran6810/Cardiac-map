@@ -2,7 +2,7 @@
 
 /**
  * The phone's (or browser's) Back button moves through CardioSim's own pages instead of leaving the
- * app. Each page — the screen (main menu / Learn / Simulator), the library section and the item
+ * app. Each page — the screen (main menu / Courses / Learn / Simulator), a lesson, the library section and the item
  * being read, the list page on small screens, the 3D heart and ECG drawers, the electrode lab, the
  * quiz / tutor / help / feedback form / admin panel, and the simulator's case list → case → action
  * list → review — is one browser history entry.
@@ -28,6 +28,13 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useCathLabStore } from '@/store/useCathLabStore';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { openById } from '@/lib/actions';
+import { lessonKey, useCourseStore } from '@/store/useCourseStore';
+import { exitLesson, startLesson } from '@/lib/courses';
+import { useDrillStore } from '@/store/useDrillStore';
+import { closeTrainer, openTrainer } from '@/lib/drillRun';
+
+/** the rhythm trainer's page (in `Page.lesson`) */
+export const TRAINER_PAGE = 'tool/rhythm-trainer';
 
 export type Overlay = 'quiz' | 'tutor' | 'help' | 'feedback' | 'admin' | null;
 export type SimPage = 'list' | 'case' | 'actions' | 'review';
@@ -48,6 +55,11 @@ export interface Page {
   /** Simulator: which view, and which run of a case it belongs to */
   sim: SimPage;
   run: number;
+  /**
+   * Learn: the activity that has the screen — a guided lesson ("course/lesson") or the rhythm trainer
+   * (TRAINER_PAGE). Its steps and questions are not pages of their own.
+   */
+  lesson: string | null;
 }
 
 interface Entry { cardiosim: number; page: Page }
@@ -86,7 +98,10 @@ export function currentPage(): Page {
   const sim = useSimStore.getState();
   const ecg = useECGStore.getState();
   const fb = useFeedbackStore.getState();
-  const learn = app.mode === 'learn';
+  const course = useCourseStore.getState().active;
+  // a lesson is one page however many steps it has and whatever each step shows; so is the rhythm trainer
+  const lesson = app.mode !== 'learn' ? null : course ? lessonKey(course.course, course.lesson) : useDrillStore.getState().open ? TRAINER_PAGE : null;
+  const learn = app.mode === 'learn' && !lesson;
   const s = sim.state;
   const simPage: SimPage = !s ? 'list' : s.ended && sim.reviewOpen ? 'review' : sim.sheetOpen && !s.ended ? 'actions' : 'case';
   return {
@@ -101,12 +116,14 @@ export function currentPage(): Page {
       : fb.formOpen ? 'feedback' : fb.adminOpen ? 'admin' : null,
     sim: app.mode === 'simulator' ? simPage : 'list',
     run: app.mode === 'simulator' && s ? sim.run : 0,
+    lesson,
   };
 }
 
 const same = (a: Page | undefined, b: Page | undefined) =>
   !!a && !!b && a.mode === b.mode && a.cat === b.cat && a.item === b.item && a.list === b.list
-  && a.heart === b.heart && a.ecg === b.ecg && a.lab === b.lab && a.overlay === b.overlay && a.sim === b.sim && a.run === b.run;
+  && a.heart === b.heart && a.ecg === b.ecg && a.lab === b.lab && a.overlay === b.overlay && a.sim === b.sim && a.run === b.run
+  && (a.lesson ?? null) === (b.lesson ?? null);
 
 /** A simulator page can only come back while its case is still the one loaded */
 function restorable(page: Page): boolean {
@@ -127,7 +144,18 @@ function apply(page: Page, from: Page) {
   useTutorStore.getState().setTutorOpen(page.overlay === 'tutor');
   useFeedbackStore.getState().setFormOpen(page.overlay === 'feedback');
   useFeedbackStore.getState().setAdminOpen(page.overlay === 'admin');
-  if (page.mode === 'learn') {
+  // leaving a lesson (its place is kept) or the trainer puts the screen back the way the library expects it
+  if (useCourseStore.getState().active && (!page.lesson || page.lesson === TRAINER_PAGE)) exitLesson('stay');
+  if (useDrillStore.getState().open && page.lesson !== TRAINER_PAGE) closeTrainer('stay');
+  if (page.lesson === TRAINER_PAGE) {
+    if (!useDrillStore.getState().open) openTrainer();
+    else app.setMode('learn');
+  } else if (page.lesson) {
+    const [courseId, lessonId] = page.lesson.split('/');
+    const now = useCourseStore.getState().active;
+    if (!now || lessonKey(now.course, now.lesson) !== page.lesson) startLesson(courseId, lessonId);
+    else app.setMode('learn');
+  } else if (page.mode === 'learn') {
     app.setMode('learn');
     if (page.cat && app.activePanelCategory !== page.cat) app.setActivePanelCategory(page.cat);
     if (page.item !== currentItem()) {
@@ -152,7 +180,7 @@ function apply(page: Page, from: Page) {
       sim.setSheetOpen(page.sim === 'actions');
     }
   } else {
-    app.setMode('home');
+    app.setMode(page.mode === 'courses' ? 'courses' : 'home');
   }
 }
 
@@ -293,7 +321,7 @@ export function startBackNav(): () => void {
   stack = [currentPage()];
   write('replace', stack[0]);
   publish();
-  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore, useFeedbackStore];
+  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore, useFeedbackStore, useCourseStore, useDrillStore];
   const unsubscribe = stores.map((st) => st.subscribe(schedule));
   // After the first tap or key press, a second main-menu entry lets the first Back on it ask before leaving.
   // (Added on a user gesture so browsers keep it in the Back list.)

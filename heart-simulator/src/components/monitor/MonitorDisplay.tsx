@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { sim } from '@/lib/sim/simulation';
 import { useDefibStore, vitalsAt, plethAt, capnoAt, fmt, type Vitals } from '@/lib/sim/defib';
-import { useECGStore } from '@/store/useECGStore';
+import { useBlind, useECGStore } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { sampleTimes } from '@/lib/ecg/sweep';
 import { useAppStore } from '@/store/useAppStore';
@@ -40,6 +40,7 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
   const profileId = useECGStore((s) => s.activeProfileId);
   const profile = resolveProfile(profileId);
   const role = useAppStore((s) => s.learningLevel);
+  const blind = useBlind();
   const [blink, setBlink] = useState(false);
   const channelsRef = useRef(channels);
   channelsRef.current = channels;
@@ -238,7 +239,7 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
       <div className="relative flex-1 min-w-0" ref={wrapRef}>
         <canvas ref={canvasRef} className="absolute inset-0" />
         <div className="absolute left-2 top-1 text-[10px] font-mono" style={{ color: COLORS.ecg }}>
-          II ×1 {showRhythmName && !d.trainee && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
+          II ×1 {showRhythmName && !d.trainee && !blind && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
           {d.sync && d.mode === 'manual' && <span className="ml-2 px-1 rounded bg-white text-black font-bold">SYNC</span>}
         </div>
         {channels.art && <div className="absolute left-2 text-[10px] font-mono" style={{ top: pct(layout.art?.[0] ?? 0), color: COLORS.art }}>ART 0–{ART_SCALE}</div>}

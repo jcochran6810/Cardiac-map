@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { sim } from '@/lib/sim/simulation';
 import { cycleEvents } from '@/lib/ecg/engine';
 import type { HemoSummary } from '@/lib/physiology/hemodynamics';
+import HeartSoundsButton, { HeardLegend } from '@/components/ui/HeartSoundsButton';
 
 /**
  * Live Wiggers diagram (ECG, aortic/LV/LA pressure, LV volume, phonocardiogram)
@@ -223,6 +224,8 @@ export default function WiggersPanel() {
           <Stat label="Fwd SV mL" value={`${summary.sv}`} />
           <Stat label="EF" value={`${summary.ef}%`} warn={summary.ef < 40} />
           <div className="col-span-3 phone:col-span-2 text-slate-400 truncate" title={summary.label}>Model: <span className="text-slate-200">{summary.label}</span> · LVEDP ~{summary.lvedp}</div>
+          <HeartSoundsButton className="col-span-3 phone:col-span-2 mt-0.5" />
+          <HeardLegend className="col-span-3 phone:col-span-2" />
         </div>
       </div>
     </div>

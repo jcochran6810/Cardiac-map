@@ -12,9 +12,13 @@ import SceneOverlay from '@/components/scene/SceneOverlay';
 import TutorPanel from '@/components/tutor/TutorPanel';
 import QuizPanel from '@/components/tutor/QuizPanel';
 import SimulationDriver from '@/components/sim/SimulationDriver';
+import HeartSoundDriver from '@/components/sim/HeartSoundDriver';
 import { InstallBanner } from '@/components/ui/InstallApp';
 import HomeScreen from '@/components/home/HomeScreen';
 import SimulatorScreen from '@/components/simulator/SimulatorScreen';
+import CoursesScreen from '@/components/courses/CoursesScreen';
+import LessonPlayer from '@/components/courses/LessonPlayer';
+import RhythmTrainer from '@/components/drill/RhythmTrainer';
 import BackNav from '@/components/layout/BackNav';
 import FeedbackForm from '@/components/feedback/FeedbackForm';
 import AdminPanel from '@/components/admin/AdminPanel';
@@ -25,6 +29,10 @@ import { useECGStore } from '@/store/useECGStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTutorStore } from '@/store/useTutorStore';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { applyStep } from '@/lib/courses';
+import { useDrillStore } from '@/store/useDrillStore';
+import { showQuestion } from '@/lib/drillRun';
 import { sim, scrubTo } from '@/lib/sim/simulation';
 import { loadContent } from '@/lib/content';
 import { showEcg, showHeart } from '@/lib/actions';
@@ -65,6 +73,11 @@ function useLingering(on: boolean, ms = SLIDE_MS + 40): boolean {
 
 export default function AppShell() {
   const mode = useAppStore((s) => s.mode);
+  // a guided lesson or the rhythm trainer takes over the learning screen: its panel replaces the library's list and reading
+  const lessonOn = useCourseStore((s) => !!s.active) && mode === 'learn';
+  const drillOn = useDrillStore((s) => s.open) && mode === 'learn' && !lessonOn;
+  const inLesson = lessonOn || drillOn;
+  const Activity = drillOn ? RhythmTrainer : LessonPlayer;
   const listOpen = useAppStore((s) => s.listOpen);
   const heart = useAppStore((s) => s.heart);
   const ecg = useAppStore((s) => s.ecg);
@@ -93,6 +106,14 @@ export default function AppShell() {
   useEffect(() => { useAppStore.getState().setPhone(phone); }, [phone]);
   // A new screen shape gets the default drawer sizes again
   useEffect(() => { setHeartSize(null); setEcgSize(null); setEcgWidth(null); }, [phone, compact, short]);
+  // …and a lesson lays its step out again for it (beside the pictures on wide screens, between them on upright ones)
+  useEffect(() => {
+    if (useCourseStore.getState().active) applyStep();
+    else if (useDrillStore.getState().open) showQuestion();
+  }, [compact, short]);
+  // Wide screens and phones on their side: the lesson's text is a column beside the heart and the ECG
+  const lessonSide = inLesson && (!compact || short);
+  const lessonStacked = inLesson && !lessonSide;
 
   // Measure the learning screen (everything below the top bar)
   useLayoutEffect(() => {
@@ -103,14 +124,16 @@ export default function AppShell() {
     return () => ro.disconnect();
   }, [mode]);
 
+
   // ── Drawer geometry ──────────────────────────────────────────
   const bar = short ? 32 : 40; // keep in step with DrawerBar's height
   const A = Math.max(0, area.h - 2 * bar);
   const hOpen = heart !== 'closed';
   const eOpen = ecg !== 'closed';
   const sideBySide = short && hOpen && eOpen;
-  const hWant = clamp(heartSize ?? A * (eOpen ? 0.38 : 0.5), MIN_DRAWER, A);
-  const eWant = clamp(ecgSize ?? A * (hOpen ? 0.4 : phone ? 0.5 : 0.45), MIN_DRAWER, A);
+  // a lesson's text needs more of an upright screen than a library page that is being glanced at
+  const hWant = clamp(heartSize ?? A * (lessonStacked ? (eOpen ? 0.3 : 0.42) : eOpen ? 0.38 : 0.5), MIN_DRAWER, A);
+  const eWant = clamp(ecgSize ?? A * (lessonStacked ? (hOpen ? 0.3 : drillOn ? 0.46 : 0.42) : hOpen ? 0.4 : phone ? 0.5 : 0.45), MIN_DRAWER, A);
   let hH = 0;
   let eH = 0;
   if (sideBySide) {
@@ -129,7 +152,7 @@ export default function AppShell() {
     hH = hOpen ? hWant : 0;
     eH = eOpen ? eWant : 0;
     // always leave a strip of the reading in view
-    const room = A - Math.max(72, A * 0.14);
+    const room = A - (lessonStacked ? Math.max(200, A * 0.36) : Math.max(72, A * 0.14));
     if (hH + eH > room && hH + eH > 0) {
       const k = Math.max(0, room) / (hH + eH);
       hH *= k;
@@ -257,7 +280,18 @@ export default function AppShell() {
     <span className={`hidden touch:block pointer-events-none rounded-full bg-slate-400/70 ${dir === 'col' ? 'w-0.5 h-8' : 'h-0.5 w-10'}`} />
   );
 
-  const reading = compact ? (
+  const reading = lessonSide ? (
+    // both pictures were put away: the lesson's text is in its own column, so say how to bring one back
+    <div className="flex-1 flex items-center justify-center p-6 text-center text-sm text-slate-400 bg-cardiac-dark">
+      <p className="max-w-xs">
+        {drillOn
+          ? <>Choose a set on the left to start. The tracing appears here.</>
+          : <>This step is easier to follow with a picture: open the <b className="text-slate-200">3D heart</b> above or the <b className="text-slate-200">EKG</b> below.</>}
+      </p>
+    </div>
+  ) : inLesson ? (
+    <Activity />
+  ) : compact ? (
     listOpen ? <LeftPanel style={{ width: '100%' }} /> : <RightPanel style={{ width: '100%' }} />
   ) : (
     <>
@@ -272,14 +306,18 @@ export default function AppShell() {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden" style={{ ['--dock-h' as string]: mode === 'learn' && !sideBySide && eH ? `${eH + bar}px` : `${bar}px` }}>
       <SimulationDriver />
+      <HeartSoundDriver />
       <BackNav />
       <TopBar />
       {mode === 'home' && <HomeScreen />}
+      {mode === 'courses' && <CoursesScreen />}
       {mode === 'simulator' && <SimulatorScreen />}
       {mode === 'learn' && (
+        <div className="flex-1 min-h-0 flex">
+        {lessonSide && <Activity side style={{ width: short ? '44%' : 'clamp(340px, 30vw, 440px)' }} />}
         <div
           ref={areaRef}
-          className="flex-1 min-h-0 relative grid"
+          className="flex-1 min-w-0 min-h-0 relative grid"
           style={sideBySide
             ? { gridTemplateRows: 'auto minmax(0, 1fr) auto', gridTemplateColumns: `minmax(0, 1fr) ${eW}px` }
             : { gridTemplateRows: 'auto auto minmax(0, 1fr) auto auto', gridTemplateColumns: 'minmax(0, 1fr)' }}
@@ -351,6 +389,7 @@ export default function AppShell() {
             </div>
           </section>
           <DrawerBar kind="ecg" style={sideBySide ? { gridRow: 3, gridColumn: '1 / -1' } : { gridRow: 5 }} />
+        </div>
         </div>
       )}
       <TutorPanel />
