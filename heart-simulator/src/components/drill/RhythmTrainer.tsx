@@ -101,8 +101,18 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
 
   return (
     <aside style={style} className={shell} aria-label={`Rhythm trainer: ${set.title}`}>
-      <Header title={set.title} sub="Rhythm trainer" onBack={leaveSet} />
-      <div className="shrink-0 px-3 py-1.5 flex items-center gap-3 border-b border-slate-700/80 text-[11px] text-slate-400">
+      <Header
+        title={set.title}
+        sub={<>
+          <span className="phone:hidden">Rhythm trainer</span>
+          {/* phones: the score takes the place of the trainer's name (the top bar shows it) instead of a row of its own */}
+          <span className="hidden phone:inline normal-case tracking-normal text-[11px] text-slate-400">
+            <b className="text-slate-100 tabular-nums">{d.right}</b> / {d.asked} right · run <b className={`tabular-nums ${d.streak >= 3 ? 'text-cardiac-accent' : 'text-slate-100'}`}>{d.streak}</b> · {m.mastered}/{m.total} mastered
+          </span>
+        </>}
+        onBack={leaveSet}
+      />
+      <div className="shrink-0 px-3 py-1.5 flex phone:hidden items-center gap-3 border-b border-slate-700/80 text-[11px] text-slate-400">
         <span><b className="text-slate-100 tabular-nums">{d.right}</b> / {d.asked} right</span>
         <span>Run <b className={`tabular-nums ${d.streak >= 3 ? 'text-cardiac-accent' : 'text-slate-100'}`}>{d.streak}</b></span>
         <span className="ml-auto flex items-center gap-1.5 min-w-0">
@@ -111,28 +121,35 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
         </span>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-3" aria-live="polite">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-3 phone:py-2" aria-live="polite">
         {!answered ? (
-          <>
-            <h2 className="text-lg font-semibold text-white leading-snug">What is this {set.layout === 'monitor' ? 'rhythm' : '12-lead'}?</h2>
-            <p className="mt-1 text-[13px] text-slate-400 leading-snug">
+          <div className="flex flex-col">
+            <h2 className="text-lg phone:text-[15px] font-semibold text-white leading-snug">What is this {set.layout === 'monitor' ? 'rhythm' : '12-lead'}?</h2>
+            {/* (a phone on its side has the least height: the reminder goes under the answers there) */}
+            <p className="mt-1 phone:mt-0 short:order-last short:mt-2 text-[13px] phone:text-xs text-slate-400 leading-snug">
               {set.layout === 'monitor'
                 ? 'Work through it: rate, regular or not, P waves, PR interval, QRS width.'
                 : 'Work through it: rhythm, axis, intervals, then the ST segments and T waves, lead group by lead group.'}
             </p>
-            <div className="mt-3 grid gap-1.5 grid-cols-2">
+            {/* phones: three narrower columns, so that every answer and "not sure" are in view above the tracing */}
+            <div className="mt-3 phone:mt-2 grid gap-1.5 phone:gap-1 grid-cols-2 phone:grid-cols-3">
               {q.options.map((p) => (
                 <button
                   key={p}
                   onClick={() => d.answer(p)}
-                  className="text-left px-2.5 py-2.5 min-h-[44px] rounded-lg border border-slate-600 text-[13px] sm:text-sm leading-snug text-slate-100 hover:border-slate-400 hover:bg-cardiac-surface/60 transition-colors"
+                  className="text-left px-2.5 py-2.5 phone:px-2 phone:py-1 min-h-[44px] rounded-lg border border-slate-600 text-sm phone:text-xs leading-snug phone:leading-tight text-slate-100 hover:border-slate-400 hover:bg-cardiac-surface/60 transition-colors"
                 >
                   {labelOf(set, p)}
                 </button>
               ))}
             </div>
-            <button onClick={() => d.answer('unsure')} className="mt-3 text-[13px] text-slate-400 hover:text-white underline underline-offset-2">I am not sure — show me</button>
-          </>
+            <button
+              onClick={() => d.answer('unsure')}
+              className="mt-3 phone:mt-2 w-full min-h-[44px] px-3 rounded-lg border border-dashed border-slate-500 text-[13px] text-slate-300 hover:text-white hover:border-slate-300 hover:bg-cardiac-surface/60 transition-colors"
+            >
+              I am not sure — show me
+            </button>
+          </div>
         ) : (
           <>
             <div className={`p-3 rounded-xl border ${right ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-rose-500/10 border-rose-500/40'}`}>
@@ -178,7 +195,7 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
 
 function Header({ title, sub, onBack }: { title: string; sub: React.ReactNode; onBack?: () => void }) {
   return (
-    <header className="shrink-0 px-3 py-2 flex items-center gap-2 border-b border-slate-700/80">
+    <header className="shrink-0 px-3 py-2 short:py-1 flex items-center gap-2 border-b border-slate-700/80">
       {/* named, so that it is not mistaken for the top bar's Back arrow above it */}
       {onBack && (
         <button onClick={onBack} className="shrink-0 h-8 touch:h-10 -ml-1 pl-1 pr-2 flex items-center gap-0.5 rounded-md text-[13px] font-medium text-slate-300 hover:text-white hover:bg-cardiac-surface" aria-label="Back to the sets" title="Back to the list of sets">

@@ -91,6 +91,12 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   // a lesson or the rhythm trainer is using the tracing: no first-time tip over it
   const lessonOn = useCourseStore((s) => !!s.active);
   const guided = useDrillStore((s) => s.open) || lessonOn;
+  // A set in play in the rhythm trainer on an upright phone: the tracing is the question and a 12-lead needs every
+  // pixel of height, so the controls keep to one row and the options drop over the tracing (as on a phone on its
+  // side). The set chooses the rate, so the rate slider makes way for them.
+  const drilling = useDrillStore((s) => s.open && !!s.setId);
+  const drillRow = narrow && !short && !side && drilling;
+  useEffect(() => { if (drillRow) setOptsOpen(false); }, [drillRow]);
   // A drug was just given: clear the first-time lead tip so nothing covers the 12-lead while it acts
   const medActive = useMedStore((s) => s.log.length > 0);
   const medMods = useMedStore((s) => s.mods);
@@ -130,7 +136,9 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
 
   const rateLabel = asked ? 'Rate' : profile.rateControl === 'sinus' ? 'Sinus rate' : profile.rateControl === 'ventricular'
     ? (profile.rhythm === 'chb' ? 'Escape rate' : 'Ventricular rate') : 'Rate';
-  const noRate = profile.rateControl === 'none';
+  // While a question is open the slider is locked and shows no number: the rate it is set to is the sinus rate in
+  // an AV block (not the rate on the monitor) and its range is the rhythm's own, so either would hint at the answer
+  const noRate = profile.rateControl === 'none' || asked;
   const arrest = profile.hemo === 'no-output';
 
   const displayOpts = (
@@ -196,19 +204,24 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
     </button>
   );
 
-  // a wide but very low panel (a phone on its side, tracing full screen): everything in one row, the rest for the tracing
-  const oneRow = short && !narrow;
+  // a wide but very low panel (a phone on its side, tracing full screen), or the trainer on an upright phone:
+  // everything in one row, the rest for the tracing
+  const oneRow = (short && !narrow) || drillRow;
   const ecgBar = ecg.bottomView === 'ecg' && !(guided && narrow && ecg.electrodeLab);
+  const interpToggle = <Toggle active={showInterp} onClick={() => setShowInterp((v) => !v)} title="What this rhythm shows">Interpret</Toggle>;
+  const moreToggle = (
+    <Toggle active={optsOpen} onClick={() => setOptsOpen((v) => !v)} title="Gain, paper speed, calipers, electrodes">
+      More {optsOpen ? '▴' : '▾'}
+    </Toggle>
+  );
   const foldedOpts = (
     <>
       {/* where room is short the chip takes the place of the layout buttons (any of them would leave Inspect anyway) */}
       {(narrow || oneRow) && ecg.inspectLead ? inspectChip : <>{layoutSeg}{inspectChip}</>}
       <div className={`flex items-center gap-1 shrink-0 ${oneRow ? '' : 'ml-auto'}`}>
         {labToggle}
-        <Toggle active={showInterp} onClick={() => setShowInterp((v) => !v)} title="What this rhythm shows">Interpret</Toggle>
-        <Toggle active={optsOpen} onClick={() => setOptsOpen((v) => !v)} title="Gain, paper speed, calipers, electrodes">
-          More {optsOpen ? '▴' : '▾'}
-        </Toggle>
+        {interpToggle}
+        {moreToggle}
       </div>
     </>
   );
@@ -319,12 +332,13 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           <div className="text-[10px] text-sky-300 shrink-0" title="Atrial rate">A {atrialRate}</div>
         )}
 
-        <label className={`flex items-center gap-1.5 ${narrow ? 'flex-1 min-w-[96px]' : 'shrink-0'} ${noRateShown ? 'invisible' : ''}`} title={rateLabel}>
+        {!drillRow && (
+        <label className={`flex items-center gap-1.5 ${narrow ? 'flex-1 min-w-[96px]' : 'shrink-0'} ${noRateShown ? 'invisible' : ''}`} title={asked ? 'Rate: set by the question while it is open' : rateLabel}>
           <span className={`text-[10px] text-slate-400 ${narrow || oneRow ? 'sr-only' : ''}`}>{rateLabel}</span>
           <input
             type="range"
-            min={profile.minHR}
-            max={profile.maxHR}
+            min={noRate ? 0 : profile.minHR}
+            max={noRate ? 0 : profile.maxHR}
             value={noRate ? 0 : Math.min(profile.maxHR, Math.max(profile.minHR, heartRate))}
             disabled={noRate}
             onChange={(e) => setHeartRate(Number(e.target.value))}
@@ -333,6 +347,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           />
           <span className="text-xs font-mono text-slate-200 w-7 shrink-0">{noRate ? '—' : heartRate}</span>
         </label>
+        )}
 
         <label className="flex items-center gap-1 shrink-0">
           <span className={`text-[10px] text-slate-400 ${narrow || oneRow ? 'sr-only' : ''}`}>Speed</span>
@@ -365,7 +380,9 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           <span>QTc <b className={`${(intervals.qtc ?? 0) >= 460 ? 'text-amber-300' : 'text-slate-200'}`}>{intervals.qtc ?? '—'}</b></span>
         </div>
 
-        {oneRow && ecgBar && <>{foldedOpts}{placementWarning}</>}
+        {oneRow && ecgBar && (drillRow
+          ? <div className="ml-auto flex items-center gap-1 shrink-0 text-[10px]">{placementWarning}{inspectChip}{moreToggle}</div>
+          : <>{foldedOpts}{placementWarning}</>)}
         {(narrow || oneRow) && short && !guided && (
           <select
             value={ecg.bottomView}
@@ -441,9 +458,10 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           {ecg.bottomView === 'ecg' ? <ECGRenderer /> : ecg.bottomView === 'wiggers' ? <WiggersPanel /> : (
             <div className="absolute inset-0 p-1.5"><MonitorDisplay /></div>
           )}
-          {/* a phone on its side: the rarer options drop over the tracing instead of taking a row from it */}
-          {ecgBar && (fold || oneRow) && short && optsOpen && (
+          {/* a phone on its side (and the trainer on an upright one): the rarer options drop over the tracing instead of taking a row from it */}
+          {ecgBar && (fold || oneRow) && (short || drillRow) && optsOpen && (
             <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-1.5 px-2 py-1.5 border-b border-slate-700 text-[10px] bg-cardiac-panel/95 shadow-lg">
+              {drillRow && <>{layoutSeg}{labToggle}{interpToggle}</>}
               {displayOpts}
               {toolOpts}
               <button onClick={() => setOptsOpen(false)} className="ml-auto shrink-0 w-7 h-7 touch:w-9 touch:h-9 flex items-center justify-center text-slate-400 hover:text-white" aria-label="Close the options"><IconClose size={14} /></button>
