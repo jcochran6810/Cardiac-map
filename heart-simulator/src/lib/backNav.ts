@@ -32,6 +32,7 @@ import { lessonKey, useCourseStore } from '@/store/useCourseStore';
 import { exitLesson, startLesson } from '@/lib/courses';
 import { useDrillStore } from '@/store/useDrillStore';
 import { closeTrainer, openTrainer } from '@/lib/drillRun';
+import { closeWelcome, useWelcomeStore } from '@/lib/welcome';
 
 /** the rhythm trainer's page (in `Page.lesson`) */
 export const TRAINER_PAGE = 'tool/rhythm-trainer';
@@ -272,6 +273,13 @@ function onPop(e: PopStateEvent) {
     idx = target;
     publish();
     schedule();
+    return;
+  }
+  // the first-visit welcome card is not a page of its own: Back puts it off (like "Decide later") and stays put
+  if (useWelcomeStore.getState().open) {
+    closeWelcome();
+    consuming = true;
+    window.history.go(shown - target);
     return;
   }
   const from = currentPage();
