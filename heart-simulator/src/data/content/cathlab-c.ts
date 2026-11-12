@@ -722,7 +722,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Do not keep ballooning or adding stents to a vessel with no mechanical problem — it only adds debris.',
     ],
     image: { keys: ['lad-no-reflow-pci', 'lad-no-reflow-after-treatment'], want: 'A real angiogram frame after stenting a thrombotic artery showing contrast stalling in the distal vessel with no residual narrowing or dissection, next to the frame after distal adenosine with flow restored.' },
-    sim: ['ic-adenosine', 'ic-verapamil'],
+    sim: ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside', 'ic-epinephrine'],
     related: ['cl-drug-ic-adenosine', 'cl-aspiration', 'cl-drug-gp2b3a', 'anterior-stemi', 'cl-damped', 'cl-comp-dissection'],
   },
 

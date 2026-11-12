@@ -14,6 +14,15 @@ export const PADS = ['pads', 'aed', 'defib', 'cardiovert', 'pace'];
 /** The rhythm is driven by a pacer (transcutaneous pads or a transvenous wire), not by the heart's own rate */
 export const paced = (s: SimState) => s.rhythm.profile === 'tcp' || s.rhythm.profile === 'paced';
 
+/** mg/dL: a blood glucose under this is low (hypoglycemia), what oral glucose and IV dextrose treat */
+export const LOW_GLUCOSE = 70;
+
+/**
+ * Awake enough to swallow and protect the airway: oral glucose (or anything by mouth) is safe. A GCS of 11 or more
+ * stands in for "can follow commands and swallow"; below it the gel can be inhaled.
+ */
+export const canSwallow = (s: SimState) => s.pulse && s.vitals.gcs >= 11;
+
 /** The lowest pressure a patient with a pulse shows: below it the circulation would have stopped */
 export const PERFUSING_FLOOR = { sbp: 50, dbp: 25 };
 

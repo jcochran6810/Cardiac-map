@@ -168,8 +168,8 @@ export interface Critical {
 export interface Harm {
   id: string;
   actions: string[];
-  /** judged on the state just before the intervention takes effect */
-  when?: (s: SimState) => boolean;
+  /** judged on the state just before the intervention takes effect (and on what the case says the patient has) */
+  when?: (s: SimState, sc: Scenario) => boolean;
   points: number;
   severity: Severity;
   text: string;
@@ -181,6 +181,25 @@ export interface Harm {
    */
   replaces?: string[];
 }
+
+/**
+ * Something the patient has that decides whether a drug is indicated or dangerous. The engine's built-in safety rules
+ * cannot read it from the tracing or the vitals, so the case says so (Scenario.problems); the learner never sees the list.
+ * Without it, calcium, bicarbonate, insulin and high-dose albuterol count as given with no indication, and nothing
+ * stops procainamide in a failing heart — so a case where one of these is right must list the problem behind it.
+ */
+export type Problem =
+  | 'hyperkalemia'
+  | 'metabolic-acidosis'
+  | 'hypocalcemia'
+  | 'beta-blocker-overdose'
+  /** calcium-channel blocker */
+  | 'ccb-overdose'
+  /** tricyclics and other sodium-channel blockers: a wide QRS that bicarbonate narrows */
+  | 'sodium-channel-blocker-overdose'
+  /** a reduced ejection fraction (40 % or less) or decompensated heart failure */
+  | 'heart-failure'
+  | 'long-qt';
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'
@@ -215,6 +234,8 @@ export interface Scenario {
   facts: Partial<Record<FactKey, string | ((s: SimState) => string)>>;
   /** real angiogram / fluoroscopy images for this patient: cine view id → key of CATH_IMAGES (added as they become available) */
   images?: Partial<Record<string, string>>;
+  /** what the patient has that the built-in drug safety rules need to know (see Problem) */
+  problems?: Problem[];
   /** what the patient says when reassessed */
   status?: (s: SimState) => string;
   respond: Partial<Record<string, Responder>>;

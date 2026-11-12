@@ -20,6 +20,11 @@ export const RCA_VIEWS = ['view-rca-lao', 'view-rca-rao', 'view-rca-cranial'];
 export const LEFT_GUIDES = ['guide-ebu'];
 export const RIGHT_GUIDES = ['guide-jr4', 'guide-al1'];
 export const WIRES = ['wire-workhorse', 'wire-hydrophilic'];
+/**
+ * Intracoronary drugs that open the microvessels in no-reflow. Each one lowers the pressure, so with a low one
+ * 'ic-epinephrine' is the drug; intracoronary nitroglycerin is not on the list: it dilates the large artery, not the bed beyond.
+ */
+export const NO_REFLOW_VASODILATORS = ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside'];
 
 export const anticoagulated = (s: SimState) => has(s, 'heparin') || has(s, 'bivalirudin');
 

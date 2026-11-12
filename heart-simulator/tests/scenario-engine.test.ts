@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { interventionsFor } from '@/lib/sim/scenario/interventions';
+import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { HINT_POINTS, perform, answerRead, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
+import { NO_REFLOW_VASODILATORS } from '@/lib/sim/scenario/labKit';
 import { READ_OPTIONS, answerFor, judgeRead } from '@/lib/sim/scenario/reads';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
-import type { SimState } from '@/lib/sim/scenario/types';
+import type { Problem, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { runScenario as run } from './helpers';
 
 const MEDIC_IDEAL = [
@@ -404,5 +405,198 @@ describe('12-lead reads, checked at once', () => {
     }
     const vf = SCENARIO_BY_ID['vf-arrest-field'];
     expect(perform(vf, start(vf, 2), 'ecg12').counts.ecg12).toBeUndefined();
+  });
+});
+
+describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
+  /** The same case, with the patient given problems the built-in drug rules read */
+  const withProblems = (sc: Scenario, ...problems: Problem[]): Scenario => ({ ...sc, problems });
+  const ids = (role: 1 | 2 | 3 | 4 | 5, setting: 'field' | 'cathlab') => interventionsFor(role, setting).map((i) => i.id);
+  const penalties = (s: SimState) => s.penalties.map((p) => p.id);
+  const vf = SCENARIO_BY_ID['vf-arrest-field'];
+  const block = SCENARIO_BY_ID['complete-heart-block-field'];
+  const lab = SCENARIO_BY_ID['stemi-cathlab'];
+  const ALS = ['calcium-chloride', 'sodium-bicarbonate', 'albuterol-hyperk', 'magnesium-sulfate', 'procainamide', 'glucagon', 'dextrose'];
+  const NO_REFLOW = ['ic-nitroprusside', 'ic-epinephrine'];
+  const giveaway = /STEMI|fibrillation|heart block|AV block|sinus|tachycardia|bradycardia|SVT|AVNRT|escape|ventricular|capture/i;
+
+  it('are offered to the roles whose scope includes them, and only there', () => {
+    const emt = ids(1, 'field');
+    expect(emt).toContain('oral-glucose');
+    for (const id of [...ALS, 'insulin-dextrose']) expect(emt, id).not.toContain(id);
+    const medic = ids(2, 'field');
+    for (const id of [...ALS, 'oral-glucose']) expect(medic, id).toContain(id);
+    for (const id of ['insulin-dextrose', ...NO_REFLOW]) expect(medic, id).not.toContain(id);
+    // the tech hands intracoronary drugs on the operator's order, like the other IC drugs; IV drugs are the nurse's
+    const tech = ids(3, 'cathlab');
+    for (const id of NO_REFLOW) expect(tech, id).toContain(id);
+    for (const id of [...ALS, 'insulin-dextrose', 'oral-glucose']) expect(tech, id).not.toContain(id);
+    for (const role of [4, 5] as const) {
+      const rnMd = ids(role, 'cathlab');
+      for (const id of [...ALS, 'insulin-dextrose', ...NO_REFLOW]) expect(rnMd, `role ${role} ${id}`).toContain(id);
+      expect(rnMd).not.toContain('oral-glucose');
+    }
+    expect(unavailableReason(stemiAnterior, start(stemiAnterior, 2), 'insulin-dextrose')).toMatch(/scope/);
+  });
+
+  it('name the dose as the drug cards do; the hyperkalemia dose of albuterol is its own action', () => {
+    const label = (id: string) => INTERVENTION_BY_ID[id].label;
+    expect(label('calcium-chloride')).toBe('Calcium chloride 1 g IV/IO');
+    expect(label('sodium-bicarbonate')).toBe('Sodium bicarbonate 50 mEq IV/IO');
+    expect(label('insulin-dextrose')).toBe('Insulin 10 units IV with dextrose 25 g');
+    expect(label('magnesium-sulfate')).toBe('Magnesium sulfate 2 g IV/IO');
+    expect(label('procainamide')).toBe('Procainamide 20–50 mg/min IV');
+    expect(INTERVENTION_BY_ID.procainamide.detail).toMatch(/hypotension.*50 %.*17 mg\/kg.*heart failure.*long QT/);
+    expect(label('glucagon')).toMatch(/^Glucagon 3–10 mg IV/);
+    expect(label('albuterol')).toMatch(/2\.5–5 mg.*bronchospasm/);
+    expect(label('albuterol-hyperk')).toMatch(/10–20 mg.*hyperkalemia/);
+    expect(label('oral-glucose')).toMatch(/^Oral glucose 15 g/);
+    expect(label('dextrose')).toMatch(/^Dextrose 25 g IV/);
+    for (const id of [...ALS.filter((a) => a !== 'albuterol-hyperk'), 'insulin-dextrose']) expect(INTERVENTION_BY_ID[id].needsAccess, id).toBe(true);
+    // a nebulizer and a tube of gel need no IV
+    for (const id of ['albuterol-hyperk', 'oral-glucose']) expect(INTERVENTION_BY_ID[id].needsAccess, id).toBeUndefined();
+    // the no-reflow vasodilators: not intracoronary nitroglycerin, which opens the large artery and not the bed beyond
+    for (const id of NO_REFLOW_VASODILATORS) expect(INTERVENTION_BY_ID[id], id).toBeDefined();
+    expect(NO_REFLOW_VASODILATORS).not.toContain('ic-nitro');
+  });
+
+  it('IV drugs wait for access, without passing time', () => {
+    const s = run(stemiAnterior, 2, ['calcium-chloride']);
+    expect(s.minute).toBe(0);
+    expect(s.counts['calcium-chloride']).toBeUndefined();
+  });
+
+  it('with no response from the case they change no rhythm, and show only their side effects', () => {
+    const base = run(stemiAnterior, 2, ['iv']);
+    const after = (id: string) => perform(stemiAnterior, base, id);
+    expect(base.rhythm).toEqual({ profile: 'anterior-stemi', hr: 96 });
+    expect([base.vitals.sbp, base.vitals.dbp]).toEqual([148, 92]);
+
+    const ca = after('calcium-chloride');
+    expect(ca.rhythm).toEqual(base.rhythm);
+    expect(ca.vitals).toEqual(base.vitals);
+    expect(ca.log.at(-1)).toMatchObject({ who: 'patient', text: expect.stringMatching(/burns/) });
+    expect(after('sodium-bicarbonate').rhythm).toEqual(base.rhythm);
+    // procainamide and magnesium drop the pressure, and the monitor shows what it is
+    const pa = after('procainamide');
+    expect([pa.vitals.sbp, pa.vitals.dbp]).toEqual([138, 86]);
+    expect(pa.log.at(-1)).toMatchObject({ who: 'monitor', text: 'BP 138/86.' });
+    expect(pa.rhythm).toEqual(base.rhythm);
+    const mg = after('magnesium-sulfate');
+    expect([mg.vitals.sbp, mg.vitals.dbp]).toEqual([142, 88]);
+    // high-dose albuterol speeds the sinus rate
+    const alb = after('albuterol-hyperk');
+    expect(alb.rhythm).toEqual({ profile: 'anterior-stemi', hr: 104 });
+    expect(alb.log.at(-1)).toMatchObject({ who: 'monitor', text: 'Heart rate 104.' });
+    // glucagon makes the patient vomit and raises the glucose; dextrose raises it more
+    const gl = after('glucagon');
+    expect(gl.vitals.glucose).toBe(162);
+    expect(gl.log.some((l) => /vomits/.test(l.text))).toBe(true);
+    expect(perform(stemiAnterior, gl, 'glucagon').log.some((l) => /10 mg in all/.test(l.text))).toBe(true);
+    expect(after('dextrose').vitals.glucose).toBe(252);
+
+    for (const s of [ca, pa, mg, alb, gl]) {
+      for (const l of s.log) if (l.who === 'monitor') expect(l.text).not.toMatch(giveaway);
+    }
+  });
+
+  it('calcium, bicarbonate, insulin and high-dose albuterol without the problem they treat cost points; with it they do not', () => {
+    const steps = ['iv', 'calcium-chloride', 'sodium-bicarbonate', 'albuterol-hyperk'];
+    expect(penalties(run(stemiAnterior, 2, steps))).toEqual(['calcium-no-indication', 'bicarbonate-no-indication', 'albuterol-hyperk-no-indication']);
+    expect(penalties(run(withProblems(stemiAnterior, 'hyperkalemia'), 2, steps))).toEqual([]);
+    // calcium is also for a calcium- or beta-blocker overdose; bicarbonate for acidosis or a tricyclic overdose
+    for (const p of ['beta-blocker-overdose', 'ccb-overdose', 'hypocalcemia'] as const) {
+      expect(penalties(run(withProblems(stemiAnterior, p), 2, ['iv', 'calcium-chloride'])), p).toEqual([]);
+    }
+    for (const p of ['metabolic-acidosis', 'sodium-channel-blocker-overdose'] as const) {
+      expect(penalties(run(withProblems(stemiAnterior, p), 2, ['iv', 'sodium-bicarbonate'])), p).toEqual([]);
+    }
+    const review_ = review(stemiAnterior, stop(run(stemiAnterior, 2, steps)));
+    expect(review_.toFix.find((t) => t.kind === 'harm' && t.actions?.includes('calcium-chloride'))?.label).toBe('Calcium chloride without an indication.');
+  });
+
+  it('in a hyperkalemic arrest calcium and bicarbonate go in without pausing CPR at no cost; in any other arrest they do not help', () => {
+    const steps = ['cpr', 'io', 'calcium-chloride', 'sodium-bicarbonate'];
+    const hyperK = run(withProblems(vf, 'hyperkalemia'), 2, steps);
+    expect(penalties(hyperK)).toEqual([]);
+    expect(hyperK.rhythm).toEqual({ profile: 'vf', hr: 0 });
+    expect([hyperK.vitals.sbp, hyperK.vitals.dbp]).toEqual([0, 0]);
+    expect(hyperK.log.filter((l) => /compressions go on/.test(l.text))).toHaveLength(2);
+    expect(penalties(run(vf, 2, steps))).toEqual(['calcium-no-indication', 'bicarbonate-no-indication']);
+  });
+
+  it('magnesium in an arrest is for torsades (or a long QT); procainamide is no arrest drug; a nebulizer needs a breathing patient', () => {
+    const arrest = run(vf, 2, ['cpr', 'io']);
+    expect(penalties(perform(vf, arrest, 'magnesium-sulfate'))).toEqual(['magnesium-routine-arrest']);
+    expect(penalties(perform(vf, { ...arrest, rhythm: { profile: 'torsades', hr: 0 } }, 'magnesium-sulfate'))).toEqual([]);
+    expect(penalties(perform(withProblems(vf, 'long-qt'), arrest, 'magnesium-sulfate'))).toEqual([]);
+    const pa = perform(vf, arrest, 'procainamide');
+    expect(penalties(pa)).toEqual(['procainamide-in-arrest']);
+    expect(pa.rhythm).toEqual({ profile: 'vf', hr: 0 });
+    // blocked: no time passes, nothing is counted, nothing is penalized
+    const neb = perform(withProblems(vf, 'hyperkalemia'), arrest, 'albuterol-hyperk');
+    expect(neb.minute).toBe(arrest.minute);
+    expect(neb.counts['albuterol-hyperk']).toBeUndefined();
+    expect(neb.log.at(-1)!.text).toMatch(/not recommended in arrest/);
+    const gel = perform(vf, start(vf, 1), 'oral-glucose');
+    expect(gel.counts['oral-glucose']).toBeUndefined();
+  });
+
+  it('insulin with dextrose: for high potassium, never with a low glucose', () => {
+    const hyperK = withProblems(lab, 'hyperkalemia');
+    // the nurse has the IV in for the cardiologist
+    const md = start(hyperK, 5);
+    const s = perform(hyperK, md, 'insulin-dextrose');
+    expect(s.counts['insulin-dextrose']).toBe(1);
+    expect(penalties(s)).toEqual([]);
+    expect(penalties(perform(hyperK, { ...md, vitals: { ...md.vitals, glucose: 54 } }, 'insulin-dextrose'))).toEqual(['insulin-hypoglycemia']);
+    expect(penalties(perform(lab, start(lab, 5), 'insulin-dextrose'))).toEqual(['insulin-no-indication']);
+  });
+
+  it('procainamide: its stop rules and contraindications are built in', () => {
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide']))).toEqual([]);
+    // 74/42 with complete heart block at 34
+    expect(penalties(run(block, 2, ['iv', 'procainamide']))).toEqual(['procainamide-hypotension', 'procainamide-slow']);
+    // a pacer protects against the block it would deepen
+    expect(penalties(run(block, 2, ['pads', 'iv', 'pace', 'procainamide']))).not.toContain('procainamide-slow');
+    expect(penalties(run(withProblems(stemiAnterior, 'heart-failure'), 2, ['iv', 'procainamide']))).toEqual(['procainamide-heart-failure']);
+    expect(penalties(run(withProblems(stemiAnterior, 'long-qt'), 2, ['iv', 'procainamide']))).toEqual(['procainamide-long-qt']);
+    // one antiarrhythmic on top of another, either way round
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'amio-infusion', 'procainamide']))).toEqual(['procainamide-after-amiodarone']);
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide', 'amio-infusion']))).toEqual(['amiodarone-after-procainamide']);
+  });
+
+  it('glucose: oral gel for a patient who can swallow, IV dextrose for the paramedic, and only for a low glucose', () => {
+    const emt = start(stemiAnterior, 1);
+    const low = { ...emt, vitals: { ...emt.vitals, glucose: 48 } };
+    const gel = perform(stemiAnterior, low, 'oral-glucose');
+    expect(gel.vitals.glucose).toBe(88);
+    expect(penalties(gel)).toEqual([]);
+    expect(penalties(perform(stemiAnterior, emt, 'oral-glucose'))).toEqual(['glucose-not-low']);
+    // too drowsy to swallow: the gel stays in the cheek and could be inhaled
+    const drowsy = perform(stemiAnterior, { ...low, vitals: { ...low.vitals, gcs: 9 } }, 'oral-glucose');
+    expect(drowsy.vitals.glucose).toBe(48);
+    expect(penalties(drowsy)).toEqual(['oral-glucose-cannot-swallow']);
+    expect(penalties(perform(stemiAnterior, { ...low, vitals: { ...low.vitals, gcs: 11 } }, 'oral-glucose'))).toEqual([]);
+    expect(unavailableReason(stemiAnterior, emt, 'dextrose')).toMatch(/scope/);
+    const medic = run(stemiAnterior, 2, ['iv']);
+    const d = perform(stemiAnterior, { ...medic, vitals: { ...medic.vitals, glucose: 40 } }, 'dextrose');
+    expect(d.vitals.glucose).toBe(160);
+    expect(penalties(d)).toEqual([]);
+  });
+
+  it('no-reflow: nitroprusside drops the pressure (not to be given under 90), intracoronary epinephrine raises it', () => {
+    const md = start(lab, 5);
+    const np = perform(lab, md, 'ic-nitroprusside');
+    expect(np.vitals.sbp).toBeLessThan(md.vitals.sbp);
+    expect(penalties(np)).toEqual([]);
+    const low: SimState = { ...md, vitals: { ...md.vitals, sbp: 82, dbp: 50 } };
+    expect(penalties(perform(lab, low, 'ic-nitroprusside'))).toEqual(['nitroprusside-hypotension']);
+    const epi = perform(lab, low, 'ic-epinephrine');
+    expect(penalties(epi)).toEqual([]);
+    expect(epi.rhythm).toEqual({ profile: 'anterior-stemi', hr: 104 });
+    expect(epi.log.at(-1)).toMatchObject({ who: 'monitor', text: 'Heart rate 104. BP 98/58.' });
+    // the arrest dose of epinephrine is a separate drug: no penalty meant for it applies here
+    expect(penalties(epi)).not.toContain('arrest-epi-with-pulse');
   });
 });

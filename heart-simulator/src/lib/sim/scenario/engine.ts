@@ -8,17 +8,18 @@
  *
  * Each intervention has a default response here; a scenario overrides the ones that matter for its
  * patient (scenario.respond). Built-in safety rules apply to every scenario on top of the scenario's
- * own harms. The scenario ends by itself once every critical intervention for the learner's role is
- * done and the patient has a pulse (plus any scenario-specific condition).
+ * own harms; the drug rules also read what the case says the patient has (scenario.problems: high
+ * potassium, an overdose, heart failure, a long QT). The scenario ends by itself once every critical
+ * intervention for the learner's role is done and the patient has a pulse (plus any scenario-specific condition).
  */
 import type { LearningLevel } from '@/store/useAppStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
 import { READ_KIND_NAME, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
 import { angioGate } from './labKit';
-import { PERFUSING_FLOOR, bpAfter, paced } from './kit';
+import { LOW_GLUCOSE, PERFUSING_FLOOR, bpAfter, canSwallow, paced } from './kit';
 import type {
-  Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
+  Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
 
 const round = (m: number) => Math.round(m * 10) / 10;
@@ -229,6 +230,67 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'gp2b3a': return { say: [['you', 'Eptifibatide 180 mcg/kg bolus, infusion running.']], flags: ['gp2b3a'] };
     case 'cangrelor': return { say: [['you', 'Cangrelor 30 mcg/kg bolus, 4 mcg/kg/min running.']], flags: ['p2y12', 'cangrelor'] };
     case 'protamine': return { say: [['you', 'Protamine 50 mg slowly IV.'], ['team', 'ACT falling.']], vitals: bpAfter(s, -6, -4), flags: ['protamine'] };
+    case 'ic-nitroprusside': {
+      if (!s.pulse) return noCirculation('Intracoronary nitroprusside', 'ic-nitroprusside');
+      const bp = bpAfter(s, -12, -8);
+      return { say: [['you', 'Nitroprusside 100 mcg intracoronary.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['ic-nitroprusside'] };
+    }
+    case 'ic-epinephrine': {
+      if (!s.pulse) return noCirculation('Intracoronary epinephrine', 'ic-epinephrine');
+      // it washes out of the coronary into the whole circulation: the pressure and the sinus rate rise for a few minutes
+      const bp = bpAfter(s, 16, 8);
+      const hr = sinusFaster(s, 10);
+      return {
+        say: [['you', 'Epinephrine 100 mcg intracoronary.'], ['monitor', `${hr ? `Heart rate ${hr}. ` : ''}BP ${bp.sbp}/${bp.dbp}.`]],
+        vitals: bp, ...(hr ? { rhythm: { ...s.rhythm, hr } } : {}), flags: ['ic-epinephrine'],
+      };
+    }
+
+    // Electrolytes, antidotes and glucose: by themselves they change no rhythm (only the case knows whether the
+    // patient's potassium, overdose or glucose is what they treat), so a case that uses them writes its own response
+    case 'calcium-chloride':
+      // given slowly with a pulse, as the label says, so no bradycardia from a fast push; it burns going in
+      if (!s.pulse) return { say: [['you', 'Calcium chloride 1 g pushed and flushed; compressions go on.']], flags: ['calcium'] };
+      return { say: [['you', 'Calcium chloride 1 g in slowly over a few minutes; line flushed.'], ...ifAwake(s, '"That burns going up my arm."')], flags: ['calcium'] };
+    case 'sodium-bicarbonate':
+      return { say: [['you', s.pulse ? 'Sodium bicarbonate 50 mEq IV; line flushed.' : 'Sodium bicarbonate 50 mEq pushed and flushed; compressions go on.']], flags: ['bicarbonate'] };
+    case 'insulin-dextrose':
+      // the dextrose covers the insulin for now; the low glucose it can bring comes hours later, after most cases end
+      return { say: [['you', 'Regular insulin 10 units IV (dose double-checked), then dextrose 25 g (D50 50 mL).']], flags: ['insulin'] };
+    case 'albuterol-hyperk': {
+      // a nebulizer needs someone breathing, and inhaled beta-agonists are not recommended in arrest (2025 AHA)
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: a nebulizer needs a patient who is breathing, and inhaled albuterol is not recommended in arrest.']] };
+      const hr = sinusFaster(s, 8);
+      return {
+        say: [['you', 'High-dose albuterol nebulizer running.'], ...ifAwake(s, '"I feel shaky."'), ...(hr ? [['monitor', `Heart rate ${hr}.`] as Line] : [])],
+        ...(hr ? { rhythm: { ...s.rhythm, hr } } : {}), flags: ['albuterol-hyperk'],
+      };
+    }
+    case 'magnesium-sulfate': {
+      if (!s.pulse) return { say: [['you', 'Magnesium sulfate 2 g pushed; compressions go on.']], flags: ['magnesium'] };
+      // diluted over 15 minutes it flushes the skin and drops the pressure a little
+      const bp = bpAfter(s, -6, -4);
+      return { say: [['you', 'Magnesium sulfate 2 g running over 15 minutes.'], ...ifAwake(s, '"I feel warm and flushed."'), ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['magnesium'] };
+    }
+    case 'procainamide': {
+      if (!s.pulse) return noCirculation('Procainamide', 'procainamide');
+      // it vasodilates and weakens the squeeze: the pressure falls; whether the arrhythmia stops is the case's to say
+      const bp = bpAfter(s, -10, -6);
+      return { say: [['you', 'Procainamide running at 30 mg/min; BP and QRS width checked every few minutes.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['procainamide'] };
+    }
+    case 'glucagon': {
+      if (!s.pulse) return noCirculation('Glucagon', 'glucagon');
+      // vomiting is the rule at these doses, and it raises the glucose; what it does to the rate and pressure depends on the overdose
+      const sick: Line = v.gcs >= 13 ? ['patient', '"I\'m going to be sick…" — and vomits.'] : [teammate(sc), 'Vomiting: rolled onto the side and suctioned.', 'warn'];
+      const dose = (s.counts.glucagon ?? 0) === 0 ? 'Glucagon 5 mg IV over 3 minutes.' : 'Another 5 mg of glucagon IV (10 mg in all).';
+      return { say: [['you', dose], sick], vitals: { glucose: v.glucose + 30 }, flags: ['glucagon'] };
+    }
+    case 'oral-glucose':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: nothing goes in the mouth of a patient who cannot swallow.']] };
+      if (!canSwallow(s)) return { say: [['you', 'The gel pools in the cheek: the patient is too drowsy to swallow it. Suctioned out.', 'bad']], flags: ['oral-glucose'] };
+      return { say: [['patient', 'Swallows the glucose gel.']], vitals: { glucose: v.glucose + 40 }, flags: ['oral-glucose'] };
+    case 'dextrose':
+      return { say: [['you', s.pulse ? 'Dextrose 25 g IV in.' : 'Dextrose 25 g pushed; compressions go on.']], vitals: { glucose: v.glucose + 120 }, flags: ['dextrose'] };
 
     case 'cpr':
       if (s.pulse) return { say: [['patient', 'The patient cries out — they have a pulse and are breathing.', 'bad']] };
@@ -272,11 +334,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (s.rhythm.hr > 70) {
         return { say: [['monitor', `Pacer on in demand mode at 70: the heart's own rate of ${s.rhythm.hr} is faster, so it senses and does not fire.`]], flags: ['pads', 'monitor'] };
       }
-      const teammate: Speaker = sc.setting === 'field' ? 'partner' : 'team';
       return {
         say: [
           ['monitor', 'Pacer on at 70.'],
-          [teammate, `Hold on — the heart's own rate is ${s.rhythm.hr}. Pacing is for a symptomatic rate under 50 that atropine has not fixed. Pacer off.`, 'warn'],
+          [teammate(sc), `Hold on — the heart's own rate is ${s.rhythm.hr}. Pacing is for a symptomatic rate under 50 that atropine has not fixed. Pacer off.`, 'warn'],
         ],
         flags: ['pads', 'monitor'],
       };
@@ -390,6 +451,18 @@ const noWire = (s: SimState, mine: string): Effect => ({ blocked: true, say: [['
 /** A drug that acts on the heart or the vessels, given in cardiac arrest: with no circulation it reaches nothing */
 const noCirculation = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — with no circulation it goes nowhere and changes nothing.`]], flags: [flag] });
 
+/** The crew member or teammate who speaks up beside the learner */
+const teammate = (sc: Scenario): Speaker => (sc.setting === 'field' ? 'partner' : 'team');
+
+/** Only a patient awake enough to talk says how a drug feels */
+const ifAwake = (s: SimState, text: string): Line[] => (s.pulse && s.vitals.gcs >= 13 ? [['patient', text]] : []);
+
+/**
+ * The heart rate after an adrenergic drug speeds the sinus node, or null: other rhythms are left to the case (an
+ * agonist does not simply speed a VT, and a pacer holds its own rate)
+ */
+const sinusFaster = (s: SimState, by: number): number | null => (s.pulse && rhythmKind(s) === 'sinus' ? s.rhythm.hr + by : null);
+
 /** The tech opens, prepares and hands a device; the cardiologist uses it */
 function deviceEffect(s: SimState, id: string): Effect {
   const label = INTERVENTION_BY_ID[id].label.split(' — ')[0];
@@ -434,6 +507,15 @@ function nitroEffect(s: SimState): Effect {
 
 // ─── Built-in safety rules (every scenario) ────────────────────────────────
 
+/** The case says the patient has at least one of these problems */
+function hasProblem(sc: Scenario, problems: Problem[]): boolean {
+  return problems.some((p) => sc.problems?.includes(p));
+}
+const CALCIUM_FOR: Problem[] = ['hyperkalemia', 'hypocalcemia', 'ccb-overdose', 'beta-blocker-overdose'];
+const BICARBONATE_FOR: Problem[] = ['hyperkalemia', 'metabolic-acidosis', 'sodium-channel-blocker-overdose'];
+/** Second- and third-degree AV block */
+const AV_BLOCKS = ['wenckebach', 'mobitz2', 'chb'];
+
 export const BUILT_IN_HARMS: Harm[] = [
   { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
   // a manual shock fires whatever the rhythm; an AED never shocks an organized rhythm, so with a pulse it gives no shock to penalise
@@ -448,6 +530,32 @@ export const BUILT_IN_HARMS: Harm[] = [
   { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
   { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
   { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further: hold them until it is back above 90.' },
+  { id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.' },
+
+  // Drugs for a specific problem: without it they cannot help and only bring their risks. The case lists what the patient
+  // has (Scenario.problems); "not well established" in a hyperkalemic arrest (2025 AHA) is never penalized.
+  { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (_s, sc) => !hasProblem(sc, CALCIUM_FOR), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose or a low calcium; otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
+  { id: 'bicarbonate-no-indication', actions: ['sodium-bicarbonate'], when: (_s, sc) => !hasProblem(sc, BICARBONATE_FOR), points: 3, severity: 'minor', text: 'Sodium bicarbonate without an indication. It is for hyperkalemia, metabolic acidosis or a sodium-channel-blocker (e.g. tricyclic) overdose; routine bicarbonate in cardiac arrest has no benefit (2025 AHA), and it adds a sodium load and CO₂ the lungs must clear.' },
+  { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s) => s.vitals.glucose < LOW_GLUCOSE, points: 10, severity: 'major', text: 'Insulin with a blood glucose under 70 mg/dL. Treat the low glucose first: insulin drives it lower, and the worst lows come 1–3 hours later.' },
+  // 10 units is the potassium dose; a beta- or calcium-channel-blocker overdose needs far more, so it is too little there, not a mistake
+  { id: 'insulin-no-indication', actions: ['insulin-dextrose'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 5, severity: 'minor', text: 'Insulin and dextrose without hyperkalemia. They shift potassium into the cells; with no high potassium they only risk a low glucose.' },
+  { id: 'albuterol-hyperk-no-indication', actions: ['albuterol-hyperk'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia']), points: 3, severity: 'minor', text: 'High-dose albuterol (10–20 mg) without hyperkalemia. That dose is for shifting potassium and it races the heart; for wheezing the dose is 2.5–5 mg.' },
+  { id: 'magnesium-routine-arrest', actions: ['magnesium-sulfate'], when: (s, sc) => !s.pulse && rhythmKind(s) !== 'torsades' && !hasProblem(sc, ['long-qt']), points: 3, severity: 'minor', text: 'Magnesium in a cardiac arrest without torsades. Routine magnesium does not help VF, pulseless VT, PEA or asystole; it is for torsades de pointes.' },
+
+  // Procainamide: the stop rules and contraindications on its drug card (2025 AHA tachycardia algorithm)
+  { id: 'procainamide-in-arrest', actions: ['procainamide'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Procainamide in cardiac arrest. It is a slow infusion (20–50 mg/min), not an arrest drug: amiodarone 300 mg or lidocaine is.' },
+  { id: 'procainamide-hypotension', actions: ['procainamide'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one: an unstable tachycardia needs synchronized cardioversion.' },
+  // a pacer (pads or a wire) protects against the block it would deepen
+  { id: 'procainamide-slow', actions: ['procainamide'], when: (s) => s.pulse && !paced(s) && (AV_BLOCKS.includes(rhythmKind(s)) || s.rhythm.hr < 50), points: 10, severity: 'major', text: 'Procainamide with AV block or a slow heart rate. It slows conduction further and can stop the heart; it is a drug for tachycardia.' },
+  { id: 'procainamide-heart-failure', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['heart-failure']), points: 8, severity: 'major', text: 'Procainamide in a patient with heart failure. It weakens the squeeze and drops the pressure: in heart failure use amiodarone, or synchronized cardioversion.' },
+  { id: 'procainamide-long-qt', actions: ['procainamide'], when: (s, sc) => hasProblem(sc, ['long-qt']) || rhythmKind(s) === 'torsades', points: 10, severity: 'major', text: 'Procainamide with a long QT. It lengthens the QT further and can set off torsades de pointes.' },
+  // when one antiarrhythmic has not worked, the next step is a shock or expert advice, not a second drug on top
+  { id: 'procainamide-after-amiodarone', actions: ['procainamide'], when: (s) => s.pulse && has(s, 'amiodarone'), points: 5, severity: 'minor', text: 'Procainamide on top of amiodarone. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
+  { id: 'amiodarone-after-procainamide', actions: ['amio-infusion'], when: (s) => s.pulse && has(s, 'procainamide'), points: 5, severity: 'minor', text: 'Amiodarone on top of procainamide. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
+
+  // Glucose: judged on the patient's real glucose, checked or not
+  { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE, points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
+  { id: 'oral-glucose-cannot-swallow', actions: ['oral-glucose'], when: (s) => !canSwallow(s), points: 8, severity: 'major', text: 'Oral glucose for a patient too drowsy to swallow. It can be inhaled into the lungs: by mouth only if awake enough to swallow and protect the airway — otherwise IV dextrose (ALS).' },
 ];
 
 // ─── Engine ────────────────────────────────────────────────────────────────
@@ -511,7 +619,7 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
     if (!h.actions.includes(id)) continue;
     if (h.roles && !h.roles.includes(s.role)) continue;
     if (s.penalties.some((p) => p.id === h.id)) continue;
-    if (h.when && !h.when(s)) continue;
+    if (h.when && !h.when(s, sc)) continue;
     s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text });
   }
 }

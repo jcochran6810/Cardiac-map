@@ -115,7 +115,9 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'sedation', label: 'Sedation / analgesia for the procedure', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'per protocol or order, with monitoring', needsAccess: true },
   { id: 'tnk', label: 'Fibrinolytic: tenecteplase IV', category: 'meds', roles: [5], minutes: 0.5, detail: 'weight-based', needsAccess: true },
   { id: 'epi-im', label: 'Epinephrine IM for anaphylaxis', category: 'meds', roles: [1, 2, 4, 5], minutes: 0.3, detail: '0.3–0.5 mg (1 mg/mL), lateral thigh' },
-  { id: 'albuterol', label: 'Albuterol (salbutamol) nebulizer', category: 'meds', roles: [2, 4, 5], minutes: 1, detail: '2.5–5 mg' },
+  // two actions, not one with a dose to pick: the hyperkalemia dose is 4–8 times the wheezing dose, and choosing it is the point
+  { id: 'albuterol', label: 'Albuterol (salbutamol) 2.5–5 mg nebulized (bronchospasm)', category: 'meds', roles: [2, 4, 5], minutes: 1, detail: 'for wheezing; repeat per protocol' },
+  { id: 'albuterol-hyperk', label: 'Albuterol 10–20 mg nebulized (hyperkalemia)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: '4–8 times the asthma dose, over about 10 min; not in cardiac arrest' },
   { id: 'diphenhydramine', label: 'Diphenhydramine IV', category: 'meds', roles: [2, 4, 5], minutes: 0.3, detail: '25–50 mg', needsAccess: true },
   { id: 'steroid', label: 'Methylprednisolone IV', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.3, detail: '125 mg', needsAccess: true },
   { id: 'radial-cocktail', label: 'Radial cocktail through the sheath', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.3, detail: 'verapamil 2.5 mg + nitroglycerin 200 mcg, on the operator\'s order' },
@@ -127,6 +129,19 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'gp2b3a', label: 'GP IIb/IIIa inhibitor (eptifibatide)', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.5, detail: '180 mcg/kg bolus ×2, 2 mcg/kg/min', needsAccess: true },
   { id: 'cangrelor', label: 'Cangrelor (IV P2Y12 inhibitor)', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.5, detail: '30 mcg/kg bolus, 4 mcg/kg/min', needsAccess: true },
   { id: 'protamine', label: 'Protamine (reverse heparin)', category: 'meds', roles: RN_MD, settings: LAB, minutes: 1, detail: '1 mg per 100 units of heparin, slowly', needsAccess: true },
+  // no-reflow: microvascular vasodilators, and epinephrine for the patient whose pressure is too low for them
+  { id: 'ic-nitroprusside', label: 'Intracoronary nitroprusside', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '50–200 mcg boluses (no-reflow), on the operator\'s order', repeatable: true },
+  { id: 'ic-epinephrine', label: 'Intracoronary epinephrine', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '50–100 mcg (no-reflow with a low pressure), on the operator\'s order', repeatable: true },
+
+  // Electrolytes, antidotes and glucose: offered in the field and in the lab alike (oral glucose in the field only)
+  { id: 'calcium-chloride', label: 'Calcium chloride 1 g IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: '10 mL of 10 %, over 2–5 min with a pulse (a push in arrest); flush the line', repeatable: true, maxTimes: 3, needsAccess: true },
+  { id: 'sodium-bicarbonate', label: 'Sodium bicarbonate 50 mEq IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '50 mL of 8.4 % (about 1 mEq/kg); flush before and after calcium', repeatable: true, maxTimes: 3, needsAccess: true },
+  { id: 'insulin-dextrose', label: 'Insulin 10 units IV with dextrose 25 g', category: 'meds', roles: RN_MD, minutes: 0.5, detail: 'regular insulin push, then D50 50 mL; recheck the glucose every hour', needsAccess: true },
+  { id: 'magnesium-sulfate', label: 'Magnesium sulfate 2 g IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'diluted, over about 15 min with a pulse (a push in pulseless torsades)', repeatable: true, maxTimes: 2, needsAccess: true },
+  { id: 'procainamide', label: 'Procainamide 20–50 mg/min IV', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'stop when the arrhythmia stops, at hypotension, QRS widening by 50 % or 17 mg/kg; avoid in heart failure and long QT', needsAccess: true },
+  { id: 'glucagon', label: 'Glucagon 3–10 mg IV (beta- or calcium-channel-blocker overdose)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'slowly over 3–5 min, then an infusion; expect vomiting', repeatable: true, maxTimes: 2, needsAccess: true },
+  { id: 'oral-glucose', label: 'Oral glucose 15 g (one tube of gel)', category: 'meds', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'between cheek and gum, only if awake enough to swallow', repeatable: true, maxTimes: 2 },
+  { id: 'dextrose', label: 'Dextrose 25 g IV/IO (hypoglycemia)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'D10 in 100 mL (10 g) steps up to 250 mL, or D50 50 mL; recheck the glucose', repeatable: true, maxTimes: 2, needsAccess: true },
 
   // Resuscitation & electrical
   { id: 'cpr', label: 'High-quality CPR (2-minute cycle)', category: 'resus', roles: ALL, minutes: 2, repeatable: true },
