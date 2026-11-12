@@ -218,6 +218,14 @@ export default function AppShell() {
 
   // Keyboard shortcuts
   useEffect(() => {
+    // The control that got its focus from the keyboard (Tab, or a key that moved focus), if it still has it. A mouse
+    // click leaves focus on the button clicked; that one does not count. (Not :focus-visible: Chrome turns it on for
+    // the focused button as soon as any key is pressed, Space included.)
+    let byKey = false;
+    let keyFocus: EventTarget | null = null;
+    const onAnyKey = () => { byKey = true; };
+    const onPointer = () => { byKey = false; keyFocus = null; };
+    const onFocus = (e: FocusEvent) => { keyFocus = byKey ? e.target : null; };
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
@@ -230,12 +238,16 @@ export default function AppShell() {
       // the 3D-heart and ECG shortcuts only belong to the learning screen
       if (app.mode !== 'learn' && !['q', 'Q', 't', 'T', '?', 'Escape'].includes(e.key)) return;
       switch (e.key) {
-        case ' ':
-          // Space on a focused button, link or tab presses it (the trainer's "Next tracing"), not play / pause
-          if (el?.closest('button, a[href], summary, [role="button"], [role="tab"], [role="checkbox"], [role="switch"], [role="radio"], [role="option"], [role="menuitem"]')) return;
+        case ' ': {
+          // Space is play / pause, except on a button that asks for it (the trainer's "Next tracing", which an answer
+          // focuses) or one the learner reached with the keyboard: those it presses. After a mouse click (focus stays on
+          // the button clicked) it is still play / pause, not that button again.
+          const control = el?.closest('button, summary, [role="button"], [role="tab"], [role="checkbox"], [role="switch"], [role="radio"], [role="option"], [role="menuitem"]');
+          if (control && (control.hasAttribute('data-space-presses') || keyFocus === el)) return;
           e.preventDefault();
           tl.togglePlay();
           break;
+        }
         case 'ArrowLeft':
         case 'ArrowRight':
           if (!tl.playing) {
@@ -276,8 +288,16 @@ export default function AppShell() {
           if (VIEW_KEYS[e.key]) { app.setViewMode(VIEW_KEYS[e.key]); showHeart(); }
       }
     };
+    window.addEventListener('keydown', onAnyKey, true);
+    window.addEventListener('pointerdown', onPointer, true);
+    window.addEventListener('focusin', onFocus, true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onAnyKey, true);
+      window.removeEventListener('pointerdown', onPointer, true);
+      window.removeEventListener('focusin', onFocus, true);
+      window.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const handle = 'bg-slate-700/80 hover:bg-cardiac-accent/60 active:bg-cardiac-accent transition-colors shrink-0 touch-none';

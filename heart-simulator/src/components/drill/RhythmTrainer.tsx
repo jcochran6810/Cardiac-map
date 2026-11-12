@@ -184,7 +184,8 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
       {answered && (
         <footer className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-slate-700/80">
           <span className="flex-1 text-[11px] text-slate-500 truncate">Look at the tracing again with the answer in mind.</span>
-          <button ref={nextRef} onClick={nextTracing} className="h-10 px-4 rounded-lg bg-cardiac-accent text-slate-950 text-sm font-semibold hover:bg-amber-400 flex items-center gap-1">
+          {/* (Space presses it too, after an answer given with the mouse: AppShell's shortcut leaves it alone) */}
+          <button ref={nextRef} onClick={nextTracing} data-space-presses className="h-10 px-4 rounded-lg bg-cardiac-accent text-slate-950 text-sm font-semibold hover:bg-amber-400 flex items-center gap-1">
             Next tracing <IconChevron size={16} />
           </button>
         </footer>
