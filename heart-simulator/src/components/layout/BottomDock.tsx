@@ -101,7 +101,8 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   expandedRef.current = expanded;
   useEffect(() => {
     const toggle = toggleRef.current;
-    if (!toggle || side || !narrow) return;
+    // …but not during a lesson or in the rhythm trainer, where the text beside it must stay in view
+    if (!toggle || side || !narrow || guided) return;
     // the electrode lab's 3D patient needs the room too
     const big = ecg.bottomView === 'defib' || (ecg.bottomView === 'ecg' && ecg.electrodeLab);
     if (big && !expandedRef.current) {
@@ -229,7 +230,8 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       aria-label="ECG and hemodynamics"
     >
       {/* ── Phones: view tabs get their own row so they are never scrolled out of sight ── */}
-      {narrow && (
+      {/* (a lesson or the trainer chooses the view itself, and the picture needs the room) */}
+      {narrow && !guided && (
         <div className="flex items-center gap-1.5 px-2 pt-1.5 shrink-0">
           <div className="flex-1 grid grid-cols-3 rounded-md overflow-hidden border border-slate-600" role="tablist" aria-label="Lower panel view">
             {VIEWS.map((o) => (
@@ -334,7 +336,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       </div>
 
       {/* ── ECG options bar ─────────────────────────────────────── */}
-      {ecg.bottomView === 'ecg' && (fold ? (
+      {ecg.bottomView === 'ecg' && !(guided && narrow && ecg.electrodeLab) && (fold ? (
         <>
           <div className="flex items-center gap-1.5 px-2 py-1 border-b border-slate-700/40 shrink-0 text-[10px] overflow-x-auto no-scrollbar">
             <Seg
@@ -402,7 +404,9 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           </aside>
         )}
         {ecg.bottomView === 'ecg' && ecg.electrodeLab && (narrow ? (
-          <Sheet title="Electrode lab" onClose={() => ecg.setElectrodeLab(false)}><ElectrodeLab titled /></Sheet>
+          guided
+            ? <Sheet title="Electrode lab" bare><ElectrodeLab titled fit /></Sheet>
+            : <Sheet title="Electrode lab" onClose={() => ecg.setElectrodeLab(false)}><ElectrodeLab titled /></Sheet>
         ) : (
           <aside className="w-[30rem] max-w-[48%] shrink-0 border-l border-slate-700 overflow-hidden p-2.5 bg-cardiac-dark/40">
             <ElectrodeLab wide />
@@ -421,14 +425,17 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
 }
 
 /** Phones: side columns would crush the tracing, so they slide over it instead. */
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/** `bare`: no title row or close button (a lesson put this sheet up and takes it down itself) */
+function Sheet({ title, onClose, bare = false, children }: { title: string; onClose?: () => void; bare?: boolean; children: React.ReactNode }) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col bg-cardiac-panel/95 backdrop-blur-sm animate-slide-in-up" role="dialog" aria-label={title}>
-      <div className="flex items-center justify-between pl-3 pr-1 py-1 border-b border-slate-700 shrink-0">
-        <span className="text-xs font-semibold text-white">{title}</span>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:text-white" aria-label={`Close ${title.toLowerCase()}`}><IconClose size={16} /></button>
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto p-3">{children}</div>
+      {!bare && (
+        <div className="flex items-center justify-between pl-3 pr-1 py-1 border-b border-slate-700 shrink-0">
+          <span className="text-xs font-semibold text-white">{title}</span>
+          {onClose && <button onClick={onClose} className="p-2 text-slate-400 hover:text-white" aria-label={`Close ${title.toLowerCase()}`}><IconClose size={16} /></button>}
+        </div>
+      )}
+      <div className={`flex-1 min-h-0 overflow-y-auto ${bare ? 'p-1.5' : 'p-3'}`}>{children}</div>
     </div>
   );
 }

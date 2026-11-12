@@ -133,7 +133,9 @@ export default function AppShell() {
   const sideBySide = short && hOpen && eOpen;
   // a lesson's text needs more of an upright screen than a library page that is being glanced at
   const hWant = clamp(heartSize ?? A * (lessonStacked ? (eOpen ? 0.3 : 0.42) : eOpen ? 0.38 : 0.5), MIN_DRAWER, A);
-  const eWant = clamp(ecgSize ?? A * (lessonStacked ? (hOpen ? 0.3 : drillOn ? 0.46 : 0.42) : hOpen ? 0.4 : phone ? 0.5 : 0.45), MIN_DRAWER, A);
+  // (the electrode lab's 3D patient and the monitor-defibrillator need the most room)
+  const bigPanel = useECGStore((s) => s.bottomView === 'defib' || (s.bottomView === 'ecg' && s.electrodeLab));
+  const eWant = clamp(ecgSize ?? A * (lessonStacked ? (hOpen ? 0.3 : bigPanel ? 0.52 : drillOn ? 0.46 : 0.42) : hOpen ? 0.4 : phone ? 0.5 : 0.45), MIN_DRAWER, A);
   let hH = 0;
   let eH = 0;
   if (sideBySide) {
@@ -152,7 +154,7 @@ export default function AppShell() {
     hH = hOpen ? hWant : 0;
     eH = eOpen ? eWant : 0;
     // always leave a strip of the reading in view
-    const room = A - (lessonStacked ? Math.max(200, A * 0.36) : Math.max(72, A * 0.14));
+    const room = A - (lessonStacked ? Math.max(190, A * (bigPanel ? 0.3 : 0.36)) : Math.max(72, A * 0.14));
     if (hH + eH > room && hH + eH > 0) {
       const k = Math.max(0, room) / (hH + eH);
       hH *= k;

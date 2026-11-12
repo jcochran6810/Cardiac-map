@@ -21,8 +21,11 @@ const SITE_XY: Record<Electrode, [number, number]> = {
 
 type Guess = { answer: string; correct: boolean } | null;
 
-/** `wide`: desktop side panel (two columns). `titled`: the container already shows the title and close button. */
-export default function ElectrodeLab({ wide = false, titled = false }: { wide?: boolean; titled?: boolean }) {
+/**
+ * `wide`: desktop side panel (two columns). `titled`: the container already shows the title and close button.
+ * `fit`: a small panel (a lesson on a phone) — the patient fills what is visible and the controls follow below.
+ */
+export default function ElectrodeLab({ wide = false, titled = false, fit = false }: { wide?: boolean; titled?: boolean; fit?: boolean }) {
   const placement = useECGStore((s) => s.placement);
   const hidden = useECGStore((s) => s.placementHidden);
   const reveal = useECGStore((s) => s.revealPlacement);
@@ -107,7 +110,7 @@ export default function ElectrodeLab({ wide = false, titled = false }: { wide?: 
         picked={picked}
         lead={lead}
         onSite={clickSite}
-        className={`w-full rounded-md bg-gradient-to-b from-slate-900/40 to-slate-950/60 ${wide ? 'flex-1 min-h-[150px]' : 'h-[290px]'}`}
+        className={`w-full rounded-md bg-gradient-to-b from-slate-900/40 to-slate-950/60 ${wide || fit ? 'flex-1 min-h-[150px]' : 'h-[290px]'}`}
         fallback={(
           <svg viewBox="0 0 200 232" className="w-full max-w-[230px] mx-auto block" role="img" aria-label="Electrode positions on the chest">
             {/* body */}
@@ -246,6 +249,14 @@ export default function ElectrodeLab({ wide = false, titled = false }: { wide?: 
       <div className="h-full flex gap-3 text-[11px]">
         <div className="w-[48%] shrink-0 flex flex-col min-h-0">{header}{model}</div>
         <div className="flex-1 min-w-0 overflow-y-auto pr-1 -mt-2">{controls}</div>
+      </div>
+    );
+  }
+  if (fit) {
+    return (
+      <div className="h-full text-[11px]">
+        <div className="h-full min-h-[170px] flex flex-col">{model}</div>
+        <div className="pt-2">{controls}</div>
       </div>
     );
   }

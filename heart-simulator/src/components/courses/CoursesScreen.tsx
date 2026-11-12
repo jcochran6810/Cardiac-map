@@ -134,7 +134,7 @@ function CourseCard({ course, open, onToggle }: { course: Course; open: boolean;
                     {p?.done && p.total > 0 && <span className="block text-[11px] text-emerald-300/90 whitespace-nowrap">{p.correct}/{p.total} right</span>}
                     {started && <span className="block text-[11px] text-cardiac-accent whitespace-nowrap">step {p.step + 1} of {l.steps.length}</span>}
                   </span>
-                  <span className={`shrink-0 hidden xs:flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold ${isNext ? 'bg-cardiac-accent text-slate-950' : 'border border-slate-600 text-slate-200'}`}>
+                  <span className={`shrink-0 hidden sm:flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold ${isNext ? 'bg-cardiac-accent text-slate-950' : 'border border-slate-600 text-slate-200'}`}>
                     {!p?.done && <IconPlay size={14} />}{p?.done ? 'Review' : started ? 'Continue' : 'Start'}
                   </span>
                 </button>
