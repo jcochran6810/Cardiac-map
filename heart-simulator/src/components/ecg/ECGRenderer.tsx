@@ -429,6 +429,8 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       L.strips.forEach((s, i) => {
         let lastEnd = -Infinity;
         let row = 0;
+        // the strip's own name is printed at its top-left corner: labels that start there go one row down
+        const nameEnd = s.x + 9 + c.measureText(L.strips.length > 3 ? `${s.label} (rhythm strip)` : s.label).width * 1.3;
         for (const m of marks) {
           const x = shownX(s, m.t, T, L.pxPerMs);
           if (x === null) continue;
@@ -445,6 +447,7 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
           const w = c.measureText(m.label).width + 6;
           const lx = Math.min(X + 3, s.x + s.w - w - 2);
           row = lx < lastEnd ? (row + 1) % 3 : 0; // stagger labels that would overlap
+          if (row === 0 && lx < nameEnd) row = 1;
           lastEnd = lx + w;
           const ly = s.y + 3 + row * 15;
           c.globalAlpha = 0.85;
@@ -470,25 +473,33 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       if (v.t < ws) return;
       const X = (t: number) => s.x + (t - ws) * L.pxPerMs;
       const base = s.y + s.h * 0.62;
-      const yBr = s.y + s.h - 26;
+      // a small picture (a phone, a lesson beside it): tighter rows and smaller type, so the brackets stay clear of the trace
+      const small = s.h < 190;
+      const rowGap = small ? 16 : 22;
+      const yBr = s.y + s.h - (small ? 28 : 32); // clear of the paper-speed footer
       c.strokeStyle = color;
       c.fillStyle = color;
       c.lineWidth = 1;
-      c.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+      c.font = `600 ${small ? 10 : 11}px ui-sans-serif, system-ui, sans-serif`;
+      // keep a label that is centred on `x` inside the strip
+      const inside = (x: number, label: string) => {
+        const half = c.measureText(label).width / 2 + 3;
+        return Math.max(s.x + half, Math.min(s.x + s.w - half, x));
+      };
       const bracket = (t0: number, t1: number, y: number, label: string) => {
         const x0 = X(t0), x1 = X(t1);
         c.beginPath();
         c.moveTo(x0, y - 4); c.lineTo(x0, y); c.lineTo(x1, y); c.lineTo(x1, y - 4);
         c.stroke();
         c.textAlign = 'center';
-        c.fillText(label, (x0 + x1) / 2, y + 12);
+        c.fillText(label, inside((x0 + x1) / 2, label), y + (small ? 10 : 12));
         c.textAlign = 'left';
       };
       const markAt = (t: number, label: string) => {
         const y = base - engine.voltage(s.lead, t) * L.pxPerMv;
         const ly = Math.min(y, base) - 10;
         c.textAlign = 'center';
-        c.fillText(label, X(t), Math.max(s.y + 26, ly));
+        c.fillText(label, inside(X(t), label), Math.max(s.y + 26, ly));
         c.textAlign = 'left';
       };
       // P wave + PR interval if this beat was conducted from a visible P
@@ -496,7 +507,7 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       const a = ai >= 0 ? engine.atrial[ai] : null;
       if (a && a.t >= ws) {
         markAt(a.t + a.template.duration * 0.45, 'P');
-        bracket(a.t, v.t, yBr - 44, `PR ${Math.round(v.t - a.t)} ms`);
+        bracket(a.t, v.t, yBr - 2 * rowGap, `PR ${Math.round(v.t - a.t)} ms`);
       }
       // QRS
       let rT = v.t;
@@ -506,7 +517,7 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
         if (y > rV) { rV = y; rT = t; }
       }
       markAt(rT, 'QRS');
-      bracket(v.t, v.t + v.qrsDur, yBr - 22, `QRS ${Math.round(v.qrsDur)} ms`);
+      bracket(v.t, v.t + v.qrsDur, yBr - rowGap, `QRS ${Math.round(v.qrsDur)} ms`);
       // T wave + QT
       markAt(v.t + v.tw.tp, 'T');
       const rr = vi > 0 ? v.t - engine.vent[vi - 1].t : 60000 / Math.max(1, engine.heartRate(T));
@@ -515,10 +526,13 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       // ST measurement point (J + 60 ms)
       const jx = X(v.t + v.qrsDur + 60);
       c.setLineDash([3, 3]);
-      c.beginPath(); c.moveTo(jx, s.y + 20); c.lineTo(jx, s.y + s.h - 50); c.stroke();
+      c.beginPath(); c.moveTo(jx, s.y + 20); c.lineTo(jx, yBr - rowGap - 8); c.stroke();
       c.setLineDash([]);
       const stv = engine.voltage(s.lead, v.t + v.qrsDur + 60) - engine.voltage(s.lead, v.t - 15);
-      c.fillText(`ST ${stv >= 0 ? '+' : ''}${(stv * 10).toFixed(1)} mm`, jx + 4, s.y + 30);
+      const stText = `ST ${stv >= 0 ? '+' : ''}${(stv * 10).toFixed(1)} mm`;
+      // beside its dashed line, on whichever side has room
+      const stW = c.measureText(stText).width;
+      c.fillText(stText, jx + 4 + stW > s.x + s.w - 2 ? jx - 4 - stW : jx + 4, s.y + (small ? 14 : 30));
     };
 
     const drawCalipers = (c: CanvasRenderingContext2D, L: Layout, pts: Caliper[], color: string) => {

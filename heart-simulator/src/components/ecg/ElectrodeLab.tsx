@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useECGStore } from '@/store/useECGStore';
 import {
@@ -37,6 +37,9 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
   const [note, setNote] = useState<string | null>(null);
   const lead = useECGStore((s) => s.selectedLead);
   const selectLead = useECGStore((s) => s.selectLead);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // bring the top of the lab (the mystery's question, then its answer) back into view in a scrolling panel
+  const toTop = () => window.setTimeout(() => rootRef.current?.scrollIntoView({ block: 'start' }), 0);
 
   const colors = ELECTRODE_COLORS[scheme];
   const standard = isStandard(placement);
@@ -72,31 +75,33 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
     applyPlacement(choice ? applyPreset(choice) : STANDARD_PLACEMENT, true);
     setGuess(null);
     setPicked(null);
+    toTop();
   };
 
   const answer = (id: string) => {
     const truth = preset?.id ?? 'none';
     setGuess({ answer: id, correct: id === truth });
     reveal();
+    toTop();
   };
 
   const header = (
     <>
       <div className="flex items-center justify-between mb-1">
-        <div className="text-[9px] uppercase tracking-wider text-slate-500">Electrode lab</div>
-        <button onClick={close} className="text-slate-500 hover:text-white text-[10px]" aria-label="Close electrode lab">✕</button>
+        <div className="text-[10px] uppercase tracking-wider text-slate-400">Electrode lab</div>
+        <button onClick={close} className="w-7 h-7 -mr-1 -my-1 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-cardiac-surface text-xs" aria-label="Close electrode lab">✕</button>
       </div>
     </>
   );
   const model = (
     <>
-      <div className="flex rounded overflow-hidden border border-slate-600 text-[10px] mb-1" role="group" aria-label="What tapping an electrode does">
+      <div className="flex shrink-0 rounded overflow-hidden border border-slate-600 text-[11px] mb-1" role="group" aria-label="What tapping an electrode does">
         {(['view', 'swap'] as const).map((m) => (
           <button
             key={m}
             onClick={() => { setMode(m); setPicked(null); setNote(null); }}
             aria-pressed={mode === m}
-            className={`flex-1 px-2 py-1 touch:py-1.5 ${mode === m ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:text-white'}`}
+            className={`flex-1 px-2 py-1 touch:min-h-[36px] ${mode === m ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:text-white'}`}
           >
             {m === 'view' ? 'Lead views' : 'Swap cables'}
           </button>
@@ -110,7 +115,7 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
         picked={picked}
         lead={lead}
         onSite={clickSite}
-        className={`w-full rounded-md bg-gradient-to-b from-slate-900/40 to-slate-950/60 ${wide || fit ? 'flex-1 min-h-[150px]' : 'h-[290px]'}`}
+        className={`w-full rounded-md bg-gradient-to-b from-slate-900/40 to-slate-950/60 ${wide ? 'flex-1 min-h-[150px]' : fit ? 'flex-1 min-h-[120px]' : 'h-[290px]'}`}
         fallback={(
           <svg viewBox="0 0 200 232" className="w-full max-w-[230px] mx-auto block" role="img" aria-label="Electrode positions on the chest">
             {/* body */}
@@ -140,21 +145,21 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
         )}
       />
 
-      <div className="flex items-center justify-between mt-1">
-        <span className="text-slate-500 text-[10px] min-w-0 truncate mr-1">
+      <div className="flex shrink-0 items-center justify-between mt-1">
+        <span className="text-slate-400 text-[11px] min-w-0 truncate mr-1">
           {mode === 'view'
             ? 'Tap an electrode or lead · drag to turn'
             : hidden ? 'Cables hidden — read the ECG' : picked ? `Swap ${picked} with… (tap another)` : 'Tap two electrodes to swap cables'}
         </span>
-        <div className="flex shrink-0 rounded overflow-hidden border border-slate-600 text-[9px]">
+        <div className="flex shrink-0 rounded overflow-hidden border border-slate-600 text-[10px]" role="group" aria-label="Electrode color code">
           {(['aha', 'iec'] as const).map((k) => (
-            <button key={k} onClick={() => setScheme(k)} className={`px-1.5 py-0.5 ${scheme === k ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-400'}`}>{k === 'aha' ? 'AHA' : 'IEC'}</button>
+            <button key={k} onClick={() => setScheme(k)} aria-pressed={scheme === k} title={k === 'aha' ? 'AHA colors (North America)' : 'IEC colors (Europe)'} className={`px-1.5 py-0.5 touch:px-2.5 touch:min-h-[32px] ${scheme === k ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-400'}`}>{k === 'aha' ? 'AHA' : 'IEC'}</button>
           ))}
         </div>
       </div>
     </>
   );
-  const controls = (
+  const leadInfo = (
     <>
       {mode === 'view' && (
         <div className="mt-2">
@@ -164,7 +169,7 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
                 key={l}
                 onClick={() => { setNote(null); selectLead(l); }}
                 aria-pressed={lead === l}
-                className={`px-1 py-0.5 touch:py-1.5 rounded text-[10px] font-semibold ${lead === l ? 'bg-cyan-400 text-slate-950' : 'bg-cardiac-surface/70 text-slate-300 hover:text-white'}`}
+                className={`px-1 py-0.5 touch:min-h-[36px] rounded text-[11px] font-semibold ${lead === l ? 'bg-cyan-400 text-slate-950' : 'bg-cardiac-surface/70 text-slate-300 hover:text-white'}`}
               >
                 {l}
               </button>
@@ -179,12 +184,17 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
               <div className="text-slate-400">{LEAD_VIEWS[lead].positive}: {ELECTRODE_SITE_TEXT[LEAD_VIEWS[lead].positive]}</div>
               {leadFlat && <div className="text-amber-200">With the cables reversed ({desc}), {lead} is almost flat: both of its poles now sit at nearly the same potential.</div>}
             {leadTurned && <div className="text-amber-200">With the cables reversed ({desc}), {lead} no longer looks from its usual side: the line on the heart shows where it looks now.</div>}
-            <div className="text-slate-500">The cyan line on the heart starts where this lead looks from.</div>
+            <div className="text-slate-400">The cyan line on the heart starts where this lead looks from.</div>
             </div>
           )}
         </div>
       )}
 
+    </>
+  );
+  // the question of a mystery, then its answer with the clues that give it away
+  const status = (
+    <>
       {/* Status */}
       {!hidden && !standard && (
         <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
@@ -198,10 +208,11 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
       )}
       {hidden && (
         <div className="mt-2 rounded-md border border-sky-500/40 bg-sky-500/10 p-2">
-          <div className="text-sky-200 font-semibold mb-1">Mystery: is a cable reversed?</div>
+          <div className="text-sky-200 font-semibold">Mystery: is a cable reversed?</div>
+          <p className="text-slate-300 mb-1.5">Read the tracing — start with leads I, II and aVR, then the R waves across V1–V6 — and answer.</p>
           <div className="flex flex-wrap gap-1">
             {[{ id: 'none', label: 'Correct placement' }, ...PLACEMENT_PRESETS].map((p) => (
-              <button key={p.id} onClick={() => answer(p.id)} className="px-1.5 py-0.5 rounded bg-cardiac-surface text-slate-200 hover:bg-slate-600">{p.label}</button>
+              <button key={p.id} onClick={() => answer(p.id)} className="px-2 py-1 touch:min-h-[40px] touch:px-3 rounded bg-cardiac-surface text-slate-100 hover:bg-slate-600">{p.label}</button>
             ))}
           </div>
         </div>
@@ -213,20 +224,30 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
         </div>
       )}
 
-      <div className="mt-2 flex flex-wrap gap-1">
-        {PLACEMENT_PRESETS.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => { applyPlacement(applyPreset(p)); setGuess(null); }}
-            className={`px-1.5 py-0.5 rounded ${!hidden && preset?.id === p.id ? 'bg-amber-500/25 text-amber-200' : 'bg-cardiac-surface/70 text-slate-300 hover:text-white'}`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+    </>
+  );
+  const rest = (
+    <>
+      {!hidden && (
+        <div className="mt-2">
+          <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Try a reversal</div>
+          <div className="flex flex-wrap gap-1">
+            {PLACEMENT_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => { applyPlacement(applyPreset(p)); setGuess(null); }}
+                aria-pressed={preset?.id === p.id}
+                className={`px-2 py-1 touch:min-h-[40px] touch:px-3 rounded ${preset?.id === p.id ? 'bg-amber-500/25 text-amber-200' : 'bg-cardiac-surface/70 text-slate-300 hover:text-white'}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mt-1.5 flex gap-1">
-        <button onClick={() => { applyPlacement(STANDARD_PLACEMENT); setGuess(null); setPicked(null); }} className="flex-1 px-2 py-1 rounded bg-cardiac-surface text-slate-200 hover:bg-slate-600">Reset placement</button>
-        <button onClick={mystery} className="flex-1 px-2 py-1 rounded bg-sky-600/30 text-sky-200 hover:bg-sky-600/45">Mystery reversal</button>
+        <button onClick={() => { applyPlacement(STANDARD_PLACEMENT); setGuess(null); setPicked(null); }} className="flex-1 px-2 py-1 touch:min-h-[40px] rounded bg-cardiac-surface text-slate-200 hover:bg-slate-600">Reset placement</button>
+        <button onClick={mystery} className="flex-1 px-2 py-1 touch:min-h-[40px] rounded bg-sky-600/30 text-sky-200 hover:bg-sky-600/45">{hidden || guess ? 'Another mystery' : 'Mystery reversal'}</button>
       </div>
 
       <details className="mt-2 text-slate-400">
@@ -242,6 +263,7 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
       </details>
     </>
   );
+  const controls = <>{leadInfo}{status}{rest}</>;
 
   // Wide side panel (desktop): mannequin on the left, controls scrolling on the right
   if (wide) {
@@ -253,10 +275,13 @@ export default function ElectrodeLab({ wide = false, titled = false, fit = false
     );
   }
   if (fit) {
+    // a mystery is read off the tracing above, not off the patient: its question and its answer come first
+    const quiz = hidden || !!guess;
     return (
-      <div className="h-full text-[11px]">
-        <div className="h-full min-h-[170px] flex flex-col">{model}</div>
-        <div className="pt-2">{controls}</div>
+      <div ref={rootRef} className="h-full text-[11px]">
+        {quiz && <div className="pb-2 -mt-2">{status}</div>}
+        <div className={`flex flex-col min-h-[204px] ${quiz ? 'h-[70%]' : 'h-full'}`}>{model}</div>
+        <div className="pt-2">{quiz ? <>{leadInfo}{rest}</> : controls}</div>
       </div>
     );
   }

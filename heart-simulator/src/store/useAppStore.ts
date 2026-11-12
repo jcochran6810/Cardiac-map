@@ -93,6 +93,9 @@ function loadLevel(): LearningLevel {
   }
 }
 
+/** drawers that setShort enlarged when the phone was turned onto its side */
+let turned = { heart: false, ecg: false };
+
 export const useAppStore = create<AppState>((set) => ({
   mode: 'home',
   learningLevel: loadLevel(),
@@ -135,6 +138,17 @@ export const useAppStore = create<AppState>((set) => ({
   setQuizOpen: (quizOpen) => set({ quizOpen }),
   setCompact: (compact) => set({ compact }),
   setPhone: (phone) => set({ phone }),
-  setShort: (short) => set({ short }),
+  // Turning a phone onto its side leaves no height to share: a drawer that was open beside the reading takes the
+  // whole screen (as it would if opened that way), and goes back to its place when the phone is turned upright again.
+  setShort: (short) => set((s) => {
+    if (short === s.short) return s;
+    if (short) {
+      turned = { heart: s.heart === 'open', ecg: s.ecg === 'open' };
+      return { short, heart: turned.heart ? 'full' : s.heart, ecg: turned.ecg ? 'full' : s.ecg };
+    }
+    const back = turned;
+    turned = { heart: false, ecg: false };
+    return { short, heart: back.heart && s.heart === 'full' ? 'open' : s.heart, ecg: back.ecg && s.ecg === 'full' ? 'open' : s.ecg };
+  }),
   resetView: () => set({ viewMode: 'external', labelsVisible: true, searchQuery: '' }),
 }));

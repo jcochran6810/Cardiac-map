@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MEDS, MED_BY_ID, MED_GROUPS, PER_KG, fmtDose, type MedId } from '@/lib/sim/meds';
 import { useMedStore, type MedLogEntry } from '@/store/useMedStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import type { LearningLevel } from '@/store/useAppStore';
+import { useAppStore, type LearningLevel } from '@/store/useAppStore';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { openMedication, showEcg, showRhythm } from '@/lib/actions';
 import { sim } from '@/lib/sim/simulation';
@@ -66,6 +66,23 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
   const [drug, setDrug] = useState<MedId | ''>('');
   const [dose, setDose] = useState('');
   const [guide, setGuide] = useState(false);
+  const pickerRef = useRef<HTMLLabelElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  // Small screens: the page opens with the first thing to do — choosing the drug — in view…
+  useEffect(() => {
+    if (!useAppStore.getState().compact) return;
+    // (twice: the 12-lead may still be sliding up under the page the first time)
+    const show = () => pickerRef.current?.scrollIntoView({ block: 'center' });
+    const ids = [window.setTimeout(show, 150), window.setTimeout(show, 700)];
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [conditionId]);
+  // …and after a dose, with the verdict in view (once the 12-lead has finished sliding up)
+  useEffect(() => {
+    if (!last) return;
+    const id = window.setTimeout(() => resultRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 320);
+    return () => window.clearTimeout(id);
+  }, [last]);
 
   // The session belongs to this patient (condition); opening another starts afresh
   useEffect(() => {
@@ -127,9 +144,9 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
         </p>
       </div>
 
-      {SCOPE_NOTE[level] && <p className="text-[10px] text-slate-500 leading-snug">{SCOPE_NOTE[level]}</p>}
+      {SCOPE_NOTE[level] && <p className="text-[12px] text-slate-400 leading-snug">{SCOPE_NOTE[level]}</p>}
 
-      <label className="block">
+      <label className="block" ref={pickerRef}>
         <span className="text-[10px] uppercase tracking-wider text-slate-500">Medication</span>
         <select
           value={drug}
@@ -195,11 +212,11 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
           >
             <IconPill size={14} /> {valid ? `${def.verb} ${def.name} ${fmtDose(n)} ${def.unit}` : 'Choose a dose'}
           </button>
-          <p className="text-[10px] text-slate-500 leading-snug">Educational model: adult doses from current guidelines; real patients vary. Follow your protocols.</p>
+          <p className="text-[11px] text-slate-400 leading-snug">Educational model: adult doses from current guidelines; real patients vary. Follow your protocols.</p>
         </div>
       )}
 
-      {last && <Result />}
+      {last && <div ref={resultRef} className="scroll-mb-3"><Result /></div>}
 
       {log.length > 0 && (
         <div>
