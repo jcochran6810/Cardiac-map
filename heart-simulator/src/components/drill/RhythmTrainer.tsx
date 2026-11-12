@@ -176,12 +176,13 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
   );
 }
 
-function Header({ title, sub, onBack }: { title: string; sub: string; onBack?: () => void }) {
+function Header({ title, sub, onBack }: { title: string; sub: React.ReactNode; onBack?: () => void }) {
   return (
     <header className="shrink-0 px-3 py-2 flex items-center gap-2 border-b border-slate-700/80">
+      {/* named, so that it is not mistaken for the top bar's Back arrow above it */}
       {onBack && (
-        <button onClick={onBack} className="shrink-0 w-8 h-8 touch:w-10 touch:h-10 -ml-1 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-cardiac-surface" aria-label="Choose another set" title="Choose another set">
-          <IconBack size={18} />
+        <button onClick={onBack} className="shrink-0 h-8 touch:h-10 -ml-1 pl-1 pr-2 flex items-center gap-0.5 rounded-md text-[13px] font-medium text-slate-300 hover:text-white hover:bg-cardiac-surface" aria-label="Back to the sets" title="Back to the list of sets">
+          <IconBack size={18} />Sets
         </button>
       )}
       <div className="min-w-0 flex-1">

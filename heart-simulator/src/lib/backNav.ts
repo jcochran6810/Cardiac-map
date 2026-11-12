@@ -31,7 +31,7 @@ import { openById } from '@/lib/actions';
 import { lessonKey, useCourseStore } from '@/store/useCourseStore';
 import { exitLesson, startLesson } from '@/lib/courses';
 import { useDrillStore } from '@/store/useDrillStore';
-import { closeTrainer, openTrainer } from '@/lib/drillRun';
+import { closeTrainer, showTrainerPage } from '@/lib/drillRun';
 import { closeWelcome, useWelcomeStore } from '@/lib/welcome';
 
 /** the rhythm trainer's page (in `Page.lesson`) */
@@ -66,6 +66,8 @@ export interface Page {
    * (TRAINER_PAGE). Its steps and questions are not pages of their own.
    */
   lesson: string | null;
+  /** Rhythm trainer: the set in play (null: the list of sets). Each set is a page; its tracings are not */
+  drill?: string | null;
 }
 
 interface Entry { cardiosim: number; page: Page }
@@ -120,7 +122,8 @@ export function currentPage(): Page {
   const ecg = useECGStore.getState();
   const fb = useFeedbackStore.getState();
   const course = useCourseStore.getState().active;
-  // a lesson is one page however many steps it has and whatever each step shows; so is the rhythm trainer
+  // a lesson is one page however many steps it has and whatever each step shows; so is each rhythm trainer
+  // page (the list of sets, a set in play) however many tracings it shows
   const lesson = app.mode !== 'learn' ? null : course ? lessonKey(course.course, course.lesson) : useDrillStore.getState().open ? TRAINER_PAGE : null;
   const learn = app.mode === 'learn' && !lesson;
   const s = sim.state;
@@ -139,13 +142,14 @@ export function currentPage(): Page {
     sim: app.mode === 'simulator' ? simPage : 'list',
     run: app.mode === 'simulator' && s ? sim.run : 0,
     lesson,
+    drill: lesson === TRAINER_PAGE ? useDrillStore.getState().setId : null,
   };
 }
 
 const same = (a: Page | undefined, b: Page | undefined) =>
   !!a && !!b && a.mode === b.mode && a.cat === b.cat && a.item === b.item && a.list === b.list
   && a.heart === b.heart && a.ecg === b.ecg && a.lab === b.lab && a.overlay === b.overlay && a.sim === b.sim && a.run === b.run
-  && (a.lesson ?? null) === (b.lesson ?? null);
+  && (a.lesson ?? null) === (b.lesson ?? null) && (a.drill ?? null) === (b.drill ?? null);
 
 /** A simulator page can only come back while its case is still the one loaded */
 function restorable(page: Page): boolean {
@@ -171,8 +175,8 @@ function apply(page: Page, from: Page) {
   if (useCourseStore.getState().active && (!page.lesson || page.lesson === TRAINER_PAGE)) exitLesson('stay');
   if (useDrillStore.getState().open && page.lesson !== TRAINER_PAGE) closeTrainer('stay');
   if (page.lesson === TRAINER_PAGE) {
-    if (!useDrillStore.getState().open) openTrainer();
-    else app.setMode('learn');
+    // the list of sets, or the set that was in play (as it was left)
+    showTrainerPage(page.drill ?? null);
   } else if (page.lesson) {
     const [courseId, lessonId] = page.lesson.split('/');
     const now = useCourseStore.getState().active;
