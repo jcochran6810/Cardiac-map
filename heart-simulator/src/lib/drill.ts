@@ -48,7 +48,7 @@ export const DRILL_SETS: DrillSet[] = [
   {
     id: 'blocks',
     title: 'Blocks and extra beats',
-    text: 'AV blocks, junctional rhythm, PVCs and torsades — the ones that are decided by the PR interval and the P-to-QRS relationship.',
+    text: 'AV blocks, junctional rhythm, PVCs, AIVR and torsades — the ones that are decided by the PR interval and the P-to-QRS relationship.',
     layout: 'monitor',
     items: [
       SINUS,
@@ -59,6 +59,7 @@ export const DRILL_SETS: DrillSet[] = [
       { profile: 'third-degree-avb', label: 'Complete heart block', hr: [30, 44], confuse: ['mobitz-ii', 'junctional', 'sinus-bradycardia'] },
       { profile: 'junctional', label: 'Junctional rhythm', hr: [40, 58], confuse: ['sinus-bradycardia', 'third-degree-avb'] },
       { profile: 'pvcs', label: 'Sinus rhythm with PVCs', confuse: ['normal-sinus', 'mobitz-i'] },
+      { profile: 'aivr', label: 'Accelerated idioventricular rhythm (AIVR)', hr: [60, 100], confuse: ['third-degree-avb', 'junctional', 'pvcs'] },
       { profile: 'torsades', label: 'Torsades de pointes', confuse: ['pvcs'] },
     ],
   },

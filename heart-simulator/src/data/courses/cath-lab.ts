@@ -1008,8 +1008,8 @@ export const CATH_LAB: Course = {
             'The usual one is accelerated idioventricular rhythm (AIVR): a run of wide, regular beats at about 50–120 a minute, close to the patient\'s own rate. The patient stays awake and the pressure holds. It usually means flow is back, it stops by itself, and it is left alone. Drugs that suppress it can leave no rhythm at all.',
             'Check the pressure before naming any wide rhythm. A wide rhythm at 80 a minute with a good pressure is AIVR, not ventricular tachycardia (VT), the fast, dangerous rhythm from the ventricles.',
           ],
-          look: 'The artery is open: the purple pulsing has stopped, and in lead II the ST segment is back near the baseline with the T wave now upside down. AIVR itself is not drawn here: picture a run of wide beats at about this rate.',
-          show: { rhythm: 'inferior-stemi-reperfused', layout: 'monitor', camera: 'Bottom', focus: 'ecg' },
+          look: 'The artery is open and the purple pulsing has stopped. On the monitor: wide, regular beats at about 80 a minute, and small P waves that keep their own slightly slower beat, not tied to the QRS. That is AIVR.',
+          show: { rhythm: 'aivr', hr: 82, layout: 'monitor', camera: 'Bottom', focus: 'ecg' },
           check: {
             kind: 'choice',
             question: 'Seconds after the balloon opens the artery, the monitor shows a wide, regular rhythm at 85 a minute. The patient is talking and the arterial pressure is 118/70 mmHg. What is the right response?',
