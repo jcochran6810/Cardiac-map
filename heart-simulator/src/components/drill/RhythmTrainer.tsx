@@ -11,6 +11,9 @@ import { openById } from '@/lib/actions';
 import { backOutOfTrainer } from '@/lib/backNav';
 import { IconBack, IconCheck, IconChevron, IconClose, IconPlay } from '@/components/ui/icons';
 
+/** phones (three columns): how many cells "I am not sure" takes, by the number of answers modulo 3 — whatever the last row leaves free */
+const UNSURE_SPAN = ['phone:col-span-3', 'phone:col-span-2', 'phone:col-span-1'];
+
 const PAGE_OF: Record<string, string> = Object.fromEntries(Object.entries(CONDITION_TO_PROFILE).map(([condition, profile]) => [profile, condition]));
 
 /**
@@ -122,12 +125,13 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
         </span>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-3 phone:py-2" aria-live="polite">
+      {/* (the narrowest phones, 320 px: every pixel goes to the answers, so that they fit above the tracing) */}
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-3 phone:py-2 max-[359px]:px-2 max-[359px]:py-1.5" aria-live="polite">
         {!answered ? (
           <div className="flex flex-col">
             <h2 className="text-lg phone:text-[15px] font-semibold text-white leading-snug">What is this {set.layout === 'monitor' ? 'rhythm' : '12-lead'}?</h2>
-            {/* (a phone on its side has the least height: the reminder goes under the answers there) */}
-            <p className="mt-1 phone:mt-0 short:order-last short:mt-2 text-[13px] phone:text-xs text-slate-400 leading-snug">
+            {/* (a phone on its side, or a small one upright, has the least height: the reminder goes under the answers there) */}
+            <p className="mt-1 phone:mt-0 short:order-last short:mt-2 [@media(max-width:639px)_and_(max-height:740px)]:order-last [@media(max-width:639px)_and_(max-height:740px)]:mt-2 text-[13px] phone:text-xs text-slate-400 leading-snug">
               {set.layout === 'monitor'
                 ? 'Work through it: rate, regular or not, P waves, PR interval, QRS width.'
                 : 'Work through it: rhythm, axis, intervals, then the ST segments and T waves, lead group by lead group.'}
@@ -138,18 +142,19 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
                 <button
                   key={p}
                   onClick={() => d.answer(p)}
-                  className="text-left px-2.5 py-2.5 phone:px-2 phone:py-1 min-h-[44px] rounded-lg border border-slate-600 text-sm phone:text-xs leading-snug phone:leading-tight text-slate-100 hover:border-slate-400 hover:bg-cardiac-surface/60 transition-colors"
+                  className="text-left px-2.5 py-2.5 phone:px-2 phone:py-1 max-[359px]:px-1.5 min-h-[44px] max-[359px]:min-h-[40px] rounded-lg border border-slate-600 text-sm phone:text-xs leading-snug phone:leading-tight text-slate-100 hover:border-slate-400 hover:bg-cardiac-surface/60 transition-colors"
                 >
                   {labelOf(set, p)}
                 </button>
               ))}
+              {/* a row of its own; on phones it takes the free cells of the last row instead */}
+              <button
+                onClick={() => d.answer('unsure')}
+                className={`col-span-2 ${UNSURE_SPAN[q.options.length % 3]} mt-1.5 phone:mt-0 min-h-[44px] max-[359px]:min-h-[40px] px-3 phone:px-2 rounded-lg border border-dashed border-slate-500 text-[13px] phone:text-xs leading-tight text-slate-300 hover:text-white hover:border-slate-300 hover:bg-cardiac-surface/60 transition-colors`}
+              >
+                I am not sure — show me
+              </button>
             </div>
-            <button
-              onClick={() => d.answer('unsure')}
-              className="mt-3 phone:mt-2 w-full min-h-[44px] px-3 rounded-lg border border-dashed border-slate-500 text-[13px] text-slate-300 hover:text-white hover:border-slate-300 hover:bg-cardiac-surface/60 transition-colors"
-            >
-              I am not sure — show me
-            </button>
           </div>
         ) : (
           <>
@@ -197,7 +202,7 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
 
 function Header({ title, sub, onBack }: { title: string; sub: React.ReactNode; onBack?: () => void }) {
   return (
-    <header className="shrink-0 px-3 py-2 short:py-1 flex items-center gap-2 border-b border-slate-700/80">
+    <header className="shrink-0 px-3 py-2 short:py-1 [@media(max-width:639px)_and_(max-height:740px)]:py-1 flex items-center gap-2 border-b border-slate-700/80">
       {/* named, so that it is not mistaken for the top bar's Back arrow above it */}
       {onBack && (
         <button onClick={onBack} className="shrink-0 h-8 touch:h-10 -ml-1 pl-1 pr-2 flex items-center gap-0.5 rounded-md text-[13px] font-medium text-slate-300 hover:text-white hover:bg-cardiac-surface" aria-label="Back to the sets" title="Back to the list of sets">
