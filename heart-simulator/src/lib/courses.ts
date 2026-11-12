@@ -111,7 +111,22 @@ export function effectiveShow(steps: LessonStep[], index: number): StepShow {
     for (const k of SCENE_KEYS) if (s[k] !== undefined) (scene as Record<string, unknown>)[k] = s[k];
   }
   const own = steps[index]?.show ?? {};
-  return { ...scene, structure: own.structure, highlight: own.highlight, camera: own.camera, lead: own.lead, inspect: own.inspect, focus: own.focus };
+  return { ...scene, structure: own.structure, highlight: own.highlight, camera: own.camera, lead: own.lead, inspect: own.inspect, focus: focusOf(steps[index]) };
+}
+
+/**
+ * The one picture a step needs when there is room for only one (a phone on its side): what the step says, or else
+ * the picture it points at — the heart for a "tap the …" check, a ringed or highlighted part or a camera angle; the
+ * tracing for a "tap a lead" check or a selected / enlarged lead. Otherwise undefined (the tracing, see drawersFor).
+ */
+export function focusOf(step: LessonStep | undefined): StepShow['focus'] {
+  const own = step?.show ?? {};
+  if (own.focus) return own.focus;
+  if (step?.check?.kind === 'tap') return 'heart';
+  if (step?.check?.kind === 'lead') return 'ecg';
+  if (own.lead || own.inspect) return 'ecg';
+  if (own.structure || own.highlight?.length || own.camera) return 'heart';
+  return undefined;
 }
 
 /** Which drawers a step opens on this screen (a phone on its side has room for one picture beside the text) */
@@ -137,7 +152,20 @@ export function pickableOnHeart(view: ViewMode, id: string): boolean {
 /** the rhythm last put on the monitor by a lesson, so a step that keeps it does not restart the tracing */
 let shownRhythm = '';
 
+/** true while a step is being laid out: what it selects on the heart or the 12-lead is the lesson pointing, not the learner tapping */
+let applying = false;
+export const isApplyingStep = () => applying;
+
 function applyShow(show: StepShow) {
+  applying = true;
+  try {
+    layOut(show);
+  } finally {
+    applying = false;
+  }
+}
+
+function layOut(show: StepShow) {
   const app = useAppStore.getState();
   const ecg = useECGStore.getState();
   const scene = useSceneStore.getState();
@@ -167,8 +195,9 @@ function applyShow(show: StepShow) {
   if (app.showVector !== (show.vector ?? false)) app.toggleVector();
   if (app.autoRotate) app.toggleAutoRotate();
   scene.setHighlights(show.highlight ?? []);
-  scene.selectStructure(show.structure ?? null);
   const preset = show.camera ? CAMERA_PRESETS.find((p) => p.short === show.camera) : null;
+  // ringing a part normally flies the camera to it; a step that names its own camera angle keeps that angle
+  scene.selectStructure(show.structure ?? null, !preset);
   if (preset) scene.setCameraPreset(preset);
 
   // bottom panel

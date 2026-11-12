@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { useECGStore, ECGLayout, useBlind } from '@/store/useECGStore';
+import { useECGStore, ECGLayout, useBlind, useRateHidden } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { PHASE_LABELS } from '@/lib/ecg/engine';
 import { sim } from '@/lib/sim/simulation';
@@ -28,7 +28,7 @@ const MedEffectBar = dynamic(() => import('@/components/meds/MedEffectBar'), { s
 
 const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
   { value: 'simultaneous', label: '12-lead', title: 'Live 12-lead, like a monitor: every lead redraws at once (one sweep line per column) + lead II rhythm strip' },
-  { value: 'standard', label: 'Printout', title: 'Paper 12-lead printout: sequential 2.5 s columns (one sweep line walks across them) + lead II rhythm strip' },
+  { value: 'standard', label: 'Printout', title: 'Paper 12-lead printout: the four columns follow one another in time (one sweep line walks across them) + lead II rhythm strip' },
   { value: 'monitor', label: '3-lead', title: 'Bedside monitor view: leads II, V1 and V5' },
 ];
 
@@ -63,6 +63,8 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   // trainee mode, or a question open about the tracing: the app keeps its reading of the rhythm to itself
   const trainee = useDefibStore((s) => s.trainee);
   const asked = useBlind();
+  // …and, for a question that asks the learner to work out the rate, its rate numbers as well
+  const noRateShown = useRateHidden();
   const role = useAppStore((s) => s.learningLevel);
   // a phone on its side: every row of controls costs a fifth of the tracing
   const short = useAppStore((s) => s.short);
@@ -309,15 +311,15 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         {/* Monitor readout */}
         <div className={`flex items-baseline gap-1 shrink-0 ${narrow ? 'min-w-[64px]' : 'min-w-[78px]'}`} title="Monitor heart rate (calculated from the last RR intervals)">
           <span className={`font-mono text-xl font-bold leading-none ${arrest ? 'text-red-500 animate-pulse' : 'text-emerald-400'}`}>
-            {displayHR > 0 ? displayHR : '---'}
+            {noRateShown ? '··' : displayHR > 0 ? displayHR : '---'}
           </span>
           <span className="text-[10px] text-slate-400">bpm</span>
         </div>
-        {atrialRate && profile.rhythm !== 'sinus' && profile.rhythm !== 'paced' && atrialRate !== displayHR && (
+        {atrialRate && !asked && profile.rhythm !== 'sinus' && profile.rhythm !== 'paced' && atrialRate !== displayHR && (
           <div className="text-[10px] text-sky-300 shrink-0" title="Atrial rate">A {atrialRate}</div>
         )}
 
-        <label className={`flex items-center gap-1.5 ${narrow ? 'flex-1 min-w-[96px]' : 'shrink-0'}`} title={rateLabel}>
+        <label className={`flex items-center gap-1.5 ${narrow ? 'flex-1 min-w-[96px]' : 'shrink-0'} ${noRateShown ? 'invisible' : ''}`} title={rateLabel}>
           <span className={`text-[10px] text-slate-400 ${narrow || oneRow ? 'sr-only' : ''}`}>{rateLabel}</span>
           <input
             type="range"
@@ -356,11 +358,11 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         )}
 
         {/* Intervals */}
-        <div className="hidden xl:flex items-center gap-2 text-[10px] font-mono text-slate-400 shrink-0" title="Intervals for the current rhythm">
+        <div className={`hidden xl:flex items-center gap-2 text-[10px] font-mono text-slate-400 shrink-0 ${asked ? 'invisible' : ''}`} title="Intervals for the current rhythm">
           <span>PR <b className="text-slate-200">{intervals.pr ? `${Math.round(intervals.pr)}` : '—'}</b></span>
           <span>QRS <b className={`${(intervals.qrs ?? 0) >= 120 ? 'text-amber-300' : 'text-slate-200'}`}>{intervals.qrs ?? '—'}</b></span>
           <span>QT <b className="text-slate-200">{intervals.qt ?? '—'}</b></span>
-          <span>QTc <b className={`${(intervals.qtc ?? 0) > 470 ? 'text-amber-300' : 'text-slate-200'}`}>{intervals.qtc ?? '—'}</b></span>
+          <span>QTc <b className={`${(intervals.qtc ?? 0) >= 460 ? 'text-amber-300' : 'text-slate-200'}`}>{intervals.qtc ?? '—'}</b></span>
         </div>
 
         {oneRow && ecgBar && <>{foldedOpts}{placementWarning}</>}

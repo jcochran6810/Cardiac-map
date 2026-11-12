@@ -31,6 +31,8 @@ interface ECGState {
    * does, the app keeps its own reading to itself: no rhythm name, interpretation or key-lead tint.
    */
   blindBy: string[];
+  /** a "work out the rate" question is open: the app's own heart-rate numbers are hidden too */
+  rateHidden: boolean;
 
   setActiveProfile: (id: string) => void;
   setLayout: (layout: ECGLayout) => void;
@@ -47,6 +49,7 @@ interface ECGState {
   revealPlacement: () => void;
   setElectrodeLab: (open: boolean) => void;
   setBlind: (who: string, on: boolean) => void;
+  setRateHidden: (on: boolean) => void;
 }
 
 export const useECGStore = create<ECGState>((set) => ({
@@ -66,6 +69,7 @@ export const useECGStore = create<ECGState>((set) => ({
   placementHidden: false,
   electrodeLab: false,
   blindBy: [],
+  rateHidden: false,
 
   setActiveProfile: (activeProfileId) => set({ activeProfileId }),
   setLayout: (layout) => set({ layout }),
@@ -86,7 +90,12 @@ export const useECGStore = create<ECGState>((set) => ({
     if (on === has) return s;
     return { blindBy: on ? [...s.blindBy, who] : s.blindBy.filter((w) => w !== who) };
   }),
+  setRateHidden: (rateHidden) => set((s) => (s.rateHidden === rateHidden ? s : { rateHidden })),
 }));
 
+/** True while a "work out the rate" question is open */
+export const useRateHidden = () => useECGStore((s) => s.rateHidden);
+
 /** True while a question about the tracing is open: components hide whatever would give the answer away */
+
 export const useBlind = () => useECGStore((s) => s.blindBy.length > 0);

@@ -351,6 +351,8 @@ function ActivationLegend({ narrow }: { narrow: boolean }) {
   const a = useSceneStore((s) => s.activation);
   const vp = a.vent ? VENT_PATTERNS[a.vent] : null;
   const ap = a.atria ? ATRIAL_PATTERNS[a.atria] : null;
+  // a question about the rhythm is open: the map stays, the words that name the pattern go
+  const blind = useBlind();
   return (
     <div className={`absolute left-2 z-10 scene-panel rounded-lg text-[11px] text-slate-200 shadow-xl ${narrow ? 'bottom-2 p-1.5 w-[min(13rem,calc(58%-1rem))]' : 'bottom-9 p-2 w-72'}`}>
       <div className="text-[11px] uppercase tracking-wider text-slate-400">Activation map · local activation time</div>
@@ -360,7 +362,9 @@ function ActivationLegend({ narrow }: { narrow: boolean }) {
         <span>{vp ? `ventricles ${a.vFirstMs}–${a.qrsMs} ms` : ''}{vp && ap ? ' · ' : ''}{ap ? `atria ${a.aFirstMs}–${a.pMs} ms` : ''}</span>
         <span>latest</span>
       </div>
-      {vp ? (
+      {blind ? (
+        <div className="mt-1.5 text-slate-400 leading-snug">Read the map yourself: the names come back when you have answered.</div>
+      ) : vp ? (
         <div className="mt-1.5 space-y-0.5 leading-snug">
           <div className="text-white font-semibold">{vp.label}</div>
           {!narrow && (
@@ -374,7 +378,7 @@ function ActivationLegend({ narrow }: { narrow: boolean }) {
       ) : (
         <div className="mt-1.5 text-amber-200">No organized ventricular activation sequence (fibrillation / polymorphic VT) — nothing to map.</div>
       )}
-      {!ap && !narrow && (
+      {!ap && !narrow && !blind && (
         <div className="mt-1 text-slate-400">Atria: not mapped (AF, flutter macro-re-entry with no single earliest site, or no P wave).</div>
       )}
       {!narrow && (

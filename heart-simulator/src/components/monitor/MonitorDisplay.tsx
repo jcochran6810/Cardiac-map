@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { sim } from '@/lib/sim/simulation';
 import { useDefibStore, vitalsAt, plethAt, capnoAt, fmt, type Vitals } from '@/lib/sim/defib';
-import { useBlind, useECGStore } from '@/store/useECGStore';
+import { useBlind, useECGStore, useRateHidden } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { sampleTimes } from '@/lib/ecg/sweep';
 import { useAppStore } from '@/store/useAppStore';
@@ -41,6 +41,7 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
   const profile = resolveProfile(profileId);
   const role = useAppStore((s) => s.learningLevel);
   const blind = useBlind();
+  const rateHidden = useRateHidden();
   const [blink, setBlink] = useState(false);
   const channelsRef = useRef(channels);
   channelsRef.current = channels;
@@ -269,7 +270,7 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
       <div className={`shrink-0 flex flex-col justify-between border-l border-slate-800 font-mono ${large ? 'w-72 p-4' : 'w-28 sm:w-36 p-1.5 sm:p-2'}`}>
         <div style={{ color: COLORS.ecg }}>
           <div className="text-[10px] flex justify-between"><span>HR</span><span>bpm</span></div>
-          <div className={`${big} font-bold leading-none tabular-nums`}>{vit.hr > 0 && (channels.ecg || (channels.pleth && vit.pulse)) ? vit.hr : '---'}</div>
+          <div className={`${big} font-bold leading-none tabular-nums`}>{rateHidden ? '··' : vit.hr > 0 && (channels.ecg || (channels.pleth && vit.pulse)) ? vit.hr : '---'}</div>
           {d.pacer.on && (
             <div className="text-[10px] text-orange-300 mt-0.5">
               PACER {d.pacer.rate} ppm · {d.pacer.mA} mA{d.pacer.inhibited ? ' · inhibited' : d.pacer.captured ? '' : ' · no capture'}

@@ -6,7 +6,7 @@ import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useContent } from '@/lib/content';
-import { checksIn, exitLesson, findLesson, finishLesson, gotoStep, optionOrder, pickableOnHeart, startLesson } from '@/lib/courses';
+import { checksIn, exitLesson, findLesson, finishLesson, gotoStep, isApplyingStep, optionOrder, pickableOnHeart, startLesson } from '@/lib/courses';
 import { kindOf, nameOf, openById } from '@/lib/actions';
 import { goBack, useBackNavStore } from '@/lib/backNav';
 import type { StepCheck } from '@/types/course';
@@ -51,6 +51,12 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
     useECGStore.getState().setBlind('lesson', waiting);
     return () => useECGStore.getState().setBlind('lesson', false);
   }, [waiting]);
+  // "work out the rate": the rate numbers go too
+  const hideRate = waiting && openCheck?.kind === 'choice' && !!openCheck.hideRate;
+  useEffect(() => {
+    useECGStore.getState().setRateHidden(hideRate);
+    return () => useECGStore.getState().setRateHidden(false);
+  }, [hideRate]);
   // "tap the …" a part that can only be picked by its name tag: every tag is offered, even in a small view that would thin them out
   const view = useAppStore((s) => s.viewMode);
   const tapping = waiting && openCheck?.kind === 'tap' && !openCheck.targets.some((id) => pickableOnHeart(view, id));
@@ -168,16 +174,30 @@ export default function LessonPlayer({ style, side = false }: { style?: React.CS
 function Check({ step, check, answer }: { step: number; check: StepCheck; answer: StepAnswer | undefined }) {
   // for tap / lead checks: the name of what was tapped wrongly last
   const [wrong, setWrong] = useState<string | null>(null);
+  // tapped the heart's surface where only name tags can be picked (an artery, a node): not held against the learner
+  const [surface, setSurface] = useState<string | null>(null);
   const solved = !!answer?.solved;
   const revealed = !solved && !!answer && answer.tries >= TRIES;
+  const view = useAppStore((s) => s.viewMode);
+  // can any right answer be picked by tapping the heart itself, or only by its name tag?
+  const byTagOnly = check.kind === 'tap' && !check.targets.some((id) => pickableOnHeart(view, id));
 
   // "Tap the …": listen for picks on the 3D heart
   useEffect(() => {
     if (check.kind !== 'tap' || solved || revealed) return;
     return useSceneStore.subscribe((s, prev) => {
       const id = s.selectedStructureId;
-      if (!id || id === prev.selectedStructureId) return;
+      // (the lesson ringing a part while it lays the step out is not an answer)
+      if (!id || id === prev.selectedStructureId || isApplyingStep()) return;
       const right = check.targets.includes(id as never);
+      // the answer has no surface of its own to tap (an artery, part of the wiring): a tap that landed on the chamber
+      // underneath is a near miss on the name tag, not a wrong answer
+      if (!right && byTagOnly && pickableOnHeart(view, id)) {
+        setWrong(null);
+        setSurface(nameOf(id));
+        return;
+      }
+      setSurface(null);
       const a = useCourseStore.getState().answer(step, right);
       if (right) setWrong(null);
       else {
@@ -186,14 +206,14 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
         if (a.tries >= TRIES) useSceneStore.getState().selectStructure(check.targets[0]);
       }
     });
-  }, [check, step, solved, revealed]);
+  }, [check, step, solved, revealed, byTagOnly, view]);
 
   // "Tap a lead that …": listen for picks on the 12-lead
   useEffect(() => {
     if (check.kind !== 'lead' || solved || revealed) return;
     return useECGStore.subscribe((s, prev) => {
       const lead = s.selectedLead;
-      if (!lead || lead === prev.selectedLead) return;
+      if (!lead || lead === prev.selectedLead || isApplyingStep()) return;
       const right = check.targets.includes(lead);
       const a = useCourseStore.getState().answer(step, right);
       if (right) setWrong(null);
@@ -239,8 +259,9 @@ function Check({ step, check, answer }: { step: number; check: StepCheck; answer
 
       {check.kind !== 'choice' && !done && (
         <p className="mt-2 text-[13px] text-slate-300">
-          {check.kind === 'tap' ? 'Tap it on the 3D heart (or tap its name tag).' : 'Tap the lead on the 12-lead.'}
+          {check.kind === 'tap' ? (byTagOnly ? 'Tap its name tag on the 3D heart.' : 'Tap it on the 3D heart (or tap its name tag).') : 'Tap the lead on the 12-lead.'}
           {wrong && <span className="block mt-1 text-rose-300">That is the {wrong}. Try again.</span>}
+          {surface && <span className="block mt-1 text-amber-200">You tapped the surface of the {surface}. Tap the name tag of the part you mean.</span>}
         </p>
       )}
 

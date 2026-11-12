@@ -5,6 +5,10 @@ import { sim } from '@/lib/sim/simulation';
 import { cycleEvents } from '@/lib/ecg/engine';
 import type { HemoSummary } from '@/lib/physiology/hemodynamics';
 import HeartSoundsButton, { HeardLegend } from '@/components/ui/HeartSoundsButton';
+import { auscultate, type SoundKind } from '@/lib/physiology/heartSounds';
+import { useBlind } from '@/store/useECGStore';
+
+const SOUND_LABEL: Record<SoundKind, string> = { s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', snap: 'OS' };
 
 /**
  * Live Wiggers diagram (ECG, aortic/LV/LA pressure, LV volume, phonocardiogram)
@@ -24,6 +28,7 @@ export default function WiggersPanel() {
   // The panel can be a wide strip under the heart or a narrow column beside a lesson: lay out by its own width
   const rootRef = useRef<HTMLDivElement>(null);
   const [stack, setStack] = useState(false);
+  const blind = useBlind();
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -161,12 +166,11 @@ export default function WiggersPanel() {
       const phMid = (ph.y0 + ph.y1) / 2;
       line(pho, (v) => phMid - v * (ph.y1 - ph.y0) * 0.42, COLORS.phono, 0.9);
 
-      // Heart sound labels
-      ctx.fillStyle = COLORS.text;
-      for (let i = vi0; i <= vi1 && i >= 0; i++) {
-        const ev = cycleEvents(engine.vent[i], engine.vent[i + 1] ?? null);
-        if (ev.mc > t0 && ev.mc < T) ctx.fillText('S1', X(ev.mc) + 3, ph.y0 + 9);
-        if (ev.ac > t0 && ev.ac < T) ctx.fillText('S2', X(ev.ac) + 3, ph.y0 + 9);
+      // Heart sound labels: S1 and S2 on the top row, the extra sounds (S3, S4, an opening snap) one row down in amber
+      for (const snd of auscultate(engine, hemo, t0, T).sounds) {
+        const extra = snd.kind !== 's1' && snd.kind !== 's2';
+        ctx.fillStyle = extra ? '#fbbf24' : COLORS.text;
+        ctx.fillText(SOUND_LABEL[snd.kind], X(snd.t) + (snd.kind === 's4' ? -14 : 3), ph.y0 + (extra ? 19 : 9));
       }
 
       // Channel labels
@@ -237,7 +241,13 @@ export default function WiggersPanel() {
           <Stat label="EDV / ESV" value={`${summary.edv}/${summary.esv}`} />
           <Stat label="Fwd SV mL" value={`${summary.sv}`} />
           <Stat label="EF" value={`${summary.ef}%`} warn={summary.ef < 40} />
-          <div className={`${stack ? 'col-span-2' : 'col-span-3'} text-slate-400 truncate`} title={summary.label}>Model: <span className="text-slate-200">{summary.label}</span> · LVEDP ~{summary.lvedp}</div>
+          <Stat label="LVEDP" value={summary.noOutput ? '—' : `~${summary.lvedp}`} warn={!summary.noOutput && summary.lvedp >= 18} />
+          <Stat label="LA mean" value={summary.noOutput ? '—' : `~${summary.laMean}`} warn={!summary.noOutput && summary.laMean >= 18} />
+          {!stack && <Stat label="Pulse pr." value={summary.noOutput ? '—' : `${summary.sbp - summary.dbp}`} warn={!summary.noOutput && summary.sbp - summary.dbp < 25} />}
+          {/* the model's name is the answer to "what is this?": hidden while a question is open */}
+          <div className={`${stack ? 'col-span-2' : 'col-span-3'} text-slate-400 leading-snug`}>
+            Model: <span className="text-slate-200">{blind ? 'hidden while a question is open' : summary.label}</span>
+          </div>
           <HeartSoundsButton className={`${stack ? 'col-span-2' : 'col-span-3'} mt-0.5`} />
           <HeardLegend className={stack ? 'col-span-2' : 'col-span-3'} />
         </div>

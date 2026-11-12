@@ -25,13 +25,13 @@ export interface StepShow {
   structure?: StructureId | null;
   /** structures to light up without moving the camera */
   highlight?: StructureId[];
-  /** a named camera angle: Front, Back, Left, Right, Top, Bottom, RAO, LAO, RAO Cr, LAO Cr, RAO Ca, Spider */
+  /** a named camera angle: Front, Back, Left, Right, Top, Bottom, RAO, LAO, RAO Cr, AP Cr, LAO Cr, RAO Ca, Spider */
   camera?: string;
   /** blood-flow particles in the sectioned view */
   flow?: boolean;
   /** name tags on the 3D heart */
   labels?: boolean;
-  /** the heart's electrical axis as an arrow on the 3D heart */
+  /** the heart's electrical vector as an arrow on the 3D heart: it grows, turns and shrinks through each beat (longest along the QRS axis) */
   vector?: boolean;
   /** the bottom panel: the 12-lead, the pressure–volume curves, the monitor-defibrillator or the electrode lab (false = put it away) */
   ecg?: 'ecg' | 'wiggers' | 'defib' | 'lab' | false;
@@ -60,6 +60,8 @@ export interface ChoiceCheck {
    * written — a numeric scale, "all of the above".
    */
   fixed?: boolean;
+  /** the question is "work out the heart rate": the app hides its own rate numbers until it is answered */
+  hideRate?: boolean;
   /** shown after any answer: why the right one is right */
   explain: string;
 }

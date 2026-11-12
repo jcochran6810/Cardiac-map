@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
-import { useECGStore } from '@/store/useECGStore';
+import { useECGStore, useRateHidden } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { IconChevron, IconCollapse, IconCube, IconExpand, IconPulse } from '@/components/ui/icons';
 
@@ -22,6 +22,7 @@ export default function DrawerBar({ kind, style }: { kind: 'heart' | 'ecg'; styl
   const viewMode = useAppStore((s) => s.viewMode);
   const bottomView = useECGStore((s) => s.bottomView);
   const hr = useTimelineStore((s) => s.displayHR);
+  const rateHidden = useRateHidden();
   const open = state !== 'closed';
   const heart = kind === 'heart';
   const name = heart ? '3D heart' : ECG_LABEL[bottomView];
@@ -44,7 +45,7 @@ export default function DrawerBar({ kind, style }: { kind: 'heart' | 'ecg'; styl
         {heart ? (
           <span className="truncate hidden xs:inline">{open ? `${VIEW_LABEL[viewMode]} view` : ''}</span>
         ) : (
-          <span className="font-mono text-emerald-400" title="Heart rate on the monitor">{hr > 0 ? hr : '---'}<span className="ml-0.5 font-sans text-[10px] text-slate-500">bpm</span></span>
+          <span className="font-mono text-emerald-400" title="Heart rate on the monitor">{rateHidden ? '··' : hr > 0 ? hr : '---'}<span className="ml-0.5 font-sans text-[10px] text-slate-500">bpm</span></span>
         )}
       </div>
 

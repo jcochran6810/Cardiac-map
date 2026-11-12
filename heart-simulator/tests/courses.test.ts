@@ -118,6 +118,11 @@ describe('every step', () => {
     if (own.lead || own.inspect) expect(show.ecg, 'the 12-lead is showing when a lead is pointed at').toBe('ecg');
     // a lesson never starts on an empty screen, and its first step says what the screen shows
     if (i === 0) expect(lesson.steps[0].show, 'the first step sets the scene').toBeTruthy();
+    // a phone on its side has room for one picture: a check must be answerable on it
+    // (what a step merely points at is the author's choice — a selected or enlarged lead shows on both pictures)
+    const sideways = drawersFor(show, true);
+    if (step.check?.kind === 'tap') expect(sideways.heart, 'on a sideways phone the heart is the picture shown').toBe(true);
+    if (step.check?.kind === 'lead') expect(sideways.ecg, 'on a sideways phone the tracing is the picture shown').toBe(true);
 
     // its check
     const c = step.check;
@@ -197,6 +202,28 @@ describe('what a step shows', () => {
     expect(drawersFor({ heart: 'external', ecg: 'ecg' }, true)).toEqual({ heart: false, ecg: true });
     expect(drawersFor({ heart: 'external', ecg: 'ecg', focus: 'heart' }, true)).toEqual({ heart: true, ecg: false });
     expect(drawersFor({ heart: false, ecg: 'wiggers' }, true)).toEqual({ heart: false, ecg: true });
+  });
+
+  it('on a phone on its side shows the picture the step points at, unless the step says otherwise', () => {
+    const both = { heart: 'external', ecg: 'ecg' } as const;
+    const ask: LessonStep[] = [
+      { title: 'scene', text: ['x'], show: { ...both } },
+      { title: 'ring', text: ['x'], show: { structure: 'left-ventricle' } },
+      { title: 'lead', text: ['x'], show: { lead: 'II' } },
+      { title: 'tap', text: ['x'], check: { kind: 'tap', question: 'Tap the aorta', targets: ['ascending-aorta'], explain: 'x' } },
+      { title: 'which lead', text: ['x'], check: { kind: 'lead', question: 'Tap a lead', targets: ['V1'], explain: 'x' } },
+      { title: 'said', text: ['x'], show: { structure: 'left-ventricle', focus: 'ecg' } },
+      { title: 'plain', text: ['x'] },
+    ];
+    const shown = (k: number) => drawersFor(effectiveShow(ask, k), true);
+    expect(shown(0)).toEqual({ heart: false, ecg: true });
+    expect(shown(1)).toEqual({ heart: true, ecg: false });
+    expect(shown(2)).toEqual({ heart: false, ecg: true });
+    expect(shown(3)).toEqual({ heart: true, ecg: false });
+    expect(shown(4)).toEqual({ heart: false, ecg: true });
+    expect(shown(5)).toEqual({ heart: false, ecg: true });
+    // the pointer belonged to its own step: the next one is back to the tracing
+    expect(shown(6)).toEqual({ heart: false, ecg: true });
   });
 });
 
