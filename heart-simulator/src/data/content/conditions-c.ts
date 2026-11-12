@@ -1954,7 +1954,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
       'Suspect high potassium in a dialysis patient who missed treatment, or after crush injury, with weakness or a slow pulse: request ALS early and transport rapidly. If the patient becomes pulseless, start CPR and use the AED.',
       'Peaked T waves, widening QRS, lost P waves or bradycardia in a renal patient call for IV calcium per protocol, plus nebulized albuterol and, if acidotic, bicarbonate. In cardiac arrest, CPR and defibrillation come first and are never interrupted for these drugs. Expect atropine and transcutaneous pacing to fail until potassium is treated.',
       'Hyperkalemia slows conduction and raises pacing capture thresholds: watch for widening QRS, bradycardia or loss of capture on temporary pacing and report them immediately. Prepare calcium for administration on the physician’s order where facility policy permits.',
-      'Give calcium (calcium chloride via a large vein), insulin with dextrose and albuterol as ordered, then check glucose at least hourly for ~4–6 h and recheck potassium every 1–2 h for rebound. Keep continuous ECG monitoring and report QRS widening or bradycardia.',
+      'Give calcium (calcium chloride via a large vein), insulin with dextrose and albuterol as ordered, then check glucose at least hourly for 6 h and recheck potassium at about 1 h, then every 2–4 h for rebound. Keep continuous ECG monitoring and report QRS widening or bradycardia.',
       'Treat ECG changes with calcium (chloride 1 g or gluconate 3 g), shift with insulin–dextrose and albuterol, and remove potassium with diuretics, binders or dialysis. Use binders to sustain RAAS-inhibitor/MRA therapy in HF; hyperkalemia raises capture thresholds and can mimic Brugada or STEMI patterns.',
     ],
     overview: [
@@ -2016,7 +2016,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     hospitalCare: [
       'IV calcium immediately for ECG changes or K ≥ 6.5 mEq/L',
-      'Insulin plus dextrose, with glucose checks at least hourly for ~4–6 h (hypoglycemia is common, especially in CKD)',
+      'Insulin plus dextrose, with glucose checks at least hourly for 6 h (hypoglycemia is common, especially in CKD)',
       'Emergent hemodialysis for refractory hyperkalemia, ESRD or severe AKI',
       'Stop offending drugs and treat the cause (rhabdomyolysis, DKA, obstruction)',
       'Recheck K every 1–2 h initially; expect rebound as shift therapy wears off',

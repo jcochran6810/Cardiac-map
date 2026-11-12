@@ -42,7 +42,7 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
       'High-quality CPR, AED use, airway adjuncts and bag-valve-mask ventilation, oxygen, CPAP per protocol',
       'Aspirin for suspected acute coronary syndrome, per protocol',
       "Assist with the patient's own prescribed nitroglycerin, per protocol and medical direction",
-      'Epinephrine auto-injector (anaphylaxis), naloxone, oral glucose, per protocol',
+      'Epinephrine auto-injector (anaphylaxis), naloxone, oral glucose, inhaled bronchodilator for wheezing, blood glucose check, per protocol',
       'Acquire and transmit a 12-lead ECG where protocols allow (no interpretation)',
       'Early notification, destination decisions and transport per protocol',
     ],

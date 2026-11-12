@@ -2631,18 +2631,18 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     brandNames: ['Humulin R', 'Novolin R', 'Dextrose 50% (D50)'],
     drugClass: 'Potassium-shifting therapy (insulin with glucose to prevent hypoglycemia)',
     summary:
-      'Regular insulin given IV drives potassium into the cells within 15–30 minutes and is the most reliable way to lower the serum potassium quickly in hyperkalemia. Dextrose is given with it, unless the glucose is already high, to prevent hypoglycemia.',
+      'Regular insulin given IV drives potassium into the cells within 15–30 minutes and is the most reliable drug to lower the serum potassium quickly in hyperkalemia. Dextrose is given with it, unless the glucose is already high, to prevent hypoglycemia.',
     levelNotes: [
-      'Not an EMT drug. Know why a dialysis patient with weakness, a slow pulse or a wide-complex rhythm needs ALS early, and report a fingerstick glucose: insulin given for high potassium can drop it hours later.',
-      'Most EMS systems do not carry IV insulin; calcium, albuterol and (if acidotic) bicarbonate are the field shift therapy per protocol. On interfacility transfers, check the glucose every hour after insulin and watch for a falling level.',
+      'Not an EMT drug. Know why a dialysis patient with weakness, a slow pulse or fainting needs ALS early, and report a fingerstick glucose where protocols allow: insulin given for high potassium can drop it hours later.',
+      'Most EMS systems do not carry IV insulin. Field care per protocol is calcium to protect the heart, plus albuterol and (if acidotic) bicarbonate to shift potassium. On interfacility transfers after insulin, check the glucose at least hourly for 6 h and watch for a falling level.',
       'Insulin is a high-alert medication: tech roles prepare it only on a physician order where facility policy permits, with an independent double check of the units. Report bradycardia, a widening QRS or a low glucose at once.',
-      'Give regular insulin 10 units IV push with dextrose 25 g (50 mL of D50) as ordered, with an independent double check. Check glucose before, then at least hourly for 4–6 h (hypoglycemia peaks at about 1–3 h); recheck potassium at 1–2 h for rebound.',
-      'Insulin lowers K+ by about 0.6–1.0 mmol/L at 30–60 min for 4–6 h. Consider 5 units, or a dextrose infusion afterwards, in kidney failure, low body weight or no diabetes (higher hypoglycemia risk). It only shifts potassium: plan removal (diuretic, binder or dialysis).',
+      'Give regular insulin 10 units IV push with dextrose 25 g (50 mL of D50) as ordered, with an independent double check. Check glucose before, then at least hourly for 6 h (most lows occur at 1–3 h); recheck potassium at about 1 h, then every 2–4 h for rebound.',
+      'Insulin lowers K+ by about 0.6–1.0 mmol/L, peaking at 30–60 min; rebound can start at 2–3 h. Consider 5 units (or 0.1 units/kg), or a dextrose infusion afterwards, with a low starting glucose, kidney failure, low body weight or no diabetes (higher hypoglycemia risk). It only shifts potassium: plan removal (diuretic, binder or dialysis).',
     ],
     mechanism: [
       'Insulin stimulates the Na⁺/K⁺-ATPase pump in muscle and liver, moving potassium from the blood into the cells',
       'Glucose replaces what the insulin drives into cells and prevents hypoglycemia',
-      'Onset 10–20 min, peak 30–60 min, lasts about 4–6 h',
+      'Onset within about 15 min, peak 30–60 min; the effect fades over several hours and potassium can rebound from 2–3 h',
       'Does not remove potassium from the body: it comes back out of the cells as the effect fades',
     ],
     indications: [
@@ -2653,7 +2653,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Regular insulin 10 units IV push',
       'With dextrose 25 g IV (50 mL of D50) if the glucose is below about 250 mg/dL (14 mmol/L)',
       'Some protocols: 5 units, or dextrose infusion after the bolus, when the hypoglycemia risk is high',
-      'May be repeated after a few hours if potassium stays high, guided by glucose and potassium',
+      'May be repeated after a few hours if potassium stays high, guided by glucose and potassium; a repeat dose raises the hypoglycemia risk',
     ],
     contraindications: [
       'Hypoglycemia (correct it first)',
@@ -2672,13 +2672,13 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'None directly; restoring a normal rhythm restores output',
     ],
     monitoring: [
-      'Glucose before the dose and at least hourly for 4–6 h',
+      'Glucose before the dose and at least hourly for 6 h',
       'Potassium at 1–2 h and again later for rebound',
       'Continuous ECG',
     ],
     interactions: [
-      'Additive potassium lowering with albuterol and sodium bicarbonate',
-      'Beta-blockers blunt the response and mask hypoglycemia symptoms',
+      'Additive potassium lowering with albuterol, which also lessens the fall in glucose',
+      'Beta-blockers impair potassium uptake into cells and mask the warning signs of hypoglycemia',
     ],
     teaching: [
       'Order of hyperkalemia care: stabilize the membrane (calcium), shift potassium in (insulin–dextrose, albuterol), remove it (diuretic, binder, dialysis)',
@@ -2701,12 +2701,12 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Hyperkalemia with a pulse: nebulized albuterol 10–20 mg per protocol, together with calcium for ECG changes. Not a drug for cardiac arrest. Watch for tachycardia, tremor and chest pain.',
       'Set up and monitor the nebulizer on order where policy permits; report a fast or irregular rhythm or new ST changes.',
       'Give 10–20 mg nebulized over about 10 min as ordered (4–8 times the asthma dose), alongside insulin–dextrose. Monitor heart rate, rhythm, glucose and potassium.',
-      'Albuterol lowers K+ by about 0.5–1.0 mmol/L in 30–60 min and adds to insulin, but up to a third of patients (often on dialysis) barely respond: never use it alone. Caution in ischemia and tachyarrhythmias.',
+      'Albuterol lowers K+ by about 0.5–1.0 mmol/L, starting within 30 min and peaking at 1–2 h, and adds to insulin, but some patients (often on dialysis) barely respond: never rely on it alone. Caution in ischemia and tachyarrhythmias.',
     ],
     mechanism: [
       'β2 stimulation activates the Na⁺/K⁺-ATPase pump and moves potassium into the cells',
       'Relaxes bronchial smooth muscle (its usual use)',
-      'Onset 15–30 min by nebulizer, lasts about 2–4 h',
+      'Onset within 30 min by nebulizer, peak at 1–2 h, lasts at least 2 h',
     ],
     indications: [
       'Hyperkalemia, as an add-on to insulin with dextrose',
@@ -2718,7 +2718,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     contraindications: [
       'Use with caution in active myocardial ischemia and tachyarrhythmias',
-      'Not used during cardiac arrest',
+      'Not for cardiac arrest (2025 AHA: no benefit in hyperkalemic arrest)',
     ],
     adverseEffects: [
       'Tachycardia and palpitations',
