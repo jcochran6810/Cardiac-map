@@ -4,10 +4,11 @@ import React, { forwardRef, useEffect, useMemo, useState } from 'react';
 import { useContent, searchLibrary, type SearchExtra, type SearchHit } from '@/lib/content';
 import { openById, openTool, openTreatment } from '@/lib/actions';
 import { openTrainer } from '@/lib/drillRun';
-import { useAppStore } from '@/store/useAppStore';
+import { useAppStore, type LearningLevel } from '@/store/useAppStore';
 import { useTutorStore } from '@/store/useTutorStore';
-import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
+import { scenariosFor } from '@/lib/sim/scenario/scenarios';
 import { startLesson } from '@/lib/courses';
+import { showInPicker } from '@/components/simulator/ScenarioPicker';
 import { CASE_DATA } from '@/data/caseData';
 import { GLOSSARY } from '@/data/glossary';
 import { IconSearch } from '@/components/ui/icons';
@@ -47,10 +48,14 @@ const TOOLS: (SearchExtra & { open: () => void })[] = [
   { kind: 'tool', id: 'tool:tutor', name: 'Tutor', sub: 'Ask a question', keys: ['tutor', 'ask', 'question', 'help me'], open: () => useTutorStore.getState().setTutorOpen(true) },
 ];
 const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
-const SIM_CASES: SearchExtra[] = SCENARIOS.map((sc) => ({ kind: 'simcase', id: `sim:${sc.id}`, name: sc.title, sub: 'Simulator case', keys: [sc.summary] }));
 // a term is found by its name and its other names only (its definition would match half the library's words)
 const TERMS: SearchExtra[] = GLOSSARY.map((g) => ({ kind: 'term', id: `term:${g.id}`, name: g.term, sub: g.def, keys: g.aka ?? [] }));
-const EXTRAS: SearchExtra[] = [...TOOLS, ...SIM_CASES, ...TERMS];
+
+/** Tools, the simulator cases written for this role (the others are in the case list, under another role) and the glossary */
+function extrasFor(role: LearningLevel): SearchExtra[] {
+  const simCases: SearchExtra[] = scenariosFor(role).map((sc) => ({ kind: 'simcase', id: `sim:${sc.id}`, name: sc.title, sub: 'Simulator case', keys: [sc.summary] }));
+  return [...TOOLS, ...simCases, ...TERMS];
+}
 
 const CASES = Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title }));
 
@@ -69,11 +74,13 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
   { id, className = '', inputClassName = '', placeholder = 'Search anatomy, conditions, drugs…', onDone }, ref,
 ) {
   const lib = useContent();
+  const role = useAppStore((s) => s.learningLevel);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const resultsOpen = open && q.trim().length >= 2;
-  const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q, 24, EXTRAS) : []), [lib, q]);
+  const extras = useMemo(() => extrasFor(role), [role]);
+  const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q, 24, extras) : []), [lib, q, extras]);
 
   useEffect(() => {
     if (resultsOpen) document.getElementById(`${id}-result-${active}`)?.scrollIntoView({ block: 'nearest' });
@@ -89,8 +96,11 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
       const [course, lesson] = h.id.split('/');
       startLesson(course, lesson);
     } else if (h.kind === 'tool') TOOL_BY_ID[h.id]?.open();
-    // a simulator case is started from its own screen, where the role and the briefing are
-    else if (h.kind === 'simcase') useAppStore.getState().setMode('simulator');
+    // a simulator case is started from the case list, where its briefing and Start button are: open the list at it
+    else if (h.kind === 'simcase') {
+      showInPicker(h.id.slice('sim:'.length));
+      useAppStore.getState().setMode('simulator');
+    }
     else if (h.kind === 'term') useAppStore.getState().setGlossaryOpen(true, h.id.slice(5));
     else openById(h.id);
     close();

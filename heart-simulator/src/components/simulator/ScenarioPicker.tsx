@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { create } from 'zustand';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { bestKey, useSimStore } from '@/store/useSimStore';
 import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
@@ -9,6 +10,14 @@ import type { Scenario } from '@/lib/sim/scenario/types';
 import { SETTING_LABEL, DIFFICULTY_STYLE, gradeStyle } from './simStyles';
 
 const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
+
+/** A case to bring into view the next time the list shows (one chosen in search) */
+const usePickerFocus = create<{ id: string | null }>(() => ({ id: null }));
+
+/** Show this case in the case list: scrolled into view, marked and focused (Tab then reaches its Start button) */
+export function showInPicker(scenarioId: string) {
+  usePickerFocus.setState({ id: scenarioId });
+}
 
 /** Choose your role and a case */
 export default function ScenarioPicker() {
@@ -19,6 +28,21 @@ export default function ScenarioPicker() {
   const mine = SCENARIOS.filter((sc) => sc.roles.includes(role));
   const studyLab = () => openCategory('cathlab');
   const others = SCENARIOS.filter((sc) => !sc.roles.includes(role));
+  const focusId = usePickerFocus((s) => s.id);
+  const [marked, setMarked] = useState<string | null>(null);
+
+  // a case chosen in search: take it (once), bring its card into view and move the focus to the card.
+  // Not to its Start button: the Enter that chose the search result would press that button too and start the case.
+  useEffect(() => {
+    if (!focusId) return;
+    usePickerFocus.setState({ id: null });
+    setMarked(focusId);
+    const card = document.getElementById(`sim-case-${focusId}`);
+    if (!card) return;
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    card.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+    card.focus({ preventScroll: true });
+  }, [focusId]);
 
   return (
     <div className="absolute inset-0 overflow-y-auto">
@@ -65,7 +89,7 @@ export default function ScenarioPicker() {
         )}
         <div className="mt-2 grid gap-3 md:grid-cols-2">
           {mine.map((sc) => (
-            <CaseCard key={sc.id} sc={sc} best={best[bestKey(sc.id, role)]} onStart={() => startScenario(sc.id, role)} />
+            <CaseCard key={sc.id} sc={sc} best={best[bestKey(sc.id, role)]} marked={sc.id === marked} onStart={() => startScenario(sc.id, role)} />
           ))}
         </div>
 
@@ -79,6 +103,7 @@ export default function ScenarioPicker() {
                   key={sc.id}
                   sc={sc}
                   dim
+                  marked={sc.id === marked}
                   onStart={() => { setRole(sc.roles[0]); startScenario(sc.id, sc.roles[0]); }}
                   startLabel={`Play as ${LEVEL_LABELS[sc.roles[0]].short} →`}
                 />
@@ -106,15 +131,18 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   );
 }
 
-function CaseCard({ sc, best, onStart, dim = false, startLabel = 'Start case →' }: { sc: Scenario; best?: number; onStart: () => void; dim?: boolean; startLabel?: string }) {
+function CaseCard({ sc, best, onStart, dim = false, marked = false, startLabel = 'Start case →' }: { sc: Scenario; best?: number; onStart: () => void; dim?: boolean; marked?: boolean; startLabel?: string }) {
+  const edge = marked ? 'border-cardiac-accent ring-2 ring-cardiac-accent/40' : dim ? 'border-slate-700/70 opacity-80' : 'border-slate-600';
+  const titleId = `sim-case-${sc.id}-title`;
   return (
-    <div className={`flex flex-col p-4 rounded-xl border bg-cardiac-panel ${dim ? 'border-slate-700/70 opacity-80' : 'border-slate-600'}`}>
+    // focusable from script only (a case chosen in search); its ring already shows where the focus is
+    <div id={`sim-case-${sc.id}`} tabIndex={-1} role="group" aria-labelledby={titleId} className={`flex flex-col p-4 rounded-xl border bg-cardiac-panel outline-none ${edge}`}>
       <div className="flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wider">
         <span className="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300">{SETTING_LABEL[sc.setting]}</span>
         <span className={`px-1.5 py-0.5 rounded border ${DIFFICULTY_STYLE[sc.difficulty]}`}>{sc.difficulty}</span>
         <span className="text-slate-500 normal-case tracking-normal">{sc.roles.map((r) => LEVEL_LABELS[r].short).join(' · ')}</span>
       </div>
-      <h3 className="mt-2 text-[15px] font-semibold text-white leading-snug">{sc.title}</h3>
+      <h3 id={titleId} className="mt-2 text-[15px] font-semibold text-white leading-snug">{sc.title}</h3>
       <p className="mt-1 text-xs text-slate-300 leading-relaxed flex-1">{sc.summary}</p>
       <div className="mt-3 flex items-center gap-3">
         <button onClick={onStart} className="px-3.5 py-2 rounded-lg bg-cardiac-accent text-slate-950 text-sm font-semibold hover:bg-amber-400">
