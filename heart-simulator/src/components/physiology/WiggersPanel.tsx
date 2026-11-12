@@ -112,7 +112,8 @@ export default function WiggersPanel() {
 
       // Pressure scale
       const sNow = hemo.summary(T);
-      const pMax = Math.max(140, Math.ceil((sNow.sbp + (sNow.label.includes('stenosis') || sNow.label.includes('HCM') ? 80 : 30)) / 20) * 20);
+      // (headroom for the LV peak above the aorta behind an outflow obstruction: aortic stenosis and obstructive HCM, not mitral stenosis)
+      const pMax = Math.max(140, Math.ceil((sNow.sbp + (/aortic stenosis|HCM/i.test(sNow.label) ? 80 : 30)) / 20) * 20);
       const PY = (p: number) => press.y1 - (p / pMax) * (press.y1 - press.y0 - 12);
       ctx.strokeStyle = COLORS.grid;
       ctx.fillStyle = COLORS.text;
@@ -237,7 +238,8 @@ export default function WiggersPanel() {
         <div className={`p-2 grid gap-x-2 gap-y-1 text-[11px] border-slate-700 bg-cardiac-dark/50 ${stack ? 'w-[11.5rem] shrink-0 grid-cols-2 content-start border-l overflow-y-auto' : 'grid-cols-3 border-t'}`}>
           <Stat label="BP" value={summary.noOutput ? 'no pulse' : `${summary.sbp}/${summary.dbp}`} warn={summary.noOutput || summary.sbp < 90} />
           <Stat label="MAP" value={`${summary.map}`} warn={summary.map < 65} />
-          <Stat label="CO L/min" value={summary.co.toFixed(1)} warn={summary.co < 3} />
+          {/* red below a cardiac index of about 2.2 L/min/m² for an average adult (1.9 m²) */}
+          <Stat label="CO L/min" value={summary.co.toFixed(1)} warn={summary.co < 4.2} />
           <Stat label="EDV / ESV" value={`${summary.edv}/${summary.esv}`} />
           <Stat label="Fwd SV mL" value={`${summary.sv}`} />
           <Stat label="EF" value={`${summary.ef}%`} warn={summary.ef < 40} />

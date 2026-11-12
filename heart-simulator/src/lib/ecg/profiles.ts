@@ -330,7 +330,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'atrial-fibrillation', name: 'Atrial Fibrillation', rhythm: 'af', rateControl: 'ventricular', defaultHR: 112, minHR: 50, maxHR: 180,
     pr: 0, p: 'none', qrs: 'normal', qtc: 420, hemo: 'normal',
     headline: 'Atrial fibrillation — irregularly irregular, no P waves',
-    findings: ['Irregularly irregular RR intervals; ventricular rate > 100 = rapid ventricular response (RVR)', 'No organized P waves; fibrillatory (f) waves 350–600/min, best seen in V1 and the inferior leads', 'Narrow QRS unless aberrancy or pre-excitation', 'Beat-to-beat pulse volume varies → pulse deficit at fast rates'],
+    findings: ['Irregularly irregular RR intervals; ventricular rate > 100 = rapid ventricular response (RVR)', 'No organized P waves; fibrillatory (f) waves 350–600/min, best seen in V1 and V2', 'Narrow QRS unless aberrancy or pre-excitation', 'Beat-to-beat pulse volume varies → pulse deficit at fast rates'],
     keyLeads: ['V1', 'II'],
   },
   'atrial-flutter': {

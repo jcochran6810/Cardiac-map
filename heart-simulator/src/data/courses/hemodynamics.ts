@@ -5,14 +5,16 @@ import type { Course } from '@/types/course';
  * what valve disease, heart failure, shock and abnormal rhythms each do to them. Written first for the cath
  * lab (tech, nurse, cardiologist); it builds on "How the heart works".
  *
- * The app's hemodynamic model is a teaching model whose values are retuned from time to time, so every step
- * describes the pattern on screen and quotes standard physiology values only, never a value read off a
- * disease profile. Thresholds follow the 2020 ACC/AHA valvular heart disease guideline, the 2022
- * AHA/ACC/HFSA heart failure guideline and the 2024 AHA/ACC hypertrophic cardiomyopathy guideline, and agree
- * with the app's own library pages. Two statements rest on single papers: tall v waves are neither sensitive
- * nor specific for severe mitral regurgitation (Fuchs et al., Am J Cardiol 1982;49:849), and in complete heart
- * block the stroke volume depends on where the atrial contraction falls (Harley et al., J Clin Invest
- * 1969;48:895). Educational content only.
+ * The app's hemodynamic model is a teaching model whose values are retuned from time to time, so most steps
+ * describe the pattern on screen and quote standard physiology values. A few quote what the model shows, as
+ * measured on 2026-11-12 (re-check them after any retune): SVT at 240/min (stroke volume ~19 mL, cardiac
+ * output ~4.6 L/min against ~4.9 at rest), complete heart block at 36/min (56–66 mL a beat, ~2.2 L/min) and
+ * sinus tachycardia at 150/min (output well above the resting value). Thresholds follow the 2020 ACC/AHA
+ * valvular heart disease guideline, the 2022 AHA/ACC/HFSA heart failure guideline and the 2024 AHA/ACC
+ * hypertrophic cardiomyopathy guideline, and agree with the app's own library pages. Two statements rest on
+ * single papers: tall v waves are neither sensitive nor specific for severe mitral regurgitation (Fuchs et al.,
+ * Am J Cardiol 1982;49:849), and in complete heart block the stroke volume depends on where the atrial
+ * contraction falls (Harley et al., J Clin Invest 1969;48:895). Educational content only.
  */
 export const HEMODYNAMICS: Course = {
   id: 'hemodynamics',
@@ -61,7 +63,7 @@ export const HEMODYNAMICS: Course = {
             'As soon as it rises above the blue line the mitral valve shuts. That is MC, and it starts systole, the part of the beat in which the ventricle contracts. The mitral and tricuspid valves closing together make the first heart sound, S1.',
             'At this instant the ventricle is as full as it will get. Its volume is the end-diastolic volume (EDV), about 120 mL. Its pressure is the left ventricular end-diastolic pressure (LVEDP), normally 12 mmHg or less.',
           ],
-          look: 'At each MC line look down the chart. The purple line is at its highest, and S1 is written on the sound trace.',
+          look: 'At each MC line look down the chart. The purple line is at its highest, and S1 is written on the sound trace. A faint red band starts here: it shades systole, from MC to AC.',
           more: ['cl-lvedp'],
         },
         {
@@ -137,7 +139,7 @@ export const HEMODYNAMICS: Course = {
           text: [
             'The blue line is the pressure in the left atrium. It stays low, around 10 mmHg, and it makes three small waves in every beat.',
             'The a wave is the atrium contracting, right after the P wave. The c wave is a small bump at MC, as the closed mitral valve bulges back toward the atrium. The v wave is the slow rise through systole: blood keeps arriving from the lungs while the mitral valve is shut. It peaks at MO, then the pressure falls away as the atrium empties into the ventricle.',
-            'In the cath lab the wedge pressure, taken with a balloon catheter in a branch of the pulmonary artery, is a slightly delayed copy of this blue line.',
+            'In the cath lab the wedge pressure, taken with a balloon catheter in a branch of the pulmonary artery, is a slightly delayed and smoothed copy of this blue line.',
           ],
           look: 'Follow the blue line through one beat: a bump after the P wave (a), a small bump or shoulder at MC (c), then a slow climb to a peak at MO (v) and a quick fall.',
           check: {
@@ -153,7 +155,7 @@ export const HEMODYNAMICS: Course = {
             explain: 'During systole the mitral valve is shut and blood keeps arriving from the lungs, so the atrial pressure climbs until the valve opens at MO. The atrium contracting makes the a wave, which is why atrial fibrillation has none. The bulging valve makes the c wave.',
           },
           roleNote: {
-            3: 'On a wedge or left atrial trace, time the waves against the ECG: the a wave follows the P wave and the v wave peaks after the T wave. Record at end-expiration and report tall v waves to the operator.',
+            3: 'Time the waves against the ECG. On a left atrial trace the a wave follows the P wave and the v wave peaks at the end of the T wave; on a wedge trace both come later, the a wave near the QRS and the v wave after the T wave. Record at end-expiration and report tall v waves to the operator.',
             5: 'The mean wedge pressure stands in for the LVEDP only when nothing lies between them: mitral stenosis and large v waves both make the wedge read higher than the LVEDP.',
           },
           more: ['left-atrium', 'cl-rhc'],
@@ -251,7 +253,7 @@ export const HEMODYNAMICS: Course = {
             'Put the corners together in the order the dot meets them. Bottom-right: the mitral valve closes. Top-right: the aortic valve opens. Top-left: the aortic valve closes. Bottom-left: the mitral valve opens.',
             'Between the corners, one valve of the left ventricle is open along the top and one along the bottom. Along the two vertical sides both are shut.',
           ],
-          look: 'The cut-open heart beats at a quarter of real speed. In the cycle box on the heart a valve changes between open and closed four times in each beat: once for each corner of the loop.',
+          look: 'The cut-open heart beats at a quarter of real speed. In the cycle box on the heart, the two valve rows between them change from open to closed or back four times in each beat: once for each corner of the loop.',
           show: { heart: 'sectioned', flow: true, focus: 'heart' },
           check: {
             kind: 'tap',
@@ -267,7 +269,7 @@ export const HEMODYNAMICS: Course = {
             'Divide it by the EDV and you have the ejection fraction (EF): the share of the full ventricle that is ejected. 70 ÷ 120 is about 58%. Normal is 55–70%, and 40% or less is reduced.',
             'The area inside the loop is the work the ventricle does in one beat. A taller or wider loop costs the muscle more oxygen.',
           ],
-          look: 'The numbers next to the loop give EDV / ESV and EF, averaged over the last few beats. Check them against the right and left edges of the loop on its volume scale.',
+          look: 'The numbers next to the loop give EDV / ESV and EF, averaged over the beats of the last few seconds. Check them against the right and left edges of the loop on its volume scale.',
           show: { heart: false },
           check: {
             kind: 'choice',
@@ -283,7 +285,7 @@ export const HEMODYNAMICS: Course = {
           text: [
             'Three things set the shape of the loop. The first is preload: how much the ventricle is stretched at the end of filling. The EDV, or the LVEDP, stands in for it.',
             'More filling moves the bottom-right corner to the right. A stretched ventricle contracts harder (the Frank–Starling law), so it ejects the extra blood: the loop widens and the stroke volume rises. Less filling does the opposite.',
-            'Here the heart rate has been raised to 180 a minute with nothing else changed. There is less time to fill, so there is less preload.',
+            'Here the model has raised the heart rate to 180 a minute and changed nothing else (in a real patient a fast rate usually comes with a stronger squeeze as well). There is less time to fill, so there is less preload.',
           ],
           look: 'Compare with the loop a moment ago: the right side has moved to the left and the loop is narrower. The left side has hardly moved. In the numbers, EDV has fallen and ESV has not.',
           show: { rhythm: 'sinus-tachycardia', hr: 180 },
@@ -344,7 +346,7 @@ export const HEMODYNAMICS: Course = {
             explain: 'A weak muscle cannot empty the ventricle, so the end-systolic corner moves right and the EF falls. A right side that has moved left is low preload. A taller loop of normal width is a high afterload met by a strong muscle. A raised bottom is a stiff ventricle.',
           },
           roleNote: {
-            5: 'Two curves bound every loop: the end-diastolic pressure–volume relation along the bottom (stiffness) and the end-systolic relation through the top-left corner. The slope of the second, end-systolic elastance, measures contractility independently of load.',
+            5: 'Two curves bound every loop: the end-diastolic pressure–volume relation along the bottom (stiffness) and the end-systolic relation through the top-left corner. The slope of the second, end-systolic elastance, measures contractility largely independently of load.',
           },
           more: ['left-ventricle', 'left-heart-cath'],
         },
@@ -380,7 +382,7 @@ export const HEMODYNAMICS: Course = {
             'The jet through the valve is turbulent and noisy. The murmur starts after S1, swells to a peak and fades before S2: a crescendo–decrescendo systolic murmur, harsh, loudest at the upper right edge of the breastbone and carried up into the neck.',
             'As the stenosis gets worse the murmur peaks later and S2 gets softer. An S4, a soft extra sound right before S1, can appear as the atrium pushes blood into the thick, stiff ventricle.',
           ],
-          look: 'Red line: a slow slope up to a rounded, late peak. Sound trace: a diamond-shaped burst of noise that fills the gap between S1 and S2. Press Listen next to the loop to hear it.',
+          look: 'Red line: a slow climb to a low, rounded, late peak; the two BP numbers sit close together. Sound trace: a diamond-shaped burst of noise between S1 and S2, and an S4 (in amber) before S1. Press Listen next to the loop to hear them.',
           check: {
             kind: 'choice',
             question: 'At what point in the beat does the gradient of aortic stenosis exist?',
@@ -446,7 +448,7 @@ export const HEMODYNAMICS: Course = {
           title: 'Mitral regurgitation: a volume load',
           text: [
             'Aortic stenosis is a pressure load. Mitral regurgitation is a volume load: the blood that leaked back returns on the next beat, on top of the normal inflow. The ventricle has to hold more, and over months to years it enlarges.',
-            'Look at the loop. It is wide: its right side has moved far to the right. That side also leans to the left, because the ventricle starts to empty into the atrium the moment it contracts, before the aortic valve has opened. There is no true isovolumetric contraction.',
+            'Look at the loop. It is wide: its right side has moved far to the right. That side also leans to the left, because the ventricle starts to empty into the atrium the moment it contracts, before the aortic valve has opened. The left side leans too: the leak goes on as the ventricle relaxes, until the mitral valve opens. There is no true isovolumetric contraction or relaxation.',
             'The ejection fraction looks healthy, but part of it goes the wrong way. Only the forward stroke volume reaches the body. When a severe leak comes from disease of the valve itself (primary MR), an EF of 60% or less already means the muscle is weakening.',
           ],
           look: 'Next to the loop, compare the total stroke volume (EDV minus ESV) with the forward stroke volume (Fwd SV). The difference is the blood that leaked back. The sound trace shows a murmur from S1 right through to S2.',
@@ -470,7 +472,7 @@ export const HEMODYNAMICS: Course = {
             'The obstruction is now on the way into the ventricle, so the gradient appears in diastole. Normally the blue and yellow lines run together while the ventricle fills. Here the atrium (blue) stays well above the ventricle (yellow) from MO right through to MC.',
             'The ventricle itself is spared: it is small or normal, and its filling pressure is normal or low. The high pressure is behind the valve, in the left atrium and the lungs. The tethered leaflets open with a sharp sound shortly after S2, the opening snap, followed by a low rumbling murmur through diastole.',
           ],
-          look: 'From MO to MC the blue line rides high above the yellow line, and the gap never closes. The purple line climbs slowly all the way to MC: no fast early filling, no flat stretch.',
+          look: 'From MO to MC the blue line stays above the yellow line and the gap never closes. The purple line climbs slowly, with no fast early filling, until the atrial kick adds a last rise. OS (opening snap) is marked after S2. LA mean reads high, LVEDP low.',
           show: { rhythm: 'mitral-stenosis', hr: 70 },
           check: {
             kind: 'choice',
@@ -492,7 +494,7 @@ export const HEMODYNAMICS: Course = {
             'To push blood through faster the atrial pressure must rise, and steeply: the gradient goes up with the square of the flow rate. The pressure backs up into the lungs and the patient becomes breathless.',
             'So anything that raises the heart rate can tip a stable patient into pulmonary edema (fluid in the lungs): exercise, fever, pregnancy, and above all atrial fibrillation with a fast ventricular rate, which also takes away the atrial kick.',
           ],
-          look: 'The rate has gone from 70 to 130 a minute. The gap between the blue and yellow lines in diastole is wider, the blue line sits higher all through the beat, and the purple line reaches a lower peak before MC.',
+          look: 'The rate has gone from 70 to 130 a minute. The gap between the blue and yellow lines in diastole is wider, the blue line sits higher all through the beat (read LA mean), and the purple line reaches a lower peak before MC.',
           show: { hr: 130 },
           check: {
             kind: 'choice',
@@ -577,7 +579,7 @@ export const HEMODYNAMICS: Course = {
             'Those are the two coordinates of the bottom-right corner of the PV loop. In a healthy heart the corner sits near 120 mL, at 12 mmHg or less.',
             'A high filling pressure backs up through the left atrium into the lungs and makes the patient breathless. A low stroke volume leaves the body short of blood. Heart failure is one of these, or both.',
           ],
-          look: 'A normal heart. Find the bottom-right corner of the loop: how far across it sits is the EDV, and how high it sits is the LVEDP. Every loop in this lesson is compared with this one.',
+          look: 'A normal heart. Find the bottom-right corner of the loop: how far across it sits is the EDV, and how high it sits is the LVEDP. Both have their own number next to the loop. Every loop in this lesson is compared with this one.',
           show: { ecg: 'wiggers', heart: false, rhythm: 'normal-sinus', hr: 70, speed: 0.5 },
         },
         {
@@ -587,7 +589,7 @@ export const HEMODYNAMICS: Course = {
             'A weak ventricle leaves most of its blood behind, so the ESV is large. It then fills on top of that, so the EDV is larger still, and over time the chamber enlarges. The loop is narrow and far to the right, and its bottom-right corner sits high: the filling pressure is raised.',
             'The stretched ventricle often pulls the mitral valve apart as well, so that it leaks. This is functional mitral regurgitation: the leaflets are normal and the ventricle is the cause.',
           ],
-          look: 'Loop: narrow, far to the right, bottom-right corner raised. Numbers: large volumes, low EF. On the chart the purple line rides high and gives up only a small part of its height with each beat.',
+          look: 'Loop: narrow, far to the right, bottom-right corner raised. Numbers: large volumes, a low EF and a high LVEDP, both in red. On the chart the purple line rides high and gives up only a small part of its height with each beat.',
           show: { rhythm: 'hfref' },
           check: {
             kind: 'choice',
@@ -614,7 +616,7 @@ export const HEMODYNAMICS: Course = {
             'S1, S2 and S3 together have the rhythm of the word Ken-tuc-ky. In an adult over about 40 an S3 points to an enlarged, overloaded ventricle with a high filling pressure. In children and young adults it can be normal.',
             'It is soft and low-pitched: heard best at the apex with the bell of the stethoscope, with the patient turned onto the left side.',
           ],
-          look: 'On the sound trace find a small low burst shortly after each S2, a little past the MO line. Press Listen next to the loop: the text under the button names each sound you hear, including the murmur of the leaking mitral valve.',
+          look: 'On the sound trace an amber S3 marks a small low burst shortly after each S2, a little past the MO line. Press Listen next to the loop: the text under the button names each sound you hear, including the murmur of the leaking mitral valve.',
           check: {
             kind: 'choice',
             question: 'Where in the cycle does an S3 fall?',
@@ -635,7 +637,7 @@ export const HEMODYNAMICS: Course = {
             'The wall is thick and stiff, often after years of high blood pressure. It will not stretch to take in blood at a low pressure. The volume is normal or small, but the pressure needed to reach it is high, and that pressure backs up into the lungs.',
             'On the loop, stiffness shows along the bottom. The filling side curves upward, and the bottom-right corner sits high without being pushed to the right.',
           ],
-          look: 'Width, position and EF are close to normal. The loop is tall because this patient has high blood pressure. The telling difference is the bottom-right corner, which sits high. On the blue line the a wave is taller than in a normal heart.',
+          look: 'Width, position and EF are close to normal. The loop is tall because this patient has high blood pressure. The telling difference is the bottom-right corner, which sits high: LVEDP is in red. The a wave on the blue line is taller than normal.',
           show: { rhythm: 'hfpef' },
           check: {
             kind: 'choice',
@@ -662,7 +664,7 @@ export const HEMODYNAMICS: Course = {
             'S4, S1 and S2 together have the rhythm of the word Ten-nes-see. An S4 means a stiff ventricle: long-standing high blood pressure, aortic stenosis, hypertrophic cardiomyopathy, or the first hours of a heart attack.',
             'An S4 needs an atrial contraction, so it cannot exist in atrial fibrillation. And when one of these patients goes into atrial fibrillation, the lost kick can bring on sudden pulmonary edema.',
           ],
-          look: 'On the sound trace find a small low burst right before each S1, after the P wave on the ECG. Press Listen next to the loop to hear it.',
+          look: 'On the sound trace an amber S4 marks a small low burst right before each S1, after the P wave on the ECG. Press Listen next to the loop to hear it.',
           check: {
             kind: 'choice',
             question: 'A patient with a loud S4 goes into atrial fibrillation. What happens to the S4?',
@@ -683,7 +685,7 @@ export const HEMODYNAMICS: Course = {
             'The picture is HFrEF taken to the limit, with one new feature: the blood pressure has fallen. The stroke volume is so small that the pulse pressure (systolic minus diastolic) is narrow, and the heart races to make up the output. The filling pressure is very high, so the lungs flood while the body goes short: cold and wet.',
             'The working definition: a systolic pressure under 90 mmHg for 30 minutes, or drugs or a pump needed to hold it there, with signs that the organs are short of blood (cold skin, confusion, little urine, a rising lactate). Measured, the cardiac index (the output per minute, scaled to body size) is under 2.2 L/min/m² and the wedge pressure is over 15 mmHg.',
           ],
-          look: 'The red line sits low and its swing from trough to peak is small. The rate is fast. Next to the loop, any value that has crossed a danger line is shown in red.',
+          look: 'The red line sits low and its swing from trough to peak is smaller than normal. The rate is fast. Next to the loop the values past a danger line are in red: the blood pressure, the MAP, the cardiac output, the EF, the LVEDP and the LA mean.',
           show: { rhythm: 'cardiogenic-shock' },
           check: {
             kind: 'choice',
@@ -706,13 +708,13 @@ export const HEMODYNAMICS: Course = {
           more: ['cardiogenic-shock', 'cl-shock-profiles', 'cl-cardiac-output', 'impella-placement'],
         },
         {
-          title: 'Tamponade: high pressure, empty heart',
+          title: 'Tamponade: high pressure, little volume',
           text: [
             'In cardiac tamponade, fluid or blood collects in the pericardium, the sac around the heart, and squeezes the heart from outside. The chambers cannot expand to fill.',
-            'The result looks like a contradiction. The filling pressure reads high, yet the ventricle is small and nearly empty. The pressure comes from the fluid outside the wall, not from blood stretching it. The loop is tiny, pushed to the left and lifted off the floor.',
+            'The result looks like a contradiction. The filling pressure reads high, yet the ventricle is small and underfilled. The pressure comes from the fluid outside the wall, not from blood stretching it. The loop is tiny, pushed to the left and lifted off the floor, and the output is low.',
             'With so little room the two ventricles compete. On each breath in, the right side fills more and the left side less, so the systolic pressure dips with inspiration. A fall of more than 10 mmHg is called pulsus paradoxus. In a large collection the heart also swings to and fro from beat to beat, so the height of the QRS alternates: electrical alternans.',
           ],
-          look: 'A small loop, far to the left, raised off the bottom. A fast rate and a narrow pulse. Watch the peaks of the red line over several beats: they are not level, but sink and rise again with breathing. On the ECG every other QRS is smaller.',
+          look: 'A small loop, far to the left, raised off the bottom: a high LVEDP with a small EDV. A fast rate, a narrow pulse. Over several beats the red peaks sink and rise again with breathing, by more than 10 mmHg. On the ECG every other QRS is smaller.',
           show: { rhythm: 'tamponade', speed: 1 },
           check: {
             kind: 'choice',
@@ -739,9 +741,9 @@ export const HEMODYNAMICS: Course = {
           text: [
             'A large pulmonary embolism (PE) is a clot blocking the arteries of the lungs. The damage is on the right side: the thin-walled right ventricle suddenly faces a high resistance, strains and swells.',
             'This chart shows only the left heart, and the left heart is a bystander. Little blood gets through the lungs to reach it, and the swollen right ventricle pushes the septum over into its space. The left ventricle is underfilled.',
-            'So the loop is small and shifted to the left, as in tamponade, but it lies on the floor: the left-sided filling pressure is low. All the high pressure is upstream, in the right ventricle and the right atrium.',
+            'So the loop is small and shifted to the left, as in tamponade, and the output is about as low, but the loop lies on the floor: the left-sided filling pressure is low. All the high pressure is upstream of the clot, in the pulmonary artery, the right ventricle and the right atrium.',
           ],
-          look: 'A small loop, shifted to the left, with a fast rate. Compare the height of its bottom side with the last heart: this time the loop sits on the floor of the chart.',
+          look: 'A small loop, shifted to the left, with a fast rate. Compare the height of its bottom side with the last heart: this time the loop sits on the floor of the chart, and the LVEDP reads low.',
           show: { rhythm: 'pulmonary-embolism' },
           check: {
             kind: 'choice',
@@ -803,7 +805,7 @@ export const HEMODYNAMICS: Course = {
             'In atrial fibrillation (AF) the atria quiver and do not contract. On the ECG there are no P waves. On the pressure chart the a wave is gone from the blue line, and the last small step up on the volume curve, the atrial kick, is gone with it.',
             'A healthy ventricle fills well enough without the kick. A stiff ventricle (aortic stenosis, HCM, HFpEF) or one behind a narrowed mitral valve does not: its filling pressure rises and its output falls.',
           ],
-          look: 'Blue line: no bump before the QRS, only the c and v waves. Purple line: it rises after MO and then flattens, with no last step up before MC. ECG: no P waves, and uneven gaps between the beats.',
+          look: 'Blue line: no bump before the QRS, only the c and v waves. Purple line: after a long gap it rises after MO and then flattens, with no last step up before MC. ECG: no P waves, and uneven gaps between the beats.',
           show: { rhythm: 'atrial-fibrillation', hr: 110 },
           check: {
             kind: 'choice',
@@ -848,10 +850,10 @@ export const HEMODYNAMICS: Course = {
           title: 'A fast rate takes its time from diastole',
           text: [
             'Cardiac output is heart rate times stroke volume. Speeding up is the quickest way for the heart to pump more, and up to a point it works.',
-            'But a faster beat does not shorten evenly. Systole shortens a little; diastole takes nearly all of the cut. At 70 a minute about two-thirds of each beat is diastole. At 150 it is about half.',
-            'The first part to go is the slow middle of filling, which adds little. So in a healthy heart the stroke volume falls only slightly and the output still rises. The coronary arteries also feed the left ventricle mainly in diastole, so a heart with narrowed coronary arteries feels the loss sooner.',
+            'But a faster beat does not shorten evenly. Systole shortens somewhat; diastole takes most of the cut. At 70 a minute about 60% of each beat is diastole. At 150 it is about half.',
+            'The first part to go is the slow middle of filling, which adds little. So in a healthy heart the stroke volume falls a little and the output still rises. The coronary arteries also feed the left ventricle mainly in diastole, so a heart with narrowed coronary arteries feels the loss sooner.',
           ],
-          look: 'Sinus tachycardia at 150 a minute. On the purple line the flat stretch is gone: fast filling runs straight into the atrial kick. The peak before MC is a little lower than it was at 70.',
+          look: 'Sinus tachycardia at 150 a minute. On the purple line the flat stretch is gone: fast filling runs straight into the atrial kick. The peak before MC is a little lower than it was at 70, but CO next to the loop is far higher.',
           show: { rhythm: 'sinus-tachycardia', hr: 150 },
           check: {
             kind: 'choice',
@@ -863,29 +865,29 @@ export const HEMODYNAMICS: Course = {
               'None: every part shortens by the same share',
             ],
             answer: 0,
-            explain: 'Ejection needs a certain time whatever the rate, so systole shortens only a little and diastole gives up the rest. That costs filling time and, because the left ventricle is fed mainly in diastole, coronary flow as well.',
+            explain: 'Ejection needs a certain time whatever the rate, so systole shortens less and diastole gives up most of the time. That costs filling time and, because the left ventricle is fed mainly in diastole, coronary flow as well.',
           },
         },
         {
           title: 'Too fast to fill',
           text: [
-            'Go faster still and rapid filling itself is cut short. Each beat now starts with a ventricle that is far from full, and the stroke volume drops faster than the rate rises. The output falls.',
-            'This is a supraventricular tachycardia (a fast rhythm that starts above the ventricles) at 220 a minute. Each beat ejects so little that the aortic pressure barely moves: a narrow pulse pressure and a weak, thready pulse. The atria also contract at the wrong moment, against closed valves, so there is no atrial kick.',
-            'Hearts with a stiff ventricle, a narrowed mitral or aortic valve or coronary disease reach this point at much lower rates.',
+            'Go faster still and rapid filling itself is cut short. Each beat now starts with a ventricle that is far from full, and the stroke volume drops faster than the rate rises. The output stops rising, then falls.',
+            'This is a supraventricular tachycardia (a fast rhythm that starts above the ventricles) at 240 a minute. Each beat ejects so little that the aortic pressure barely moves: a narrow pulse pressure and a weak, thready pulse. The atria also contract at the wrong moment, against closed valves, so there is no atrial kick.',
+            'At 150 a minute this heart pumped far more than at rest; at 240 it pumps a little less than at rest. Hearts with a stiff ventricle, a narrowed mitral or aortic valve or coronary disease reach the turning point at much lower rates.',
           ],
-          look: 'Purple line: small, shallow swings; the ventricle never gets near full. Red line: a narrow ripple in place of a full pulse. Blue line: a spike in every systole, the atrium contracting against a closed valve.',
-          show: { rhythm: 'avnrt', hr: 220 },
+          look: 'Purple line: small, shallow swings; the ventricle never gets near full. Red line: a narrow ripple in place of a full pulse. Blue line: a spike in every systole, the atrium contracting against a closed valve. Read CO next to the loop.',
+          show: { rhythm: 'avnrt', hr: 240 },
           check: {
             kind: 'choice',
-            question: 'At rest a heart beats 70 times a minute and ejects 70 mL per beat. In a tachycardia at 210 a minute it ejects 20 mL per beat. What has happened to the cardiac output?',
+            question: 'At rest a heart beats 70 times a minute and ejects 70 mL per beat. In this tachycardia at 240 a minute it ejects about 19 mL per beat. What has happened to the cardiac output?',
             options: [
-              'It has fallen, from 4.9 to 4.2 L/min',
-              'It has tripled, because the rate has tripled',
-              'It has stayed the same',
-              'It has risen slightly',
+              'It is a little lower than at rest: about 4.6 L/min against 4.9',
+              'It has more than tripled, because the rate has more than tripled',
+              'It has risen by about half',
+              'It has fallen to almost nothing',
             ],
             answer: 0,
-            explain: '70 × 70 mL is 4.9 L/min. 210 × 20 mL is 4.2 L/min. Three times the rate does not help when each beat carries less than a third as much. With so little in each beat the pulse is weak, and the blood pressure often falls with the output.',
+            explain: '70 × 70 mL is 4.9 L/min. 240 × 19 mL is about 4.6 L/min, as the CO next to the loop shows. More than three times the rate does not help when each beat carries barely a quarter as much. With so little in each beat the pulse is weak, and in a patient the blood pressure often falls with the output.',
           },
           roleNote: {
             2: 'A tachycardia with hypotension, altered mental status, signs of shock, ischemic chest pain or acute heart failure is unstable: synchronized cardioversion per protocol.',
@@ -896,10 +898,10 @@ export const HEMODYNAMICS: Course = {
           title: 'A PVC: a weak beat, then a strong one',
           text: [
             'A premature ventricular contraction (PVC) is a beat that starts early, from a spot in the ventricle. It is weak for two reasons. It comes before the ventricle has refilled. And its signal spreads slowly through muscle, not through the fast conduction system, so the walls contract out of step.',
-            'After the PVC there is a pause. The sinus signal that was due next finds the ventricle still recovering and is lost, so nothing happens until the one after it. The ventricle has extra time to fill, and the muscle contracts harder after an early beat. The beat that ends the pause is stronger than normal: a bigger stroke volume and a bigger pulse.',
+            'After the PVC there is a pause. The next sinus P wave still comes on time, but it finds the conduction system and the ventricle still recovering and is not conducted, so nothing happens until the one after it. The ventricle has extra time to fill, and the muscle contracts harder after an early beat. The beat that ends the pause is stronger than normal: a bigger stroke volume and a bigger pulse.',
             'Patients often feel that strong beat, not the PVC, as a thump or a skipped beat. At the wrist the PVC itself may not be felt at all.',
           ],
-          look: 'Every fourth beat is an early, wide QRS. Under it the red line makes only a small bump and the purple line dips far less than usual. After the pause the purple line peaks higher than on any other beat and falls further.',
+          look: 'Every fourth beat is an early, wide QRS. Under it the red line makes only a small bump and the purple line dips far less than usual. The beat after the pause starts highest on the purple line, falls furthest and makes the tallest red peak.',
           show: { rhythm: 'pvcs' },
           check: {
             kind: 'choice',
@@ -919,10 +921,10 @@ export const HEMODYNAMICS: Course = {
           title: 'Complete heart block: the atrium against a closed valve',
           text: [
             'In complete (third-degree) heart block no atrial signal reaches the ventricles. The atria keep their own pace, about 75 a minute. A backup pacemaker below the block drives the ventricles much more slowly: 40–60 a minute from the AV junction, or 20–40 from the ventricle itself, as here. The two are no longer coordinated.',
-            'So the atrial contraction lands anywhere in the ventricle\'s cycle. When it falls late in diastole it helps filling, as it should. When it falls during systole the atrium contracts against a closed mitral valve: nothing moves forward, and the atrial pressure spikes.',
+            'So the atrial contraction lands anywhere in the ventricle\'s cycle. When it falls late in diastole it helps filling, as it should, and that beat ejects a little more: the stroke volume and the pulse change from beat to beat. When it falls during systole the atrium contracts against a closed mitral valve: nothing moves forward, and the atrial pressure spikes.',
             'The same happens on the right side against the tricuspid valve. There the spike travels back into the neck veins, where it can be seen as an occasional large pulsation: a cannon a wave.',
           ],
-          look: 'On the ECG the P waves march on at about twice the rate of the wide QRS complexes. A P wave that falls in diastole leaves only a ripple on the blue line. One that falls between MC and MO throws up a tall spike.',
+          look: 'The P waves march on at about twice the rate of the wide QRS complexes. A P wave in diastole leaves a small bump on the blue line; one between MC and MO throws up a tall spike. A QRS that follows a P wave at about the usual PR distance peaks higher.',
           show: { rhythm: 'third-degree-avb' },
           check: {
             kind: 'choice',
@@ -940,8 +942,8 @@ export const HEMODYNAMICS: Course = {
         {
           title: 'Slow beats cannot carry the output',
           text: [
-            'Now look at what the slow rate does. The long pause lets the ventricle fill completely, so each beat could be a large one. But a backup beat, called an escape beat, that starts in the ventricle spreads slowly through muscle, like a PVC, and wastes part of that filling. And the aorta drains for a long time between beats, so the diastolic pressure runs low.',
-            'Even a good stroke volume cannot make up for so few beats. At 36 a minute, a full 70 mL per beat gives only about 2.5 L/min, half of normal. The patient is weak, dizzy or faint, and the answer is to restore the rate, usually with pacing.',
+            'Now think about what the slow rate does. The long pause lets the ventricle fill completely, so each beat could be a large one. But a backup beat, called an escape beat, that starts in the ventricle spreads slowly through muscle, like a PVC, and wastes part of that filling. (A narrow escape from the AV junction uses the normal wiring and squeezes like a normal beat.) And the aorta drains for a long time between beats, so the diastolic pressure runs low.',
+            'Even a near-normal stroke volume cannot make up for so few beats. At 36 a minute, about 60 mL per beat gives only about 2.2 L/min (36 × 60 mL), less than half of normal. The patient is weak, dizzy or faint, and the answer is to restore the rate, usually with pacing.',
           ],
           look: 'The cut-open heart is on screen at real speed. Watch the atria and the ventricles contract on separate schedules. In the cycle box the mitral and tricuspid valves stay open all through the long pause.',
           show: { heart: 'sectioned', flow: true, speed: 1, focus: 'heart' },
