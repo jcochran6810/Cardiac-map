@@ -463,14 +463,34 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
 
     const drawAnnotations = (c: CanvasRenderingContext2D, L: Layout, T: number, color: string) => {
       const s = L.strips[0];
-      const k = Math.floor((T - s.offset) / s.page);
-      const ws = k * s.page + s.offset;
-      // last ventricular beat whose T wave is complete and on screen
+      const sweep = (t: number) => Math.floor((t - s.offset) / s.page);
+      // t0 … t1 is on screen in one piece: on this sweep, or still ahead of the erase bar on the last one
+      const whole = (t0: number, t1: number) => sweep(t0) === sweep(t1) && shownX(s, t0, T, L.pxPerMs) !== null && shownX(s, t1, T, L.pxPerMs) !== null;
+      type Beat = (typeof engine.vent)[number];
+      type Atrial = (typeof engine.atrial)[number];
+      const conductedP = (b: Beat): Atrial | null => (b.pTime !== undefined ? engine.atrial.find((x) => x.t === b.pTime) ?? null : null);
+      // The last beat whose T wave is complete and that is on screen whole, P wave included. Its labels stay up
+      // until the next beat is complete — also while the sweep starts again, where the beat is still on the last
+      // sweep — rather than blinking off for part of every beat. (A beat whose P wave the erase bar has already
+      // passed is measured without its PR only if no whole one is left.)
       let vi = engine.lastVentIndex(T);
       while (vi >= 0 && engine.vent[vi].t + engine.vent[vi].qt > T) vi--;
-      if (vi < 0) return;
-      const v = engine.vent[vi];
-      if (v.t < ws) return;
+      let v: Beat | null = null;
+      let a: Atrial | null = null;
+      for (let n = 0; vi >= 0 && n < 3; vi--, n++) {
+        const b = engine.vent[vi];
+        if (!whole(b.t, b.t + b.qt)) continue;
+        const p = conductedP(b);
+        if (p && !whole(p.t, b.t + b.qt)) {
+          v ??= b;
+          continue;
+        }
+        v = b;
+        a = p;
+        break;
+      }
+      if (!v) return;
+      const ws = sweep(v.t) * s.page + s.offset;
       const X = (t: number) => s.x + (t - ws) * L.pxPerMs;
       const base = s.y + s.h * 0.62;
       // a small picture (a phone, a lesson beside it): tighter rows and smaller type, so the brackets stay clear of the trace
@@ -480,7 +500,14 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       c.strokeStyle = color;
       c.fillStyle = color;
       c.lineWidth = 1;
-      c.font = `600 ${small ? 10 : 11}px ui-sans-serif, system-ui, sans-serif`;
+      const fs = small ? 10 : 11;
+      c.font = `600 ${fs}px ui-sans-serif, system-ui, sans-serif`;
+      // the labels written over the trace so far (left, top, right, bottom), starting with the lead's name in the
+      // corner, so that the ST label can go where it covers none of them
+      type Box = [number, number, number, number];
+      const taken: Box[] = [[s.x, s.y, s.x + 9 + c.measureText(s.label).width * 1.3, s.y + 18]];
+      const textBox = (x0: number, y: number, w: number): Box => [x0 - 1, y - fs, x0 + w + 1, y + 3];
+      const free = (b: Box) => taken.every((o) => b[2] <= o[0] || b[0] >= o[2] || b[3] <= o[1] || b[1] >= o[3]);
       // keep a label that is centred on `x` inside the strip
       const inside = (x: number, label: string) => {
         const half = c.measureText(label).width / 2 + 3;
@@ -497,15 +524,16 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       };
       const markAt = (t: number, label: string) => {
         const y = base - engine.voltage(s.lead, t) * L.pxPerMv;
-        const ly = Math.min(y, base) - 10;
+        const ly = Math.max(s.y + 26, Math.min(y, base) - 10);
+        const x = inside(X(t), label);
+        const w = c.measureText(label).width;
         c.textAlign = 'center';
-        c.fillText(label, inside(X(t), label), Math.max(s.y + 26, ly));
+        c.fillText(label, x, ly);
         c.textAlign = 'left';
+        taken.push(textBox(x - w / 2, ly, w));
       };
-      // P wave + PR interval if this beat was conducted from a visible P
-      const ai = v.pTime !== undefined ? engine.atrial.findIndex((a) => a.t === v.pTime) : -1;
-      const a = ai >= 0 ? engine.atrial[ai] : null;
-      if (a && a.t >= ws) {
+      // P wave + PR interval if this beat was conducted from a P that is on screen with it
+      if (a) {
         markAt(a.t + a.template.duration * 0.45, 'P');
         bracket(a.t, v.t, yBr - 2 * rowGap, `PR ${Math.round(v.t - a.t)} ms`);
       }
@@ -532,9 +560,17 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       c.setLineDash([]);
       const stv = engine.voltage(s.lead, v.t + v.qrsDur) - engine.voltage(s.lead, v.t - 12);
       const stText = `ST at J ${stv >= 0 ? '+' : ''}${(stv * 10).toFixed(1)} mm`;
-      // beside its dashed line, on whichever side has room
+      // beside its dashed line, on whichever side has room, and on the first row near the top where it covers no
+      // other label (a tall R wave puts the QRS label up there too)
       const stW = c.measureText(stText).width;
-      c.fillText(stText, jx + 4 + stW > s.x + s.w - 2 ? jx - 4 - stW : jx + 4, s.y + (small ? 14 : 30));
+      const right = jx + 4;
+      const left = jx - 4 - stW;
+      const sides = right + stW > s.x + s.w - 2 ? [left] : left > s.x + 2 ? [right, left] : [right];
+      const y0 = s.y + (small ? 14 : 30);
+      const step = fs + 5;
+      const rows = [y0, y0 - step, y0 + step, y0 + 2 * step, y0 + 3 * step].filter((y) => y >= s.y + fs + 2 && y <= yBr - 2 * rowGap - 10);
+      const [stX, stY] = rows.flatMap((y) => sides.map((x) => [x, y] as const)).find(([x, y]) => free(textBox(x, y, stW))) ?? [sides[0], y0];
+      c.fillText(stText, stX, stY);
     };
 
     const drawCalipers = (c: CanvasRenderingContext2D, L: Layout, pts: Caliper[], color: string) => {
