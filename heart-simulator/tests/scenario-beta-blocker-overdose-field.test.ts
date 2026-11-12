@@ -461,6 +461,43 @@ describe('beta-blocker overdose (field): delay', () => {
     expect(review(sc, dead).percent).toBeLessThanOrEqual(40);
   });
 
+  it('a call back in her arrest gets the arrest\'s orders — no pacing, no glucagon, no infusion until ROSC — and following them costs nothing', () => {
+    // the reviewers' run: SAMPLE, a first call, then nothing until she arrests, and a second call (pads and a line on)
+    let s = run(sc, 2, [...READY, 'med-control']);
+    expect(s.log.at(-1)!.text).toMatch(/Glucagon 5 mg IV, once more if needed; an epinephrine infusion to a MAP of 65; pace if she stays slow/);
+    while (s.pulse && s.minute < 60) s = perform(sc, s, 'reassess');
+    expect(s.pulse).toBe(false);
+    s = perform(sc, s, 'med-control');
+    expect(s.counts['med-control']).toBe(2);
+    const [now, later] = s.log.at(-1)!.text.split('Call me back with ROSC');
+    expect(now).toMatch(/^Medical control, with the poison center on the line: no pulse — CPR and epinephrine 1 mg every 3–5 minutes, and work the arrest on scene; no pacing in arrest\. Glucagon will not restart her either\./);
+    expect(now).not.toMatch(/\bpace\b|Glucagon 5 mg|second 5 mg|infusion/);
+    expect(later).toMatch(/then an epinephrine infusion to a MAP of 65/);
+    const before = penalties(s);
+    for (const id of ['cpr', 'epinephrine', 'cpr']) s = perform(sc, s, id);
+    expect(s.pulse).toBe(true);
+    expect(penalties(s)).toEqual(before);
+    // the poison center answers the same way in the arrest; before SAMPLE neither names the drug's antidote
+    const arrested = run(sc, 2, [...READY, ...R(14)]);
+    const poison = perform(sc, arrested, 'poison-control').log.at(-1)!.text;
+    expect(poison).toMatch(/^Poison center: "She has no pulse — CPR and epinephrine 1 mg every 3–5 minutes.*no pacing in arrest/);
+    expect(poison).not.toMatch(/pace if|Glucagon 5 mg/);
+    let unknown = run(sc, 2, ['primary', 'pads', 'iv']);
+    while (unknown.pulse && unknown.minute < 60) unknown = perform(sc, unknown, 'reassess');
+    const call = perform(sc, unknown, 'med-control');
+    expect(call.counts['med-control']).toBe(1);
+    expect(call.log.at(-1)!.text).toMatch(/^Medical control: no pulse — CPR.*Find out from her sister what she took/);
+    expect(call.log.at(-1)!.text).not.toMatch(/glucagon|metoprolol/i);
+  });
+
+  it('a call back with a pulse answers for what has been given: no glucagon past its two doses, the infusion titrated once it runs', () => {
+    const s = run(sc, 2, [...READY, 'glucose', 'dextrose', 'glucagon', 'glucagon', 'pressor', 'med-control']);
+    const said = s.log.at(-1)!.text;
+    expect(said).toMatch(/The glucagon is used up; titrate the epinephrine infusion to a MAP of 65; pace if she stays slow; recheck her glucose/);
+    expect(said).not.toMatch(/Glucagon 5 mg|once more if needed/);
+    expect(perform(sc, run(sc, 2, [...READY, 'glucagon']), 'poison-control').log.at(-1)!.text).toMatch(/A second 5 mg of glucagon if she is still slow/);
+  });
+
   it('glucagon given in the arrest changes nothing and does not count as the glucagon she needed', () => {
     const s = run(sc, 2, [...READY, ...R(14), 'glucagon']);
     expect(s.pulse).toBe(false);

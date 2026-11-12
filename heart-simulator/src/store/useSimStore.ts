@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import { setRhythm, showRhythm } from '@/lib/rhythm';
 import { answerRead, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
+import { arrestEtco2, ventilated } from '@/lib/sim/scenario/kit';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Review, SimState } from '@/lib/sim/scenario/types';
 import { resetCode, setBaseline, setNibpReading, setScriptedVitals, useDefibStore, type ScriptedVitals } from '@/lib/sim/defib';
@@ -57,23 +58,6 @@ function loadBest(): Record<string, number> {
 export const bestKey = (scenarioId: string, role: number) => `${scenarioId}:${role}`;
 
 /**
- * EtCO₂ in cardiac arrest when the case gives no number for it. A capnograph reads only what is breathed out: with
- * no breaths it reads almost nothing, however good the compressions (the air they move is less than the dead space:
- * Deakin et al., Resuscitation 2007). With breaths it follows the blood flow: compressions carry CO₂ to the lungs,
- * and with none almost nothing reaches them. The engine's default capnography line must give the same numbers.
- */
-export const ARREST_ETCO2 = { noBreaths: 3, cpr: 16, noFlow: 6 };
-
-/** Someone is breathing for the patient: a bag-mask or an advanced airway */
-const ventilated = (s: Pick<SimState, 'flags'>) => 'ventilated' in s.flags || 'airway' in s.flags;
-
-/** What the capnograph reads in cardiac arrest for a case that gives no number of its own (see ARREST_ETCO2) */
-export function arrestEtco2(s: Pick<SimState, 'flags'>): number {
-  if (!ventilated(s)) return ARREST_ETCO2.noBreaths;
-  return 'cpr' in s.flags ? ARREST_ETCO2.cpr : ARREST_ETCO2.noFlow;
-}
-
-/**
  * Whether the EtCO₂ in `next` is a number left from before an arrest: the patient lost the pulse (in this step, or
  * earlier with nothing since) and the case did not give a number for the arrest. A case that starts in arrest, or
  * that sets one when the pulse goes or later (no breaths yet, the first breaths, ventilated CPR), gives its own.
@@ -87,7 +71,8 @@ export function staleEtco2(prev: SimState | null, next: SimState, wasStale: bool
 /**
  * What the monitor's sensors would show for this patient. In cardiac arrest the case's own EtCO₂ is what the
  * capnograph reads; only a number left from before the arrest (`stale`: a perfusing 30–40, which during CPR would
- * look like ROSC) gives way to the engine's arrest numbers (arrestEtco2).
+ * look like ROSC) gives way to the shared arrest rule (arrestEtco2 in the scenario kit), which the engine's
+ * capnography line reads too.
  */
 export function monitorVitals(s: SimState, stale = false): ScriptedVitals {
   const v = s.vitals;

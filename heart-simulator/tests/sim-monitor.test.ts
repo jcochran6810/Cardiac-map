@@ -7,7 +7,8 @@ import type { SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { ARREST_ETCO2, arrestEtco2, caseBaseline, enterSimulator, leaveSimulator, monitorVitals, staleEtco2, useSimStore } from '@/store/useSimStore';
+import { ARREST_ETCO2, arrestEtco2 } from '@/lib/sim/scenario/kit';
+import { caseBaseline, enterSimulator, leaveSimulator, monitorVitals, staleEtco2, useSimStore } from '@/store/useSimStore';
 import { run, runScenario } from './helpers';
 
 /** A step that reassesses until the patient arrests (a case whose arrest comes with time) */
@@ -19,7 +20,7 @@ interface Seen { s: SimState; etco2: number; stale: boolean }
  * Play a run as the case simulator's store does and keep what its monitor shows after each step: the EtCO₂ (with
  * the store's "left from before the arrest" bookkeeping, which starts from the case's first state) and the state
  */
-function monitored(id: string, role: LearningLevel, steps: string[]): Seen[] {
+function monitored(id: string, role: LearningLevel, steps: readonly string[]): Seen[] {
   const sc = SCENARIO_BY_ID[id];
   const seen: Seen[] = [];
   let s = start(sc, role);
@@ -48,8 +49,6 @@ const capnoLine = (s: SimState) => {
   const l = [...s.log].reverse().find((x) => /^EtCO₂ \d+ mmHg/.test(x.text));
   return l ? Number(l.text.match(/\d+(?= mmHg)/g)!.at(-1)) : null;
 };
-
-const ventilated = (s: SimState) => 'ventilated' in s.flags || 'airway' in s.flags;
 
 describe('EtCO₂ on the case monitor in cardiac arrest (follow-up 15)', () => {
   it('a case that runs the arrest is shown its own number: no breaths yet, the first breaths, ventilated CPR', () => {
@@ -114,62 +113,89 @@ describe('EtCO₂ on the case monitor in cardiac arrest (follow-up 15)', () => {
 });
 
 describe('the monitor and the capnography line give the same EtCO₂ in every arrest', () => {
-  /** How each case with an arrest gets there (paramedic): from the start, or from a pulse */
-  const ARRESTS: [string, string[]][] = [
-    ['vf-arrest-field', []],
-    ['pea-arrest-field', []],
+  /** How each case with an arrest gets there: from the start, or from a pulse (the cath lab's as the cardiologist) */
+  const ARRESTS: [string, LearningLevel, string[]][] = [
+    ['vf-arrest-field', 2, []],
+    ['pea-arrest-field', 2, []],
     // an unsynchronized shock on a rhythm with a pulse: VF
-    ['stable-vt-field', ['primary', 'pads', 'defib']],
-    ['svt-unstable-field', ['primary', 'pads', 'defib']],
-    ['af-rvr-field', ['primary', 'pads', 'defib']],
-    ['stemi-anterior-field', ['primary', 'pads', 'transport-pci', UNTIL_ARREST]],
-    ['hyperkalemia-dialysis-field', ['primary', 'monitor', UNTIL_ARREST]],
-    ['beta-blocker-overdose-field', ['primary', 'monitor', UNTIL_ARREST]],
+    ['stable-vt-field', 2, ['primary', 'pads', 'defib']],
+    ['svt-unstable-field', 2, ['primary', 'pads', 'defib']],
+    ['af-rvr-field', 2, ['primary', 'pads', 'defib']],
+    ['stemi-anterior-field', 2, ['primary', 'pads', 'transport-pci', UNTIL_ARREST]],
+    ['hyperkalemia-dialysis-field', 2, ['primary', 'monitor', UNTIL_ARREST]],
+    ['beta-blocker-overdose-field', 2, ['primary', 'monitor', UNTIL_ARREST]],
+    // the cath lab: reperfusion VF, VF with no-reflow left untreated, tamponade and anaphylaxis left untreated (PEA)
+    ['stemi-cathlab', 5, ['consent', 'heparin', 'p2y12', 'fentanyl', 'timeout', 'access', 'cath-tiger', 'angio', 'guide-ebu', 'reposition',
+      'view-rao-cranial', 'wire-workhorse', 'balloon-predil', 'stent-des']],
+    ['no-reflow-cathlab', 5, ['act', 'heparin', 'stent-des', UNTIL_ARREST]],
+    ['perforation-cathlab', 5, [UNTIL_ARREST]],
+    ['contrast-cathlab', 5, ['consent', 'timeout', 'access', 'cath-tiger', 'angio', UNTIL_ARREST]],
   ];
   /** Then capnography: before anything else, after compressions, breaths, both (either order), an advanced airway */
   const THEN = [['capno'], ['cpr', 'capno'], ['bvm', 'capno'], ['bvm', 'cpr', 'capno'], ['cpr', 'bvm', 'capno'], ['cpr', 'airway', 'capno']];
 
-  /**
-   * Where they still disagree, and the file each fix is in (none of them in this test's files). Each is checked to
-   * disagree still, so a fix that lands fails this test until its entry here is removed.
-   */
-  const KNOWN_GAPS: { id: string; matches: (id: string, x: Seen) => boolean; fix: string }[] = [
-    {
-      id: 'default line without breaths',
-      matches: (_, x) => x.stale && !ventilated(x.s),
-      fix: 'engine.ts, default capnography line: still 16 (or 6) with no breaths; it should follow arrestEtco2 (3 with no breaths)',
-    },
-    {
-      id: 'VF case',
-      matches: (id) => id === 'vf-arrest-field',
-      fix: 'vfArrest.ts: its capnography line says 18 or 9 while its vitals keep the 14 it starts with; it should set its arrest EtCO₂ in its vitals and report that',
-    },
-    {
-      id: '12 when the pulse goes',
-      matches: (id) => id === 'hyperkalemia-dialysis-field' || id === 'beta-blocker-overdose-field',
-      fix: 'hyperkalemiaField.ts and betaBlockerField.ts set EtCO₂ 12 when the pulse goes, which the default capnography line never says',
-    },
-  ];
-
   it('each case, each order of compressions, breaths and capnography', () => {
-    const gaps = new Map(KNOWN_GAPS.map((g) => [g.id, [] as { steps: string; agrees: boolean }[]]));
-    for (const [id, path] of ARRESTS) {
+    for (const [id, role, path] of ARRESTS) {
       for (const then of THEN) {
         const steps = `${id}: ${[...path, ...then].join(', ')}`;
-        const x = monitored(id, 2, [...path, ...then]).at(-1)!;
+        const x = monitored(id, role, [...path, ...then]).at(-1)!;
         expect(x.s.pulse, steps).toBe(false);
-        const agrees = capnoLine(x.s) === x.etco2;
-        const gap = KNOWN_GAPS.find((g) => g.matches(id, x));
-        if (gap) gaps.get(gap.id)!.push({ steps, agrees });
-        else expect(`monitor ${x.etco2}, capnography line ${capnoLine(x.s)}`, steps).toBe(`monitor ${x.etco2}, capnography line ${x.etco2}`);
+        expect(`monitor ${x.etco2}, capnography line ${capnoLine(x.s)}`, steps).toBe(`monitor ${x.etco2}, capnography line ${x.etco2}`);
       }
     }
-    for (const g of KNOWN_GAPS) {
-      const runs = gaps.get(g.id)!;
-      expect(runs.length, `known gap "${g.id}" no longer happens: remove it`).toBeGreaterThan(0);
-      const fixed = runs.filter((r) => r.agrees).map((r) => r.steps);
-      expect(fixed, `known gap "${g.id}" (${g.fix}) now agrees in these runs: narrow or remove it`).toEqual([]);
+  });
+
+  it('the engine\'s own capnography line reads the shared rule: 3 with no breaths, 6 with breaths alone, 16 with breaths and CPR', () => {
+    const id = 'stable-vt-field';
+    const line = (then: string[]) => capnoLine(monitored(id, 2, ['primary', 'pads', 'defib', ...then]).at(-1)!.s);
+    expect(line(['capno'])).toBe(ARREST_ETCO2.noBreaths);
+    expect(line(['cpr', 'capno'])).toBe(ARREST_ETCO2.noBreaths);
+    expect(line(['bvm', 'capno'])).toBe(ARREST_ETCO2.noFlow);
+    expect(line(['bvm', 'cpr', 'capno'])).toBe(ARREST_ETCO2.cpr);
+    expect(line(['cpr', 'airway', 'capno'])).toBe(ARREST_ETCO2.cpr);
+  });
+
+  it('the hyperkalemia and beta-blocker arrests give no number of their own: the shared rule, never a fixed 12', () => {
+    for (const id of ['hyperkalemia-dialysis-field', 'beta-blocker-overdose-field']) {
+      const seen = monitored(id, 2, ['primary', 'monitor', UNTIL_ARREST, 'bvm', 'cpr', 'capno']);
+      const arrest = seen.find((x) => !x.s.pulse)!;
+      expect(arrest, id).toMatchObject({ stale: true, etco2: ARREST_ETCO2.noBreaths });
+      for (const x of seen) if (!x.s.pulse) expect(x.etco2, id).not.toBe(12);
+      expect(seen.at(-1)!.etco2, id).toBe(ARREST_ETCO2.cpr);
+      expect(capnoLine(seen.at(-1)!.s), id).toBe(ARREST_ETCO2.cpr);
     }
+  });
+});
+
+describe('the VF case\'s EtCO₂ follows the shared rule (bystander compressions, then the crew\'s breaths and CPR)', () => {
+  const sc = SCENARIO_BY_ID['vf-arrest-field'];
+  const lastMonitorLine = (s: SimState) => [...s.log].reverse().find((l) => l.who === 'monitor')!.text;
+
+  it('starts at 3: compressions with no breaths give nothing breathed out to measure — the line says why, not "push harder"', () => {
+    const s = runScenario(sc, 2, ['capno']);
+    expect(s.vitals.etco2).toBe(ARREST_ETCO2.noBreaths);
+    expect(lastMonitorLine(s)).toBe('EtCO₂ 3 mmHg: almost no waveform.');
+    expect(s.log.at(-1)).toMatchObject({ who: 'you', text: expect.stringMatching(/^Nobody has given him a breath yet/) });
+    // the crew's compressions alone change nothing
+    expect(runScenario(sc, 2, ['cpr']).vitals.etco2).toBe(ARREST_ETCO2.noBreaths);
+  });
+
+  it('with breaths it measures CPR quality: low on the bystander\'s compressions, adequate on the crew\'s', () => {
+    const bagged = runScenario(sc, 2, ['bvm', 'capno']);
+    expect(bagged.vitals.etco2).toBe(ARREST_ETCO2.noFlow);
+    expect(lastMonitorLine(bagged)).toMatch(/^EtCO₂ 6 mmHg: the staff member's compressions are moving too little blood — take over: push harder and faster\.$/);
+    for (const steps of [['bvm', 'cpr', 'capno'], ['cpr', 'bvm', 'capno'], ['cpr', 'airway', 'capno']]) {
+      const s = runScenario(sc, 2, steps);
+      expect(s.vitals.etco2, steps.join()).toBe(ARREST_ETCO2.cpr);
+      expect(lastMonitorLine(s), steps.join()).toBe('EtCO₂ 16 mmHg during compressions: CPR is adequate.');
+    }
+  });
+
+  it('the monitor shows the same number at every step of the arrest, and the jump at ROSC', () => {
+    const seen = monitored('vf-arrest-field', 2, ['cpr', 'defib', 'cpr', 'io', 'defib', 'epinephrine', 'cpr', 'defib', 'amio-arrest', 'capno', 'bvm', 'cpr', 'defib']);
+    for (const x of seen) if (!x.s.pulse) expect(x.etco2, x.s.performed.at(-1)!.id).toBe(arrestEtco2(x.s));
+    expect(seen.at(-1)!.s.pulse).toBe(true);
+    expect(seen.at(-1)!.etco2).toBe(38);
   });
 });
 

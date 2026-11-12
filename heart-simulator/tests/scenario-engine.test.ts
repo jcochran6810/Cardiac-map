@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
-import { HINT_POINTS, perform, answerRead, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
+import { HINT_POINTS, ecgChanged, perform, answerRead, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
 import { NO_REFLOW_VASODILATORS } from '@/lib/sim/scenario/labKit';
 import { READ_OPTIONS, answerFor, judgeRead } from '@/lib/sim/scenario/reads';
-import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
+import { SCENARIOS, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
 import type { Problem, Scenario, SimState } from '@/lib/sim/scenario/types';
@@ -175,11 +175,19 @@ describe('a hand-off in the cath lab', () => {
 });
 
 describe('built-in safety rules judge what the action really did', () => {
-  it('an AED that advises no shock costs nothing, even with a pulse', () => {
-    const s = run(stemiAnterior, 2, ['primary', 'aed']);
-    expect(s.log.at(-1)!.text).toMatch(/No shock advised/);
+  it('an AED is not applied to a patient with a pulse: it reads only the rhythm and would shock a fast VT — refused, at no cost', () => {
+    const before = run(stemiAnterior, 2, ['primary']);
+    const s = perform(stemiAnterior, before, 'aed');
+    expect(s.log.at(-1)).toMatchObject({ who: 'system', text: expect.stringMatching(/unresponsive, not breathing normally and has no pulse.*would advise a shock for a fast VT/) });
     expect(s.penalties).toEqual([]);
     expect(s.rhythm).toEqual({ profile: 'anterior-stemi', hr: 96 });
+    // no time passes, nothing is counted, and no pads go on with it
+    expect([s.minute, s.counts.aed, s.flags.pads]).toEqual([before.minute, undefined, undefined]);
+    // in an arrest it analyzes: no shock for an organized rhythm, and that costs nothing either
+    const pea = SCENARIO_BY_ID['pea-arrest-field'];
+    const arrest = run(pea, 1, ['cpr', 'aed']);
+    expect(arrest.log.some((l) => l.who === 'monitor' && /No shock advised/.test(l.text))).toBe(true);
+    expect(arrest.penalties).toEqual([]);
   });
 
   it('a manual shock with a pulse is still a critical error', () => {
@@ -987,5 +995,108 @@ describe('default responses follow the patient in front of them', () => {
     expect(penalties(run(af, 2, ['iv', 'diltiazem']))).toEqual(['diltiazem-hfref']);
     const vt = SCENARIO_BY_ID['stable-vt-field'];
     expect(penalties(run(vt, 2, ['iv', 'diltiazem']))).toEqual(['ccb-wide-complex']);
+  });
+});
+
+describe('rechecks and call-backs, the far destination, and a repeat 12-lead after a change of rate', () => {
+  const lastText = (s: SimState) => s.log.at(-1)!.text;
+
+  it('the glucose can be rechecked after dextrose or glucagon, and the case reads the new value', () => {
+    const bb = SCENARIO_BY_ID['beta-blocker-overdose-field'];
+    const low = run(bb, 2, ['primary', 'pads', 'sample', 'iv', 'glucose']);
+    expect(lastText(low)).toBe('Blood glucose 58 mg/dL.');
+    expect(unavailableReason(bb, low, 'glucose')).toBeNull();
+    const after = run(bb, 2, ['primary', 'pads', 'sample', 'iv', 'glucose', 'dextrose', 'glucose', 'glucagon', 'glucose']);
+    expect(after.log.filter((l) => /^Blood glucose \d+ mg\/dL\.$/.test(l.text)).map((l) => l.text))
+      .toEqual(['Blood glucose 58 mg/dL.', 'Blood glucose 178 mg/dL.', 'Blood glucose 208 mg/dL.']);
+    expect(after.penalties).toEqual([]);
+    // the check counts from the first one, on time, and the low it found stays found
+    expect(review(bb, stop(after)).wentWell.find((w) => w.label === 'Check the blood glucose')).toBeDefined();
+    expect(after.flags['low-glucose']).toBe(low.flags['low-glucose']);
+    // a case with the default response rechecks too
+    expect(run(stemiAnterior, 2, ['glucose', 'glucose']).counts.glucose).toBe(2);
+  });
+
+  it('medical control can be called back, up to three calls, and answers for where the crew is now', () => {
+    const vt = SCENARIO_BY_ID['stable-vt-field'];
+    const s = run(vt, 2, ['primary', 'med-control', 'pads', 'nibp', 'ecg12', 'sample', 'iv', 'med-control']);
+    const said = s.log.filter((l) => l.who === 'hospital' && /^Medical control/.test(l.text)).map((l) => l.text);
+    expect(said).toHaveLength(2);
+    expect(said[0]).toMatch(/get a 12-lead/);
+    expect(said.at(-1)).toMatch(/thanks for the 12-lead.*One antiarrhythmic only/);
+    const three = run(stemiAnterior, 2, ['med-control', 'med-control', 'med-control']);
+    expect(three.counts['med-control']).toBe(3);
+    // a call is counted as a call, not as a dose
+    expect(unavailableReason(stemiAnterior, three, 'med-control')).toBe('Maximum 3 calls');
+    expect(unavailableReason(stemiAnterior, run(stemiAnterior, 2, ['iv', 'nitro', 'nitro', 'nitro']), 'nitro')).toBe('Maximum 3 doses');
+  });
+
+  it('the far destination is the regional heart center in every field case, and the load line says so', () => {
+    expect(INTERVENTION_BY_ID['transport-pci'].label).toBe('Transport to the regional heart center (PCI, pacing, dialysis)');
+    expect(lastText(run(stemiAnterior, 2, ['transport-pci']))).toBe('Patient loaded; transporting to the regional heart center (15 min).');
+    const button = INTERVENTION_BY_ID['transport-pci'];
+    const searchable = `${button.label} ${button.detail ?? ''}`.toLowerCase();
+    for (const sc of SCENARIOS.filter((x) => x.setting === 'field')) {
+      const briefings = [sc.briefing.default, ...Object.values(sc.briefing)].flat().filter((l) => l?.[0] === 'hospital').map((l) => l[1]);
+      // the unstable SVT names only the nearest emergency department
+      if (sc.id !== 'svt-unstable-field') expect(briefings.join(' '), sc.id).toMatch(/heart center/i);
+      // the briefing, the arrival, the critical steps (the hint quotes their labels) and the harms all name it the same way
+      const texts = [JSON.stringify(sc.briefing), sc.arrival ?? '', ...sc.critical.flatMap((c) => [c.label, c.why]), ...sc.harms.map((h) => h.text)];
+      for (const t of texts) expect(t, sc.id).not.toMatch(/cardiac center/i);
+      // a critical step names no button that does not exist, and the action search finds the button by what it calls the hospital
+      for (const c of sc.critical) {
+        expect(c.label, sc.id).not.toBe('Transport to the PCI-capable heart center');
+        for (const name of ['PCI-capable', 'regional heart center']) if (c.label.includes(name)) expect(searchable, `${sc.id}: ${c.label}`).toContain(name.toLowerCase());
+      }
+    }
+    expect(SCENARIO_BY_ID['complete-heart-block-field'].arrival).toBe('You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.');
+  });
+
+  it('the bag-mask in cardiac arrest is 30:2; 1 breath every 6 seconds only through an advanced airway, or with a pulse', () => {
+    // the dialysis case leaves the bag in the arrest to the engine's default
+    const hk = SCENARIO_BY_ID['hyperkalemia-dialysis-field'];
+    let s = run(hk, 2, ['monitor', 'pads', 'iv']);
+    while (s.pulse && s.minute < 30) s = perform(hk, s, 'reassess');
+    expect(s.pulse).toBe(false);
+    const bag = perform(hk, s, 'bvm');
+    expect(lastText(bag)).toBe('Bag-mask with oxygen: 2 breaths, each over 1 second, after every 30 compressions; chest rising.');
+    expect(bag.flags.ventilated).toBeDefined();
+    expect(lastText(perform(hk, perform(hk, s, 'airway'), 'bvm'))).toBe('Ventilating through the airway, 1 breath every 6 seconds; chest rising.');
+    // with a pulse (rescue breathing for a patient who cannot protect the airway): 1 breath every 6 seconds
+    const awake = run(stemiAnterior, 2, ['primary']);
+    expect(lastText(perform(stemiAnterior, { ...awake, vitals: { ...awake.vitals, gcs: 6 } }, 'bvm'))).toBe('Ventilating 1 breath every 6 seconds; chest rising.');
+  });
+
+  it('F: a repeat 12-lead after a change of rate is a new tracing to read; a small drift within the band is not', () => {
+    // the anterior STEMI keeps its profile at any rate: only the rate changes
+    const first = run(stemiAnterior, 2, ['primary', 'ecg12']);
+    expect(first.lastEcg).toEqual({ minute: first.minute, profile: 'anterior-stemi', hr: 96 });
+    const at = (hr: number, s = first) => perform(stemiAnterior, { ...s, rhythm: { profile: 'anterior-stemi', hr } }, 'ecg12-repeat');
+    // crossing 100, or more than 20 away within the band: a read is asked for
+    for (const hr of [104, 72]) {
+      const s = at(hr);
+      expect(s.pendingRead, `hr ${hr}`).toMatchObject({ kind: 'ecg', answer: 'stemi-anterior' });
+      expect(s.lastEcg?.hr, `hr ${hr}`).toBe(hr);
+      expect(s.log.some((l) => l.text === 'Unchanged from the previous 12-lead.'), `hr ${hr}`).toBe(false);
+    }
+    // a few beats within the band: unchanged, and the tracing keeps the rate it was read at
+    const near = at(84);
+    expect(near.pendingRead).toBeNull();
+    expect(lastText(near)).toBe('Unchanged from the previous 12-lead.');
+    expect(near.lastEcg).toEqual({ minute: near.minute, profile: 'anterior-stemi', hr: 96 });
+    // so a slow drift still adds up to a change: 96 → 84 → 74 is 22 from the tracing that was read
+    expect(at(74, near).pendingRead).toMatchObject({ kind: 'ecg' });
+  });
+
+  it('F: the 12-lead view\'s "the patient has changed" note follows the same rule (ecgChanged)', () => {
+    const last = { minute: 3, profile: 'af', hr: 96 };
+    expect(ecgChanged(null, { profile: 'af', hr: 96 })).toBe(true);
+    expect(ecgChanged(last, { profile: 'af', hr: 96 })).toBe(false);
+    expect(ecgChanged(last, { profile: 'af', hr: 100 })).toBe(false);
+    expect(ecgChanged(last, { profile: 'af', hr: 101 })).toBe(true); // crosses 100
+    expect(ecgChanged(last, { profile: 'af', hr: 76 })).toBe(false); // 20 away, same band
+    expect(ecgChanged(last, { profile: 'af', hr: 75 })).toBe(true); // more than 20 away
+    expect(ecgChanged({ ...last, hr: 62 }, { profile: 'af', hr: 58 })).toBe(true); // crosses 60
+    expect(ecgChanged(last, { profile: 'flutter', hr: 96 })).toBe(true);
   });
 });

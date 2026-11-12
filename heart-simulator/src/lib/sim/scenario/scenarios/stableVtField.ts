@@ -227,7 +227,8 @@ export const stableVtField: Scenario = {
       }
       return arrestShock(s, 'Shock delivered: 200 J.');
     },
-    // with his pulse the AED advises no shock (the default); without one it shocks, as the manual defibrillator does
+    // with his pulse the AED is not applied (the default refuses it: it would read his VT as shockable); without one it
+    // shocks, as the manual defibrillator does
     aed: (s) => arrestShock(s, 'AED: "Shock advised." Shock delivered.'),
     // expert consultation in the field: what the physician says depends on where he is; it never names the rhythm
     'med-control': (s) => {
@@ -369,7 +370,7 @@ export const stableVtField: Scenario = {
   ],
   harms: [
     { id: 'ccb-wide-complex', actions: ['diltiazem'], when: (s) => inVt(s), points: 15, severity: 'critical', replaces: ['diltiazem-vt'], text: 'Diltiazem for a regular wide-complex tachycardia. Treat it as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest — COR 3: Harm (2025 AHA). For a stable one the drugs are procainamide or amiodarone.' },
-    // a manual shock only: with his pulse the AED advises no shock, so nothing happened to penalize
+    // a manual shock only: with his pulse the AED is not applied, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock to a patient with a pulse. It can land on the T wave and set off VF. A tachycardia with a pulse that needs a shock gets synchronized cardioversion: 100 J for monomorphic VT (2025).' },
     {
       id: 'two-antiarrhythmics', actions: ANTIARRHYTHMICS, when: (s) => s.pulse && (has(s, 'amiodarone') || has(s, 'procainamide')), points: 8, severity: 'major',

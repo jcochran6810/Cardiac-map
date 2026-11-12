@@ -44,7 +44,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'pulse-check', label: 'Check for a pulse (no more than 10 s)', category: 'assess', roles: ALL, minutes: 0.2, repeatable: true },
   { id: 'lungs', label: 'Listen to the lungs', category: 'assess', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'perfusion', label: 'Skin signs, neck veins (JVD) and peripheral pulses', category: 'assess', roles: ALL, minutes: 0.5 },
-  { id: 'glucose', label: 'Blood glucose', category: 'assess', roles: [1, 2, 4, 5], minutes: 0.5 },
+  // repeatable: a glucose is rechecked after dextrose, oral glucose or glucagon
+  { id: 'glucose', label: 'Blood glucose', category: 'assess', roles: [1, 2, 4, 5], minutes: 0.5, repeatable: true },
   { id: 'neuro', label: 'Neuro check: GCS and stroke screen', category: 'assess', roles: ALL, minutes: 0.5 },
   { id: 'reassess', label: 'Reassess the patient (2 min)', category: 'assess', roles: ALL, minutes: 2, repeatable: true },
 
@@ -191,12 +192,15 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'call-help', label: 'Call for help / the code team', category: 'team', roles: ALL, minutes: 0.2 },
   { id: 'callout', label: 'Call it out to the operator (closed loop)', category: 'team', roles: [3, 4], settings: LAB, minutes: 0.1, repeatable: true },
   { id: 'als', label: 'Request a paramedic (ALS) intercept', category: 'team', roles: [1], settings: FIELD, minutes: 0.3 },
-  { id: 'med-control', label: 'Contact online medical control', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
+  // a call back once the 12-lead or the history is in, or when the patient changes, is part of the job
+  { id: 'med-control', label: 'Contact online medical control', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, repeatable: true, maxTimes: 3 },
   // a call back with what the bottle says is part of the job: the first call often only brings the questions
   { id: 'poison-control', label: 'Call the poison center', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'Poison Help line 1-800-222-1222: what was taken, how much, when, and the weight', repeatable: true, maxTimes: 3 },
   { id: 'stemi-alert', label: 'STEMI alert: activate the cath lab from the field', category: 'team', roles: [2], settings: FIELD, minutes: 0.5 },
   { id: 'notify', label: 'Radio report to the receiving hospital', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
-  { id: 'transport-pci', label: 'Transport to the PCI-capable heart center', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2 },
+  // the far destination in every field case: the STEMI's cath lab, a pacing wire, the ICU, emergency dialysis. The STEMI
+  // cases call it the "PCI-capable heart center" (briefing, critical step, hint): the detail carries that name for the search
+  { id: 'transport-pci', label: 'Transport to the regional heart center (PCI, pacing, dialysis)', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2, detail: 'PCI-capable: a cath lab, transvenous pacing, emergency dialysis and an ICU' },
   { id: 'transport-near', label: 'Transport to the nearest emergency department', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2 },
   { id: 'handoff', label: 'Hand-off report (SBAR)', category: 'team', roles: ALL, minutes: 1 },
 ];

@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { attached, useSimStore } from '@/store/useSimStore';
 import { LEVEL_LABELS } from '@/store/useAppStore';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
-import { HINT_POINTS, clockText, interventionsForScenario, unavailableReason } from '@/lib/sim/scenario/engine';
+import { HINT_POINTS, clockText, ecgChanged, interventionsForScenario, unavailableReason } from '@/lib/sim/scenario/engine';
 import { CATEGORY_LABELS, CATEGORY_ORDER, INTERVENTION_BY_ID } from '@/lib/sim/scenario/interventions';
 import type { Category, Intervention, LogEntry, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { IconClose, IconSearch } from '@/components/ui/icons';
@@ -224,7 +224,8 @@ function TwelveLead({ state }: { state: SimState }) {
       </div>
     );
   }
-  const changed = last.profile !== state.rhythm.profile && state.pulse;
+  // the engine's rule for a repeat 12-lead: another rhythm, or the same one at a rate out of the band it was read in
+  const changed = state.pulse && ecgChanged(last, state.rhythm);
   const read = state.reads.filter((r) => r.kind === 'ecg').at(-1);
   // the feedback's verdict on the read of this tracing
   const verdictLine = read && read.minute === last.minute

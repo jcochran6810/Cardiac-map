@@ -306,11 +306,14 @@ describe('unstable SVT', () => {
     expect(review(sc, stop(s)).toFix.some((t) => t.kind === 'missed' && /Sedation/.test(t.label))).toBe(true);
   });
 
-  it('an AED on her (she has a pulse) advises no shock, changes nothing and costs nothing', () => {
+  it('an AED is not applied to her (she has a pulse): refused with the reason, no time passes, nothing changes, nothing is scored', () => {
+    const pads = run(sc, 2, ['pads']);
     const s = run(sc, 2, ['pads', 'aed']);
     expect(s.pulse).toBe(true);
     expect(s.rhythm).toEqual({ profile: 'avnrt', hr: 190 });
-    expect(s.log.at(-1)!.text).toMatch(/No shock advised/);
+    expect(s.log.at(-1)).toMatchObject({ who: 'system', text: expect.stringMatching(/^Not with a pulse: an AED is only for a patient who is unresponsive, not breathing normally and has no pulse\./) });
+    expect(s.minute).toBe(pads.minute);
+    expect(s.counts.aed).toBeUndefined();
     expect(s.penalties).toEqual([]);
   });
 
@@ -414,11 +417,12 @@ describe('VF cardiac arrest', () => {
     expect(sc.status!(s)).toMatch(/ventilated to 10/);
   });
 
-  it('an EMT who lets the AED re-analyse after ROSC is not penalised: it advises no shock', () => {
-    const s = run(sc, 1, ['cpr', 'aed', 'als', 'cpr', 'aed', 'aed']);
-    expect(s.pulse).toBe(true);
-    expect(s.log.at(-1)!.text).toMatch(/No shock advised/);
-    expect(s.penalties).toEqual([]);
+  it('an EMT who reaches for the AED again after ROSC is told why not, at no cost: it is for a patient with no pulse', () => {
+    const rosc = run(sc, 1, ['cpr', 'aed', 'als', 'cpr', 'aed']);
+    expect(rosc.pulse).toBe(true);
+    const s = perform(sc, rosc, 'aed');
+    expect(s.log.at(-1)).toMatchObject({ who: 'system', text: expect.stringMatching(/^Not with a pulse: an AED is only for/) });
+    expect([s.minute, s.counts.aed, s.penalties]).toEqual([rosc.minute, rosc.counts.aed, []]);
   });
 
   it('an antiarrhythmic given only after ROSC does not count as the one for refractory VF', () => {

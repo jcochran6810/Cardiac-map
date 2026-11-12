@@ -1,4 +1,5 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
+import { INTERVENTION_BY_ID } from '../interventions';
 import { PADS, bpAfter, count, cprCycles, firstDone, has } from '../kit';
 
 /** His rhythm while the potassium is high: the case keeps it until he arrests or a pacer takes over */
@@ -71,8 +72,8 @@ export const hyperkalemiaField: Scenario = {
     default: [
       ['dispatch', 'Priority 1: 68-year-old man, generalized weakness. The caller says he is on dialysis.'],
       ['scene', 'He is sitting on the edge of his bed, pale, gray and sweaty, and cannot stand. His daughter: "He\'s been getting weaker since yesterday, and now his legs won\'t hold him."'],
-      // the transport button reads "PCI-capable heart center": say that the regional center is that hospital, so the learner can find it
-      ['hospital', `Regional medical center (PCI-capable heart center, emergency dialysis, nephrology on call): ${TO_DIALYSIS} minutes. Nearest emergency department (small community hospital, no dialysis): 6 minutes.`],
+      // the transport button reads "regional heart center (PCI, pacing, dialysis)": name the hospital the same way, so the learner can find it
+      ['hospital', `Regional heart center (a full medical center: emergency dialysis, nephrology on call): ${TO_DIALYSIS} minutes. Nearest emergency department (small community hospital, no dialysis): 6 minutes.`],
     ],
   },
   initial: {
@@ -257,14 +258,43 @@ export const hyperkalemiaField: Scenario = {
         flags: ['alert'],
       };
     },
-    'med-control': (s) => ({
-      say: [['hospital', has(s, 'ecg12')
-        ? 'Medical control: with those changes in a dialysis patient, treat it as a high potassium — calcium chloride 1 g now, and again in 5–10 minutes if the changes persist; high-dose albuterol; bicarbonate 50 mEq if you suspect acidosis, flushed away from the calcium. Take him to the regional center for dialysis.'
-        : 'Medical control: get a 12-lead and call back with what it shows.']],
-      flags: ['med-control'],
-    }),
+    // A call can be repeated: each answer is for the patient as he is now. In the arrest there is no 12-lead, no
+    // nebulizer and no transport (the engine refuses the first two and scores the third), so the order is the arrest's own
+    'med-control': (s) => {
+      const calcium = count(s, 'calcium-chloride');
+      const calciumLeft = calcium < (INTERVENTION_BY_ID['calcium-chloride'].maxTimes ?? Infinity);
+      if (!s.pulse) {
+        const drugs = calciumLeft
+          ? `calcium chloride 1 g IV/IO push${calcium > 0 ? ' again' : ''} and sodium bicarbonate 50 mEq, flushed between them`
+          : 'sodium bicarbonate 50 mEq, with the line flushed well after the calcium already given';
+        // an arrest that begins en route is worked in the ambulance: only loading a pulseless patient is a mistake
+        const where = has(s, 'enroute')
+          ? 'You are already on the way: keep the compressions going as well as you can.'
+          : 'Work it there: no transport until ROSC; call me back then, and bring him to the regional heart center for dialysis.';
+        return {
+          say: [['hospital', `Medical control: no pulse in a dialysis patient — treat it as a high potassium. CPR, epinephrine 1 mg every 3–5 minutes, ${drugs}. ${where}`]],
+          flags: ['med-control'],
+        };
+      }
+      if (!has(s, 'ecg12')) return { say: [['hospital', 'Medical control: get a 12-lead and call back with what it shows.']], flags: ['med-control'] };
+      const dose = !calciumLeft
+        ? 'no more calcium from you — the hospital takes over the doses'
+        : calcium === 0
+          ? 'calcium chloride 1 g now, and again in 5–10 minutes if the changes persist'
+          : 'calcium chloride 1 g again in 5–10 minutes if the changes persist';
+      const shift = has(s, 'albuterol-hyperk') ? 'keep the high-dose albuterol running' : 'high-dose albuterol';
+      const destination = has(s, 'dest-pci')
+        ? 'Keep going to the regional heart center: they can dialyze him.'
+        : has(s, 'dest-near')
+          ? 'The hospital you are going to has no dialysis: he will need a transfer from there.'
+          : 'Take him to the regional heart center for dialysis.';
+      return {
+        say: [['hospital', `Medical control: with those changes in a dialysis patient, treat it as a high potassium — ${dose}; ${shift}; bicarbonate 50 mEq if you suspect acidosis, flushed away from the calcium. ${destination}`]],
+        flags: ['med-control'],
+      };
+    },
     'transport-pci': (s) => (has(s, 'enroute') ? null : {
-      say: [['you', `Patient loaded; transporting to the regional medical center, which can start emergency dialysis (${TO_DIALYSIS} min).`]],
+      say: [['you', `Patient loaded; transporting to the regional heart center, which can start emergency dialysis (${TO_DIALYSIS} min).`]],
       flags: ['enroute', 'dest-pci'], timers: { arrive: s.minute + 2 + TO_DIALYSIS },
     }),
   },
@@ -301,8 +331,9 @@ export const hyperkalemiaField: Scenario = {
           ['partner', 'He has gone limp and gray — I can\'t feel a pulse!', 'bad'],
           ...(has(s, 'monitor') || has(s, 'pads') ? [['monitor', 'Monitor alarm.', 'bad'] as Line] : []),
         ],
+        // no EtCO₂ of its own: the capnograph follows the shared arrest rule (breaths, then compressions)
         rhythm: { profile: 'pea', hr: 24 }, pulse: false, phase: 'arrest',
-        vitals: { sbp: 0, dbp: 0, rr: 0, spo2: 80, etco2: 12, gcs: 3, pain: 0 },
+        vitals: { sbp: 0, dbp: 0, rr: 0, spo2: 80, gcs: 3, pain: 0 },
       }),
     },
     {

@@ -363,6 +363,29 @@ describe('PEA arrest in the field — capnography and stopping', () => {
     expect(alone.fired).not.toContain('als-arrives');
   });
 
+  it('the call back medical control asks for (after 20 minutes of ALS) gets its own answer, not the same instruction again', () => {
+    const first = medic(['cpr', 'med-control']).log.at(-1)!.text;
+    expect(first).toMatch(/call back if there is still no ROSC after 20 minutes of ALS\.$/);
+    // compressions and epinephrine without breaths: still in arrest at 20 minutes (the death clock is 24)
+    let s = medic(NO_BREATHS);
+    while (s.minute < 20) s = perform(sc, s, 'cpr');
+    expect([s.pulse, s.ended]).toEqual([false, null]);
+    const back = perform(sc, s, 'med-control');
+    const said = back.log.at(-1)!.text;
+    expect(said).toMatch(/^Medical control: 20 minutes of ALS and still no ROSC — and I am still not stopping this one\..*has still not been treated: ventilate her with oxygen now\..*A low EtCO₂ alone is never a reason to stop\./);
+    expect(said).not.toMatch(/call back/i);
+    expect(back.penalties).toEqual(s.penalties);
+    // bagged, but with no compressions to carry the oxygen: the answer says so
+    let v = medic(['cpr', 'bvm']);
+    while (v.minute < 20) v = perform(sc, v, 'reassess');
+    expect(v.pulse).toBe(false);
+    expect(perform(sc, v, 'med-control').log.at(-1)!.text).toMatch(/is being treated — and the oxygen reaches her heart only while the compressions go on/);
+    // the EMT whose medics have arrived is not told to wait for them
+    let e = emt(['als', 'cpr']);
+    while (!e.fired.includes('als-arrives')) e = perform(sc, e, 'cpr');
+    expect(perform(sc, e, 'med-control').log.at(-1)!.text).toMatch(/keep compressions going, with the paramedics running the drugs\.$/);
+  });
+
   it('teaches that EtCO₂ alone, or any single cutoff, is never a reason to stop', () => {
     const text = sc.teaching.join(' ');
     expect(text).toMatch(/Never use EtCO₂ alone, or any single cutoff, to stop a resuscitation \(2025 AHA\)/);

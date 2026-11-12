@@ -85,7 +85,7 @@ export const svtUnstable: Scenario = {
       }
       return vfShock(s, 'Shock delivered.');
     },
-    // with her pulse the AED advises no shock (the default); in the VF it shocks, as the manual defibrillator does
+    // with her pulse the AED is not applied (the default refuses it); in the VF it shocks, as the manual defibrillator does
     aed: (s) => vfShock(s, 'AED: "Shock advised." Shock delivered.'),
     // the blockers drop her pressure to 64/38 or 66/40 — and never raise one an earlier drug has already pushed lower
     diltiazem: (s) => {
@@ -139,7 +139,7 @@ export const svtUnstable: Scenario = {
     { id: 'handoff', label: 'Hand-off', why: 'Report the rhythm strip, what converted it and the post-conversion 12-lead.', done: ['handoff'], points: 5 },
   ],
   harms: [
-    // a manual shock only: with her pulse the AED advises no shock, so nothing happened to penalise
+    // a manual shock only: with her pulse the AED is not applied, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock on a perfusing rhythm can land on the T wave and cause VF — which is what happened. Use SYNC for every tachycardia with a pulse.' },
     { id: 'av-blocker-shock', actions: ['diltiazem', 'metoprolol'], when: (s) => s.vitals.sbp < 90, points: 12, severity: 'critical', text: 'Calcium-channel and beta-blockers lower the blood pressure further; in an unstable (hypotensive) SVT the treatment is electrical.' },
     { id: 'no-sedation', actions: ['cardiovert'], when: (s) => s.pulse && s.vitals.gcs >= 14 && !has(s, 'sedation'), points: 3, severity: 'minor', text: 'Cardioversion of an awake patient without sedation or analgesia.' },

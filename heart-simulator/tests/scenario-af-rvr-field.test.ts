@@ -282,7 +282,7 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(ids(run(sc, 2, [...READY, 'diltiazem', 'cpap']))).toEqual(['diltiazem-hfref', 'cpap-hypotension']);
   });
 
-  it('medical control (one call) gives a conditional order until it has the 12-lead and the history, then orders amiodarone and no diltiazem', () => {
+  it('medical control gives a conditional order until it has the 12-lead and the history, then orders amiodarone and no diltiazem', () => {
     // with the history but no 12-lead it must not simply order amiodarone: a delta wave would make it dangerous
     for (const early of [run(sc, 2, ['primary', 'med-control']), run(sc, 2, ['primary', 'sample', 'iv', 'med-control'])]) {
       const said = early.log.at(-1)!.text;
@@ -295,6 +295,10 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(run(sc, 2, [...READY, 'amio-infusion', 'med-control']).log.at(-1)!.text).toMatch(/Let the amiodarone run/);
     expect(run(sc, 2, [...READY, 'diltiazem', 'med-control']).log.at(-1)!.text).toMatch(/unstable now: synchronized cardioversion/);
     expect(run(sc, 2, [...READY, 'defib', 'med-control']).log.at(-1)!.text).toMatch(/No pulse — defibrillate/);
+    // a call back once the 12-lead and the history are in gets the order the first call could not give
+    const back = perform(sc, run(sc, 2, ['primary', 'med-control', ...READY.filter((id) => id !== 'primary')]), 'med-control');
+    expect(back.log.at(-1)!.text).toMatch(/No diltiazem.*Amiodarone 150 mg over 10 minutes/);
+    expect(back.counts['med-control']).toBe(2);
   });
 
   it('a hint names what to check, never what the tracing shows or whether he is stable; the picker does not say either', () => {

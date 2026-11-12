@@ -35,6 +35,24 @@ export const LOW_GLUCOSE = 70;
  */
 export const canSwallow = (s: SimState) => s.pulse && s.vitals.gcs >= 11;
 
+/**
+ * EtCO₂ in cardiac arrest (mmHg) when the case gives no number of its own. A capnograph reads only what is breathed
+ * out: with no breaths it reads almost nothing, however good the compressions (the air they move is less than the
+ * dead space: Deakin et al., Resuscitation 2007). With breaths it follows the blood flow: compressions carry CO₂ to the
+ * lungs, and with none almost nothing reaches them. One rule for the engine's capnography line and the case monitor
+ * (useSimStore), both through arrestEtco2.
+ */
+export const ARREST_ETCO2 = { noBreaths: 3, cpr: 16, noFlow: 6 };
+
+/** Someone is breathing for the patient: a bag-mask or an advanced airway */
+export const ventilated = (s: Pick<SimState, 'flags'>) => 'ventilated' in s.flags || 'airway' in s.flags;
+
+/** What the capnograph reads in cardiac arrest for a case that gives no number of its own (see ARREST_ETCO2) */
+export function arrestEtco2(s: Pick<SimState, 'flags'>): number {
+  if (!ventilated(s)) return ARREST_ETCO2.noBreaths;
+  return 'cpr' in s.flags ? ARREST_ETCO2.cpr : ARREST_ETCO2.noFlow;
+}
+
 /** The lowest pressure a patient with a pulse shows: below it the circulation would have stopped */
 export const PERFUSING_FLOOR = { sbp: 50, dbp: 25 };
 

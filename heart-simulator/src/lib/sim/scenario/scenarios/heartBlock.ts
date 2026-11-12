@@ -36,7 +36,7 @@ export const heartBlock: Scenario = {
     default: [
       ['dispatch', 'Priority 1: 78-year-old man, weakness and fainting.'],
       ['scene', 'He is lying on the bathroom floor, pale and confused about the date. His wife says he has fainted twice this morning.'],
-      ['hospital', 'Cardiac center (transvenous pacing available): 14 minutes. Nearest emergency department: 7 minutes.'],
+      ['hospital', 'Regional heart center (transvenous pacing available): 14 minutes. Nearest emergency department: 7 minutes.'],
     ],
   },
   initial: {
@@ -119,7 +119,7 @@ export const heartBlock: Scenario = {
     { id: 'rate', label: 'Raise the rate: transcutaneous pacing or a pressor infusion', why: 'Atropine-resistant unstable bradycardia needs pacing or an epinephrine/dopamine infusion now.', done: (s) => [s.flags.paced, s.flags.pressor].filter((m): m is number => m !== undefined).sort((a, b) => a - b)[0] ?? null, points: 20, target: { by: 10 } },
     { id: 'capture', label: 'Confirm mechanical capture with a pulse', why: 'Electrical capture on the screen is not enough: feel a femoral pulse at the paced rate (or check the BP).', done: ['pulse-check', 'nibp', 'vitals'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
     { id: 'analgesia', label: 'Analgesia or sedation for pacing', why: 'Transcutaneous pacing is painful: give analgesia (and sedation if needed) once the patient is perfusing.', done: ['fentanyl', 'sedation'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
-    { id: 'destination', label: 'Transport to the cardiac center', why: 'He needs a transvenous pacing wire and probably a permanent pacemaker.', done: (s) => s.flags['dest-pci'] ?? null, points: 5 },
+    { id: 'destination', label: 'Transport to the regional heart center', why: 'He needs a transvenous pacing wire and probably a permanent pacemaker.', done: (s) => s.flags['dest-pci'] ?? null, points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report the rhythm, capture threshold, drugs and the beta-blocker.', done: ['handoff'], points: 5 },
   ],
   harms: [
@@ -128,7 +128,7 @@ export const heartBlock: Scenario = {
     { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
     { id: 'cpap-shock', actions: ['cpap'], points: 6, severity: 'major', text: 'CPAP reduces venous return; with SBP in the 70s it can deepen shock.' },
     { id: 'big-fluid', actions: ['fluid'], when: (s) => (s.counts.fluid ?? 0) >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses with crackles at both bases: the problem is the rate, not the volume.' },
-    { id: 'nearest-ed', actions: ['transport-near'], points: 3, severity: 'minor', text: 'The nearest ED cannot place a transvenous pacing wire; the cardiac center can.' },
+    { id: 'nearest-ed', actions: ['transport-near'], points: 3, severity: 'minor', text: 'The nearest ED cannot place a transvenous pacing wire; the regional heart center can.' },
   ],
   timings: [
     { label: 'Pads on', actions: PADS, target: 5 },
@@ -136,7 +136,7 @@ export const heartBlock: Scenario = {
   ],
   transportMinutes: 14,
   nearestMinutes: 7,
-  arrival: 'You arrive at the cardiac center; the cath lab is setting up for a transvenous pacing wire.',
+  arrival: 'You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.',
   teaching: [
     'Unstable bradycardia (hypotension, altered mental status, shock, ischemic chest pain, acute heart failure) needs treatment now.',
     'Atropine 1 mg IV every 3–5 minutes (max 3 mg) is first-line, but it is unlikely to work in infranodal (wide-escape) block. After a heart transplant do not use it: it may cause paradoxical high-grade block.',

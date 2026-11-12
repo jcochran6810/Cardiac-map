@@ -178,11 +178,13 @@ describe('stable VT in the field: the traps', () => {
     }
   });
 
-  it('an AED on him while he has a pulse advises no shock, changes nothing and costs nothing', () => {
-    const s = run(sc, 2, ['primary', 'aed']);
+  it('an AED is not applied to him while he has a pulse (it would read his VT as shockable): refused, nothing changes, nothing is scored', () => {
+    const before = run(sc, 2, ['primary']);
+    const s = perform(sc, before, 'aed');
     expect(s.pulse).toBe(true);
     expect(s.rhythm).toEqual({ profile: 'vt', hr: 150 });
-    expect(s.log.at(-1)!.text).toMatch(/No shock advised/);
+    expect(s.log.at(-1)).toMatchObject({ who: 'system', text: expect.stringMatching(/^Not with a pulse: an AED is only for/) });
+    expect(s.minute).toBe(before.minute);
     expect(s.penalties).toEqual([]);
   });
 

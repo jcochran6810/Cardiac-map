@@ -111,8 +111,9 @@ describe('hyperkalemia in a dialysis patient — the ideal run', () => {
   });
 
   it('the briefing names the regional center as the heart center the transport button goes to', () => {
-    expect(sc.briefing.default[2][1]).toMatch(/^Regional medical center \(PCI-capable heart center, emergency dialysis/);
-    expect(INTERVENTION_BY_ID['transport-pci'].label).toMatch(/PCI-capable heart center/);
+    expect(sc.briefing.default[2][1]).toMatch(/^Regional heart center \(a full medical center: emergency dialysis/);
+    expect(INTERVENTION_BY_ID['transport-pci'].label).toBe('Transport to the regional heart center (PCI, pacing, dialysis)');
+    expect(run(['primary', 'transport-pci']).log.at(-1)!.text).toMatch(/^Patient loaded; transporting to the regional heart center, which can start emergency dialysis/);
   });
 
   it('keeps the paramedic inside the paramedic scope: insulin, heparin and lytics are not offered', () => {
@@ -328,6 +329,36 @@ describe('hyperkalemia in a dialysis patient — delay matters', () => {
     for (const id of ['cpr', 'epinephrine', 'calcium-chloride', 'cpr', 'bvm', 'pressor']) p = perform(sc, p, id);
     expect(review(sc, stop(p)).toFix.some((t) => /^After ROSC/.test(t.label))).toBe(false);
     expect(p.penalties).toEqual([]);
+  });
+
+  it('a call back to medical control in the arrest gets the arrest\'s orders — no 12-lead, no nebulizer, no transport — and following them costs nothing', () => {
+    // the reviewers' run: a 12-lead and a first call, then nothing for his potassium until he arrests, and a second call
+    let s = run(['primary', 'monitor', 'ecg12', 'iv', 'med-control']);
+    expect(s.log.at(-1)!.text).toMatch(/calcium chloride 1 g now/);
+    while (s.pulse && s.minute < 30) s = perform(sc, s, 'reassess');
+    expect(s.pulse).toBe(false);
+    s = perform(sc, s, 'med-control');
+    expect(s.counts['med-control']).toBe(2);
+    const said = s.log.at(-1)!.text;
+    expect(said).toMatch(/^Medical control: no pulse in a dialysis patient — treat it as a high potassium\. CPR, epinephrine 1 mg every 3–5 minutes, calcium chloride 1 g IV\/IO push and sodium bicarbonate 50 mEq, flushed between them\. Work it there: no transport until ROSC/);
+    expect(said).not.toMatch(/12-lead|albuterol|Take him/);
+    for (const id of ['cpr', 'epinephrine', 'calcium-chloride', 'sodium-bicarbonate', 'cpr']) s = perform(sc, s, id);
+    expect(s.pulse).toBe(true);
+    expect(s.penalties).toEqual([]);
+    // with no 12-lead yet it does not ask for one (none can be recorded in the arrest)
+    const early = perform(sc, untilArrest(), 'med-control').log.at(-1)!.text;
+    expect(early).toMatch(/^Medical control: no pulse in a dialysis patient/);
+    expect(early).not.toMatch(/12-lead/);
+    // calcium already given in the arrest: "again"
+    expect(perform(sc, perform(sc, untilArrest(), 'calcium-chloride'), 'med-control').log.at(-1)!.text).toMatch(/calcium chloride 1 g IV\/IO push again/);
+  });
+
+  it('a call back with a pulse answers for what has been given: a repeat calcium only if the changes persist, none past the third dose', () => {
+    const once = run(['primary', 'monitor', 'ecg12', 'iv', 'calcium-chloride', 'med-control']).log.at(-1)!.text;
+    expect(once).toMatch(/calcium chloride 1 g again in 5–10 minutes if the changes persist; high-dose albuterol;/);
+    expect(once).not.toMatch(/\bnow\b/);
+    const all = run(['primary', 'monitor', 'ecg12', 'iv', 'calcium-chloride', 'calcium-chloride', 'calcium-chloride', 'albuterol-hyperk', 'transport-pci', 'med-control']);
+    expect(all.log.at(-1)!.text).toMatch(/no more calcium from you.*keep the high-dose albuterol running.*Keep going to the regional heart center: they can dialyze him\.$/);
   });
 
   it('in the arrest: the hint names CPR first; the nebulizer cannot be given; atropine is penalized', () => {

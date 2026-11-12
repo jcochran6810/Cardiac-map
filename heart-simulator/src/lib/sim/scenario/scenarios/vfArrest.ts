@@ -1,5 +1,12 @@
 import type { Effect, Scenario, SimState } from '../types';
-import { bpAfter, cprCycles, firstDone, has, interpret, line, shocks } from '../kit';
+import { ARREST_ETCO2, arrestEtco2, bpAfter, cprCycles, firstDone, has, interpret, line, shocks, ventilated } from '../kit';
+
+/**
+ * His EtCO₂ during the arrest follows the shared rule (arrestEtco2) with this action's flags added: almost nothing
+ * until someone gives him a breath (the staff member's compressions move no air to measure), then the blood flow —
+ * the crew's high-quality CPR, or the little a tiring bystander's compressions move
+ */
+const etco2With = (s: SimState, ...flags: string[]) => arrestEtco2({ flags: { ...s.flags, ...Object.fromEntries(flags.map((f) => [f, s.minute])) } });
 
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;
@@ -39,7 +46,8 @@ export const vfArrest: Scenario = {
   },
   initial: {
     rhythm: { profile: 'vf', hr: 0 }, pulse: false, phase: 'arrest',
-    vitals: { sbp: 0, dbp: 0, spo2: 85, rr: 0, etco2: 14, pain: 0, gcs: 3, glucose: 104, temp: 36.6 },
+    // bystander compressions only so far: no one has given him a breath, so there is nothing for a capnograph to measure
+    vitals: { sbp: 0, dbp: 0, spo2: 85, rr: 0, etco2: ARREST_ETCO2.noBreaths, pain: 0, gcs: 3, glucose: 104, temp: 36.6 },
   },
   facts: {
     sample: 'Staff member: "He\'s a member here. He mentioned chest tightness on the treadmill last week."',
@@ -58,9 +66,30 @@ export const vfArrest: Scenario = {
   respond: {
     defib: shockOutcome,
     aed: shockOutcome,
-    capno: (s) => (s.pulse
-      ? { say: [['monitor', `EtCO₂ ${s.vitals.etco2} mmHg.`]], flags: ['capno'] }
-      : { say: [['monitor', has(s, 'cpr') ? 'EtCO₂ 18 mmHg during compressions: CPR is adequate.' : 'EtCO₂ 9 mmHg: push harder and faster.']], flags: ['capno'] }),
+    // Capnography measures CPR quality — once there are breaths to measure. Its number is the one on the monitor.
+    capno: (s) => {
+      if (s.pulse) return { say: [['monitor', `EtCO₂ ${s.vitals.etco2} mmHg.`]], flags: ['capno'] };
+      const etco2 = arrestEtco2(s);
+      if (!ventilated(s)) {
+        return {
+          say: [['monitor', `EtCO₂ ${etco2} mmHg: almost no waveform.`], ['you', 'Nobody has given him a breath yet: with no breaths there is nothing breathed out to measure, however good the compressions. Ventilate him, then it shows how well CPR is working.']],
+          vitals: { etco2 }, flags: ['capno'],
+        };
+      }
+      return {
+        say: [['monitor', has(s, 'cpr')
+          ? `EtCO₂ ${etco2} mmHg during compressions: CPR is adequate.`
+          : `EtCO₂ ${etco2} mmHg: the staff member's compressions are moving too little blood — take over: push harder and faster.`]],
+        vitals: { etco2 }, flags: ['capno'],
+      };
+    },
+    // during the arrest the breaths and the compressions set what the capnograph reads (etco2With)
+    cpr: (s) => (s.pulse ? null : {
+      say: [['you', has(s, 'cpr')
+        ? '2 minutes of compressions: 100–120/min, 5–6 cm, full recoil, minimal pauses.'
+        : 'You take over from the staff member: 2 minutes of compressions, 100–120/min, 5–6 cm, full recoil, minimal pauses.']],
+      vitals: { etco2: etco2With(s, 'cpr') }, flags: ['cpr'],
+    }),
     fluid: (s) => {
       if (!s.pulse) return null;
       const bp = bpAfter(s, 8, 4);
@@ -79,13 +108,31 @@ export const vfArrest: Scenario = {
       const dbp = Math.max(s.vitals.dbp, 62);
       return { say: [['monitor', `BP ${sbp}/${dbp} for a few minutes.`]], vitals: { sbp, dbp }, flags: ['push-epi'] };
     },
-    bvm: (s) => (s.pulse && s.vitals.gcs <= 8
-      ? { say: [['you', 'Assisting ventilations, 1 breath every 6 s. SpO₂ 96 %, EtCO₂ 38.']], vitals: { spo2: 96, rr: 10 }, flags: ['ventilated'] }
-      : null),
+    bvm: (s) => {
+      if (!s.pulse) {
+        return {
+          say: [['you', has(s, 'airway')
+            ? 'Ventilating through the airway, 1 breath every 6 seconds; chest rising.'
+            : 'Bag-mask with oxygen: 2 breaths, each over 1 second, after every 30 compressions; chest rising.']],
+          vitals: { etco2: etco2With(s, 'ventilated') }, flags: ['ventilated'],
+        };
+      }
+      return s.vitals.gcs <= 8
+        ? { say: [['you', 'Assisting ventilations, 1 breath every 6 s. SpO₂ 96 %, EtCO₂ 38.']], vitals: { spo2: 96, rr: 10 }, flags: ['ventilated'] }
+        : null;
+    },
     // placed after ROSC in a comatose patient, the airway is then used to ventilate him, as the bag would be
-    airway: (s) => (s.pulse && s.vitals.gcs <= 8
-      ? { say: [['you', 'Airway placed; confirmed with waveform capnography. Ventilating through it, 1 breath every 6 s: SpO₂ 96 %, EtCO₂ 38.']], vitals: { spo2: 96, rr: 10 }, flags: ['airway', 'ventilated'] }
-      : null),
+    airway: (s) => {
+      if (!s.pulse) {
+        return {
+          say: [['you', 'Airway placed while compressions go on; confirmed with waveform capnography. Ventilating through it, 1 breath every 6 seconds.']],
+          vitals: { etco2: etco2With(s, 'airway', 'ventilated') }, flags: ['airway', 'ventilated'],
+        };
+      }
+      return s.vitals.gcs <= 8
+        ? { say: [['you', 'Airway placed; confirmed with waveform capnography. Ventilating through it, 1 breath every 6 s: SpO₂ 96 %, EtCO₂ 38.']], vitals: { spo2: 96, rr: 10 }, flags: ['airway', 'ventilated'] }
+        : null;
+    },
     'o2-nrb': (s) => (s.pulse && s.vitals.gcs <= 8
       ? { say: [['you', 'He is only breathing 8/min: a mask alone will not ventilate him. SpO₂ 93 %.']], vitals: { spo2: 93 }, flags: ['o2'] }
       : null),
@@ -130,7 +177,7 @@ export const vfArrest: Scenario = {
     },
     { id: 'post-ecg', label: '12-lead after ROSC', why: 'It showed the anterior STEMI that caused the arrest — he needs the cath lab.', done: ['ecg12', 'ecg12-repeat'], after: 'rosc', points: 10, applies: (s) => has(s, 'rosc') },
     { id: 'post-bp', label: 'Treat post-arrest hypotension (fluid, vasopressor)', why: 'Avoid hypotension after ROSC: keep MAP ≥ 65 mmHg (his is 61).', done: ['fluid', 'pressor', 'push-epi'], after: 'rosc', roles: [2], points: 5, applies: (s) => has(s, 'rosc') },
-    { id: 'pci', label: 'Transport to the PCI-capable heart center', why: 'Post-arrest STEMI → emergency coronary angiography.', done: (s) => s.flags['dest-pci'] ?? null, points: 10, applies: (s) => has(s, 'rosc') },
+    { id: 'pci', label: 'Straight to the PCI-capable heart center', why: 'Post-arrest STEMI → emergency coronary angiography.', done: (s) => s.flags['dest-pci'] ?? null, points: 10, applies: (s) => has(s, 'rosc') },
     { id: 'handoff', label: 'Hand-off', why: 'Times of collapse, shocks, drugs, ROSC and the 12-lead.', done: ['handoff'], points: 5, applies: (s) => has(s, 'rosc') },
   ],
   harms: [

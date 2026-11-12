@@ -100,10 +100,11 @@ export interface SimState {
   /** cine runs recorded (cath lab), newest last: the view (intervention id and name) and the real image for it, if the app has one */
   images: { minute: number; id?: string; view: string; image?: string }[];
   /**
-   * the last 12-lead recorded: when, and the rhythm on it (an unchanged repeat needs no new read). Whether any tracing so
-   * far met STEMI criteria is the flag 'ecg-stemi': a later tracing that hides the ST elevation does not undo it
+   * the last 12-lead recorded: when, and the rhythm and rate on it (an unchanged repeat needs no new read, and keeps the
+   * rate of the tracing it repeats: see ecgChanged in engine.ts). Whether any tracing so far met STEMI criteria is the
+   * flag 'ecg-stemi': a later tracing that hides the ST elevation does not undo it
    */
-  lastEcg: null | { minute: number; profile: string };
+  lastEcg: null | { minute: number; profile: string; hr: number };
 }
 
 export type Line = [Speaker, string] | [Speaker, string, Tone];

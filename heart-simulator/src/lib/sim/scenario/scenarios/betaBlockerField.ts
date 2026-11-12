@@ -163,11 +163,11 @@ const BP = (p: Picture) => `BP ${p.sbp}/${p.dbp}`;
 const numbers = (p: Picture) => (p.rhythm.profile === 'tcp' ? `The pacer holds 70. ${BP(p)}.` : `Heart rate ${p.rhythm.hr}. ${BP(p)}.`);
 const awake = (p: Picture, text: string, tone?: Line[2]): Line[] => (p.gcs >= 13 ? [tone ? ['patient', text, tone] : ['patient', text]] : []);
 
-/** The circulation stops: a slow, organized rhythm with no pulse */
+/** The circulation stops: a slow, organized rhythm with no pulse (the capnograph follows the shared arrest rule) */
 function arrest(say: Line[], flags: string[] = []): Effect {
   return {
     say: [...say, ['monitor', 'Monitor alarm!', 'bad'], ['partner', "She's gone limp and gray — I can't feel a pulse!", 'bad']],
-    rhythm: { profile: 'pea', hr: 30 }, pulse: false, vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0, etco2: 12 }, flags,
+    rhythm: { profile: 'pea', hr: 30 }, pulse: false, vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags,
   };
 }
 
@@ -194,6 +194,26 @@ function harmful(id: string, said: string, flag: string) {
     return settle(s, after(s, { id }), end(s, id), [['you', said]], (p) => [['monitor', numbers(p), 'bad']], [flag]);
   };
 }
+
+/**
+ * What medical control and the poison center order once they know what she took, for her as she is now (a call can be
+ * repeated): no glucagon past its two doses, nothing started twice
+ */
+function orders(s: SimState): string {
+  const glucagon = count(s, 'glucagon');
+  return [
+    glucagon === 0 ? 'Glucagon 5 mg IV, once more if needed' : glucagon === 1 ? 'a second 5 mg of glucagon if she is still slow' : 'the glucagon is used up',
+    has(s, 'pressor') ? 'titrate the epinephrine infusion to a MAP of 65' : 'an epinephrine infusion to a MAP of 65',
+    has(s, 'paced') ? 'keep pacing, with analgesia' : 'pace if she stays slow',
+    has(s, 'dextrose') || has(s, 'glucose-by-mouth') ? 'recheck her glucose' : 'treat her glucose',
+  ].join('; ').replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * The same experts in her cardiac arrest: the arrest's own care, on scene. Never pacing (the built-in harm), and no
+ * glucagon or infusion titrated to a pressure she does not have. Glucagon is named only once they know what she took.
+ */
+const arrestOrders = (s: SimState) => `no pulse — CPR and epinephrine 1 mg every 3–5 minutes, and work the arrest on scene; no pacing in arrest.${has(s, 'sample') ? ' Glucagon will not restart her either.' : ''}`;
 
 /** What she says, or does, when reassessed */
 function status(s: SimState, p: Picture): string {
@@ -245,10 +265,19 @@ export const betaBlockerField: Scenario = {
       if (s.rhythm.profile === 'tcp') return 'Paced at 70: a wide QRS after every pacing spike — electrical capture. Feel for a femoral pulse at 70 to confirm the pacing moves blood.';
       return `Sinus rhythm at ${hr}: normal PR, QRS and QT, no ST elevation.`;
     },
-    // the poison center needs what the bottle says; once SAMPLE has found it, it advises as medical control does
-    poisonControl: (s) => (has(s, 'sample')
-      ? 'Poison center: "Extended-release metoprolol, up to 3 grams, about two hours ago: expect her to get worse, and for it to last. Glucagon 5 mg IV, once more if needed; an epinephrine infusion to a MAP of 65; pace if she stays slow; treat her glucose. The hospital should have high-dose insulin ready, and she needs at least 24 hours of monitoring for an extended-release tablet."'
-      : 'Poison center: "Tell us what she took: read us the bottle — the drug, the strength and whether it is extended-release — how many are missing, and when. Then call us back."'),
+    // the poison center needs what the bottle says; once SAMPLE has found it, it advises as medical control does — for her
+    // as she is now, and in the arrest the arrest comes first
+    poisonControl: (s) => {
+      const bottle = 'read us the bottle — the drug, the strength and whether it is extended-release — how many are missing, and when. Then call us back.';
+      if (!s.pulse) {
+        return has(s, 'sample')
+          ? `Poison center: "She has ${arrestOrders(s)} Call us back with ROSC: then an epinephrine infusion to a MAP of 65; the hospital should have high-dose insulin ready, and an extended-release tablet means at least 24 hours of monitoring."`
+          : `Poison center: "She has ${arrestOrders(s)} When you can, ${bottle}"`;
+      }
+      return has(s, 'sample')
+        ? `Poison center: "Extended-release metoprolol, up to 3 grams, about two hours ago: expect her to get worse, and for it to last. ${orders(s)}. The hospital should have high-dose insulin ready, and she needs at least 24 hours of monitoring for an extended-release tablet."`
+        : `Poison center: "Tell us what she took: ${bottle}"`;
+    },
   },
   status: (s) => status(s, picture(s)),
   respond: {
@@ -410,12 +439,23 @@ export const betaBlockerField: Scenario = {
       : null),
 
     // ── expert advice: medical control brings in the poison center, once you can tell them what she took
-    'med-control': (s) => (has(s, 'sample')
-      ? {
-        say: [['hospital', 'Medical control, with the poison center on the line: extended-release metoprolol, up to 3 grams, two hours ago — expect it to get worse and to last. Glucagon 5 mg, once more if needed; an epinephrine infusion to a MAP of 65; pace if she stays slow. Treat her glucose. We will have high-dose insulin ready.']],
-        flags: ['med-control', 'consulted'],
+    // a call can be repeated: in her arrest it gets the arrest's orders (the drug, if known, is for after ROSC)
+    'med-control': (s) => {
+      if (!s.pulse) {
+        return has(s, 'sample')
+          ? {
+            say: [['hospital', `Medical control, with the poison center on the line: ${arrestOrders(s)} Call me back with ROSC: then an epinephrine infusion to a MAP of 65, and we will have high-dose insulin ready.`]],
+            flags: ['med-control', 'consulted'],
+          }
+          : { say: [['hospital', `Medical control: ${arrestOrders(s)} Find out from her sister what she took, and call me back with ROSC.`]], flags: ['med-control'] };
       }
-      : { blocked: true, say: [['system', 'Find out what she took first (SAMPLE): medical control and the poison center need the drug, the dose and the time.']] }),
+      return has(s, 'sample')
+        ? {
+          say: [['hospital', `Medical control, with the poison center on the line: extended-release metoprolol, up to 3 grams, two hours ago — expect it to get worse and to last. ${orders(s)}. We will have high-dose insulin ready.`]],
+          flags: ['med-control', 'consulted'],
+        }
+        : { blocked: true, say: [['system', 'Find out what she took first (SAMPLE): medical control and the poison center need the drug, the dose and the time.']] };
+    },
     notify: (s) => (has(s, 'sample')
       ? { say: [['hospital', 'Copy: extended-release metoprolol, slow and hypotensive. We are calling the poison center and getting high-dose insulin and a pacing wire ready; the ICU knows.']], flags: ['notified', 'consulted'] }
       : null),

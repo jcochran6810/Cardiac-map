@@ -17,7 +17,7 @@ import { resolveProfile } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
 import { READ_KIND_NAME, READ_OPTIONS, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
 import { angioGate } from './labKit';
-import { LOW_GLUCOSE, PERFUSING_FLOOR, atRate, bpAfter, canSwallow, paced } from './kit';
+import { LOW_GLUCOSE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, paced, ventilated } from './kit';
 import type {
   Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
@@ -136,8 +136,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'ecg-posterior':
       if (!s.pulse) return noEcgInArrest;
       return { say: [['monitor', fact('ecgPosterior') ?? 'V7–V9: no ST elevation.']], flags: ['ecg-posterior'] };
-    case 'capno':
-      return { say: [['monitor', s.pulse ? `EtCO₂ ${v.etco2} mmHg with a normal square waveform.` : `EtCO₂ ${has(s, 'cpr') ? 16 : 6} mmHg.`]], flags: ['capno'] };
+    case 'capno': {
+      if (s.pulse) return { say: [['monitor', `EtCO₂ ${v.etco2} mmHg with a normal square waveform.`]], flags: ['capno'] };
+      // the shared arrest rule, which the case monitor shows too: almost nothing with no breaths, then the blood flow
+      const etco2 = arrestEtco2(s);
+      return { say: [['monitor', ventilated(s) ? `EtCO₂ ${etco2} mmHg.` : `EtCO₂ ${etco2} mmHg: almost no waveform.`]], flags: ['capno'] };
+    }
     case 'transducer': return { say: [['you', 'Transducers zeroed to air and leveled at the phlebostatic axis.']], flags: ['transducer'] };
     case 'labs': return { say: [['team', fact('labs') ?? 'Labs sent: troponin, electrolytes, CBC, coagulation.']], flags: ['labs'] };
     case 'act': return { say: [['team', has(s, 'heparin') ? 'ACT 286 s: therapeutic for PCI.' : 'ACT 128 s: no heparin effect yet.']], flags: ['act'] };
@@ -159,6 +163,16 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     }
     case 'bvm':
       if (s.pulse && v.gcs > 8) return { say: [['patient', 'The patient pushes the mask away: they are breathing on their own.']] };
+      // in arrest (2025 AHA): 30:2 with a bag-mask; 1 breath every 6 seconds only through an advanced airway, with
+      // continuous compressions. With a pulse (rescue breathing): 1 breath every 6 seconds
+      if (!s.pulse) {
+        return {
+          say: [['you', has(s, 'airway')
+            ? 'Ventilating through the airway, 1 breath every 6 seconds; chest rising.'
+            : 'Bag-mask with oxygen: 2 breaths, each over 1 second, after every 30 compressions; chest rising.']],
+          flags: ['ventilated'],
+        };
+      }
       return { say: [['you', 'Ventilating 1 breath every 6 seconds; chest rising.']], flags: ['ventilated'] };
     case 'cpap': return { say: [['you', 'CPAP applied at 5 cmH₂O.']], flags: ['cpap'] };
     case 'airway':
@@ -341,9 +355,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       }
       return { say: [['you', '2 minutes of compressions: 100–120/min, 5–6 cm, full recoil, minimal pauses.']], flags: ['cpr'] };
     case 'aed':
-      // an AED only shocks what it reads as VF or fast VT; it cannot feel a pulse, but an organized rhythm gets no shock
+      // An AED reads only the rhythm: it cannot feel a pulse, and it would advise a shock for a fast VT that has one.
+      // So it goes only on a patient who is unresponsive, not breathing normally and pulseless: with a pulse it is not
+      // applied at all (no time passes, nothing is scored)
+      if (s.pulse) return { blocked: true, say: [['system', 'Not with a pulse: an AED is only for a patient who is unresponsive, not breathing normally and has no pulse. It reads the rhythm alone — it cannot feel a pulse — and would advise a shock for a fast VT. Keep assessing; if the pulse is lost, start CPR and analyze.']] };
       if (shockable(s)) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
-      return { say: [['monitor', s.pulse ? 'AED: "No shock advised."' : 'AED: "No shock advised. Start CPR."']], flags: ['pads', 'monitor'] };
+      return { say: [['monitor', 'AED: "No shock advised. Start CPR."']], flags: ['pads', 'monitor'] };
     case 'defib':
       if (shockable(s)) return { say: [['monitor', 'Shock delivered: 200 J. Resume CPR immediately.']], flags: ['pads', 'monitor', 'shocked'] };
       return { say: [['monitor', 'Shock delivered: 200 J.']], flags: ['pads', 'monitor'] };
@@ -496,7 +513,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (has(s, 'enroute')) return { blocked: true, say: [['system', 'You are already transporting.']] };
       const mins = id === 'transport-pci' ? sc.transportMinutes ?? 15 : sc.nearestMinutes ?? 8;
       return {
-        say: [['you', `Patient loaded; transporting to the ${id === 'transport-pci' ? 'PCI-capable heart center' : 'nearest emergency department'} (${mins} min).`]],
+        say: [['you', `Patient loaded; transporting to the ${id === 'transport-pci' ? 'regional heart center' : 'nearest emergency department'} (${mins} min).`]],
         flags: ['enroute', id === 'transport-pci' ? 'dest-pci' : 'dest-near'], timers: { arrive: s.minute + 2 + mins },
       };
     }
@@ -631,7 +648,7 @@ const AV_BLOCKS = ['wenckebach', 'mobitz2', 'chb'];
 
 export const BUILT_IN_HARMS: Harm[] = [
   { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
-  // a manual shock fires whatever the rhythm; an AED never shocks an organized rhythm, so with a pulse it gives no shock to penalise
+  // a manual shock fires whatever the rhythm; an AED is not applied to a patient with a pulse (the default refuses it)
   { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 15, severity: 'critical', text: 'Unsynchronized shock to a patient with a pulse: it can land on the T wave and cause VF. Unstable tachycardia with a pulse needs synchronized cardioversion.' },
   { id: 'shock-nonshockable', actions: ['defib', 'cardiovert'], when: (s) => !s.pulse && !shockable(s), points: 10, severity: 'major', text: 'Asystole and PEA are not shockable: shocking them interrupts CPR and does not help. Give CPR and epinephrine and look for reversible causes.' },
   { id: 'sync-in-arrest', actions: ['cardiovert'], when: (s) => shockable(s), points: 8, severity: 'major', text: 'Synchronized mode needs R waves; in VF or pulseless VT it may never fire. Defibrillate unsynchronized.' },
@@ -814,11 +831,30 @@ function tick(sc: Scenario, s: SimState) {
   finish(sc, s);
 }
 
+/** The rate band a tracing is read in: under 60 (brady-), 60–100, over 100 (tachy-), as atRate names a sinus rhythm */
+const rateBand = (hr: number) => (hr < 60 ? 0 : hr <= 100 ? 1 : 2);
+
+/** A rate change of more than this (per minute) makes a new tracing even within one band */
+const ECG_RATE_CHANGE = 20;
+
+/**
+ * The patient's rhythm is no longer the one on the last 12-lead: another rhythm, or the same one at a rate out of the
+ * band it was read in (crossing 60 or 100) or more than 20/min away. A repeat 12-lead then needs a new read, and the
+ * 12-lead view says the patient has changed since it was recorded.
+ */
+export function ecgChanged(last: SimState['lastEcg'], rhythm: SimState['rhythm']): boolean {
+  if (!last) return true;
+  if (last.profile !== rhythm.profile) return true;
+  return rateBand(last.hr) !== rateBand(rhythm.hr) || Math.abs(last.hr - rhythm.hr) > ECG_RATE_CHANGE;
+}
+
 /** A new 12-lead tracing waits for the learner's read (EMTs acquire and transmit; they do not interpret) */
 function requestRead(sc: Scenario, s: SimState) {
   if (s.ended || !s.pulse) return;
-  const unchanged = s.lastEcg?.profile === s.rhythm.profile;
-  s.lastEcg = { minute: s.minute, profile: s.rhythm.profile };
+  const prev = s.lastEcg;
+  const unchanged = !ecgChanged(prev, s.rhythm);
+  // an unchanged repeat is the tracing already read: it keeps that one's rate, so a slow drift still adds up to a change
+  s.lastEcg = { minute: s.minute, profile: s.rhythm.profile, hr: unchanged && prev ? prev.hr : s.rhythm.hr };
   // remembered for good, for every role: the STEMI alert rests on the tracing that showed it
   if (profileShowsStemi(s.rhythm.profile)) setFlag(s, 'ecg-stemi');
   if (s.role === 1) return;
@@ -880,7 +916,8 @@ export function unavailableReason(sc: Scenario, s: SimState, id: string): string
   if (!iv.roles.includes(s.role) || (iv.settings && !iv.settings.includes(sc.setting))) return 'Outside your scope';
   const n = s.counts[id] ?? 0;
   if (!iv.repeatable && n > 0) return 'Already done';
-  if (iv.maxTimes && n >= iv.maxTimes) return `Maximum ${iv.maxTimes} doses`;
+  // a drug or a bolus counts doses; a call (medical control, the poison center) counts calls
+  if (iv.maxTimes && n >= iv.maxTimes) return `Maximum ${iv.maxTimes} ${iv.category === 'team' ? 'calls' : 'doses'}`;
   return null;
 }
 

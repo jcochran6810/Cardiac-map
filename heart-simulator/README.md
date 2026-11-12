@@ -191,12 +191,16 @@ library section or tool also resets the speed to real time and closes the electr
   reperfusion VF), built-in safety rules catch dangerous choices (a manual shock with a pulse, arrest-dose
   epinephrine with a pulse, nitroglycerin with a systolic pressure under 90, cardioversion without a
   tachyarrhythmia, pacing in arrest or at a rate of 50 or more — not as a backup over a heart already paced …), and
-  teammates do the other roles' jobs in the cath lab. An AED that advises no shock costs nothing. Vital signs stay
+  teammates do the other roles' jobs in the cath lab. An AED goes only on a patient who is unresponsive, not
+  breathing normally and pulseless: with a pulse it is refused (it reads the rhythm alone and would shock a fast VT),
+  with no time lost and no penalty; in an arrest, one that advises no shock costs nothing. Vital signs stay
   inside what a living patient can show (repeated drugs move the pressure toward a floor or a ceiling, never past
   it), and drugs given in cardiac arrest do not invent a pressure.
 - **The case ends by itself** once every critical step for your role is done (or the patient dies, or you end
   it). Handing the patient over also ends it — in the field on arrival, in the cath lab once the procedure is over —
-  and then the review says which critical steps were still missing. The review shows the score and grade, what to fix (harmful choices, missed and late steps — late
+  and then the review says which critical steps were still missing. A hand-over with the patient still in cardiac
+  arrest is scored like a death (capped at 40%), and loading a pulseless patient for transport in the field costs
+  points: the arrest is worked on scene until a sustained ROSC, for most adults (2025 AHA). The review shows the score and grade, what to fix (harmful choices, missed and late steps — late
   counts half), what went well, your times against the goals and the teaching points. A **Hint** names the
   next critical step for 2 points. Best scores are kept on the device.
 - **Cases:** field — anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,

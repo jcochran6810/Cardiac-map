@@ -4,6 +4,13 @@ import { bpAfter, firstDone, has, interpret, line } from '../kit';
 /** Minutes from the EMT's call until the paramedic intercept is at her side */
 const ALS_MINUTES = 6;
 
+/**
+ * The paramedic's ALS starts on arrival (minute 0): medical control asks for a call back after 20 minutes of it, which
+ * the case's death clock (deathAfter 24) leaves room for. The EMT's medics arrive too late for it, and the EMT is never
+ * asked for it.
+ */
+const ALS_CALL_BACK = 20;
+
 /** EtCO₂ during compressions once she is being ventilated: the CPR is producing some blood flow */
 const CPR_ETCO2 = 26;
 
@@ -85,13 +92,13 @@ export const peaArrestField: Scenario = {
       ['dispatch', 'Priority 1: 64-year-old woman, unresponsive and not breathing normally. The caller says she has struggled to breathe for three days. The dispatcher is coaching him through compressions.'],
       ['scene', 'A small apartment. Her husband is pushing on her chest on the living-room floor, beside a recliner with home-oxygen tubing and an inhaler on the armrest. Her lips are blue-gray. "She was gasping, then she went quiet — four, five minutes ago."'],
       ['partner', 'Your partner, an EMT, has the bag-valve mask and the airway kit; you have the monitor and the drug box.'],
-      ['hospital', 'Regional medical center (ICU, cardiac arrest center): 14 minutes. Nearest emergency department: 7 minutes.'],
+      ['hospital', 'Regional heart center (ICU, cardiac arrest center): 14 minutes. Nearest emergency department: 7 minutes.'],
     ],
     1: [
       ['dispatch', 'Priority 1: 64-year-old woman, unresponsive and not breathing normally. The caller says she has struggled to breathe for three days. The dispatcher is coaching him through compressions.'],
       ['scene', 'A small apartment. Her husband is pushing on her chest on the living-room floor, beside a recliner with home-oxygen tubing and an inhaler on the armrest. Her lips are blue-gray. "She was gasping, then she went quiet — four, five minutes ago."'],
       ['partner', 'Your partner, an EMT, has the AED and the airway bag. Your BLS unit is first on scene: no paramedic unit has been sent yet.'],
-      ['hospital', 'Regional medical center (ICU, cardiac arrest center): 14 minutes. Nearest emergency department: 7 minutes.'],
+      ['hospital', 'Regional heart center (ICU, cardiac arrest center): 14 minutes. Nearest emergency department: 7 minutes.'],
     ],
   },
   initial: {
@@ -285,14 +292,27 @@ export const peaArrestField: Scenario = {
       say: [['you', `Hs and Ts against what you know. Hypoxia: three days of worsening COPD, blue lips, gasping before she went quiet, and only compressions since — the likeliest cause${has(s, 'ventilated') ? ', and the bag is treating it' : ': she needs breaths with oxygen now'}. Hypovolemia: no bleeding, no vomiting. Hydrogen ion: the CO₂ she could not breathe off and the acid that hypoxia makes — breaths treat both. Potassium: no kidney disease. Hypothermia: she is warm. Tension pneumothorax: possible with emphysema — listen for equal breath sounds as she is bagged. Tamponade: nothing to suggest it. Toxins: only her inhalers and prednisone. Thrombosis: a clot in the lungs or the heart is possible, but the story is her breathing.`]],
       flags: ['hs-ts'],
     }),
-    // medical control will not end a witnessed arrest whose likely cause has not been treated, and not on EtCO₂ alone
+    // Medical control will not end a witnessed arrest whose likely cause has not been treated, and not on EtCO₂ alone.
+    // A call can be repeated: the call back it asks for (20 minutes of ALS, from the paramedic's arrival at minute 0)
+    // gets its own answer, never the same instruction again
     'med-control': (s) => {
       if (s.pulse) return null;
       const cause = has(s, 'ventilated') ? 'is only now being treated' : 'has not been treated yet';
+      if (!interpret(s)) {
+        const medics = has(s, 'als-here') ? ', with the paramedics running the drugs' : has(s, 'als') ? ' until the paramedics take over' : '. And get a paramedic intercept on the way: she needs epinephrine';
+        return {
+          say: [['hospital', `Medical control: keep going. She was witnessed, she had bystander CPR, and the likely cause, her breathing, ${cause}: ventilate her with oxygen and keep compressions going${medics}.`]],
+          flags: ['med-control'],
+        };
+      }
+      if (s.minute >= ALS_CALL_BACK) {
+        return {
+          say: [['hospital', `Medical control: 20 minutes of ALS and still no ROSC — and I am still not stopping this one. She was witnessed, she had bystander CPR, and the likely cause, her breathing, ${has(s, 'ventilated') ? 'is being treated — and the oxygen reaches her heart only while the compressions go on' : 'has still not been treated: ventilate her with oxygen now'}. A low EtCO₂ alone is never a reason to stop. Keep going: compressions, breaths with oxygen in slow squeezes that let each breath out — check for equal breath sounds on both sides — and epinephrine every 3 to 5 minutes.`]],
+          flags: ['med-control'],
+        };
+      }
       return {
-        say: [['hospital', interpret(s)
-          ? `Medical control: keep going — this is not one to stop. She was witnessed, she had bystander CPR, and the likely cause, her breathing, ${cause}. ${has(s, 'ventilated') ? '' : 'An EtCO₂ taken before anyone ventilates her measures nothing, and even later, '}never stop on EtCO₂ alone. Breaths with oxygen, epinephrine every 3 to 5 minutes, and call back if there is still no ROSC after 20 minutes of ALS.`
-          : `Medical control: keep going. She was witnessed, she had bystander CPR, and the likely cause, her breathing, ${cause}: ventilate her with oxygen and keep compressions going${has(s, 'als') ? ' until the paramedics take over' : '. And get a paramedic intercept on the way: she needs epinephrine'}.`]],
+        say: [['hospital', `Medical control: keep going — this is not one to stop. She was witnessed, she had bystander CPR, and the likely cause, her breathing, ${cause}. ${has(s, 'ventilated') ? '' : 'An EtCO₂ taken before anyone ventilates her measures nothing, and even later, '}never stop on EtCO₂ alone. Breaths with oxygen, epinephrine every 3 to 5 minutes, and call back if there is still no ROSC after 20 minutes of ALS.`]],
         flags: ['med-control'],
       };
     },

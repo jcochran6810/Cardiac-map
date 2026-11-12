@@ -118,7 +118,7 @@ export const afRvrField: Scenario = {
     primary: (s) => (s.pulse
       ? { say: [['you', `Airway open; breathing ${s.vitals.rr}/min, sitting up; radial pulse ${inAf(s) ? 'fast and irregular, about' : 'regular,'} ${s.rhythm.hr}/min; GCS ${s.vitals.gcs}.`]] }
       : null),
-    // one call (it cannot be repeated), so the physician answers for where the crew is; the order never names the rhythm
+    // each call (up to three) is answered for where the crew is then; the order never names the rhythm
     'med-control': (s) => {
       let advice: string;
       if (!s.pulse) advice = 'Medical control: "No pulse — defibrillate and run the arrest algorithm, then call me back."';
@@ -235,7 +235,7 @@ export const afRvrField: Scenario = {
       }
       return vfShock(s, 'Shock delivered.');
     },
-    // with his pulse the AED advises no shock (the default); in the VF it shocks, as the manual defibrillator does
+    // with his pulse the AED is not applied (the default refuses it); in the VF it shocks, as the manual defibrillator does
     aed: (s) => vfShock(s, 'AED: "Shock advised." Shock delivered.'),
     // a failing heart cannot take more volume: it goes to the lungs
     fluid: (s) => {
