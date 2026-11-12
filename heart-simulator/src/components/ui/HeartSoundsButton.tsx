@@ -58,8 +58,9 @@ export function HeardLegend({ className = '' }: { className?: string }) {
     return () => window.clearInterval(id);
   }, [on]);
   if (!on) return null;
+  // 12 px, 13 px on touch screens: this is the text that explains what a learner is hearing
   return (
-    <p className={`text-[10px] leading-snug text-sky-100/90 ${className}`} aria-live="polite">
+    <p className={`text-xs touch:text-[13px] leading-snug text-sky-100/90 ${className}`} aria-live="polite">
       {heard.silent ? 'No heart sounds: the heart is not pumping.' : (
         <>
           <b>You hear:</b> S1 (lub), S2 (dub){heard.extra.map((e) => `, ${EXTRA[e]}`).join('')}.
