@@ -151,7 +151,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
     </>
   );
   const labToggle = (
-    <Toggle active={ecg.electrodeLab} onClick={() => ecg.setElectrodeLab(!ecg.electrodeLab)} title="Electrode lab: place the electrodes on a 3D patient, see each lead's view and practise cable reversals">Electrode lab</Toggle>
+    <Toggle active={ecg.electrodeLab} onClick={() => ecg.setElectrodeLab(!ecg.electrodeLab)} title="Electrode lab: place the electrodes on a 3D patient, see each lead's view and practice cable reversals">Electrode lab</Toggle>
   );
   const toolOpts = (
     <>
@@ -159,7 +159,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       <Toggle
         active={!!ecg.inspectLead}
         onClick={() => ecg.setInspectLead(ecg.inspectLead ? null : ecg.selectedLead ?? 'II')}
-        title={touch ? 'Show one lead large with labelled waves and intervals (double-tap any lead)' : 'Show one lead large with labelled waves and intervals (double-click any lead)'}
+        title={touch ? 'Show one lead large with labeled waves and intervals (double-tap any lead)' : 'Show one lead large with labeled waves and intervals (double-click any lead)'}
       >
         {ecg.inspectLead ? `Inspecting ${ecg.inspectLead} ✕` : `Inspect ${ecg.selectedLead ?? 'II'}`}
       </Toggle>

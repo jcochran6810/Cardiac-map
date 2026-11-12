@@ -103,7 +103,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
           )}
           {d.mode === 'aed' && (
             <button onClick={analyze} disabled={d.aed.phase === 'analyzing'} className="w-full py-1.5 touch:py-2.5 rounded font-semibold bg-sky-600/40 text-sky-100 disabled:opacity-50">
-              {d.aed.phase === 'analyzing' ? 'Analysing…' : 'ANALYZE'}
+              {d.aed.phase === 'analyzing' ? 'Analyzing…' : 'ANALYZE'}
             </button>
           )}
           <div className="grid grid-cols-2 gap-1">
@@ -121,7 +121,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
           {d.charge !== 'idle' && <button onClick={dumpCharge} className="w-full py-0.5 touch:py-1.5 rounded text-slate-400 hover:text-white">Disarm</button>}
           <p className="text-[10px] text-slate-500 leading-snug">
             Biphasic defibrillation for VF / pulseless VT: device-recommended dose (typically 120–200 J; use the maximum if unknown).
-            Synchronised: narrow regular 50–100 J · AF 120–200 J (many start at 200 J) · monomorphic VT 100 J. Polymorphic VT → defibrillate.
+            Synchronized (2025 AHA, biphasic): narrow regular 100 J · AF 200 J or more · atrial flutter 200 J · monomorphic VT 100 J. Polymorphic VT → defibrillate.
           </p>
         </section>
       )}

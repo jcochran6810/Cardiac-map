@@ -12,7 +12,7 @@ import { IconClose, IconQuiz } from '@/components/ui/icons';
 
 const TOPIC_LABEL: Record<QuizTopic, string> = {
   anatomy: 'Anatomy', physiology: 'Physiology', ecg: 'ECG', 'rhythm-id': 'Rhythm ID (live)', conduction: 'Conduction', coronary: 'Coronary',
-  ischemia: 'Ischaemia', arrhythmia: 'Arrhythmia', acls: 'ACLS', pharmacology: 'Pharmacology', hemodynamics: 'Hemodynamics',
+  ischemia: 'Ischemia', arrhythmia: 'Arrhythmia', acls: 'ACLS', pharmacology: 'Pharmacology', hemodynamics: 'Hemodynamics',
   valvular: 'Valvular', 'heart-failure': 'Heart failure', cardiomyopathy: 'Cardiomyopathy', pericardial: 'Pericardial', congenital: 'Congenital', procedures: 'Procedures',
 };
 

@@ -32,7 +32,7 @@ const RIGHT_CORONARY = CORONARY_IDS.filter((id) => !LEFT_CORONARY.includes(id));
 
 const MED_GROUPS: { label: string; ids: string[] }[] = [
   { label: 'Antiplatelet, anticoagulant & lytic', ids: ['aspirin', 'clopidogrel', 'ticagrelor', 'prasugrel', 'heparin', 'enoxaparin', 'bivalirudin', 'apixaban', 'warfarin', 'tenecteplase'] },
-  { label: 'Anti-ischaemic & analgesia', ids: ['nitroglycerin', 'fentanyl', 'metoprolol', 'esmolol'] },
+  { label: 'Anti-ischemic & analgesia', ids: ['nitroglycerin', 'fentanyl', 'metoprolol', 'esmolol'] },
   { label: 'Antiarrhythmic & rate control', ids: ['adenosine', 'diltiazem', 'amiodarone', 'procainamide', 'lidocaine', 'digoxin', 'magnesium-sulfate'] },
   { label: 'ACLS, pressors & inotropes', ids: ['atropine', 'epinephrine', 'norepinephrine', 'vasopressin', 'phenylephrine', 'dopamine', 'dobutamine', 'milrinone'] },
   { label: 'Heart failure & prevention', ids: ['furosemide', 'lisinopril', 'sacubitril-valsartan', 'spironolactone', 'empagliflozin', 'atorvastatin'] },

@@ -39,7 +39,7 @@ export default function TutorPanel() {
       else if (selectedMedicationId) s.push(`What is the dose of ${n}?`, `What are the contraindications to ${n}?`);
       else s.push(`Tell me about the ${n.toLowerCase()}`, `What is the blood supply of the ${n.toLowerCase()}?`);
     }
-    s.push('Explain the cardiac cycle', 'How do I localise a STEMI?', 'Explain preload and afterload', 'How does the conduction system work?');
+    s.push('Explain the cardiac cycle', 'How do I localize a STEMI?', 'Explain preload and afterload', 'How does the conduction system work?');
     return s.slice(0, 6);
   }, [lib, selectedConditionId, selectedStructureId, selectedProcedureId, selectedMedicationId]);
 

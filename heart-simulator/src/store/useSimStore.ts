@@ -88,7 +88,7 @@ function show(s: SimState, prev: SimState | null) {
   const last = s.performed.at(-1);
   if (prev && last && s.performed.length > prev.performed.length) {
     if (last.id === 'nibp') setNibpReading(s.pulse ? { sbp: s.vitals.sbp, dbp: s.vitals.dbp } : 'fail');
-    if (newLines.some((l) => /shock delivered|synchronised shock/i.test(l.text))) useDefibStore.setState({ lastShock: sim.time });
+    if (newLines.some((l) => /shock delivered|synchroni[sz]ed shock/i.test(l.text))) useDefibStore.setState({ lastShock: sim.time });
     if ((last.id === 'ecg12' || last.id === 'ecg12-repeat') && s.lastEcg?.minute === s.minute) {
       // a 12-lead records 10 s of the rhythm the patient has now: skip ahead so the tracing does not
       // still show the last seconds of the rhythm before (e.g. VF just after the shock)

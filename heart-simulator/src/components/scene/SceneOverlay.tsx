@@ -217,7 +217,7 @@ export default function SceneOverlay() {
             )}
             {culprit && (
               <div className="flex items-center gap-1.5 mt-1 text-fuchsia-300">
-                <span className="w-3 h-2 rounded-sm bg-fuchsia-700 animate-pulse" /> Ischaemic territory (pulsing): {culprit} culprit lesion
+                <span className="w-3 h-2 rounded-sm bg-fuchsia-700 animate-pulse" /> Ischemic territory (pulsing): {culprit} culprit lesion
               </div>
             )}
           </div>
@@ -372,7 +372,7 @@ function ActivationLegend({ narrow }: { narrow: boolean }) {
           )}
         </div>
       ) : (
-        <div className="mt-1.5 text-amber-200">No organised ventricular activation sequence (fibrillation / polymorphic VT) — nothing to map.</div>
+        <div className="mt-1.5 text-amber-200">No organized ventricular activation sequence (fibrillation / polymorphic VT) — nothing to map.</div>
       )}
       {!ap && !narrow && (
         <div className="mt-1 text-slate-400">Atria: not mapped (AF, flutter macro-re-entry with no single earliest site, or no P wave).</div>

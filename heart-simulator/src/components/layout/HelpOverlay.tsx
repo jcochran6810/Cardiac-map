@@ -34,7 +34,7 @@ const GESTURES: [string, string][] = [
   ['Two-finger drag', 'Move (pan) the heart'],
   ['Tap a structure', 'Read about it'],
   ['Tap a lead', 'Show its axis on the heart'],
-  ['Double-tap a lead', 'Inspect it large with labelled intervals'],
+  ['Double-tap a lead', 'Inspect it large with labeled intervals'],
   ['Drag the ECG', 'Scrub back and forth through time'],
   ['Tap 3D heart / 12-lead ECG', 'Slide the heart down from the top, the ECG up from the bottom — tap again to put it away'],
   ['Drag a grip bar', 'Resize the heart or the ECG (double-tap to reset)'],
@@ -97,9 +97,9 @@ export default function HelpOverlay() {
             <p>The ECG, 3D contraction, conduction animation, valve states, heart sounds and pressure curves are all generated from the same beat-by-beat event list, so they always agree — including AF, dropped beats and AV dissociation.</p>
             <p><b className="text-white">Heart sounds:</b> press <b className="text-slate-100">Heart sounds</b> on the 3D heart (or <b className="text-slate-100">Listen</b> beside the pressure curves) to hear S1 and S2 in time with the beat — and the S3, S4, opening snap and murmur of the condition on screen. Headphones bring out the low tones.</p>
             <p><b className="text-white">Give meds:</b> every condition has a <b className="text-slate-100">Give meds</b> section — set the patient&apos;s weight, choose a drug and a dose, push it, and watch the live 12-lead change as the drug acts (marked on the strip, with Skip ahead for slow drugs) and get feedback on the drug and the dose.</p>
-            <p><b className="text-white">ECG:</b> calibrated at 25 mm/s and 10 mm/mV (1 small box = 40 ms / 0.1 mV). Click (or tap) a lead to see its axis on the heart, double-click (double-tap) to inspect it with labelled intervals, and drag to scrub time.</p>
+            <p><b className="text-white">ECG:</b> calibrated at 25 mm/s and 10 mm/mV (1 small box = 40 ms / 0.1 mV). Click (or tap) a lead to see its axis on the heart, double-click (double-tap) to inspect it with labeled intervals, and drag to scrub time.</p>
             <p><b className="text-white">Roles &amp; scope of practice:</b> choose EMT, Paramedic, Cath Lab Tech, Cath Lab Nurse or Cardiologist on the main menu. The “Focus” guidance, recommended tabs (green dots), quiz questions, case roles and monitor/defibrillator permissions follow that role&apos;s scope: EMT and Paramedic per the National EMS Scope of Practice Model (NREMT); cath lab tech per RCIS / SCAI best practices and facility policy; cath lab nurse per the state Nurse Practice Act; cardiologists without limits beyond their privileges. Tap <b>What can I do?</b> next to the roles on the main menu for details. Local protocols, medical direction and facility policy always govern real practice.</p>
-            <p><b className="text-white">Defibrillator (M):</b> practise AED use, manual defibrillation, synchronised cardioversion, pacing and ACLS drugs on the live rhythm. Instructor mode loads scenarios and changes the patient; trainee mode hides rhythm names; Projector mirrors the monitor on a second screen.</p>
+            <p><b className="text-white">Defibrillator (M):</b> practice AED use, manual defibrillation, synchronized cardioversion, pacing and ACLS drugs on the live rhythm. Instructor mode loads scenarios and changes the patient; trainee mode hides rhythm names; Projector mirrors the monitor on a second screen.</p>
             <p><b className="text-white">Sources:</b> activation sequence after Durrer et al. (1970); AHA 17-segment model (Cerqueira 2002); lead derivation and electrode reversals per standard ECG references; C-arm angles cross-checked with SlicerHeart. See THIRD_PARTY_NOTICES.md.</p>
             <p><b className="text-white">How accurate is it?</b> Waveforms come from a cardiac dipole model with physiological intervals (QT corrected by Fridericia), and the hemodynamics are a teaching model with representative values. It is designed to teach patterns and relationships, not to reproduce any individual patient.</p>
           </section>

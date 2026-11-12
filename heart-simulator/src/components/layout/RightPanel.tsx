@@ -375,7 +375,7 @@ function PractiseCase({ conditionId, level }: { conditionId: string; level: Lear
     <button onClick={go} className="mt-2 w-full flex items-center gap-2 p-2 touch:p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-left hover:bg-amber-500/20">
       <IconPlay size={18} className="text-cardiac-accent shrink-0" />
       <span className="min-w-0">
-        <span className="block text-[11px] font-semibold text-amber-100">Practise it in the case simulator</span>
+        <span className="block text-[11px] font-semibold text-amber-100">Practice it in the case simulator</span>
         <span className="block text-[10px] text-amber-200/70 truncate">{sc.title}</span>
       </span>
     </button>
@@ -576,7 +576,7 @@ function PractiseLab({ item, level }: { item: CathLabItem; level: LearningLevel 
     useAppStore.getState().setMode('simulator');
   };
   return (
-    <Section title="Practise it in the simulator">
+    <Section title="Practice it in the simulator">
       <div className="grid gap-1.5">
         {cases.map((sc) => {
           const role = sc.roles.includes(level) ? level : sc.roles[0];
