@@ -78,7 +78,7 @@ interface Segment {
 }
 
 /** Rhythms whose P waves come from the sinus node, whether or not they reach the ventricles */
-const SINUS_P: ReadonlySet<RhythmKind> = new Set<RhythmKind>(['sinus', 'pvc', 'wenckebach', 'mobitz2', 'paced', 'chb', 'vpaced', 'vt']);
+const SINUS_P: ReadonlySet<RhythmKind> = new Set<RhythmKind>(['sinus', 'pvc', 'wenckebach', 'mobitz2', 'paced', 'chb', 'vpaced', 'vt', 'aivr']);
 
 /** The T wave is over by this fraction of the cycle: a QT cannot outlast the RR interval it sits in */
 const QT_ROOM = 0.9;
@@ -435,8 +435,11 @@ export class ECGEngine {
         };
       }
 
-      case 'vt': {
-        const atrialRR = 60000 / 82;
+      case 'vt':
+      case 'aivr': {
+        // AIVR wins by running a little faster than the sinus node; VT runs away from it
+        const aivr = profile.rhythm === 'aivr';
+        const atrialRR = aivr ? rrNominal * 1.12 : 60000 / 82;
         let nextP = sinusOn ? Math.max(start, lastA.t + atrialRR) : aReady + rng() * 400;
         let nextV = vReady;
         return {
@@ -447,7 +450,7 @@ export class ECGEngine {
               pushA(buildAtrial(nextP, profile, 'sinus', false));
               nextP += atrialRR;
             } else {
-              pushV(buildVent(nextV, 'vt', profile, profile.qrs, rrNominal, { useProfileT: false }));
+              pushV(buildVent(nextV, aivr ? 'escape' : 'vt', profile, profile.qrs, rrNominal, { useProfileT: false }));
               nextV += rrNominal * (1 + 0.01 * (rng() - 0.5));
             }
           },
@@ -642,7 +645,8 @@ export class ECGEngine {
       const s1 = 0.055 * Math.sin(2 * Math.PI * 6.3 * t / 1000 + 2.5 * noise1(t / 700)) + 0.03 * Math.sin(2 * Math.PI * 8.7 * t / 1000 + 3 * noise1(t / 500 + 17));
       const s2 = 0.04 * Math.sin(2 * Math.PI * 7.4 * t / 1000 + 2.5 * noise1(t / 650 + 41));
       const amp = 0.75 + 0.35 * noise1(t / 1300 + 5);
-      d[0] += amp * (0.05 * s1 + 0.6 * s2); d[1] += amp * (-0.8 * s1 - 0.3 * s2); d[2] += amp * (-0.6 * s1 - 0.2 * s2);
+      // mostly right-atrial, anterior and inferior: the f waves show best in V1–V3 and the inferior leads
+      d[0] += amp * (-0.35 * s1 + 0.2 * s2); d[1] += amp * (-0.75 * s1 - 0.3 * s2); d[2] += amp * (-0.55 * s1 - 0.5 * s2);
     } else if (r === 'flutter') {
       const ph = (((t - seg.origin) % 200) + 200) % 200 / 200;
       const g = ph < 0.72 ? ph / 0.72 : (1 - ph) / 0.28;
@@ -735,7 +739,7 @@ export class ECGEngine {
     const v = i >= 0 ? this.vent[i] : null;
     const rate = this.heartRate(t);
     const rr = rate > 0 ? 60000 / rate : 1000;
-    const hasP = !['af', 'flutter', 'vf', 'asystole', 'torsades', 'svt', 'junctional', 'vt', 'chb', 'vpaced'].includes(p.rhythm);
+    const hasP = !['af', 'flutter', 'vf', 'asystole', 'torsades', 'svt', 'junctional', 'vt', 'aivr', 'chb', 'vpaced'].includes(p.rhythm);
     // VF and asystole have no beats: nothing to measure (the last beat before them is not of this rhythm)
     const noBeats = p.rhythm === 'vf' || p.rhythm === 'asystole';
     // …and VT and torsades have no T wave that can be told from the QRS: no QT to report

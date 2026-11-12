@@ -6,7 +6,7 @@
  * interval (Fridericia correction) and, slightly, the PR interval change with
  * rate, as they do in real life.
  */
-import { DipolePulse, Vec3, pulse, scale, norm } from './vector';
+import { DipolePulse, Vec3, pulse, scale, norm, rotateFrontal } from './vector';
 
 // ─── Rhythm kinds ──────────────────────────────────────────────────────────
 
@@ -21,6 +21,7 @@ export type RhythmKind =
   | 'chb'
   | 'pvc'
   | 'vt'
+  | 'aivr'
   | 'vf'
   | 'torsades'
   | 'asystole'
@@ -38,9 +39,11 @@ export interface PTemplate {
 }
 
 export const P_TEMPLATES: Record<string, PTemplate> = {
+  // right atrium first (anterior, inferior), then the left atrium (leftward, slightly posterior): upright in I, II and
+  // V2, biphasic in V1 with a small negative tail (a deep, wide one is left atrial enlargement)
   normal: {
     duration: 100,
-    pulses: [pulse(32, 13, [0.15, -0.45, -0.9], 0.11), pulse(64, 14, [0.8, 0.55, -0.3], 0.09)],
+    pulses: [pulse(32, 13, [0.15, -0.45, -0.9], 0.11), pulse(64, 14, [0.9, 0.15, -0.4], 0.09)],
   },
   // Left atrial enlargement: broad (>120 ms), notched P in II; deep terminal negative P in V1
   mitrale: {
@@ -53,9 +56,10 @@ export const P_TEMPLATES: Record<string, PTemplate> = {
     pulses: [pulse(36, 14, [0.05, -0.45, -0.9], 0.26), pulse(66, 13, [0.8, 0.55, -0.3], 0.07)],
   },
   // Retrograde atrial activation from the AV junction: inverted in II, III, aVF
+  // (superior and anterior: inverted in II, III, aVF, upright in aVR and V1 — the pseudo-r′ of AVNRT)
   retrograde: {
     duration: 75,
-    pulses: [pulse(34, 15, [0.05, -0.3, 0.95], 0.13)],
+    pulses: [pulse(34, 15, [-0.25, -0.55, 0.8], 0.13)],
   },
   flat: {
     duration: 110,
@@ -68,7 +72,7 @@ export const P_TEMPLATES: Record<string, PTemplate> = {
 export interface QRSTemplate {
   pulses: DipolePulse[];
   duration: number;
-  /** Default T-wave vector (secondary repolarisation for wide complexes) */
+  /** Default T-wave vector (secondary repolarization for wide complexes) */
   t: { dir: Vec3; mag: number };
   /** Default ST vector (e.g. appropriate discordance in LBBB) */
   st?: Vec3;
@@ -78,7 +82,7 @@ export interface QRSTemplate {
 
 const NORMAL_T = { dir: [0.5, -0.5, -0.7] as Vec3, mag: 0.4 };
 
-// Normal ventricular depolarisation: septal (L→R, anterior) → anteroapical → lateral free wall → basal
+// Normal ventricular depolarization: septal (L→R, anterior) → anteroapical → lateral free wall → basal
 const SEPTAL = pulse(12, 6, [-0.45, -0.85, 0.05], 0.2);
 const ANTEROAPICAL = pulse(30, 9, [0.25, -0.55, -0.85], 0.85);
 const LATERAL = pulse(48, 10, [0.78, 0.42, -0.62], 1.3);
@@ -99,6 +103,16 @@ export const QRS_TEMPLATES: Record<string, QRSTemplate> = {
   'incomplete-rbbb': {
     duration: 112,
     pulses: [SEPTAL, pulse(30, 9, [0.25, -0.55, -0.8], 0.85), pulse(48, 10, [0.8, 0.45, -0.45], 1.0), pulse(68, 9, [-0.2, 0.75, 0.5], 0.3), pulse(90, 10, [-0.6, -0.72, 0.1], 0.38)],
+    t: NORMAL_T,
+    conduction: 'normal',
+  },
+
+  // Secundum ASD: the same incomplete RBBB with right axis deviation (RV volume overload): every force turned ~50°
+  // toward the right in the frontal plane
+  'incomplete-rbbb-rad': {
+    duration: 112,
+    pulses: [SEPTAL, pulse(30, 9, [0.25, -0.55, -0.8], 0.85), pulse(48, 10, [0.8, 0.45, -0.45], 1.0), pulse(68, 9, [-0.2, 0.75, 0.5], 0.3), pulse(90, 10, [-0.6, -0.72, 0.1], 0.38)]
+      .map((p) => ({ ...p, v: rotateFrontal(p.v, 50) })),
     t: NORMAL_T,
     conduction: 'normal',
   },
@@ -278,7 +292,7 @@ export interface ECGProfile {
   qtc: number;
   /** Electrical alternans (tamponade): every other QRS is smaller by this fraction */
   alternans?: number;
-  /** Widen QRS by this factor (hyperkalaemia) */
+  /** Widen QRS by this factor (hyperkalemia) */
   qrsWiden?: number;
   hemo: HemoProfile;
   /** Short interpretation headline */
@@ -310,13 +324,13 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'sinus-tachycardia', name: 'Sinus Tachycardia', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 122, minHR: 101, maxHR: 180,
     pr: 140, p: 'normal', qrs: 'normal', qtc: 420, hemo: 'normal',
     headline: 'Sinus tachycardia',
-    findings: ['Sinus P waves, rate > 100 bpm (rarely > 220 − age)', 'P waves may merge with preceding T at high rates', 'Gradual onset/offset — look for the cause (pain, fever, hypovolaemia, PE, sepsis)'],
+    findings: ['Sinus P waves, rate > 100 bpm (rarely > 220 − age)', 'P waves may merge with preceding T at high rates', 'Gradual onset/offset — look for the cause (pain, fever, hypovolemia, PE, sepsis)'],
   },
   'atrial-fibrillation': {
     id: 'atrial-fibrillation', name: 'Atrial Fibrillation', rhythm: 'af', rateControl: 'ventricular', defaultHR: 112, minHR: 50, maxHR: 180,
     pr: 0, p: 'none', qrs: 'normal', qtc: 420, hemo: 'normal',
     headline: 'Atrial fibrillation — irregularly irregular, no P waves',
-    findings: ['Irregularly irregular RR intervals; ventricular rate > 100 = rapid ventricular response (RVR)', 'No organised P waves; fibrillatory (f) waves 350–600/min, best seen in V1', 'Narrow QRS unless aberrancy or pre-excitation', 'Beat-to-beat pulse volume varies → pulse deficit at fast rates'],
+    findings: ['Irregularly irregular RR intervals; ventricular rate > 100 = rapid ventricular response (RVR)', 'No organized P waves; fibrillatory (f) waves 350–600/min, best seen in V1 and the inferior leads', 'Narrow QRS unless aberrancy or pre-excitation', 'Beat-to-beat pulse volume varies → pulse deficit at fast rates'],
     keyLeads: ['V1', 'II'],
   },
   'atrial-flutter': {
@@ -330,7 +344,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'avnrt', name: 'AVNRT (SVT)', rhythm: 'svt', rateControl: 'ventricular', defaultHR: 180, minHR: 140, maxHR: 240,
     pr: 0, p: 'retrograde', qrs: 'normal', qtc: 420, hemo: 'normal',
     headline: 'Regular narrow-complex tachycardia (AVNRT)',
-    findings: ['Regular narrow-complex tachycardia 140–250 bpm', 'No visible P before QRS; retrograde P buried in or just after the QRS', 'Pseudo-r′ in V1 and pseudo-S in II, III, aVF', 'Abrupt onset/offset; may terminate with vagal manoeuvres and usually terminates with adenosine'],
+    findings: ['Regular narrow-complex tachycardia 140–250 bpm', 'No visible P before QRS; retrograde P buried in or just after the QRS', 'Pseudo-r′ in V1 and pseudo-S in II, III, aVF', 'Abrupt onset/offset; may terminate with vagal maneuvers and usually terminates with adenosine'],
     keyLeads: ['V1', 'II'],
   },
   wpw: {
@@ -417,10 +431,19 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: ['Chaotic, irregular deflections of varying amplitude and form', 'No identifiable P waves, QRS complexes or T waves', 'No cardiac output: start CPR and defibrillate immediately', 'Coarse VF becomes fine VF over minutes without perfusion'],
   },
   torsades: {
-    id: 'torsades', name: 'Torsades de Pointes', rhythm: 'torsades', rateControl: 'ventricular', defaultHR: 230, minHR: 160, maxHR: 280,
+    id: 'torsades', name: 'Torsades de Pointes', rhythm: 'torsades', rateControl: 'ventricular', defaultHR: 230, minHR: 160, maxHR: 250,
     pr: 0, p: 'none', qrs: 'torsades', qtc: 560, hemo: 'no-output',
     headline: 'Torsades de pointes (polymorphic VT with long QT)',
-    findings: ['Polymorphic VT: QRS axis "twists" around the baseline', 'Amplitude waxes and wanes over 5–20 beats', 'Arises on a prolonged QTc (often after a pause: short-long-short)', 'Treat with IV magnesium (stop QT-prolonging drugs, correct K⁺); unsynchronised defibrillation if pulseless or unstable'],
+    findings: ['Polymorphic VT: QRS axis "twists" around the baseline', 'Amplitude waxes and wanes over 5–20 beats', 'Arises on a prolonged QTc (often after a pause: short-long-short)', 'Sustained torsades: unsynchronized defibrillation at once (2025 AHA), then IV magnesium; stop QT-prolonging drugs, correct K⁺; short runs that stop by themselves: magnesium'],
+  },
+  // Accelerated idioventricular rhythm: a ventricular focus a little faster than the sinus node (classically just after
+  // a blocked artery reopens). Not VT: the beats are drawn as escape beats, so nothing treats it as shockable
+  aivr: {
+    id: 'aivr', name: 'Accelerated Idioventricular Rhythm (AIVR)', rhythm: 'aivr', rateControl: 'ventricular', defaultHR: 78, minHR: 50, maxHR: 110,
+    pr: 0, p: 'normal', qrs: 'vt', qtc: 440, hemo: 'normal',
+    headline: 'Accelerated idioventricular rhythm (AIVR)',
+    findings: ['Regular wide QRS (> 120 ms) at about 50–110 a minute, usually under 100: close to the sinus rate', 'AV dissociation: sinus P waves march through; fusion and capture beats as the two pacemakers compete', 'Common in the minutes after an infarct artery reopens; also digoxin toxicity and cardiomyopathy', 'Usually well tolerated and ends by itself: do not suppress it with antiarrhythmics; treat only if the lost atrial kick drops the pressure'],
+    keyLeads: ['II', 'V1'],
   },
   asystole: {
     id: 'asystole', name: 'Asystole', rhythm: 'asystole', rateControl: 'none', defaultHR: 0, minHR: 0, maxHR: 0,
@@ -443,7 +466,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     injury: scale(norm([-0.32, 0.18, -0.93]), 0.22),
     t: { dir: [0.05, -0.15, -0.98], mag: 0.5, rise: 0.12, fall: 0.08 },
     headline: 'Inferior STEMI — RCA occlusion',
-    findings: ['ST elevation in II, III, aVF with STE III > II (favours RCA)', 'Reciprocal ST depression in aVL (often the earliest sign) and I', 'ST depression V1–V3 suggests posterior extension', 'Record V4R: STE ≥ 0.5 mm (classically ≥ 1 mm) suggests RV infarction (avoid nitrates; fluid bolus if hypotensive)', 'Watch for bradycardia and AV block (AV nodal artery)'],
+    findings: ['ST elevation in II, III, aVF with STE III > II (favors RCA)', 'Reciprocal ST depression in aVL (often the earliest sign) and I', 'ST depression V1–V3 suggests posterior extension', 'Record V4R: STE ≥ 0.5 mm (classically ≥ 1 mm) suggests RV infarction (avoid nitrates; fluid bolus if hypotensive)', 'Watch for bradycardia and AV block (AV nodal artery)'],
     keyLeads: ['II', 'III', 'aVF', 'aVL', 'I'],
   },
   'inferior-stemi-chb': {
@@ -452,7 +475,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     injury: scale(norm([-0.32, 0.18, -0.93]), 0.22),
     t: { dir: [0.05, -0.15, -0.98], mag: 0.5, rise: 0.12, fall: 0.08 },
     headline: 'Inferior STEMI with complete heart block (narrow junctional escape)',
-    findings: ['ST elevation in II, III, aVF with reciprocal depression in aVL', 'P waves and QRS complexes are dissociated; narrow escape at 40–50 bpm', 'AV-nodal ischaemia (RCA supplies the AV node in ~90%): usually transient and often atropine-responsive', 'Pacing pads on; treat hypotension; urgent reperfusion'],
+    findings: ['ST elevation in II, III, aVF with reciprocal depression in aVL', 'P waves and QRS complexes are dissociated; narrow escape at 40–50 bpm', 'AV-nodal ischemia (RCA supplies the AV node in ~90%): usually transient and often atropine-responsive', 'Pacing pads on; treat hypotension; urgent reperfusion'],
     keyLeads: ['II', 'III', 'aVF', 'aVL'],
   },
   'anterior-stemi-reperfused': {
@@ -483,12 +506,12 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     keyLeads: ['I', 'aVL', 'V5', 'V6', 'III'],
   },
   nstemi: {
-    id: 'nstemi', name: 'NSTEMI / Subendocardial Ischaemia', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 88, ...STD,
+    id: 'nstemi', name: 'NSTEMI / Subendocardial Ischemia', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 88, ...STD,
     pr: 160, p: 'normal', qrs: 'normal', qtc: 430, hemo: 'normal',
     injury: scale(norm([-0.62, 0.05, 0.6]), 0.14),
     t: { dir: [-0.5, -0.35, 0.45], mag: 0.22 },
     headline: 'Diffuse ST depression with ST elevation in aVR',
-    findings: ['Horizontal/downsloping ST depression ≥ 0.5 mm in I, II, V4–V6', 'ST elevation in aVR from diffuse subendocardial ischaemia (consider left main / 3-vessel disease)', 'T-wave inversion in lateral leads', 'ECG may be normal — diagnosis relies on serial high-sensitivity troponin'],
+    findings: ['Horizontal/downsloping ST depression ≥ 0.5 mm in I, II, V4–V6', 'ST elevation in aVR from diffuse subendocardial ischemia (consider left main / 3-vessel disease)', 'T-wave inversion in lateral leads', 'ECG may be normal — diagnosis relies on serial high-sensitivity troponin'],
     keyLeads: ['aVR', 'V4', 'V5', 'V6', 'II'],
   },
   wellens: {
@@ -510,7 +533,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     pr: 160, p: 'mitrale', qrs: 'hcm', qtc: 440, hemo: 'hcm',
     t: { dir: [-0.72, -0.45, 0.45], mag: 0.32 },
     injury: scale(norm([-0.6, -0.3, 0.3]), 0.08),
-    headline: 'LVH with "dagger" Q waves and repolarisation abnormality',
+    headline: 'LVH with "dagger" Q waves and repolarization abnormality',
     findings: ['Marked LVH voltage', 'Deep, narrow ("dagger") Q waves in inferior and lateral leads (septal hypertrophy)', 'Lateral ST depression and T inversion (apical HCM: giant T inversions V2–V5)', 'Left atrial enlargement'],
     keyLeads: ['II', 'III', 'aVF', 'I', 'aVL', 'V5', 'V6'],
   },
@@ -527,7 +550,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'hfref', name: 'HFrEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 92, ...STD,
     pr: 200, p: 'mitrale', qrs: 'ivcd', qtc: 460, hemo: 'hfref',
     headline: 'Sinus rhythm, LAE, LBBB-pattern QRS',
-    findings: ['LBBB with QRS ≥ 150 ms identifies CRT candidates (LVEF ≤ 35%, NYHA II–ambulatory IV despite GDMT)', 'Left atrial enlargement', 'Q waves if ischaemic cardiomyopathy; AF common'],
+    findings: ['LBBB with QRS ≥ 150 ms identifies CRT candidates (LVEF ≤ 35%, NYHA II–ambulatory IV despite GDMT)', 'Left atrial enlargement', 'Q waves if ischemic cardiomyopathy; AF common'],
   },
   hfpef: {
     id: 'hfpef', name: 'HFpEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 78, ...STD,
@@ -542,7 +565,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     pr: 150, p: 'normal', qrs: 'anterior-mi', qrsScale: 0.85, qtc: 450, hemo: 'shock',
     injury: scale(norm([0.25, -0.92, 0.22]), 0.2),
     headline: 'Sinus tachycardia with evolving anterior STEMI',
-    findings: ['Sinus tachycardia (compensatory)', 'Anterior ST elevation with Q waves — large territory infarction', 'Acute MI is a leading cause of cardiogenic shock (with decompensated chronic HF): AMI-shock needs emergent culprit-vessel revascularisation'],
+    findings: ['Sinus tachycardia (compensatory)', 'Anterior ST elevation with Q waves — large territory infarction', 'Acute MI is a leading cause of cardiogenic shock (with decompensated chronic HF): AMI-shock needs emergent culprit-vessel revascularization'],
     keyLeads: ['V1', 'V2', 'V3', 'V4'],
   },
   'aortic-stenosis': {
@@ -587,8 +610,8 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   },
   asd: {
     id: 'asd', name: 'Atrial Septal Defect (Secundum)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 76, ...STD,
-    pr: 180, p: 'normal', qrs: 'incomplete-rbbb', qtc: 420, hemo: 'normal',
-    headline: 'Incomplete RBBB with rightward axis',
+    pr: 180, p: 'normal', qrs: 'incomplete-rbbb-rad', qtc: 420, hemo: 'normal',
+    headline: 'Incomplete RBBB with right axis deviation',
     findings: ['rSr′ in V1 (incomplete RBBB) from RV volume overload', 'Right axis deviation in secundum ASD (left axis suggests primum ASD)', '"Crochetage" notch on R wave in inferior leads', 'Possible first-degree AV block and atrial arrhythmias in adults'],
     keyLeads: ['V1', 'II'],
   },
@@ -610,7 +633,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     pr: 150, p: 'pulmonale', qrs: 'pe-s1q3', qtc: 430, hemo: 'pe',
     t: { dir: [0.6, 0.65, 0.3], mag: 0.24 },
     headline: 'Sinus tachycardia, S1Q3T3, RV strain',
-    findings: ['Sinus tachycardia is the most common finding', 'RV strain: T inversion in V1–V4 and III', 'S1Q3T3 (S in I, Q and inverted T in III) — classic but insensitive', 'Incomplete/complete RBBB and right axis deviation; P pulmonale', 'A normal ECG does not exclude PE'],
+    findings: ['Sinus tachycardia is the most common finding', 'RV strain: T inversion in V1–V4 and III', 'S1Q3T3 (S in I, Q and inverted T in III) — classic but insensitive', 'Sometimes incomplete or complete RBBB, right axis deviation or P pulmonale', 'A normal ECG does not exclude PE'],
     keyLeads: ['I', 'III', 'V1', 'V2', 'V3'],
   },
   'aortic-dissection': {
@@ -621,18 +644,18 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: ['ECG is often normal or shows LVH from chronic hypertension', 'A dissection flap can occlude the RCA ostium → inferior STEMI pattern', 'Always consider dissection before giving antithrombotics for "STEMI" with tearing pain'],
   },
   hyperkalemia: {
-    id: 'hyperkalemia', name: 'Hyperkalaemia', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 64, ...STD,
+    id: 'hyperkalemia', name: 'Hyperkalemia', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 64, ...STD,
     pr: 230, p: 'flat', qrs: 'normal', qrsWiden: 1.45, qtc: 400, hemo: 'normal',
     t: { dir: [0.5, -0.55, -0.65], mag: 0.95, rise: 0.055, fall: 0.05 },
     headline: 'Peaked T waves, flattened P, prolonged PR, wide QRS',
-    findings: ['Tall, narrow, symmetric "tented" T waves (earliest sign)', 'PR prolongation and P-wave flattening/loss', 'QRS widening → sine-wave pattern → VF/asystole', 'ECG is insensitive: severe hyperkalaemia can have a near-normal ECG'],
+    findings: ['Tall, narrow, symmetric "tented" T waves (earliest sign)', 'PR prolongation and P-wave flattening/loss', 'QRS widening → sine-wave pattern → VF/asystole', 'ECG is insensitive: severe hyperkalemia can have a near-normal ECG'],
     keyLeads: ['V2', 'V3', 'V4', 'II'],
   },
   paced: {
     id: 'paced', name: 'Ventricular Paced (DDD)', rhythm: 'paced', rateControl: 'sinus', defaultHR: 72, minHR: 50, maxHR: 130,
     pr: 160, p: 'normal', qrs: 'paced', qtc: 460, hemo: 'normal',
     headline: 'Atrial-sensed, ventricular-paced rhythm',
-    findings: ['Sinus P waves tracked; pacing spike after a programmed AV delay', 'RV apical pacing: wide QRS with LBBB-like morphology and left axis deviation', 'Discordant ST-T is expected; use Smith-modified Sgarbossa for ischaemia', 'Check capture: every spike should be followed by a QRS'],
+    findings: ['Sinus P waves tracked; pacing spike after a programmed AV delay', 'RV apical pacing: wide QRS with LBBB-like morphology and left axis deviation', 'Discordant ST-T is expected; use Smith-modified Sgarbossa for ischemia', 'Check capture: every spike should be followed by a QRS'],
     keyLeads: ['II', 'V1'],
   },
   pea: {
@@ -640,10 +663,10 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     pr: 200, p: 'normal', qrs: 'ivcd', qtc: 460, hemo: 'no-output',
     headline: 'Pulseless electrical activity (PEA)',
     findings: [
-      'Organised electrical activity on the monitor but no palpable pulse',
-      'Any organised rhythm can be PEA — the diagnosis is made by the pulse check, not the ECG',
+      'Organized electrical activity on the monitor but no palpable pulse',
+      'Any organized rhythm can be PEA — the diagnosis is made by the pulse check, not the ECG',
       'Non-shockable: high-quality CPR, epinephrine as soon as possible, and search for reversible causes (Hs & Ts)',
-      'Slow and wide favours metabolic causes (hyperkalaemia, acidosis, hypoxia); narrow and fast favours mechanical causes (tamponade, PE, hypovolaemia, tension pneumothorax)',
+      'Slow and wide favors metabolic causes (hyperkalemia, acidosis, hypoxia); narrow and fast favors mechanical causes (tamponade, PE, hypovolemia, tension pneumothorax)',
     ],
     keyLeads: ['II'],
   },
@@ -653,7 +676,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     headline: 'Pulseless ventricular tachycardia',
     findings: [
       'Regular wide-complex tachycardia with no pulse',
-      'Shockable: defibrillate (unsynchronised) and follow the VF / pulseless VT algorithm',
+      'Shockable: defibrillate (unsynchronized) and follow the VF / pulseless VT algorithm',
       'Synchronised cardioversion is for VT with a pulse',
     ],
     keyLeads: ['II', 'V1'],
@@ -674,6 +697,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
 
 /** Aliases so older IDs (and condition IDs) still resolve */
 export const PROFILE_ALIASES: Record<string, string> = {
+  'accelerated-idioventricular-rhythm': 'aivr',
   'normal-sinus-rhythm': 'normal-sinus',
   afib: 'atrial-fibrillation',
   aflutter: 'atrial-flutter',

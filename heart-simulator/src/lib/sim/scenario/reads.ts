@@ -36,6 +36,7 @@ export const READ_OPTIONS: ReadOption[] = [
   { id: 'asystole', label: 'Asystole', group: 'Rhythm', profiles: ['asystole'] },
   { id: 'paced', label: 'Paced rhythm (implanted pacemaker)', group: 'Rhythm', profiles: ['paced'] },
   { id: 'tcp', label: 'Transcutaneous pacing with capture', group: 'Rhythm', profiles: ['tcp'] },
+  { id: 'aivr', label: 'Accelerated idioventricular rhythm (AIVR)', group: 'Rhythm', profiles: ['aivr'] },
 
   { id: 'avb1', label: 'First-degree AV block', group: 'AV and bundle branch blocks', profiles: ['first-degree-avb'] },
   { id: 'mobitz1', label: 'Second-degree AV block, Mobitz I (Wenckebach)', group: 'AV and bundle branch blocks', profiles: ['mobitz-i'] },
