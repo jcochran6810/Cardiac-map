@@ -11,14 +11,6 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
-- [ ] 2026-11-12 — **Put the 2026-11-12 work live (Vercel daily limit).** The merge `f989e95` is on `main`, but Vercel
-  did not build it: the free plan allows 100 deployments a day across the team and the limit was reached (bunker-gear's
-  Dependabot branches plus this session's pushes). Vercel does not retry by itself. Once the limit has reset (up to 24 h
-  after 2026-11-12 15:00 UTC): Vercel → team "Jason Cochran's projects" → project **cardiac-map** → **Deployments** →
-  **Create Deployment** (top right) → branch `main` → **Create**, and check it says **Production** and **Ready**. (Any
-  later end-session merge does the same.) To stop it happening again, optionally: project **bunker-gear** →
-  **Settings** → **Git** → **Ignored Build Step** → "Run my Bash script" with
-  `[[ "$VERCEL_GIT_COMMIT_REF" == dependabot/* ]] && exit 0 || exit 1`, so Dependabot branches don't use deployments.
 - [ ] 2026-11-12 — **Try the new teaching features on your phone** (all tested only in emulated phone, tablet and
   desktop browsers): Menu → **Learn step by step** → take a lesson, leave it with the ✕ and come back (your answers
   are kept); **Practice rhythms** → a set (Back goes set → sets → menu); **Quiz yourself** → Rhythm ID (a live strip
@@ -194,6 +186,9 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-11-12 — The 2026-11-12 work is live: Vercel's free plan had hit its 100-deployments-a-day limit, so the
+  merge `f989e95` did not build; after the owner upgraded to Pro, a production deployment of `main` at `d82ec9a`
+  (`dpl_9VTodVvH6BSX83Kpg7QYutWkbA4h`) was READY on https://cardiacmap.stationinsight.com.
 - [x] 2026-11-12 — **A teaching app to be proud of** (session `claude/vigilant-goodall-e7bs4b`, see SESSION_LOG.md):
   eight guided courses with checks, a rhythm trainer, audible heart sounds, a 198-term glossary, a first-visit
   welcome, a pulse-ox waveform and capnogram, the whole library brought up to the 2025 AHA and ACC/AHA guidelines,
