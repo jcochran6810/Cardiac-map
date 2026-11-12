@@ -231,6 +231,8 @@ export default function AppShell() {
       if (app.mode !== 'learn' && !['q', 'Q', 't', 'T', '?', 'Escape'].includes(e.key)) return;
       switch (e.key) {
         case ' ':
+          // Space on a focused button, link or tab presses it (the trainer's "Next tracing"), not play / pause
+          if (el?.closest('button, a[href], summary, [role="button"], [role="tab"], [role="checkbox"], [role="switch"], [role="radio"], [role="option"], [role="menuitem"]')) return;
           e.preventDefault();
           tl.togglePlay();
           break;
