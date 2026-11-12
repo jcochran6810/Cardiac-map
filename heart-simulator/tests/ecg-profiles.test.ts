@@ -71,6 +71,26 @@ describe('rhythm profiles', () => {
     expect(p.findings.length).toBeGreaterThan(0);
   });
 
+  it('electrical alternans is declared for the profiles whose ECG signs list it, as the fraction by which every other QRS shrinks', () => {
+    for (const p of Object.values(ECG_PROFILES)) {
+      const taught = p.findings.some((f) => /electrical alternans/i.test(f)) || /alternans/i.test(p.headline);
+      expect(p.alternans !== undefined, p.id).toBe(taught);
+      if (p.alternans !== undefined) {
+        expect(p.alternans).toBeGreaterThanOrEqual(0.2);
+        expect(p.alternans).toBeLessThanOrEqual(0.5);
+        // the beats in between keep the profile's own voltage: it must already be a low-voltage picture
+        expect(p.qrsScale).toBeLessThan(0.6);
+      }
+    }
+  });
+
+  it('inferior STEMI with heart block carries the same injury current and T wave as inferior STEMI', () => {
+    const [stemi, chb] = [ECG_PROFILES['inferior-stemi'], ECG_PROFILES['inferior-stemi-chb']];
+    expect(chb.rhythm).toBe('chb');
+    expect(chb.injury).toEqual(stemi.injury);
+    expect(chb.t).toEqual(stemi.t);
+  });
+
   it('gives pulseless rhythms no cardiac output', () => {
     expect(ECG_PROFILES.vf.hemo).toBe('no-output');
     expect(ECG_PROFILES.asystole.hemo).toBe('no-output');

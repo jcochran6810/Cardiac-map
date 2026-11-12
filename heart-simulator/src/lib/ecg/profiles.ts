@@ -276,7 +276,7 @@ export interface ECGProfile {
   prSegment?: Vec3;
   /** Corrected QT (Fridericia), ms */
   qtc: number;
-  /** Beat-to-beat QRS amplitude alternation fraction (tamponade) */
+  /** Electrical alternans (tamponade): every other QRS is smaller by this fraction */
   alternans?: number;
   /** Widen QRS by this factor (hyperkalaemia) */
   qrsWiden?: number;

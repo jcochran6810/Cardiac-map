@@ -519,10 +519,12 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
       markAt(rT, 'QRS');
       bracket(v.t, v.t + v.qrsDur, yBr - rowGap, `QRS ${Math.round(v.qrsDur)} ms`);
       // T wave + QT
-      markAt(v.t + v.tw.tp, 'T');
-      const rr = vi > 0 ? v.t - engine.vent[vi - 1].t : 60000 / Math.max(1, engine.heartRate(T));
-      const qtc = v.qt / Math.cbrt(rr / 1000);
-      bracket(v.t, v.t + v.qt, yBr, `QT ${Math.round(v.qt)} ms (QTcF ${Math.round(qtc)})`);
+      // (none in VT or torsades, where the T wave cannot be told from the QRS; corrected for the cycle the QT belongs to)
+      const qtc = engine.qtcOf(v);
+      if (qtc !== null) {
+        markAt(v.t + v.tw.tp, 'T');
+        bracket(v.t, v.t + v.qt, yBr, `QT ${Math.round(v.qt)} ms (QTcF ${Math.round(qtc)})`);
+      }
       // ST measurement point (J + 60 ms)
       const jx = X(v.t + v.qrsDur + 60);
       c.setLineDash([3, 3]);

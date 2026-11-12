@@ -30,6 +30,8 @@ export const REWRITE_MS = 30000;
 /**
  * Keep the engine on the selected rhythm, rate and drug effects — called every frame by the simulation driver.
  * After showRhythm, the recent past is rewritten too (with the same drug effects) and every tracing redraws.
+ * While nothing changes the engine leaves its recording alone, also when the playhead has been dragged back
+ * into it; a change made there takes effect from the playhead.
  */
 export function syncRhythm(profileId: string, hr: number, mods: RhythmMods | null = null) {
   if (!sim.rewrite) {
@@ -43,7 +45,10 @@ export function syncRhythm(profileId: string, hr: number, mods: RhythmMods | nul
 }
 
 export function scrubTo(ms: number) {
-  sim.time = Math.max(0, ms);
+  // After a long run the engine discards its oldest beats. Stop where the recording still fills the screen:
+  // an empty strip behind the playhead would read as asystole.
+  const kept = sim.engine.keptFrom;
+  sim.time = Math.max(0, kept > 0 ? kept + REWRITE_MS : 0, ms);
   sim.engine.ensure(sim.time + 4000);
   sim.epoch++;
 }
