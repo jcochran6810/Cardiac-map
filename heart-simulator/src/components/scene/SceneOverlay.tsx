@@ -304,7 +304,7 @@ export default function SceneOverlay() {
         {soundsOn && (
           // what there is to hear with this heart — not named while a question is open, where it could give the answer away
           <div className={`self-start bg-black/55 rounded-md px-2 py-1 ${narrow ? 'max-w-[15rem]' : 'max-w-xs'}`} data-cover="box">
-            {blind ? <p className="text-[10px] leading-snug text-sky-100/90">The sounds are named once you have answered.</p> : <HeardLegend />}
+            <HeardLegend />
           </div>
         )}
       </div>

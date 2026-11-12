@@ -6,6 +6,7 @@ import { toggleHeartSounds } from '@/lib/audio/sounds';
 import { MURMUR_TEXT, soundsHeard } from '@/lib/physiology/heartSounds';
 import { sim } from '@/lib/sim/simulation';
 import { IconSpeaker, IconSpeakerOff } from '@/components/ui/icons';
+import { useBlind } from '@/store/useECGStore';
 
 const EXTRA: Record<string, string> = { s3: 'S3 (after S2)', s4: 'S4 (just before S1)', snap: 'opening snap' };
 
@@ -65,6 +66,7 @@ export default function HeartSoundsButton({ pill = false, cell = false, classNam
 /** While the sounds are on: what there is to hear with this heart and rhythm */
 export function HeardLegend({ className = '' }: { className?: string }) {
   const on = useSoundStore((s) => s.heartSounds);
+  const blind = useBlind();
   const [heard, setHeard] = useState(() => soundsHeard(sim.engine, sim.hemo, sim.time));
   useEffect(() => {
     if (!on) return;
@@ -80,7 +82,8 @@ export function HeardLegend({ className = '' }: { className?: string }) {
   // 12 px, 13 px on touch screens: this is the text that explains what a learner is hearing
   return (
     <p className={`text-xs touch:text-[13px] leading-snug text-sky-100/90 ${className}`} aria-live="polite">
-      {heard.silent ? 'No heart sounds: the heart is not pumping.' : (
+      {/* while a question is open the murmur's name would give the lesion away (e.g. "aortic stenosis") */}
+      {blind ? 'The sounds are named once you have answered.' : heard.silent ? 'No heart sounds: the heart is not pumping.' : (
         <>
           <b>You hear:</b> S1 (lub), S2 (dub){heard.extra.map((e) => `, ${EXTRA[e]}`).join('')}.
           {heard.murmur && <> {MURMUR_TEXT[heard.murmur]}.</>}
