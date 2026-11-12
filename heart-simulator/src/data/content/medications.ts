@@ -21,7 +21,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Give or confirm chewed aspirin 162–325 mg per local protocol for suspected ACS, including STEMI activations. If there is true allergy, active GI bleeding or features of aortic dissection, withhold it and contact medical direction.',
       'Confirm the aspirin load is documented at the pre-procedure check and time-out, and flag any omission to the operator. If it is ordered and facility policy permits, provide the dose; report access-site oozing or hematoma on DAPT.',
       'Verify aspirin was given (162–325 mg chewed load or daily 81 mg) and give it on order if missed. Clarify reported allergies (GI upset vs true anaphylaxis), report true allergy to the physician, and monitor access sites and hemoglobin on DAPT.',
-      'Load 162–325 mg, then 75–100 mg daily (≤ 100 mg with ticagrelor). In selected high-bleeding-risk PCI patients consider P2Y12 monotherapy after 1–3 months of DAPT; for true allergy use desensitization or a P2Y12-based strategy.',
+      'Load 162–325 mg, then 75–100 mg daily (≤ 100 mg with ticagrelor). In ACS PCI patients tolerating DAPT with ticagrelor, stopping aspirin after ≥ 1 month (ticagrelor monotherapy) reduces bleeding (Class 1, 2025 ACS guideline); for true allergy use desensitization or a P2Y12-based strategy.',
     ],
     mechanism: [
       'Irreversibly acetylates platelet COX-1, blocking thromboxane A2 synthesis',
@@ -105,7 +105,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Platelet function recovers only as new platelets are made (~5–7 days)',
     ],
     indications: [
-      'ACS (STEMI or NSTE-ACS) as part of DAPT',
+      'ACS (STEMI or NSTE-ACS) as part of DAPT when ticagrelor or prasugrel cannot be used — both are preferred with PCI (2025 ACS guideline)',
       'Elective PCI with stenting',
       'STEMI treated with fibrinolysis (the studied P2Y12 inhibitor)',
       'Patients needing oral anticoagulation plus antiplatelet therapy after PCI',
@@ -296,7 +296,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     brandNames: [],
     drugClass: 'Anticoagulant (indirect thrombin and factor Xa inhibitor via antithrombin)',
     summary:
-      'Binds antithrombin to inactivate thrombin (IIa) and factor Xa. Its short half-life, titratability and full reversal with protamine make it the workhorse anticoagulant for ACS, PCI and PE.',
+      'Binds antithrombin to inactivate thrombin (IIa) and factor Xa. Its short half-life, titratability and full reversal with protamine make it the workhorse anticoagulant for ACS and PCI, and an option for PE when LMWH is unsuitable.',
     levelNotes: [
       'Heparin is a hospital and ALS IV anticoagulant, not an EMT drug. Patients recently given it bleed easily, so watch for oozing, bruising, blood in urine or stool and neurologic change, and report them.',
       'Some STEMI systems give a weight-based heparin bolus prehospital; give it only per local protocol after screening for bleeding risk. On interfacility transport, keep the infusion at the ordered rate, monitor for bleeding and never adjust without orders or medical direction.',
@@ -313,7 +313,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     indications: [
       'STEMI (primary PCI or with fibrinolysis) and NSTE-ACS',
       'Anticoagulation during PCI (ACT-guided)',
-      'DVT/PE, especially when thrombolysis or procedures may follow',
+      'DVT/PE when LMWH is unsuitable, e.g. severe renal impairment (LMWH is preferred over UFH for acute PE — 2026 AHA/ACC PE guideline)',
       'Cardiopulmonary bypass, ECMO and other extracorporeal circuits',
       'Anticoagulation in severe renal impairment (not renally cleared)',
     ],
@@ -383,7 +383,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     indications: [
       'NSTE-ACS (alternative to UFH)',
       'STEMI with fibrinolysis (ExTRACT-TIMI 25)',
-      'Treatment of DVT/PE',
+      'Treatment of DVT/PE (LMWH is preferred over UFH for acute PE — 2026 AHA/ACC PE guideline)',
       'VTE prophylaxis in hospitalized patients',
       'Bridging anticoagulation in selected patients',
     ],
@@ -440,7 +440,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Hospital and cath lab drug only. On interfacility transfer, keep any infusion at the ordered rate, monitor access sites and rhythm, and contact medical direction for bleeding; its effect fades within ~1 h of stopping.',
       'Prepare the bivalirudin bolus and infusion on physician order where facility policy permits, and label them clearly. Check ACT ~5 min after the bolus when requested, and alert the operator at once if the infusion stops, as interruption risks thrombosis.',
       'Give 0.75 mg/kg bolus, then 1.75 mg/kg/h as ordered, with renally adjusted rates (e.g. 1 mg/kg/h if CrCl < 30). Continue any ordered post-PCI infusion, and monitor ACT or aPTT, renal function and access sites, reporting bleeding.',
-      'Non-heparin anticoagulant for PCI and HIT: 0.75 mg/kg, then 1.75 mg/kg/h, reduced in renal impairment. In STEMI continue the high-dose infusion ~2–4 h post-PCI to limit acute stent thrombosis; benefit over heparin alone is debated (MATRIX, VALIDATE-SWEDEHEART, BRIGHT-4).',
+      'Non-heparin anticoagulant for PCI and HIT: 0.75 mg/kg, then 1.75 mg/kg/h, reduced in renal impairment. In STEMI primary PCI, bivalirudin with the full-dose infusion continued ~2–4 h post-PCI is a Class 1 alternative to UFH (2025 ACS guideline, BRIGHT-4); earlier trials were mixed (MATRIX, VALIDATE-SWEDEHEART).',
     ],
     mechanism: [
       'Binds thrombin active site and fibrin-binding exosite directly and reversibly',
@@ -451,11 +451,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     indications: [
       'Anticoagulation during PCI (alternative to UFH)',
       'PCI or anticoagulation in patients with HIT',
-      'Primary PCI in STEMI with high bleeding risk',
+      'Primary PCI in STEMI, as an alternative to UFH (Class 1, 2025 ACS guideline)',
     ],
     dosing: [
       'PCI: 0.75 mg/kg IV bolus, then 1.75 mg/kg/h for the procedure',
-      'STEMI: consider continuing 1.75 mg/kg/h for ~2–4 h after PCI',
+      'STEMI primary PCI: continue 1.75 mg/kg/h for ~2–4 h after PCI (BRIGHT-4 regimen)',
       'CrCl < 30 mL/min: infusion reduced to 1 mg/kg/h; dialysis 0.25 mg/kg/h (label)',
       'Check ACT ~5 min after bolus; give an extra 0.3 mg/kg if needed',
     ],
@@ -480,7 +480,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     teaching: [
       'No specific reversal agent — rely on its short half-life; hemodialysis removes some drug',
       'Cleared by proteolysis and the kidneys, so renal dosing still matters',
-      'Trials (MATRIX, VALIDATE-SWEDEHEART, BRIGHT-4) give mixed results vs heparin',
+      'Trials vs heparin were mixed (MATRIX, VALIDATE-SWEDEHEART); BRIGHT-4 (STEMI, 2–4 h post-PCI infusion) cut death or major bleeding and led to the 2025 Class 1 recommendation',
     ],
     relatedConditions: ['anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'nstemi'],
   },
@@ -497,7 +497,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Document the drug and exact time of the last dose, since it guides stroke thrombolysis, reversal and procedure decisions at the hospital. Apply trauma triage criteria for anticoagulated head injury and notify early.',
       'Confirm the time of the last apixaban dose is recorded at the pre-procedure check and tell the operator if it falls inside the planned hold window. Report access-site bleeding promptly.',
       'Verify the last-dose time and the ordered peri-procedural hold before the case, and report if it was not held. Monitor renal function and bleeding; when it is resumed on order, teach twice-daily adherence and avoiding NSAIDs.',
-      'AF: 5 mg BID; 2.5 mg BID only with ≥ 2 of age ≥ 80 y, weight ≤ 60 kg, creatinine ≥ 1.5 mg/dL. After PCI in AF combine with clopidogrel and drop aspirin early (AUGUSTUS); reverse life-threatening bleeding with 4F-PCC or andexanet alfa.',
+      'AF: 5 mg BID; 2.5 mg BID only with ≥ 2 of age ≥ 80 y, weight ≤ 60 kg, creatinine ≥ 1.5 mg/dL. After PCI in AF combine with clopidogrel and drop aspirin early (AUGUSTUS); reverse life-threatening bleeding with 4F-PCC (andexanet alfa left the US market in December 2025).',
     ],
     mechanism: [
       'Directly and reversibly inhibits free and clot-bound factor Xa',
@@ -506,7 +506,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'About 27% renal elimination; also CYP3A4 and P-gp',
     ],
     indications: [
-      'Stroke prevention in non-valvular AF (CHA2DS2-VASc based)',
+      'Stroke prevention in AF (CHA2DS2-VASc based), except with a mechanical valve or moderate–severe rheumatic mitral stenosis',
       'Treatment of DVT/PE and prevention of recurrence',
       'VTE prophylaxis after hip or knee replacement',
       'LV thrombus after MI (off-label, increasingly used)',
@@ -546,7 +546,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'ARISTOTLE: fewer strokes, less major bleeding and lower mortality than warfarin',
       'Dose reduction needs two of three criteria — inappropriate underdosing is common',
       'DOACs are not for mechanical valves (RE-ALIGN harm; PROACT Xa stopped early)',
-      'Reversal: 4F-PCC or andexanet alfa per local availability',
+      'Reversal: 4F-PCC; andexanet alfa was withdrawn from the US market in December 2025 (still used in some countries)',
     ],
     relatedConditions: ['atrial-fibrillation', 'atrial-flutter', 'pulmonary-embolism', 'mitral-stenosis'],
   },
@@ -642,7 +642,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     indications: [
       'STEMI within 12 h of onset when primary PCI is not achievable within 120 min of first medical contact',
       'Acute ischemic stroke (0.25 mg/kg, max 25 mg) — accepted alternative to alteplase',
-      'High-risk PE or PE arrest (alteplase better studied; tenecteplase used off-label)',
+      'PE with cardiopulmonary failure (AHA/ACC 2026 category E, formerly "massive" / high-risk) or PE arrest (alteplase better studied; tenecteplase used off-label)',
     ],
     dosing: [
       'STEMI: single IV bolus, ~0.5 mg/kg, 30–50 mg by weight',
@@ -728,7 +728,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Long-acting oral/transdermal nitrates need a daily nitrate-free interval',
     ],
     contraindications: [
-      'PDE5 inhibitors: sildenafil or vardenafil within 24 h, tadalafil within 48 h',
+      'PDE5 inhibitors: avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h',
       'Hypotension (SBP < 90 mmHg or ≥ 30 mmHg below baseline)',
       'Suspected RV infarction — avoid or use with great caution',
       'Severe aortic stenosis or obstructive HCM (preload-dependent)',
@@ -760,7 +760,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Continuous BP during IV titration',
     ],
     interactions: [
-      'PDE5 inhibitors (sildenafil, vardenafil, tadalafil) → profound hypotension',
+      'PDE5 inhibitors (avanafil, sildenafil, vardenafil, tadalafil) → profound hypotension',
       'Riociguat — contraindicated combination',
       'Additive hypotension with antihypertensives, alcohol and opioids',
       'IV nitroglycerin adsorbs to PVC tubing — use non-PVC sets',
@@ -1085,7 +1085,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Where in protocol, give 0.25 mg/kg IV over 2 min for stable rapid AF or flutter after interpreting the rhythm. Avoid with hypotension, HFrEF or an irregular wide-complex rhythm (possible WPW), and contact medical direction as required.',
       'Prepare diltiazem only on physician order where facility policy permits (e.g. for rate control or radial spasm prophylaxis). Watch for hypotension, bradycardia or AV block after dosing and report them to the operator.',
       'Give 0.25 mg/kg IV over 2 min, then 5–15 mg/h as ordered, checking BP and HR against hold parameters. Clarify any order to combine it with IV beta-blockers, and report hypotension, bradycardia or heart-failure signs.',
-      'Rate control or SVT termination when LVEF > 40%; avoid in decompensated HF, LVEF < 40% and pre-excited AF. Negative inotropy limits use in HFrEF; watch CYP3A4 interactions (DOACs, statins); also used for radial spasm prophylaxis.',
+      'Rate control or SVT termination when LVEF > 40%; avoid in decompensated HF, LVEF ≤ 40% and pre-excited AF. Negative inotropy limits use in HFrEF; watch CYP3A4 interactions (DOACs, statins); also used for radial spasm prophylaxis.',
     ],
     mechanism: [
       'Blocks L-type Ca2+ channels in SA/AV nodes → slower nodal depolarization and conduction',
@@ -1107,7 +1107,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     contraindications: [
       'Pre-excited AF/flutter (WPW) — may accelerate pathway conduction → VF',
-      'Decompensated HF or LVEF < 40%',
+      'Decompensated HF or LVEF ≤ 40%',
       'Hypotension or cardiogenic shock',
       'Sick sinus or second/third-degree AV block without a pacemaker',
       'Wide-complex tachycardia of uncertain origin (may be VT)',
@@ -1462,7 +1462,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Stabilizes cardiac membranes and suppresses the early afterdepolarizations that trigger torsades. First-line drug for torsades de pointes and for correcting hypomagnesemia that contributes to arrhythmias.',
     levelNotes: [
       'Magnesium is an ALS drug. If the patient is unresponsive without a pulse, start CPR and apply the AED immediately; the AED decides whether to shock, whatever the rhythm looks like.',
-      'For torsades per protocol, give 1–2 g IV/IO: as a push in pulseless arrest, or over ~15 min with a pulse; defibrillate pulseless torsades. It is not recommended for routine VF/VT arrest without torsades.',
+      'For torsades per protocol, give 1–2 g IV/IO: as a push in pulseless arrest, or over ~15 min with a pulse. Defibrillate sustained polymorphic VT at once (unsynchronized shock) rather than waiting for magnesium. Magnesium is not recommended for routine VF/VT arrest without torsades.',
       'Prepare magnesium on physician order where facility policy permits. Record QT intervals and report pauses, a long QT or runs of polymorphic VT immediately, with the defibrillator ready.',
       'Give 1–2 g IV diluted over the ordered time (rapidly only in pulseless torsades). Monitor BP, respiratory rate and deep tendon reflexes with repeated doses, check Mg and K+, and keep IV calcium available for toxicity.',
       'Torsades: magnesium plus removal of QT-prolonging drugs, K+ ~4.5–5.0, and overdrive pacing or isoproterenol for pause-dependent recurrence; evaluate for congenital LQTS. Not for routine VF/VT arrest; replace Mg in AF and after cardiac surgery.',
@@ -1519,6 +1519,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     teaching: [
       'Torsades = magnesium + remove the cause + raise the heart rate (pacing or isoproterenol)',
+      'Sustained polymorphic VT: immediate unsynchronized defibrillation for every adult (Class 1, 2025 AHA) — magnesium then prevents torsades recurrence',
       'Polymorphic VT with a normal QT is usually ischemic — treat the ischemia',
       'Hypokalemia often will not correct until magnesium is replaced',
       'Check the QTc before adding antiemetics, antibiotics or antipsychotics in at-risk patients',
@@ -1554,7 +1555,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Organophosphate or cholinergic poisoning (much larger doses)',
     ],
     dosing: [
-      'Bradycardia: 1 mg IV/IO every 3–5 min, max total 3 mg',
+      'Bradycardia: 1 mg IV/IO every 3–5 min, max total 3 mg (ACLS; the 2018 ACC/AHA/HRS bradycardia guideline allows 0.5–1 mg per dose)',
       'Not used for asystole or PEA (removed from the ACLS arrest algorithm in 2010)',
       'Organophosphate poisoning: escalating doses titrated to drying of secretions',
     ],
@@ -1670,6 +1671,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     teaching: [
       'Know concentrations: 1 mg/mL for IM vs 0.1 mg/mL for IV push in arrest',
       'Earlier epinephrine in non-shockable rhythms improves ROSC',
+      'Arrest drug access: attempt IV first; use IO if IV attempts fail or are not feasible (2025 AHA)',
       'Push-dose epinephrine (e.g. 10–20 mcg) is used in some systems but carries high error risk',
       'In VF, defibrillation — not epinephrine — is the priority',
     ],
@@ -2559,7 +2561,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Provides ionized calcium to stabilize the cardiac membrane in hyperkalemia and to treat calcium channel blocker toxicity and hypocalcemia. Contains about three times more elemental calcium than calcium gluconate.',
     levelNotes: [
       'Dialysis patients, especially after a missed session, are at risk of high potassium; report weakness, a slow pulse or fainting and request ALS. In arrest, focus on CPR and the AED; calcium is an ALS drug.',
-      'Hyperkalemia with ECG changes or arrest: 1 g IV/IO per protocol (slowly with a pulse, push in arrest) through a good IV. Flush thoroughly before bicarbonate, because the two precipitate.',
+      'Hyperkalemia with ECG changes or arrest: 1 g IV/IO per protocol (slowly with a pulse; as a push in arrest, without pausing CPR or defibrillation) through a good IV. Flush thoroughly before bicarbonate, because the two precipitate.',
       'Prepare calcium on physician order where facility policy permits, and never mix it with bicarbonate. Record QRS width and rhythm after dosing and report bradycardia or hypotension with rapid administration.',
       'Give 1 g over ~2–5 min as ordered via a central or large vein, flushing before and after. Monitor ECG, ionized calcium and K+, and watch for extravasation necrosis and bradycardia with a fast push.',
       'Calcium stabilizes the membrane for only ~30–60 min; shift K+ with insulin/glucose and β-agonist, then remove it. Also used for calcium channel blocker or beta-blocker toxicity and ionized hypocalcemia after massive transfusion or bypass.',
@@ -2618,7 +2620,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Calcium buys time; it does not lower potassium',
       'Calcium chloride has ~3× the elemental calcium of gluconate; gluconate is gentler peripherally',
       'Effect wears off in ~30–60 min — repeat if ECG changes recur',
-      'Routine calcium in cardiac arrest is not recommended',
+      'Routine calcium in cardiac arrest is not recommended (2025 AHA: no benefit); in hyperkalemic arrest its benefit is not well established, so never pause CPR or shocks to give it',
     ],
     relatedConditions: ['hyperkalemia', 'ventricular-fibrillation', 'sinus-bradycardia'],
   },
@@ -2687,7 +2689,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Urinary alkalinization speeds salicylate excretion (therapeutic in aspirin overdose)',
     ],
     teaching: [
-      'Routine bicarbonate in cardiac arrest is not recommended by ACLS',
+      'Routine bicarbonate in cardiac arrest is not recommended (2025 AHA: no benefit); in hyperkalemic arrest its benefit is not well established',
       'It generates CO2 — ventilate adequately',
       'In TCA overdose, QRS > 100 ms and terminal R in aVR > 3 mm predict seizures and arrhythmias',
       'Insulin/glucose and β-agonists are more reliable K+ shifters',
@@ -2706,8 +2708,8 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Sharp chest pain that eases when sitting forward may be pericarditis, but treat it as possible ACS: give aspirin per protocol unless contraindicated, and acquire and transmit a 12-lead where protocols allow. Colchicine itself is not an EMT drug.',
       'Pericarditis gives diffuse ST elevation with PR depression, but transmit the ECG and follow the STEMI protocol when STEMI cannot be excluded. Colchicine is outpatient therapy; report it and any recent diarrhea or muscle weakness.',
       'Colchicine is not a lab drug; note it on the pre-procedure record. Pericarditis can follow MI or procedures, so report new positional or pleuritic chest pain after the case to the operator.',
-      'Give 0.5 mg as ordered (once or twice daily) and check renal function, CBC and interacting drugs (clarithromycin, azoles, verapamil, statins). Teach patients to report diarrhea or muscle weakness and to keep tablets away from children.',
-      'Acute pericarditis: 0.5 mg BID (once daily if < 70 kg) for ~3 months with an NSAID or aspirin, roughly halving recurrence (COPE, ICAP). 0.5 mg daily lowers events in chronic CAD (LoDoCo2); post-MI use is uncertain (COLCOT positive, CLEAR SYNERGY neutral).',
+      'Give 0.5–0.6 mg as ordered (once or twice daily; most US tablets are 0.6 mg) and check renal function, CBC and interacting drugs (clarithromycin, azoles, verapamil, statins). Teach patients to report diarrhea or muscle weakness and to keep tablets away from children.',
+      'Acute pericarditis: 0.5–0.6 mg BID (once daily if < 70 kg) for ~3 months with an NSAID or aspirin, roughly halving recurrence (COPE, ICAP). 0.5 mg daily lowers events in chronic CAD (LoDoCo2); post-MI use is uncertain (COLCOT positive, CLEAR SYNERGY neutral).',
     ],
     mechanism: [
       'Binds tubulin → inhibits microtubule polymerization',
@@ -2722,7 +2724,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Gout and familial Mediterranean fever (non-cardiac)',
     ],
     dosing: [
-      'Acute pericarditis: 0.5 mg twice daily (once daily if < 70 kg) for ~3 months',
+      'Acute pericarditis: 0.6 mg twice daily in the US (0.5 mg elsewhere); once daily if < 70 kg; for ~3 months',
       'Recurrent pericarditis: same dosing for ≥ 6 months',
       'Chronic CAD: 0.5 mg once daily (0.6 mg tablets are common in the US)',
       'Reduce dose or avoid with renal/hepatic impairment and CYP3A4/P-gp inhibitors',
