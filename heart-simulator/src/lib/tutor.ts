@@ -3,12 +3,13 @@
  * It detects intent (ECG? treatment? dose? symptoms? mechanism?), finds the
  * best-matching item, and composes a level-appropriate answer with links.
  */
-import type { ContentLibrary } from '@/lib/content';
-import { searchLibrary } from '@/lib/content';
-import type { LearningLevel } from '@/store/useAppStore';
+import type { ContentLibrary, SearchExtra, SearchHit } from '@/lib/content';
+import { searchLibrary, withAliases } from '@/lib/content';
+import type { AppMode, LearningLevel } from '@/store/useAppStore';
 import { LEVEL_LABELS } from '@/store/useAppStore';
 import { resolveProfile, CONDITION_TO_PROFILE } from '@/lib/ecg/profiles';
 import { CASE_DATA } from '@/data/caseData';
+import { GLOSSARY, GLOSSARY_BY_ID } from '@/data/glossary';
 
 export interface TutorAnswer {
   title: string;
@@ -25,7 +26,26 @@ export interface TutorContext {
   selectedConditionId: string | null;
   selectedProcedureId: string | null;
   selectedMedicationId: string | null;
+  /**
+   * A question about the tracing is open (the rhythm trainer, a lesson check, a quiz strip): like everything else on
+   * screen, the tutor must not name the rhythm until it has been answered.
+   */
+  blind?: boolean;
+  /** The screen the learner is on. Only the learning screen shows the patient on the monitor (default: 'learn'). */
+  mode?: AppMode;
 }
+
+/** "What does this ECG show?" and its variations */
+const MONITOR_QUESTION = /\b(this|current|the) (ecg|ekg|rhythm|strip|monitor|tracing)\b|what (rhythm|am i looking)|on the monitor/i;
+
+/** How to work a tracing out without being told: what the tutor offers instead of the answer */
+const READ_IT_YOURSELF = [
+  'Rate: count the QRS complexes in 6 seconds and multiply by 10, or divide 300 by the large boxes between two R waves',
+  'Rhythm: are the R–R intervals regular, regularly irregular or irregularly irregular?',
+  'P waves: is there one before every QRS, and a QRS after every P?',
+  'PR interval: 120–200 ms, and the same every beat?',
+  'QRS width: narrow (under 120 ms) or wide?',
+];
 
 const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
   {
@@ -127,22 +147,127 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
   },
 ];
 
+// Every word form is spelled out (or ends in \w*): a bare stem such as `complication` never matches "complications"
+// because the closing \b needs the word to end there.
 const INTENTS: { key: string; re: RegExp }[] = [
-  { key: 'ecg', re: /\b(ecg|ekg|12.?lead|lead|st (elevation|depression)|wave|interval|rhythm strip|tracing)\b/i },
-  { key: 'treat', re: /\b(treat|treatment|manage|management|therapy|what (do|should) (i|we) do|give|first.?line)\b/i },
-  { key: 'dose', re: /\b(dose|dosing|how much|mg|mcg|joules?|energy)\b/i },
-  { key: 'symptoms', re: /\b(symptom|sign|present|presentation|look like clinically|exam)\b/i },
-  { key: 'mechanism', re: /\b(why|cause|causes|pathophys|mechanism|how does .* work|works?)\b/i },
-  { key: 'complications', re: /\b(complication|risk|danger|side effect|adverse)\b/i },
+  { key: 'ecg', re: /\b(ecg|ekg|12.?lead|lead|st (elevation|depression)|waves?|intervals?|rhythm strip|tracing)\b/i },
+  { key: 'treat', re: /\b(treat|treats|treated|treating|treatments?|manage|managed|managing|management|therapy|therapies|what (do|should) (i|we) do|give|first.?line)\b/i },
+  { key: 'dose', re: /\b(doses?|dosing|dosage|how much|mg|mcg|joules?|energy)\b/i },
+  { key: 'symptoms', re: /\b(symptoms?|signs?|presents?|presentation|look like clinically|exam)\b/i },
+  { key: 'mechanism', re: /\b(why|cause|causes|caused|pathophys\w*|mechanisms?|how does .* work|works?)\b/i },
+  { key: 'complications', re: /\b(complications?|risks?|dangers?|side effects?|adverse)\b/i },
   { key: 'steps', re: /\b(step|steps|how is .* (done|performed)|walk me through|procedure)\b/i },
-  { key: 'imaging', re: /\b(echo|imaging|ct|mri|angiograph|x-?ray|tte|tee)\b/i },
-  { key: 'contra', re: /\b(contraindicat|avoid|should not|never)\b/i },
+  { key: 'imaging', re: /\b(echo|imaging|ct|mri|angiograph\w*|x-?ray|tte|tee)\b/i },
+  // "when do I hold nitro?" asks when not to give it
+  { key: 'contra', re: /\b(contraindicat\w*|avoid|should not|never|hold|withhold)\b/i },
   { key: 'anatomy', re: /\b(where|location|located|anatomy|blood supply|supplied)\b/i },
 ];
 
 function intentOf(q: string): string {
   for (const i of INTENTS) if (i.re.test(q)) return i.key;
   return 'overview';
+}
+
+/** "What is …?", "define …", "what does … mean?": the learner wants to know what a word means */
+const DEFINITION = /^\s*(what\s*['’]?\s*(is|are|was|s)\b|define\b|definition of\b|meaning of\b|what does .+ mean\b)/i;
+
+/** Words that say what kind of answer is wanted, not what it is about: they are not searched for */
+const STOP = /\b(what|whats|is|are|was|be|the|a|an|of|in|on|at|for|to|how|do|does|i|we|you|me|my|our|explain|tell|about|and|or|with|why|when|where|which|should|can|could|please|give|treat|treated|treatment|manage|management|dose|dosing|ecg|ekg|signs?|symptoms?|causes?|look|like|this|that|it|steps?|work|works|done|performed|walk|through|hold|withhold|contraindications?|contraindicated|complications?|indications?|define|definition|meaning|mean|means|patients?|go|goes|put|need|needs)\b/gi;
+
+/** Glossary terms answer "what is …?" in a sentence or two */
+const GLOSSARY_EXTRAS: SearchExtra[] = GLOSSARY.map((g) => ({ kind: 'term', id: `term:${g.id}`, name: g.term, sub: g.def, keys: g.aka ?? [] }));
+
+/** The kinds of search hit the tutor can answer from (lessons, tools and simulator cases are not library pages) */
+const ANSWERABLE = new Set<SearchHit['kind']>(['structure', 'condition', 'procedure', 'medication', 'cathlab', 'case', 'term']);
+
+/** At most this many words are dropped when a question finds nothing as asked */
+const MAX_DROPPED = 3;
+
+/** the case scenarios, as the search takes them */
+const caseTitles = () => Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title }));
+
+/** Every way of keeping `size` of the words, in their order */
+function keeping<T>(items: T[], size: number): T[][] {
+  if (size === 0) return [[]];
+  if (items.length < size) return [];
+  const [first, ...rest] = items;
+  return [...keeping(rest, size - 1).map((k) => [first, ...k]), ...keeping(rest, size)];
+}
+
+/** Everything a hit's page says, lower-cased: used to tell which page also covers the words a retry left out */
+function pageText(lib: ContentLibrary, hit: SearchHit): string {
+  const item = hit.kind === 'term' ? GLOSSARY_BY_ID[hit.id.slice(5)]
+    : hit.kind === 'case' ? CASE_DATA[hit.id]
+      : lib.structures[hit.id] ?? lib.conditions[hit.id] ?? lib.procedures[hit.id] ?? lib.medications[hit.id] ?? lib.cathlab[hit.id];
+  return item ? JSON.stringify(item).toLowerCase() : hit.name.toLowerCase();
+}
+
+/** "electrodes" → "electrode" (the search matches inside words, so the singular still finds the plural) */
+const singular = (w: string) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
+
+export interface TopicMatch {
+  /** a library page id, or `term:<glossary id>` */
+  id: string;
+  /** other library pages the question named, worth a link beside a glossary definition */
+  also: string[];
+}
+
+/**
+ * What a question is about: a library page or a glossary term, or null.
+ *
+ * The question's own words are searched first (with plurals made singular if that finds nothing). A glossary term
+ * answers "what is …?"; any other question about it ("how is a STEMI treated?", "Mobitz II") is answered from the
+ * library page the term points to, which says far more. A "what is …?" question also puts the cath lab catalog below
+ * the glossary and the clinical pages: "what is a STEMI" wants the definition, not the door-to-device checklist.
+ *
+ * If no page has all the words ("when do I hold nitro", "nitro in RV infarct?"), fewer are tried, one more left out
+ * at a time; each word kept must match a page's name, other names or glossary entry (not just appear in its text),
+ * and the page that also mentions the words left out wins.
+ */
+export function findTopic(question: string, lib: ContentLibrary): TopicMatch | null {
+  const q = question.trim();
+  const definition = DEFINITION.test(q) && intentOf(q) === 'overview';
+  const typed = q.toLowerCase().replace(/['’]s\b/g, '').replace(/[?.!,;:()"“”]/g, ' ').replace(STOP, ' ').split(/\s+/).filter((w) => w.length > 0);
+  const cases = caseTitles();
+  const search = (text: string) => searchLibrary(lib, cases, text, 8, GLOSSARY_EXTRAS)
+    .filter((h) => ANSWERABLE.has(h.kind))
+    .map((h) => (definition && h.kind === 'cathlab' ? { ...h, score: h.score - 3 } : h))
+    .sort((a, b) => b.score - a.score);
+
+  const words = typed.map(singular);
+  let asked = search(typed.length ? typed.join(' ') : q);
+  if (!asked.length && words.join(' ') !== typed.join(' ')) asked = search(words.join(' '));
+  if (asked.length) {
+    const top = asked[0];
+    const pages = asked.filter((h) => h.kind !== 'term').map((h) => h.id);
+    if (top.kind !== 'term') return { id: top.id, also: [] };
+    if (definition) return { id: top.id, also: pages.slice(0, 2) };
+    const see = GLOSSARY_BY_ID[top.id.slice(5)]?.see;
+    return see ? { id: see, also: [] } : pages.length ? { id: pages[0], also: [] } : { id: top.id, also: [] };
+  }
+
+  // each word, as typed and in the library's own words ("nitro" → "nitroglycerin")
+  const forms = words.map((w) => [w, ...(withAliases(w) ? [withAliases(w)!] : [])]);
+  const texts = new Map<string, string>();
+  const textOf = (hit: SearchHit) => {
+    if (!texts.has(hit.id)) texts.set(hit.id, pageText(lib, hit));
+    return texts.get(hit.id)!;
+  };
+  for (let drop = 1; drop <= MAX_DROPPED && drop < words.length; drop++) {
+    let best: { hit: SearchHit; covered: number } | null = null;
+    for (const kept of keeping(words.map((_, i) => i), words.length - drop)) {
+      // two-letter words alone ("rv", "mi") match inside too many names to stand for the question
+      if (kept.every((i) => words[i].length < 3)) continue;
+      for (const hit of search(kept.map((i) => words[i]).join(' '))) {
+        if (hit.score < 4 * kept.length - 0.5) continue;
+        const text = textOf(hit);
+        const covered = forms.filter((f, i) => !kept.includes(i) && f.some((w) => text.includes(w))).length;
+        if (!best || covered > best.covered || (covered === best.covered && hit.score > best.hit.score)) best = { hit, covered };
+      }
+    }
+    if (best) return { id: best.hit.id, also: [] };
+  }
+  return null;
 }
 
 function careField(level: LearningLevel): 'fieldCare' | 'hospitalCare' | 'cardiologyCare' {
@@ -157,28 +282,18 @@ export function answerQuestion(question: string, lib: ContentLibrary, ctx: Tutor
   for (const p of PRIMERS) if (p.match.test(q)) return p.answer;
 
   // "What's on the monitor?"
-  if (/\b(this|current|the) (ecg|ekg|rhythm|strip|monitor|tracing)\b|what (rhythm|am i looking)|on the monitor/i.test(q)) {
-    const prof = resolveProfile(ctx.profileId);
-    const condId = Object.entries(CONDITION_TO_PROFILE).find(([, v]) => v === prof.id)?.[0];
-    return {
-      title: `On the monitor: ${prof.headline}`,
-      bullets: prof.findings,
-      links: condId ? [condId] : [],
-      followUps: condId ? [`How is ${lib.conditions[condId]?.name ?? prof.name} treated?`, 'How do I read an ECG systematically?'] : ['How do I read an ECG systematically?'],
-      text: prof.keyLeads?.length ? `Key leads: ${prof.keyLeads.join(', ')} (tinted on the ECG).` : undefined,
-    };
-  }
+  if (MONITOR_QUESTION.test(q)) return monitorAnswer(lib, ctx);
 
   // Resolve "this/it" to the current selection
   let targetId: string | null = null;
+  let also: string[] = [];
   if (/\b(this|it|that|selected)\b/i.test(q)) {
     targetId = ctx.selectedConditionId ?? ctx.selectedStructureId ?? ctx.selectedProcedureId ?? ctx.selectedMedicationId;
   }
-  const stop = /\b(what|whats|is|are|the|a|an|of|in|on|for|to|how|do|does|i|we|you|me|explain|tell|about|and|with|why|when|which|should|can|please|give|treat|treated|treatment|manage|management|dose|dosing|ecg|ekg|signs?|symptoms?|causes?|look|like|this|that|it|steps?|work|works|done|performed|walk|through)\b/gi;
   if (!targetId) {
-    const cleaned = q.replace(/[?.!,]/g, ' ').replace(stop, ' ').replace(/\s+/g, ' ').trim();
-    const hits = searchLibrary(lib, Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title })), cleaned || q, 5);
-    if (hits.length) targetId = hits[0].id;
+    const match = findTopic(q, lib);
+    targetId = match?.id ?? null;
+    also = match?.also ?? [];
   }
   if (!targetId) {
     return {
@@ -188,9 +303,10 @@ export function answerQuestion(question: string, lib: ContentLibrary, ctx: Tutor
         'Or ask about a concept: cardiac cycle, conduction system, preload/afterload, ejection fraction, reading an ECG, localizing a STEMI',
       ],
       links: [],
-      followUps: ['What does this ECG show?', 'Explain the cardiac cycle'],
+      followUps: [canReadMonitor(ctx) ? 'What does this ECG show?' : 'How do I read an ECG systematically?', 'Explain the cardiac cycle'],
     };
   }
+  if (targetId.startsWith('term:')) return termAnswer(targetId.slice(5), lib, also);
 
   const intent = intentOf(q);
   const lv = `Focus for ${LEVEL_LABELS[level].long}`;
@@ -215,12 +331,14 @@ export function answerQuestion(question: string, lib: ContentLibrary, ctx: Tutor
     const bullets = (c as unknown as Record<string, string[]>)[field] ?? c.overview;
     const extra = field === 'overview' && c.redFlags.length ? [`Red flag: ${c.redFlags[0]}`] : [];
     const labels: Record<string, string> = { fieldCare: 'field care', hospitalCare: 'ED / ICU care', cardiologyCare: 'cardiology care', pathophysiology: 'pathophysiology' };
+    // offer what has not just been answered
+    const next: [string, string][] = [['ecg', `What does ${c.name} look like on ECG?`], ['treat', `How is ${c.name} treated?`], ['complications', `What are the complications of ${c.name}?`]];
     return {
       title: `${c.name}${field !== 'overview' ? ` — ${labels[field] ?? field}` : ''}`,
       text: c.summary,
       bullets: [...bullets.slice(0, 6), ...extra, `${lv}: ${c.levelNotes[level - 1]}`],
       links: [c.id, ...c.relatedMedications.slice(0, 3), ...c.relatedProcedures.slice(0, 2)],
-      followUps: [`What does ${c.name} look like on ECG?`, `How is ${c.name} treated?`, `What are the complications of ${c.name}?`].filter((f) => !f.toLowerCase().includes(field)),
+      followUps: next.filter(([k]) => k !== (intent === 'dose' ? 'treat' : intent)).map(([, f]) => f),
     };
   }
   const p = lib.procedures[targetId];
@@ -276,4 +394,62 @@ export function answerQuestion(question: string, lib: ContentLibrary, ctx: Tutor
     return { title: cs.title, text: cs.presentation, bullets: cs.teaching.slice(0, 5), links: [cs.id], followUps: [] };
   }
   return { title: 'No answer found', bullets: [], links: [], followUps: [] };
+}
+
+/** Whether "What does this ECG show?" can be answered now: a tracing is on screen and no question about it is open */
+export function canReadMonitor(ctx: Pick<TutorContext, 'blind' | 'mode'>): boolean {
+  return !ctx.blind && (ctx.mode ?? 'learn') === 'learn';
+}
+
+/** "What does this ECG show?" — the patient on the monitor, unless naming it would give an answer away */
+function monitorAnswer(lib: ContentLibrary, ctx: TutorContext): TutorAnswer {
+  if (ctx.blind) {
+    return {
+      title: 'I will tell you once you have answered',
+      text: 'A question about this tracing is still open. Work it out the way you would on a call:',
+      bullets: READ_IT_YOURSELF,
+      links: [],
+      followUps: ['How do I read an ECG systematically?'],
+    };
+  }
+  const mode = ctx.mode ?? 'learn';
+  if (mode === 'simulator') {
+    return {
+      title: 'Reading the monitor is part of the case',
+      text: 'I will not name the rhythm while you run the case. Work it out from the tracing:',
+      bullets: READ_IT_YOURSELF,
+      links: [],
+      followUps: ['How do I read an ECG systematically?'],
+    };
+  }
+  if (mode !== 'learn') {
+    return {
+      title: 'There is no tracing on screen',
+      text: 'Open a condition from the library, the 12-lead ECG from the main menu, or practice rhythms, and ask me again.',
+      bullets: [],
+      links: [],
+      followUps: ['How do I read an ECG systematically?', 'How do I localize a STEMI?'],
+    };
+  }
+  const prof = resolveProfile(ctx.profileId);
+  const condId = Object.entries(CONDITION_TO_PROFILE).find(([, v]) => v === prof.id)?.[0];
+  return {
+    title: `On the monitor: ${prof.headline}`,
+    bullets: prof.findings,
+    links: condId ? [condId] : [],
+    followUps: condId ? [`How is ${lib.conditions[condId]?.name ?? prof.name} treated?`, 'How do I read an ECG systematically?'] : ['How do I read an ECG systematically?'],
+    text: prof.keyLeads?.length ? `Key leads: ${prof.keyLeads.join(', ')} (tinted on the ECG).` : undefined,
+  };
+}
+
+/** A glossary term: its plain-words definition, the library page that teaches it, and any other page the question named */
+function termAnswer(id: string, lib: ContentLibrary, also: string[] = []): TutorAnswer {
+  const g = GLOSSARY_BY_ID[id];
+  const see = g.see;
+  const followUps: string[] = [];
+  if (see && lib.conditions[see]) followUps.push(`How is ${lib.conditions[see].name} treated?`, `What does ${lib.conditions[see].name} look like on ECG?`);
+  else if (see && lib.medications[see]) followUps.push(`What is the dose of ${lib.medications[see].name}?`, `What are the contraindications to ${lib.medications[see].name}?`);
+  else if (see && lib.procedures[see]) followUps.push(`Walk me through ${lib.procedures[see].name}`);
+  else if (see && lib.structures[see]) followUps.push(`Tell me about the ${lib.structures[see].name.toLowerCase()}`);
+  return { title: g.term, text: g.def, bullets: [], links: Array.from(new Set([...(see ? [see] : []), ...also])), followUps };
 }
