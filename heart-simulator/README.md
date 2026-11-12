@@ -177,10 +177,15 @@ library section or tool also resets the speed to real time and closes the electr
   with a C-arm diagram, its angles, what the view shows best and, where the app has one, the real image (tap to
   enlarge).
 - **Events happen on time or because of what you did** (VF en route, heart block, a wedged catheter,
-  reperfusion VF), built-in safety rules catch dangerous choices (shocking a patient with a pulse, arrest-dose
-  epinephrine with a pulse, …), and teammates do the other roles' jobs in the cath lab.
+  reperfusion VF), built-in safety rules catch dangerous choices (a manual shock with a pulse, arrest-dose
+  epinephrine with a pulse, nitroglycerin with a systolic pressure under 90, cardioversion without a
+  tachyarrhythmia, pacing in arrest or at a rate of 50 or more — not as a backup over a heart already paced …), and
+  teammates do the other roles' jobs in the cath lab. An AED that advises no shock costs nothing. Vital signs stay
+  inside what a living patient can show (repeated drugs move the pressure toward a floor or a ceiling, never past
+  it), and drugs given in cardiac arrest do not invent a pressure.
 - **The case ends by itself** once every critical step for your role is done (or the patient dies, or you end
-  it). The review shows the score and grade, what to fix (harmful choices, missed and late steps — late
+  it). Handing the patient over also ends it — in the field on arrival, in the cath lab once the procedure is over —
+  and then the review says which critical steps were still missing. The review shows the score and grade, what to fix (harmful choices, missed and late steps — late
   counts half), what went well, your times against the goals and the teaching points. A **Hint** names the
   next critical step for 2 points. Best scores are kept on the device.
 - **Cases:** field — anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,

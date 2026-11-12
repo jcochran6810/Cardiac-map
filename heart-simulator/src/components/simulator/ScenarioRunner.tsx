@@ -116,7 +116,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
         {/* Actions: a column on large screens */}
         <aside className="hidden lg:flex short:flex w-[400px] xl:w-[440px] short:w-[44%] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
-          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
+          {ended ? <EndedCard state={state} percent={review?.percent} outcome={review?.outcome} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
         </aside>
       </div>
 
@@ -377,17 +377,19 @@ function Latest({ state }: { state: SimState }) {
   );
 }
 
-function EndedCard({ state, percent, onReview }: { state: SimState; percent?: number; onReview: () => void }) {
+function EndedCard({ state, percent, outcome, onReview }: { state: SimState; percent?: number; outcome?: string; onReview: () => void }) {
   const reason = state.ended!.reason;
   const g = gradeStyle(percent ?? 0);
+  // a hand-off also ends the case as complete: say so plainly when critical steps were still missing
+  const handedOver = reason === 'complete' && !!outcome && !outcome.startsWith('Every critical');
   return (
     <div className="p-4">
       <div className={`rounded-xl border p-4 ${reason === 'death' ? 'border-red-500/50 bg-red-500/10' : g.box}`}>
         <div className="text-lg font-semibold text-white">
-          {reason === 'complete' ? 'Case complete' : reason === 'death' ? 'The patient died' : 'Case ended'}
+          {handedOver ? 'Patient handed over' : reason === 'complete' ? 'Case complete' : reason === 'death' ? 'The patient died' : 'Case ended'}
         </div>
         <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-          {reason === 'complete' ? 'Every critical step for your role is done.' : reason === 'death' ? 'There was no return of circulation.' : 'You ended the case early.'}
+          {handedOver ? outcome : reason === 'complete' ? 'Every critical step for your role is done.' : reason === 'death' ? 'There was no return of circulation.' : 'You ended the case early.'}
           {' '}Your review shows your score, your times and what to fix.
         </p>
         <button onClick={onReview} className="mt-3 w-full h-11 rounded-lg bg-cardiac-accent text-slate-950 font-semibold">
