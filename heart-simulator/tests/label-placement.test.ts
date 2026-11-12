@@ -58,6 +58,13 @@ describe('name tag placement', () => {
     const forced = leastCrowdedSlot(100, 104, 83, 60, 20, { ...o, placed: [{ x0: 0, y0: 50, x1: 400, y1: 120 }] });
     // the row below sticks out of the crowd furthest
     expect(forced.dy).toBe(22);
+    // the gap counts: on the right the tag would sit flush under another along its whole length, on the left it
+    // only clips a corner of one. Pressed flush, a touch tag's margin would take the other's taps: the left wins.
+    const placed = [{ x0: 104, y0: 60, x1: 164, y1: 82 }, { x0: 0, y0: 100, x1: 40, y1: 110 }];
+    const touchGap = opts({ rows: 0, gap: 6, placed });
+    expect(tag(touchGap)).toBeNull();
+    expect(leastCrowdedSlot(100, 104, 83, 60, 20, touchGap).box.x1).toBe(96);
+    expect(leastCrowdedSlot(100, 104, 83, 60, 20, { ...touchGap, gap: 0 }).box.x1).toBe(164);
   });
 
   it('draws a leader line only for a tag that moved away from its dot', () => {

@@ -71,16 +71,22 @@ export function findSlot(anchorX: number, x: number, y: number, w: number, h: nu
   return null;
 }
 
-/** For a tag that must show even when no slot is free: the slot it overlaps least (other tags, controls, the view's edge) */
+/**
+ * For a tag that must show even when no slot is free: the slot it crowds least — overlap with the controls and the
+ * view's edge, and with the other tags counting the gap too (on a touch screen a tag's invisible margin reaches into
+ * that gap, so a tag crammed against another would take its taps).
+ */
 export function leastCrowdedSlot(anchorX: number, x: number, y: number, w: number, h: number, o: PlaceOptions): Slot {
   const view: Box = { x0: 0, y0: 0, x1: o.width, y1: o.height };
   let best: Slot | null = null;
   let bestScore = Infinity;
   for (const s of slotOrder(o.rows)) {
     const slot = slotBox(anchorX, x, y, w, h, o.gap, s);
-    let score = w * h - overlapArea(slot.box, view);
-    for (const p of o.placed) score += overlapArea(slot.box, p);
-    for (const c of o.cover) score += overlapArea(slot.box, c);
+    const b = slot.box;
+    const spaced = { x0: b.x0 - o.gap, y0: b.y0 - o.gap, x1: b.x1 + o.gap, y1: b.y1 + o.gap };
+    let score = w * h - overlapArea(b, view);
+    for (const p of o.placed) score += overlapArea(spaced, p);
+    for (const c of o.cover) score += overlapArea(b, c);
     if (score < bestScore) {
       best = slot;
       bestScore = score;
