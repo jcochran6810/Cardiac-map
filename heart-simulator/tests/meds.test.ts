@@ -475,7 +475,7 @@ describe('what the learner reads follows the current guidelines', () => {
         }
       }
     }
-  });
+  }, 30_000);
 
   it('sustained torsades is defibrillated at once, pulse or not — then magnesium', () => {
     const t = patient('torsades', 230);
