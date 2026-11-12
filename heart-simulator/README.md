@@ -261,6 +261,7 @@ npm run typecheck  # TypeScript
 npm run lint       # ESLint (next lint)
 npm test           # Vitest unit tests in tests/ — ECG lead maths and engine, electrodes, rhythms, hemodynamics, drugs, defibrillator, case simulator, courses, rhythm trainer, heart sounds, glossary, Back navigation, anatomy, scope
 npm run build      # production build
+npm run e2e        # after a build: browser smoke test of the main screens at five screen sizes (Playwright, e2e/)
 ```
 
 Working with AI agents: the repo root has `CLAUDE.md` (the start/end-session protocol; Claude Code is

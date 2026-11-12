@@ -197,8 +197,9 @@ Run from `heart-simulator/` before committing or merging — `npm run check` run
 | `npm run lint` | ESLint via `next lint` (non-interactive; `next lint` is removed in Next 16 — migrate before upgrading) |
 | `npm test` | Vitest unit tests in `heart-simulator/tests/` (ECG lead maths, electrodes, rhythm profiles, beat engine, hemodynamics, anatomy, scope) |
 | `npm run build` | Production build (`next build`, also type-checks) |
+| `npm run e2e` | After a build: Playwright smoke test of the main screens on a small phone, a phone upright and on its side, a tablet and a desktop (`heart-simulator/e2e/`; not part of `npm run check`, CI runs it as its own job) |
 
-**GitHub Actions** (`.github/workflows/ci.yml`) runs the same four checks plus the hook's own test on
+**GitHub Actions** (`.github/workflows/ci.yml`) runs the same four checks, the browser smoke test and the hook's own test on
 every push to `main`, `claude/**` and `codex/**`, and on pull requests into `main` — so Codex pull
 requests arrive with their results attached. A red run on a branch is fixed on that branch, never on `main`.
 
