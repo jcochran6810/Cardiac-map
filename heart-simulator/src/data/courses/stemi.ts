@@ -57,7 +57,7 @@ export const STEMI: Course = {
         {
           title: 'The injured wall speaks',
           text: [
-            'Healthy muscle cells hold a steady electrical charge between beats. Injured cells cannot. A small current leaks between the injured wall and the healthy muscle around it for as long as the injury lasts.',
+            'In healthy muscle every cell sits at the same electrical level during the ST segment, so no current flows and the segment is flat. Injured cells cannot reach or hold that level. For as long as the injury lasts, a current flows between the injured wall and the healthy muscle around it.',
             'That current has a direction: it points toward the injured wall. A lead that faces the wall records it as an ST segment lifted off the baseline. A lead that looks from the opposite side records the same current as an ST segment pushed down.',
           ],
           look: 'The heart is slowed to a quarter of real speed and seen from the patient\'s left. A yellow arrow shows its electrical force from instant to instant. In a healthy heart the arrow vanishes after each QRS. Watch what it does here.',
@@ -81,7 +81,7 @@ export const STEMI: Course = {
             'The ST segment runs from the end of the QRS to the start of the T wave. The point where the QRS ends is called the J point. Normally the J point sits level with the flat line before the QRS.',
             'ST elevation is measured at the J point: how far it sits above that line, in millimeters. At the standard setting one small box is 1 mm high.',
           ],
-          look: 'Lead V3 is enlarged. The ST segment leaves the QRS well above the baseline and climbs into a tall T wave. The dashed line marks where the app measures ST, shortly after the J point, and the label beside it gives the height in mm.',
+          look: 'Lead V3 is enlarged. The ST segment leaves the QRS about 2 mm above the baseline and climbs into a tall T wave. The dashed line is where the app measures, 60 ms after the J point, so its label reads a little higher.',
           show: { heart: 'territories', camera: 'Front', vector: false, speed: 1, inspect: 'V3', focus: 'ecg' },
         },
         {
@@ -142,7 +142,7 @@ export const STEMI: Course = {
           text: [
             'ST elevation is not the first sign. In the first minutes after an artery blocks, the T waves over the affected wall grow tall and broad. These are hyperacute T waves, and at that moment the ST segments may still be nearly level.',
             'Then the picture changes in a set order: ST elevation within minutes to hours, then a shrinking R wave and new Q waves over hours as muscle dies. Over hours to days the T waves turn upside down and the ST segments drift back to the baseline. The Q waves usually stay for life.',
-            'One tracing is a single frame of that film. If the first 12-lead does not give the answer and the symptoms continue, it is repeated every 15 to 30 minutes.',
+            'One tracing is a single frame of that film. If the first 12-lead does not give the answer and the symptoms continue, it is repeated at short intervals, and each one is compared with the one before.',
           ],
           look: 'Lead V2 of the anterior STEMI is enlarged. Its T wave is tall and broad at the base: hyperacute. The QRS is one deep downward wave: the small R wave that V2 normally starts with has gone, the first step toward a Q wave.',
           show: { rhythm: 'anterior-stemi', inspect: 'V2', focus: 'ecg' },
@@ -150,13 +150,13 @@ export const STEMI: Course = {
             kind: 'choice',
             question: 'Ten minutes after crushing chest pain began, a 12-lead shows tall, broad T waves in V2 to V4 and no ST elevation. The pain continues. What happens next with the ECG?',
             options: [
-              'It is repeated within 15 to 30 minutes: ST elevation may be on its way',
+              'A physician sees it now, and it is repeated within minutes',
               'Nothing more is needed: without ST elevation this is not a heart attack',
               'It is repeated tomorrow, when Q waves will confirm the diagnosis',
               'It is recorded again at double paper speed to stretch out the T waves',
             ],
             answer: 0,
-            explain: 'Hyperacute T waves can be the only sign in the first minutes of a blocked artery, and they are treated as a warning. Serial 12-leads catch the ST elevation as it develops. Q waves take hours and mean muscle has already been lost.',
+            explain: 'Hyperacute T waves can be the only sign in the first minutes of a blocked artery. With ongoing pain they count as a STEMI equivalent (2022 ACC chest pain pathway): the tracing goes to a physician at once, and repeat 12-leads catch the ST elevation as it develops. Q waves take hours and mean muscle has already been lost.',
           },
           roleNote: {
             1: 'You do not interpret the tracing. If the pain continues, a repeat 12-lead acquired and transmitted per protocol lets the receiving team see the change.',
@@ -168,7 +168,7 @@ export const STEMI: Course = {
           text: [
             'The coronary arteries run on the outside of the heart, so the inner layer of the wall is the last to be fed and the first to die. From there the damage moves outward like a wave. In the classic animal experiments, muscle death had begun in the inner layer within 40 minutes and had crossed most of the wall by 6 hours.',
             'Whatever is still alive when the artery is opened is saved. That is the whole reason for speed: time is muscle. Less dead muscle means a stronger pump, fewer dangerous rhythms and a better chance of survival.',
-            'So the system is built around the clock. The target for the first 12-lead is within 10 minutes of first medical contact: the moment an EMS crew or the emergency department first reaches the patient.',
+            'So the system is built around the clock. The first 12-lead is to be recorded and read within 10 minutes of first medical contact: the moment an EMS crew or the emergency department first reaches the patient.',
           ],
           look: 'The heart is cut open again and the inner lining of the left ventricle (the endocardium) is ringed. Muscle dies here first, and the damage then spreads outward through the wall toward the surface.',
           show: { heart: 'sectioned', structure: 'endocardium', focus: 'heart' },
@@ -216,8 +216,8 @@ export const STEMI: Course = {
             'The chest leads V1 to V4 sit over the front of the heart. V1 and V2 face the septum, and V3 and V4 face the anterior wall. When the LAD blocks, these are the leads that show ST elevation.',
             'Often the elevation spreads into V5 and V6, because the LAD\'s branches reach round toward the side wall. The more leads involved, the more muscle is at risk.',
           ],
-          look: 'V3 is outlined on the 12-lead. On the heart, seen from the patient\'s left, its line of sight comes in from the front of the chest and meets the pulsing anterior wall.',
-          show: { lead: 'V3', camera: 'Left', focus: 'ecg' },
+          look: 'V3 is outlined on the 12-lead, and on the heart its line of sight comes in from the front of the chest to meet the pulsing anterior wall. On this tracing V5 is raised too, a little less.',
+          show: { lead: 'V3', focus: 'ecg' },
           check: {
             kind: 'lead',
             question: 'V3 shows ST elevation. Tap another chest lead that shows it too.',
@@ -251,7 +251,7 @@ export const STEMI: Course = {
           text: [
             'Where the LAD is blocked decides how much muscle is lost. Its first branches leave near the top: the septal branches dive into the septum, and the first diagonal (D1) runs to the upper side wall, the area that leads I and aVL face.',
             'A block above those branches, a proximal occlusion, takes out everything: septum, front wall, apex and part of the side wall. On the ECG the clue is ST elevation in I and aVL added to V1 to V4, usually with ST depression in the inferior leads.',
-            'A block further down spares the first branches. The ST elevation then centers on V3 to V5, I and aVL stay level, and the inferior leads show no ST depression.',
+            'A block further down spares the first branches. The ST elevation then centers on V3 to V5, I and aVL are not raised, and the inferior leads show no ST depression.',
           ],
           look: 'The first diagonal (D1) is ringed, leaving the LAD near its top and heading for the side wall. On this tracing I and aVL are lifted by about half a millimeter: a hint that the block sits above this branch.',
           show: { structure: 'd1', focus: 'heart' },
@@ -315,7 +315,7 @@ export const STEMI: Course = {
             'An anterior STEMI can take away a large share of the left ventricle\'s pumping muscle at once. If the pump fails, the result is cardiogenic shock: low blood pressure, a fast heart rate, cool clammy skin, and fluid backing up into the lungs.',
             'The other early killer is ventricular fibrillation (VF), which is most likely in the first hours. That is why defibrillator pads go on early and stay on.',
           ],
-          look: 'The same heart attack with the pump failing. The ST elevation in V1 to V4 is still there, and the heart rate has climbed to about 120 a minute as the heart tries to make up for a weak squeeze.',
+          look: 'The same heart attack with the pump failing. The ST elevation in V1 to V5 is still there, and the heart rate has climbed to about 120 a minute as the heart tries to make up for a weak squeeze.',
           show: { heart: 'external', camera: 'Front', rhythm: 'cardiogenic-shock', focus: 'ecg' },
           check: {
             kind: 'choice',
@@ -330,11 +330,11 @@ export const STEMI: Course = {
             explain: 'Low pressure with a fast rate and wet lungs after a large anterior infarct is pump failure. A vagal reaction slows the heart. A right ventricular infarct goes with inferior STEMI and leaves the lungs clear. Shock makes opening the artery even more urgent.',
           },
           roleNote: {
-            1: 'Report low blood pressure, a fast pulse and breathlessness early: they change where and how fast the patient goes. Keep the AED attached and ready.',
+            1: 'Report low blood pressure, a fast pulse and breathlessness early: they change where and how fast the patient goes. Keep the AED at the patient\'s side, ready to use.',
             2: 'Pads on, IV access, and early notification of shock or a new conduction block. Nitroglycerin is withheld when systolic pressure is below 90 mmHg.',
             3: 'Have the defibrillator connected before the wire crosses, and the support console the operator may ask for ready to run.',
             4: 'Hypotension, new crackles or cool skin after a large anterior MI are reported to the physician at once, with a full set of vital signs.',
-            5: 'In shock: culprit-vessel PCI only. A microaxial flow pump is reasonable in selected STEMI with severe shock; routine IABP and routine VA-ECMO are not recommended (2025 ACS guideline).',
+            5: 'In shock: emergency PCI of the culprit vessel only. A microaxial flow pump is reasonable in selected STEMI with severe shock; routine IABP and routine VA-ECMO are not recommended (2025 ACS guideline).',
           },
           more: ['anterior-stemi', 'cardiogenic-shock', 'ventricular-fibrillation'],
         },
@@ -351,7 +351,7 @@ export const STEMI: Course = {
         {
           title: 'The wall that rests on the diaphragm',
           text: [
-            'The inferior wall is the underside of the left ventricle, the part that rests on the diaphragm. In about 8 out of 10 people it is fed by the right coronary artery (RCA). In the rest, the circumflex does the job.',
+            'The inferior wall is the underside of the left ventricle, the part that rests on the diaphragm. In about 8 out of 10 people it is fed by the right coronary artery (RCA). In the rest, the circumflex feeds it, alone or shared with the RCA.',
             'An inferior STEMI usually threatens less muscle than an anterior one. Its dangers are different: the RCA also feeds the right ventricle and, in most people, the heart\'s two electrical nodes.',
           ],
           look: 'The heart is seen from below. The RCA\'s territory, normally orange on this map, is pulsing purple: the underside of the left ventricle and the right ventricle next to it.',
@@ -393,7 +393,7 @@ export const STEMI: Course = {
           text: [
             'The branches that feed the right ventricle (RV) leave the RCA near its start. A block above them causes a right ventricular infarction on top of the inferior one.',
             'The standard 12 leads hardly see the right ventricle. So every inferior STEMI gets one extra lead, V4R: the V4 electrode moved to the same spot on the right side of the chest (fifth space between the ribs, in line with the middle of the collarbone).',
-            'ST elevation of 0.5 mm or more in V4R means the right ventricle is involved (1 mm or more in men under 30).',
+            'ST elevation of 0.5 mm or more in V4R points to right ventricular involvement (1 mm or more in men under 30).',
           ],
           look: 'The start of the RCA is ringed, in the groove between the right atrium and the right ventricle. The muscle below it is pulsing along with the inferior wall.',
           show: { heart: 'territories', structure: 'rca-proximal', focus: 'heart' },
@@ -412,7 +412,7 @@ export const STEMI: Course = {
           title: 'Why a right ventricular infarct depends on preload',
           text: [
             'The two ventricles pump in series: everything the left ventricle sends to the body must first be pushed through the lungs by the right. A weakened right ventricle delivers less, the left ventricle runs short of blood to pump, and the blood pressure falls.',
-            'The picture is low blood pressure with clear lungs and swollen neck veins. Such a patient lives on preload: the pressure of the blood returning to the heart, which is now what pushes blood through the weak right ventricle.',
+            'The picture is low blood pressure with clear lungs and swollen neck veins. Such a patient depends on preload: how well the right ventricle is filled by the blood returning to it. A weak right ventricle can pump out only what flows into it.',
             'Nitroglycerin widens the veins and lowers preload, so it can drop the pressure sharply. The 2025 guideline says to avoid it when a right ventricular infarct is suspected. Low pressure here is usually treated with careful IV fluid.',
           ],
           look: 'The heart is cut open. Blue dots cross the right ventricle on their way to the lungs, and red dots return to the left side. Nothing reaches the left ventricle unless the right ventricle has pumped it first.',
@@ -422,7 +422,7 @@ export const STEMI: Course = {
             question: 'An inferior STEMI patient has a blood pressure of 84/52, clear lungs and swollen neck veins. Which treatment is most likely to make things worse?',
             options: ['Nitroglycerin', 'A fluid bolus', 'Aspirin', 'Oxygen for a saturation of 88%'],
             answer: 0,
-            explain: 'Low pressure, clear lungs and full neck veins in an inferior STEMI mean a right ventricular infarct until proven otherwise. Nitroglycerin lowers the preload this patient depends on, and it is also avoided whenever systolic pressure is below 90 mmHg. Fluid supports the pressure; aspirin, and oxygen for a low saturation, are still right.',
+            explain: 'Low pressure, clear lungs and full neck veins in an inferior STEMI mean a right ventricular infarct until proven otherwise. Nitroglycerin lowers the preload this patient depends on, and it is also avoided whenever systolic pressure is below 90 mmHg. Fluid supports the pressure. Aspirin is still right, and so is oxygen here, because the saturation is below 90%; it is not given routinely above that.',
           },
           roleNote: {
             1: 'Do not assist with the patient\'s nitroglycerin if systolic pressure is below 90 mmHg or medical direction suspects a right ventricular infarct. Aspirin per protocol is still given.',
@@ -448,7 +448,7 @@ export const STEMI: Course = {
             'Here the AV node has stopped conducting altogether: complete (third-degree) heart block. The atria keep their own pace. The ventricles are driven by a backup pacemaker a little below the AV node, at about 40 beats a minute.',
             'Because the backup sits high in the wiring, each beat still travels down the normal fast pathways and the QRS stays narrow. That is the usual pattern in inferior STEMI: the block is in the AV node, it often responds to atropine, and it usually clears within days of the artery being opened.',
           ],
-          look: 'The heart is see-through and slowed to half speed; a red × marks the block at the AV node. Read this tracing for its rhythm: on the lead II strip the P waves keep their own rate while narrow QRS complexes arrive slowly, unlinked to them.',
+          look: 'The heart is see-through and slowed to half speed; a red × marks the block at the AV node. On the lead II strip the P waves keep their own rate while narrow QRS complexes arrive slowly, unlinked to them. II, III and aVF are still raised.',
           show: { rhythm: 'inferior-stemi-chb', heart: 'conduction', camera: 'Front', speed: 0.5, focus: 'heart' },
           check: {
             kind: 'choice',
@@ -463,7 +463,7 @@ export const STEMI: Course = {
             explain: 'A narrow QRS means the beat starts above the bundle branches, at the AV junction, and uses the normal wiring: the usual backup in inferior STEMI. A block low in the wiring, as in a large anterior STEMI, leaves a slow, wide-QRS backup that is far less reliable. A paced beat would be wide too, with a spike in front of it.',
           },
           roleNote: {
-            2: 'Symptomatic bradycardia in inferior STEMI: atropine, then transcutaneous pacing if it fails, per protocol. Pads go on early.',
+            2: 'Symptomatic bradycardia in inferior STEMI: atropine 1 mg IV, repeated every 3 to 5 minutes up to 3 mg, then transcutaneous pacing if it fails, per protocol. Pads go on early.',
             3: 'Have the temporary pacing wire and a venous sheath ready for an RCA case, and call out any fall in rate or pressure at once.',
             4: 'Keep pacing pads on, give atropine or fluid as ordered or per approved protocol, and report every change in rate and rhythm.',
           },
@@ -473,7 +473,7 @@ export const STEMI: Course = {
           title: 'Three habits for every inferior STEMI',
           text: [
             'One: record V4R and check the blood pressure before any nitroglycerin. Two: expect a slow heart, with pads on and pacing within reach. Three: look at V1 to V3.',
-            'The third habit is for the back of the heart. The artery that feeds the inferior wall often feeds the posterior wall too, and that wall shows itself only as ST depression in V1 to V3. The next lesson explains why.',
+            'The third habit is for the back of the heart. The artery that feeds the inferior wall often feeds the posterior wall too, and on the standard 12 leads that wall shows itself only as ST depression in V1 to V3. The next lesson explains why.',
           ],
           look: 'Back to the first tracing at normal speed. II, III and aVF are raised and aVL is down. In V2 and V3 the ST segment sits slightly below the baseline.',
           show: { rhythm: 'inferior-stemi', heart: 'territories', camera: 'Bottom', speed: 1, focus: 'ecg' },
@@ -500,7 +500,7 @@ export const STEMI: Course = {
           title: 'The circumflex and the side wall',
           text: [
             'The lateral wall is the left side wall of the left ventricle. It is fed mainly by the circumflex artery through its obtuse marginal branches, with help from the diagonal branches of the LAD.',
-            'A heart attack here is a lateral STEMI. It is the easiest of the three to miss, because this wall lies furthest from the electrodes and its changes are often small.',
+            'A heart attack here is a lateral STEMI. It is the easiest of the three to miss: its changes are often small, and much of the circumflex territory lies on the side and back of the heart, where few electrodes look.',
           ],
           look: 'The heart is seen from the patient\'s left. The circumflex territory, normally blue on this map, is pulsing purple: the side wall of the left ventricle.',
           show: { heart: 'territories', camera: 'Left', rhythm: 'lateral-stemi', ecg: 'ecg', layout: 'simultaneous', focus: 'heart' },
@@ -562,7 +562,7 @@ export const STEMI: Course = {
             explain: 'A first 12-lead without ST elevation does not rule out a blocked artery, least of all in the circumflex. Serial 12-leads during the pain, and the posterior leads, find what the first tracing missed. Waiting until the pain has passed throws away the chance to catch the change.',
           },
           roleNote: {
-            1: 'A normal-looking tracing does not rule out a heart attack. Treat the symptoms, transmit the 12-lead, and repeat it per protocol if the pain persists.',
+            1: 'Chest pain that may be cardiac is treated as cardiac whatever the first tracing shows. Transmit the 12-lead, and repeat it per protocol if the pain persists.',
             2: 'Ongoing pain with a tracing that does not give the answer: repeat the 12-lead, add V7 to V9 if V1 to V3 show ST depression, and contact medical direction.',
           },
         },
@@ -573,13 +573,13 @@ export const STEMI: Course = {
             'V1, V2 and V3 see it from the front, through the whole heart. So they draw a posterior injury back to front: ST depression in place of ST elevation, a tall R wave in place of a Q wave, and an upright T wave in place of an inverted one.',
             'In practice: horizontal ST depression that is deepest in V1 to V3, in a patient with chest pain, is a posterior STEMI until proven otherwise.',
           ],
-          look: 'V2 is outlined, and on this tracing its ST segment is pushed below the baseline. On the heart, seen from the patient\'s left, its line of sight enters at the front of the chest and leaves through the back wall.',
+          look: 'V2 is outlined, and on this tracing its ST segment is pushed below the baseline. On the heart, seen from the front and the patient\'s left, its line of sight enters at the front of the chest and leaves through the back wall.',
           show: { lead: 'V2', camera: 'Left', focus: 'ecg' },
           check: {
             kind: 'lead',
-            question: 'V2 shows ST depression. Tap the lead next to it that shows it too.',
+            question: 'V2 shows ST depression. Tap another chest lead that shows it too.',
             targets: ['V1'],
-            explain: 'V1, beside V2, shows the same ST depression. Both look from the front straight through to the back wall, so this circumflex block is reaching round toward the back. The tall R waves of a complete posterior infarct are not drawn on this tracing; the ST depression is the early clue.',
+            explain: 'V1 shows the same ST depression; V3 is close to level. V1 and V2 look from the front straight through to the back wall, so this circumflex block is reaching round toward the back. The tall R waves of a complete posterior infarct are not drawn on this tracing; the ST depression is the early clue.',
           },
         },
         {
@@ -587,7 +587,7 @@ export const STEMI: Course = {
           text: [
             'To see the posterior wall directly, three electrodes are moved round to the back, at the same level as V6. V7 goes on the back fold of the armpit (the posterior axillary line), V8 below the tip of the shoulder blade, and V9 beside the spine.',
             'ST elevation of 0.5 mm or more in these leads confirms a posterior STEMI (1 mm or more in men under 40). The limit is low because the electrodes sit far from the heart.',
-            'A posterior STEMI has the same urgency as any other. It is the one situation in which ST depression on the standard 12 leads can lead to emergency treatment to reopen an artery.',
+            'A posterior STEMI has the same urgency as any other. It is treated as a STEMI, with emergency reopening of the artery, even though the standard 12 leads show only ST depression.',
           ],
           look: 'The heart is seen from behind again: this is the wall V7, V8 and V9 face. The app\'s 12-lead does not draw these extra leads. On a real patient they are recorded as a second tracing and labeled by hand.',
           show: { camera: 'Back', focus: 'heart' },
@@ -635,8 +635,9 @@ export const STEMI: Course = {
           text: [
             'Not every raised ST segment is a blocked artery, and not every blocked artery raises the ST segment. Both mistakes cost: a false alarm sends a patient for an emergency procedure they do not need, and a miss costs heart muscle.',
             'Three questions sort most tracings. Does the ST elevation fit one artery\'s territory, and is there reciprocal ST depression in the opposite leads? Is the QRS narrow, or is it wide from a bundle branch block or a pacemaker?',
+            'Other common causes of raised ST segments are early repolarization in healthy young adults, a thickened left ventricle (LVH) and a bulge left in the wall by an old heart attack (an aneurysm). An old tracing to compare with helps with all of them.',
           ],
-          look: 'An inferior STEMI for reference: ST elevation in II, III and aVF only, ST depression in aVL, a narrow QRS. On the heart, seen from below, one territory pulses purple.',
+          look: 'An inferior STEMI for reference: ST elevation in II, III and aVF only, ST depression in aVL and I, a narrow QRS. On the heart, seen from below, one territory pulses purple.',
           show: { heart: 'territories', camera: 'Bottom', rhythm: 'inferior-stemi', ecg: 'ecg', layout: 'simultaneous', focus: 'ecg' },
         },
         {
@@ -659,7 +660,7 @@ export const STEMI: Course = {
           title: 'The PR segment joins in',
           text: [
             'Pericarditis inflames the surface of the atria as well. That shifts the PR segment, the short flat stretch between the P wave and the QRS: it sinks below the baseline in most leads and rises in aVR.',
-            'PR depression is small, often half a millimeter, and worth hunting for because a STEMI does not produce it. Two more differences: pericarditis does not form Q waves, and its ST elevation is usually taller in lead II than in lead III. A blocked RCA does the reverse.',
+            'PR depression is small, often half a millimeter, and worth hunting for because a STEMI rarely produces it. Two more differences: pericarditis does not form Q waves, and its ST elevation is usually taller in lead II than in lead III. A blocked RCA does the reverse.',
           ],
           look: 'Lead II is enlarged. Compare the flat stretch after the P wave with the line before the P wave: it sits about half a millimeter lower. That is PR depression.',
           show: { inspect: 'II', focus: 'ecg' },
@@ -770,10 +771,10 @@ export const STEMI: Course = {
           title: 'Wellens: a warning with no ST elevation',
           text: [
             'Now the opposite problem: a dangerous artery without ST elevation. This patient had chest pain earlier and is now pain-free, and the ST segments are level. But the T waves in V2 and V3 are deeply and symmetrically inverted (in about a quarter of patients they are biphasic instead: up, then sharply down).',
-            'This is the Wellens pattern. It means the LAD blocked for a while near its start and has reopened, leaving a critical narrowing. The muscle is alive, the R waves are intact, and a large anterior STEMI may be hours or days away.',
-            'It is not a STEMI and not a reason for fibrinolysis, the clot-dissolving drug treatment. It is a reason for urgent coronary angiography, an X-ray study of the arteries, and never for an exercise stress test, which can close the artery.',
+            'This is the Wellens pattern. It means the LAD blocked for a while near its start and has reopened, leaving a critical narrowing. The muscle is alive, the R waves are intact, and a large anterior STEMI may follow within days or weeks.',
+            'It is not a STEMI and not a reason for fibrinolysis, the clot-dissolving drug treatment. It is a reason for urgent coronary angiography, an X-ray study of the arteries, and never for an exercise stress test, which can bring on the heart attack it is looking for.',
           ],
-          look: 'T waves in V1 to V4 point steeply down, deepest in V2 and V3, with level ST segments and normal R waves. On the heart the LAD\'s territory is marked: the muscle that depends on the narrowed artery.',
+          look: 'T waves in V1 to V4 point steeply down, deepest in V2 and V3, with level ST segments and normal R waves. On the heart the LAD\'s territory pulses purple: the muscle that depends on the narrowed artery.',
           show: { rhythm: 'wellens', heart: 'territories', camera: 'Front', focus: 'ecg' },
           check: {
             kind: 'choice',
@@ -797,9 +798,9 @@ export const STEMI: Course = {
         {
           title: 'ST depression and the aVR warning',
           text: [
-            'ST depression means ischemia of the inner layer of the wall. With chest pain, new horizontal or down-sloping ST depression of 0.5 mm or more in two contiguous leads marks a high-risk patient. If the blood test (troponin) then shows muscle damage, the name is NSTEMI: a heart attack without ST elevation.',
+            'ST depression means ischemia of the inner layer of the wall. With chest pain, new flat (horizontal) or down-sloping ST depression in two contiguous leads marks a high-risk patient. If the blood test (troponin) then shows muscle damage, the name is NSTEMI: a heart attack without ST elevation.',
             'NSTEMI is not treated with fibrinolysis: the patient goes to angiography at a time set by risk. One pattern raises that risk sharply: ST depression in many leads with ST elevation in aVR. It suggests that the left main artery, or several arteries, are severely narrowed.',
-            'And remember the exception from the last lesson: ST depression limited to V1 to V3 may be a posterior STEMI.',
+            'Two exceptions are handled as a STEMI: ST depression deepest in V1 to V3, which may be a posterior STEMI, and the de Winter pattern, up-sloping ST depression with tall, symmetrical T waves across the chest leads, which marks a blocked LAD.',
           ],
           look: 'ST segments sag in I, II, aVF and V4 to V6, and the T waves in those leads point down. One limb lead, aVR, goes the other way.',
           show: { rhythm: 'nstemi', heart: 'external', camera: 'Front', focus: 'ecg' },
@@ -828,7 +829,7 @@ export const STEMI: Course = {
             'Fibrinolysis is a clot-dissolving drug given into a vein. It needs no cath lab, but it opens fewer arteries and carries a risk of bleeding.',
             'Primary PCI is preferred whenever it can be done quickly enough. Which one a patient gets is decided by the clock.',
           ],
-          look: 'An anterior STEMI again. The LAD\'s territory is pulsing purple and V1 to V4 show ST elevation. Everything in this lesson is about stopping that pulsing as early as possible.',
+          look: 'An anterior STEMI again. The LAD\'s territory is pulsing purple and V1 to V5 show ST elevation. Everything in this lesson is about stopping that pulsing as early as possible.',
           show: { heart: 'territories', camera: 'Front', rhythm: 'anterior-stemi', ecg: 'ecg', layout: 'simultaneous', focus: 'heart' },
           more: ['pci-stent', 'tenecteplase', 'cl-radial-access'],
         },
@@ -878,11 +879,11 @@ export const STEMI: Course = {
           title: 'Rhythms at the moment of reflow',
           text: [
             'Muscle that has been starved is irritable for the first minutes after blood returns. Extra beats and short runs from the ventricles are common, and two rhythms matter.',
-            'The harmless one is accelerated idioventricular rhythm (AIVR): a regular, wide-QRS rhythm at about 60 to 120 a minute, with the patient awake and the pressure holding. It is a sign that the artery has opened. It is watched, not treated, and it passes within minutes.',
-            'The dangerous one is ventricular fibrillation, shown here. It needs a shock at once, which is why the pads are on before the artery is opened.',
+            'The harmless one is accelerated idioventricular rhythm (AIVR): a regular, wide-QRS rhythm near the patient\'s own heart rate, faster than an escape rhythm and slower than ventricular tachycardia, with the patient awake and the pressure holding. It suggests that the artery has opened. It is watched, not treated, and it usually stops on its own.',
+            'The dangerous one is ventricular fibrillation: a chaotic line with no QRS complexes. It needs a shock at once, which is why the pads are on before the artery is opened.',
           ],
-          look: 'This is ventricular fibrillation: a chaotic line with no QRS complexes, and a heart that quivers without pumping. The app has no AIVR tracing; picture wide, regular beats at about 80 a minute.',
-          show: { rhythm: 'vf', heart: 'external', camera: 'Front', focus: 'ecg' },
+          look: 'This is AIVR: wide, regular beats at about 84 a minute, while small P waves keep their own slightly slower beat, not tied to the QRS. The heart is still pumping.',
+          show: { rhythm: 'aivr', hr: 84, heart: 'external', camera: 'Front', focus: 'ecg' },
           check: {
             kind: 'choice',
             question: 'Seconds after the artery opens, the monitor shows a regular wide-QRS rhythm at 84 a minute. The patient is awake and the arterial pressure is unchanged. What is this?',
@@ -896,9 +897,9 @@ export const STEMI: Course = {
             explain: 'A wide regular rhythm near the sinus rate, with a good pressure, at the moment of reflow is AIVR. Drugs that suppress it can leave the patient with no rhythm at all. Ventricular tachycardia is faster, and VF has no organized beats and no pressure.',
           },
           roleNote: {
-            3: 'Pads on and the defibrillator connected before the wire crosses. Call out any new rhythm at once, and check the arterial pressure before naming it.',
-            4: 'During AIVR confirm that the patient is awake and perfusing. For VF, CPR and ACLS drugs follow the operator\'s orders or protocol; document shocks and times.',
-            5: 'AIVR marks reperfusion and is left alone. VT or VF on reflow is most common with a large anterior STEMI and a proximal occlusion.',
+            3: 'Pads on and the defibrillator connected before the wire crosses. Call out any new rhythm at once, with the arterial pressure that goes with it.',
+            4: 'During AIVR confirm that the patient is awake and perfusing. For VF: an immediate shock, then CPR and ACLS per protocol and the operator\'s orders; document shocks and times.',
+            5: 'AIVR marks reperfusion and is left alone. In APEX-AMI, VT or VF before the end of the procedure was linked to an occluded artery (TIMI 0 flow) and an inferior infarct.',
           },
           more: ['cl-comp-reperfusion-arrhythmia', 'ventricular-fibrillation', 'defibrillation'],
         },
@@ -908,7 +909,7 @@ export const STEMI: Course = {
             'When the RCA is opened, the reperfused inferior wall can fire a strong vagal reflex, the Bezold–Jarisch reflex. Within seconds the heart slows and the blood vessels relax, so the pressure falls with the rate.',
             'It usually passes within minutes. The team is ready for it in every inferior STEMI: pads on, atropine and fluid to hand, pacing within reach.',
           ],
-          look: 'An inferior STEMI after the RCA was opened: no pulsing on the heart, the ST segments in II, III and aVF settled, their T waves turned down. The rate is set to 44 a minute, as it can be right after reflow.',
+          look: 'This tracing is from after the RCA was opened: no pulsing on the heart, the ST segments in II, III and aVF settled, their T waves turned down. Its rate is set to 44 a minute to show the slowing.',
           show: { rhythm: 'inferior-stemi-reperfused', hr: 44, heart: 'territories', camera: 'Bottom', focus: 'ecg' },
           check: {
             kind: 'choice',
@@ -971,7 +972,7 @@ export const STEMI: Course = {
           roleNote: {
             2: 'Fibrinolysis in the field is given only where your EMS system\'s protocol authorizes it. Everywhere, your early 12-lead and notification are what let the hospital choose quickly.',
             4: 'Before a fibrinolytic is given, the bleeding questions are asked and documented, and the answers go to the physician who decides.',
-            5: 'With fibrinolysis the P2Y12 inhibitor is clopidogrel, and a pharmaco-invasive plan with angiography at 2 to 24 hours is standard (2025 ACS guideline).',
+            5: 'With fibrinolysis the P2Y12 inhibitor is clopidogrel (300 mg; 75 mg with no loading dose over 75 years), and a pharmaco-invasive plan with angiography at 2 to 24 hours is standard (2025 ACS guideline).',
           },
           more: ['tenecteplase', 'aortic-dissection'],
         },
@@ -981,7 +982,7 @@ export const STEMI: Course = {
             'No single person opens the artery fast. A chain does: someone recognizes the heart attack, a 12-lead is recorded and read, the alert goes out, the patient is taken to the right place, the lab is ready, and the artery is opened.',
             'The link that saves the most time for a patient at home is the first: a 12-lead in the field, transmitted, with the cath lab activated before the ambulance arrives. Each link also writes down its times as they happen, because a system can only fix the delays it can see.',
           ],
-          look: 'The artery is open and the wall has stopped pulsing. The tracing shows what the delay cost: Q waves in V1 to V3 that will not go away.',
+          look: 'The artery is open and the wall has stopped pulsing. The tracing shows what the delay cost: R waves lost in V1 to V3 that will not come back.',
           show: { heart: 'external', camera: 'Front', rhythm: 'anterior-stemi-reperfused', focus: 'heart' },
           check: {
             kind: 'choice',
@@ -1000,7 +1001,7 @@ export const STEMI: Course = {
             2: 'Your links: a 12-lead within 10 minutes of contact, STEMI recognition, activation from the field and transport straight to a PCI-capable hospital, per protocol. Report the leads involved and the time of first contact.',
             3: 'Your links: a lab that is open and set up when the patient arrives, pads on, monitoring running, and the times logged as they happen. Call out ST or rhythm changes to the operator at once.',
             4: 'Your links: receive the patient, confirm allergies and what has already been given, start monitoring, and give the antiplatelet, anticoagulant and sedation drugs as ordered. Document each time.',
-            5: 'Your links: confirm the STEMI, choose primary PCI or fibrinolysis by the timeline, open the culprit artery by radial access when feasible, and plan the other lesions: complete revascularization in stable patients, culprit only in shock.',
+            5: 'Your links: confirm the STEMI, choose primary PCI or fibrinolysis by the timeline, open the culprit artery by radial access when feasible, with ticagrelor or prasugrel as the P2Y12 inhibitor, and plan the other lesions: complete revascularization in stable patients, culprit only in shock.',
           },
           more: ['cl-stemi-system', 'stemi-activation', 'pci-stent'],
         },
@@ -1011,7 +1012,7 @@ export const STEMI: Course = {
     {
       id: 'localize-it',
       title: 'Localize it: nine tracings',
-      goal: 'Find the ST changes on an unlabeled 12-lead and name the wall and the artery behind them.',
+      goal: 'Find the ST changes on a 12-lead without the app\'s reading, and name the wall and the artery behind them.',
       minutes: 9,
       steps: [
         {
@@ -1069,7 +1070,7 @@ export const STEMI: Course = {
               'Every wall: this is pericarditis',
             ],
             answer: 0,
-            explain: 'ST elevation runs from V1 to V4 with tall T waves and lost R waves: the septum and the anterior wall, fed by the LAD. II is level and III is slightly depressed, so this is one territory with a mirror image, not a widespread pattern.',
+            explain: 'ST elevation runs from V1 to V5, highest in V2 to V4, with tall T waves and lost R waves: the septum and the anterior wall, fed by the LAD. I and aVL are lifted a little and III is slightly depressed: one territory with a mirror image, not a widespread pattern.',
           },
         },
         {
@@ -1089,7 +1090,7 @@ export const STEMI: Course = {
               'No ST elevation, so the heart can be ruled out as the cause of the pain',
             ],
             answer: 0,
-            explain: 'Every ST segment is level, the T waves are upright where they should be, and the QRS is narrow: a normal tracing. That does not clear the patient. Early in a heart attack, and with a blocked circumflex, the first 12-lead can be normal, so it is repeated every 15 to 30 minutes while symptoms continue.',
+            explain: 'Every ST segment is level, the T waves are upright where they should be, and the QRS is narrow: a normal tracing. That does not clear the patient. Early in a heart attack, and with a blocked circumflex, the first 12-lead can be normal, so it is repeated at short intervals, and compared, while symptoms continue.',
           },
         },
         {
