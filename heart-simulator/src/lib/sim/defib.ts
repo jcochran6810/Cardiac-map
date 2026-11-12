@@ -25,7 +25,8 @@ export type DefibMode = 'monitor' | 'aed' | 'manual' | 'pacer';
 export type LogKind = 'shock' | 'drug' | 'rhythm' | 'cpr' | 'info' | 'warn' | 'pacing' | 'rosc';
 export interface LogEntry { t: number; text: string; kind: LogKind }
 
-export const ENERGIES = [50, 75, 100, 120, 150, 200] as const;
+// up to 360 J: some biphasic devices go that high, and 'use the device maximum' must be something a learner can choose
+export const ENERGIES = [50, 75, 100, 120, 150, 200, 300, 360] as const;
 
 export interface DrugDef {
   id: string;
@@ -35,12 +36,12 @@ export interface DrugDef {
 }
 
 export const DRUGS: DrugDef[] = [
-  { id: 'epinephrine', label: 'Epinephrine', dose: () => '1 mg IV/IO (1 mg/10 mL), every 3–5 min', indication: 'Cardiac arrest (all rhythms)' },
-  { id: 'amiodarone', label: 'Amiodarone', dose: (s) => (pulseNow() ? '150 mg IV over 10 min' : s.amioDoses === 0 ? '300 mg IV/IO bolus' : '150 mg IV/IO bolus'), indication: 'Refractory VF/pVT; stable wide-complex tachycardia' },
-  { id: 'lidocaine', label: 'Lidocaine', dose: (s) => (s.lidoDoses === 0 ? '1–1.5 mg/kg IV/IO' : '0.5–0.75 mg/kg IV/IO'), indication: 'Alternative to amiodarone for VF/pVT' },
+  { id: 'epinephrine', label: 'Epinephrine', dose: () => '1 mg IV (IO if no IV) (1 mg/10 mL), every 3–5 min', indication: 'Cardiac arrest (all rhythms)' },
+  { id: 'amiodarone', label: 'Amiodarone', dose: (s) => (pulseNow() ? '150 mg IV over 10 min' : s.amioDoses === 0 ? '300 mg IV (or IO) bolus' : '150 mg IV (or IO) bolus'), indication: 'Refractory VF/pVT; stable wide-complex tachycardia' },
+  { id: 'lidocaine', label: 'Lidocaine', dose: (s) => (s.lidoDoses === 0 ? '1–1.5 mg/kg IV (or IO)' : '0.5–0.75 mg/kg IV (or IO)'), indication: 'Alternative to amiodarone for VF/pVT' },
   { id: 'adenosine', label: 'Adenosine', dose: (s) => (s.adenosineDoses === 0 ? '6 mg rapid IV push + 20 mL flush' : '12 mg rapid IV push + flush'), indication: 'Regular narrow-complex SVT (stable)' },
   { id: 'atropine', label: 'Atropine', dose: () => '1 mg IV every 3–5 min (max 3 mg)', indication: 'Symptomatic bradycardia' },
-  { id: 'magnesium', label: 'Magnesium sulfate', dose: () => '1–2 g IV/IO', indication: 'Torsades de pointes' },
+  { id: 'magnesium', label: 'Magnesium sulfate', dose: () => '1–2 g IV (or IO)', indication: 'Torsades de pointes' },
   { id: 'diltiazem', label: 'Diltiazem', dose: () => '15–20 mg (0.25 mg/kg) IV over 2 min', indication: 'Rate control of AF / flutter (not in HFrEF, hypotension or WPW)' },
   { id: 'calcium', label: 'Calcium chloride', dose: () => '1 g IV (10 mL of 10%)', indication: 'Hyperkalemia with ECG changes; in a hyperkalemic arrest its benefit is not well established' },
 ];
@@ -874,10 +875,19 @@ export function vitalsAt(t: number): Vitals {
   let spo2: number | null = null;
   if (pulse) spo2 = Math.round(Math.max(70, s.vitals.spo2 - (h.co < 2.5 ? 3 : 0) - (h.sbp < 70 ? 2 : 0)));
   let etco2: number;
-  const rr = pulse ? (s.vitals.rr || 12) : s.cpr.on ? 10 : 0;
+  let rr = pulse ? (s.vitals.rr || 12) : s.cpr.on ? 10 : 0;
   if (pulse) etco2 = Math.round(s.vitals.etco2 * Math.max(0.6, Math.min(1.12, Math.pow(Math.max(0.3, h.co) / 5, 0.3))));
   else if (s.cpr.on) etco2 = s.cpr.quality === 'good' ? 18 : 9;
   else etco2 = 2;
+  // A pause in a beating heart (the seconds of AV block after adenosine) is not an arrest: there is no pulse to
+  // feel or measure, but the patient goes on breathing for now and the CO2 reaching the lungs fades breath by breath
+  const prof = sim.engine.segmentAt(t).profile;
+  if (!pulse && !s.cpr.on && prof.hemo !== 'no-output' && prof.rhythm !== 'vf' && prof.rhythm !== 'asystole' && prof.rhythm !== 'torsades') {
+    const vi = sim.engine.lastVentIndex(t);
+    const since = vi >= 0 ? t - sim.engine.vent[vi].t : 0;
+    rr = s.vitals.rr || 12;
+    etco2 = Math.round(s.vitals.etco2 * Math.max(0.2, Math.exp(-since / 12000)));
+  }
   if (lastShockAgo >= 0 && lastShockAgo < 1500) spo2 = null;
   return { hr, pulse, spo2, etco2, rr, sbp: h.sbp, dbp: h.dbp, co: h.co };
 }

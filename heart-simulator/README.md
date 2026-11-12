@@ -139,7 +139,8 @@ a case study, a quiz strip, a lesson step with a different rhythm, a defibrillat
 Give-meds session (doses, pending effects, interval changes), clears the defibrillator's code record, CPR, pacing,
 charge and delayed responses, and puts swapped ECG cables back on their own electrodes. Effects on the same patient keep
 running — also while the learner visits the main menu or the course list. The quiz borrows the monitor only for its
-strip questions and hands it back afterwards; "Show the ECG" never ends a treatment or a code in progress. Opening a
+strip questions and hands it back afterwards, and so does the case simulator
+(both with the patient from before any drug was given); "Show the ECG" never ends a treatment or a code in progress. Opening a
 library section or tool also resets the speed to real time and closes the electrode lab.
 
 ## Case simulator

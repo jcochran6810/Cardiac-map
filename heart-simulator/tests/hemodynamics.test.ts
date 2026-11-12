@@ -137,11 +137,16 @@ describe('arterial pressure and cardiac output', () => {
     }
   });
 
-  it('a tachycardia too fast for the ventricle to fill is hypotensive with a narrow pulse pressure', () => {
+  it('a tachycardia too fast for the ventricle to fill leaves only a small stroke volume and a weak, narrow pulse', () => {
     const s = steady('avnrt', 240);
-    expect(s.co).toBeLessThan(3);
-    expect(s.map).toBeLessThan(80);
-    expect(s.sbp - s.dbp).toBeLessThan(10);
+    const rest = steady('avnrt', 160);
+    // under a third of a resting stroke volume, and the output falls although the rate rises
+    expect(s.sv).toBeLessThan(25);
+    expect(s.co).toBeLessThan(rest.co - 1.5);
+    expect(s.sbp - s.dbp).toBeLessThan(15);
+    // …but a healthy heart still has a pulse at 240/min (the defibrillator calls one from 10 mmHg and 15 mL)
+    expect(s.sbp - s.dbp).toBeGreaterThanOrEqual(10);
+    expect(s.sv).toBeGreaterThanOrEqual(15);
     // ventricular flutter rates: next to no stroke volume, so next to no pulse
     const vt = steady('vt', 250);
     expect(vt.map).toBeLessThan(steady('vt', 200).map - 4);

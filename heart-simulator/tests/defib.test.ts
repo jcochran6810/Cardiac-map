@@ -6,6 +6,7 @@ import type { HemoSummary } from '@/lib/physiology/hemodynamics';
 import { useAppStore } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
+import { useMedStore } from '@/store/useMedStore';
 import { frame, monitor, run } from './helpers';
 
 const rate = () => useTimelineStore.getState().heartRate;
@@ -120,6 +121,31 @@ describe('delayed responses belong to the rhythm they were aimed at', () => {
     run(4_000);
     expect(monitor()).toBe('asystole@0');
     expect(logged().some((t) => /Shock terminated/.test(t))).toBe(false);
+  });
+
+  it('the pause after adenosine is not an arrest: no pulse to feel, but the patient goes on breathing', () => {
+    // the real pressure model: the pulse must really go during the pause
+    vi.restoreAllMocks();
+    patient('avnrt', 180);
+    // 12 mg from the Give meds tab gives the longest pause (several seconds without a QRS)
+    useMedStore.getState().give('adenosine', 12);
+    // watch the monitor live, as the learner would
+    const pulseless: D.Vitals[] = [];
+    for (let k = 0; k < 250; k++) {
+      run(100);
+      const x = D.vitalsAt(sim.time);
+      if (!x.pulse) pulseless.push(x);
+    }
+    expect(pulseless.length, 'a pause long enough to lose the pulse').toBeGreaterThan(0);
+    for (const x of pulseless) {
+      expect(x.rr).toBeGreaterThan(0);
+      expect(x.etco2).toBeGreaterThan(10);
+    }
+  });
+
+  it('energies go up to the device maximum of 360 J', () => {
+    expect(D.ENERGIES.at(-1)).toBe(360);
+    expect(D.ENERGIES).toContain(200);
   });
 
   it('responses that fall due together happen in the order they were meant to', () => {

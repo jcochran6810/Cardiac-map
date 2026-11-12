@@ -174,7 +174,8 @@ function buildVent(
   let st: Vec3 | undefined;
   if (useProfile && profile.injury) st = profile.injury;
   if (tpl.st) st = st ? [st[0] + tpl.st[0], st[1] + tpl.st[1], st[2] + tpl.st[2]] : tpl.st;
-  const efficiency = kind === 'conducted' || kind === 'svt' || kind === 'junctional'
+  // (a narrow escape beat comes from the AV junction and spreads through the normal wiring: it squeezes like a conducted beat)
+  const efficiency = kind === 'conducted' || kind === 'svt' || kind === 'junctional' || (kind === 'escape' && tpl.duration < 120)
     ? (tpl.conduction === 'lbbb' ? 0.85 : 1)
     : kind === 'paced' ? 0.85 : kind === 'torsades' ? 0.15 : kind === 'vt' ? 0.6 : 0.7;
   return {
@@ -892,15 +893,20 @@ export interface CycleEvents {
 export function cycleEvents(v: VentEvent, next: VentEvent | null): CycleEvents {
   const wide = v.qrsDur > 125;
   const hr = 60000 / Math.max(250, Math.min(2400, v.rr || 833));
-  const mc = v.t + (wide ? 70 : 45);
+  // Above ~180/min a narrow-complex heart squeezes every phase a little further (0 → 1 between 180 and 250/min), so a
+  // very fast SVT still leaves a sliver of filling time and a weak pulse instead of no diastole at all. Wide, dyssynchronous
+  // beats (VT) keep their longer floors: at those rates they lose the pulse first.
+  const squeeze = wide ? 0 : Math.max(0, Math.min(1, (hr - 180) / 70));
+  const mc = v.t + (wide ? 70 : 45 - 4 * squeeze);
   // Isovolumic contraction shortens a little with rate; prolonged with dyssynchronous (wide) activation
-  const ao = mc + (wide ? 60 : Math.max(38, Math.min(55, 50 - 0.1 * (hr - 72))));
+  const ao = mc + (wide ? 60 : Math.max(38 - 5 * squeeze, Math.min(55, 50 - 0.1 * (hr - 72))));
   // LV ejection time falls with heart rate (Weissler: LVET ≈ 413 − 1.7·HR ms). At rest Q–S2 ≈ QT,
   // so S2 lands near the end of the T wave; at fast rates systole shortens to preserve diastole.
-  const lvet = Math.max(150, Math.min(340, 415 - 1.7 * hr));
+  const lvet = Math.max(150 - 15 * squeeze, Math.min(340, 415 - 1.7 * hr));
   const ac = ao + lvet;
-  const mo = ac + (v.ivrt ?? Math.max(50, Math.min(90, 80 - 0.3 * (hr - 72))));
-  const nextMc = next ? next.t + (next.qrsDur > 125 ? 70 : 45) : mo + 600;
+  const mo = ac + (v.ivrt ?? Math.max(50 - 6 * squeeze, Math.min(90, 80 - 0.3 * (hr - 72))));
+  const nextSqueeze = !next || next.qrsDur > 125 ? 0 : Math.max(0, Math.min(1, (60000 / Math.max(250, Math.min(2400, next.rr || 833)) - 180) / 70));
+  const nextMc = next ? next.t + (next.qrsDur > 125 ? 70 : 45 - 4 * nextSqueeze) : mo + 600;
   return { qrs: v.t, mc, ao, ac, mo, nextMc };
 }
 
