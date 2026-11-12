@@ -76,14 +76,23 @@ same order every time), "tap the … on the heart", or "tap a lead that …". Ro
 
 - A step only names what changes (`StepShow`): the scene carries over from the earlier steps, the pointers (ringed part,
   selected lead, camera angle) belong to their own step. Jumping to a step shows exactly what stepping there would.
-- While a check is open the app keeps its own reading to itself (**blind mode**, `useBlind` in
-  `src/store/useECGStore.ts`): the rhythm's name and interpretation, key-lead tinting, the atrial rate and intervals,
-  the pressure model's name and the activation map's pattern are hidden; a "work out the rate" check hides the
-  heart-rate numbers too.
+- While a check the rhythm's name would answer is open, the app keeps its own reading to itself (**blind mode**,
+  `useBlind` in `src/store/useECGStore.ts`; `checkHidesRhythm` in `src/lib/courses.ts` decides — naming the rhythm or
+  reading the tracing, every "tap a lead", or a check that sets `blind`): the rhythm's name and interpretation, key-lead
+  tinting, the atrial rate and intervals, the cycle box, the pressure model's name and the activation map's pattern
+  are hidden. A "tap the … on the heart" check never hides them (its hint may point at the cycle box); a "work out the
+  rate" check hides the heart-rate numbers too.
+- Every tap counts: a second tap on the same name tag, a tap on the part the step ringed, a tap on an outlined lead
+  (`selectCount` / `leadTap` in the scene and ECG stores). After two wrong tries the answer is ringed for the learner.
+  "Tap a lead" checks also offer the twelve leads as buttons (keyboard, small screens).
 - On a phone held sideways there is room for one picture beside the text: the step shows the one it points at or asks
-  about (`focusOf`).
-- A lesson is one page for the Back button; its place is kept, and finished lessons are scored by the checks answered
-  right at the first try.
+  about (`focusOf`) — or both side by side when its hint or check talks about both (`needsBoth`), with a "Show the
+  ECG too" chip otherwise. A step can set the ECG cables (`show.placement`), so reading a swapped tracing never
+  depends on a tap in an earlier step; lab steps carry the lab's swap buttons in their Look box.
+- A lesson is one page for the Back button; its place **and its answers** are kept (leaving by the close button, Back
+  or a library page), finished lessons are scored by the checks answered right at the first try, and the result card
+  lists the missed and skipped checks with a link to each. Back to a finished lesson shows its result card. The course
+  list opens on the course last worked in, with a **Continue** banner for the lesson in progress.
 - `tests/courses.test.ts` checks every step of every course: rhythms, leads and structures exist and are visible in
   the view shown, checks can be answered on every screen, paragraphs fit a phone, links lead into the library.
 
@@ -119,12 +128,14 @@ and the opening snap. Sound starts only after a tap (browsers require it) and st
 
 Every condition page has a **Give meds** section (also **Give a medication** under its title, and in the main
 menu's Tools and Try this): set the
-patient's weight, choose one of 19 drugs (antiarrhythmics and rate control, bradycardia and arrest drugs,
-electrolytes, coronary care), choose or type a dose — weight-based doses show their mg/kg — and **Push**. The
+patient's weight, choose one of 24 drugs (antiarrhythmics and rate control, bradycardia and arrest drugs,
+electrolytes and the hyperkalemia shifters, coronary care including the P2Y12 loads), choose or type a dose — weight-based doses show their mg/kg — and **Push**. The
 12-lead slides up (if it is not showing) and the drug acts on the shared clock: adenosine in AVNRT reaches the heart in
 ~12 s, blocks the AV node (P waves, no QRS) and the SVT gives way to sinus rhythm; diltiazem slows AF over
 minutes; procainamide widens the QRS and lengthens the QT as it loads; magnesium stops torsades but leaves the
-long QT; calcium narrows a hyperkalemic QRS; tenecteplase reperfuses a STEMI (AIVR, then ST resolution); 1 mg of
+long QT; calcium narrows a hyperkalemic QRS, and insulin with dextrose or high-dose albuterol then shrinks its peaked T
+waves (the asthma dose of albuterol is flagged as too small); ticagrelor, clopidogrel and prasugrel get the 2025 ACS
+verdicts (prasugrel at PCI, never after a stroke); tenecteplase reperfuses a STEMI (AIVR, then ST resolution); 1 mg of
 epinephrine IV with a pulse causes VT. Each dose and effect is marked on the strip, a bar above the ECG shows
 what is happening and when the next change comes (**Skip ahead** brings slow effects forward in drug time while
 the tracing keeps running in real time), the PR / QRS / QT readouts follow the drug, and the interpretation box
