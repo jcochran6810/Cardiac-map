@@ -299,13 +299,13 @@ export const MEDICATION_IDS = [
   // anti-ischemic
   'nitroglycerin', 'fentanyl', 'metoprolol', 'esmolol',
   // antiarrhythmics & rate control
-  'adenosine', 'diltiazem', 'amiodarone', 'procainamide', 'lidocaine', 'digoxin', 'magnesium-sulfate',
+  'adenosine', 'diltiazem', 'amiodarone', 'procainamide', 'sotalol', 'lidocaine', 'digoxin', 'magnesium-sulfate',
   // ACLS / pressors / inotropes
   'atropine', 'epinephrine', 'norepinephrine', 'vasopressin', 'phenylephrine', 'dopamine', 'dobutamine', 'milrinone',
   // heart failure & chronic
   'furosemide', 'lisinopril', 'sacubitril-valsartan', 'spironolactone', 'empagliflozin', 'atorvastatin',
   // electrolytes / other
-  'calcium-chloride', 'sodium-bicarbonate', 'colchicine',
+  'calcium-chloride', 'insulin-dextrose', 'albuterol', 'sodium-bicarbonate', 'colchicine',
 ] as const;
 
 /**
@@ -322,7 +322,7 @@ export const ECG_PROFILE_IDS = [
   'aortic-stenosis', 'mitral-regurgitation', 'mitral-stenosis',
   'pericarditis', 'tamponade', 'asd', 'vsd', 'pfo',
   'pulmonary-embolism', 'aortic-dissection', 'hyperkalemia', 'paced', 'pea', 'pvt', 'tcp',
-  'inferior-stemi-chb', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused',
+  'inferior-stemi-chb', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused', 'aivr',
 ] as const;
 
 export type StructureId = (typeof STRUCTURE_IDS)[number];

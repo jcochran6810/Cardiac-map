@@ -9,8 +9,9 @@ import { PROCEDURES_B } from './procedures-b';
 import { MEDICATIONS } from './medications';
 import { QUIZ_QUESTIONS } from './quiz';
 import { CATHLAB } from './cathlab';
+import { COURSES } from '../courses';
 
 export const STRUCTURES: Record<string, StructureContent> = { ...STRUCTURES_A, ...STRUCTURES_B };
 export const CONDITIONS: Record<string, ConditionContent> = { ...CONDITIONS_A, ...CONDITIONS_B, ...CONDITIONS_C };
 export const PROCEDURES: Record<string, ProcedureContent> = { ...PROCEDURES_A, ...PROCEDURES_B };
-export { MEDICATIONS, QUIZ_QUESTIONS, CATHLAB };
+export { MEDICATIONS, QUIZ_QUESTIONS, CATHLAB, COURSES };

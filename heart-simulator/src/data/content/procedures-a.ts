@@ -32,7 +32,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     indications: [
       'STEMI for primary PCI (FMC-to-device goal ≤ 90 min, ≤ 120 min including transfer)',
       'NSTE-ACS: immediate if unstable or refractory ischemia, early (< 24 h) if high risk',
-      'Resuscitated cardiac arrest with ST elevation or suspected ischemic cause',
+      'Resuscitated cardiac arrest: emergent with ST elevation; without ST elevation, immediate only for shock, electrical instability or ongoing ischemia (otherwise delayed)',
       'Stable angina refractory to medical therapy or high-risk noninvasive test results',
       'New unexplained LV systolic dysfunction or cardiomyopathy work-up',
       'Before valve surgery or other cardiac surgery to define coronary anatomy',
@@ -267,7 +267,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'LVEDP-guided hydration balances AKI prevention against volume overload (POSEIDON concept)',
     ],
     teaching: [
-      'Normal LVEDP ~3–12 mmHg, measured at end-diastole after the a-wave',
+      'Normal LVEDP ~5–12 mmHg, measured at end-diastole after the a-wave',
       'Cath peak-to-peak gradient differs from echo peak instantaneous gradient; mean gradients compare best',
       'Severe AS: mean gradient ≥ 40 mmHg and AVA ≤ 1.0 cm²',
       'HCM (Brockenbrough sign): after a PVC, LVOT gradient rises while aortic pulse pressure falls',
@@ -543,7 +543,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Thresholds: FFR ≤ 0.80 and iFR/RFR ≤ 0.89 are significant',
       'FAME: FFR-guided multivessel PCI reduced the composite of death, MI and repeat revascularization vs angiography guidance',
       'DEFER and FAME 2: deferring FFR-negative lesions is safe; PCI of FFR-positive lesions reduces urgent revascularization',
-      'DEFINE-FLAIR and iFR-SWEDEHEART: iFR noninferior to FFR at 1 year with fewer symptoms',
+      'DEFINE-FLAIR and iFR-SWEDEHEART: iFR noninferior to FFR at 1 year with fewer procedural symptoms (no adenosine)',
       'Longer-term follow-up has raised some questions about iFR; FFR remains the most validated index',
       'Pitfalls: guide damping, wire drift, inadequate hyperemia, serial lesions, severe AS, STEMI culprit',
     ],
@@ -1082,7 +1082,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     overview: [
       'Counterpulsation: diastolic inflation augments aortic diastolic pressure and coronary perfusion',
       'Systolic deflation lowers aortic end-diastolic pressure, reducing afterload and LV work',
-      'Helium is used: low density allows rapid shuttling and it dissolves quickly if the balloon ruptures',
+      'Helium is used: low density allows rapid shuttling, but it is poorly soluble in blood, so balloon rupture risks gas embolism',
       'Augments cardiac output only modestly (~0.5–1 L/min) and relies on some native LV function',
       'Usually placed percutaneously via femoral artery; axillary insertion allows mobilization in long bridges',
       'Triggered most often by the ECG R wave, or by the arterial pressure waveform',
@@ -1224,7 +1224,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     ],
     indications: [
       'AMI-related cardiogenic shock with LV-predominant failure, within a shock-team approach',
-      'High-risk PCI (left main, last remaining vessel, severe LV dysfunction); evidence for routine use is limited',
+      'High-risk PCI (left main, last remaining vessel, severe LV dysfunction); routine use did not improve outcomes in a randomized trial (CHIP-BCIS3)',
       'Bridge to recovery, decision, durable LVAD or transplant',
       'LV unloading during VA-ECMO',
       'Right ventricular failure after MI, LVAD or transplant (right-sided device)',
@@ -1323,7 +1323,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'LV thrombus is a contraindication: the inlet can aspirate and embolize thrombus',
       'RV failure limits left-sided pump output, so watch CVP and PAPi and consider RV support',
       'Bleeding, limb ischemia and hemolysis are the most common serious complications',
-      'DanGer Shock showed mortality benefit in selected STEMI shock; earlier observational data were mixed',
+      'DanGer Shock showed mortality benefit in selected STEMI shock (now Class 2a, 2025 ACC/AHA); earlier observational data were mixed',
       'Shock-team protocols (early recognition, invasive hemodynamics, timely MCS) matter as much as the device',
     ],
     targetStructures: [
@@ -1565,7 +1565,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Junctional rhythm during slow pathway ablation is expected; fast junctional rhythm or VA block → stop (AV block risk)',
       'Delta wave disappears when an accessory pathway is successfully ablated',
       'Post-flutter ablation ECG should show no flutter waves; block is confirmed by pacing',
-      'Early AF recurrence in the first ~3 months (blanking period) does not define failure',
+      'Early AF recurrence in the blanking period (first 8 weeks per the 2024 consensus; formerly 3 months) does not define failure',
       'Inferior ST elevation during left atrial ablation suggests air embolism to the RCA',
       'Vagal responses (bradycardia, asystole, hypotension) during PV or ganglionated plexus ablation; coronary spasm can occur with pulsed field near arteries',
     ],
@@ -1586,12 +1586,12 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Atrioesophageal fistula (rare, often fatal, 1–6 weeks after thermal ablation); hemolysis with extensive pulsed field ablation',
     ],
     postCare: [
-      'Continue oral anticoagulation for at least ~2–3 months after AF ablation',
+      'Continue oral anticoagulation for at least 3 months after AF ablation (2023 ACC/AHA)',
       'Long-term anticoagulation follows stroke risk (CHA2DS2-VASc), not apparent rhythm success',
       'PPI is often given for several weeks after AF ablation for esophageal protection',
       'Many patients are discharged the same day after observation and groin checks',
       'Teach red flags: fever, chest pain, dysphagia, neurologic symptoms, hematemesis',
-      'Rhythm monitoring (ECG, Holter, device) after the ~3-month blanking period',
+      'Rhythm monitoring (ECG, Holter, device) after the blanking period (8 weeks; formerly 3 months)',
     ],
     teaching: [
       'Targets: slow pathway (AVNRT), accessory pathway (WPW/AVRT), CTI line (typical flutter), PVI (AF), scar isthmus (VT)',
@@ -2156,7 +2156,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'CRT works only with near-continuous biventricular pacing, so rapid AF or frequent PVCs can cause loss of CRT and decompensation. Treat pulmonary edema with CPAP and nitroglycerin per protocol, manage arrhythmias per ACLS, and report the device type.',
       'Prepare CS delivery sheaths, subselectors, balloon venography catheter and contrast, 0.014-inch wires, the LV lead and slitters. Record LV thresholds, impedance and high-output phrenic tests, and alert the operator to hypotension, CS contrast staining or loss of LV capture during sheath removal.',
       'These patients have little reserve: monitor SpO2, fluid and contrast load and tolerance of lying flat, giving diuretics or sedation as ordered. After implant, check the pocket and breathing, record the ordered 12-lead to confirm BiV capture, and teach daily weights and medication adherence.',
-      'Class 1: LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms, NYHA II–ambulatory IV on GDMT; weaker for non-LBBB or QRS 120–149 ms; not for QRS < 130 ms. Target a lateral/posterolateral vein, avoid phrenic capture, aim for ≥ ~98% BiV pacing, and consider LBBAP if CS fails.',
+      'Class 1: LVEF ≤ 35%, sinus rhythm, LBBB with QRS ≥ 150 ms, NYHA II–ambulatory IV on GDMT; weaker for non-LBBB or QRS 120–149 ms; not for QRS < 120 ms. Target a lateral/posterolateral vein, avoid phrenic capture, aim for ≥ ~98% BiV pacing, and consider LBBAP if CS fails.',
     ],
     overview: [
       'Leads in the RA, RV and LV (via a coronary sinus branch to the lateral LV wall)',
@@ -2174,7 +2174,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Pacing-induced cardiomyopathy (upgrade from RV pacing)',
     ],
     contraindications: [
-      'Narrow QRS (< 130 ms) without a pacing indication; CRT may harm (EchoCRT)',
+      'Narrow QRS (< 120 ms) without a pacing indication: no benefit, and harm in EchoCRT (QRS < 130 ms)',
       'NYHA I–II with non-LBBB and QRS < 150 ms (no benefit)',
       'Life expectancy < 1 year from noncardiac causes',
       'Active infection',
@@ -2265,7 +2265,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
     ],
     teaching: [
       'Benefit is greatest with LBBB, QRS ≥ 150 ms, female sex and nonischemic cardiomyopathy',
-      'CRT harms patients with narrow QRS (< 130 ms); echo dyssynchrony alone is not an indication',
+      'CRT is not for a narrow QRS (< 120 ms; EchoCRT showed harm at < 130 ms); echo dyssynchrony alone is not an indication',
       'Response is often defined as ≥ 15% reduction in LV end-systolic volume or symptomatic improvement',
       'Aim for ~100% BiV pacing; small losses reduce benefit',
       'Conduction system pacing (LBBAP) is an emerging alternative or complement to BiV CRT',

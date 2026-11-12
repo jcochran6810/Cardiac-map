@@ -1,0 +1,401 @@
+'use client';
+
+/**
+ * Guided courses: finding lessons, working out what a step shows, and putting that on screen
+ * (the 3D heart, the rhythm, the 12-lead / pressure curves / monitor) through the same stores the
+ * rest of the app uses.
+ */
+import type { Course, Lesson, LessonStep, StepShow } from '@/types/course';
+import { useAppStore, type LearningLevel, type ViewMode } from '@/store/useAppStore';
+import { LANDMARK_BY_ID, SURFACE_REGIONS } from '@/lib/anatomy/landmarks';
+import { useECGStore } from '@/store/useECGStore';
+import { CAMERA_PRESETS, useSceneStore } from '@/store/useSceneStore';
+import { useTimelineStore } from '@/store/useTimelineStore';
+import { useConditionStore } from '@/store/useConditionStore';
+import { useCaseStore } from '@/store/useCaseStore';
+import { useMedStore } from '@/store/useMedStore';
+import { lessonKey, useCourseStore, type LessonProgress } from '@/store/useCourseStore';
+import { leaveSimulator } from '@/store/useSimStore';
+import { loadContent, useContentStore } from '@/lib/content';
+import { resolveProfile } from '@/lib/ecg/profiles';
+import { showRhythm } from '@/lib/rhythm';
+import { cleanSlate } from '@/lib/actions';
+import { applyPlacement } from '@/lib/ecg/placement';
+import { PLACEMENT_PRESETS, STANDARD_PLACEMENT, applyPreset } from '@/lib/ecg/electrodes';
+
+// ─── Finding things ────────────────────────────────────────────────────────
+
+const courses = (): Course[] => useContentStore.getState().lib?.courses ?? [];
+
+export function findCourse(courseId: string, list: Course[] = courses()): Course | null {
+  return list.find((c) => c.id === courseId) ?? null;
+}
+
+export function findLesson(courseId: string, lessonId: string, list: Course[] = courses()): { course: Course; lesson: Lesson; index: number } | null {
+  const course = findCourse(courseId, list);
+  const index = course ? course.lessons.findIndex((l) => l.id === lessonId) : -1;
+  return course && index >= 0 ? { course, lesson: course.lessons[index], index } : null;
+}
+
+/** Courses written for this role first, then the rest (each group in catalogue order) */
+export function coursesFor(role: LearningLevel, list: Course[]): Course[] {
+  return [...list.filter((c) => c.roles.includes(role)), ...list.filter((c) => !c.roles.includes(role))];
+}
+
+export function courseProgress(course: Course, progress: Record<string, LessonProgress>): { done: number; total: number; minutesLeft: number } {
+  let done = 0;
+  let minutesLeft = 0;
+  for (const l of course.lessons) {
+    if (progress[lessonKey(course.id, l.id)]?.done) done++;
+    else minutesLeft += l.minutes;
+  }
+  return { done, total: course.lessons.length, minutesLeft };
+}
+
+/** The first lesson of the course that is not finished yet (null when all are) */
+export function nextLesson(course: Course, progress: Record<string, LessonProgress>): Lesson | null {
+  return course.lessons.find((l) => !progress[lessonKey(course.id, l.id)]?.done) ?? null;
+}
+
+/** A run of the lesson is under way: it is not finished yet, or it is a new run of a finished lesson */
+export const runUnderWay = (p: LessonProgress | undefined): p is LessonProgress => !!p && (!p.done || !!p.rerun);
+
+/**
+ * The lesson the learner opened most recently and has not finished (a new run of a finished lesson included):
+ * offered as "continue" on the main menu
+ */
+export function lessonInProgress(list: Course[], progress: Record<string, LessonProgress>): { course: Course; lesson: Lesson; step: number } | null {
+  let best: { course: Course; lesson: Lesson; step: number; at: number } | null = null;
+  for (const course of list) {
+    for (const lesson of course.lessons) {
+      const p = progress[lessonKey(course.id, lesson.id)];
+      if (p && runUnderWay(p) && p.step > 0 && p.step < lesson.steps.length && (!best || p.at > best.at)) best = { course, lesson, step: p.step, at: p.at };
+    }
+  }
+  return best;
+}
+
+export const checksIn = (lesson: Lesson) => lesson.steps.filter((s) => s.check).length;
+
+// the names in the library that stay capitalized mid-sentence (Bachmann's bundle, the bundle of His, Purkinje fibers)
+const PROPER = /^\(?(Bachmann|His|Purkinje)\b/;
+
+/** A structure's Title Case name as it reads in the middle of a sentence: "right atrium", "Bachmann's bundle", "AV node" */
+export function midSentence(name: string): string {
+  return name
+    .split(' ')
+    // a capitalized word is lower-cased; an abbreviation (AV, LAD, mLAD) and a person's name are kept
+    .map((w) => (!PROPER.test(w) && /^\(?[A-Z][a-z'’-]*\)?[,.]?$/.test(w) ? w.toLowerCase() : w))
+    .join(' ');
+}
+
+/**
+ * The wrong-tap feedback for a structure: "That is the right atrium" / "Those are the pulmonary veins" — and no "the"
+ * before a possessive name ("That is Bachmann's bundle")
+ */
+export function thatIs(name: string): string {
+  const plural = /(s|ae)$/.test(name) && !/(us|is|ss)$/.test(name);
+  const the = /^[A-Z][a-z]+['’]s\b/.test(name) ? '' : 'the ';
+  return `${plural ? 'Those are' : 'That is'} ${the}${midSentence(name)}`;
+}
+
+/**
+ * The order a multiple-choice check shows its options in: shuffled, but always the same way for the same
+ * question (so going back to a step does not reshuffle it). Returns indexes into the options as written.
+ */
+export function optionOrder(question: string, count: number, fixed = false): number[] {
+  const order = Array.from({ length: count }, (_, i) => i);
+  if (fixed) return order;
+  // a string hash (FNV-1a) seeds a small generator (mulberry32) for a Fisher–Yates shuffle
+  let seed = 2166136261;
+  for (let i = 0; i < question.length; i++) seed = Math.imul(seed ^ question.charCodeAt(i), 16777619) >>> 0;
+  const next = () => {
+    seed = (seed + 0x6d2b79f5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = count - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
+// ─── What a step shows ─────────────────────────────────────────────────────
+
+const SCENE_KEYS = ['rhythm', 'hr', 'heart', 'ecg', 'layout', 'flow', 'labels', 'vector', 'speed', 'placement'] as const;
+
+/**
+ * Everything on screen at a step: the scene carried over from the earlier steps of the lesson, plus this
+ * step's own pointers. Jumping straight to a step (resuming, going back) therefore shows exactly what
+ * stepping through would have.
+ */
+export function effectiveShow(steps: LessonStep[], index: number): StepShow {
+  const scene: StepShow = {};
+  for (let i = 0; i <= index && i < steps.length; i++) {
+    const s = steps[i].show;
+    if (!s) continue;
+    // a new rhythm starts at its own usual rate unless the step gives one
+    if (s.rhythm !== undefined && s.hr === undefined) delete scene.hr;
+    for (const k of SCENE_KEYS) if (s[k] !== undefined) (scene as Record<string, unknown>)[k] = s[k];
+  }
+  const own = steps[index]?.show ?? {};
+  const focus = focusOf(steps[index]);
+  return {
+    ...scene, structure: own.structure, highlight: own.highlight, camera: own.camera, lead: own.lead, inspect: own.inspect, focus,
+    // a "tap the …" check never shares a phone on its side: the heart needs all the room for its name tags
+    both: steps[index]?.check?.kind === 'tap' ? false : own.both ?? needsBoth(steps[index], focus),
+  };
+}
+
+// what a look hint or a check says about the picture on screen: the tracing (or the pressure & volume panel's chart
+// and loop), or the 3D heart (its cycle box — "the box", the S1 / S2 chips — included)
+const ECG_REF = /\b(12-lead|ECG|EKG|tracing|strip|monitor|enlarged lead|calipers?|brackets?|leads? (I|II|III|aV[RLF]|V[1-6])|lead's|QRS|P waves?|T waves?|ST segment|loop|pressure & volume|pressure trace|atrial trace)\b/i;
+const HEART_REF = /(3D heart|name tags?|\btags?\b|ringed|cycle box|cardiac cycle box|on the heart|the heart (turns|beats|shows|squeezes)|lit up|highlighted|Phase box|\b(the|cycle|phase|status) box\b|\bS[12]\b)/i;
+
+/**
+ * A phone on its side has room for one picture beside the text. When the step's look hint or check talks about the
+ * other one too (the heart's cycle box during an ECG step, a bracket on the enlarged lead during a heart step), both
+ * are shown side by side rather than leaving the learner to find a picture that is not there.
+ *
+ * Never for a "tap the …" check: side by side the 3D heart is too narrow for its name tags and controls, so it gets
+ * the room on its own and the step offers the other picture (LessonPlayer's "Show the … too").
+ */
+function needsBoth(step: LessonStep | undefined, focus: StepShow['focus']): boolean {
+  if (!step) return false;
+  const said = `${step.look ?? ''} ${step.check?.question ?? ''}`;
+  const tracing = ECG_REF.test(said);
+  const heart = HEART_REF.test(said);
+  return (focus ?? 'ecg') === 'ecg' ? heart : tracing;
+}
+
+// a question the rhythm's own name would answer: name the rhythm, the block, the reading of a tracing, the injured wall
+// or the blocked (culprit) artery — a name such as "Lateral STEMI — LCx or diagonal occlusion" says both
+// ("which wall", "which coronary artery" — but not "by what time is the artery open")
+const NAMES_IT = /\b(what|which)\b[^.?]*\b(rhythm|block(ed)?|tracing|strip|12-lead|axis|condition|pattern|culprit)\b|\b(what|which) (\w+ )?(wall|artery)\b|\bname (the|this)\b|best reading|soundest conclusion|what does (it|this) [^.?]*show|what is driving/i;
+
+/**
+ * While this step's check is open, must the app hide the rhythm's name — on the monitor, the rhythm chip, the cycle
+ * box and the pressure model? Only when the name would answer it: a check that asks to name the rhythm or read the
+ * tracing, a "tap a lead" check (a name such as "Inferior STEMI" gives the leads away), or a check whose answer
+ * contains the name. Never a "tap the …" check on the heart: its look hints often send the learner to the cycle box.
+ */
+export function checkHidesRhythm(step: LessonStep | undefined, rhythm: string | undefined): boolean {
+  const c = step?.check;
+  if (!c) return false;
+  if (c.kind === 'tap') return false;
+  if (c.blind !== undefined) return c.blind;
+  if (c.kind === 'lead') return true;
+  if (NAMES_IT.test(c.question)) return true;
+  const p = resolveProfile(rhythm ?? 'normal-sinus');
+  const name = p.name.split(' (')[0].toLowerCase();
+  return name.length > 3 && c.options[c.answer].toLowerCase().includes(name);
+}
+
+/**
+ * The one picture a step needs when there is room for only one (a phone on its side): what the step says, or else
+ * the picture it points at — the heart for a "tap the …" check, a ringed or highlighted part or a camera angle; the
+ * tracing for a "tap a lead" check or a selected / enlarged lead. Otherwise undefined (the tracing, see drawersFor).
+ */
+export function focusOf(step: LessonStep | undefined): StepShow['focus'] {
+  const own = step?.show ?? {};
+  if (own.focus) return own.focus;
+  if (step?.check?.kind === 'tap') return 'heart';
+  if (step?.check?.kind === 'lead') return 'ecg';
+  if (own.lead || own.inspect) return 'ecg';
+  if (own.structure || own.highlight?.length || own.camera) return 'heart';
+  return undefined;
+}
+
+/** Which drawers a step opens on this screen (a phone on its side has room for one picture beside the text) */
+export function drawersFor(show: StepShow, short: boolean): { heart: boolean; ecg: boolean } {
+  let heart = !!show.heart;
+  let ecg = !!show.ecg;
+  if (!heart && !ecg) heart = true;
+  if (short && heart && ecg && !show.both) {
+    if ((show.focus ?? 'ecg') === 'ecg') heart = false;
+    else ecg = false;
+  }
+  return { heart, ecg };
+}
+
+/** Can this structure be picked by tapping the heart itself in this view (rather than only its name tag)? */
+export function pickableOnHeart(view: ViewMode, id: string): boolean {
+  if (view === 'sectioned') return !!LANDMARK_BY_ID[id]?.section;
+  if (view === 'external' || view === 'territories' || view === 'activation') return SURFACE_REGIONS.some((r) => r.id === id);
+  // the see-through views pick by name tag only
+  return false;
+}
+
+/** the rhythm last put on the monitor by a lesson, so a step that keeps it does not restart the tracing */
+let shownRhythm = '';
+
+/** true while a step is being laid out: what it selects on the heart or the 12-lead is the lesson pointing, not the learner tapping */
+let applying = false;
+export const isApplyingStep = () => applying;
+
+function applyShow(show: StepShow, relayout: boolean) {
+  applying = true;
+  try {
+    layOut(show, relayout);
+  } finally {
+    applying = false;
+  }
+}
+
+function layOut(show: StepShow, relayout: boolean) {
+  const app = useAppStore.getState();
+  const ecg = useECGStore.getState();
+  const scene = useSceneStore.getState();
+  const tl = useTimelineStore.getState();
+
+  // rhythm
+  const profile = resolveProfile(show.rhythm ?? 'normal-sinus');
+  const key = `${profile.id}|${show.hr ?? ''}`;
+  // Showing a rhythm starts a new patient (no CPR, no code record, standard cables). A new step shows its own
+  // rhythm afresh; laying the same step out again for a new screen shape (the phone turned) leaves alone what the
+  // learner has done to the patient since — a shock that converted VF, CPR running.
+  if (key !== shownRhythm || (!relayout && ecg.activeProfileId !== profile.id)) {
+    showRhythm(profile.id, show.hr);
+    shownRhythm = key;
+  }
+  tl.setSpeed(show.speed ?? 1);
+  if (!tl.playing) tl.play();
+  // the cables: a step that reads a swapped tracing sets the swap itself (after the rhythm: a new patient is wired
+  // up correctly). Laid out again for a new screen shape, the cables stay as the learner left them.
+  if (show.placement && !relayout) {
+    const preset = PLACEMENT_PRESETS.find((p) => p.id === show.placement);
+    const want = preset ? applyPreset(preset) : STANDARD_PLACEMENT;
+    const now = useECGStore.getState();
+    if (now.placementHidden || JSON.stringify(now.placement) !== JSON.stringify(want)) applyPlacement(want);
+  }
+
+  // drawers: beside the text they take the whole height; stacked above and below it they share the screen with it
+  const side = !app.compact || app.short;
+  const open = drawersFor(show, app.short);
+  app.setHeart(open.heart ? (side ? 'full' : 'open') : 'closed');
+  app.setEcg(open.ecg ? (side ? 'full' : 'open') : 'closed');
+
+  // 3D heart
+  const view = show.heart || 'external';
+  if (app.viewMode !== view) app.setViewMode(view);
+  if (app.showFlow !== (show.flow ?? true)) app.toggleFlow();
+  if (app.labelsVisible !== (show.labels ?? true)) app.toggleLabels();
+  if (app.showVector !== (show.vector ?? false)) app.toggleVector();
+  if (app.autoRotate) app.toggleAutoRotate();
+  scene.setHighlights(show.highlight ?? []);
+  const preset = show.camera ? CAMERA_PRESETS.find((p) => p.short === show.camera) : null;
+  // ringing a part normally flies the camera to it; a step that names its own camera angle keeps that angle
+  scene.selectStructure(show.structure ?? null, !preset);
+  if (preset) scene.setCameraPreset(preset);
+
+  // bottom panel
+  if (show.ecg) ecg.setBottomView(show.ecg === 'lab' ? 'ecg' : show.ecg);
+  if (ecg.electrodeLab !== (show.ecg === 'lab')) ecg.setElectrodeLab(show.ecg === 'lab');
+  const layout = show.layout ?? 'simultaneous';
+  if (ecg.layout !== layout) ecg.setLayout(layout);
+  if (ecg.caliperMode) ecg.toggleCalipers();
+  if (ecg.selectedLead !== (show.lead ?? null)) useECGStore.setState({ selectedLead: show.lead ?? null });
+  if (ecg.inspectLead !== (show.inspect ?? null)) ecg.setInspectLead(show.inspect ?? null);
+}
+
+/** Put the active step on screen (again): after a step change or a resume, or (`relayout`) a change of screen shape */
+export function applyStep(relayout = false) {
+  const a = useCourseStore.getState().active;
+  if (!a) return;
+  const found = findLesson(a.course, a.lesson);
+  if (!found) return;
+  applyShow(effectiveShow(found.lesson.steps, Math.min(a.step, found.lesson.steps.length - 1)), relayout);
+}
+
+// ─── Taking a lesson ───────────────────────────────────────────────────────
+
+/** Start (or resume) a lesson: it takes over the learning screen until it is finished or left */
+export function startLesson(courseId: string, lessonId: string, fromStep?: number) {
+  const found = findLesson(courseId, lessonId);
+  if (!found) {
+    // the library has not arrived yet (a reload straight into a lesson): try again once it has
+    if (!useContentStore.getState().lib) void loadContent().then(() => { if (findLesson(courseId, lessonId)) startLesson(courseId, lessonId, fromStep); });
+    return;
+  }
+  const app = useAppStore.getState();
+  if (app.mode === 'simulator') leaveSimulator();
+  // a fresh patient and a clean screen: nothing left over from the library or the tools
+  useMedStore.getState().reset(null);
+  useConditionStore.getState().selectCondition(null);
+  useCaseStore.getState().resetCase();
+  // standard cables, the 12-lead in the bottom panel, real time: whatever the learner left the tools in
+  cleanSlate();
+  const n = found.lesson.steps.length;
+  const saved = useCourseStore.getState().progress[lessonKey(courseId, lessonId)];
+  // Opened without saying where (Back to it, the menu's "continue"): a run under way — an unfinished lesson, or a new
+  // run of a finished one — resumes at its step with its answers; a finished one shows its result card. A given step
+  // (0: from the top) starts a new run.
+  const going = runUnderWay(saved);
+  const result = fromStep === undefined && !!saved?.done && !going;
+  const resume = saved && going && saved.step < n ? saved.step : 0;
+  const step = result ? n - 1 : Math.max(0, Math.min(n - 1, fromStep ?? resume));
+  shownRhythm = '';
+  useCourseStore.getState().begin(courseId, lessonId, step, { fresh: fromStep === 0, finished: result });
+  app.setMode('learn');
+  applyStep();
+}
+
+/**
+ * A lesson picked from a list (the course list, search): a finished lesson starts again from the top; a run under way
+ * — a new run of a finished lesson included — resumes where it was left.
+ */
+export function openLesson(courseId: string, lessonId: string) {
+  const saved = useCourseStore.getState().progress[lessonKey(courseId, lessonId)];
+  startLesson(courseId, lessonId, saved?.done && !runUnderWay(saved) ? 0 : undefined);
+}
+
+export function gotoStep(index: number) {
+  const a = useCourseStore.getState().active;
+  if (!a) return;
+  const found = findLesson(a.course, a.lesson);
+  if (!found) return;
+  useCourseStore.getState().setStep(Math.max(0, Math.min(found.lesson.steps.length - 1, index)));
+  applyStep();
+}
+
+/** The last step is done: record the result and show the lesson's summary card */
+export function finishLesson() {
+  const a = useCourseStore.getState().active;
+  if (!a) return;
+  const found = findLesson(a.course, a.lesson);
+  if (found) useCourseStore.getState().finish(checksIn(found.lesson));
+}
+
+/** Hand the screen back as the rest of the app expects it: normal sinus rhythm in real time, both drawers away */
+export function tidy() {
+  const app = useAppStore.getState();
+  const ecg = useECGStore.getState();
+  const scene = useSceneStore.getState();
+  useTimelineStore.getState().setSpeed(1);
+  showRhythm('normal-sinus');
+  shownRhythm = '';
+  if (ecg.electrodeLab) ecg.setElectrodeLab(false);
+  ecg.setBottomView('ecg');
+  ecg.setLayout('simultaneous');
+  ecg.setInspectLead(null);
+  useECGStore.setState({ selectedLead: null });
+  scene.setHighlights([]);
+  scene.selectStructure(null);
+  if (app.viewMode !== 'external') app.setViewMode('external');
+  if (!app.labelsVisible) app.toggleLabels();
+  if (!app.showFlow) app.toggleFlow();
+  if (app.showVector) app.toggleVector();
+  app.setHeart('closed');
+  app.setEcg('closed');
+}
+
+/** Leave the lesson. `to`: where to go — the course list (the default), or nowhere (the caller navigates next) */
+export function exitLesson(to: 'courses' | 'stay' = 'courses') {
+  if (!useCourseStore.getState().active) return;
+  useCourseStore.getState().end();
+  tidy();
+  if (to === 'courses') useAppStore.getState().setMode('courses');
+}

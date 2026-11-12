@@ -2,7 +2,7 @@
 
 /**
  * The phone's (or browser's) Back button moves through CardioSim's own pages instead of leaving the
- * app. Each page — the screen (main menu / Learn / Simulator), the library section and the item
+ * app. Each page — the screen (main menu / Courses / Learn / Simulator), a lesson, the library section and the item
  * being read, the list page on small screens, the 3D heart and ECG drawers, the electrode lab, the
  * quiz / tutor / help / feedback form / admin panel, and the simulator's case list → case → action
  * list → review — is one browser history entry.
@@ -28,8 +28,16 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useCathLabStore } from '@/store/useCathLabStore';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { openById } from '@/lib/actions';
+import { lessonKey, useCourseStore } from '@/store/useCourseStore';
+import { exitLesson, startLesson } from '@/lib/courses';
+import { useDrillStore } from '@/store/useDrillStore';
+import { closeTrainer, showTrainerPage } from '@/lib/drillRun';
+import { closeWelcome, useWelcomeStore } from '@/lib/welcome';
 
-export type Overlay = 'quiz' | 'tutor' | 'help' | 'feedback' | 'admin' | null;
+/** the rhythm trainer's page (in `Page.lesson`) */
+export const TRAINER_PAGE = 'tool/rhythm-trainer';
+
+export type Overlay = 'quiz' | 'tutor' | 'help' | 'glossary' | 'feedback' | 'admin' | null;
 export type SimPage = 'list' | 'case' | 'actions' | 'review';
 
 export interface Page {
@@ -37,6 +45,11 @@ export interface Page {
   /** Learn: the library section, and the item being read */
   cat: PanelCategory | null;
   item: string | null;
+  /**
+   * Learn: the section of the item's page that was open (Overview, Give meds, Dosing …). Changing section is not
+   * a page of its own, but Back returns to the section the learner left the item on.
+   */
+  tab?: string;
   /** Learn on tablets and phones: the section's list rather than the reading */
   list: boolean;
   /** Learn: the 3D heart (top) and ECG (bottom) drawers */
@@ -48,6 +61,13 @@ export interface Page {
   /** Simulator: which view, and which run of a case it belongs to */
   sim: SimPage;
   run: number;
+  /**
+   * Learn: the activity that has the screen — a guided lesson ("course/lesson") or the rhythm trainer
+   * (TRAINER_PAGE). Its steps and questions are not pages of their own.
+   */
+  lesson: string | null;
+  /** Rhythm trainer: the set in play (null: the list of sets). Each set is a page; its tracings are not */
+  drill?: string | null;
 }
 
 interface Entry { cardiosim: number; page: Page }
@@ -81,32 +101,55 @@ function clearItem() {
   }
 }
 
+/** What is open over the screen — Help, the Glossary, the quiz, the tutor, the feedback form, the admin panel — if anything */
+export const currentOverlay = (): Overlay => currentPage().overlay;
+
+/** Calls `fn` each time an overlay opens (or another takes its place); returns the clean-up */
+export function onOverlayOpen(fn: (overlay: Exclude<Overlay, null>) => void): () => void {
+  let was = currentOverlay();
+  const check = () => {
+    const now = currentOverlay();
+    if (now !== was && now) fn(now);
+    was = now;
+  };
+  const stops = [useAppStore, useTutorStore, useFeedbackStore].map((st) => st.subscribe(check));
+  return () => stops.forEach((stop) => stop());
+}
+
 export function currentPage(): Page {
   const app = useAppStore.getState();
   const sim = useSimStore.getState();
   const ecg = useECGStore.getState();
   const fb = useFeedbackStore.getState();
-  const learn = app.mode === 'learn';
+  const course = useCourseStore.getState().active;
+  // a lesson is one page however many steps it has and whatever each step shows; so is each rhythm trainer
+  // page (the list of sets, a set in play) however many tracings it shows
+  const lesson = app.mode !== 'learn' ? null : course ? lessonKey(course.course, course.lesson) : useDrillStore.getState().open ? TRAINER_PAGE : null;
+  const learn = app.mode === 'learn' && !lesson;
   const s = sim.state;
   const simPage: SimPage = !s ? 'list' : s.ended && sim.reviewOpen ? 'review' : sim.sheetOpen && !s.ended ? 'actions' : 'case';
   return {
     mode: app.mode,
     cat: learn ? app.activePanelCategory : null,
     item: learn ? currentItem() : null,
+    tab: learn && currentItem() ? app.rightPanelTab : undefined,
     list: learn && app.compact && app.listOpen,
     heart: learn ? app.heart : 'closed',
     ecg: learn ? app.ecg : 'closed',
     lab: learn && ecg.electrodeLab && ecg.bottomView === 'ecg',
-    overlay: app.helpOpen ? 'help' : app.quizOpen ? 'quiz' : useTutorStore.getState().tutorOpen ? 'tutor'
+    overlay: app.helpOpen ? 'help' : app.glossaryOpen ? 'glossary' : app.quizOpen ? 'quiz' : useTutorStore.getState().tutorOpen ? 'tutor'
       : fb.formOpen ? 'feedback' : fb.adminOpen ? 'admin' : null,
     sim: app.mode === 'simulator' ? simPage : 'list',
     run: app.mode === 'simulator' && s ? sim.run : 0,
+    lesson,
+    drill: lesson === TRAINER_PAGE ? useDrillStore.getState().setId : null,
   };
 }
 
 const same = (a: Page | undefined, b: Page | undefined) =>
   !!a && !!b && a.mode === b.mode && a.cat === b.cat && a.item === b.item && a.list === b.list
-  && a.heart === b.heart && a.ecg === b.ecg && a.lab === b.lab && a.overlay === b.overlay && a.sim === b.sim && a.run === b.run;
+  && a.heart === b.heart && a.ecg === b.ecg && a.lab === b.lab && a.overlay === b.overlay && a.sim === b.sim && a.run === b.run
+  && (a.lesson ?? null) === (b.lesson ?? null) && (a.drill ?? null) === (b.drill ?? null);
 
 /** A simulator page can only come back while its case is still the one loaded */
 function restorable(page: Page): boolean {
@@ -123,17 +166,30 @@ function apply(page: Page, from: Page) {
   // hand the monitor back before an item loads its own ECG
   if (from.mode === 'simulator' && page.mode !== 'simulator') leaveSimulator();
   app.setHelpOpen(page.overlay === 'help');
+  if (app.glossaryOpen !== (page.overlay === 'glossary')) app.setGlossaryOpen(page.overlay === 'glossary', app.glossaryTerm);
   app.setQuizOpen(page.overlay === 'quiz');
   useTutorStore.getState().setTutorOpen(page.overlay === 'tutor');
   useFeedbackStore.getState().setFormOpen(page.overlay === 'feedback');
   useFeedbackStore.getState().setAdminOpen(page.overlay === 'admin');
-  if (page.mode === 'learn') {
+  // leaving a lesson (its place is kept) or the trainer puts the screen back the way the library expects it
+  if (useCourseStore.getState().active && (!page.lesson || page.lesson === TRAINER_PAGE)) exitLesson('stay');
+  if (useDrillStore.getState().open && page.lesson !== TRAINER_PAGE) closeTrainer('stay');
+  if (page.lesson === TRAINER_PAGE) {
+    // the list of sets, or the set that was in play (as it was left)
+    showTrainerPage(page.drill ?? null);
+  } else if (page.lesson) {
+    const [courseId, lessonId] = page.lesson.split('/');
+    const now = useCourseStore.getState().active;
+    if (!now || lessonKey(now.course, now.lesson) !== page.lesson) startLesson(courseId, lessonId);
+    else app.setMode('learn');
+  } else if (page.mode === 'learn') {
     app.setMode('learn');
     if (page.cat && app.activePanelCategory !== page.cat) app.setActivePanelCategory(page.cat);
     if (page.item !== currentItem()) {
       if (page.item) openById(page.item);
       else clearItem();
     }
+    if (page.item && page.tab && useAppStore.getState().rightPanelTab !== page.tab) useAppStore.getState().setRightPanelTab(page.tab);
     if (app.compact) app.setListOpen(page.list);
     app.setHeart(page.heart);
     app.setEcg(page.ecg);
@@ -152,7 +208,7 @@ function apply(page: Page, from: Page) {
       sim.setSheetOpen(page.sim === 'actions');
     }
   } else {
-    app.setMode('home');
+    app.setMode(page.mode === 'courses' ? 'courses' : 'home');
   }
 }
 
@@ -187,7 +243,14 @@ function sync() {
   scheduled = false;
   if (applying || consuming) return;
   const page = currentPage();
-  if (same(page, stack[idx])) return;
+  if (same(page, stack[idx])) {
+    // the same page, read on another of its sections: remember the section, add no step
+    if (page.tab !== stack[idx].tab) {
+      stack[idx] = page;
+      write('replace', page);
+    }
+    return;
+  }
   if (performance.now() < replaceUntil) {
     stack[idx] = page;
     write('replace', page);
@@ -229,6 +292,13 @@ function onPop(e: PopStateEvent) {
     idx = target;
     publish();
     schedule();
+    return;
+  }
+  // the first-visit welcome card is not a page of its own: Back puts it off (like "Decide later") and stays put
+  if (useWelcomeStore.getState().open) {
+    closeWelcome();
+    consuming = true;
+    window.history.go(shown - target);
     return;
   }
   const from = currentPage();
@@ -293,7 +363,7 @@ export function startBackNav(): () => void {
   stack = [currentPage()];
   write('replace', stack[0]);
   publish();
-  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore, useFeedbackStore];
+  const stores = [useAppStore, useSimStore, useECGStore, useTutorStore, useSceneStore, useConditionStore, useProcedureStore, usePharmacologyStore, useCaseStore, useCathLabStore, useFeedbackStore, useCourseStore, useDrillStore];
   const unsubscribe = stores.map((st) => st.subscribe(schedule));
   // After the first tap or key press, a second main-menu entry lets the first Back on it ask before leaving.
   // (Added on a user gesture so browsers keep it in the Back list.)
@@ -320,4 +390,19 @@ export function startBackNav(): () => void {
 /** The in-app Back button: same as the phone's */
 export function goBack() {
   if (useBackNavStore.getState().canGoBack) window.history.back();
+}
+
+/**
+ * The rhythm trainer's own ✕, when the trainer was opened from the main menu: step back over all of its entries (the
+ * list of sets, the set in play, …) to the menu, so that Back there does not reopen the trainer. False when the
+ * trainer came from somewhere else; the caller then closes it and goes to the menu (a new entry).
+ */
+export function backOutOfTrainer(): boolean {
+  if (stack[idx]?.lesson !== TRAINER_PAGE) return false;
+  let i = idx;
+  while (i > 0 && stack[i - 1]?.lesson === TRAINER_PAGE) i -= 1;
+  const before = stack[i - 1];
+  if (!before || before.mode !== 'home' || before.lesson || before.overlay) return false;
+  window.history.go(i - 1 - idx);
+  return true;
 }

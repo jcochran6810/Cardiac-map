@@ -38,12 +38,18 @@ const fake = vi.hoisted(() => {
   return ctl;
 });
 
-import { currentPage, startBackNav, useBackNavStore } from '@/lib/backNav';
+import { backOutOfTrainer, currentPage, startBackNav, useBackNavStore } from '@/lib/backNav';
 import { useAppStore } from '@/store/useAppStore';
 import { useSimStore } from '@/store/useSimStore';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
 import { describePage } from '@/lib/feedback/context';
 import { openById, openCategory, openCondition, openMedication, openTool, showEcg, showHeart } from '@/lib/actions';
+import { exitLesson, gotoStep, startLesson } from '@/lib/courses';
+import { useCourseStore } from '@/store/useCourseStore';
+import { loadContent } from '@/lib/content';
+import { closeTrainer, leaveSet, nextTracing, openTrainer, startSet } from '@/lib/drillRun';
+import { useDrillStore } from '@/store/useDrillStore';
+import { useECGStore } from '@/store/useECGStore';
 
 const history = fake.history;
 vi.spyOn(performance, 'now').mockImplementation(() => fake.clock);
@@ -84,6 +90,26 @@ describe('the Back button moves through CardioSim pages', () => {
     expect(currentPage().item).not.toBe('anterior-stemi');
     await back();
     expect(currentPage().mode).toBe('home');
+  });
+
+  it('Back returns to the section of the page the learner left it on (a drug card opened from Give meds)', async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    openCondition('avnrt');
+    await settle();
+    const at = history.i;
+    useAppStore.getState().setRightPanelTab('treat');
+    await settle();
+    // changing section is not a step of its own
+    expect(history.i).toBe(at);
+    openMedication('adenosine');
+    await settle();
+    expect(currentPage().item).toBe('adenosine');
+    await back();
+    expect(currentPage()).toMatchObject({ item: 'avnrt', tab: 'treat' });
+    expect(useAppStore.getState().rightPanelTab).toBe('treat');
+    useAppStore.getState().setMode('home');
+    await settle();
   });
 
   it('cath lab catalog items are pages too', async () => {
@@ -234,6 +260,200 @@ describe('the Back button moves through CardioSim pages', () => {
     await settle();
     // (names read "anterior stemi" until the content library loads)
     expect(describePage()).toMatch(/^Learn › Conditions & rhythms › anterior stemi \(.*12-lead open\)$/);
+    useAppStore.getState().setMode('home');
+    await settle();
+  });
+
+  it('a lesson is one page however many steps it has; Back leaves it and its place is kept', async () => {
+    await loadContent();
+    useAppStore.getState().setMode('home');
+    await settle();
+    useAppStore.getState().setMode('courses');
+    await settle();
+    expect(currentPage().mode).toBe('courses');
+    expect(describePage()).toBe('Courses');
+    const list = history.i;
+
+    startLesson('heart-basics', 'chambers');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: 'heart-basics/chambers', item: null, heart: 'closed', ecg: 'closed' });
+    expect(history.i).toBe(list + 1);
+    // the lesson shows its pictures itself: the heart is open although the page does not record it
+    expect(useAppStore.getState().heart).not.toBe('closed');
+    gotoStep(1);
+    await settle();
+    gotoStep(2);
+    await settle();
+    expect(history.i).toBe(list + 1);
+    expect(describePage()).toBe('Course › How the heart works › Four chambers, two pumps (step 3 of 6)');
+
+    await back();
+    expect(currentPage().mode).toBe('courses');
+    expect(useCourseStore.getState().active).toBeNull();
+    expect(useAppStore.getState().heart).toBe('closed');
+
+    // opened again it resumes where it was left; its own exit steps back over its entry
+    startLesson('heart-basics', 'chambers');
+    await settle();
+    expect(useCourseStore.getState().active?.step).toBe(2);
+    exitLesson();
+    await settle();
+    expect(currentPage().mode).toBe('courses');
+    expect(history.i).toBe(list);
+  });
+
+  it('"read more" leaves a lesson for the library page, and Back returns to the lesson', async () => {
+    startLesson('heart-basics', 'chambers');
+    await settle();
+    const lesson = history.i;
+    exitLesson('stay');
+    openById('left-ventricle');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: null, item: 'left-ventricle' });
+    expect(history.i).toBe(lesson + 1);
+    await back();
+    expect(currentPage().lesson).toBe('heart-basics/chambers');
+    expect(useCourseStore.getState().active).toMatchObject({ course: 'heart-basics', lesson: 'chambers', step: 2 });
+    await back();
+    expect(currentPage().mode).toBe('courses');
+    useAppStore.getState().setMode('home');
+    await settle();
+  });
+
+  it('the rhythm trainer: the list of sets and each set in play are pages, its tracings are not; Back goes set → list → menu', async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    const menu = history.i;
+    openTrainer();
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: 'tool/rhythm-trainer', drill: null, item: null });
+    expect(describePage()).toBe('Rhythm trainer');
+    expect(history.i).toBe(menu + 1);
+    startSet('core');
+    await settle();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: 'core' });
+    expect(history.i).toBe(menu + 2);
+    useDrillStore.getState().answer('unsure');
+    nextTracing();
+    await settle();
+    expect(history.i).toBe(menu + 2);
+    expect(describePage()).toBe('Rhythm trainer › Core rhythms');
+    // a question is open: the ECG panel is showing its tracing
+    expect(useAppStore.getState().ecg).not.toBe('closed');
+    const question = useDrillStore.getState().question;
+
+    await back();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: 'tool/rhythm-trainer', drill: null });
+    expect(useDrillStore.getState().setId).toBeNull();
+    // Forward brings the set back as it was left: the same tracing and this visit's score
+    history.go(1);
+    await settle();
+    expect(currentPage().drill).toBe('core');
+    expect(useDrillStore.getState()).toMatchObject({ question, asked: 1, picked: null });
+    await back();
+    await back();
+    expect(currentPage().mode).toBe('home');
+    expect(useDrillStore.getState().open).toBe(false);
+    expect(useAppStore.getState().ecg).toBe('closed');
+  });
+
+  it("the trainer's ✕ from a set opened from the menu steps back over the set and the list: Back on the menu does not reopen it", async () => {
+    useAppStore.getState().setMode('home');
+    await settle();
+    const menu = history.i;
+    openTrainer();
+    await settle();
+    // (Core rhythms was the set left last, in the test before: it carries on with that visit's score)
+    startSet('core');
+    await settle();
+    useDrillStore.getState().answer('unsure');
+    nextTracing();
+    await settle();
+    const asked = useDrillStore.getState().asked;
+    expect(history.i).toBe(menu + 2);
+    // (what the ✕ does)
+    expect(backOutOfTrainer()).toBe(true);
+    await settle();
+    expect(history.i).toBe(menu);
+    expect(currentPage()).toMatchObject({ mode: 'home', lesson: null });
+    expect(useDrillStore.getState().open).toBe(false);
+    // Forward still finds the list and then the set as it was left
+    history.go(1);
+    await settle();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: null });
+    history.go(1);
+    await settle();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: 'core' });
+    expect(useDrillStore.getState().asked).toBe(asked);
+    // the ✕ on the list of sets: one step back
+    startSet('blocks');
+    await settle();
+    useDrillStore.getState().leaveSet();
+    await settle();
+    expect(backOutOfTrainer()).toBe(true);
+    await settle();
+    expect(currentPage().mode).toBe('home');
+    // not opened from the menu (from the library's search): the ✕ is not a step back
+    openCondition('atrial-fibrillation');
+    await settle();
+    openTrainer();
+    await settle();
+    expect(backOutOfTrainer()).toBe(false);
+    closeTrainer();
+    await settle();
+    expect(currentPage().mode).toBe('home');
+  });
+
+  it('"read its page" leaves a set for the library, and Back returns to the set, the tracing and the answer', async () => {
+    openTrainer();
+    await settle();
+    startSet('blocks');
+    await settle();
+    const set = history.i;
+    const { question } = useDrillStore.getState();
+    useDrillStore.getState().answer(question!.profile);
+    // (what the trainer's button does)
+    closeTrainer('stay');
+    openById('atrial-fibrillation');
+    await settle();
+    expect(currentPage()).toMatchObject({ mode: 'learn', lesson: null, item: 'atrial-fibrillation' });
+    expect(history.i).toBe(set + 1);
+    await back();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: 'blocks' });
+    expect(useDrillStore.getState()).toMatchObject({ open: true, setId: 'blocks', question, picked: question!.profile, asked: 1, right: 1 });
+    // the monitor shows the tracing of the question again, not the library page's
+    expect(useECGStore.getState().activeProfileId).toBe(question!.profile);
+    await back();
+    expect(currentPage().drill).toBeNull();
+    useAppStore.getState().setMode('home');
+    await settle();
+  });
+
+  it('"Continue" on the set just left (via Sets) carries on as browser Forward does: the same tracing and score', async () => {
+    openTrainer();
+    await settle();
+    startSet('core');
+    await settle();
+    useDrillStore.getState().answer('unsure');
+    nextTracing();
+    await settle();
+    const { question, asked, right, streak } = useDrillStore.getState();
+    const was = { setId: 'core', question, picked: null, asked, right, streak };
+    // (the trainer's "Sets" button), then "Continue" on Core rhythms
+    leaveSet();
+    await settle();
+    expect(currentPage()).toMatchObject({ lesson: 'tool/rhythm-trainer', drill: null });
+    startSet('core');
+    await settle();
+    expect(currentPage().drill).toBe('core');
+    expect(useDrillStore.getState()).toMatchObject(was);
+    expect(useECGStore.getState().activeProfileId).toBe(question!.profile);
+    // Back to the list and Forward again: the same
+    await back();
+    expect(useDrillStore.getState().setId).toBeNull();
+    history.go(1);
+    await settle();
+    expect(useDrillStore.getState()).toMatchObject(was);
     useAppStore.getState().setMode('home');
     await settle();
   });

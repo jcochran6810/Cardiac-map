@@ -13,6 +13,7 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useCathLabStore } from '@/store/useCathLabStore';
 import { useSimStore } from '@/store/useSimStore';
 import { useContent } from '@/lib/content';
+import type { Course } from '@/types/course';
 import { CATEGORIES } from '@/lib/categories';
 import { nameOf, openById, openCase, openCategory, openCondition, openTool, openTreatment, showEcg, showHeart, type Tool } from '@/lib/actions';
 import { scenariosFor, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
@@ -24,6 +25,12 @@ import { InstallButton } from '@/components/ui/InstallApp';
 import SearchBox from '@/components/layout/SearchBox';
 import { AdminFooter } from '@/components/admin/AdminEntry';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { courseProgress, coursesFor, lessonInProgress, nextLesson, startLesson } from '@/lib/courses';
+import { openTrainer } from '@/lib/drillRun';
+import { useDrillStore } from '@/store/useDrillStore';
+import { summarize } from '@/lib/progress';
+import Welcome from '@/components/home/Welcome';
 import {
   IconBook, IconChart, IconChevron, IconClipboard, IconCube, IconDownload, IconHeart, IconHeartPulse, IconHelp, IconMessage, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
 } from '@/components/ui/icons';
@@ -81,6 +88,24 @@ const TOURS: { title: string; text: string; go: () => void }[] = [
     go: () => { openCase('unstable-svt'); showEcg('ecg'); },
   },
 ];
+
+/** Courses the menu's course row brings to the front for a role, in this order (the cath lab roles' own work after the basics) */
+const COURSES_FIRST: Partial<Record<LearningLevel, string[]>> = {
+  3: ['heart-basics', 'cath-lab', 'hemodynamics'],
+  4: ['heart-basics', 'cath-lab', 'hemodynamics'],
+  5: ['heart-basics', 'cath-lab', 'hemodynamics'],
+};
+
+/** The courses in the order the main menu offers them to a role: its own courses first, those nearest its work at the very front */
+function menuCourses(role: LearningLevel, list: Course[]): Course[] {
+  const first = COURSES_FIRST[role] ?? [];
+  const rank = (c: Course) => {
+    const i = c.roles.includes(role) ? first.indexOf(c.id) : -1;
+    return i < 0 ? first.length : i;
+  };
+  // a stable sort: everything else keeps the course list's order
+  return coursesFor(role, list).sort((a, b) => rank(a) - rank(b));
+}
 
 /** The item you were last reading, so the menu can take you straight back to it */
 function useLastItem(): string | null {
@@ -140,16 +165,36 @@ export default function HomeScreen() {
   };
 
   const caseInProgress = simState && !simState.ended ? SCENARIO_BY_ID[simState.scenarioId] : null;
+  const courseDone = useCourseStore((s) => s.progress);
+  const courses = lib ? menuCourses(role, lib.courses) : [];
+  const lessonOpen = lib ? lessonInProgress(lib.courses, courseDone) : null;
+  const firstCourse = courses[0] ?? null;
+  const coursesTotal = courses.length;
+  const drillStats = useDrillStore((s) => s.stats);
+  const best = useSimStore((s) => s.best);
+  const progress = summarize({
+    courses: lib?.courses ?? [], lessonProgress: courseDone, drillStats, caseIds: scenariosFor(role).map((sc) => sc.id), best, role,
+    quizAttempts: learning.quizAttempts,
+  });
+  const startFirstLesson = () => {
+    const c = lib ? menuCourses(useAppStore.getState().learningLevel, lib.courses)[0] : null;
+    const l = c ? nextLesson(c, useCourseStore.getState().progress) ?? c.lessons[0] : null;
+    if (c && l) startLesson(c.id, l.id);
+    else useAppStore.getState().setMode('courses');
+  };
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-cardiac-dark" aria-label="Main menu">
       <div className="max-w-5xl mx-auto px-4 pt-4 pb-10 sm:px-6 sm:pt-7">
-        <div className="flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="" width={33} height={48} className="h-12 w-auto drop-shadow-[0_2px_8px_rgba(220,38,38,0.4)]" />
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">Main menu</h1>
-            <p className="text-sm text-slate-300">Learn the heart, read the ECG, and treat patients in realistic cases.</p>
+        <div className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-br from-cardiac-panel via-cardiac-panel to-[#16233a] px-4 py-4 sm:px-6 sm:py-5">
+          <HeroTrace />
+          <div className="relative flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.webp" alt="" width={33} height={48} className="h-12 sm:h-14 w-auto drop-shadow-[0_2px_8px_rgba(220,38,38,0.45)]" />
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">CardioSim</h1>
+              <p className="text-sm text-slate-300 leading-snug">Learn how the heart works, read the ECG, and treat patients in realistic cases.</p>
+            </div>
           </div>
         </div>
 
@@ -162,8 +207,15 @@ export default function HomeScreen() {
         />
 
         {/* ── Pick up where you left off ── */}
-        {(caseInProgress || lastItem) && (
+        {(caseInProgress || lastItem || lessonOpen) && (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {lessonOpen && (
+              <ContinueCard
+                label={`Continue your lesson · step ${lessonOpen.step + 1} of ${lessonOpen.lesson.steps.length}`}
+                title={lessonOpen.lesson.title}
+                onClick={() => startLesson(lessonOpen.course.id, lessonOpen.lesson.id)}
+              />
+            )}
             {caseInProgress && (
               <ContinueCard label="Continue your case" title={caseInProgress.title} onClick={() => useAppStore.getState().setMode('simulator')} />
             )}
@@ -199,21 +251,83 @@ export default function HomeScreen() {
           {scopeOpen && <div className="mt-2 p-3 rounded-xl bg-cardiac-panel border border-slate-700"><ScopeCard level={role} /></div>}
         </section>
 
-        {/* ── Simulator ── */}
-        <button
-          onClick={() => useAppStore.getState().setMode('simulator')}
-          className="mt-5 w-full text-left flex items-center gap-4 p-4 sm:p-5 rounded-2xl border border-cardiac-accent/50 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent hover:border-cardiac-accent transition-colors"
-        >
-          <span className="w-12 h-12 shrink-0 rounded-xl bg-cardiac-accent text-slate-950 flex items-center justify-center"><IconPlay size={28} /></span>
-          <span className="min-w-0">
-            <span className="block text-base sm:text-lg font-semibold text-white">Case simulator</span>
-            <span className="block text-xs sm:text-sm text-slate-300 leading-snug mt-0.5">
-              Treat a patient from first contact to hand-off. What you do changes the monitor, the 12-lead and the story — then you get a score and what to fix.
-              {' '}{cases} case{cases === 1 ? '' : 's'} for {LEVEL_LABELS[role].short}.
-            </span>
-          </span>
-          <span className="ml-auto text-cardiac-accent text-xl shrink-0" aria-hidden>→</span>
-        </button>
+        {/* ── Three ways in ── */}
+        <section className="mt-5 grid gap-2 sm:gap-3 sm:grid-cols-3" aria-label="Start here">
+          <StartCard
+            icon={<IconBook size={24} />} tone="sky" title="Learn step by step"
+            text={firstCourse ? `Guided lessons that set up the heart and the ECG for you. ${coursesTotal} course${coursesTotal === 1 ? '' : 's'}.` : 'Guided lessons that set up the heart and the ECG for you.'}
+            action={lessonOpen ? 'Continue your lesson' : 'Open the courses'}
+            onClick={() => (lessonOpen ? startLesson(lessonOpen.course.id, lessonOpen.lesson.id) : useAppStore.getState().setMode('courses'))}
+          />
+          <StartCard
+            icon={<IconHeartPulse size={24} />} tone="emerald" title="Practice rhythms"
+            text="Name live tracings one after another. The ones you miss come back until you know them."
+            action="Open the rhythm trainer" onClick={openTrainer}
+          />
+          <StartCard
+            icon={<IconPlay size={24} />} tone="amber" title="Treat a patient"
+            text={`What you do changes the monitor, the 12-lead and the story — then you get a score. ${cases} case${cases === 1 ? '' : 's'} for ${LEVEL_LABELS[role].short}.`}
+            action={caseInProgress ? 'Continue your case' : 'Open the case simulator'}
+            onClick={() => useAppStore.getState().setMode('simulator')}
+          />
+        </section>
+
+        {/* ── What you have done so far ── */}
+        {!progress.empty && (
+          <section className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2" aria-label="Your progress">
+            <ProgressStat label="Lessons finished" value={`${progress.lessons.done}`} of={`${progress.lessons.total}`} share={progress.lessons.done / Math.max(1, progress.lessons.total)} onClick={() => useAppStore.getState().setMode('courses')} />
+            <ProgressStat label="Rhythms mastered" value={`${progress.rhythms.mastered}`} of={`${progress.rhythms.total}`} share={progress.rhythms.mastered / Math.max(1, progress.rhythms.total)} onClick={openTrainer} />
+            <ProgressStat
+              label="Cases scored" value={`${progress.cases.done}`} of={`${progress.cases.total}`}
+              note={progress.cases.average !== null ? `average ${progress.cases.average}%` : undefined}
+              share={progress.cases.done / Math.max(1, progress.cases.total)} onClick={() => useAppStore.getState().setMode('simulator')}
+            />
+            <ProgressStat
+              label="Quiz, last answers" value={progress.quiz.answered ? `${Math.round((progress.quiz.right / progress.quiz.answered) * 100)}%` : '—'}
+              note={progress.quiz.answered ? `${progress.quiz.right} of ${progress.quiz.answered} right` : 'not tried yet'}
+              share={progress.quiz.answered ? progress.quiz.right / progress.quiz.answered : 0} onClick={() => useAppStore.getState().setQuizOpen(true)}
+            />
+          </section>
+        )}
+
+        {/* ── Courses: the guided way in ── */}
+        <section className="mt-6" aria-labelledby="menu-courses">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 id="menu-courses" className="text-sm font-semibold text-white">Courses</h2>
+            <button onClick={() => useAppStore.getState().setMode('courses')} className="shrink-0 text-xs text-sky-300 hover:underline">All courses →</button>
+          </div>
+          <p className="text-xs text-slate-400 mt-0.5 leading-snug">Short guided lessons, each with quick checks. Your place and your scores are kept on this device.</p>
+          {/* on phones the row runs to the screen edges; its scroll padding keeps a card that snaps into place clear of the edge */}
+          <div className="mt-2.5 -mx-4 px-4 scroll-px-4 sm:mx-0 sm:px-0 sm:scroll-px-0 flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar snap-x">
+            {courses.map((c) => {
+              const { done, total } = courseProgress(c, courseDone);
+              const up = nextLesson(c, courseDone);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => (up ? startLesson(c.id, up.id) : useAppStore.getState().setMode('courses'))}
+                  className="snap-start shrink-0 w-[15.5rem] sm:w-64 text-left p-3 sm:p-3.5 rounded-xl bg-cardiac-panel border border-slate-700 hover:border-cardiac-accent/60 transition-colors flex flex-col"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-9 h-9 rounded-lg flex items-center justify-center text-cardiac-accent bg-cardiac-accent/15"><IconPlay size={20} /></span>
+                    <span className="text-[11px] uppercase tracking-wider text-slate-400">{c.roles.includes(role) ? `For ${LEVEL_LABELS[role].short}` : 'Open to all'}</span>
+                  </span>
+                  <span className="block mt-2 text-[13px] sm:text-sm font-semibold text-white leading-tight">{c.title}</span>
+                  {/* no `block` here: line-clamp sets its own display, and `block` would undo the clamp */}
+                  <span className="mt-1 text-[11px] sm:text-xs text-slate-400 leading-snug line-clamp-3">{c.summary}</span>
+                  <span className="mt-auto pt-2 flex items-center gap-1.5 w-full">
+                    <span className="flex-1 h-1 rounded-full bg-cardiac-dark overflow-hidden">
+                      <span className="block h-full bg-emerald-500/80" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
+                    </span>
+                    <span className="text-[11px] text-slate-400 whitespace-nowrap">{done}/{total} lessons</span>
+                  </span>
+                  <span className="block mt-1.5 text-[11px] font-semibold text-cardiac-accent truncate">{up ? `${done > 0 ? 'Next' : 'Start'}: ${up.title} →` : 'Finished — review →'}</span>
+                </button>
+              );
+            })}
+            {!lib && <span className="text-xs text-slate-400 py-6">Loading the courses…</span>}
+          </div>
+        </section>
 
         {/* ── Library ── */}
         <MenuSection title="Learn" hint="Open a section, pick a topic and read. The 12-lead slides up from the bottom and the 3D heart slides down from the top whenever you want them.">
@@ -227,7 +341,7 @@ export default function HomeScreen() {
                     <span className="flex-1 h-1 rounded-full bg-cardiac-dark overflow-hidden">
                       <span className="block h-full bg-emerald-500/80" style={{ width: `${(done / total) * 100}%` }} />
                     </span>
-                    <span className="text-[10px] text-slate-500 whitespace-nowrap">{done}/{total}</span>
+                    <span className="text-[11px] text-slate-400 whitespace-nowrap">{done}/{total}</span>
                   </span>
                 )}
               </Tile>
@@ -251,7 +365,7 @@ export default function HomeScreen() {
         </MenuSection>
 
         {/* ── Practise ── */}
-        <MenuSection title="Practise">
+        <MenuSection title="Practice">
           <Tile
             title="Quiz yourself" text={`${lib ? `${lib.quiz.length} questions` : 'Questions'} at every level, including live rhythm strips.`}
             icon={<IconQuiz size={22} />} tint="text-orange-300 bg-orange-500/15" onClick={() => useAppStore.getState().setQuizOpen(true)}
@@ -264,6 +378,10 @@ export default function HomeScreen() {
 
         {/* ── More ── */}
         <MenuSection title="More">
+          <Tile
+            title="Glossary" text="The words of cardiology in one or two plain sentences each."
+            icon={<IconBook size={22} />} tint="text-sky-300 bg-sky-500/15" onClick={() => useAppStore.getState().setGlossaryOpen(true)}
+          />
           <Tile
             title="Help & shortcuts" text="How to get around, touch gestures and keyboard shortcuts."
             icon={<IconHelp size={22} />} tint="text-slate-200 bg-slate-500/20" onClick={() => useAppStore.getState().setHelpOpen(true)}
@@ -279,14 +397,32 @@ export default function HomeScreen() {
           </InstallButton>
         </MenuSection>
 
-        <p className="mt-8 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+        <p className="mt-8 text-[11px] text-slate-400 leading-relaxed max-w-3xl">
           Educational simulation only. Waveforms and hemodynamics are idealised models and doses are typical adult values for teaching.
           It is not a medical device and must not be used for diagnosis or treatment.
         </p>
 
         <AdminFooter />
       </div>
+      <Welcome onStart={startFirstLesson} />
     </div>
+  );
+}
+
+/** One number of the progress strip; tapping it goes to where that number is earned */
+function ProgressStat({ label, value, of, note, share, onClick }: { label: string; value: string; of?: string; note?: string; share: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left px-3 py-2 rounded-xl bg-cardiac-panel/70 border border-slate-700 hover:border-slate-500 transition-colors">
+      <span className="block text-[10px] uppercase tracking-wider text-slate-400 truncate">{label}</span>
+      <span className="flex items-baseline gap-1">
+        <span className="text-lg font-semibold text-white tabular-nums leading-tight">{value}</span>
+        {of && <span className="text-xs text-slate-400">of {of}</span>}
+        {note && <span className="text-[11px] text-slate-400 truncate">{of ? '· ' : ''}{note}</span>}
+      </span>
+      <span className="mt-1 block h-1 rounded-full bg-cardiac-dark overflow-hidden">
+        <span className="block h-full bg-emerald-500/80" style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }} />
+      </span>
+    </button>
   );
 }
 
@@ -320,5 +456,38 @@ function ContinueCard({ label, title, onClick }: { label: string; title: string;
       </span>
       <IconChevron size={18} className="text-sky-300 shrink-0" />
     </button>
+  );
+}
+
+const START_TONE = {
+  sky: { ring: 'border-sky-500/40 hover:border-sky-400', icon: 'bg-sky-500/20 text-sky-300', action: 'text-sky-300' },
+  emerald: { ring: 'border-emerald-500/40 hover:border-emerald-400', icon: 'bg-emerald-500/20 text-emerald-300', action: 'text-emerald-300' },
+  amber: { ring: 'border-cardiac-accent/50 hover:border-cardiac-accent', icon: 'bg-cardiac-accent text-slate-950', action: 'text-cardiac-accent' },
+} as const;
+
+/** One of the three ways into the app, for someone who does not know where to start */
+function StartCard({ icon, tone, title, text, action, onClick }: { icon: React.ReactNode; tone: keyof typeof START_TONE; title: string; text: string; action: string; onClick: () => void }) {
+  const t = START_TONE[tone];
+  return (
+    <button onClick={onClick} className={`text-left flex sm:flex-col items-start gap-3 p-3.5 sm:p-4 rounded-2xl border bg-cardiac-panel transition-colors ${t.ring}`}>
+      <span className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${t.icon}`}>{icon}</span>
+      <span className="min-w-0 flex-1 sm:flex sm:flex-col sm:w-full">
+        <span className="block text-[15px] sm:text-base font-semibold text-white leading-tight">{title}</span>
+        <span className="block mt-1 text-xs sm:text-[13px] text-slate-400 leading-snug">{text}</span>
+        <span className={`block mt-1.5 sm:mt-auto sm:pt-2 text-xs font-semibold ${t.action}`}>{action} →</span>
+      </span>
+    </button>
+  );
+}
+
+/** One normal beat (P, QRS, T) as an SVG path 200 units wide, on a baseline at y = 40 */
+const BEAT = 'h34 c6 0 8 -9 14 -9 s8 9 14 9 h12 l4 5 l7 -40 l7 50 l5 -15 h20 c10 0 14 -18 26 -18 s16 18 26 18 h31';
+
+/** A quiet ECG tracing drawn across the menu's header, sweeping like a monitor (still for those who ask for less motion) */
+function HeroTrace() {
+  return (
+    <svg className="hero-trace pointer-events-none absolute inset-0 w-full h-full opacity-40" viewBox="0 0 1000 80" preserveAspectRatio="none" aria-hidden>
+      <path d={`M0 46 ${BEAT} ${BEAT} ${BEAT} ${BEAT} ${BEAT}`} fill="none" stroke="#34d399" strokeWidth="1.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" pathLength={1000} />
+    </svg>
   );
 }

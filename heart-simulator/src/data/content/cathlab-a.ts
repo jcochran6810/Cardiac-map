@@ -354,7 +354,7 @@ export const CATHLAB_A: CathLabItem[] = [
       'Radial artery about 2–3 mm across; a 6 Fr sheath is about 2.6 mm on the outside',
       'Sheath usually 5–6 Fr (7 Fr with thin-walled sheaths or sheathless guides)',
       'Heparin about 50 U/kg or 5,000 units for a diagnostic study (PCI doses are higher, to an ACT target)',
-      "Radial cocktail commonly verapamil 2.5 mg with or without nitroglycerin 100–200 mcg, on the operator's order",
+      "Radial cocktail commonly verapamil 2.5–5 mg with or without nitroglycerin 100–200 mcg, on the operator's order",
       'Radial artery occlusion about 1–10%, lowest with enough heparin and patent hemostasis',
     ],
     pearls: [
@@ -902,7 +902,7 @@ export const CATHLAB_A: CathLabItem[] = [
       md: "Sizes and places the stent from angiography or IVUS/OCT, deploys and optimizes it, and sets the DAPT drugs and duration for the patient's ischemic and bleeding risk.",
     },
     numbers: [
-      'Diameters 2.25–5.0 mm; lengths 8–48 mm (range varies by brand)',
+      'Diameters 2.0–5.0 mm; lengths 8–48 mm (range varies by brand)',
       'Strut thickness about 60–90 μm',
       'Nominal pressure about 8–12 atm; rated burst about 16–18 atm (check the chart on the box)',
       'Overlap two stents by about 2–3 mm',

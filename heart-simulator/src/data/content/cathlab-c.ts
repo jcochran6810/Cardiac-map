@@ -58,7 +58,8 @@ export const CATHLAB_C: CathLabItem[] = [
       'Given as a bolus followed at once by an infusion that runs for the whole procedure.',
       'Check an ACT about 5 minutes after the bolus; if it is low, an extra 0.3 mg/kg bolus is given.',
       'Short half-life (about 25 minutes): the effect fades within about an hour of stopping in normal kidneys, longer in kidney failure.',
-      'In STEMI, stopping it at the end of PCI was linked to early stent thrombosis; continuing the full PCI dose for up to 4 hours afterwards lowers that risk.',
+      'In STEMI, stopping it at the end of PCI was linked to early stent thrombosis; continuing the full PCI dose for up to 4 hours afterward lowers that risk.',
+      'The 2025 ACC/AHA ACS guideline gives bivalirudin with that post-PCI infusion a Class 1 recommendation as an alternative to heparin for primary PCI in STEMI (BRIGHT-4).',
       'Partly cleared by the kidneys: the infusion is reduced in severe kidney disease and on dialysis; the bolus stays the same.',
       'There is no reversal agent: for bleeding, stop the infusion and support the patient; dialysis removes some of it.',
     ],
@@ -100,6 +101,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Timing: in STEMI the load goes in at or before PCI; in NSTEMI with early angiography many centers wait for the anatomy in case surgery is needed (the pretreatment debate).',
       'Aspirin continues at 81 mg daily; ticagrelor loses effect when the aspirin dose is above 100 mg.',
       'DAPT usually lasts 12 months after ACS and 6 months after elective PCI, shorter (1–3 months) when the bleeding risk is high.',
+      'To lower bleeding after ACS, a patient who has tolerated DAPT with ticagrelor can stop aspirin and stay on ticagrelor alone from 1 month after PCI (2025 ACC/AHA ACS guideline).',
     ],
     roles: {
       tech: 'Notes the drug and time of the loading dose on the procedure record, and reminds the team before the wire crosses if no P2Y12 inhibitor has been given yet.',
@@ -214,7 +216,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'The mix is diluted with about 10 mL or more of blood drawn back into the syringe and given slowly through the side arm to ease the burning.',
       'Warn the patient: a warm or burning feeling up the arm for a few seconds is expected.',
       'Verapamil can lower the pressure and heart rate and slow AV conduction: caution with hypotension, bradycardia, AV block, severe aortic stenosis or decompensated heart failure.',
-      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor (sildenafil, tadalafil) in the last 24–48 hours.',
+      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor in the last 12 hours (avanafil), 24 hours (sildenafil, vardenafil) or 48 hours (tadalafil).',
     ],
     roles: {
       tech: 'Makes sure the cocktail syringe on the sterile field is clearly labeled, watches the pressure and heart rate after it goes in, and calls out any drop or vagal reaction.',
@@ -250,7 +252,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Given routinely before FFR or iFR, IVUS or OCT, stent sizing and the final angiogram, so the vessel is seen fully relaxed.',
       'Injected through the engaged guide and flushed in, so the dose goes down the artery rather than into the aorta.',
       'Lowers the blood pressure: check the aortic pressure before every bolus.',
-      'Avoid with SBP < 90 mmHg, an RV infarct, or a PDE5 inhibitor in the last 24 h (sildenafil, vardenafil) or 48 h (tadalafil); caution in severe aortic stenosis.',
+      'Avoid with SBP < 90 mmHg, an RV infarct, or a PDE5 inhibitor in the last 12 h (avanafil), 24 h (sildenafil, vardenafil) or 48 h (tadalafil); caution in severe aortic stenosis.',
     ],
     roles: {
       tech: 'Reads the aortic pressure aloud before each bolus, calls out a drop after it, and notes the dose and time on the record.',
@@ -335,7 +337,7 @@ export const CATHLAB_C: CathLabItem[] = [
     numbers: [
       'IV infusion: 140 mcg/kg/min (up to 180 mcg/kg/min if hyperemia is incomplete)',
       'Steady state in about 1–2 min; effect gone within 1–2 min of stopping',
-      'IC bolus: about 100–200 mcg in the left coronary, 50–100 mcg in the right',
+      'IC bolus: commonly 200 mcg in the left coronary, 100 mcg in the right',
       'FFR ≤ 0.80 is significant (FAME); iFR ≤ 0.89',
       'No caffeine for 12–24 h before',
       'Never a 6 or 12 mg rapid push for FFR — that is the SVT dose',
@@ -363,7 +365,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Allergic and anaphylactoid reactions are more likely after earlier protamine or NPH insulin (which contains protamine), with fish allergy, and after vasectomy.',
       'Used for perforation, tamponade or major bleeding; it only partly reverses enoxaparin and does not reverse bivalirudin.',
       'With a fresh stent, reversing heparin raises the risk of stent thrombosis — the operator weighs it, often once the leak is sealed or controlled.',
-      'Too much protamine is itself an anticoagulant: recheck the ACT afterwards rather than giving more by default.',
+      'Too much protamine is itself an anticoagulant: recheck the ACT afterward rather than giving more by default.',
     ],
     roles: {
       tech: 'Runs the ACT before and after protamine on request, watches the pressure as it goes in, and keeps the crash cart and the pericardiocentesis tray ready in a perforation.',
@@ -590,7 +592,7 @@ export const CATHLAB_C: CathLabItem[] = [
     summary: 'Opening a blocked artery often triggers ventricular rhythms: accelerated idioventricular rhythm (AIVR) is a harmless sign of reflow, while VT or VF needs an immediate shock.',
     details: [
       'Cause: blood rushing back into ischemic muscle (calcium overload, free radicals) makes it electrically unstable the moment the wire or balloon restores flow.',
-      'AIVR is a regular wide-complex rhythm at about 60–120/min, close to the sinus rate; it marks reperfusion and needs no treatment.',
+      'AIVR is a regular wide-complex rhythm at about 50–120/min (usually under 100), close to the sinus rate; it often accompanies reperfusion and usually needs no treatment.',
       'Do not suppress AIVR with amiodarone or lidocaine: the slower sinus rhythm may not take over, leaving no rhythm at all.',
       'VT or VF on reflow is most common with a large anterior STEMI and a proximal occlusion; in the lab it is witnessed with pads on — shock at once.',
       'Most lab VF converts with the first shock and the patient wakes within seconds; recurrent VF needs amiodarone or lidocaine and potassium and magnesium correction.',
@@ -603,7 +605,7 @@ export const CATHLAB_C: CathLabItem[] = [
       md: 'Recognizes AIVR as a reperfusion sign and leaves it alone, calls for an immediate shock for VT or VF, finishes the PCI once stable, and treats recurrent VF.',
     },
     numbers: [
-      'AIVR: wide, regular, about 60–120/min — no treatment',
+      'AIVR: wide, regular, about 50–120/min — usually no treatment',
       'VF or pulseless VT: shock at once, 200 J biphasic (or the device\'s recommended dose)',
       'Goal: shock within 1 minute of witnessed VF in the lab',
       'Recurrent VF: amiodarone 300 mg IV (then 150 mg) or lidocaine 1–1.5 mg/kg',
@@ -706,7 +708,7 @@ export const CATHLAB_C: CathLabItem[] = [
     ],
     roles: {
       tech: 'Calls out slow contrast flow, returning ST elevation, hypotension or bradycardia, hands the microcatheter or aspiration catheter on request, and logs the drugs and times.',
-      rn: 'Prepares and labels the intracoronary drugs on the operator\'s order and treats pain; supports the pressure with fluids or pressors as ordered and watches for heart block after each bolus.',
+      rn: 'Prepares and labels the intracoronary drugs on the operator\'s order and treats pain as ordered; supports the pressure with fluids or pressors as ordered and watches for heart block after each bolus.',
       md: 'Excludes dissection, clot and a wedged guide, delivers vasodilators distally, decides on aspiration, GP IIb/IIIa inhibitors and support, and grades the final TIMI flow and blush.',
     },
     numbers: [
@@ -720,7 +722,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Do not keep ballooning or adding stents to a vessel with no mechanical problem — it only adds debris.',
     ],
     image: { keys: ['lad-no-reflow-pci', 'lad-no-reflow-after-treatment'], want: 'A real angiogram frame after stenting a thrombotic artery showing contrast stalling in the distal vessel with no residual narrowing or dissection, next to the frame after distal adenosine with flow restored.' },
-    sim: ['ic-adenosine', 'ic-verapamil'],
+    sim: ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside', 'ic-epinephrine'],
     related: ['cl-drug-ic-adenosine', 'cl-aspiration', 'cl-drug-gp2b3a', 'anterior-stemi', 'cl-damped', 'cl-comp-dissection'],
   },
 
@@ -741,7 +743,7 @@ export const CATHLAB_C: CathLabItem[] = [
     ],
     roles: {
       tech: 'Calls out a damped or ventricularized pressure, chest pain or ST change after an injection, stops the injector, and has IVUS, extra wires, balloons and stents ready.',
-      rn: 'Treats chest pain and watches the pressure and rhythm closely, prepares for sudden collapse if the artery closes, and documents events and times.',
+      rn: 'Treats chest pain as ordered and watches the pressure and rhythm closely, prepares for sudden collapse if the artery closes, and documents events and times.',
       md: 'Recognizes and grades the dissection, keeps the wire in, decides between stenting and watching a minor A–B tear, confirms the true lumen with IVUS, and calls surgery for left main or aortic extension.',
     },
     numbers: [
@@ -771,7 +773,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'At the same time: call cardiac surgery, open the pericardiocentesis tray, get the echo, stop any GP IIb/IIIa inhibitor, and support the pressure with fluid.',
       'Protamine is considered once the leak is controlled, weighing it against clot in a fresh stent.',
       'Seal it: a covered stent for a large-vessel hole; coils, fat, thrombin or clotted blood through a microcatheter for a distal wire perforation.',
-      'Tamponade can appear hours later, especially from small distal wire exits: echo before leaving the lab and watch the pressure afterwards.',
+      'Tamponade can appear hours later, especially from small distal wire exits: echo before leaving the lab and watch the pressure afterward.',
     ],
     roles: {
       tech: 'Calls out contrast outside the vessel at once, hands the balloon, covered stent, microcatheter or coils on request, opens the pericardiocentesis tray, brings the echo in, and watches the pressure for tamponade.',
@@ -885,7 +887,7 @@ export const CATHLAB_C: CathLabItem[] = [
     ],
     roles: {
       tech: 'Hands smaller or hydrophilic catheters on request, puts a warm pack on the arm, sets up for a forearm angiogram, and calls out the patient\'s pain or a catheter that will not move.',
-      rn: 'Gives sedation and analgesia on the operator\'s order, prepares the vasodilators for the sheath and reassures the patient; checks the hand, pulse and radial site afterwards.',
+      rn: 'Gives sedation and analgesia on the operator\'s order, prepares the vasodilators for the sheath and reassures the patient; checks the hand, pulse and radial site afterward.',
       md: 'Recognizes spasm from the pain, resistance and angiogram, stops and treats it before pulling, chooses smaller catheters or a femoral crossover, and never forces a gripped catheter.',
     },
     numbers: [
@@ -955,7 +957,7 @@ export const CATHLAB_C: CathLabItem[] = [
     ],
     roles: {
       tech: 'Flushes and wipes the manifold and lines meticulously, keeps the injection syringe tip-down and watches it for bubbles, back-bleeds the guide after exchanges, and calls out any air seen.',
-      rn: 'Gives 100 % oxygen and atropine or pressors on the operator\'s order, treats chest pain, and starts ACLS if VF or arrest follows.',
+      rn: 'Gives 100 % oxygen and atropine or pressors on the operator\'s order, treats chest pain as ordered, and starts ACLS if VF or arrest follows.',
       md: 'Recognizes air on the angiogram, aspirates and flushes through the guide, supports the circulation, and reviews the setup with the team so it does not happen again.',
     },
     numbers: [
@@ -989,13 +991,13 @@ export const CATHLAB_C: CathLabItem[] = [
     ],
     roles: {
       tech: 'Sets up for a STEMI (pads, aspiration catheter, non-compliant balloons, IVUS or OCT console), calls out rhythm and pressure changes, and documents the timeline.',
-      rn: 'Asks about missed or stopped antiplatelet doses, and gives heparin, the P2Y12 load and any GP IIb/IIIa inhibitor on the operator\'s order; treats pain and arrhythmias.',
+      rn: 'Asks about missed or stopped antiplatelet doses, and gives heparin, the P2Y12 load and any GP IIb/IIIa inhibitor on the operator\'s order; treats pain and arrhythmias as ordered or per ACLS protocol.',
       md: 'Reopens the stent, uses intravascular imaging to find and fix the mechanical cause, chooses the antithrombotic plan, and reviews adherence and the DAPT plan.',
     },
     numbers: [
       'ARC timing: acute < 24 h · subacute 24 h–30 days · late 30 days–1 year · very late > 1 year',
       'Current drug-eluting stents: about 1 % or less in the first year',
-      'Good expansion: minimal stent area > 5.5 mm² on IVUS (> 4.5 mm² on OCT) outside the left main, or > 80 % of the reference lumen area',
+      'Good expansion: minimal stent area > 5.5 mm² on IVUS (> 4.5 mm² on OCT) outside the left main, or at least 80 % of the reference lumen area (90 % is the goal)',
       'DAPT: usually 12 months after ACS; stopping in the first month carries the highest risk',
     ],
     pearls: [

@@ -102,3 +102,9 @@ export const IconMessage = ({ className, size }: P) => (
 export const IconLock = ({ className, size }: P) => (
   <svg {...base(size)} className={className}><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
 );
+export const IconSpeaker = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M11 5 6 9H3v6h3l5 4V5Z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.5 5.5a9 9 0 0 1 0 13" /></svg>
+);
+export const IconSpeakerOff = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}><path d="M11 5 6 9H3v6h3l5 4V5Z" /><path d="m16 9 5 6" /><path d="m21 9-5 6" /></svg>
+);

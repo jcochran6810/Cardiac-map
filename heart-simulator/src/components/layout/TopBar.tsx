@@ -12,6 +12,11 @@ import { Button, IconButton } from '@/components/ui/Button';
 import SearchBox from '@/components/layout/SearchBox';
 import { AdminBell } from '@/components/admin/AdminEntry';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { findCourse } from '@/lib/courses';
+import { useDrillStore } from '@/store/useDrillStore';
+import { useECGStore } from '@/store/useECGStore';
+import { TRAINER_PAGE } from '@/lib/backNav';
 
 /**
  * One slim bar on every screen: Menu (everything starts from the main menu), Back, where you are,
@@ -23,7 +28,9 @@ export default function TopBar() {
   const category = useAppStore((s) => s.activePanelCategory);
   const canGoBack = useBackNavStore((s) => s.canGoBack);
   const prev = useBackNavStore((s) => s.previous);
-  useContent(); // re-render with real names once the library has loaded
+  const lib = useContent(); // re-render with real names once the library has loaded
+  const lesson = useCourseStore((s) => s.active);
+  const trainer = useDrillStore((s) => s.open);
   // Phones and small tablets: the search field is hidden behind an icon and opens over the whole bar
   const [searchOpen, setSearchOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,9 +54,20 @@ export default function TopBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const title = mode === 'simulator' ? 'Case simulator' : mode === 'learn' ? CATEGORY_BY_VALUE[category].label : '';
+  // a tool that has the whole screen (opened from the menu, or enlarged) is what the learner is in — not the library section under it
+  const heart = useAppStore((s) => s.heart);
+  const ecgDrawer = useAppStore((s) => s.ecg);
+  const bottomView = useECGStore((s) => s.bottomView);
+  const lab = useECGStore((s) => s.electrodeLab);
+  const tool = ecgDrawer === 'full' ? (bottomView === 'defib' ? 'Defibrillator' : bottomView === 'wiggers' ? 'Pressure & volume' : lab ? 'Electrode lab' : '12-lead ECG')
+    : heart === 'full' ? '3D heart' : null;
+  const title = mode === 'simulator' ? 'Case simulator' : mode === 'courses' ? 'Courses'
+    : mode === 'learn' ? (lesson ? findCourse(lesson.course, lib?.courses ?? [])?.title ?? 'Lesson' : trainer ? 'Rhythm trainer' : tool ?? CATEGORY_BY_VALUE[category].label) : '';
   const backLabel = !prev ? 'Back'
     : prev.mode === 'home' ? 'Back to the main menu'
+      : prev.mode === 'courses' ? 'Back to the courses'
+      : prev.lesson === TRAINER_PAGE ? 'Back to the rhythm trainer'
+      : prev.lesson ? 'Back to the lesson'
       : prev.mode === 'simulator' ? 'Back to the simulator'
         : prev.list && !currentPage().list ? `Back to the ${CATEGORY_BY_VALUE[prev.cat ?? category].short.toLowerCase()} list`
           : prev.item && prev.item !== currentPage().item ? `Back to ${nameOf(prev.item)}` : 'Back';

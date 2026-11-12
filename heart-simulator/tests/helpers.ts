@@ -3,6 +3,31 @@ import type { Vec3 } from '@/lib/ecg/vector';
 import { answerRead, perform, start, unavailableReason } from '@/lib/sim/scenario/engine';
 import type { Scenario, SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
+import { sim, syncRhythm } from '@/lib/sim/simulation';
+import { tickDefib } from '@/lib/sim/defib';
+import { drugMods, tickMeds } from '@/store/useMedStore';
+import { useECGStore } from '@/store/useECGStore';
+import { useTimelineStore } from '@/store/useTimelineStore';
+
+// ─── The simulation driver ─────────────────────────────────────────────────
+
+/** One frame of SimulationDriver: the rhythm (with the drugs acting), the clock, the defibrillator, the drugs */
+export function frame(dt = 50) {
+  const tl = useTimelineStore.getState();
+  syncRhythm(useECGStore.getState().activeProfileId, tl.heartRate, drugMods());
+  if (tl.playing) sim.time += dt * tl.speed;
+  sim.engine.ensure(sim.time + 4000);
+  tickDefib(sim.time);
+  tickMeds(sim.time);
+}
+
+/** Run the driver for `ms` of real time, `dt` at a time */
+export const run = (ms: number, dt = 50) => { for (let t = 0; t < ms; t += dt) frame(dt); };
+
+/** What the monitor shows: "profile@rate" */
+export const monitor = () => `${useECGStore.getState().activeProfileId}@${useTimelineStore.getState().heartRate}`;
+
+// ─── Vectors ───────────────────────────────────────────────────────────────
 
 export const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 export const length = (v: Vec3) => Math.hypot(v[0], v[1], v[2]);

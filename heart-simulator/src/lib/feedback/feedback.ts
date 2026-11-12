@@ -182,7 +182,7 @@ export async function postReport(report: FeedbackReport, backend: Backend, fetch
 // ─── Waiting on the device ─────────────────────────────────────────────────
 
 export const QUEUE_KEY = 'cardiosim.feedback.queue';
-const QUEUE_MAX = 20;
+export const QUEUE_MAX = 20;
 
 export type KeyValue = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -196,12 +196,16 @@ export function loadQueue(storage: KeyValue | null): FeedbackReport[] {
   }
 }
 
-export function saveQueue(storage: KeyValue | null, queue: FeedbackReport[]) {
-  if (!storage) return;
+/** Keep the waiting reports on the device; false when it wouldn't (no storage, or full or blocked) */
+export function saveQueue(storage: KeyValue | null, queue: FeedbackReport[]): boolean {
+  if (!storage) return queue.length === 0;
   try {
     if (queue.length) storage.setItem(QUEUE_KEY, JSON.stringify(queue.slice(-QUEUE_MAX)));
     else storage.removeItem(QUEUE_KEY);
-  } catch { /* storage full or blocked: the report is lost only if the send also failed */ }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export interface SendDeps {
@@ -213,11 +217,24 @@ export interface SendDeps {
 
 export type SubmitResult = { status: 'sent' } | { status: 'queued'; reason: string } | { status: 'error'; reason: string };
 
-/** Send a report now, or keep it on the device to send later */
+/**
+ * Send a report now, or keep it on the device to send later. "queued" only when it really is on
+ * the device; when it couldn't be kept the result is an error, so the form keeps the learner's text.
+ */
 export async function submitReport(report: FeedbackReport, deps: SendDeps): Promise<SubmitResult> {
   const enqueue = (reason: string): SubmitResult => {
-    saveQueue(deps.storage, [...loadQueue(deps.storage).filter((r) => r.id !== report.id), report]);
-    return { status: 'queued', reason };
+    const others = loadQueue(deps.storage).filter((r) => r.id !== report.id);
+    // a full queue would push out the oldest report, which the learner was already told would be sent
+    const full = others.length >= QUEUE_MAX;
+    const kept = !full
+      && saveQueue(deps.storage, [...others, report])
+      // read it back: a storage that takes the write but keeps nothing must not count as saved
+      && loadQueue(deps.storage).some((r) => r.id === report.id);
+    if (kept) return { status: 'queued', reason };
+    const why = full
+      ? `${others.length} reports are already waiting on this device, so this one couldn’t be saved to send later.`
+      : 'It couldn’t be saved on this device to send later either (this browser’s storage is full or blocked).';
+    return { status: 'error', reason: `${reason} ${why} Your text is still here, so you can copy it or try again.` };
   };
   if (!deps.backend) return enqueue('Feedback isn’t switched on in this version yet.');
   if (deps.online === false) return enqueue('You’re offline.');

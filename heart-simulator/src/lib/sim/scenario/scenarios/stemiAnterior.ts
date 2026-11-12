@@ -1,5 +1,5 @@
 import type { Effect, Scenario, SimState } from '../types';
-import { has, interpret, line, shocks } from '../kit';
+import { PADS, has, interpret, line, shocks } from '../kit';
 
 const ROSC_VITALS = { sbp: 104, dbp: 66, spo2: 94, rr: 16, gcs: 14, pain: 6 };
 
@@ -13,7 +13,7 @@ function shockOutcome(s: SimState): Effect | null {
   return {
     say: [
       ['monitor', 'Shock delivered.'],
-      ['you', interpret(s) ? 'An organised rhythm on the monitor and a carotid pulse — ROSC.' : 'He takes a breath; there is a pulse — ROSC.', 'good'],
+      ['you', interpret(s) ? 'An organized rhythm on the monitor and a carotid pulse — ROSC.' : 'He takes a breath; there is a pulse — ROSC.', 'good'],
       ['patient', 'Groans and opens his eyes: "What happened?"'],
     ],
     rhythm: { profile: 'anterior-stemi', hr: 112 }, pulse: true, phase: 'rosc', vitals: ROSC_VITALS,
@@ -32,13 +32,13 @@ export const stemiAnterior: Scenario = {
   briefing: {
     default: [
       ['dispatch', 'Priority 1: 58-year-old man with chest pain. You are the ALS crew.'],
-      ['scene', 'He is sitting on the edge of the sofa, pale and sweating, a fist pressed to his chest. His wife says it started about 40 minutes ago while he was shovelling snow.'],
-      ['hospital', 'Nearest emergency department: 8 minutes, no cath lab. PCI-capable heart centre: 15 minutes.'],
+      ['scene', 'He is sitting on the edge of the sofa, pale and sweating, a fist pressed to his chest. His wife says it started about 40 minutes ago while he was shoveling snow.'],
+      ['hospital', 'Nearest emergency department: 8 minutes, no cath lab. PCI-capable heart center: 15 minutes.'],
     ],
     1: [
       ['dispatch', 'Priority 1: 58-year-old man with chest pain. You are the BLS crew; the nearest medic unit is about 10 minutes away.'],
-      ['scene', 'He is sitting on the edge of the sofa, pale and sweating, a fist pressed to his chest. His wife says it started about 40 minutes ago while he was shovelling snow.'],
-      ['hospital', 'Nearest emergency department: 8 minutes, no cath lab. PCI-capable heart centre: 15 minutes.'],
+      ['scene', 'He is sitting on the edge of the sofa, pale and sweating, a fist pressed to his chest. His wife says it started about 40 minutes ago while he was shoveling snow.'],
+      ['hospital', 'Nearest emergency department: 8 minutes, no cath lab. PCI-capable heart center: 15 minutes.'],
     ],
   },
   initial: {
@@ -46,7 +46,7 @@ export const stemiAnterior: Scenario = {
     vitals: { sbp: 148, dbp: 92, spo2: 95, rr: 20, etco2: 36, pain: 8, gcs: 15, glucose: 132, temp: 36.8 },
   },
   facts: {
-    opqrst: 'It came on 40 minutes ago while I was shovelling. Like an elephant on my chest — it goes into my left arm and jaw. 8 out of 10. Nothing makes it better.',
+    opqrst: 'It came on 40 minutes ago while I was shoveling. Like an elephant on my chest — it goes into my left arm and jaw. 8 out of 10. Nothing makes it better.',
     sample: 'No allergies. I take lisinopril and atorvastatin. High blood pressure and cholesterol; I smoke a pack a day. Lunch was 2 hours ago.',
     pde5: "No, I don't take anything like that.",
     lungs: 'Clear and equal on both sides.',
@@ -94,22 +94,22 @@ export const stemiAnterior: Scenario = {
     { id: 'transmit', label: 'Transmit the 12-lead (you do not interpret it)', why: 'Transmitting lets the physician read it and activate the cath lab before you arrive.', done: ['ecg-transmit'], roles: [1], points: 10, target: { by: 15 } },
     { id: 'als', label: 'Request a paramedic intercept', why: 'A STEMI can turn into VF or shock at any moment; ALS should meet you, but never delay transport waiting for them.', done: ['als'], roles: [1], points: 5, target: { by: 6 } },
     { id: 'aspirin', label: 'Aspirin 162–325 mg chewed', why: 'Early aspirin reduces STEMI mortality (ISIS-2). Give it unless the patient is truly allergic or bleeding.', done: ['aspirin'], points: 10, target: { by: 15 } },
-    { id: 'pads', label: 'Defibrillation pads on early', why: 'Anterior STEMI carries a high early risk of VF; pads on means a shock in seconds.', done: ['pads', 'aed', 'defib'], roles: [2], points: 5, target: { by: 12 } },
+    { id: 'pads', label: 'Defibrillation pads on early', why: 'Anterior STEMI carries a high early risk of VF; pads on means a shock in seconds.', done: PADS, roles: [2], points: 5, target: { by: 12 } },
     { id: 'iv', label: 'IV access', why: 'Needed for analgesia and for the resuscitation that followed.', done: ['iv', 'io'], roles: [2], points: 5 },
-    { id: 'alert', label: 'STEMI alert from the field', why: 'Prehospital activation cuts door-to-balloon time: the team is waiting when you arrive.', done: ['stemi-alert', 'ecg-transmit'], roles: [2], points: 15, target: { by: 15 } },
-    { id: 'pci', label: 'Straight to the PCI-capable heart centre', why: 'Primary PCI within 90 minutes of first contact beats fibrinolysis; bypass the ED without a cath lab.', done: (s) => s.flags['dest-pci'] ?? null, points: 10 },
+    { id: 'alert', label: 'STEMI alert from the field', why: 'Prehospital activation shortens the time from first medical contact to device: the team is waiting when you arrive.', done: ['stemi-alert', 'ecg-transmit'], roles: [2], points: 15, target: { by: 15 } },
+    { id: 'pci', label: 'Straight to the PCI-capable heart center', why: 'Primary PCI within 90 minutes of first contact beats fibrinolysis; bypass the ED without a cath lab.', done: (s) => s.flags['dest-pci'] ?? null, points: 10 },
     { id: 'vf-response', label: 'Immediate response to VF: CPR or a shock within 1 minute', why: 'Every minute of untreated VF lowers survival by about 7–10 %.', done: ['cpr', 'defib', 'aed'], after: 'arrest', points: 10, target: { within: { flag: 'arrest', minutes: 1 } }, applies: (s) => has(s, 'arrest') },
     { id: 'shock', label: 'Defibrillation within 2 minutes of VF', why: 'Witnessed VF with pads on should be shocked within seconds; early defibrillation is the single biggest factor in survival.', done: ['defib', 'aed'], after: 'arrest', points: 15, target: { within: { flag: 'arrest', minutes: 2 } }, applies: (s) => has(s, 'arrest') },
     { id: 'post-ecg', label: 'Repeat 12-lead after ROSC', why: 'The post-arrest ECG confirms the STEMI and goes to the cath lab team.', done: ['ecg12-repeat', 'ecg12'], after: 'rosc', points: 5, applies: (s) => has(s, 'rosc') },
-    { id: 'handoff', label: 'Hand-off at the heart centre', why: 'A structured hand-off (SBAR) carries times, drugs and the ECG to the cath lab team.', done: ['handoff'], points: 5 },
+    { id: 'handoff', label: 'Hand-off at the heart center', why: 'A structured hand-off (SBAR) carries times, drugs and the ECG to the cath lab team.', done: ['handoff'], points: 5 },
   ],
   harms: [
     { id: 'nitro-no-bp', actions: ['nitro', 'nitro-assist'], when: (s) => !has(s, 'bp'), points: 5, severity: 'major', text: 'Nitroglycerin without a blood pressure. Check BP first: SBP must be at least 90–100 mmHg (per protocol).' },
-    { id: 'nitro-no-pde5', actions: ['nitro', 'nitro-assist'], when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor', text: 'Nitroglycerin without asking about sildenafil or vardenafil (24 h) or tadalafil (48 h). Together they can cause profound hypotension.' },
+    { id: 'nitro-no-pde5', actions: ['nitro', 'nitro-assist'], when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor', text: 'Nitroglycerin without asking about erectile-dysfunction drugs: no nitrate within 12 h (avanafil), 24 h (sildenafil, vardenafil) or 48 h (tadalafil) of a PDE-5 inhibitor. Together they can cause profound hypotension.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 3, severity: 'minor', text: 'Oxygen is for SpO₂ below 90 %. Routine oxygen in a normoxic STEMI gives no benefit, and high-flow oxygen may increase infarct size (AVOID).' },
     { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'IV beta-blockers are not a prehospital STEMI treatment; in anterior STEMI they raise the risk of cardiogenic shock (COMMIT).' },
-    { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable centre (first medical contact to device within 90 minutes). The nearest ED has no cath lab and adds a transfer.' },
-    { id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, points: 4, severity: 'minor', text: 'CPAP is for respiratory distress from pulmonary oedema; his lungs were clear.' },
+    { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable center (first medical contact to device within 90 minutes). The nearest ED has no cath lab and adds a transfer.' },
+    { id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, points: 4, severity: 'minor', text: 'CPAP is for respiratory distress from pulmonary edema; his lungs were clear.' },
   ],
   timings: [
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
@@ -118,14 +118,14 @@ export const stemiAnterior: Scenario = {
     { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
   ],
   transportMinutes: 15,
-  arrival: 'You arrive at the heart centre; the cath lab team meets you at the door.',
+  arrival: 'You arrive at the heart center; the cath lab team meets you at the door.',
   teaching: [
     'Anterior STEMI is a proximal LAD occlusion: a large territory with a high risk of VF and cardiogenic shock in the first hours. Pads on early.',
     '12-lead within 10 minutes of first contact; transmit it and activate the cath lab from the field.',
     'Aspirin 162–325 mg chewed for every suspected ACS unless contraindicated.',
-    'Nitroglycerin only with SBP ≥ 90–100 mmHg, no PDE5 inhibitor in the last 24–48 h and no suspected RV infarction.',
+    'Nitroglycerin only with SBP ≥ 90–100 mmHg, no suspected RV infarction, and no PDE-5 inhibitor within 12 h (avanafil), 24 h (sildenafil, vardenafil) or 48 h (tadalafil).',
     'Oxygen only if SpO₂ < 90 %.',
-    'Destination: a PCI-capable centre — first medical contact to device within 90 minutes.',
+    'Destination: a PCI-capable center — first medical contact to device within 90 minutes.',
     'Witnessed VF: shock immediately, then CPR; after ROSC repeat the 12-lead and continue to PCI.',
   ],
 };

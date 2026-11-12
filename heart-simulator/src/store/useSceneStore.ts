@@ -28,10 +28,12 @@ export const CAMERA_PRESETS: CameraPreset[] = [
   { label: 'Inferior', short: 'Bottom', dir: n(0, -1, 0.35), group: 'anatomic', description: 'Diaphragmatic surface: inferior wall, PDA' },
   { label: 'RAO 30°', short: 'RAO', dir: angio(-30, 0), group: 'angio', description: 'Ventriculogram view; LAD and LCx separated' },
   { label: 'LAO 45°', short: 'LAO', dir: angio(45, 0), group: 'angio', description: 'RCA "C" shape; septum in profile (separates LV from RV)' },
-  { label: 'RAO Cranial', short: 'RAO Cr', dir: angio(-30, 25), group: 'angio', description: 'Mid/distal LAD and diagonals' },
-  { label: 'LAO Cranial', short: 'LAO Cr', dir: angio(40, 25), group: 'angio', description: 'LAD with diagonals; distal RCA/PDA' },
+  // the same angles as the cath lab catalog's views (src/lib/cathlab/views.ts), so the angle readout matches its pages
+  { label: 'RAO Cranial', short: 'RAO Cr', dir: angio(-20, 30), group: 'angio', description: 'Mid/distal LAD and diagonals' },
+  { label: 'AP Cranial', short: 'AP Cr', dir: angio(0, 35), group: 'angio', description: 'Mid LAD and diagonals opened up; the RCA crux' },
+  { label: 'LAO Cranial', short: 'LAO Cr', dir: angio(35, 25), group: 'angio', description: 'LAD with diagonals; distal RCA/PDA' },
   { label: 'RAO Caudal', short: 'RAO Ca', dir: angio(-25, -25), group: 'angio', description: 'LCx and obtuse marginals; proximal LAD' },
-  { label: 'LAO Caudal', short: 'Spider', dir: angio(45, -30), group: 'angio', description: '"Spider" view: left main bifurcation' },
+  { label: 'LAO Caudal', short: 'Spider', dir: angio(45, -25), group: 'angio', description: '"Spider" view: left main bifurcation' },
 ];
 
 interface SceneState {
@@ -42,15 +44,26 @@ interface SceneState {
   cameraPreset: CameraPreset | null;
   /** increments to request the camera to frame the current selection */
   focusNonce: number;
+  /**
+   * Show every name tag even in a small view. Normally a small 3D view shows only the most important tags so they
+   * do not bury the heart; a lesson that asks the learner to tap a tag needs them all.
+   */
+  allLabels: boolean;
   /** Equivalent C-arm projection of the current 3D view (degrees): LAO + / RAO −, cranial + / caudal − */
   carm: { primary: number; secondary: number };
   /** Activation patterns currently shown (keys into VENT_PATTERNS / ATRIAL_PATTERNS) and their durations */
   activation: { vent: string | null; atria: string | null; qrsMs: number; pMs: number; vFirstMs: number; aFirstMs: number };
 
+  /**
+   * counts every selection of a structure, even of the one already selected: a lesson's "tap the …" check answers
+   * on each tap, so a second tap on the same name tag (or on the part the step ringed) is not lost
+   */
+  selectCount: number;
   /** `focus: false` (a pick on the heart itself, already in view) selects without moving the camera */
   selectStructure: (id: string | null, focus?: boolean) => void;
   hoverStructure: (id: string | null) => void;
   setHighlights: (ids: string[]) => void;
+  setAllLabels: (on: boolean) => void;
   setCameraPreset: (preset: CameraPreset | null) => void;
   requestFocus: () => void;
   setCarm: (primary: number, secondary: number) => void;
@@ -63,12 +76,19 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   highlightIds: [],
   cameraPreset: null,
   focusNonce: 0,
+  selectCount: 0,
+  allLabels: false,
   carm: { primary: 0, secondary: 0 },
   activation: { vent: 'normal', atria: 'sinus', qrsMs: 92, pMs: 100, vFirstMs: 20, aFirstMs: 0 },
 
-  selectStructure: (id, focus = true) => set((s) => ({ selectedStructureId: id, focusNonce: id && focus ? s.focusNonce + 1 : s.focusNonce })),
+  selectStructure: (id, focus = true) => set((s) => ({
+    selectedStructureId: id,
+    focusNonce: id && focus ? s.focusNonce + 1 : s.focusNonce,
+    selectCount: id ? s.selectCount + 1 : s.selectCount,
+  })),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
   setHighlights: (highlightIds) => set({ highlightIds }),
+  setAllLabels: (allLabels) => set((s) => (s.allLabels === allLabels ? s : { allLabels })),
   setCameraPreset: (cameraPreset) => set({ cameraPreset }),
   requestFocus: () => set((s) => ({ focusNonce: s.focusNonce + 1 })),
   setActivation: (activation) => {

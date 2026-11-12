@@ -16,13 +16,15 @@ import { angio } from '@/store/useSceneStore';
 import { useECGStore, type BottomView } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
-import { useMedStore } from '@/store/useMedStore';
+import { untreatedRhythm, useMedStore } from '@/store/useMedStore';
+import { codeInProgress } from '@/lib/sim/defib';
 import { useContentStore } from '@/lib/content';
 import { CONDITION_TO_PROFILE, resolveProfile } from '@/lib/ecg/profiles';
 import { CONDUCTION_IDS, CORONARY_IDS, SECTION_FIRST, structureCategory } from '@/lib/anatomy/categories';
 import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CASE_DATA } from '@/data/caseData';
-import { setRhythm, showRhythm } from '@/lib/rhythm';
+import { newPatient, patientCount, setRhythm, showRhythm } from '@/lib/rhythm';
+import { standardPlacement } from '@/lib/ecg/placement';
 import { leaveSimulator } from '@/store/useSimStore';
 import { CONDITION_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 
@@ -34,7 +36,36 @@ function reveal() {
     if (app.mode === 'simulator') leaveSimulator();
     app.setMode('learn');
   }
+  stowTools();
   showReading();
+}
+
+/**
+ * The electrode lab and the defibrillator are tools of their own. A new topic never opens with one of them still
+ * selected — on a phone it would take the whole screen again the next time the EKG drawer opens — nor with the
+ * cables the lab left swapped. (The pressure curves stay: they are read beside the topic.)
+ */
+function stowTools() {
+  const ecg = useECGStore.getState();
+  standardPlacement();
+  if (ecg.electrodeLab) ecg.setElectrodeLab(false);
+  if (ecg.bottomView === 'defib') ecg.setBottomView('ecg');
+}
+
+/**
+ * A known state for whatever opens next — a library section, a tool, a condition, a case, a lesson, the rhythm
+ * trainer: the ECG cables on their standard sites, the electrode lab and the defibrillator put away with the
+ * 12-lead in their place, and the heartbeat in real time (the "Watch one heartbeat" start slows it to a quarter).
+ * The drawers, the patient on the monitor and any drug still acting are left alone: the caller decides what shows.
+ * `keepCables` is for the electrode lab itself, which opens with the cables as the learner left them.
+ */
+export function cleanSlate({ keepCables = false }: { keepCables?: boolean } = {}) {
+  const ecg = useECGStore.getState();
+  const tl = useTimelineStore.getState();
+  if (!keepCables) standardPlacement();
+  if (ecg.electrodeLab) ecg.setElectrodeLab(false);
+  if (ecg.bottomView !== 'ecg') ecg.setBottomView('ecg');
+  if (tl.speed !== 1) tl.setSpeed(1);
 }
 
 /** Bring the reading into view: the item rather than the list on small screens, and no drawer covering it */
@@ -68,6 +99,7 @@ export function showEcg(view: BottomView = 'ecg') {
 export function openCategory(cat: PanelCategory) {
   const app = useAppStore.getState();
   if (app.mode === 'simulator') leaveSimulator();
+  cleanSlate();
   app.setMode('learn');
   app.setActivePanelCategory(cat);
   app.setListOpen(true);
@@ -84,6 +116,7 @@ export type Tool = 'heart' | 'ecg' | 'lab' | 'defib' | 'wiggers';
 export function openTool(tool: Tool) {
   const app = useAppStore.getState();
   if (app.mode === 'simulator') leaveSimulator();
+  cleanSlate({ keepCables: tool === 'lab' });
   app.setMode('learn');
   app.setActivePanelCategory(tool === 'heart' ? 'anatomy' : 'conditions');
   app.setListOpen(true);
@@ -130,19 +163,20 @@ export function openStructure(id: string) {
 
 export function openCondition(id: string) {
   reveal();
+  cleanSlate();
   const app = useAppStore.getState();
   app.setActivePanelCategory('conditions');
-  // a new patient: drugs given to the last one no longer apply
+  // the medication session now belongs to this condition (showing its rhythm, below, starts the new patient clean)
   useMedStore.getState().reset(id);
   useConditionStore.getState().selectCondition(id);
   useCaseStore.getState().resetCase();
   const profile = CONDITION_TO_PROFILE[id];
   if (profile) showRhythm(profile);
+  else newPatient();
   const c = useContentStore.getState().lib?.conditions[id];
   const scene = useSceneStore.getState();
   scene.selectStructure(null);
   scene.setHighlights((c?.affectedStructures ?? []).filter((s) => LANDMARK_BY_ID[s]));
-  useECGStore.getState().setBottomView('ecg');
   useLearningStore.getState().markConditionStudied(id);
 }
 
@@ -165,25 +199,88 @@ export function openMedication(id: string) {
   useLearningStore.getState().markMedicationReviewed(id);
 }
 
+/**
+ * A condition page's "Show the ECG": slide the 12-lead up on this condition's pattern. If a patient is already on
+ * the monitor — this condition's rhythm, drugs still acting from Give meds, or a code under way on the
+ * defibrillator — the button only brings the tracing into view: putting the pattern up again would be a new
+ * patient, and end the treatment or the code ("Reset patient" and "Reset code" are there for that).
+ */
+export function showConditionEcg(conditionId: string) {
+  const profile = resolveProfile(CONDITION_TO_PROFILE[conditionId]);
+  const med = useMedStore.getState();
+  const treating = med.given.length > 0 || med.log.length > 0 || codeInProgress();
+  if (!treating && useECGStore.getState().activeProfileId !== profile.id) {
+    med.reset(conditionId);
+    showRhythm(profile.id);
+  }
+  showEcg('ecg');
+}
+
+// ─── The quiz borrows the monitor ──────────────────────────────────────────
+
+/** whom the quiz hands the monitor back to, and which patient its last strip was (`patientCount`) */
+let quizLoan: { back: { profileId: string; hr: number }; strip: number } | null = null;
+
+/**
+ * A quiz question with a strip puts its rhythm on the monitor: another patient. The first strip remembers whom to
+ * hand the monitor back to — the patient before any drug, if Give meds has been treating one, since the doses end
+ * with the strip. So does the first strip after the learner put a patient of their own up (a topic opened from an
+ * explanation's links).
+ *
+ * The strip plays live, and the ECG drawer is set to the 12-lead (not an enlarged lead), so it shows the strip
+ * whenever it is up. Nothing else on screen moves: the quiz card draws the strip itself wherever the 12-lead is not in
+ * view (a phone, whose quiz fills the screen; the main menu; a closed drawer; the electrode lab) and offers to slide
+ * the 12-lead up on a wide learning screen. Opening the drawer unasked would also leave an extra step for Back to undo
+ * before the quiz closes.
+ */
+export function showQuizStrip(profileId: string, hr?: number) {
+  if (!quizLoan || patientCount() !== quizLoan.strip) {
+    const ecg = useECGStore.getState();
+    quizLoan = { back: untreatedRhythm() ?? { profileId: ecg.activeProfileId, hr: useTimelineStore.getState().heartRate }, strip: -1 };
+  }
+  showRhythm(profileId, hr);
+  quizLoan.strip = patientCount();
+  const ecg = useECGStore.getState();
+  ecg.setInspectLead(null);
+  ecg.setBottomView('ecg');
+  useTimelineStore.getState().play();
+}
+
+/**
+ * The quiz closes. Only if one of its strips took the monitor, and is still the patient on it, does the monitor go
+ * back to the patient it was borrowed from; otherwise nothing changes — a quiz without strips leaves the drugs
+ * acting, and a topic opened from the quiz stays on screen.
+ */
+export function endQuizStrips() {
+  const loan = quizLoan;
+  quizLoan = null;
+  if (loan && patientCount() === loan.strip) showRhythm(loan.back.profileId, loan.back.hr);
+}
+
 /** A condition's Give meds section: choose a drug and dose for the patient, push it, watch the live 12-lead */
 export function openTreatment(conditionId: string) {
   openCondition(conditionId);
-  useAppStore.getState().setRightPanelTab('treat');
-  showEcg('ecg');
+  const app = useAppStore.getState();
+  app.setRightPanelTab('treat');
+  // A phone on its side has room for the form or the 12-lead, not both. The form comes first there: pushing a
+  // drug slides the 12-lead up.
+  if (!app.short) showEcg('ecg');
 }
 
 export function openCase(id: string) {
   const c = CASE_DATA[id];
   if (!c) return;
   reveal();
+  cleanSlate();
   useAppStore.getState().setActivePanelCategory('cases');
   useCaseStore.getState().startCase(id, 'initial');
   useConditionStore.getState().selectCondition(null);
   const scene = useSceneStore.getState();
   scene.selectStructure(null);
   scene.setHighlights([]);
+  // a new patient, who belongs to no condition page: nothing given to the last one, on any screen, acts on this one
+  useMedStore.getState().reset(null);
   showRhythm(c.ecgProfile, c.heartRate);
-  useECGStore.getState().setBottomView('ecg');
 }
 
 /** A cath lab catalog item: a view also turns the 3D heart to that C-arm angle */

@@ -34,7 +34,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'FFR ≤ 0.80: flow-limiting, revascularize; > 0.80: defer and treat medically (FAME; deferral proved safe long term in DEFER)',
       '0.75–0.80 is a gray zone: weigh symptoms, territory size and the pullback',
       'IV adenosine 140 mcg/kg/min (some labs go to 180) for at least 1–2 minutes to reach steady hyperemia',
-      'IC adenosine bolus: commonly ≥ 100 mcg in the right coronary and ≥ 200 mcg in the left',
+      'IC adenosine bolus: commonly 100 mcg in the right coronary and 200 mcg in the left',
       'IC nitroglycerin 100–200 mcg before measuring',
       'Drift check: Pd/Pa 1.00 ± 0.02 (0.98–1.02) back at the guide tip',
     ],
@@ -108,6 +108,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'Calcium is bright with an acoustic shadow behind it, so IVUS shows its arc and length but cannot measure its thickness.',
       'After stenting it checks expansion (minimal stent area, MSA), apposition, edge dissection and whether the stent edges land on plaque (geographic miss).',
       'ULTIMATE (2018) and RENOVATE-COMPLEX-PCI (2023) showed fewer target-vessel failures when PCI was guided by intravascular imaging rather than angiography alone.',
+      'The 2025 ACC/AHA acute coronary syndromes guideline makes IVUS or OCT guidance a Class 1 recommendation for stenting the left main or complex lesions.',
       'In the left main, an MLA below about 6 mm² suggests a significant narrowing; in smaller vessels MLA cut-offs are unreliable, so physiology is preferred.',
     ],
     roles: {
@@ -250,6 +251,7 @@ export const CATHLAB_B: CathLabItem[] = [
       'ACT about 250 s for insertion; lower targets during support, per protocol',
       'Purge: dextrose with heparin (commonly 25–50 units/mL), or 25 mEq/L sodium bicarbonate in D5W',
       'DanGer Shock: 180-day death 45.8 % vs 58.5 % (HR 0.74); kidney replacement therapy 41.9 % vs 26.7 %',
+      '2025 ACC/AHA ACS guideline: reasonable (Class 2a) in selected patients with STEMI and severe or refractory cardiogenic shock',
     ],
     pearls: [
       'Suction alarms usually mean low filling (bleeding, hypovolemia, RV failure) or the inlet against the wall: check position by echo and volume before the P-level is lowered.',
@@ -533,7 +535,7 @@ export const CATHLAB_B: CathLabItem[] = [
       md: 'Crosses the aortic valve with the pigtail and interprets the LVEDP with the clinical picture. Decides on the LV gram, fluids or diuretics and the contrast plan.',
     },
     numbers: [
-      'Normal LV pressure about 100–140 / 3–12 mmHg',
+      'Normal LV pressure about 90–140 / 5–12 mmHg',
       'LVEDP ≤ 12 mmHg normal; 13–18 mmHg borderline to mildly high; > 18 mmHg elevated',
       'POSEIDON fluid rates: LVEDP < 13 → 5 mL/kg/h; 13–18 → 3 mL/kg/h; > 18 → 1.5 mL/kg/h',
       'POSEIDON: contrast kidney injury 6.7 % vs 16.3 %',
@@ -574,7 +576,7 @@ export const CATHLAB_B: CathLabItem[] = [
       md: 'Advances the catheter through each chamber, confirms the wedge and interprets pressures, waveforms and saturations. Diagnoses heart failure, shunts or pulmonary hypertension.',
     },
     numbers: [
-      'RA mean 2–8 mmHg',
+      'RA mean 2–6 mmHg',
       'RV 15–30 / 2–8 mmHg',
       'PA 15–30 / 4–12 mmHg, mean ≤ 20 mmHg',
       'PCWP mean 6–12 mmHg',
@@ -692,7 +694,7 @@ export const CATHLAB_B: CathLabItem[] = [
     details: [
       'A little whole blood is mixed with an activator (celite or kaolin) in a point-of-care machine, which reports the clotting time in seconds.',
       'Baseline ACT without heparin is roughly 90–140 seconds, depending on the machine; heparin prolongs it in a dose-related way.',
-      'Check about 5 minutes after a heparin bolus, then about every 30 minutes in long cases and after any extra bolus.',
+      'Check about 5 minutes after a heparin bolus, then about every 20–30 minutes in long cases and after any extra bolus.',
       'Targets depend on the drugs and the machine: about 250–300 s for PCI with heparin alone, about 200–250 s with a GP IIb/IIIa inhibitor.',
       'Machines differ: the classic heparin-only PCI targets were 250–300 s on HemoTec and 300–350 s on Hemochron, so know which one your lab uses.',
       'Draw the sample from a line free of heparinized flush, discarding the dead space first, or the result will be falsely long.',
@@ -866,7 +868,7 @@ export const CATHLAB_B: CathLabItem[] = [
     ],
     pearls: [
       'Someone must watch the patient and the monitor at every moment; when the RN is busy with a drug, the monitoring tech keeps eyes on the pressures and rhythm.',
-      'Scope matters: techs don’t give drugs, RNs give drugs on order and the operator decides, but anyone can stop the case for safety.',
+      'Scope matters: techs give drugs only on a physician’s order where state law and facility policy allow, RNs give drugs on order and the operator decides, but anyone can stop the case for safety.',
       'In an emergency, the operator or a named leader assigns roles out loud: compressions, defibrillator, drugs, recorder.',
     ],
     image: { keys: ['cath-lab-ep-study-team', 'cath-lab-cv-technologists'], want: 'A real photo of the cath lab team at work: operator, tech, nurse and control room.' },

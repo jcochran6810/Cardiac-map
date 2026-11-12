@@ -3,16 +3,30 @@ import { useECGStore } from '@/store/useECGStore';
 import { useSimStore } from '@/store/useSimStore';
 import { CATEGORY_BY_VALUE } from '@/lib/categories';
 import { nameOf } from '@/lib/actions';
-import { currentPage } from '@/lib/backNav';
+import { currentPage, TRAINER_PAGE } from '@/lib/backNav';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { FeedbackContext } from '@/lib/feedback/feedback';
+import { useCourseStore } from '@/store/useCourseStore';
+import { findLesson } from '@/lib/courses';
+import { useDrillStore } from '@/store/useDrillStore';
+import { DRILL_SET_BY_ID } from '@/lib/drill';
 
-const ECG_VIEW: Record<string, string> = { ecg: '12-lead', wiggers: 'Wiggers / PV', defib: 'defibrillator' };
+const ECG_VIEW: Record<string, string> = { ecg: '12-lead', wiggers: 'Pressure & volume', defib: 'defibrillator' };
 
 /** Where the learner is, in words: "Learn › Conditions › Anterior STEMI (3D heart, 12-lead open)" */
 export function describePage(): string {
   const page = currentPage();
   if (page.mode === 'home') return 'Main menu';
+  if (page.mode === 'courses') return 'Courses';
+  if (page.lesson === TRAINER_PAGE) {
+    const set = useDrillStore.getState().setId;
+    return `Rhythm trainer${set ? ` › ${DRILL_SET_BY_ID[set]?.title ?? set}` : ''}`;
+  }
+  if (page.lesson) {
+    const a = useCourseStore.getState().active;
+    const found = a ? findLesson(a.course, a.lesson) : null;
+    return found && a ? `Course › ${found.course.title} › ${found.lesson.title} (step ${a.step + 1} of ${found.lesson.steps.length})` : `Course › ${page.lesson}`;
+  }
   if (page.mode === 'simulator') {
     const s = useSimStore.getState().state;
     const title = s ? SCENARIO_BY_ID[s.scenarioId]?.title ?? s.scenarioId : null;

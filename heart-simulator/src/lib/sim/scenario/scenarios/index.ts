@@ -7,13 +7,24 @@ import { cathlabInferior } from './cathlabInferior';
 import { cathlabPerforation } from './cathlabPerforation';
 import { cathlabShock } from './cathlabShock';
 import { cathlabStemi } from './cathlabStemi';
+import { afRvrField } from './afRvrField';
+import { betaBlockerField } from './betaBlockerField';
+import { cathlabNoReflow } from './cathlabNoReflow';
 import { heartBlock } from './heartBlock';
+import { hyperkalemiaField } from './hyperkalemiaField';
+import { peaArrestField } from './peaArrestField';
+import { stableVtField } from './stableVtField';
 import { stemiAnterior } from './stemiAnterior';
 import { stemiInferiorRV } from './stemiInferiorRV';
 import { svtUnstable } from './svtUnstable';
 import { vfArrest } from './vfArrest';
 
-export const SCENARIOS: Scenario[] = [stemiAnterior, stemiInferiorRV, heartBlock, svtUnstable, vfArrest, cathlabStemi, cathlabInferior, cathlabFfr, cathlabShock, cathlabPerforation, cathlabContrast];
+export const SCENARIOS: Scenario[] = [
+  // the field
+  stemiAnterior, stemiInferiorRV, heartBlock, betaBlockerField, svtUnstable, afRvrField, stableVtField, hyperkalemiaField, vfArrest, peaArrestField,
+  // the cath lab
+  cathlabStemi, cathlabInferior, cathlabFfr, cathlabShock, cathlabNoReflow, cathlabPerforation, cathlabContrast,
+];
 
 export const SCENARIO_BY_ID: Record<string, Scenario> = Object.fromEntries(SCENARIOS.map((s) => [s.id, s]));
 

@@ -19,7 +19,7 @@ export interface ReadOption {
   profiles?: string[];
 }
 
-export const READ_GROUPS = ['Rhythm', 'AV and bundle branch blocks', 'Ischaemia and infarction', 'Other patterns'];
+export const READ_GROUPS = ['Rhythm', 'AV and bundle branch blocks', 'Ischemia and infarction', 'Other patterns'];
 
 export const READ_OPTIONS: ReadOption[] = [
   { id: 'nsr', label: 'Normal sinus rhythm', group: 'Rhythm', profiles: ['normal-sinus', 'pfo'] },
@@ -34,8 +34,9 @@ export const READ_OPTIONS: ReadOption[] = [
   { id: 'torsades', label: 'Polymorphic VT (torsades de pointes)', group: 'Rhythm', profiles: ['torsades'] },
   { id: 'vf', label: 'Ventricular fibrillation', group: 'Rhythm', profiles: ['vf'] },
   { id: 'asystole', label: 'Asystole', group: 'Rhythm', profiles: ['asystole'] },
-  { id: 'paced', label: 'Paced rhythm (implanted pacemaker)', group: 'Rhythm', profiles: ['paced'] },
+  { id: 'paced', label: 'Paced rhythm (pacemaker or pacing wire)', group: 'Rhythm', profiles: ['paced'] },
   { id: 'tcp', label: 'Transcutaneous pacing with capture', group: 'Rhythm', profiles: ['tcp'] },
+  { id: 'aivr', label: 'Accelerated idioventricular rhythm (AIVR)', group: 'Rhythm', profiles: ['aivr'] },
 
   { id: 'avb1', label: 'First-degree AV block', group: 'AV and bundle branch blocks', profiles: ['first-degree-avb'] },
   { id: 'mobitz1', label: 'Second-degree AV block, Mobitz I (Wenckebach)', group: 'AV and bundle branch blocks', profiles: ['mobitz-i'] },
@@ -47,18 +48,18 @@ export const READ_OPTIONS: ReadOption[] = [
   { id: 'wpw', label: 'Pre-excitation (Wolff-Parkinson-White)', group: 'AV and bundle branch blocks', profiles: ['wpw'] },
   { id: 'incomplete-rbbb', label: 'Incomplete RBBB with right axis deviation', group: 'AV and bundle branch blocks', profiles: ['asd'] },
 
-  { id: 'stemi-anterior', label: 'Anterior STEMI', group: 'Ischaemia and infarction', profiles: ['anterior-stemi', 'cardiogenic-shock'] },
-  { id: 'stemi-inferior', label: 'Inferior STEMI', group: 'Ischaemia and infarction', profiles: ['inferior-stemi'] },
-  { id: 'stemi-lateral', label: 'Lateral STEMI', group: 'Ischaemia and infarction', profiles: ['lateral-stemi'] },
-  { id: 'stemi-inferior-chb', label: 'Inferior STEMI with complete heart block', group: 'Ischaemia and infarction', profiles: ['inferior-stemi-chb'] },
-  { id: 'reperfused-anterior', label: 'Anterior MI after reperfusion (ST elevation resolving)', group: 'Ischaemia and infarction', profiles: ['anterior-stemi-reperfused'] },
-  { id: 'reperfused-inferior', label: 'Inferior MI after reperfusion (ST elevation resolving)', group: 'Ischaemia and infarction', profiles: ['inferior-stemi-reperfused'] },
-  { id: 'ischaemia', label: 'Diffuse ST depression with ST elevation in aVR (subendocardial ischaemia)', group: 'Ischaemia and infarction', profiles: ['nstemi'] },
-  { id: 'wellens', label: 'Wellens pattern (deep T-wave inversion V2–V3)', group: 'Ischaemia and infarction', profiles: ['wellens'] },
-  { id: 'takotsubo', label: 'Anterior ST elevation without reciprocal change (Takotsubo pattern)', group: 'Ischaemia and infarction', profiles: ['takotsubo'] },
+  { id: 'stemi-anterior', label: 'Anterior STEMI', group: 'Ischemia and infarction', profiles: ['anterior-stemi', 'cardiogenic-shock'] },
+  { id: 'stemi-inferior', label: 'Inferior STEMI', group: 'Ischemia and infarction', profiles: ['inferior-stemi'] },
+  { id: 'stemi-lateral', label: 'Lateral STEMI', group: 'Ischemia and infarction', profiles: ['lateral-stemi'] },
+  { id: 'stemi-inferior-chb', label: 'Inferior STEMI with complete heart block', group: 'Ischemia and infarction', profiles: ['inferior-stemi-chb'] },
+  { id: 'reperfused-anterior', label: 'Anterior MI after reperfusion (ST elevation resolving)', group: 'Ischemia and infarction', profiles: ['anterior-stemi-reperfused'] },
+  { id: 'reperfused-inferior', label: 'Inferior MI after reperfusion (ST elevation resolving)', group: 'Ischemia and infarction', profiles: ['inferior-stemi-reperfused'] },
+  { id: 'ischaemia', label: 'Diffuse ST depression with ST elevation in aVR (subendocardial ischemia)', group: 'Ischemia and infarction', profiles: ['nstemi'] },
+  { id: 'wellens', label: 'Wellens pattern (deep T-wave inversion V2–V3)', group: 'Ischemia and infarction', profiles: ['wellens'] },
+  { id: 'takotsubo', label: 'Anterior ST elevation without reciprocal change (Takotsubo pattern)', group: 'Ischemia and infarction', profiles: ['takotsubo'] },
 
   { id: 'pericarditis', label: 'Acute pericarditis (diffuse ST elevation, PR depression)', group: 'Other patterns', profiles: ['pericarditis'] },
-  { id: 'hyperkalaemia', label: 'Hyperkalaemia (peaked T waves, wide QRS)', group: 'Other patterns', profiles: ['hyperkalemia'] },
+  { id: 'hyperkalaemia', label: 'Hyperkalemia (peaked T waves, wide QRS)', group: 'Other patterns', profiles: ['hyperkalemia'] },
   { id: 'right-strain', label: 'Right heart strain (S1Q3T3)', group: 'Other patterns', profiles: ['pulmonary-embolism'] },
   { id: 'lvh', label: 'Left ventricular hypertrophy with strain', group: 'Other patterns', profiles: ['aortic-stenosis', 'hfpef', 'aortic-dissection'] },
   { id: 'hcm', label: 'LVH with deep, narrow ("dagger") Q waves', group: 'Other patterns', profiles: ['hcm'] },
@@ -73,12 +74,12 @@ const HEMO_OPTIONS: ReadOption[] = [
   { id: 'hemo-normal', label: 'Normal hemodynamics', group: 'Pressures' },
   { id: 'hemo-lvedp-high', label: 'Elevated LVEDP (high left-sided filling pressure)', group: 'Pressures' },
   { id: 'hemo-cardiogenic', label: 'Cardiogenic shock: high filling pressures, low cardiac index', group: 'Shock profiles' },
-  { id: 'hemo-hypovolemic', label: 'Hypovolaemia: low filling pressures, low cardiac index', group: 'Shock profiles' },
+  { id: 'hemo-hypovolemic', label: 'Hypovolemia: low filling pressures, low cardiac index', group: 'Shock profiles' },
   { id: 'hemo-distributive', label: 'Distributive shock: low SVR, high cardiac index', group: 'Shock profiles' },
   { id: 'hemo-rv-infarct', label: 'RV infarction: high RA pressure with a normal or low PCWP', group: 'Shock profiles' },
-  { id: 'hemo-tamponade', label: 'Cardiac tamponade: equalised diastolic pressures', group: 'Shock profiles' },
+  { id: 'hemo-tamponade', label: 'Cardiac tamponade: equalized diastolic pressures', group: 'Shock profiles' },
   { id: 'hemo-ph', label: 'Pre-capillary pulmonary hypertension (high PA pressure, normal PCWP)', group: 'Pressures' },
-  { id: 'hemo-damped', label: 'Damped / ventricularised catheter pressure (catheter wedged)', group: 'Waveforms' },
+  { id: 'hemo-damped', label: 'Damped / ventricularized catheter pressure (catheter wedged)', group: 'Waveforms' },
   { id: 'hemo-as', label: 'Aortic stenosis gradient on pullback', group: 'Waveforms' },
 ];
 
@@ -86,8 +87,8 @@ const HEMO_OPTIONS: ReadOption[] = [
 const PHYSIOLOGY_OPTIONS: ReadOption[] = [
   { id: 'ffr-significant', label: 'Significant (FFR ≤ 0.80): treat the lesion', group: 'Coronary physiology' },
   { id: 'ffr-not-significant', label: 'Not significant (FFR > 0.80): medical therapy, no stent', group: 'Coronary physiology' },
-  { id: 'ffr-drift', label: 'Pressure drift: re-equalise at the guide tip and repeat', group: 'Coronary physiology' },
-  { id: 'ffr-no-hyperemia', label: 'Inadequate hyperaemia: give more adenosine and repeat', group: 'Coronary physiology' },
+  { id: 'ffr-drift', label: 'Pressure drift: re-equalize at the guide tip and repeat', group: 'Coronary physiology' },
+  { id: 'ffr-no-hyperemia', label: 'Inadequate hyperemia: give more adenosine and repeat', group: 'Coronary physiology' },
 ];
 
 /** Stent size from the intravascular imaging measurements */
@@ -113,8 +114,8 @@ const CLINICAL_OPTIONS: ReadOption[] = [
   { id: 'clin-no-reflow', label: 'No-reflow', group: 'Coronary complications' },
   { id: 'clin-air', label: 'Coronary air embolism', group: 'Coronary complications' },
   { id: 'clin-stent-thrombosis', label: 'Acute stent thrombosis', group: 'Coronary complications' },
-  { id: 'clin-tamponade', label: 'Cardiac tamponade', group: 'Haemodynamic emergencies' },
-  { id: 'clin-rp-bleed', label: 'Retroperitoneal bleed', group: 'Haemodynamic emergencies' },
+  { id: 'clin-tamponade', label: 'Cardiac tamponade', group: 'Hemodynamic emergencies' },
+  { id: 'clin-rp-bleed', label: 'Retroperitoneal bleed', group: 'Hemodynamic emergencies' },
   { id: 'clin-spasm', label: 'Radial artery spasm', group: 'Access' },
   { id: 'clin-hematoma', label: 'Access-site hematoma', group: 'Access' },
   { id: 'clin-stroke', label: 'Stroke', group: 'Other' },
@@ -133,7 +134,8 @@ const ANGIO_OPTIONS: ReadOption[] = [
   { id: 'angio-thrombus', label: 'Thrombus', group: 'Findings' },
   { id: 'angio-dissection', label: 'Dissection', group: 'Complications' },
   { id: 'angio-perforation', label: 'Perforation with contrast extravasation', group: 'Complications' },
-  { id: 'angio-no-reflow', label: 'No-reflow (TIMI 0–1 after stenting)', group: 'Complications' },
+  // the catalog's definition (cathlab no-reflow): TIMI 2 or less once the artery is open, not only TIMI 0–1
+  { id: 'angio-no-reflow', label: 'No-reflow / slow flow (TIMI ≤ 2 once the artery is open)', group: 'Complications' },
   { id: 'angio-timi3', label: 'Open artery with TIMI 3 flow', group: 'Findings' },
 ];
 

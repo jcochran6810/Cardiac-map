@@ -8,6 +8,8 @@ import { mirrorRemote } from '@/lib/sim/defib';
 import { setRhythm } from '@/lib/actions';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
+import { useMedStore } from '@/store/useMedStore';
+import { applyPlacement } from '@/lib/ecg/placement';
 
 /** Full-screen monitor mirrored from the main CardioSim window (projector / second screen). */
 export default function MonitorWindow() {
@@ -23,6 +25,14 @@ export default function MonitorWindow() {
       const tl = useTimelineStore.getState();
       if (useECGStore.getState().activeProfileId !== m.profileId || tl.heartRate !== m.hr) setRhythm(m.profileId, m.hr);
       if (tl.playing !== m.playing || tl.speed !== m.speed) useTimelineStore.setState({ playing: m.playing, speed: m.speed });
+      // (after the rhythm: a new rhythm here is a new patient, with standard cables and no drugs)
+      const ecg = useECGStore.getState();
+      if (m.placement && (ecg.placementHidden !== m.placementHidden || JSON.stringify(ecg.placement) !== JSON.stringify(m.placement))) {
+        applyPlacement(m.placement, m.placementHidden);
+      }
+      if (JSON.stringify(useMedStore.getState().mods) !== JSON.stringify(m.mods ?? null)) useMedStore.setState({ mods: m.mods ?? null });
+      ecg.setBlind('main-window', !!m.blind);
+      ecg.setRateHidden(!!m.rateHidden);
       mirrorRemote(m);
     };
     ch.postMessage('hello');

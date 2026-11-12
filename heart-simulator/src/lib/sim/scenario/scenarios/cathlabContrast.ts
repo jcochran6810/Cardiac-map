@@ -1,5 +1,5 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
-import { has, line } from '../kit';
+import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import { MD, RN, TECH, angioGate, askCritical, askEvents, askHarm, operator, type LabAsk } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES */
@@ -13,10 +13,18 @@ const reactionRead: Omit<PendingRead, 'minute'> = {
 const EPI = ['epi-im', 'push-epi'];
 const CONTRAST = ['angio', 'lv-gram', 'final-angio', 'view-rao-caudal', 'view-rao-cranial', 'view-ap-cranial', 'view-lao-cranial', 'view-lao-caudal', 'view-rca-lao', 'view-rca-rao', 'view-rca-cranial'];
 
-const epi = (s: SimState): Effect => ({
-  say: [['you', s.performed.at(-1)?.id === 'push-epi' ? 'Epinephrine 20 mcg IV.' : 'Epinephrine 0.5 mg IM, lateral thigh.'], ['monitor', `BP ${s.vitals.sbp + 18}/${s.vitals.dbp + 12}.`]],
-  vitals: { sbp: s.vitals.sbp + 18, dbp: s.vitals.dbp + 12 }, flags: ['epi-given'],
-});
+/**
+ * Epinephrine for the reaction, IM or as a small IV bolus (the response is called before the action is recorded, so
+ * each route has its own). In cardiac arrest neither is the arrest drug: a muscle barely absorbs an IM dose during CPR,
+ * and 20 mcg IV, though the compressions carry it, is far too small — the arrest dose is 1 mg IV.
+ */
+const epi = (route: 'im' | 'iv') => (s: SimState): Effect => {
+  const dose = route === 'iv' ? 'Epinephrine 20 mcg IV.' : 'Epinephrine 0.5 mg IM, lateral thigh.';
+  const why = route === 'iv' ? '20 mcg is far too small a dose' : 'a muscle barely absorbs it during CPR';
+  if (!s.pulse) return { say: [['you', `${dose} In cardiac arrest it does nothing — ${why}: the arrest dose is 1 mg IV.`, 'warn']] };
+  const bp = bpAfter(s, 18, 12);
+  return { say: [['you', dose], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['epi-given'] };
+};
 
 const TECH_ASKS: LabAsk[] = [
   {
@@ -67,23 +75,42 @@ export const cathlabContrast: Scenario = {
     allergies: '"I\'m allergic to shellfish — I get hives. Is that a problem with the dye?" Never had contrast. No blood thinners. She agrees to the study.',
     sample: 'Shellfish allergy (hives). Atorvastatin. High cholesterol, mild asthma as a child.',
     opqrst: 'A heaviness walking fast, gone with rest. Nothing now.',
-    labs: 'Creatinine 0.8, potassium 4.0, haemoglobin 13.4, INR 1.0.',
+    labs: 'Creatinine 0.8, potassium 4.0, hemoglobin 13.4, INR 1.0.',
     lungs: (s) => (has(s, 'reaction') && !has(s, 'albuterol') ? 'Wheeze on both sides; air moving, but tight.' : 'Clear and equal on both sides.'),
     perfusion: (s) => (has(s, 'reaction') ? 'Flushed, with hives across the chest and neck; lips a little swollen.' : 'Warm and dry.'),
   },
-  status: (s) => (!s.pulse ? 'Unresponsive.' : has(s, 'recovered') ? '"I can breathe again… that was frightening."' : has(s, 'reaction') ? '"My throat… so tight… I can\'t breathe."' : '"I\'m fine."'),
+  status: (s) => {
+    if (!s.pulse) return 'Unresponsive.';
+    if (has(s, 'recovered')) return '"I can breathe again… that was frightening."';
+    if (has(s, 'rosc')) return 'Drowsy after the arrest, breathing on her own; the hives are still there.';
+    return has(s, 'reaction') ? '"My throat… so tight… I can\'t breathe."' : '"I\'m fine."';
+  },
   respond: {
     access: (s) => ({ say: [[operator(s), 'Right radial: 5 Fr sheath in, cocktail given.']], flags: ['access'] }),
     angio: (s) => angioGate(s) ?? { say: [['you', 'First injection of the left coronary: smooth vessels, no narrowing.']], image: { id: 'angio', view: 'Left coronary (first run)', image: IMAGES.angio }, flags: ['angio-left', 'contrast-given'] },
-    'epi-im': epi,
-    'push-epi': epi,
-    fluid: (s) => ({ say: [['monitor', `Fluid wide open. BP ${s.vitals.sbp + 8}/${s.vitals.dbp + 6}.`]], vitals: { sbp: s.vitals.sbp + 8, dbp: s.vitals.dbp + 6 }, flags: ['fluid'] }),
-    albuterol: (s) => ({ say: [['you', 'Albuterol 5 mg nebulised.'], ['patient', has(s, 'reaction') ? '"That\'s… a bit easier."' : '"OK."']], vitals: { spo2: Math.min(98, s.vitals.spo2 + 3), rr: Math.max(16, s.vitals.rr - 6) }, flags: ['albuterol'] }),
+    'epi-im': epi('im'),
+    'push-epi': epi('iv'),
+    // in the anaphylactic arrest the arrest dose is the right one; with a pulse it does end the reaction, but with a
+    // dangerous surge (its safety rule costs the points); before any reaction the default response applies
+    epinephrine: (s) => {
+      if (!s.pulse) return { say: [['you', 'Epinephrine 1 mg IV, flushed.']], flags: ['epi', 'arrest-epi'] };
+      if (!has(s, 'reaction')) return null;
+      return {
+        say: [['you', 'Epinephrine 1 mg IV, flushed.'], ['monitor', 'BP 188/112, heart rate 156, with runs of extra beats.', 'bad'], ['patient', '"My head… my heart is pounding!"', 'bad']],
+        rhythm: { profile: 'sinus-tachycardia', hr: 156 }, vitals: { sbp: 188, dbp: 112 }, flags: ['epi', 'epi-given'],
+      };
+    },
+    fluid: (s) => {
+      if (!s.pulse) return { say: [['you', 'Fluid running wide open.']], flags: ['fluid'] };
+      const bp = bpAfter(s, 8, 6);
+      return { say: [['monitor', `Fluid wide open. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['fluid'] };
+    },
+    albuterol: (s) => ({ say: [['you', 'Albuterol 5 mg nebulized.'], ['patient', has(s, 'reaction') ? '"That\'s… a bit easier."' : '"OK."']], vitals: { spo2: Math.min(98, s.vitals.spo2 + 3), rr: Math.max(16, s.vitals.rr - 6) }, flags: ['albuterol'] }),
   },
   events: [
     {
       id: 'tech-setup', when: (s) => s.role !== 3,
-      effect: () => ({ say: [['team', 'Tech: right radial prepped, transducers zeroed and levelled, monitor and pads on, injector loaded.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
+      effect: () => ({ say: [['team', 'Tech: right radial prepped, transducers zeroed and leveled, monitor and pads on, injector loaded.']], flags: ['prep', 'transducer', 'monitor', 'pads'] }),
     },
     {
       id: 'rn-setup-for-tech', when: (s) => s.role === 3,
@@ -130,20 +157,33 @@ export const cathlabContrast: Scenario = {
     },
     {
       id: 'worse', when: (s) => has(s, 'reaction') && !has(s, 'epi-given') && s.minute >= s.flags.reaction + 3,
-      effect: (s) => ({
-        say: [['monitor', 'BP 62/34. SpO₂ 84 %.', 'bad'], ['patient', 'She is drowsy, with a high-pitched noise on every breath in.'],
-          ...(s.role === 5 ? [line('team', 'Nurse: "She\'s crashing!"', 'bad')] : [])],
-        vitals: { sbp: 62, dbp: 34, spo2: 84, gcs: 11 },
-      }),
+      effect: (s) => {
+        // without epinephrine she only gets worse: a number already lower stays where it is
+        const v = { sbp: Math.min(s.vitals.sbp, 62), dbp: Math.min(s.vitals.dbp, 34), spo2: Math.min(s.vitals.spo2, 84), gcs: Math.min(s.vitals.gcs, 11) };
+        return {
+          say: [['monitor', `BP ${v.sbp}/${v.dbp}. SpO₂ ${v.spo2} %.`, 'bad'], ['patient', 'She is drowsy, with a high-pitched noise on every breath in.'],
+            ...(s.role === 5 ? [line('team', 'Nurse: "She\'s crashing!"', 'bad')] : [])],
+          vitals: v,
+        };
+      },
     },
     {
       id: 'arrest', when: (s) => has(s, 'reaction') && !has(s, 'epi-given') && s.pulse && s.minute >= s.flags.reaction + 6,
       effect: () => ({ say: [['monitor', 'No pressure on the arterial line.', 'bad'], ['patient', 'She is unresponsive.']], rhythm: { profile: 'pea', hr: 120 }, pulse: false, flags: ['pea'] }),
     },
     {
-      id: 'recovered', when: (s) => has(s, 'reaction') && s.pulse && has(s, 'epi-given') && has(s, 'fluid'),
+      // anaphylactic arrest: CPR to carry the 1 mg of epinephrine round, and fluid to fill the leaking vessels
+      id: 'rosc', when: (s) => has(s, 'pea') && !s.pulse && has(s, 'fluid') && firstDone(s, ['cpr'], 'arrest-epi') !== null,
+      effect: () => ({
+        say: [['you', 'At the pulse check: a carotid pulse — ROSC.', 'good'], ['monitor', 'Heart rate 124. BP 82/48. SpO₂ 88 %.']],
+        rhythm: { profile: 'sinus-tachycardia', hr: 124 }, pulse: true, vitals: { sbp: 82, dbp: 48, spo2: 88, rr: 24, gcs: 7 }, flags: ['epi-given'],
+      }),
+    },
+    {
+      // after an arrest she wakes over a few minutes, not at once
+      id: 'recovered', when: (s) => has(s, 'reaction') && s.pulse && has(s, 'epi-given') && has(s, 'fluid') && (!has(s, 'rosc') || s.minute >= s.flags.rosc + 4),
       effect: (s) => ({
-        say: [['monitor', `Heart rate 104. BP 104/64. SpO₂ ${has(s, 'o2') ? 96 : 93} %.`, 'good'], ['patient', '"It\'s… easing."']],
+        say: [['monitor', `Heart rate 104. BP 104/64. SpO₂ ${has(s, 'o2') ? 96 : 93} %.`, 'good'], ['patient', has(s, 'rosc') ? 'She opens her eyes and squeezes your hand.' : '"It\'s… easing."']],
         rhythm: { profile: 'sinus-tachycardia', hr: 104 }, vitals: { sbp: 104, dbp: 64, spo2: has(s, 'o2') ? 96 : 93, rr: 22, gcs: 15 }, flags: ['recovered'],
       }),
     },
@@ -161,20 +201,33 @@ export const cathlabContrast: Scenario = {
     { id: 'timeout', label: 'Procedural time-out', why: 'Patient, procedure, site, allergies.', done: ['timeout'], points: 5, target: { by: 8 } },
     { id: 'prep', label: 'Prep the access site', why: 'Radial first, with a groin ready.', done: ['prep'], roles: TECH, points: 5, target: { by: 6 } },
     { id: 'transducer', label: 'Zero and level the transducers', why: 'The arterial pressure is your first warning of a reaction.', done: ['transducer'], roles: TECH, points: 5, target: { by: 6 } },
-    { id: 'monitor', label: 'Monitor (and pads) on', why: 'Continuous ECG, SpO₂ and pressure for every case.', done: ['monitor', 'pads'], roles: TECH, points: 5, target: { by: 6 } },
+    { id: 'monitor', label: 'Monitor (and pads) on', why: 'Continuous ECG, SpO₂ and pressure for every case.', done: ['monitor', ...PADS], roles: TECH, points: 5, target: { by: 6 } },
     { id: 'iv', label: 'IV access', why: 'For fluids and emergency drugs.', done: ['iv', 'io'], roles: RN, points: 5 },
     { id: 'access', label: 'Radial access', why: 'Radial first.', done: ['access', 'access-femoral'], roles: MD, points: 5 },
     { id: 'stop', label: 'Stop the contrast at once', why: 'Every further injection adds to the reaction.', done: ['stop-contrast'], after: 'reaction', roles: [3, 5], points: 10, target: { within: { flag: 'reaction', minutes: 1 } }, applies: (s) => has(s, 'reaction') },
     { id: 'callout', label: 'Call out the reaction at once', why: 'Hives, wheeze, a tight throat and a falling pressure after contrast: say it out loud so everyone switches to the anaphylaxis plan.', done: ['callout'], after: 'reaction', roles: [3, 4], points: 10, target: { within: { flag: 'reaction', minutes: 1 } }, applies: (s) => has(s, 'reaction') },
     { id: 'help', label: 'Call for help', why: 'More hands for the drugs, the airway and the documentation.', done: ['call-help'], after: 'reaction', roles: TECH, points: 5, target: { within: { flag: 'reaction', minutes: 2 } }, applies: (s) => has(s, 'reaction') },
-    { id: 'epi', label: 'Epinephrine first (0.5 mg IM, or 10–20 mcg IV boluses)', why: 'Epinephrine is the treatment for anaphylaxis: it raises the pressure, opens the airway and stops the release. Antihistamines and steroids are second-line.', done: EPI, after: 'reaction', roles: [4, 5], points: 15, target: { within: { flag: 'reaction', minutes: 2 } }, applies: (s) => has(s, 'reaction') },
+    {
+      id: 'epi', label: 'Epinephrine first (0.5 mg IM, or 10–20 mcg IV boluses)', why: 'Epinephrine is the treatment for anaphylaxis: it raises the pressure, opens the airway and stops the release. Antihistamines and steroids are second-line.',
+      roles: [4, 5], points: 15, target: { within: { flag: 'reaction', minutes: 2 } }, applies: (s) => has(s, 'reaction'),
+      // a dose given while she had no pulse reached nothing, so it does not count
+      done: (s) => {
+        const from = s.flags.reaction;
+        if (from === undefined) return null;
+        const arrest = s.flags.pea ?? Infinity;
+        const back = s.flags.rosc ?? Infinity;
+        const hit = s.performed.find((p) => EPI.includes(p.id) && p.minute >= from && (p.minute < arrest || p.minute >= back));
+        return hit ? hit.minute : null;
+      },
+      uses: EPI,
+    },
     { id: 'fluid', label: 'Fluid wide open', why: 'Anaphylaxis leaks fluid out of the vessels: 1–2 L of crystalloid, fast.', done: ['fluid'], after: 'reaction', roles: [4, 5], points: 10, target: { within: { flag: 'reaction', minutes: 3 } }, applies: (s) => has(s, 'reaction') },
     { id: 'oxygen', label: 'Oxygen for an SpO₂ below 90 %', why: 'Bronchospasm and airway swelling drop the oxygen: high-flow oxygen.', done: ['o2-nrb', 'o2-nc'], after: 'reaction', points: 5, target: { within: { flag: 'reaction', minutes: 3 } }, applies: (s) => has(s, 'reaction') },
-    { id: 'albuterol', label: 'Albuterol for the wheeze', why: 'A nebulised bronchodilator for bronchospasm that remains after epinephrine.', done: ['albuterol'], after: 'reaction', roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
+    { id: 'albuterol', label: 'Albuterol for the wheeze', why: 'A nebulized bronchodilator for bronchospasm that remains after epinephrine.', done: ['albuterol'], after: 'reaction', roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
     { id: 'antihistamine', label: 'An antihistamine (diphenhydramine)', why: 'Second-line: it eases the hives and itching, not the airway or the pressure.', done: ['diphenhydramine'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
     { id: 'steroid', label: 'A steroid (methylprednisolone)', why: 'Second-line: it may reduce a later (biphasic) reaction.', done: ['steroid'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
     ...TECH_ASKS.map(askCritical),
-    { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent haemostasis, as always.', done: ['hemostasis'], after: 'recovered', roles: [3, 4], points: 5, applies: (s) => has(s, 'recovered') },
+    { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always.', done: ['hemostasis'], after: 'recovered', roles: [3, 4], points: 5, applies: (s) => has(s, 'recovered') },
     { id: 'handoff', label: 'Hand-off and documentation', why: 'Record the reaction as a contrast allergy, the drugs given, and the premedication plan for any future contrast; observe for a biphasic reaction.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [

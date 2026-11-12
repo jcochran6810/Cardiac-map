@@ -99,8 +99,12 @@ export interface SimState {
   reads: { kind: ReadKind; minute: number; answer: string; chosen: string; verdict: Verdict }[];
   /** cine runs recorded (cath lab), newest last: the view (intervention id and name) and the real image for it, if the app has one */
   images: { minute: number; id?: string; view: string; image?: string }[];
-  /** the last 12-lead recorded: when, and the rhythm on it (an unchanged repeat needs no new read) */
-  lastEcg: null | { minute: number; profile: string };
+  /**
+   * the last 12-lead recorded: when, and the rhythm and rate on it (an unchanged repeat needs no new read, and keeps the
+   * rate of the tracing it repeats: see ecgChanged in engine.ts). Whether any tracing so far met STEMI criteria is the
+   * flag 'ecg-stemi': a later tracing that hides the ST elevation does not undo it
+   */
+  lastEcg: null | { minute: number; profile: string; hr: number };
 }
 
 export type Line = [Speaker, string] | [Speaker, string, Tone];
@@ -168,17 +172,47 @@ export interface Critical {
 export interface Harm {
   id: string;
   actions: string[];
-  /** judged on the state just before the intervention takes effect */
-  when?: (s: SimState) => boolean;
+  /** judged on the state just before the intervention takes effect (and on what the case says the patient has) */
+  when?: (s: SimState, sc: Scenario) => boolean;
   points: number;
   severity: Severity;
   text: string;
   roles?: LearningLevel[];
+  /**
+   * Built-in safety rules this scenario rule stands in for, because it already covers the same mistake in its
+   * own words (e.g. nitroglycerin in an RV infarct also covers nitroglycerin with a low pressure): one mistake,
+   * one penalty. A scenario rule with the same id as a built-in one replaces it anyway.
+   */
+  replaces?: string[];
 }
+
+/**
+ * Something the patient has that decides whether a drug is indicated or dangerous. The engine's built-in safety rules
+ * cannot read it from the tracing or the vitals, so the case says so (Scenario.problems); the learner never sees the list.
+ * Without it, calcium, bicarbonate, insulin and high-dose albuterol count as given with no indication, and nothing
+ * stops procainamide in a failing heart — so a case where one of these is right must list the problem behind it.
+ */
+export type Problem =
+  | 'hyperkalemia'
+  | 'metabolic-acidosis'
+  | 'hypocalcemia'
+  | 'beta-blocker-overdose'
+  /** calcium-channel blocker */
+  | 'ccb-overdose'
+  /** tricyclics and other sodium-channel blockers: a wide QRS that bicarbonate narrows */
+  | 'sodium-channel-blocker-overdose'
+  /**
+   * heart failure with a reduced ejection fraction (40 % or less), decompensated or not: IV diltiazem and verapamil are
+   * harmful (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm) and procainamide is to be avoided
+   */
+  | 'heart-failure'
+  | 'long-qt';
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'
   | 'labs' | 'echo' | 'ownNitro' | 'allergies'
+  /** what the poison center advises (field: the 'poison-control' call) */
+  | 'poisonControl'
   | 'angio' | 'lvgram' | 'lvedp' | 'rhc' | 'ivus' | 'oct' | 'ffr' | 'final';
 
 export interface Timing {
@@ -209,6 +243,8 @@ export interface Scenario {
   facts: Partial<Record<FactKey, string | ((s: SimState) => string)>>;
   /** real angiogram / fluoroscopy images for this patient: cine view id → key of CATH_IMAGES (added as they become available) */
   images?: Partial<Record<string, string>>;
+  /** what the patient has that the built-in drug safety rules need to know (see Problem) */
+  problems?: Problem[];
   /** what the patient says when reassessed */
   status?: (s: SimState) => string;
   respond: Partial<Record<string, Responder>>;
@@ -216,7 +252,7 @@ export interface Scenario {
   critical: Critical[];
   harms: Harm[];
   timings?: Timing[];
-  /** minutes of transport to the PCI-capable heart centre (field scenarios) */
+  /** minutes of transport to the PCI-capable heart center (field scenarios) */
   transportMinutes?: number;
   /** minutes of transport to the nearest emergency department (default 8) */
   nearestMinutes?: number;
@@ -241,6 +277,8 @@ export interface Review {
   penaltyPoints: number;
   grade: 'Excellent' | 'Competent' | 'Needs practice' | 'Unsafe';
   outcome: string;
+  /** critical items for this role never done (a hand-off can end the case with some still missing) */
+  missed: number;
   timings: { label: string; minute: number | null; target?: number; met: boolean | null }[];
   wentWell: ReviewItem[];
   /** `actions`: the interventions the item is about (to link the learner to what to study) */

@@ -31,9 +31,10 @@ export function ReadList({ kind, prompt }: { kind: ReadKind; prompt?: string }) 
   );
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <div className="shrink-0 px-3 pt-3 pb-2 border-b border-slate-700 space-y-2">
+      {/* a phone on its side leaves the column about 300 px: the how-to line steps aside so several reads fit */}
+      <div className="shrink-0 px-3 pt-3 pb-2 short:pt-2 short:pb-1.5 border-b border-slate-700 space-y-2 short:space-y-1.5">
         <div className="text-sm font-semibold text-white">{prompt ?? set.title}</div>
-        <p className="text-[11px] text-slate-400 leading-snug">
+        <p className="short:hidden text-[11px] text-slate-400 leading-snug">
           Give your read before you go on — it is checked at once. {HOW_TO[kind]}
         </p>
         <div className="relative">
@@ -73,11 +74,11 @@ export function ReadList({ kind, prompt }: { kind: ReadKind; prompt?: string }) 
         ))}
         {groups.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-500">No read matches “{q}”.</p>}
       </div>
-      <div className="shrink-0 p-3 border-t border-slate-700">
+      <div className="shrink-0 p-3 short:p-2 border-t border-slate-700">
         <button
           onClick={() => picked && read(picked)}
           disabled={!picked}
-          className="w-full h-11 rounded-lg bg-cardiac-accent text-slate-950 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full h-11 short:h-10 rounded-lg bg-cardiac-accent text-slate-950 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {picked ? 'Check my read' : 'Choose your read'}
         </button>

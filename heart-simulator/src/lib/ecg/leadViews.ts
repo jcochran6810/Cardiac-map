@@ -30,7 +30,7 @@ export const LEAD_VIEWS: Record<StandardLead, LeadView> = {
   aVR: {
     wall: 'Right upper heart: basal septum and the cavity',
     short: 'Basal septum / cavity',
-    artery: 'ST elevation here with widespread ST depression suggests left main or multivessel ischaemia',
+    artery: 'ST elevation here with widespread ST depression suggests left main or multivessel ischemia',
     positive: 'RA', negative: 'Goldberger',
   },
   aVL: { wall: 'High lateral wall', short: 'High lateral wall', artery: 'LCx or the first diagonal', positive: 'LA', negative: 'Goldberger' },

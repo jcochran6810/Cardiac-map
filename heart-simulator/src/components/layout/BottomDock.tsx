@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTimelineStore } from '@/store/useTimelineStore';
-import { useECGStore, ECGLayout } from '@/store/useECGStore';
+import { useECGStore, ECGLayout, useBlind, useRateHidden } from '@/store/useECGStore';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { PHASE_LABELS } from '@/lib/ecg/engine';
 import { sim } from '@/lib/sim/simulation';
@@ -14,6 +14,8 @@ import { openProjector } from '@/lib/sim/projector';
 import { useIsTouch } from '@/lib/device';
 import { IconClose } from '@/components/ui/icons';
 import { useOnceHint } from '@/lib/hints';
+import { useCourseStore } from '@/store/useCourseStore';
+import { useDrillStore } from '@/store/useDrillStore';
 import { useMedStore } from '@/store/useMedStore';
 import { describeMods } from '@/lib/ecg/mods';
 
@@ -26,13 +28,13 @@ const MedEffectBar = dynamic(() => import('@/components/meds/MedEffectBar'), { s
 
 const LAYOUTS: { value: ECGLayout; label: string; title: string }[] = [
   { value: 'simultaneous', label: '12-lead', title: 'Live 12-lead, like a monitor: every lead redraws at once (one sweep line per column) + lead II rhythm strip' },
-  { value: 'standard', label: 'Printout', title: 'Paper 12-lead printout: sequential 2.5 s columns (one sweep line walks across them) + lead II rhythm strip' },
+  { value: 'standard', label: 'Printout', title: 'Paper 12-lead printout: the four columns follow one another in time (one sweep line walks across them) + lead II rhythm strip' },
   { value: 'monitor', label: '3-lead', title: 'Bedside monitor view: leads II, V1 and V5' },
 ];
 
 const VIEWS: { v: 'ecg' | 'wiggers' | 'defib'; l: string; short: string; t?: string }[] = [
   { v: 'ecg', l: 'ECG', short: 'ECG' },
-  { v: 'wiggers', l: 'Wiggers / PV', short: 'Wiggers / PV' },
+  { v: 'wiggers', l: 'Pressure & volume', short: 'Pressures', t: 'Pressure & volume: the Wiggers diagram, the pressure–volume loop and the heart sounds (E)' },
   { v: 'defib', l: 'Defibrillator', short: 'Defibrillator', t: 'Monitor-defibrillator trainer: defibrillation, cardioversion, pacing, CPR, drugs (M)' },
 ];
 
@@ -58,8 +60,14 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   const atrialRate = useTimelineStore((s) => s.atrialRate);
 
   const ecg = useECGStore();
+  // trainee mode, or a question open about the tracing: the app keeps its reading of the rhythm to itself
   const trainee = useDefibStore((s) => s.trainee);
+  const asked = useBlind();
+  // …and, for a question that asks the learner to work out the rate, its rate numbers as well
+  const noRateShown = useRateHidden();
   const role = useAppStore((s) => s.learningLevel);
+  // a phone on its side: every row of controls costs a fifth of the tracing
+  const short = useAppStore((s) => s.short);
   const profile = resolveProfile(ecg.activeProfileId);
   const touch = useIsTouch();
   const ref = useRef<HTMLElement>(null);
@@ -75,9 +83,20 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   const narrow = width < 640; // phone: tab row, folded options, overlays instead of side columns
   const fold = width < 1000; // tablet portrait and smaller: tuck the rarer ECG options under "More"
   const stackDefib = width < 760;
+  // phones: the electrode lab sits under the tracing it changes, never over it
+  const stackLab = narrow && ecg.bottomView === 'ecg' && ecg.electrodeLab;
   const [showInterp, setShowInterp] = useState(() => typeof window === 'undefined' || window.innerWidth >= 900);
   const [optsOpen, setOptsOpen] = useState(false);
   const [leadTip, dismissLeadTip] = useOnceHint('ecg-leads');
+  // a lesson or the rhythm trainer is using the tracing: no first-time tip over it
+  const lessonOn = useCourseStore((s) => !!s.active);
+  const guided = useDrillStore((s) => s.open) || lessonOn;
+  // A set in play in the rhythm trainer on an upright phone: the tracing is the question and a 12-lead needs every
+  // pixel of height, so the controls keep to one row and the options drop over the tracing (as on a phone on its
+  // side). The set chooses the rate, so the rate slider makes way for them.
+  const drilling = useDrillStore((s) => s.open && !!s.setId);
+  const drillRow = narrow && !short && !side && drilling;
+  useEffect(() => { if (drillRow) setOptsOpen(false); }, [drillRow]);
   // A drug was just given: clear the first-time lead tip so nothing covers the 12-lead while it acts
   const medActive = useMedStore((s) => s.log.length > 0);
   const medMods = useMedStore((s) => s.mods);
@@ -85,6 +104,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   useEffect(() => {
     if (medActive && leadTip) dismissLeadTip();
   }, [medActive, leadTip, dismissLeadTip]);
+  const showLeadTip = ecg.bottomView === 'ecg' && leadTip && !ecg.electrodeLab && !guided;
 
   // Phones: the monitor-defibrillator needs room, so give it most of the screen while it is open
   const autoExpanded = useRef(false);
@@ -94,7 +114,8 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
   expandedRef.current = expanded;
   useEffect(() => {
     const toggle = toggleRef.current;
-    if (!toggle || side || !narrow) return;
+    // …but not during a lesson or in the rhythm trainer, where the text beside it must stay in view
+    if (!toggle || side || !narrow || guided) return;
     // the electrode lab's 3D patient needs the room too
     const big = ecg.bottomView === 'defib' || (ecg.bottomView === 'ecg' && ecg.electrodeLab);
     if (big && !expandedRef.current) {
@@ -113,9 +134,11 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
     return () => window.clearInterval(id);
   }, []);
 
-  const rateLabel = profile.rateControl === 'sinus' ? 'Sinus rate' : profile.rateControl === 'ventricular'
+  const rateLabel = asked ? 'Rate' : profile.rateControl === 'sinus' ? 'Sinus rate' : profile.rateControl === 'ventricular'
     ? (profile.rhythm === 'chb' ? 'Escape rate' : 'Ventricular rate') : 'Rate';
-  const noRate = profile.rateControl === 'none';
+  // While a question is open the slider is locked and shows no number: the rate it is set to is the sinus rate in
+  // an AV block (not the rate on the monitor) and its range is the rhythm's own, so either would hint at the answer
+  const noRate = profile.rateControl === 'none' || asked;
   const arrest = profile.hemo === 'no-output';
 
   const displayOpts = (
@@ -138,7 +161,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
     </>
   );
   const labToggle = (
-    <Toggle active={ecg.electrodeLab} onClick={() => ecg.setElectrodeLab(!ecg.electrodeLab)} title="Electrode lab: place the electrodes on a 3D patient, see each lead's view and practise cable reversals">Electrode lab</Toggle>
+    <Toggle active={ecg.electrodeLab} onClick={() => ecg.setElectrodeLab(!ecg.electrodeLab)} title="Electrode lab: place the electrodes on a 3D patient, see each lead's view and practice cable reversals">Electrode lab</Toggle>
   );
   const toolOpts = (
     <>
@@ -146,13 +169,30 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       <Toggle
         active={!!ecg.inspectLead}
         onClick={() => ecg.setInspectLead(ecg.inspectLead ? null : ecg.selectedLead ?? 'II')}
-        title={touch ? 'Show one lead large with labelled waves and intervals (double-tap any lead)' : 'Show one lead large with labelled waves and intervals (double-click any lead)'}
+        title={touch ? 'Show one lead large with labeled waves and intervals (double-tap any lead)' : 'Show one lead large with labeled waves and intervals (double-click any lead)'}
       >
         {ecg.inspectLead ? `Inspecting ${ecg.inspectLead} ✕` : `Inspect ${ecg.selectedLead ?? 'II'}`}
       </Toggle>
       <Toggle active={ecg.caliperMode} onClick={ecg.toggleCalipers} title={touch ? 'Tap two points on a lead to measure time, rate and voltage' : 'Click two points on a lead to measure time, rate and voltage'}>Calipers</Toggle>
       {!fold && labToggle}
     </>
+  );
+  // folded toolbars keep "Inspect" under More: say what is on screen and how to leave it
+  const inspectChip = ecg.inspectLead && (
+    <button
+      onClick={() => ecg.setInspectLead(null)}
+      className="shrink-0 flex items-center gap-1 pl-2 pr-1.5 py-0.5 touch:min-h-[36px] rounded border border-cardiac-accent/40 bg-cardiac-accent/20 text-cardiac-accent text-[11px] whitespace-nowrap"
+      title="Back to all leads (Esc)"
+    >
+      Inspecting {ecg.inspectLead} <IconClose size={12} />
+    </button>
+  );
+  const layoutSeg = (
+    <Seg
+      options={LAYOUTS.map((l) => ({ v: l.value, l: l.label, t: l.title }))}
+      value={ecg.inspectLead ? '' : ecg.layout}
+      onChange={(v) => { ecg.setInspectLead(null); ecg.setLayout(v as ECGLayout); }}
+    />
   );
   const placementWarning = !ecg.placementHidden && describePlacement(ecg.placement) && (
     <button
@@ -164,21 +204,45 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
     </button>
   );
 
+  // a wide but very low panel (a phone on its side, tracing full screen), or the trainer on an upright phone:
+  // everything in one row, the rest for the tracing
+  const oneRow = (short && !narrow) || drillRow;
+  const ecgBar = ecg.bottomView === 'ecg' && !(guided && narrow && ecg.electrodeLab);
+  const interpToggle = <Toggle active={showInterp} onClick={() => setShowInterp((v) => !v)} title="What this rhythm shows">Interpret</Toggle>;
+  const moreToggle = (
+    <Toggle active={optsOpen} onClick={() => setOptsOpen((v) => !v)} title="Gain, paper speed, calipers, electrodes">
+      More {optsOpen ? '▴' : '▾'}
+    </Toggle>
+  );
+  const foldedOpts = (
+    <>
+      {/* where room is short the chip takes the place of the layout buttons (any of them would leave Inspect anyway) */}
+      {(narrow || oneRow) && ecg.inspectLead ? inspectChip : <>{layoutSeg}{inspectChip}</>}
+      <div className={`flex items-center gap-1 shrink-0 ${oneRow ? '' : 'ml-auto'}`}>
+        {labToggle}
+        {interpToggle}
+        {moreToggle}
+      </div>
+    </>
+  );
+
   const interpretation = (
     <>
-      <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">Rhythm / pattern</div>
-      {role === 1 && !trainee && (
-        <p className="mb-1.5 text-[10px] leading-snug rounded bg-amber-500/10 border border-amber-500/30 text-amber-200/90 p-1.5">
+      <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-0.5">Rhythm / pattern</div>
+      {role === 1 && !trainee && !asked && (
+        <p className="mb-1.5 text-[11px] leading-snug rounded bg-amber-500/10 border border-amber-500/30 text-amber-200/90 p-1.5">
           EMT scope: acquire and transmit the 12-lead per protocol — interpretation is a paramedic / physician skill. Shown here for awareness only.
         </p>
       )}
-      {trainee ? (
+      {asked ? (
+        <p className="text-slate-400 leading-snug">Hidden while a question is open — read the tracing yourself. It comes back when you have answered.</p>
+      ) : trainee ? (
         <p className="text-slate-400 leading-snug">Hidden in trainee mode — interpret the rhythm yourself. Turn trainee mode off in the Defibrillator tab to reveal it.</p>
       ) : (
       <>
       <h4 className="text-xs font-semibold text-white leading-snug">{profile.headline}</h4>
       {medChanges.length > 0 && (
-        <p className="mt-1.5 text-[10px] leading-snug rounded bg-sky-500/10 border border-sky-500/30 text-sky-200 p-1.5">
+        <p className="mt-1.5 text-[11px] leading-snug rounded bg-sky-500/10 border border-sky-500/30 text-sky-200 p-1.5">
           After the medications given: {medChanges.join(' · ')}
         </p>
       )}
@@ -206,8 +270,8 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       )}
       </>
       )}
-      <p className="mt-3 text-[10px] text-slate-500 leading-snug">
-        Synthesised from a cardiac dipole model for teaching. Real tracings vary; never use for clinical decisions.
+      <p className="mt-3 text-[11px] text-slate-400 leading-snug">
+        Synthesized from a cardiac dipole model for teaching. Real tracings vary; never use for clinical decisions.
       </p>
     </>
   );
@@ -220,7 +284,8 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       aria-label="ECG and hemodynamics"
     >
       {/* ── Phones: view tabs get their own row so they are never scrolled out of sight ── */}
-      {narrow && (
+      {/* (a lesson or the trainer chooses the view itself, and the picture needs the room) */}
+      {narrow && !guided && !short && (
         <div className="flex items-center gap-1.5 px-2 pt-1.5 shrink-0">
           <div className="flex-1 grid grid-cols-3 rounded-md overflow-hidden border border-slate-600" role="tablist" aria-label="Lower panel view">
             {VIEWS.map((o) => (
@@ -242,7 +307,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       )}
 
       {/* ── Control bar ─────────────────────────────────────────── */}
-      <div className={`flex items-center px-3 py-1.5 border-b border-slate-700/60 shrink-0 overflow-x-auto no-scrollbar ${narrow ? 'gap-2 px-2' : 'gap-3'}`}>
+      <div className={`flex items-center px-3 py-1.5 border-b border-slate-700/60 shrink-0 overflow-x-auto no-scrollbar ${narrow || oneRow ? 'gap-2 px-2' : 'gap-3'} ${oneRow ? 'scroll-fade-r' : ''}`}>
         <button
           onClick={togglePlay}
           className="w-8 h-8 touch:w-9 touch:h-9 shrink-0 flex items-center justify-center rounded-full bg-cardiac-surface hover:bg-cardiac-accent hover:text-slate-900 text-white transition-colors"
@@ -259,31 +324,33 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         {/* Monitor readout */}
         <div className={`flex items-baseline gap-1 shrink-0 ${narrow ? 'min-w-[64px]' : 'min-w-[78px]'}`} title="Monitor heart rate (calculated from the last RR intervals)">
           <span className={`font-mono text-xl font-bold leading-none ${arrest ? 'text-red-500 animate-pulse' : 'text-emerald-400'}`}>
-            {displayHR > 0 ? displayHR : '---'}
+            {noRateShown ? '··' : displayHR > 0 ? displayHR : '---'}
           </span>
           <span className="text-[10px] text-slate-400">bpm</span>
         </div>
-        {atrialRate && profile.rhythm !== 'sinus' && profile.rhythm !== 'paced' && atrialRate !== displayHR && (
+        {atrialRate && !asked && profile.rhythm !== 'sinus' && profile.rhythm !== 'paced' && atrialRate !== displayHR && (
           <div className="text-[10px] text-sky-300 shrink-0" title="Atrial rate">A {atrialRate}</div>
         )}
 
-        <label className={`flex items-center gap-1.5 ${narrow ? 'flex-1 min-w-[96px]' : 'shrink-0'}`} title={rateLabel}>
-          <span className={`text-[10px] text-slate-400 ${narrow ? 'sr-only' : ''}`}>{rateLabel}</span>
+        {!drillRow && (
+        <label className={`flex items-center gap-1.5 ${narrow ? 'flex-1 min-w-[96px]' : 'shrink-0'} ${noRateShown ? 'invisible' : ''}`} title={asked ? 'Rate: set by the question while it is open' : rateLabel}>
+          <span className={`text-[10px] text-slate-400 ${narrow || oneRow ? 'sr-only' : ''}`}>{rateLabel}</span>
           <input
             type="range"
-            min={profile.minHR}
-            max={profile.maxHR}
+            min={noRate ? 0 : profile.minHR}
+            max={noRate ? 0 : profile.maxHR}
             value={noRate ? 0 : Math.min(profile.maxHR, Math.max(profile.minHR, heartRate))}
             disabled={noRate}
             onChange={(e) => setHeartRate(Number(e.target.value))}
-            className={`accent-cardiac-red disabled:opacity-30 touch:h-6 ${narrow ? 'flex-1 min-w-0' : 'w-24'}`}
+            className={`accent-cardiac-red disabled:opacity-30 touch:h-6 ${narrow ? 'flex-1 min-w-0' : oneRow ? 'w-20' : 'w-24'}`}
             aria-label={rateLabel}
           />
           <span className="text-xs font-mono text-slate-200 w-7 shrink-0">{noRate ? '—' : heartRate}</span>
         </label>
+        )}
 
         <label className="flex items-center gap-1 shrink-0">
-          <span className={`text-[10px] text-slate-400 ${narrow ? 'sr-only' : ''}`}>Speed</span>
+          <span className={`text-[10px] text-slate-400 ${narrow || oneRow ? 'sr-only' : ''}`}>Speed</span>
           <select
             value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
@@ -300,20 +367,33 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         {/* Phase (smaller screens show it on the heart instead) */}
         {!fold && (
         <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-cardiac-dark border border-slate-700" title="Current mechanical phase of the cardiac cycle">
-          <span className={`w-2 h-2 rounded-full ${currentPhase.includes('ejection') || currentPhase.includes('contraction') ? 'bg-red-500' : currentPhase === 'fibrillation' || currentPhase === 'arrest' ? 'bg-red-600 animate-pulse' : 'bg-sky-400'}`} />
-          <span className="text-[11px] text-slate-200 whitespace-nowrap">{PHASE_LABELS[currentPhase]}</span>
+          <span className={`w-2 h-2 rounded-full ${currentPhase.includes('ejection') || currentPhase.includes('contraction') ? 'bg-red-500' : currentPhase === 'fibrillation' || currentPhase === 'pulseless' || currentPhase === 'arrest' ? 'bg-red-600 animate-pulse' : 'bg-sky-400'}`} />
+          <span className="text-[11px] text-slate-200 whitespace-nowrap">{asked ? 'Phase hidden' : PHASE_LABELS[currentPhase]}</span>
         </div>
         )}
 
         {/* Intervals */}
-        <div className="hidden xl:flex items-center gap-2 text-[10px] font-mono text-slate-400 shrink-0" title="Intervals for the current rhythm">
+        <div className={`hidden xl:flex items-center gap-2 text-[10px] font-mono text-slate-400 shrink-0 ${asked ? 'invisible' : ''}`} title="Intervals for the current rhythm">
           <span>PR <b className="text-slate-200">{intervals.pr ? `${Math.round(intervals.pr)}` : '—'}</b></span>
           <span>QRS <b className={`${(intervals.qrs ?? 0) >= 120 ? 'text-amber-300' : 'text-slate-200'}`}>{intervals.qrs ?? '—'}</b></span>
           <span>QT <b className="text-slate-200">{intervals.qt ?? '—'}</b></span>
-          <span>QTc <b className={`${(intervals.qtc ?? 0) > 470 ? 'text-amber-300' : 'text-slate-200'}`}>{intervals.qtc ?? '—'}</b></span>
+          <span>QTc <b className={`${(intervals.qtc ?? 0) >= 460 ? 'text-amber-300' : 'text-slate-200'}`}>{intervals.qtc ?? '—'}</b></span>
         </div>
 
-        {!narrow && (
+        {oneRow && ecgBar && (drillRow
+          ? <div className="ml-auto flex items-center gap-1 shrink-0 text-[10px]">{placementWarning}{inspectChip}{moreToggle}</div>
+          : <>{foldedOpts}{placementWarning}</>)}
+        {(narrow || oneRow) && short && !guided && (
+          <select
+            value={ecg.bottomView}
+            onChange={(e) => ecg.setBottomView(e.target.value as 'ecg' | 'wiggers' | 'defib')}
+            className={`shrink-0 bg-cardiac-surface text-xs text-slate-200 rounded px-1 py-0.5 touch:py-1 border border-slate-600 ${oneRow ? 'ml-auto' : ''}`}
+            aria-label="Lower panel view"
+          >
+            {VIEWS.map((o) => <option key={o.v} value={o.v}>{o.short}</option>)}
+          </select>
+        )}
+        {!narrow && !(oneRow && !guided) && (
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
             <Seg
               options={VIEWS.map((o) => ({ v: o.v, l: o.l, t: o.t }))}
@@ -325,23 +405,12 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       </div>
 
       {/* ── ECG options bar ─────────────────────────────────────── */}
-      {ecg.bottomView === 'ecg' && (fold ? (
+      {ecgBar && !oneRow && (fold ? (
         <>
           <div className="flex items-center gap-1.5 px-2 py-1 border-b border-slate-700/40 shrink-0 text-[10px] overflow-x-auto no-scrollbar">
-            <Seg
-              options={LAYOUTS.map((l) => ({ v: l.value, l: l.label, t: l.title }))}
-              value={ecg.inspectLead ? '' : ecg.layout}
-              onChange={(v) => { ecg.setInspectLead(null); ecg.setLayout(v as ECGLayout); }}
-            />
-            <div className="ml-auto flex items-center gap-1 shrink-0">
-              {labToggle}
-              <Toggle active={showInterp} onClick={() => setShowInterp((v) => !v)} title="What this rhythm shows">Interpret</Toggle>
-              <Toggle active={optsOpen} onClick={() => setOptsOpen((v) => !v)} title="Gain, paper speed, calipers, electrodes">
-                More {optsOpen ? '▴' : '▾'}
-              </Toggle>
-            </div>
+            {foldedOpts}
           </div>
-          {optsOpen && (
+          {optsOpen && !short && (
             <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5 border-b border-slate-700/40 shrink-0 text-[10px] bg-cardiac-dark/40">
               {displayOpts}
               {toolOpts}
@@ -351,11 +420,7 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
         </>
       ) : (
         <div className="flex items-center gap-2 px-3 py-1 border-b border-slate-700/40 shrink-0 overflow-x-auto no-scrollbar text-[10px]">
-          <Seg
-            options={LAYOUTS.map((l) => ({ v: l.value, l: l.label, t: l.title }))}
-            value={ecg.inspectLead ? '' : ecg.layout}
-            onChange={(v) => { ecg.setInspectLead(null); ecg.setLayout(v as ECGLayout); }}
-          />
+          {layoutSeg}
           {displayOpts}
           {toolOpts}
           {placementWarning}
@@ -374,16 +439,32 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
       {/* A drug given from a condition's Give meds tab: what it is doing now */}
       {ecg.bottomView === 'ecg' && <MedEffectBar />}
 
+      {/* First visit: how to use the tracing — in its own row, never over the leads it describes */}
+      {showLeadTip && (
+        <div className="shrink-0 flex items-center gap-2 pl-3 pr-1 border-b border-sky-500/30 bg-sky-950/70 text-[11px] leading-snug text-sky-100">
+          <span className="flex-1 min-w-0 py-1">{narrow
+            ? <>Tap a lead: where it looks · double-tap: enlarge</>
+            : <>{touch ? 'Tap' : 'Click'} a lead to see where it looks at the heart · {touch ? 'double-tap' : 'double-click'} to enlarge it</>}</span>
+          <button onClick={dismissLeadTip} className="shrink-0 w-7 h-7 touch:w-10 touch:h-9 flex items-center justify-center text-sky-300 hover:text-white" aria-label="Dismiss tip"><IconClose size={14} /></button>
+        </div>
+      )}
+
       {/* ── Main area ──────────────────────────────────────────── */}
-      <div className={`flex-1 min-h-0 flex relative ${ecg.bottomView === 'defib' && stackDefib ? 'flex-col' : ''}`}>
-        <div className={`min-w-0 relative ${ecg.bottomView === 'defib' && stackDefib ? 'h-[46%] shrink-0' : 'flex-1'}`}>
+      <div className={`flex-1 min-h-0 flex relative ${(ecg.bottomView === 'defib' && stackDefib) || (stackLab && !guided) ? 'flex-col' : ''}`}>
+        <div
+          className={`min-w-0 relative ${ecg.bottomView === 'defib' && stackDefib ? 'h-[46%] shrink-0' : stackLab && !guided ? 'h-[38%] min-h-[140px] shrink-0' : 'flex-1'}`}
+          onPointerDownCapture={showLeadTip ? dismissLeadTip : undefined}
+        >
           {ecg.bottomView === 'ecg' ? <ECGRenderer /> : ecg.bottomView === 'wiggers' ? <WiggersPanel /> : (
             <div className="absolute inset-0 p-1.5"><MonitorDisplay /></div>
           )}
-          {ecg.bottomView === 'ecg' && leadTip && !ecg.electrodeLab && (
-            <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 w-max max-w-[calc(100%-1rem)] pl-3 pr-1 py-1 rounded-xl bg-sky-950/95 border border-sky-500/50 text-[11px] leading-snug text-sky-100 shadow-lg">
-              <span>{touch ? 'Tap' : 'Click'} a lead to see where it looks at the heart · {touch ? 'double-tap' : 'double-click'} to enlarge it</span>
-              <button onClick={dismissLeadTip} className="p-1 text-sky-300 hover:text-white shrink-0" aria-label="Dismiss tip"><IconClose size={13} /></button>
+          {/* a phone on its side (and the trainer on an upright one): the rarer options drop over the tracing instead of taking a row from it */}
+          {ecgBar && (fold || oneRow) && (short || drillRow) && optsOpen && (
+            <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap items-center gap-1.5 px-2 py-1.5 border-b border-slate-700 text-[10px] bg-cardiac-panel/95 shadow-lg">
+              {drillRow && <>{layoutSeg}{labToggle}{interpToggle}</>}
+              {displayOpts}
+              {toolOpts}
+              <button onClick={() => setOptsOpen(false)} className="ml-auto shrink-0 w-7 h-7 touch:w-9 touch:h-9 flex items-center justify-center text-slate-400 hover:text-white" aria-label="Close the options"><IconClose size={14} /></button>
             </div>
           )}
         </div>
@@ -393,7 +474,17 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
           </aside>
         )}
         {ecg.bottomView === 'ecg' && ecg.electrodeLab && (narrow ? (
-          <Sheet title="Electrode lab" onClose={() => ecg.setElectrodeLab(false)}><ElectrodeLab titled /></Sheet>
+          guided
+            ? <Sheet title="Electrode lab" bare><ElectrodeLab titled fit /></Sheet>
+            : (
+              <section className="flex-1 min-h-0 flex flex-col border-t border-slate-700 bg-cardiac-dark/40" aria-label="Electrode lab">
+                <div className="flex items-center justify-between pl-3 pr-1 border-b border-slate-700/70 shrink-0">
+                  <span className="text-xs font-semibold text-white">Electrode lab</span>
+                  <button onClick={() => ecg.setElectrodeLab(false)} className="w-9 h-8 touch:w-10 touch:h-9 flex items-center justify-center text-slate-400 hover:text-white" aria-label="Close electrode lab"><IconClose size={16} /></button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto p-2"><ElectrodeLab titled fit /></div>
+              </section>
+            )
         ) : (
           <aside className="w-[30rem] max-w-[48%] shrink-0 border-l border-slate-700 overflow-hidden p-2.5 bg-cardiac-dark/40">
             <ElectrodeLab wide />
@@ -412,14 +503,33 @@ export default function BottomDock({ style, side = false, expanded = false, onTo
 }
 
 /** Phones: side columns would crush the tracing, so they slide over it instead. */
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/** `bare`: no title row or close button (a lesson put this sheet up and takes it down itself) */
+function Sheet({ title, onClose, bare = false, children }: { title: string; onClose?: () => void; bare?: boolean; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // a sheet the learner opened takes the keyboard: Escape closes it and focus goes back to where it was
+  useEffect(() => {
+    if (!onClose) return;
+    const before = document.activeElement as HTMLElement | null;
+    ref.current?.focus({ preventScroll: true });
+    return () => { if (before && document.contains(before)) before.focus({ preventScroll: true }); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
-    <div className="absolute inset-0 z-10 flex flex-col bg-cardiac-panel/95 backdrop-blur-sm animate-slide-in-up" role="dialog" aria-label={title}>
-      <div className="flex items-center justify-between pl-3 pr-1 py-1 border-b border-slate-700 shrink-0">
-        <span className="text-xs font-semibold text-white">{title}</span>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:text-white" aria-label={`Close ${title.toLowerCase()}`}><IconClose size={16} /></button>
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto p-3">{children}</div>
+    <div
+      ref={ref}
+      tabIndex={-1}
+      onKeyDown={(e) => { if (e.key === 'Escape' && onClose) { e.stopPropagation(); onClose(); } }}
+      className="absolute inset-0 z-10 flex flex-col bg-cardiac-panel/95 backdrop-blur-sm animate-slide-in-up outline-none"
+      role="dialog"
+      aria-label={title}
+    >
+      {!bare && (
+        <div className="flex items-center justify-between pl-3 pr-1 py-1 border-b border-slate-700 shrink-0">
+          <span className="text-xs font-semibold text-white">{title}</span>
+          {onClose && <button onClick={onClose} className="w-9 h-8 touch:w-10 touch:h-9 flex items-center justify-center text-slate-400 hover:text-white" aria-label={`Close ${title.toLowerCase()}`}><IconClose size={16} /></button>}
+        </div>
+      )}
+      <div className={`flex-1 min-h-0 overflow-y-auto ${bare ? 'p-1.5' : 'p-3'}`}>{children}</div>
     </div>
   );
 }
@@ -433,7 +543,7 @@ function Seg({ options, value, onChange }: { options: { v: string; l: string; t?
           onClick={() => onChange(o.v)}
           title={o.t}
           aria-pressed={value === o.v}
-          className={`px-2 py-0.5 touch:py-1.5 touch:px-2.5 text-[10px] whitespace-nowrap transition-colors ${
+          className={`px-2 py-0.5 touch:min-h-[36px] touch:px-2.5 text-[11px] whitespace-nowrap transition-colors ${
             value === o.v ? 'bg-cardiac-accent/25 text-cardiac-accent' : 'text-slate-300 hover:text-white hover:bg-cardiac-surface'
           }`}
         >
@@ -450,7 +560,7 @@ function Toggle({ active, onClick, children, title }: { active: boolean; onClick
       onClick={onClick}
       title={title}
       aria-pressed={active}
-      className={`px-2 py-0.5 touch:py-1.5 touch:px-2.5 rounded border text-[10px] whitespace-nowrap transition-colors shrink-0 ${
+      className={`px-2 py-0.5 touch:min-h-[36px] touch:px-2.5 rounded border text-[11px] whitespace-nowrap transition-colors shrink-0 ${
         active ? 'bg-cardiac-accent/20 text-cardiac-accent border-cardiac-accent/40' : 'text-slate-300 border-slate-600 hover:text-white hover:bg-cardiac-surface'
       }`}
     >

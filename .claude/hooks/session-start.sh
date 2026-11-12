@@ -23,7 +23,7 @@
 #       Claude only: on production / detached HEAD / fetch failure → BLOCKER
 #       Codex: a fresh copy of production is its normal start (it is told to branch), and a
 #       failed fetch is expected in Codex cloud (no internet during tasks) → noted, not blocked
-#   - Lists other agents' unmerged branches (claude/*, codex/*, last 14 days) and raises a
+#   - Lists other agents' unmerged branches (claude/*, ccr-*, codex/*, last 14 days) and raises a
 #     NOTICE when one changes the same files as this branch.
 #   - Warns when GitHub's default branch is not the production branch (new web sessions
 #     start from the default branch, so they would miss newer work and this hook).
@@ -272,15 +272,16 @@ if [ -n "$DEFAULT_BRANCH" ] && [ "$DEFAULT_BRANCH" != "$PROD" ]; then
   add_notice "GitHub's default branch is \`$DEFAULT_BRANCH\` but production is \`$PROD\` (.claude/production-branch). New web sessions start from the default branch, so they can miss newer work and this protocol. Tell the user: GitHub → Settings → General → Default branch → \`$PROD\` (and keep Vercel's production branch the same)."
 fi
 
-# Other agents' unmerged work (claude/* and codex/* branches touched in the last 14 days)
+# Other agents' unmerged work (claude/*, ccr-* and codex/* branches touched in the last 14 days).
+# Claude Code web sessions have used both `claude/<slug>` and `ccr-<id>` branch names.
 WIP=""
 if [ "$FETCHED" = "yes" ]; then
-  gitnet fetch --prune --quiet origin '+refs/heads/codex/*:refs/remotes/origin/codex/*' '+refs/heads/claude/*:refs/remotes/origin/claude/*' 2>/dev/null || true
+  gitnet fetch --prune --quiet origin '+refs/heads/codex/*:refs/remotes/origin/codex/*' '+refs/heads/claude/*:refs/remotes/origin/claude/*' '+refs/heads/ccr-*:refs/remotes/origin/ccr-*' 2>/dev/null || true
 fi
 if [ "$HAVE_PROD" = "yes" ]; then
   NOW="$(date +%s)"
   MINE="$(git diff --name-only "origin/$PROD...HEAD" 2>/dev/null)"
-  for REF in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/codex/ refs/remotes/origin/claude/ 2>/dev/null); do
+  for REF in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/codex/ refs/remotes/origin/claude/ 'refs/remotes/origin/ccr-*' 2>/dev/null); do
     NAME="${REF#origin/}"
     { [ "$NAME" = "$CURRENT_BRANCH" ] || [ "$NAME" = "$PROD" ]; } && continue
     N="$(git rev-list --count "origin/$PROD..$REF" 2>/dev/null || echo 0)"
@@ -401,7 +402,7 @@ Baseline checks in heart-simulator/ (already executed — no need to rerun):
 
 $REMINDER
 
-## Unmerged work on other branches (claude/*, codex/* — last 14 days)
+## Unmerged work on other branches (claude/*, ccr-*, codex/* — last 14 days)
 
 $WIP
 ## Previous session (newest entry in SESSION_LOG.md)

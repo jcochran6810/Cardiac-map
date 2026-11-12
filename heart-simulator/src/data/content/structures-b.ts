@@ -1938,7 +1938,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     ],
     clinical: [
       'Idioventricular escape rhythm at ~20–40 bpm in complete heart block or sinus/junctional failure',
-      'Accelerated idioventricular rhythm (~40–100 bpm), classically after reperfusion',
+      'Accelerated idioventricular rhythm (about 50–120 bpm, usually under 100), classically after reperfusion',
       'Purkinje-origin PVCs can trigger VF in idiopathic VF, post-MI storm and long QT (torsades initiation)',
       'Bundle branch reentry VT occurs mainly in dilated cardiomyopathy with His–Purkinje disease',
       'Idiopathic fascicular VT arises in the Purkinje network of the left septum',
@@ -1946,7 +1946,7 @@ export const STRUCTURES_B: Record<string, StructureContent> = {
     ecg: [
       'Normal QRS < 120 ms reflects rapid, synchronized Purkinje activation',
       'Idioventricular rhythm: wide QRS, rate ~20–40 bpm, no related P waves',
-      'AIVR: wide regular rhythm ~40–100 bpm, often with fusion beats and AV dissociation',
+      'AIVR: wide regular rhythm at about 50–120 bpm, often with fusion beats and AV dissociation',
       'Purkinje-origin PVCs are relatively narrow with short coupling intervals when triggering VF',
       'Bundle branch reentry VT usually shows an LBBB morphology in a patient with baseline conduction disease',
     ],

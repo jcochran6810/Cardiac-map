@@ -39,12 +39,13 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'primary', label: 'Primary survey: airway, breathing, circulation', category: 'assess', roles: ALL, minutes: 1 },
   { id: 'opqrst', label: 'Ask about the pain (OPQRST)', category: 'assess', roles: ALL, minutes: 1 },
   { id: 'sample', label: 'SAMPLE history: allergies, medicines, past history', category: 'assess', roles: ALL, minutes: 1 },
-  { id: 'ask-pde5', label: 'Ask about erectile-dysfunction drugs (sildenafil, tadalafil)', category: 'assess', roles: ALL, minutes: 0.25 },
+  { id: 'ask-pde5', label: 'Ask about erectile-dysfunction drugs (sildenafil, vardenafil, tadalafil, avanafil)', category: 'assess', roles: ALL, minutes: 0.25 },
   { id: 'vitals', label: 'Manual vital signs: BP, pulse, breathing, SpO₂', category: 'assess', roles: ALL, minutes: 1, repeatable: true },
   { id: 'pulse-check', label: 'Check for a pulse (no more than 10 s)', category: 'assess', roles: ALL, minutes: 0.2, repeatable: true },
   { id: 'lungs', label: 'Listen to the lungs', category: 'assess', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'perfusion', label: 'Skin signs, neck veins (JVD) and peripheral pulses', category: 'assess', roles: ALL, minutes: 0.5 },
-  { id: 'glucose', label: 'Blood glucose', category: 'assess', roles: [1, 2, 4, 5], minutes: 0.5 },
+  // repeatable: a glucose is rechecked after dextrose, oral glucose or glucagon
+  { id: 'glucose', label: 'Blood glucose', category: 'assess', roles: [1, 2, 4, 5], minutes: 0.5, repeatable: true },
   { id: 'neuro', label: 'Neuro check: GCS and stroke screen', category: 'assess', roles: ALL, minutes: 0.5 },
   { id: 'reassess', label: 'Reassess the patient (2 min)', category: 'assess', roles: ALL, minutes: 2, repeatable: true },
 
@@ -75,8 +76,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'view-rca-rao', label: 'RAO view of the right coronary', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true, detail: angles('view-rca-rao') },
   { id: 'view-rca-cranial', label: 'AP cranial view of the right coronary (crux, PDA)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true, detail: angles('view-rca-cranial') },
   { id: 'lv-gram', label: 'Left ventriculogram (pigtail, power injector)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 1, detail: `${angles('lv-gram')}, 30–36 mL at 10–15 mL/s` },
-  { id: 'ffr-equalize', label: 'Equalise the pressure wire at the guide tip', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true },
-  { id: 'ffr', label: 'FFR measurement (pressure wire, hyperaemia)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 3, repeatable: true },
+  { id: 'ffr-equalize', label: 'Equalize the pressure wire at the guide tip', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true },
+  { id: 'ffr', label: 'FFR measurement (pressure wire, hyperemia)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 3, repeatable: true },
   { id: 'ivus', label: 'IVUS run', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 2, repeatable: true },
   { id: 'oct', label: 'OCT run (contrast flush)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 2, repeatable: true },
   { id: 'final-angio', label: 'Final angiogram in two views', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 1 },
@@ -115,26 +116,42 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'sedation', label: 'Sedation / analgesia for the procedure', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'per protocol or order, with monitoring', needsAccess: true },
   { id: 'tnk', label: 'Fibrinolytic: tenecteplase IV', category: 'meds', roles: [5], minutes: 0.5, detail: 'weight-based', needsAccess: true },
   { id: 'epi-im', label: 'Epinephrine IM for anaphylaxis', category: 'meds', roles: [1, 2, 4, 5], minutes: 0.3, detail: '0.3–0.5 mg (1 mg/mL), lateral thigh' },
-  { id: 'albuterol', label: 'Albuterol (salbutamol) nebuliser', category: 'meds', roles: [2, 4, 5], minutes: 1, detail: '2.5–5 mg' },
+  // two actions, not one with a dose to pick: the hyperkalemia dose is 4–8 times the wheezing dose, and choosing it is the point
+  { id: 'albuterol', label: 'Albuterol (salbutamol) 2.5–5 mg nebulized (bronchospasm)', category: 'meds', roles: [2, 4, 5], minutes: 1, detail: 'for wheezing; repeat per protocol' },
+  { id: 'albuterol-hyperk', label: 'Albuterol 10–20 mg nebulized (hyperkalemia)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: '4–8 times the asthma dose, over about 10 min; not in cardiac arrest' },
   { id: 'diphenhydramine', label: 'Diphenhydramine IV', category: 'meds', roles: [2, 4, 5], minutes: 0.3, detail: '25–50 mg', needsAccess: true },
   { id: 'steroid', label: 'Methylprednisolone IV', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.3, detail: '125 mg', needsAccess: true },
   { id: 'radial-cocktail', label: 'Radial cocktail through the sheath', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.3, detail: 'verapamil 2.5 mg + nitroglycerin 200 mcg, on the operator\'s order' },
   { id: 'ic-nitro', label: 'Intracoronary nitroglycerin', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '100–200 mcg, on the operator\'s order', repeatable: true },
-  { id: 'ic-adenosine', label: 'Intracoronary adenosine', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '100–200 mcg boluses (no-reflow)', repeatable: true },
+  { id: 'ic-adenosine', label: 'Intracoronary adenosine', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '100–200 mcg boluses (hyperemia or no-reflow)', repeatable: true },
   { id: 'ic-verapamil', label: 'Intracoronary verapamil', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '100–200 mcg (no-reflow)', repeatable: true },
-  { id: 'adenosine-iv-ffr', label: 'IV adenosine infusion for hyperaemia', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.5, detail: '140 mcg/kg/min', needsAccess: true },
+  { id: 'adenosine-iv-ffr', label: 'IV adenosine infusion for hyperemia', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.5, detail: '140 mcg/kg/min', needsAccess: true },
   { id: 'bivalirudin', label: 'Bivalirudin bolus and infusion', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.5, detail: '0.75 mg/kg, then 1.75 mg/kg/h', needsAccess: true },
   { id: 'gp2b3a', label: 'GP IIb/IIIa inhibitor (eptifibatide)', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.5, detail: '180 mcg/kg bolus ×2, 2 mcg/kg/min', needsAccess: true },
   { id: 'cangrelor', label: 'Cangrelor (IV P2Y12 inhibitor)', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.5, detail: '30 mcg/kg bolus, 4 mcg/kg/min', needsAccess: true },
   { id: 'protamine', label: 'Protamine (reverse heparin)', category: 'meds', roles: RN_MD, settings: LAB, minutes: 1, detail: '1 mg per 100 units of heparin, slowly', needsAccess: true },
+  // no-reflow: microvascular vasodilators, and epinephrine for the patient whose pressure is too low for them
+  { id: 'ic-nitroprusside', label: 'Intracoronary nitroprusside', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '50–200 mcg boluses (no-reflow), on the operator\'s order', repeatable: true },
+  { id: 'ic-epinephrine', label: 'Intracoronary epinephrine', category: 'meds', roles: LAB_TEAM, settings: LAB, minutes: 0.2, detail: '50–100 mcg (no-reflow with a low pressure), on the operator\'s order', repeatable: true },
+
+  // Electrolytes, antidotes and glucose: offered in the field and in the lab alike (oral glucose in the field only)
+  { id: 'calcium-chloride', label: 'Calcium chloride 1 g IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: '10 mL of 10 %, over 2–5 min with a pulse (a push in arrest); flush the line', repeatable: true, maxTimes: 3, needsAccess: true },
+  { id: 'sodium-bicarbonate', label: 'Sodium bicarbonate 50 mEq IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '50 mL of 8.4 % (about 1 mEq/kg); flush before and after calcium', repeatable: true, maxTimes: 3, needsAccess: true },
+  { id: 'insulin-dextrose', label: 'Insulin 10 units IV with dextrose 25 g', category: 'meds', roles: RN_MD, minutes: 0.5, detail: 'regular insulin push, then D50 50 mL; recheck the glucose every hour', needsAccess: true },
+  { id: 'magnesium-sulfate', label: 'Magnesium sulfate 2 g IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'diluted, over about 15 min with a pulse (a push in pulseless torsades)', repeatable: true, maxTimes: 2, needsAccess: true },
+  { id: 'procainamide', label: 'Procainamide 20–50 mg/min IV', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'stop when the arrhythmia stops, at hypotension, QRS widening by 50 % or 17 mg/kg; avoid in heart failure and long QT', needsAccess: true },
+  { id: 'glucagon', label: 'Glucagon 3–10 mg IV (beta- or calcium-channel-blocker overdose)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'slowly over 3–5 min, then an infusion; expect vomiting', repeatable: true, maxTimes: 2, needsAccess: true },
+  { id: 'oral-glucose', label: 'Oral glucose 15 g (one tube of gel)', category: 'meds', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'between cheek and gum, only if awake enough to swallow', repeatable: true, maxTimes: 2 },
+  { id: 'dextrose', label: 'Dextrose 25 g IV/IO (hypoglycemia)', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'D10 in 100 mL (10 g) steps up to 250 mL, or D50 50 mL; recheck the glucose', repeatable: true, maxTimes: 2, needsAccess: true },
+  { id: 'ondansetron', label: 'Ondansetron 4 mg IV (nausea and vomiting)', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'slowly over at least 30 seconds; it lengthens the QT', needsAccess: true },
 
   // Resuscitation & electrical
   { id: 'cpr', label: 'High-quality CPR (2-minute cycle)', category: 'resus', roles: ALL, minutes: 2, repeatable: true },
-  { id: 'aed', label: 'AED: analyse and shock if advised', category: 'resus', roles: ALL, minutes: 0.5, repeatable: true },
-  { id: 'defib', label: 'Defibrillate, unsynchronised', category: 'resus', roles: MANUAL, minutes: 0.3, detail: '200 J biphasic', repeatable: true },
-  { id: 'cardiovert', label: 'Synchronised cardioversion', category: 'resus', roles: MANUAL, minutes: 0.5, detail: '100 J biphasic', repeatable: true },
+  { id: 'aed', label: 'AED: analyze and shock if advised', category: 'resus', roles: ALL, minutes: 0.5, repeatable: true },
+  { id: 'defib', label: 'Defibrillate, unsynchronized', category: 'resus', roles: MANUAL, minutes: 0.3, detail: '200 J biphasic', repeatable: true },
+  { id: 'cardiovert', label: 'Synchronized cardioversion', category: 'resus', roles: MANUAL, minutes: 0.5, detail: '100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J)', repeatable: true },
   { id: 'pace', label: 'Transcutaneous pacing', category: 'resus', roles: MANUAL, minutes: 1, detail: 'rate 70, raise mA until capture' },
-  { id: 'vagal', label: 'Vagal manoeuvre (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5], minutes: 0.5 },
+  { id: 'vagal', label: 'Vagal maneuver (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5], minutes: 0.5 },
   { id: 'hs-ts', label: 'Look for reversible causes (Hs and Ts)', category: 'resus', roles: ALS_RN_MD, minutes: 0.5 },
 
   // Procedures (cath lab)
@@ -168,17 +185,22 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'iabp', label: 'Intra-aortic balloon pump (IABP)', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 6 },
   { id: 'impella', label: 'Impella CP (percutaneous LV pump)', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 5 },
   { id: 'temp-wire', label: 'Temporary transvenous pacing wire', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 3 },
-  { id: 'hemostasis', label: 'Access-site haemostasis (radial band or femoral pressure)', category: 'procedure', roles: [3, 4], settings: LAB, minutes: 1 },
+  { id: 'hemostasis', label: 'Access-site hemostasis (radial band or femoral pressure)', category: 'procedure', roles: [3, 4], settings: LAB, minutes: 1 },
   { id: 'call-surgery', label: 'Call cardiac surgery', category: 'team', roles: LAB_TEAM, settings: LAB, minutes: 0.2 },
 
   // Team, calls & transport
   { id: 'call-help', label: 'Call for help / the code team', category: 'team', roles: ALL, minutes: 0.2 },
   { id: 'callout', label: 'Call it out to the operator (closed loop)', category: 'team', roles: [3, 4], settings: LAB, minutes: 0.1, repeatable: true },
   { id: 'als', label: 'Request a paramedic (ALS) intercept', category: 'team', roles: [1], settings: FIELD, minutes: 0.3 },
-  { id: 'med-control', label: 'Contact online medical control', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
+  // a call back once the 12-lead or the history is in, or when the patient changes, is part of the job
+  { id: 'med-control', label: 'Contact online medical control', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, repeatable: true, maxTimes: 3 },
+  // a call back with what the bottle says is part of the job: the first call often only brings the questions
+  { id: 'poison-control', label: 'Call the poison center', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'Poison Help line 1-800-222-1222: what was taken, how much, when, and the weight', repeatable: true, maxTimes: 3 },
   { id: 'stemi-alert', label: 'STEMI alert: activate the cath lab from the field', category: 'team', roles: [2], settings: FIELD, minutes: 0.5 },
   { id: 'notify', label: 'Radio report to the receiving hospital', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
-  { id: 'transport-pci', label: 'Transport to the PCI-capable heart centre', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2 },
+  // the far destination in every field case: the STEMI's cath lab, a pacing wire, the ICU, emergency dialysis. The STEMI
+  // cases call it the "PCI-capable heart center" (briefing, critical step, hint): the detail carries that name for the search
+  { id: 'transport-pci', label: 'Transport to the regional heart center (PCI, pacing, dialysis)', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2, detail: 'PCI-capable: a cath lab, transvenous pacing, emergency dialysis and an ICU' },
   { id: 'transport-near', label: 'Transport to the nearest emergency department', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2 },
   { id: 'handoff', label: 'Hand-off report (SBAR)', category: 'team', roles: ALL, minutes: 1 },
 ];

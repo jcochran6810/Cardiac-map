@@ -195,7 +195,9 @@ echo "other agents' unmerged branches"
 setup
 (cd "$WORK/seed" && git checkout -q -b codex/ui-polish && printf 'codex\n' >> shared.txt && printf 'new\n' > codex-only.txt && git add -A && git commit -qm "codex polish" && git push -q origin codex/ui-polish && git checkout -q "$PROD")
 (cd "$WORK/seed" && git checkout -q -b claude/old-idea && printf 'old\n' > old.txt && git add -A && GIT_COMMITTER_DATE="2020-01-01T00:00:00Z" git commit -qm "old idea" && git push -q origin claude/old-idea && git checkout -q "$PROD")
+(cd "$WORK/seed" && git checkout -q -b ccr-1a2b3c4d-web && printf 'web\n' > web-session.txt && git add -A && git commit -qm "web session work" && git push -q origin ccr-1a2b3c4d-web && git checkout -q "$PROD")
 run_hook startup
+expect_ctx "\`ccr-1a2b3c4d-web\` (Claude, 1 unmerged commit(s)" "lists a web session's ccr-* branch"
 expect_ctx "\`codex/ui-polish\` (Codex, 1 unmerged commit(s)" "lists Codex's unmerged branch"
 expect_ctx "\`codex-only.txt\`" "lists the files it touches"
 expect_no_ctx "claude/old-idea" "skips branches untouched for 14+ days"

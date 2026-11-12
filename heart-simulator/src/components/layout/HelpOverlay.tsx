@@ -1,11 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { useLearningStore } from '@/store/useLearningStore';
 import { IconClose } from '@/components/ui/icons';
 import { InstallButton } from '@/components/ui/InstallApp';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { useDrillStore } from '@/store/useDrillStore';
+import { useSimStore } from '@/store/useSimStore';
+import { useQuizStore } from '@/store/useQuizStore';
 
 const SHORTCUTS: [string, string][] = [
   ['Space', 'Play / pause the heartbeat'],
@@ -13,11 +18,11 @@ const SHORTCUTS: [string, string][] = [
   ['[ / ]', 'Slower / faster simulation'],
   ['1 – 6', 'Exterior · Sectioned · X-ray · Conduction · Territories · Activation map'],
   ['H', 'Slide the 3D heart down / up'],
-  ['K', 'Slide the 12-lead EKG up / down'],
+  ['K', 'Slide the 12-lead ECG up / down'],
   ['L', 'Toggle 3D labels'],
   ['F', 'Toggle blood flow (sectioned view)'],
   ['V', 'Toggle cardiac vector'],
-  ['E', 'Switch ECG ↔ Wiggers / PV loop'],
+  ['E', 'Switch ECG ↔ Pressure & volume (Wiggers diagram, PV loop)'],
   ['M', 'Monitor / defibrillator trainer'],
   ['/  or  Ctrl+K', 'Search everything'],
   ['Q · T', 'Open quiz · tutor'],
@@ -31,31 +36,59 @@ const GESTURES: [string, string][] = [
   ['Two-finger drag', 'Move (pan) the heart'],
   ['Tap a structure', 'Read about it'],
   ['Tap a lead', 'Show its axis on the heart'],
-  ['Double-tap a lead', 'Inspect it large with labelled intervals'],
+  ['Double-tap a lead', 'Inspect it large with labeled intervals'],
   ['Drag the ECG', 'Scrub back and forth through time'],
-  ['Tap 3D heart / 12-lead EKG', 'Slide the heart down from the top, the EKG up from the bottom — tap again to put it away'],
-  ['Drag a grip bar', 'Resize the heart or the EKG (double-tap to reset)'],
-  ['⤢ button', 'Give the heart or the EKG the whole screen'],
+  ['Tap 3D heart / 12-lead ECG', 'Slide the heart down from the top, the ECG up from the bottom — tap again to put it away'],
+  ['Drag a grip bar', 'Resize the heart or the ECG (double-tap to reset)'],
+  ['⤢ button', 'Give the heart or the ECG the whole screen'],
 ];
+
+/** What "Reset my progress" leaves alone, said before and after */
+const KEPT = 'Your role and any case in progress are kept.';
 
 export default function HelpOverlay() {
   const helpOpen = useAppStore((s) => s.helpOpen);
   const setHelpOpen = useAppStore((s) => s.setHelpOpen);
-  const resetProgress = useLearningStore((s) => s.resetProgress);
+  const dialogRef = useDialogFocus<HTMLDivElement>(helpOpen, () => setHelpOpen(false));
+  // "Progress cleared" stays until Help is closed
+  const [cleared, setCleared] = useState(false);
+  useEffect(() => { if (!helpOpen) setCleared(false); }, [helpOpen]);
+  const resetProgress = () => {
+    useLearningStore.getState().resetProgress();
+    useCourseStore.getState().resetProgress();
+    useDrillStore.getState().resetStats();
+    // the quiz round under way (its score would outlive "Progress cleared")
+    useQuizStore.getState().end();
+    try { window.localStorage.removeItem('cardiosim.sim.best'); } catch { /* storage unavailable */ }
+    useSimStore.setState({ best: {} });
+    setCleared(true);
+  };
   if (!helpOpen) return null;
   return (
-    <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0" onClick={() => setHelpOpen(false)} role="dialog" aria-label="Help">
+    <div
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 phone:p-0 outline-none focus-visible:outline-none"
+      onClick={() => setHelpOpen(false)}
+      // "?" opened it and closes it again (the app's other shortcuts wait until it has closed)
+      onKeyDown={(e) => { if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); setHelpOpen(false); } }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="help-title"
+    >
       <div className="w-full max-w-2xl max-h-[85dvh] overflow-y-auto bg-cardiac-panel border border-slate-600 rounded-xl shadow-2xl phone:max-w-none phone:h-full phone:max-h-none phone:rounded-none phone:border-0" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-cardiac-panel flex items-center justify-between px-4 py-3 border-b border-slate-700">
-          <h2 className="text-sm font-semibold text-white">How to use CardioSim</h2>
+          <h2 id="help-title" tabIndex={-1} data-autofocus className="text-sm font-semibold text-white outline-none focus-visible:outline-none">How to use CardioSim</h2>
           <button onClick={() => setHelpOpen(false)} className="p-1 touch:p-2 text-slate-400 hover:text-white" aria-label="Close help"><IconClose size={16} /></button>
         </div>
         <div className="p-4 grid md:grid-cols-2 gap-5 text-xs">
           <section className="md:col-span-2 text-slate-300 leading-relaxed">
             <h3 className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Getting around</h3>
-            <ul className="grid sm:grid-cols-3 gap-2">
+            <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Main menu</b> — everything starts here: your role, search, the case simulator, every library section, the tools (3D heart, 12-lead, electrode lab, defibrillator, pressure &amp; volume), guided starts, the quiz, the tutor and this help. <b className="text-slate-100">Menu</b> (top left) always brings you back.</li>
-              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Reading</b> — pick a section, then a topic. Tap <b className="text-slate-100">12-lead EKG</b> at the bottom to slide the ECG up, and <b className="text-slate-100">3D heart</b> at the top to slide the heart down; tap again to put them away. <b className="text-slate-100">←</b> (or your phone&apos;s Back) goes to the page before.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Courses</b> — short guided lessons. Each step explains one idea, sets up the 3D heart and the ECG to show it, and ends with a quick check. Your place and scores are kept on this device.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Rhythm trainer</b> — name live tracings one after another. The ones you miss come back more often until you know them.</li>
+              <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Reading</b> — pick a section, then a topic. Tap <b className="text-slate-100">12-lead ECG</b> at the bottom to slide the ECG up, and <b className="text-slate-100">3D heart</b> at the top to slide the heart down; tap again to put them away. <b className="text-slate-100">←</b> (or your phone&apos;s Back) goes to the page before.</li>
               <li className="p-2.5 rounded-lg bg-cardiac-dark/60 border border-slate-700"><b className="text-white">Case simulator</b> — treat a patient case: every action in your scope is offered, the patient responds, and you get a scored review.</li>
             </ul>
           </section>
@@ -84,10 +117,11 @@ export default function HelpOverlay() {
           <section className="space-y-2 text-slate-300 leading-relaxed">
             <h3 className="text-[10px] uppercase tracking-wider text-slate-500">One heartbeat, many views</h3>
             <p>The ECG, 3D contraction, conduction animation, valve states, heart sounds and pressure curves are all generated from the same beat-by-beat event list, so they always agree — including AF, dropped beats and AV dissociation.</p>
+            <p><b className="text-white">Heart sounds:</b> press <b className="text-slate-100">Heart sounds</b> on the 3D heart (or <b className="text-slate-100">Listen</b> beside the pressure curves) to hear S1 and S2 in time with the beat — and the S3, S4, opening snap and murmur of the condition on screen. Headphones bring out the low tones.</p>
             <p><b className="text-white">Give meds:</b> every condition has a <b className="text-slate-100">Give meds</b> section — set the patient&apos;s weight, choose a drug and a dose, push it, and watch the live 12-lead change as the drug acts (marked on the strip, with Skip ahead for slow drugs) and get feedback on the drug and the dose.</p>
-            <p><b className="text-white">ECG:</b> calibrated at 25 mm/s and 10 mm/mV (1 small box = 40 ms / 0.1 mV). Click (or tap) a lead to see its axis on the heart, double-click (double-tap) to inspect it with labelled intervals, and drag to scrub time.</p>
+            <p><b className="text-white">ECG:</b> calibrated at 25 mm/s and 10 mm/mV (1 small box = 40 ms / 0.1 mV). Click (or tap) a lead to see its axis on the heart, double-click (double-tap) to inspect it with labeled intervals, and drag to scrub time.</p>
             <p><b className="text-white">Roles &amp; scope of practice:</b> choose EMT, Paramedic, Cath Lab Tech, Cath Lab Nurse or Cardiologist on the main menu. The “Focus” guidance, recommended tabs (green dots), quiz questions, case roles and monitor/defibrillator permissions follow that role&apos;s scope: EMT and Paramedic per the National EMS Scope of Practice Model (NREMT); cath lab tech per RCIS / SCAI best practices and facility policy; cath lab nurse per the state Nurse Practice Act; cardiologists without limits beyond their privileges. Tap <b>What can I do?</b> next to the roles on the main menu for details. Local protocols, medical direction and facility policy always govern real practice.</p>
-            <p><b className="text-white">Defibrillator (M):</b> practise AED use, manual defibrillation, synchronised cardioversion, pacing and ACLS drugs on the live rhythm. Instructor mode loads scenarios and changes the patient; trainee mode hides rhythm names; Projector mirrors the monitor on a second screen.</p>
+            <p><b className="text-white">Defibrillator (M):</b> practice AED use, manual defibrillation, synchronized cardioversion, pacing and ACLS drugs on the live rhythm. Instructor mode loads scenarios and changes the patient; trainee mode hides rhythm names; Projector mirrors the monitor on a second screen.</p>
             <p><b className="text-white">Sources:</b> activation sequence after Durrer et al. (1970); AHA 17-segment model (Cerqueira 2002); lead derivation and electrode reversals per standard ECG references; C-arm angles cross-checked with SlicerHeart. See THIRD_PARTY_NOTICES.md.</p>
             <p><b className="text-white">How accurate is it?</b> Waveforms come from a cardiac dipole model with physiological intervals (QT corrected by Fridericia), and the hemodynamics are a teaching model with representative values. It is designed to teach patterns and relationships, not to reproduce any individual patient.</p>
           </section>
@@ -109,14 +143,27 @@ export default function HelpOverlay() {
         <InstallButton className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/25">
           Install CardioSim on this device — full screen, works offline
         </InstallButton>
-        <div className="px-4 py-3 border-t border-slate-700 flex items-center justify-between text-[10px] text-slate-500">
-          <span>Educational simulation only — not for diagnosis or treatment.</span>
+        <section className="mx-4 mb-4 p-3 rounded-lg bg-cardiac-dark/60 border border-slate-700 flex flex-wrap items-center gap-x-3 gap-y-2" aria-labelledby="help-progress">
+          <div className="flex-1 min-w-[13rem] text-xs leading-snug">
+            <h3 id="help-progress" className="font-semibold text-slate-200">Your progress</h3>
+            <p id="help-progress-what" className="text-slate-400">Lessons, rhythm trainer scores, case scores, quiz history and what you have studied are saved on this device.</p>
+          </div>
           <button
-            onClick={() => { if (window.confirm('Reset all progress and quiz history on this device?')) resetProgress(); }}
-            className="text-slate-400 hover:text-red-300"
+            onClick={() => {
+              if (window.confirm(`Reset your progress on this device? This clears your lessons, rhythm trainer scores, case scores, quiz history and what you have studied. ${KEPT}`)) resetProgress();
+            }}
+            aria-describedby="help-progress-what"
+            className="h-10 touch:h-11 px-4 shrink-0 rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 text-xs font-semibold hover:bg-red-500/20"
           >
             Reset my progress
           </button>
+          {/* kept in the page (empty) so a screen reader reads the result out */}
+          <p role="status" className={cleared ? 'basis-full text-xs font-semibold text-emerald-300' : 'sr-only'}>
+            {cleared ? `Progress cleared. ${KEPT}` : ''}
+          </p>
+        </section>
+        <div className="px-4 py-3 border-t border-slate-700 text-[10px] text-slate-500">
+          Educational simulation only — not for diagnosis or treatment.
         </div>
       </div>
     </div>

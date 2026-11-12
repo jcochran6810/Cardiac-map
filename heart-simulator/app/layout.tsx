@@ -5,7 +5,7 @@ import { PwaInit } from '@/components/ui/InstallApp';
 export const metadata: Metadata = {
   title: 'CardioSim — Interactive Cardiac Anatomy, ECG & Physiology',
   description:
-    'Interactive 3D heart with a synchronised 12-lead ECG, conduction system, Wiggers diagram and pressure-volume loop, plus a reviewed library of cardiac anatomy, conditions, procedures and drugs for EMS, acute care and cardiology learners.',
+    'Interactive 3D heart with a synchronized 12-lead ECG, conduction system, Wiggers diagram and pressure-volume loop, plus a reviewed library of cardiac anatomy, conditions, procedures and drugs for EMS, acute care and cardiology learners.',
   keywords: ['cardiac', 'heart', 'education', 'simulation', 'ECG', 'EKG', 'anatomy', '3D', 'paramedic', 'cardiology'],
   applicationName: 'CardioSim',
   manifest: '/manifest.webmanifest',

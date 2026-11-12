@@ -116,7 +116,7 @@ compact and clear) runs automatically and:
    - If production's own `.claude/production-branch` names another branch (a rename), it follows it.
 3. Checks that GitHub's default branch is production (new web sessions start from the default
    branch); if not, raises a **NOTICE** with the fix. Lists both agents' unmerged branches
-   (`claude/*`, `codex/*`, active in the last 14 days) with the files they change, and raises a
+   (`claude/*`, `ccr-*`, `codex/*`, active in the last 14 days) with the files they change, and raises a
    **NOTICE** when one changes the same files as this branch.
 4. Runs the baseline in `heart-simulator/`: `npm ci` (skipped when `package.json`,
    `package-lock.json` and the Node version are unchanged since its last successful `npm ci`),
@@ -197,8 +197,9 @@ Run from `heart-simulator/` before committing or merging — `npm run check` run
 | `npm run lint` | ESLint via `next lint` (non-interactive; `next lint` is removed in Next 16 — migrate before upgrading) |
 | `npm test` | Vitest unit tests in `heart-simulator/tests/` (ECG lead maths, electrodes, rhythm profiles, beat engine, hemodynamics, anatomy, scope) |
 | `npm run build` | Production build (`next build`, also type-checks) |
+| `npm run e2e` | After a build: Playwright smoke test of the main screens on a small phone, a phone upright and on its side, a tablet and a desktop (`heart-simulator/e2e/`; not part of `npm run check`, CI runs it as its own job) |
 
-**GitHub Actions** (`.github/workflows/ci.yml`) runs the same four checks plus the hook's own test on
+**GitHub Actions** (`.github/workflows/ci.yml`) runs the same four checks, the browser smoke test and the hook's own test on
 every push to `main`, `claude/**` and `codex/**`, and on pull requests into `main` — so Codex pull
 requests arrive with their results attached. A red run on a branch is fixed on that branch, never on `main`.
 
@@ -354,7 +355,7 @@ the previous one's deploy actually failed, it says so in its own entry.
   `npm ci`, which never rewrites the lockfile (Station Insight's npm-10 lockfile problem).
 - **SESSION_LOG.md and fix_list.md are committed before the merge** (Station Insight's ordering), so
   nothing is ever edited on production.
-- **The hook has its own test** (`.claude/hooks/session-start.test.sh`, 91 checks against throwaway
+- **The hook has its own test** (`.claude/hooks/session-start.test.sh`, 92 checks against throwaway
   repos), run by CI with the app checks — the siblings' CI covers the app only.
 - **Two agents share the protocol.** Codex has no hooks, so `scripts/session-start.sh` runs the same
   hook for it (Codex mode: a fresh copy of production and a missing internet connection are normal in

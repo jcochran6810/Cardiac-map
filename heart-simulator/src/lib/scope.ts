@@ -42,13 +42,13 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
       'High-quality CPR, AED use, airway adjuncts and bag-valve-mask ventilation, oxygen, CPAP per protocol',
       'Aspirin for suspected acute coronary syndrome, per protocol',
       "Assist with the patient's own prescribed nitroglycerin, per protocol and medical direction",
-      'Epinephrine auto-injector (anaphylaxis), naloxone, oral glucose, per protocol',
+      'Epinephrine auto-injector (anaphylaxis), naloxone, oral glucose, inhaled bronchodilator for wheezing, blood glucose check, per protocol',
       'Acquire and transmit a 12-lead ECG where protocols allow (no interpretation)',
       'Early notification, destination decisions and transport per protocol',
     ],
     mustNot: [
       'Interpret ECG rhythms or 12-leads',
-      'Manual defibrillation, synchronised cardioversion or transcutaneous pacing',
+      'Manual defibrillation, synchronized cardioversion or transcutaneous pacing',
       'IV/IO access or IV medications; ACLS drugs',
       'Advanced airways beyond the state-approved EMT scope',
     ],
@@ -62,14 +62,14 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
     can: [
       'Everything in the EMT scope',
       'Cardiac monitoring, rhythm and 12-lead ECG interpretation, STEMI recognition and activation',
-      'Manual defibrillation, synchronised cardioversion and transcutaneous pacing',
+      'Manual defibrillation, synchronized cardioversion and transcutaneous pacing',
       'IV/IO access and ACLS medications per protocol (e.g. epinephrine, amiodarone, lidocaine, adenosine, atropine)',
       'Advanced airway management, needle decompression, per protocol',
       'Interfacility transport monitoring within protocol and medical direction',
     ],
     mustNot: [
       'Act outside written protocols or without online medical direction where required',
-      'Fibrinolytic or other system-specific therapies unless the EMS system protocol authorises them',
+      'Fibrinolytic or other system-specific therapies unless the EMS system protocol authorizes them',
       'Make in-hospital diagnostic or treatment decisions (e.g. choose PCI strategy)',
     ],
     escalateTo: 'Online medical direction; receiving physician / cath lab team',
@@ -108,14 +108,14 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
       'IV access; administer medications on physician order (anticoagulants, antiplatelets, vasoactives, antiarrhythmics)',
       "Moderate procedural sedation on the practitioner's order with the practitioner present; continuous monitoring incl. capnography",
       'Monitor anticoagulation (e.g. ACT), hemodynamics, rhythm and level of consciousness',
-      'Recognise and respond to complications (bleeding, vagal reaction, contrast reaction, tamponade, stroke), ACLS',
+      'Recognize and respond to complications (bleeding, vagal reaction, contrast reaction, tamponade, stroke), ACLS',
       'Sheath removal and hemostasis per protocol and validated competency; access-site care',
       'Patient and family education; post-procedure care and handoff',
     ],
     mustNot: [
       'Make medical diagnoses, prescribe or select treatment',
       'Perform the procedure or manipulate devices as operator',
-      'Deep sedation or general anaesthesia (anaesthesia professional only)',
+      'Deep sedation or general anesthesia (anesthesia professional only)',
       'Give medications without an order (except per approved standing protocols such as ACLS)',
     ],
     escalateTo: 'Operating / attending physician',
@@ -134,10 +134,34 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
     mustNot: [
       'Perform procedures outside granted privileges (e.g. structural or EP procedures without those privileges)',
     ],
-    escalateTo: 'Heart team, cardiac surgery, anaesthesia, critical care as needed',
+    escalateTo: 'Heart team, cardiac surgery, anesthesia, critical care as needed',
   },
 };
 
 export function roleOf(level: LearningLevel): string {
   return SCOPES[level].role;
+}
+
+// ─── The monitor-defibrillator ─────────────────────────────────────────────
+
+/**
+ * May this role use the defibrillator's manual functions — manual defibrillation, synchronized cardioversion and
+ * transcutaneous pacing? The EMT uses the AED (and does CPR); the rest are ALS skills.
+ */
+export function canUseManualDefib(level: LearningLevel): boolean {
+  return level !== 1;
+}
+
+/**
+ * On whose authority this role gives the ACLS drugs during a code: null for the EMT (outside the scope), '' for the
+ * physician (their own), otherwise the order or protocol it needs.
+ */
+export function drugAuthority(level: LearningLevel): string | null {
+  switch (level) {
+    case 1: return null;
+    case 2: return 'per protocol / medical direction';
+    case 3: return "on the physician's order (where state law and facility policy permit)";
+    case 4: return "on the physician's order / ACLS protocol";
+    case 5: return '';
+  }
 }

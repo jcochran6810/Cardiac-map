@@ -8,13 +8,19 @@ import RightPanel from '@/components/layout/RightPanel';
 import BottomDock from '@/components/layout/BottomDock';
 import DrawerBar from '@/components/layout/DrawerBar';
 import HelpOverlay from '@/components/layout/HelpOverlay';
+import Glossary from '@/components/layout/Glossary';
 import SceneOverlay from '@/components/scene/SceneOverlay';
+import { sideBySideEcgRange, sideBySideEcgWidth } from '@/components/scene/overlayLayout';
 import TutorPanel from '@/components/tutor/TutorPanel';
 import QuizPanel from '@/components/tutor/QuizPanel';
 import SimulationDriver from '@/components/sim/SimulationDriver';
+import HeartSoundDriver from '@/components/sim/HeartSoundDriver';
 import { InstallBanner } from '@/components/ui/InstallApp';
 import HomeScreen from '@/components/home/HomeScreen';
 import SimulatorScreen from '@/components/simulator/SimulatorScreen';
+import CoursesScreen from '@/components/courses/CoursesScreen';
+import LessonPlayer from '@/components/courses/LessonPlayer';
+import RhythmTrainer from '@/components/drill/RhythmTrainer';
 import BackNav from '@/components/layout/BackNav';
 import FeedbackForm from '@/components/feedback/FeedbackForm';
 import AdminPanel from '@/components/admin/AdminPanel';
@@ -25,6 +31,10 @@ import { useECGStore } from '@/store/useECGStore';
 import { useSceneStore } from '@/store/useSceneStore';
 import { useTutorStore } from '@/store/useTutorStore';
 import { useFeedbackStore } from '@/store/useFeedbackStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { applyStep } from '@/lib/courses';
+import { useDrillStore } from '@/store/useDrillStore';
+import { showQuestion } from '@/lib/drillRun';
 import { sim, scrubTo } from '@/lib/sim/simulation';
 import { loadContent } from '@/lib/content';
 import { showEcg, showHeart } from '@/lib/actions';
@@ -65,6 +75,11 @@ function useLingering(on: boolean, ms = SLIDE_MS + 40): boolean {
 
 export default function AppShell() {
   const mode = useAppStore((s) => s.mode);
+  // a guided lesson or the rhythm trainer takes over the learning screen: its panel replaces the library's list and reading
+  const lessonOn = useCourseStore((s) => !!s.active) && mode === 'learn';
+  const drillOn = useDrillStore((s) => s.open) && mode === 'learn' && !lessonOn;
+  const inLesson = lessonOn || drillOn;
+  const Activity = drillOn ? RhythmTrainer : LessonPlayer;
   const listOpen = useAppStore((s) => s.listOpen);
   const heart = useAppStore((s) => s.heart);
   const ecg = useAppStore((s) => s.ecg);
@@ -89,10 +104,18 @@ export default function AppShell() {
 
   useEffect(() => { useAppStore.getState().setCompact(compact); }, [compact]);
   useEffect(() => { useAppStore.getState().setShort(short); }, [short]);
-  // Phones get the full 12-lead too (it reads well in the EKG drawer, ⤢ enlarges it); 3-lead is one tap away
+  // Phones get the full 12-lead too (it reads well in the ECG drawer, ⤢ enlarges it); 3-lead is one tap away
   useEffect(() => { useAppStore.getState().setPhone(phone); }, [phone]);
   // A new screen shape gets the default drawer sizes again
   useEffect(() => { setHeartSize(null); setEcgSize(null); setEcgWidth(null); }, [phone, compact, short]);
+  // …and a lesson lays its step out again for it (beside the pictures on wide screens, between them on upright ones)
+  useEffect(() => {
+    if (useCourseStore.getState().active) applyStep(true);
+    else if (useDrillStore.getState().open) showQuestion(true);
+  }, [compact, short]);
+  // Wide screens and phones on their side: the lesson's text is a column beside the heart and the ECG
+  const lessonSide = inLesson && (!compact || short);
+  const lessonStacked = inLesson && !lessonSide;
 
   // Measure the learning screen (everything below the top bar)
   useLayoutEffect(() => {
@@ -103,14 +126,18 @@ export default function AppShell() {
     return () => ro.disconnect();
   }, [mode]);
 
+
   // ── Drawer geometry ──────────────────────────────────────────
   const bar = short ? 32 : 40; // keep in step with DrawerBar's height
   const A = Math.max(0, area.h - 2 * bar);
   const hOpen = heart !== 'closed';
   const eOpen = ecg !== 'closed';
   const sideBySide = short && hOpen && eOpen;
-  const hWant = clamp(heartSize ?? A * (eOpen ? 0.38 : 0.5), MIN_DRAWER, A);
-  const eWant = clamp(ecgSize ?? A * (hOpen ? 0.4 : phone ? 0.5 : 0.45), MIN_DRAWER, A);
+  // a lesson's text needs more of an upright screen than a library page that is being glanced at
+  const hWant = clamp(heartSize ?? A * (lessonStacked ? (eOpen ? 0.3 : 0.42) : eOpen ? 0.38 : 0.5), MIN_DRAWER, A);
+  // (the electrode lab's 3D patient and the monitor-defibrillator need the most room)
+  const bigPanel = useECGStore((s) => s.bottomView === 'defib' || (s.bottomView === 'ecg' && s.electrodeLab));
+  const eWant = clamp(ecgSize ?? A * (lessonStacked ? (hOpen ? 0.3 : bigPanel ? 0.52 : drillOn ? 0.46 : 0.42) : hOpen ? 0.4 : phone ? 0.5 : 0.45), MIN_DRAWER, A);
   let hH = 0;
   let eH = 0;
   if (sideBySide) {
@@ -129,7 +156,7 @@ export default function AppShell() {
     hH = hOpen ? hWant : 0;
     eH = eOpen ? eWant : 0;
     // always leave a strip of the reading in view
-    const room = A - Math.max(72, A * 0.14);
+    const room = A - (lessonStacked ? Math.max(190, A * (bigPanel ? 0.3 : 0.36)) : Math.max(72, A * 0.14));
     if (hH + eH > room && hH + eH > 0) {
       const k = Math.max(0, room) / (hH + eH);
       hH *= k;
@@ -140,7 +167,9 @@ export default function AppShell() {
   eH = Math.round(eH);
   if (hH > 0) lastHeart.current = hH;
   if (eH > 0) lastEcg.current = eH;
-  const eW = clamp(ecgWidth ?? area.w * 0.55, 280, Math.max(280, area.w - 180));
+  // side by side, beside a lesson's text column the heart and the ECG share the rest half and half (see overlayLayout)
+  const lessonBeside = lessonOn && sideBySide;
+  const eW = sideBySideEcgWidth(area.w, ecgWidth, lessonBeside);
   const readingHidden = sideBySide || heart === 'full' || ecg === 'full';
 
   // The 3D heart is created the first time it opens and then kept (paused while closed), so it opens instantly next time
@@ -175,13 +204,14 @@ export default function AppShell() {
     }
     if (drag.current === 'ecg') {
       if (sideBySide) {
-        setEcgWidth(clamp(rect.right - e.clientX, 280, rect.width - 180));
+        const range = sideBySideEcgRange(rect.width, lessonBeside);
+        setEcgWidth(clamp(rect.right - e.clientX, range.min, range.max));
       } else {
         if (app.ecg === 'full') app.setEcg('open');
         setEcgSize(clamp(rect.bottom - bar - e.clientY, MIN_DRAWER, A - (app.heart !== 'closed' ? MIN_DRAWER : 0)));
       }
     }
-  }, [A, bar, sideBySide]);
+  }, [A, bar, sideBySide, lessonBeside]);
 
   const onUp = useCallback(() => {
     drag.current = null;
@@ -192,6 +222,14 @@ export default function AppShell() {
 
   // Keyboard shortcuts
   useEffect(() => {
+    // The control that got its focus from the keyboard (Tab, or a key that moved focus), if it still has it. A mouse
+    // click leaves focus on the button clicked; that one does not count. (Not :focus-visible: Chrome turns it on for
+    // the focused button as soon as any key is pressed, Space included.)
+    let byKey = false;
+    let keyFocus: EventTarget | null = null;
+    const onAnyKey = () => { byKey = true; };
+    const onPointer = () => { byKey = false; keyFocus = null; };
+    const onFocus = (e: FocusEvent) => { keyFocus = byKey ? e.target : null; };
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
@@ -204,10 +242,16 @@ export default function AppShell() {
       // the 3D-heart and ECG shortcuts only belong to the learning screen
       if (app.mode !== 'learn' && !['q', 'Q', 't', 'T', '?', 'Escape'].includes(e.key)) return;
       switch (e.key) {
-        case ' ':
+        case ' ': {
+          // Space is play / pause, except on a button that asks for it (the trainer's "Next tracing", which an answer
+          // focuses) or one the learner reached with the keyboard: those it presses. After a mouse click (focus stays on
+          // the button clicked) it is still play / pause, not that button again.
+          const control = el?.closest('button, summary, [role="button"], [role="tab"], [role="checkbox"], [role="switch"], [role="radio"], [role="option"], [role="menuitem"]');
+          if (control && (control.hasAttribute('data-space-presses') || keyFocus === el)) return;
           e.preventDefault();
           tl.togglePlay();
           break;
+        }
         case 'ArrowLeft':
         case 'ArrowRight':
           if (!tl.playing) {
@@ -238,6 +282,7 @@ export default function AppShell() {
         case '?': app.setHelpOpen(!app.helpOpen); break;
         case 'Escape':
           if (app.helpOpen) app.setHelpOpen(false);
+          else if (app.glossaryOpen) app.setGlossaryOpen(false);
           else if (app.quizOpen) app.setQuizOpen(false);
           else if (useTutorStore.getState().tutorOpen) useTutorStore.getState().setTutorOpen(false);
           else if (useECGStore.getState().inspectLead) useECGStore.getState().setInspectLead(null);
@@ -247,8 +292,16 @@ export default function AppShell() {
           if (VIEW_KEYS[e.key]) { app.setViewMode(VIEW_KEYS[e.key]); showHeart(); }
       }
     };
+    window.addEventListener('keydown', onAnyKey, true);
+    window.addEventListener('pointerdown', onPointer, true);
+    window.addEventListener('focusin', onFocus, true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onAnyKey, true);
+      window.removeEventListener('pointerdown', onPointer, true);
+      window.removeEventListener('focusin', onFocus, true);
+      window.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const handle = 'bg-slate-700/80 hover:bg-cardiac-accent/60 active:bg-cardiac-accent transition-colors shrink-0 touch-none';
@@ -257,7 +310,18 @@ export default function AppShell() {
     <span className={`hidden touch:block pointer-events-none rounded-full bg-slate-400/70 ${dir === 'col' ? 'w-0.5 h-8' : 'h-0.5 w-10'}`} />
   );
 
-  const reading = compact ? (
+  const reading = lessonSide ? (
+    // both pictures were put away: the lesson's text is in its own column, so say how to bring one back
+    <div className="flex-1 flex items-center justify-center p-6 text-center text-sm text-slate-400 bg-cardiac-dark">
+      <p className="max-w-xs">
+        {drillOn
+          ? <>Choose a set on the left to start. The tracing appears here.</>
+          : <>This step is easier to follow with a picture: open the <b className="text-slate-200">3D heart</b> above or the <b className="text-slate-200">ECG</b> below.</>}
+      </p>
+    </div>
+  ) : inLesson ? (
+    <Activity />
+  ) : compact ? (
     listOpen ? <LeftPanel style={{ width: '100%' }} /> : <RightPanel style={{ width: '100%' }} />
   ) : (
     <>
@@ -272,14 +336,18 @@ export default function AppShell() {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden" style={{ ['--dock-h' as string]: mode === 'learn' && !sideBySide && eH ? `${eH + bar}px` : `${bar}px` }}>
       <SimulationDriver />
+      <HeartSoundDriver />
       <BackNav />
       <TopBar />
       {mode === 'home' && <HomeScreen />}
+      {mode === 'courses' && <CoursesScreen />}
       {mode === 'simulator' && <SimulatorScreen />}
       {mode === 'learn' && (
+        <div className="flex-1 min-h-0 flex">
+        {lessonSide && <Activity side style={{ width: short ? '44%' : 'clamp(340px, 30vw, 440px)' }} />}
         <div
           ref={areaRef}
-          className="flex-1 min-h-0 relative grid"
+          className="flex-1 min-w-0 min-h-0 relative grid"
           style={sideBySide
             ? { gridTemplateRows: 'auto minmax(0, 1fr) auto', gridTemplateColumns: `minmax(0, 1fr) ${eW}px` }
             : { gridTemplateRows: 'auto auto minmax(0, 1fr) auto auto', gridTemplateColumns: 'minmax(0, 1fr)' }}
@@ -352,10 +420,12 @@ export default function AppShell() {
           </section>
           <DrawerBar kind="ecg" style={sideBySide ? { gridRow: 3, gridColumn: '1 / -1' } : { gridRow: 5 }} />
         </div>
+        </div>
       )}
       <TutorPanel />
       <QuizPanel />
       <HelpOverlay />
+      <Glossary />
       <FeedbackForm />
       <AdminPanel />
       <FeedbackService />

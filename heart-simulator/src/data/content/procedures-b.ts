@@ -19,7 +19,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Post-TAVR syncope may be high-grade AV block: get pads on, acquire a 12-lead (new LBBB, complete heart block) and treat symptomatic bradycardia with atropine, a chronotrope or TCP per protocol; check the access site and distal pulses',
       'Prepare the valve system, large-bore sheath, stiff pre-shaped LV wire, pigtail and pacing set-up; confirm rapid-pacing capture, record simultaneous LV–aortic gradients before and after deployment, and call out new AV block, hypotension or ST change immediately',
       'Complete pre-checks (consent, allergies, renal function, anticoagulants); give heparin and moderate sedation only on order with the practitioner present, monitoring ACT and capnography; afterwards watch for new heart block, access bleeding, tamponade and neuro deficits and escalate immediately',
-      'Transfemoral TAVR is favoured > 80 y, SAVR generally < 65 y, with shared decision at 65–80 (2020 ACC/AHA); gated CT sizing, coronary heights and iliofemoral size predict annular rupture, coronary obstruction and PVL, and pre-existing RBBB plus deep implant predict PPM',
+      'Transfemoral TAVR is favored > 80 y, SAVR generally < 65 y, with shared decision at 65–80 (2020 ACC/AHA); gated CT sizing, coronary heights and iliofemoral size predict annular rupture, coronary obstruction and PVL, and pre-existing RBBB plus deep implant predict PPM',
     ],
     overview: [
       'A balloon-expandable or self-expanding bioprosthesis is implanted within the calcified native valve, pushing the native leaflets aside',
@@ -30,7 +30,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     indications: [
       'Severe symptomatic AS (e.g. Vmax ≥ 4 m/s, mean gradient ≥ 40 mmHg, AVA ≤ 1.0 cm²)',
-      'Severe AS with LVEF < 50% or other guideline triggers for intervention, when the heart team favours TAVR',
+      'Severe AS with LVEF < 50% or other guideline triggers for intervention, when the heart team favors TAVR',
       'Low-flow, low-gradient severe AS confirmed by dobutamine stress echo or CT calcium score',
       'Failed surgical aortic bioprosthesis (valve-in-valve)',
       'High or prohibitive surgical risk, frailty, porcelain aorta or hostile chest',
@@ -40,13 +40,13 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Active infective endocarditis',
       'Left ventricular thrombus',
       'Annulus outside the size range of available valves or otherwise unsuitable anatomy',
-      'Relative: bicuspid anatomy with unfavourable features, or concomitant CABG/valve surgery needs that favour SAVR',
+      'Relative: bicuspid anatomy with unfavorable features, or concomitant CABG/valve surgery needs that favor SAVR',
       'Unsuitable iliofemoral arteries (consider transsubclavian/axillary, transcarotid or transcaval access)',
     ],
     anatomy: [
       'The aortic annulus is a virtual ring joining the basal hinge points of the three cusps',
       'Coronary ostia usually sit > ~10 mm above the annulus; lower heights with narrow sinuses raise obstruction risk',
-      'The AV node and His bundle lie in the membranous septum beneath the non-coronary/right-coronary commissure',
+      'The His bundle runs along the lower edge of the membranous septum, beneath the non-coronary/right-coronary commissure; the AV node lies just behind it in the triangle of Koch',
       'Deep implantation compresses the left bundle branch in the LVOT, causing new LBBB or complete heart block',
       'Iliofemoral vessels must accommodate the delivery sheath (minimal lumen typically ≥ ~5–5.5 mm)',
     ],
@@ -115,11 +115,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     complications: [
       'Conduction disturbance: new LBBB or high-grade AV block needing a permanent pacemaker',
       'Paravalvular leak — moderate or greater PVL is associated with higher mortality',
-      'Stroke (~1–3% at 30 days) from embolised debris; new AF adds later risk',
+      'Stroke (~1–3% at 30 days) from embolized debris; new AF adds later risk',
       'Annular rupture — rare (< 1%) but often fatal; linked to oversizing and LVOT calcium',
       'Coronary obstruction (< 1%) — highest risk in valve-in-valve with low coronary height and narrow sinuses',
       'Vascular complications: dissection, perforation, bleeding, pseudoaneurysm, closure failure',
-      'Tamponade, valve embolisation/malposition, AKI, and subclinical leaflet thrombosis',
+      'Tamponade, valve embolization/malposition, AKI, and subclinical leaflet thrombosis',
     ],
     postCare: [
       'Telemetry with daily ECG; ambulatory monitoring if new LBBB or PR/QRS prolongation',
@@ -151,25 +151,25 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'TEER patients have advanced heart failure and often AF: treat pulmonary edema with CPAP and nitrates per protocol if BP allows, identify the rhythm, and suspect tamponade if hypotension and JVD follow a recent transseptal procedure',
       'Prepare the steerable guide, clip delivery system and transseptal needle; transduce and record LA pressure and v-waves before and after each clip, hand components only as the operator directs, and report hypotension or arrhythmia immediately',
       'Complete pre-checks and hand over to the anesthesia team, who manage general anesthesia; give heparin on order and report ACT (commonly ≥ 250 s); afterwards monitor for tamponade, femoral venous bleeding and worsening heart failure, and teach patients to report breathlessness',
-      'Secondary MR benefits with a COAPT-like profile (optimised GDMT, LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg); puncture inferior-posterior ~3.5–4.5 cm above the annulus, and accept a post-clip mean gradient ≤ ~5 mmHg to avoid iatrogenic MS',
+      'Secondary MR benefits with a COAPT-like profile (optimized GDMT, LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg); puncture inferior-posterior ~3.5–4.5 cm above the annulus, and accept a post-clip mean gradient ≤ ~5 mmHg to avoid iatrogenic MS',
     ],
     overview: [
       'Percutaneous adaptation of the surgical Alfieri edge-to-edge stitch',
       'Creates a double-orifice mitral valve, most often by clipping A2 to P2',
       'Performed under general anesthesia with 3D TEE and fluoroscopic guidance',
-      'COAPT showed fewer HF hospitalisations and lower mortality in selected secondary MR; MITRA-FR did not, highlighting patient selection',
+      'COAPT showed fewer HF hospitalizations and lower mortality in selected secondary MR; MITRA-FR did not, highlighting patient selection',
       'Distinguishing primary (leaflet) from secondary (ventricular or atrial) MR determines eligibility',
     ],
     indications: [
-      'Severe symptomatic primary (degenerative) MR at high or prohibitive surgical risk with favourable anatomy',
-      'Chronic severe secondary MR with persistent NYHA II–IV symptoms despite optimised GDMT (and CRT if indicated)',
+      'Severe symptomatic primary (degenerative) MR at high or prohibitive surgical risk with favorable anatomy',
+      'Chronic severe secondary MR with persistent NYHA II–IV symptoms despite optimized GDMT (and CRT if indicated)',
       'Secondary MR meeting COAPT-type criteria: LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg',
       'Heart team agreement that surgery is not the preferred option',
     ],
     contraindications: [
       'Small mitral valve area or baseline stenosis that a clip would worsen',
       'Rheumatic or heavily calcified leaflets in the grasping zone',
-      'Unfavourable anatomy: short or restricted posterior leaflet, wide flail gap, large cleft',
+      'Unfavorable anatomy: short or restricted posterior leaflet, wide flail gap, large cleft',
       'LA/LAA thrombus or venous thrombus blocking access',
       'Active endocarditis',
       'End-stage LV or severe RV failure where MR correction is unlikely to help',
@@ -240,18 +240,18 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Iatrogenic mitral stenosis',
       'Tamponade from transseptal puncture or LA perforation',
       'Persistent iatrogenic ASD (usually small)',
-      'Femoral venous bleeding, stroke or air embolism; device embolisation is rare',
+      'Femoral venous bleeding, stroke or air embolism; device embolization is rare',
     ],
     postCare: [
       'TTE before discharge for residual MR, mean gradient, device position and effusion',
-      'Antiplatelet therapy, or anticoagulation if AF; regimens are not standardised',
+      'Antiplatelet therapy, or anticoagulation if AF; regimens are not standardized',
       'Continue and up-titrate GDMT for secondary MR',
       'Groin checks for venous hematoma',
       'Endocarditis prophylaxis (prosthetic material used for valve repair)',
     ],
     teaching: [
       'Primary and secondary MR have different evidence bases and indications',
-      'COAPT vs MITRA-FR: benefit seen when MR is disproportionate to LV dilation and GDMT is optimised',
+      'COAPT vs MITRA-FR: benefit seen when MR is disproportionate to LV dilation and GDMT is optimized',
       'Transseptal height and position dictate whether the clip can reach and align with the valve',
       'A post-clip mean gradient > ~5 mmHg suggests iatrogenic stenosis',
       'TEER can be followed by surgery or other transcatheter options, but it may complicate them',
@@ -276,14 +276,14 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     overview: [
       'About 90% of thrombi in non-valvular AF arise in the LAA',
       'Endocardial plug or plug-and-disc devices are implanted under TEE or intracardiac echo (ICE) and fluoroscopy',
-      'Randomised trials (PROTECT AF, PREVAIL, PRAGUE-17) broadly support non-inferiority to warfarin or DOAC in selected patients (PREVAIL missed one efficacy endpoint)',
+      'Randomized trials (PROTECT AF, PREVAIL, PRAGUE-17) broadly support non-inferiority to warfarin or DOAC in selected patients (PREVAIL missed one efficacy endpoint)',
       '2023 ACC/AHA/ACCP/HRS AF guideline: reasonable when long-term OAC is contraindicated for a nonreversible reason',
       'Not a substitute for anticoagulation in patients who can safely take it',
     ],
     indications: [
       'Non-valvular AF with elevated stroke risk (CHA₂DS₂-VASc ≥ 2 in men, ≥ 3 in women)',
       'Contraindication to long-term OAC from a nonreversible cause (e.g. prior intracranial or recurrent major bleeding)',
-      'High bleeding risk where shared decision-making favours LAAO',
+      'High bleeding risk where shared decision-making favors LAAO',
       'Able to tolerate short-term post-implant antithrombotic therapy',
     ],
     contraindications: [
@@ -353,7 +353,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     complications: [
       'Pericardial effusion or tamponade (~0.5–2%)',
-      'Device embolisation (rare) — snare retrieval or surgery',
+      'Device embolization (rare) — snare retrieval or surgery',
       'Device-related thrombus (DRT, ~2–4%) on the atrial surface, associated with stroke',
       'Peri-device leak — residual flow around the device; larger leaks linked to thromboembolism',
       'Procedural stroke from air or thrombus',
@@ -371,7 +371,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'It is an alternative for patients who cannot take long-term OAC, not a first-line replacement',
       'Device-related thrombus and peri-device leak are the key follow-up imaging findings',
       'Surgical LAA occlusion during cardiac surgery also reduces stroke in AF (LAAOS III)',
-      'Antithrombotic therapy is still needed for months while the device endothelialises',
+      'Antithrombotic therapy is still needed for months while the device endothelializes',
     ],
     targetStructures: ['left-atrial-appendage', 'left-atrium', 'fossa-ovalis', 'interatrial-septum', 'lcx-proximal'],
     relatedConditions: ['atrial-fibrillation'],
@@ -392,9 +392,9 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     overview: [
       'Only secundum ASDs are suitable; primum, sinus venosus and coronary sinus defects need surgery',
-      'Self-centring double-disc nitinol occluders are delivered under TEE or ICE guidance',
+      'Self-centering double-disc nitinol occluders are delivered under TEE or ICE guidance',
       'High success rates with short hospital stays',
-      'Earlier closure gives the best RV remodelling, but adults also benefit',
+      'Earlier closure gives the best RV remodeling, but adults also benefit',
     ],
     indications: [
       'Secundum ASD with RA and/or RV enlargement',
@@ -460,7 +460,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Oximetry for shunt calculation',
     ],
     complications: [
-      'Device embolisation',
+      'Device embolization',
       'Device erosion into the aorta or pericardium (~0.1–0.3%) causing late tamponade',
       'Atrial arrhythmias',
       'Device thrombus and stroke',
@@ -469,9 +469,9 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     postCare: [
       'Echo before discharge for position and effusion',
-      'Aspirin for ~6 months (± clopidogrel for a shorter period) while the device endothelialises',
+      'Aspirin for ~6 months (± clopidogrel for a shorter period) while the device endothelializes',
       'Endocarditis prophylaxis for 6 months after device placement',
-      'Follow-up echo for RV remodelling, residual shunt and signs of erosion',
+      'Follow-up echo for RV remodeling, residual shunt and signs of erosion',
     ],
     teaching: [
       'Fixed split S2 and RV volume overload are classic ASD clues',
@@ -490,7 +490,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A double-disc device delivered from the femoral vein closes a patent foramen ovale to prevent paradoxical embolism. It lowers recurrent stroke risk in carefully selected younger patients whose stroke is probably PFO-related.',
     levelNotes: [
-      'A young adult with sudden stroke symptoms may have a PFO-related stroke: do a stroke scale, check glucose where protocols allow, record time last known well and transport to a stroke centre with early notification',
+      'A young adult with sudden stroke symptoms may have a PFO-related stroke: do a stroke scale, check glucose where protocols allow, record time last known well and transport to a stroke center with early notification',
       'Apply the stroke protocol regardless of age and report recent straining, long travel or leg swelling (possible DVT); after PFO closure, palpitations warrant a 12-lead — new AF or flutter is the most common early complication',
       'Prepare agitated saline for bubble studies, a multipurpose catheter, exchange wire and occluder; flush and de-air the delivery system meticulously because air crosses to the systemic side, record RA pressure and alert the operator to arrhythmia or ST change',
       'Confirm consent and that pre-procedure antiplatelet doses were given as ordered; give heparin and moderate sedation on order with the practitioner present and capnography; afterwards check the venous site and rhythm, and teach antiplatelet adherence and reporting palpitations or neuro symptoms',
@@ -507,7 +507,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Age ~18–60 y with non-lacunar, embolic-appearing ischemic stroke and no other cause after thorough evaluation',
       'High-risk PFO features: atrial septal aneurysm and/or large right-to-left shunt',
       'PASCAL probable (or possible, after shared decision-making) PFO-related stroke',
-      'Selected non-stroke indications such as platypnea-orthodeoxia — individualised',
+      'Selected non-stroke indications such as platypnea-orthodeoxia — individualized',
     ],
     contraindications: [
       'Alternative stroke mechanism (AF, large-artery atherosclerosis, small-vessel lacunar disease)',
@@ -546,7 +546,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
       {
         title: 'Confirm',
-        description: 'Check stable position with a push-pull test and colour Doppler or bubble study',
+        description: 'Check stable position with a push-pull test and color Doppler or bubble study',
       },
       {
         title: 'Release and hemostasis',
@@ -566,7 +566,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     complications: [
       'Atrial fibrillation (most common)',
-      'Device thrombus or embolisation',
+      'Device thrombus or embolization',
       'Residual shunt',
       'Erosion (very rare with PFO devices)',
       'Vascular access complications',
@@ -599,12 +599,12 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Severe AS is preload-dependent — avoid nitrates and vasodilators and give small fluid boluses for hypotension per protocol; after BAV check the groin for bleeding and the ECG for new LBBB or AV block',
       'Prepare the valvuloplasty balloon (diluted contrast), stiff LV wire, pacing lead and large-bore sheath; confirm pacing capture, record simultaneous LV–aortic gradients before and after inflation, and call out sustained hypotension or VF after rapid pacing',
       'Patients are often frail or in shock: confirm consent and renal function, give heparin, vasopressors or inotropes on order, and after BAV monitor for access bleeding, acute AR (hypotension, pulmonary edema), stroke and conduction block, escalating immediately',
-      'BAV is temporising — restenosis within ~6–12 months and no survival benefit alone — so use it to bridge unstable AS to TAVR/SAVR or as palliation; size the balloon at or slightly below the annulus, inflate under rapid pacing and reassess for severe AR',
+      'BAV is temporizing — restenosis within ~6–12 months and no survival benefit alone — so use it to bridge unstable AS to TAVR/SAVR or as palliation; size the balloon at or slightly below the annulus, inflate under rapid pacing and reassess for severe AR',
     ],
     overview: [
       'Retrograde transfemoral balloon dilation of the aortic valve',
       'Modest increase in valve area with falling gradients that recur within months',
-      'Rapid ventricular pacing stabilises the balloon during inflation',
+      'Rapid ventricular pacing stabilizes the balloon during inflation',
       'Largely replaced by TAVR but still used as a bridge or diagnostic test',
     ],
     indications: [
@@ -641,7 +641,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
       {
         title: 'Position balloon',
-        description: 'Centre the balloon across the annulus under fluoroscopy',
+        description: 'Center the balloon across the annulus under fluoroscopy',
       },
       {
         title: 'Rapid pacing and inflation',
@@ -657,7 +657,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
     ],
     ecg: [
-      'Baseline LVH with repolarisation (strain) changes is common in severe AS',
+      'Baseline LVH with repolarization (strain) changes is common in severe AS',
       'Rapid pacing causes deliberate transient hypotension; prolonged hypotension risks ischemia and VF',
       'Transient LBBB or AV block can occur',
     ],
@@ -682,9 +682,9 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Plan definitive TAVR or SAVR — restenosis is expected',
     ],
     teaching: [
-      'BAV is temporising in calcific AS',
+      'BAV is temporizing in calcific AS',
       'Low-flow states can mask AS severity (low-flow, low-gradient AS)',
-      'In AS with shock, BAV plus inotropes or mechanical support may stabilise the patient',
+      'In AS with shock, BAV plus inotropes or mechanical support may stabilize the patient',
       'Younger patients with congenital AS get more durable results',
     ],
     targetStructures: ['aortic-valve', 'left-ventricle', 'ascending-aorta'],
@@ -696,13 +696,13 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     name: 'Balloon Mitral Valvuloplasty (PMBC)',
     category: 'Structural Heart',
     summary:
-      'A balloon passed across the atrial septum is inflated in the stenotic mitral valve to split fused commissures. Percutaneous mitral balloon commissurotomy is first-line treatment for symptomatic severe rheumatic mitral stenosis with favourable valve anatomy.',
+      'A balloon passed across the atrial septum is inflated in the stenotic mitral valve to split fused commissures. Percutaneous mitral balloon commissurotomy is first-line treatment for symptomatic severe rheumatic mitral stenosis with favorable valve anatomy.',
     levelNotes: [
       'Mitral stenosis patients often have AF and pulmonary edema, and pregnancy can unmask it: sit them up, give oxygen to target, monitor closely and transport promptly',
       'In MS a fast rate shortens diastolic filling and raises LA pressure — identify the rhythm, treat rapid AF per protocol (rate control helps more than inotropes) and use CPAP for pulmonary edema if BP allows',
       'Set up transducers for simultaneous LA (or PCWP) and LV pressures, record the mean transmitral gradient and calculate MVA before and after each inflation, prepare the Inoue balloon at the size the operator chooses, and report falling BP or rising v-waves',
       'Verify the pre-procedure TEE and anticoagulation status (and the obstetric plan if pregnant); give heparin and moderate sedation on order (practitioner present), then monitor for tamponade, acute MR (pulmonary edema, hypotension) and neuro deficits, escalating immediately',
-      'Recommended for symptomatic severe rheumatic MS (MVA ≤ 1.5 cm²) with favourable morphology, no LA thrombus and < moderate MR; Wilkins ≤ 8 without commissural calcium predicts success — inflate stepwise from below reference size and stop if MR rises ≥ 1 grade',
+      'Recommended for symptomatic severe rheumatic MS (MVA ≤ 1.5 cm²) with favorable morphology, no LA thrombus and < moderate MR; Wilkins ≤ 8 without commissural calcium predicts success — inflate stepwise from below reference size and stop if MR rises ≥ 1 grade',
     ],
     overview: [
       'Percutaneous mitral balloon commissurotomy, usually with the Inoue balloon',
@@ -711,10 +711,10 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Pre-procedure TEE is mandatory to exclude LA/LAA thrombus',
     ],
     indications: [
-      'Symptomatic severe rheumatic MS (MVA ≤ 1.5 cm²) with favourable anatomy and less than moderate MR',
-      'Asymptomatic severe MS with PASP > 50 mmHg and favourable anatomy (reasonable)',
+      'Symptomatic severe rheumatic MS (MVA ≤ 1.5 cm²) with favorable anatomy and less than moderate MR',
+      'Asymptomatic severe MS with PASP > 50 mmHg and favorable anatomy (reasonable)',
       'Severe MS in pregnancy with persistent symptoms despite medical therapy',
-      'Selected patients with less favourable anatomy who are high surgical risk',
+      'Selected patients with less favorable anatomy who are high surgical risk',
     ],
     contraindications: [
       'Left atrial or LAA thrombus',
@@ -807,15 +807,15 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     levelNotes: [
       'HCM patients can faint with exertion — keep them lying down and still, and consult medical direction before assisting with nitroglycerin; fainting or a slow pulse in the days after ablation may be heart block, so request ALS',
       'In obstructive HCM avoid nitrates and give fluid for hypotension; after ASA watch for RBBB progressing to complete heart block or VT and be ready for TCP, cardioversion or defibrillation per protocol',
-      'Prepare the coronary guide, short OTW balloon, echo contrast and temporary pacing set-up, with dehydrated ethanol drawn up and labelled only on the physician’s order; record rest and post-PVC LV–aortic gradients and alert the operator to heart block or ST change',
+      'Prepare the coronary guide, short OTW balloon, echo contrast and temporary pacing set-up, with dehydrated ethanol drawn up and labeled only on the physician’s order; record rest and post-PVC LV–aortic gradients and alert the operator to heart block or ST change',
       'Expect chest pain from the intended septal infarct — give analgesia and heparin on order; monitor continuously for complete heart block (temporary pacing ready), VT and hypotension for several days, trend ECGs and troponin as ordered, and escalate rhythm changes',
-      'For obstructive HCM with LVOT gradient ≥ 50 mmHg and symptoms despite GDMT (including myosin inhibitors), choose ASA vs myectomy at an experienced centre (2024 AHA/ACC); confirm the perforator territory on myocardial contrast echo and seal it with an OTW balloon to prevent LAD reflux',
+      'For obstructive HCM with LVOT gradient ≥ 50 mmHg and symptoms despite GDMT (including myosin inhibitors), choose ASA vs myectomy at an experienced center (2024 AHA/ACC); confirm the perforator territory on myocardial contrast echo and seal it with an OTW balloon to prevent LAD reflux',
     ],
     overview: [
       'Percutaneous septal reduction therapy for obstructive HCM',
       'The infarcted basal septum thins over weeks to months, widening the LVOT',
-      'Gradient falls acutely (stunning), may partly recur, then falls further with remodelling',
-      '2024 AHA/ACC HCM guideline: perform at experienced centres; myectomy favoured when other surgical problems coexist',
+      'Gradient falls acutely (stunning), may partly recur, then falls further with remodeling',
+      '2024 AHA/ACC HCM guideline: perform at experienced centers; myectomy favored when other surgical problems coexist',
     ],
     indications: [
       'Obstructive HCM with resting or provoked LVOT gradient ≥ 50 mmHg',
@@ -904,7 +904,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     teaching: [
       'Brockenbrough sign: after a PVC the LVOT gradient rises but aortic pulse pressure falls in obstructive HCM',
       'Low preload, inotropes and vasodilators all worsen dynamic LVOT obstruction',
-      'Surgical myectomy remains the reference treatment in experienced centres; ASA avoids sternotomy',
+      'Surgical myectomy remains the reference treatment in experienced centers; ASA avoids sternotomy',
       'Cardiac myosin inhibitors now offer a medical option before septal reduction',
     ],
     targetStructures: ['interventricular-septum', 'septal-perforators', 'lad-proximal', 'right-bundle-branch', 'mitral-valve'],
@@ -922,13 +922,13 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'New heart failure in a prosthetic valve patient needs hospital assessment: treat pulmonary edema per protocol, consider endocarditis if febrile, identify AF on the monitor and note warfarin use for bleeding risk',
       'Prepare steerable sheaths, hydrophilic wires, snares, several plug sizes and an AV-rail set-up if planned; record gradients across the prosthesis before and after each plug and alert the operator to a rising gradient, arrhythmia or hypotension',
       'Check hemoglobin, LDH, INR and the anticoagulation plan before the case; give heparin on order and track ACT; afterwards trend hemolysis labs, watch for tamponade, stroke and bleeding, and restart anticoagulation for mechanical valves promptly as ordered',
-      'Transcatheter closure is reasonable for PVL with intractable hemolysis or NYHA III–IV HF at high surgical risk with suitable anatomy at an expert centre (2020 ACC/AHA, 2a); exclude endocarditis, localise on a 3D TEE/CT clock face and size plugs to avoid leaflet impingement',
+      'Transcatheter closure is reasonable for PVL with intractable hemolysis or NYHA III–IV HF at high surgical risk with suitable anatomy at an expert center (2020 ACC/AHA, 2a); exclude endocarditis, localize on a 3D TEE/CT clock face and size plugs to avoid leaflet impingement',
     ],
     overview: [
       'Paravalvular leak is commoner with mitral and mechanical prostheses and also occurs after TAVR',
       'Defects are often crescentic — several devices may be needed',
       'Mitral PVL is approached transseptally or transapically; aortic PVL usually retrograde',
-      'Technically demanding; done in experienced structural centres with imaging support',
+      'Technically demanding; done in experienced structural centers with imaging support',
     ],
     indications: [
       'Moderate–severe PVL causing NYHA III–IV heart failure',
@@ -994,7 +994,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     complications: [
       'Leaflet impingement causing prosthetic valve dysfunction',
-      'Device embolisation',
+      'Device embolization',
       'Worsened hemolysis from small high-velocity residual jets',
       'Tamponade and stroke',
       'Vascular or apical access bleeding',
@@ -1009,7 +1009,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Hemolysis can worsen if a large leak becomes a small high-velocity residual jet',
       'Reducing the leak by even one grade often improves symptoms',
       'PVL can be the first sign of prosthetic valve endocarditis — always exclude infection',
-      'Accurate localisation is the key determinant of procedural success',
+      'Accurate localization is the key determinant of procedural success',
     ],
     targetStructures: ['mitral-valve', 'aortic-valve', 'left-atrium', 'interatrial-septum'],
     relatedConditions: ['mitral-regurgitation', 'aortic-stenosis', 'hfref'],
@@ -1021,30 +1021,30 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     name: 'Peripheral Angiography',
     category: 'Vascular & Peripheral',
     summary:
-      'Contrast angiography of the aorta and limb arteries maps the location and severity of peripheral artery disease. It is used mainly to plan revascularisation after non-invasive testing.',
+      'Contrast angiography of the aorta and limb arteries maps the location and severity of peripheral artery disease. It is used mainly to plan revascularization after non-invasive testing.',
     levelNotes: [
-      'A cold, pale, pulseless, painful limb is acute limb ischemia — a time-critical emergency; for bleeding after a groin or wrist puncture hold firm direct pressure just above the skin puncture, and transport rapidly to a vascular-capable centre',
-      'Document the 6 Ps plus distal pulses, colour, sensation and movement; hypotension with back or flank pain after femoral access suggests retroperitoneal bleeding — IV access, fluids per protocol and early notification',
+      'A cold, pale, pulseless, painful limb is acute limb ischemia — a time-critical emergency; for bleeding after a groin or wrist puncture hold firm direct pressure just above the skin puncture, and transport rapidly to a vascular-capable center',
+      'Document the 6 Ps plus distal pulses, color, sensation and movement; hypotension with back or flank pain after femoral access suggests retroperitoneal bleeding — IV access, fluids per protocol and early notification',
       'Prepare the micropuncture kit, sheaths, pigtail and selective catheters and the DSA runoff set-up (or CO₂ system in CKD); program the power injector as directed, coach breath-holds for subtraction runs and apply ALARA with collimation and shielding',
       'Check allergies, renal function, metformin and antithrombotic instructions and baseline distal pulses; after the case perform access-site, pulse and neurovascular checks per protocol, encourage hydration as ordered, and escalate hematoma, back pain with hypotension or a cold limb',
-      'ABI and duplex, CTA or MRA come first; invasive angiography plans revascularisation of refractory claudication, CLTI or ALI — choose contralateral up-and-over, antegrade, radial or pedal access by lesion, use CO₂ in CKD and image runoff to the foot',
+      'ABI and duplex, CTA or MRA come first; invasive angiography plans revascularization of refractory claudication, CLTI or ALI — choose contralateral up-and-over, antegrade, radial or pedal access by lesion, use CO₂ in CKD and image runoff to the foot',
     ],
     overview: [
       'Invasive imaging of the aorta, iliac, femoropopliteal and infrapopliteal arteries',
-      'Digital subtraction angiography (DSA) improves vessel visualisation',
+      'Digital subtraction angiography (DSA) improves vessel visualization',
       'Often combined with endovascular treatment in the same session',
       'CTA, MRA and duplex often suffice for diagnosis',
     ],
     indications: [
       'Chronic limb-threatening ischemia (rest pain, ulcers, gangrene)',
-      'Lifestyle-limiting claudication despite exercise and medical therapy, when revascularisation is planned',
+      'Lifestyle-limiting claudication despite exercise and medical therapy, when revascularization is planned',
       'Acute limb ischemia with planned endovascular treatment',
       'Inconclusive non-invasive imaging',
       'Selected renal or mesenteric artery evaluation',
     ],
     contraindications: [
       'Prior severe contrast reaction (relative — premedicate or use CO₂)',
-      'Advanced CKD (relative — minimise iodinated contrast)',
+      'Advanced CKD (relative — minimize iodinated contrast)',
       'Uncorrected coagulopathy',
       'Inability to lie flat or cooperate',
     ],
@@ -1103,13 +1103,13 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Hematoma, pseudoaneurysm and arteriovenous fistula',
       'Retroperitoneal hemorrhage from a high puncture',
       'Contrast-associated AKI',
-      'Dissection or distal embolisation',
+      'Dissection or distal embolization',
       'Contrast reaction',
     ],
     postCare: [
       'Bed rest per closure method with access-site and distal pulse checks',
       'Hydration and creatinine check in high-risk patients',
-      'Optimise antiplatelet therapy, statin, smoking cessation and exercise',
+      'Optimize antiplatelet therapy, statin, smoking cessation and exercise',
     ],
     teaching: [
       'ABI ≤ 0.90 diagnoses PAD; > 1.40 indicates non-compressible arteries',
@@ -1132,7 +1132,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'After reperfusion of an ischemic limb watch for hyperkalemia (peaked T waves, widening QRS, arrhythmias) and treat per protocol; a tense, painful calf suggests compartment syndrome, and access bleeding with hypotension needs IV fluids per protocol',
       'Prepare balloons, drug-coated devices, stents, atherectomy or lithotripsy consoles and long sheaths per the operator’s plan; track ACT timing and contrast volume, record pressure gradients if requested, and alert the operator to patient pain, hemodynamic change or arrhythmia',
       'Give heparin on order to the ACT target and antiplatelet loading as prescribed; after the case do frequent distal pulse/Doppler and neurovascular checks, watch for compartment syndrome, hyperkalemia and access bleeding, and reinforce antiplatelet, statin and smoking-cessation teaching',
-      'Revascularise for lifestyle-limiting claudication after exercise therapy and GDMT, or for CLTI; match tool to segment (iliac stents, drug-coated femoropopliteal devices, inline tibial flow to the wound), consider vein bypass (BEST-CLI) and afterwards rivaroxaban 2.5 mg bid plus aspirin (VOYAGER PAD)',
+      'Revascularize for lifestyle-limiting claudication after exercise therapy and GDMT, or for CLTI; match tool to segment (iliac stents, drug-coated femoropopliteal devices, inline tibial flow to the wound), consider vein bypass (BEST-CLI) and afterwards rivaroxaban 2.5 mg bid plus aspirin (VOYAGER PAD)',
     ],
     overview: [
       'Endovascular-first strategies are common for many lesions',
@@ -1147,7 +1147,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Selected symptomatic renal, mesenteric or subclavian stenosis',
     ],
     contraindications: [
-      'Asymptomatic PAD (no prophylactic revascularisation)',
+      'Asymptomatic PAD (no prophylactic revascularization)',
       'Non-salvageable limb (primary amputation)',
       'Inability to take antiplatelet therapy (relative)',
       'Prior severe contrast reaction or advanced CKD (relative)',
@@ -1183,7 +1183,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
       {
         title: 'Completion angiography',
-        description: 'Confirm result and check runoff for distal embolisation',
+        description: 'Confirm result and check runoff for distal embolization',
       },
       {
         title: 'Closure',
@@ -1204,7 +1204,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     complications: [
       'Access-site hematoma, pseudoaneurysm or retroperitoneal bleeding',
-      'Dissection, perforation or distal embolisation',
+      'Dissection, perforation or distal embolization',
       'Acute thrombosis',
       'Restenosis',
       'Compartment syndrome after reperfusion',
@@ -1217,7 +1217,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Wound care and podiatry for CLTI',
     ],
     teaching: [
-      'Revascularisation is for symptoms or limb salvage — not for asymptomatic disease',
+      'Revascularization is for symptoms or limb salvage — not for asymptomatic disease',
       'Reperfusion injury: hyperkalemia, myoglobinuria and compartment syndrome',
       'Diabetes and CKD predict tibial disease and worse limb outcomes',
       'Medical therapy and smoking cessation drive long-term outcomes',
@@ -1233,14 +1233,14 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A stent is placed across a carotid bifurcation narrowing, with an embolic protection device, to lower future stroke risk. It is an alternative to carotid endarterectomy, particularly for patients at high surgical risk.',
     levelNotes: [
-      'After carotid stenting, new facial droop, arm weakness, speech change, severe headache or seizure is a stroke alert: record time last known well, check glucose where protocols allow and transport to a stroke centre',
+      'After carotid stenting, new facial droop, arm weakness, speech change, severe headache or seizure is a stroke alert: record time last known well, check glucose where protocols allow and transport to a stroke center',
       'Carotid sinus stretch can cause bradycardia and hypotension for 24–48 h — treat symptomatic bradycardia per protocol (atropine, pacing) and avoid hypertension; severe headache or seizure suggests hyperperfusion syndrome or hemorrhage',
       'Prepare the long sheath, embolic protection device, carotid stent and balloons, with atropine or glycopyrrolate drawn up on the physician’s order; record continuous arterial pressure and heart rate and call out bradycardia or asystole during post-dilation immediately',
       'Perform baseline and serial neuro checks (speech, grip, facial symmetry) during and after the case; give atropine or vasopressors on order for bradycardia or hypotension, keep BP within the ordered range to limit hyperperfusion, and escalate any neuro change immediately',
       'For symptomatic severe stenosis choose CEA, transfemoral CAS or TCAR by age, arch anatomy and surgical risk — CAS carries more periprocedural stroke in older patients (CREST); pretreat with DAPT and statin, use embolic protection and blunt reflex bradycardia before post-dilation',
     ],
     overview: [
-      'Transfemoral CAS with embolic protection; transcarotid revascularisation (TCAR) with flow reversal is an alternative',
+      'Transfemoral CAS with embolic protection; transcarotid revascularization (TCAR) with flow reversal is an alternative',
       'CREST: similar composite outcomes for CAS and CEA, with more periprocedural stroke after CAS and more MI after CEA',
       'Symptomatic patients benefit most; treat early (ideally within 2 weeks of TIA or minor stroke)',
       'Dual antiplatelet therapy before and after stenting',
@@ -1251,10 +1251,10 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Selected asymptomatic severe stenosis with low procedural risk (benefit debated with modern medical therapy)',
     ],
     contraindications: [
-      'Unfavourable arch (type III), severe tortuosity or heavy circumferential calcification',
+      'Unfavorable arch (type III), severe tortuosity or heavy circumferential calcification',
       'Visible fresh thrombus in the lesion',
       'Inability to take DAPT',
-      'Older age (> ~70 y) favours CEA (relative)',
+      'Older age (> ~70 y) favors CEA (relative)',
       'Chronic total occlusion',
     ],
     anatomy: [
@@ -1328,7 +1328,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     teaching: [
       'The carotid sinus reflex explains post-stent bradycardia and hypotension',
       'CEA vs CAS: CAS has more minor strokes; CEA has more MI and cranial nerve injury',
-      'Hyperperfusion syndrome classically presents with ipsilateral headache days after revascularisation',
+      'Hyperperfusion syndrome classically presents with ipsilateral headache days after revascularization',
       'Best medical therapy (antiplatelet, statin, BP control, smoking cessation) underpins every strategy',
     ],
     targetStructures: ['aortic-arch'],
@@ -1340,30 +1340,31 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     name: 'Catheter-Directed Therapy for PE / DVT',
     category: 'Vascular & Peripheral',
     summary:
-      'Catheters placed directly into pulmonary artery or deep vein clot deliver low-dose thrombolytic drug and/or mechanically remove thrombus. It is used for selected high-risk or deteriorating intermediate-risk PE and severe DVT when benefit outweighs bleeding risk.',
+      'Catheters placed directly into pulmonary artery or deep vein clot deliver low-dose thrombolytic drug and/or mechanically remove thrombus. It is used for selected PE with, or progressing toward, cardiopulmonary failure and for severe DVT when benefit outweighs bleeding risk.',
     levelNotes: [
       'Sudden breathlessness, chest pain, a fast pulse and low oxygen after immobility, surgery or travel may be PE: give oxygen to target, monitor closely, be ready for CPR and transport rapidly with early notification',
-      'Recognise tachycardia and RV-strain patterns (S1Q3T3, new RBBB, anterior T inversion); in massive PE give only small fluid boluses, use vasopressors per protocol, avoid intubation if possible and pre-alert for PE team activation',
+      'Recognize tachycardia and RV-strain patterns (S1Q3T3, new RBBB, anterior T inversion); in PE with shock or persistent hypotension give only small fluid boluses, use vasopressors per protocol, avoid intubation if possible and pre-alert for PE team activation',
       'Prepare venous sheaths, a pigtail, and infusion or large-bore aspiration catheters; record RA, RV and PA pressures before and after treatment, watch for ectopy or VT during RV passage, and track aspirated blood loss for the operator',
       'Verify lytic contraindication screening and orders; give alteplase and heparin exactly as ordered and monitor frequently per protocol for bleeding, access-site oozing and neuro change, with hemoglobin and fibrinogen as ordered, escalating any decline immediately',
-      'Risk-stratify by hemodynamics, RV function, troponin and sPESI; high-risk PE needs reperfusion (systemic lysis first, catheter or surgical therapy if contraindicated or failed), while routine catheter therapy in intermediate-high risk remains under study — decide with the PERT',
+      'Classify with the 2026 AHA/ACC PE Clinical Categories A–E (severity score, RV function, biomarkers, hemodynamics): advanced therapy (systemic or catheter-directed lysis, mechanical thrombectomy, surgical embolectomy) is reasonable in E1 and may be considered in D1–D2, the benefit of lysis or catheter therapy in C3 is uncertain, and systemic lysis is not used in A–C2 — decide with the PERT',
     ],
     overview: [
       'Includes catheter-directed thrombolysis, ultrasound-facilitated thrombolysis and mechanical or aspiration thrombectomy',
       'Lower lytic doses than systemic thrombolysis aim to reduce bleeding',
       'For DVT: severe iliofemoral DVT or phlegmasia cerulea dolens',
       'Multidisciplinary PE response teams (PERT) coordinate decisions',
+      'The 2026 AHA/ACC guideline replaces the massive/submassive labels with PE Clinical Categories A–E: A subclinical, B low severity score, C elevated severity score (C1–C3 by RV function and biomarkers), D incipient cardiopulmonary failure, E cardiopulmonary failure',
       'ATTRACT: routine catheter therapy for proximal DVT did not reduce post-thrombotic syndrome overall',
     ],
     indications: [
-      'High-risk (massive) PE with contraindication to or failure of systemic thrombolysis',
-      'Intermediate-high-risk PE with clinical deterioration (centre-dependent)',
+      'Category E1 PE (persistent hypotension with cardiogenic shock; formerly massive) — reasonable, particularly when systemic thrombolysis is contraindicated or has failed',
+      'Category D PE (incipient cardiopulmonary failure: transient hypotension or normotensive shock) — may be considered after PERT review',
       'Iliofemoral DVT with limb threat (phlegmasia) or severe symptoms',
       'Acute proximal DVT with severe symptoms despite anticoagulation and low bleeding risk (selected)',
     ],
     contraindications: [
-      'Absolute lytic contraindications (prior ICH, recent ischemic stroke, CNS tumour, active bleeding, recent major trauma or surgery) — favour mechanical thrombectomy',
-      'Low-risk PE — anticoagulation alone',
+      'Absolute lytic contraindications (prior ICH, recent ischemic stroke, CNS tumor, active bleeding, recent major trauma or surgery) — favor mechanical thrombectomy',
+      'Low-severity PE (categories A–B) — anticoagulation alone',
       'No suitable venous access',
       'Thrombus in transit across a PFO (relative — surgical options considered)',
     ],
@@ -1385,7 +1386,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
       {
         title: 'Hemodynamics and angiography',
-        description: 'Measure RA, RV and PA pressures and localise thrombus',
+        description: 'Measure RA, RV and PA pressures and localize thrombus',
       },
       {
         title: 'Position catheters',
@@ -1431,7 +1432,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     postCare: [
       'ICU or step-down monitoring during infusion',
-      'Therapeutic anticoagulation (DOAC or LMWH/warfarin) for ≥ 3 months',
+      'Therapeutic anticoagulation for ≥ 3 months — a DOAC is preferred over warfarin',
       'Echo to assess RV recovery',
       'Follow-up for persistent dyspnea (CTEPH screening if symptomatic at 3–6 months)',
       'Compression and early ambulation for DVT',
@@ -1439,7 +1440,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     teaching: [
       'Avoid intubation in RV failure when possible — sedation and positive pressure can precipitate arrest',
       'Give only small fluid boluses; norepinephrine is the usual first vasopressor in PE shock',
-      'RV dysfunction plus raised troponin defines intermediate-high-risk PE',
+      'RV dysfunction plus a raised cardiac biomarker without hemodynamic compromise is category C3 (the former intermediate-high-risk PE)',
       'IVC filters do not treat PE; anticoagulation is the backbone of therapy',
     ],
     targetStructures: ['pulmonary-trunk', 'right-ventricle', 'right-atrium', 'ivc'],
@@ -1451,7 +1452,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     name: 'IVC Filter Placement',
     category: 'Vascular & Peripheral',
     summary:
-      'A metal filter placed in the inferior vena cava, usually below the renal veins, traps large clots travelling from the legs toward the lungs. It is reserved mainly for acute venous thromboembolism when anticoagulation cannot be given, and retrievable filters should be removed once no longer needed.',
+      'A metal filter placed in the inferior vena cava, usually below the renal veins, traps large clots traveling from the legs toward the lungs. It is reserved mainly for acute venous thromboembolism when anticoagulation cannot be given, and retrievable filters should be removed once no longer needed.',
     levelNotes: [
       'A filter does not make PE impossible — treat breathlessness, chest pain and low oxygen as possible PE, give oxygen to target and transport, and mention the filter at handover',
       'Filter patients still develop DVT and PE; new swelling of both legs may mean filter or IVC thrombosis — monitor for tachycardia and hypoxia, look for RV strain on the 12-lead and treat hypotension per protocol',
@@ -1513,7 +1514,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ecg: [
       'Jugular wire passage through the RA can trigger atrial or ventricular ectopy',
       'Baseline sinus tachycardia or RV strain may reflect underlying PE',
-      'Filter fragment embolisation to the heart can rarely cause arrhythmias',
+      'Filter fragment embolization to the heart can rarely cause arrhythmias',
     ],
     equipment: [
       'Retrievable IVC filter and delivery sheath',
@@ -1524,14 +1525,14 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     complications: [
       'Recurrent DVT and IVC thrombosis',
       'Filter tilt or strut penetration of the IVC wall',
-      'Fracture, migration or embolisation to the heart or pulmonary arteries',
+      'Fracture, migration or embolization to the heart or pulmonary arteries',
       'Access-site thrombosis',
       'Difficult retrieval after prolonged dwell',
       'Recurrent PE remains possible',
     ],
     postCare: [
       'Start anticoagulation as soon as the contraindication resolves',
-      'Enrol in a retrieval tracking pathway',
+      'Enroll in a retrieval tracking pathway',
       'Monitor for leg swelling',
       'Record filter type and MRI conditional status',
     ],
@@ -1557,7 +1558,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Treat STEMI in a post-CABG patient per protocol and report prior grafts to the receiving team; post-op AF is common in the first week — treat per protocol, and suspect tamponade if hypotension and JVD follow recent surgery',
       'For graft angiography, prepare IMA and bypass graft catheters (and left radial or femoral set-ups for LIMA access), keep the operative graft list at hand, and alert the operator to pressure damping, ST change or arrhythmia during selective injections',
       'Coordinate ordered holds (P2Y12 inhibitors, anticoagulants) and pre-op teaching; after CABG monitor chest tube output, rhythm, pacing wires, glucose and the sternal wound, and escalate tamponade signs (falling BP, rising CVP, sudden drop in drainage)',
-      'Favour CABG for left main with high SYNTAX, multivessel disease with diabetes (FREEDOM) and ischemic cardiomyopathy with LVEF ≤ 35% (STICH); LIMA–LAD drives survival, and radial or second IMA beats vein for high-grade non-LAD targets — decide with the heart team',
+      'Favor CABG for left main with high SYNTAX, multivessel disease with diabetes (FREEDOM) and ischemic cardiomyopathy with LVEF ≤ 35% (STICH); LIMA–LAD drives survival, and radial or second IMA beats vein for high-grade non-LAD targets — decide with the heart team',
     ],
     overview: [
       'Conduits: left and right internal mammary arteries, radial artery and saphenous vein',
@@ -1584,7 +1585,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'The LIMA arises from the left subclavian artery and is anastomosed in situ to the LAD',
       'Vein grafts run from the ascending aorta to the coronary target',
       'Radial artery grafts are spasm-prone and best for high-grade stenoses',
-      'Sequential and composite (Y or T) grafts extend arterial revascularisation',
+      'Sequential and composite (Y or T) grafts extend arterial revascularization',
     ],
     accessSite:
       'Median sternotomy (standard) or left mini-thoracotomy for MIDCAB; conduits harvested from the chest wall, leg (saphenous vein) and forearm (radial artery)',
@@ -1600,7 +1601,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
       {
         title: 'Heparin and cannulation',
-        description: 'Full heparinisation, aortic and right atrial cannulation for cardiopulmonary bypass',
+        description: 'Full heparinization, aortic and right atrial cannulation for cardiopulmonary bypass',
       },
       {
         title: 'Cardioplegic arrest',
@@ -1632,7 +1633,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     equipment: [
       'Cardiopulmonary bypass circuit (pump and oxygenator)',
       'Cardioplegia delivery system',
-      'Off-pump tissue stabilisers (OPCAB)',
+      'Off-pump tissue stabilizers (OPCAB)',
       'Epicardial pacing wires and chest drains',
       'Intra-operative TEE',
     ],
@@ -1649,13 +1650,13 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'ICU monitoring of hemodynamics, chest tube output and ventilator weaning',
       'Aspirin within ~6 h after surgery, high-intensity statin and beta-blocker',
       'DAPT continued after ACS presentations',
-      'Glycaemic control to reduce wound infection',
+      'Glycemic control to reduce wound infection',
       'Sternal precautions for ~6–12 weeks and cardiac rehabilitation',
     ],
     teaching: [
       'LIMA-to-LAD drives most of the survival benefit of CABG',
-      'Post-cardiac surgery tamponade can be localised and missed on TTE — keep a high index of suspicion',
-      'SYNTAX score quantifies anatomic complexity; higher scores favour CABG',
+      'Post-cardiac surgery tamponade can be localized and missed on TTE — keep a high index of suspicion',
+      'SYNTAX score quantifies anatomic complexity; higher scores favor CABG',
       'CABG vs PCI depends on diabetes, LV function, anatomic complexity, surgical risk and patient preference',
     ],
     targetStructures: ['lmca', 'lad-proximal', 'lad-mid', 'lcx-proximal', 'om1', 'rca-mid', 'ascending-aorta'],
@@ -1698,10 +1699,10 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'The conduction system lies near the non-coronary/right-coronary commissure of the aortic valve',
       'The mitral valve is reached through a left atriotomy or transseptally via the right atrium',
       'The circumflex artery runs close to the posterior mitral annulus — injury risk',
-      'Annuloplasty rings remodel and stabilise a dilated mitral or tricuspid annulus',
+      'Annuloplasty rings remodel and stabilize a dilated mitral or tricuspid annulus',
     ],
     accessSite:
-      'Median sternotomy; upper hemisternotomy or right mini-thoracotomy for minimally invasive approaches; robotic mitral surgery in selected centres',
+      'Median sternotomy; upper hemisternotomy or right mini-thoracotomy for minimally invasive approaches; robotic mitral surgery in selected centers',
     steps: [
       {
         title: 'Pre-operative assessment',
@@ -1777,10 +1778,10 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A surgically implanted continuous-flow pump draws blood from the left ventricular apex and returns it to the ascending aorta, powered through a driveline by external batteries. It supports advanced heart failure as a bridge to transplant or as lifelong destination therapy.',
     levelNotes: [
-      'An LVAD patient may have no palpable pulse or readable cuff BP: judge perfusion by mental status and skin, listen for the pump hum, check controller alarms, bring the caregiver, backup controller and batteries, and call the VAD centre',
-      'Use a Doppler opening pressure as the MAP; patients may be awake in VT/VF — treat per protocol (defibrillation is safe), and if unresponsive, not perfusing and the pump cannot be restarted, start compressions per local LVAD protocol',
+      'An LVAD patient may have no palpable pulse or readable cuff BP: judge perfusion by mental status and skin, listen for the pump hum, check controller alarms, bring the caregiver, backup controller and batteries, and call the VAD center',
+      'Use a Doppler opening pressure as the MAP; patients may be awake in VT/VF — treat per protocol (defibrillation is safe), and if unresponsive with impaired perfusion start compressions without delay while checking the controller, power and connections, per local LVAD protocol',
       'During right heart cath or ramp studies, record RA, PA, PCWP and cardiac output at each pump speed the team sets, note controller speed, flow, power and PI, protect the driveline, and alert the operator to suction events or VT',
-      'Keep Doppler MAP in the centre’s target range (commonly ~60–80 mmHg), monitor LDH, hemoglobin, INR and pump parameters, do sterile driveline care, and escalate GI bleeding, pump thrombosis signs (dark urine, power rise), stroke or RV failure',
+      'Keep Doppler MAP in the center’s target range (commonly ~75–90 mmHg), monitor LDH, hemoglobin, INR and pump parameters, do sterile driveline care, and escalate GI bleeding, pump thrombosis signs (dark urine, power rise), stroke or RV failure',
       'Select by INTERMACS profile, RV function, end-organ status and social support; HeartMate 3 cut pump thrombosis and stroke vs axial-flow pumps (MOMENTUM 3) and ARIES-HM3 supports omitting aspirin; anticipate RV failure, aortic regurgitation and outflow graft obstruction',
     ],
     overview: [
@@ -1807,7 +1808,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     anatomy: [
       'Inflow cannula sits in the LV apex; outflow graft is sewn to the ascending aorta',
-      'A driveline is tunnelled through the abdominal wall to an external controller and batteries',
+      'A driveline is tunneled through the abdominal wall to an external controller and batteries',
       'The RV must handle the increased venous return — RV failure is common early',
       'The aortic valve may stay closed, promoting aortic regurgitation and aortic root thrombus',
     ],
@@ -1869,14 +1870,15 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Suction events from hypovolemia',
     ],
     postCare: [
-      'Warfarin to the centre target INR; antiplatelet use per device and centre',
-      'Doppler MAP monitoring with centre target ranges (commonly ~60–80 mmHg) — hypertension raises stroke risk',
+      'Warfarin to the center target INR; antiplatelet use per device and center',
+      'Doppler MAP monitoring with center target ranges (commonly ~75–90 mmHg) — hypertension raises stroke risk',
       'Sterile driveline dressing changes',
       'Monitor LDH, hemoglobin and pump speed, power, flow and pulsatility',
       'Patient and caregiver training; always carry backup controller and charged batteries',
     ],
     teaching: [
       'No pulse does not mean cardiac arrest in an LVAD patient — assess perfusion and the pump',
+      'Unresponsive with impaired perfusion: start chest compressions while troubleshooting the pump — do not delay CPR (2025 AHA)',
       'Pulse oximetry may fail because of low pulsatility',
       'Pump parameters: speed (set), power (measured), flow (estimated) and pulsatility index',
       'Hypovolemia → suction events → low flow and VT',
@@ -2004,16 +2006,16 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     name: 'Defibrillation',
     category: 'Emergency & Bedside',
     summary:
-      'An unsynchronised high-energy shock depolarises a critical mass of myocardium to terminate ventricular fibrillation or pulseless ventricular tachycardia. Early defibrillation with high-quality CPR is the single most important treatment for shockable cardiac arrest.',
+      'An unsynchronized high-energy shock depolarizes a critical mass of myocardium to terminate ventricular fibrillation or pulseless ventricular tachycardia. Early defibrillation with high-quality CPR is the single most important treatment for shockable cardiac arrest.',
     levelNotes: [
       'Start high-quality CPR, attach the AED as soon as it arrives and follow its prompts; clear everyone and move oxygen away from the chest before the shock, then restart compressions immediately without a pulse check',
-      'Recognise VF/pVT, charge during compressions and shock at the manufacturer biphasic dose (often 120–200 J) or 360 J monophasic; give epinephrine after the second shock and amiodarone or lidocaine for refractory VF, and consider vector change or DSED where protocols allow',
+      'Recognize VF/pVT, charge during compressions and shock at the manufacturer biphasic dose (often 120–200 J) or 360 J monophasic; give epinephrine after the second shock and amiodarone or lidocaine for refractory VF; use vector change or DSED only where local protocol directs — the 2025 AHA guidelines rate their usefulness as not established',
       'Place pads before high-risk cases (not over a device generator) and know the lab defibrillator; call out VF the instant it appears, shock when the operator calls for it or per your ACLS role and facility policy, and log times, energies and rhythms',
       'Support the code per ACLS: confirm pad placement, deliver shocks as the team directs, give epinephrine and amiodarone or lidocaine per ACLS standing orders, use capnography to gauge CPR quality, and document times, energies and drugs',
-      'For refractory VF consider vector change or DSED (DOSE-VF), antiarrhythmics, reversible causes and mechanical CPR/ECPR in selected patients; electrical storm needs ischemia treatment, electrolyte correction, beta-blockade, sedation and urgent revascularisation or ablation; interrogate CIEDs after shocks',
+      'For refractory VF (≥ 3 shocks) consider antiarrhythmics, reversible causes and mechanical CPR/ECPR in selected patients — the 2025 AHA guidelines rate vector change and DSED (DOSE-VF) as of unestablished usefulness (2b); electrical storm needs ischemia treatment, electrolyte correction, beta-blockade, sedation and urgent revascularization or ablation; interrogate CIEDs after shocks',
     ],
     overview: [
-      'Unsynchronised shock delivered at any point in the cardiac cycle',
+      'Unsynchronized shock delivered at any point in the cardiac cycle',
       'Shockable rhythms are VF and pulseless VT only',
       'Not effective for asystole or PEA',
       'Without CPR, VF survival falls ~7–10% for each minute until defibrillation',
@@ -2022,8 +2024,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     indications: [
       'Ventricular fibrillation',
       'Pulseless ventricular tachycardia',
-      'Polymorphic VT (including torsades) with instability — synchronisation is unreliable, so defibrillate',
-      'Unstable VT when the device cannot synchronise',
+      'Sustained polymorphic VT (including torsades) — always treated as unstable (2025 AHA); synchronization is unreliable, so defibrillate',
+      'Unstable VT when the device cannot synchronize',
     ],
     contraindications: [
       'Asystole and PEA (non-shockable rhythms)',
@@ -2041,7 +2043,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Transthoracic self-adhesive pads (preferred) or paddles in anterolateral or anteroposterior position; internal paddles during open-chest surgery',
     steps: [
       {
-        title: 'Recognise and start CPR',
+        title: 'Recognize and start CPR',
         description: 'Confirm unresponsiveness and absent normal breathing; start high-quality compressions',
       },
       {
@@ -2050,7 +2052,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
       {
         title: 'Rhythm check',
-        description: 'Pause briefly (≤ 10 s) to analyse rhythm',
+        description: 'Pause briefly (≤ 10 s) to analyze rhythm',
       },
       {
         title: 'Charge',
@@ -2067,7 +2069,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       {
         title: 'Drugs and repeat',
         description:
-          'Epinephrine 1 mg IV/IO every 3–5 min after the second shock; amiodarone 300 mg then 150 mg, or lidocaine 1–1.5 mg/kg then 0.5–0.75 mg/kg, for refractory VF/pVT',
+          'Epinephrine 1 mg IV (IO if IV access fails) every 3–5 min after the second shock; amiodarone 300 mg then 150 mg, or lidocaine 1–1.5 mg/kg then 0.5–0.75 mg/kg, for refractory VF/pVT',
       },
       {
         title: 'Post-ROSC care',
@@ -2079,11 +2081,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Pulseless VT: wide regular complexes without a palpable pulse',
       'Fine VF can mimic asystole — check gain and leads',
       'Brief asystole or PEA often follows a shock — continue CPR',
-      'CPR and movement artefact mimic VF; confirm during a pause',
+      'CPR and movement artifact mimic VF; confirm during a pause',
     ],
     equipment: [
       'AED or manual defibrillator',
-      'Adult and paediatric self-adhesive pads',
+      'Adult and pediatric self-adhesive pads',
       'Razor and towel',
       'CPR feedback device and waveform capnography',
     ],
@@ -2095,16 +2097,16 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Implanted device malfunction after external shock',
     ],
     postCare: [
-      'Post-arrest bundle: secure airway, SpO₂ 92–98%, avoid hypotension (SBP ≥ 90 mmHg, MAP ≥ 65 mmHg)',
+      'Post-arrest bundle: secure airway, SpO₂ 90–98%, avoid hypotension (MAP ≥ 65 mmHg)',
       '12-lead ECG; emergent coronary angiography for STEMI',
       'Deliberate temperature control and fever prevention in comatose patients',
       'Identify and treat reversible causes (Hs and Ts)',
       'Interrogate any implanted device after external shocks',
     ],
     teaching: [
-      'Minimise pauses — longer pre- and post-shock pauses reduce shock success and survival',
+      'Minimize pauses — longer pre- and post-shock pauses reduce shock success and survival',
       'Do not check pulse or rhythm immediately after the shock — resume CPR',
-      'Paediatric dose: 2 J/kg, then 4 J/kg, up to 10 J/kg or the adult dose',
+      'Pediatric dose: 2 J/kg, then 4 J/kg, up to 10 J/kg or the adult dose',
       'Only VF and pulseless VT are shockable',
     ],
     targetStructures: ['left-ventricle', 'right-ventricle', 'myocardium', 'purkinje-fibers'],
@@ -2118,11 +2120,11 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'A shock timed to the R wave terminates re-entrant tachyarrhythmias such as atrial fibrillation, flutter, SVT and VT with a pulse. It is used emergently for unstable patients and electively to restore sinus rhythm.',
     levelNotes: [
-      'Recognise unstable tachycardia (low BP, confusion, chest pain, signs of shock): request ALS, keep the patient lying down, give oxygen if hypoxic, and if they become unresponsive without normal breathing start CPR and attach the AED',
-      'Turn on SYNC and confirm markers on each R wave, sedate when possible per protocol, start at 50–100 J for narrow regular, 120–200 J biphasic for AF and ~100 J for monomorphic VT, and re-enable sync before repeat shocks',
+      'Recognize unstable tachycardia (low BP, confusion, chest pain, signs of shock): request ALS, keep the patient lying down, give oxygen if hypoxic, and if they become unresponsive without normal breathing start CPR and attach the AED',
+      'Turn on SYNC and confirm markers on each R wave, sedate when possible per protocol, start (biphasic, per protocol and device) at 100 J for narrow regular tachycardia and monomorphic VT and at 200 J for AF and atrial flutter, and re-enable sync before repeat shocks',
       'Prepare pads, the defibrillator with SYNC checked on the monitored lead, suction and airway equipment; join the time-out, record pre- and post-shock rhythm strips and energies, and alert the team if sync markers fall on T waves',
       'Verify NPO status, consent, potassium, digoxin use and anticoagulation (≥ 3 weeks or TEE as ordered); give moderate sedation only on order with the practitioner present and capnography on; monitor rhythm, BP and airway until recovered and reinforce ongoing anticoagulation',
-      'For AF/flutter ≥ 48 h or of unknown duration, give ≥ 3 weeks of therapeutic anticoagulation or exclude LAA thrombus by TEE and continue ≥ 4 weeks after; anteroposterior pads, adequate energy and antiarrhythmic pretreatment improve success, and CIEDs need interrogation afterwards',
+      'For AF/flutter ≥ 48 h or of unknown duration, give ≥ 3 weeks of therapeutic anticoagulation or exclude LAA thrombus by TEE and continue ≥ 4 weeks after; an initial biphasic energy ≥ 200 J and antiarrhythmic pretreatment improve success, and CIEDs need interrogation afterwards',
     ],
     overview: [
       'Delivering the shock on the R wave avoids the vulnerable period of the T wave (R-on-T can induce VF)',
@@ -2133,18 +2135,18 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     indications: [
       'Unstable tachyarrhythmia with a pulse (hypotension, altered mental status, shock, ischemic chest pain, acute HF)',
       'Stable monomorphic VT not responding to drugs',
-      'SVT refractory to vagal manoeuvres and adenosine',
+      'SVT refractory to vagal maneuvers and adenosine',
       'Elective rhythm control of persistent AF or atrial flutter',
     ],
     contraindications: [
       'Sinus tachycardia and other automatic rhythms',
-      'Pulseless or polymorphic VT — defibrillate (unsynchronised) instead',
+      'Pulseless or polymorphic VT — defibrillate (unsynchronized) instead',
       'Elective AF/flutter ≥ 48 h without adequate anticoagulation or TEE',
       'Digoxin toxicity or hypokalemia (relative — correct first when elective)',
     ],
     anatomy: [
       'Re-entry circuits: flutter around the tricuspid annulus, AVNRT in the AV node region, AVRT via an accessory pathway, VT around scar',
-      'The shock depolarises excitable tissue in the circuit, terminating re-entry',
+      'The shock depolarizes excitable tissue in the circuit, terminating re-entry',
       'Anterolateral or anteroposterior pad positions are both acceptable',
     ],
     accessSite: 'Transthoracic self-adhesive pads (anterolateral or anteroposterior); internal cardioversion via catheters in the EP lab',
@@ -2187,7 +2189,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'A short delay between pressing shock and discharge is expected while the device waits for an R wave',
       'Post-conversion pauses or bradycardia may unmask sinus node disease — have pacing available',
       'If VF develops, turn sync off and defibrillate immediately',
-      'Many devices revert to unsynchronised mode after each shock',
+      'Many devices revert to unsynchronized mode after each shock',
     ],
     equipment: [
       'Manual defibrillator with sync function',
@@ -2196,7 +2198,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Waveform capnography',
     ],
     complications: [
-      'VF from an unsynchronised shock delivered on the T wave',
+      'VF from an unsynchronized shock delivered on the T wave',
       'Thromboembolism or stroke after AF/flutter cardioversion without adequate anticoagulation',
       'Post-conversion bradycardia or asystole',
       'Sedation complications (hypoventilation, hypotension, aspiration)',
@@ -2210,9 +2212,9 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Interrogate pacemakers or ICDs after external shocks',
     ],
     teaching: [
-      'Synchronisation prevents shocking on the T wave (R-on-T)',
-      'Pulseless patient or polymorphic rhythm: defibrillate, do not synchronise',
-      'Atrial flutter often converts at low energy',
+      'Synchronization prevents shocking on the T wave (R-on-T)',
+      'Pulseless patient or polymorphic rhythm: defibrillate, do not synchronize',
+      'Initial biphasic energy (2025 AHA): AF at least 200 J, atrial flutter 200 J, regular narrow-complex tachycardia and monomorphic VT 100 J; escalate if the first shock fails',
       'Sedate whenever possible, but never delay cardioversion in a peri-arrest patient',
     ],
     targetStructures: ['left-atrium', 'right-atrium', 'av-node', 'left-ventricle', 'myocardium'],
@@ -2226,7 +2228,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     summary:
       'External pads or a wire in the right ventricle deliver electrical impulses to maintain heart rate when the heart\'s own rhythm or conduction fails. Transcutaneous pacing is a rapid bridge; transvenous pacing is more reliable until the cause resolves or a permanent device is placed.',
     levelNotes: [
-      'Recognise a symptomatic slow pulse (low BP, confusion, fainting, chest pain) and request ALS early — pacing is an ALS skill; keep the patient lying down, give oxygen if hypoxic and start CPR if they become pulseless',
+      'Recognize a symptomatic slow pulse (low BP, confusion, fainting, chest pain) and request ALS early — pacing is an ALS skill; keep the patient lying down, give oxygen if hypoxic and start CPR if they become pulseless',
       'For TCP choose demand mode at ~60–80/min, raise mA until electrical capture, confirm mechanical capture with a femoral pulse or pleth and give analgesia/sedation per protocol; move promptly to pacing or a chronotrope when atropine fails',
       'Prepare the balloon-tipped lead, sheath and generator with fresh batteries; record capture threshold and sensing as the operator tests them, label final settings, and alert the operator to loss of capture, ectopy or an RBBB-pattern paced QRS',
       'Assess perfusion and mental status, give atropine, chronotropes and analgesia/sedation on order, and confirm mechanical capture; secure the lead and generator, limit access-limb movement, check thresholds per protocol and competency, and escalate loss of capture or tamponade signs',
@@ -2299,7 +2301,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Failure to capture: pacing spikes without a following QRS',
       'Failure to sense: spikes falling on intrinsic beats, with R-on-T risk',
       'RV pacing gives an LBBB-like pattern; an RBBB pattern raises concern for septal perforation or coronary sinus position',
-      'TCP artefact can obscure the ECG and mimic capture',
+      'TCP artifact can obscure the ECG and mimic capture',
     ],
     equipment: [
       'Defibrillator with pacing function and pads',
@@ -2326,7 +2328,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Use the femoral pulse to confirm mechanical capture — muscle twitching can mimic a carotid pulse',
       'Electrical capture without a pulse is PEA — start CPR',
       'Atropine 1 mg IV every 3–5 min to a maximum of 3 mg; often ineffective in infranodal block and in transplanted hearts',
-      'Chronotrope alternatives: epinephrine 2–10 μg/min or dopamine 5–20 μg/kg/min infusion',
+      'Chronotrope alternatives: epinephrine 2–10 mcg/min or dopamine 5–20 mcg/kg/min infusion',
     ],
     targetStructures: ['right-ventricle', 'right-atrium', 'svc', 'tricuspid-valve', 'av-node', 'bundle-of-his'],
     relatedConditions: [
@@ -2349,7 +2351,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Low blood pressure, distended neck veins and muffled heart sounds, especially after chest trauma, with cancer or after a recent heart procedure, suggest tamponade — give oxygen, transport rapidly and pre-alert the receiving hospital',
       'Tamponade is preload-dependent: give fluid for hypotension per protocol, avoid positive-pressure ventilation where possible, and consider tamponade in PEA or with low-voltage or alternating QRS; pre-alert for surgery if traumatic',
       'If perforation is suspected (falling pressure, rising heart rate, reduced cardiac border motion), alert the operator, open the pericardiocentesis tray, prepare echo, agitated saline and the drainage set, and record pressures before and after drainage',
-      'Recognise tamponade (hypotension, tachycardia, pulsus paradoxus, rising RA pressure), escalate immediately and give fluids or vasopressors on order; after drainage record drain output, monitor vitals and rhythm, and keep the drain sterile and patent per protocol',
+      'Recognize tamponade (hypotension, tachycardia, pulsus paradoxus, rising RA pressure), escalate immediately and give fluids or vasopressors on order; after drainage record drain output, monitor vitals and rhythm, and keep the drain sterile and patent per protocol',
       'Tamponade is a clinical diagnosis supported by echo (RA/RV collapse, plethoric IVC, respiratory variation); choose subxiphoid, apical or parasternal entry by echo, confirm with agitated saline and leave a pigtail — but send trauma, dissection or free-wall rupture to surgery',
     ],
     overview: [
@@ -2392,7 +2394,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
         description: 'Use echo to choose the entry point, depth and trajectory',
       },
       {
-        title: 'Prep and anesthetise',
+        title: 'Prep and anesthetize',
         description: 'Sterile preparation and local anesthesia along the planned track',
       },
       {
@@ -2459,7 +2461,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     levelNotes: [
       'High-quality CPR with minimal interruptions, early AED use and early notification keep advanced options like ECPR open for refractory arrest; follow local criteria for mechanical CPR and transport',
       'In ECPR-capable systems, refractory shockable arrest with a short low-flow time may trigger early transport with mechanical CPR per local criteria — notify early, record arrest and shock times, and continue ACLS en route',
-      'Set up ultrasound, fluoroscopy, wires, dilators and cannulas, help keep connections air-free as directed, record ACT and arterial pressures, and alert the operator to falling pulse pressure, arrhythmia or limb colour change; the perfusionist or ECMO specialist runs the circuit',
+      'Set up ultrasound, fluoroscopy, wires, dilators and cannulas, help keep connections air-free as directed, record ACT and arterial pressures, and alert the operator to falling pulse pressure, arrhythmia or limb color change; the perfusionist or ECMO specialist runs the circuit',
       'Give heparin on order and monitor ACT or anti-Xa; do hourly distal limb perfusion checks, right radial SpO₂ or gases for differential hypoxia and access-site bleeding checks, and escalate falling pulse pressure, pulmonary edema or a cold leg immediately',
       'VA-ECMO is a bridge — define the exit strategy early, vent the LV for distension, place the venous tip at the RA–IVC junction and protect the leg with a distal perfusion cannula; ECLS-SHOCK showed no mortality benefit from routine use in AMI shock',
     ],
@@ -2473,7 +2475,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     indications: [
       'Refractory cardiogenic shock despite inotropes and vasopressors (SCAI stage D–E)',
       'Refractory cardiac arrest (ECPR) in selected patients',
-      'Massive PE with shock or arrest',
+      'PE with refractory shock or cardiac arrest (AHA/ACC category E2, formerly massive)',
       'Post-cardiotomy shock, fulminant myocarditis or cardiotoxic drug overdose',
       'Bridge to recovery, decision, durable LVAD or transplant',
     ],
@@ -2554,9 +2556,10 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     ],
     teaching: [
       'Differential hypoxia: a recovering heart ejects poorly oxygenated blood from injured lungs to the brain and coronaries while the lower body receives oxygenated ECMO blood',
-      'Fixes include optimising ventilation, adding a venous return limb (V-AV ECMO) or moving arterial return to the axillary artery',
+      'Fixes include optimizing ventilation, adding a venous return limb (V-AV ECMO) or moving arterial return to the axillary artery',
       'VA-ECMO raises LV afterload — a persistently closed aortic valve signals the need to vent',
       'Arterial pulse pressure is a bedside marker of native LV ejection',
+      'Routine VA-ECMO for MI-related cardiogenic shock is not recommended (2025 ACC/AHA ACS guideline, COR 3: No Benefit) — reserve it for selected refractory cases',
     ],
     targetStructures: ['ivc', 'right-atrium', 'descending-aorta', 'left-ventricle', 'aortic-valve'],
     relatedConditions: ['cardiogenic-shock', 'ventricular-fibrillation', 'pulmonary-embolism', 'anterior-stemi'],
@@ -2571,7 +2574,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     levelNotes: [
       'New chest pain, low blood pressure or breathlessness after a heart biopsy may mean cardiac perforation and tamponade — give oxygen, lay the patient flat if hypotensive and transport urgently with early notification',
       'Post-biopsy tamponade presents with hypotension, tachycardia and JVD — give fluid per protocol and pre-alert; watch for new heart block or VT, and remember transplanted hearts ignore atropine and need reduced-dose adenosine',
-      'Prepare the bioptome, long sheath and labelled specimen containers (formalin and other media per pathology request), record right heart pressures if ordered, watch for PVCs, heart block or chest pain, and keep the pericardiocentesis kit immediately available',
+      'Prepare the bioptome, long sheath and labeled specimen containers (formalin and other media per pathology request), record right heart pressures if ordered, watch for PVCs, heart block or chest pain, and keep the pericardiocentesis kit immediately available',
       'Check coagulation, anticoagulant holds and consent, and give moderate sedation on order (practitioner present); after the biopsy monitor vitals, rhythm and the jugular or femoral site, and escalate chest pain, hypotension or JVD (possible perforation) immediately',
       'Key indications: transplant rejection surveillance, new HF < 2 weeks with hemodynamic compromise, or HF of 2 weeks–3 months with new ventricular arrhythmias or high-grade block (suspect giant cell myocarditis); target the RV septum, take ~4–6 samples and avoid the free wall',
     ],
@@ -2585,7 +2588,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     indications: [
       'Surveillance for cardiac allograft rejection',
       'Suspected giant cell myocarditis (rapid HF, VT, heart block, poor response to usual care)',
-      'Suspected eosinophilic or necrotising myocarditis',
+      'Suspected eosinophilic or necrotizing myocarditis',
       'Suspected infiltrative disease (amyloid, sarcoid) when non-invasive tests are inconclusive',
       'Unexplained cardiomyopathy with ventricular arrhythmias or conduction disease',
     ],
@@ -2631,7 +2634,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       },
       {
         title: 'Process samples',
-        description: 'Place samples in formalin and other media for specialised testing',
+        description: 'Place samples in formalin and other media for specialized testing',
       },
       {
         title: 'Check for effusion',

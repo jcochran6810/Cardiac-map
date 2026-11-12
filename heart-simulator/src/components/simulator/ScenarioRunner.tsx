@@ -9,9 +9,14 @@ import { HINT_POINTS, clockText, interventionsForScenario, unavailableReason } f
 import { CATEGORY_LABELS, CATEGORY_ORDER, INTERVENTION_BY_ID } from '@/lib/sim/scenario/interventions';
 import type { Category, Intervention, LogEntry, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { IconClose, IconSearch } from '@/components/ui/icons';
+import { matches } from '@/lib/device';
 import { SETTING_LABEL, SPEAKER_STYLE, TONE_STYLE, durationText, gradeStyle, speakerName } from './simStyles';
 import { ReadBar, ReadList } from './ReadPanel';
 import ImagingPanel from './ImagingPanel';
+import { endedSummary, twelveLeadNote } from './runnerText';
+
+/** A phone on its side (the Tailwind `short:` variant) */
+const SHORT_QUERY = '(max-height: 500px)';
 
 const MonitorDisplay = dynamic(() => import('@/components/monitor/MonitorDisplay'), { ssr: false });
 const ECGRenderer = dynamic(() => import('@/components/ecg/ECGRenderer'), { ssr: false });
@@ -35,8 +40,10 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
   const lab = sc.setting === 'cathlab';
 
   // A new 12-lead to read opens the 12-lead tab and an image to read (an angiogram, a pressure-wire
-  // screen) the imaging tab; any other read needs the story. Anything said (or filmed) while another tab
-  // is open marks that tab with a dot.
+  // screen) the imaging tab; any other read needs the story. On a phone on its side the action column has no
+  // "After …" panel and the 12-lead tab hides the monitor, so any other action brings back the story (and the
+  // monitor) to show what it did; the read and its verdict stay on their tab until then. Anything said (or filmed)
+  // while another tab is open marks that tab with a dot.
   useEffect(() => {
     const prev = seen.current;
     const last = state.performed.at(-1);
@@ -46,7 +53,10 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
     if (fresh && last && (last.id === 'ecg12' || last.id === 'ecg12-repeat') && kind === 'ecg') setTab('ecg');
     else if (onImage && tab !== 'imaging') setTab('imaging');
     else if (kind && kind !== 'ecg' && !onImage && tab !== 'story') setTab('story');
-    else {
+    else if (fresh && tab !== 'story' && matches(SHORT_QUERY)) {
+      setTab('story');
+      if (state.images.length > prev.images) setNewRun(true);
+    } else {
       if (state.log.length > prev.log && tab !== 'story') setUnread(true);
       if (state.images.length > prev.images && tab !== 'imaging') setNewRun(true);
     }
@@ -59,6 +69,9 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
   const ended = !!state.ended;
   const reading = !!state.pendingRead && !ended;
+  // A phone on its side (short) has about 300 px under the headers: the 12-lead tab then takes the whole patient column,
+  // or the 12 leads squash into a strip too thin to read (the monitor comes back on the other tabs)
+  const tracingOnly = tab === 'ecg' && !!state.lastEcg;
   const leave = () => {
     if (ended || window.confirm('Leave this case? Your progress in it will be lost.')) closeScenario();
   };
@@ -96,8 +109,8 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row short:flex-row">
         {/* The patient */}
         <div className="flex-1 min-h-0 min-w-0 flex flex-col">
-          {/* while you read a 12-lead on a phone, the monitor shrinks so the tracing gets the room */}
-          <div className={`shrink-0 max-h-[300px] lg:h-[38%] lg:max-h-[340px] short:h-[48%] short:min-h-0 p-1.5 ${reading ? 'h-[15dvh] min-h-[92px]' : 'h-[27dvh] min-h-[140px]'}`}>
+          {/* while you read a 12-lead on a phone held upright, the monitor shrinks so the tracing gets the room; on its side it steps aside */}
+          <div className={`shrink-0 max-h-[300px] lg:h-[38%] lg:max-h-[340px] short:h-[48%] short:min-h-0 p-1.5 ${reading ? 'h-[15dvh] min-h-[92px]' : 'h-[27dvh] min-h-[140px]'} ${tracingOnly ? 'short:hidden' : ''}`}>
             <MonitorDisplay channels={attached(state)} showRhythmName={false} />
           </div>
           <div className="flex shrink-0 border-y border-slate-700 bg-cardiac-panel" role="tablist" aria-label="Patient views">
@@ -116,16 +129,19 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
         {/* Actions: a column on large screens */}
         <aside className="hidden lg:flex short:flex w-[400px] xl:w-[440px] short:w-[44%] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
-          {ended ? <EndedCard state={state} percent={review?.percent} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
+          {ended ? <EndedCard state={state} percent={review?.percent} outcome={review?.outcome} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
         </aside>
       </div>
 
       {/* Phones and tablets: one big button opens the action list */}
       <div className="lg:hidden short:hidden shrink-0 p-2 border-t border-slate-700 bg-cardiac-panel flex gap-2">
         {ended ? (
-          <button onClick={onReview} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
-            See your score and review →
-          </button>
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            <EndedNote state={state} percent={review?.percent} outcome={review?.outcome} />
+            <button onClick={onReview} className="w-full h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
+              See your score and review →
+            </button>
+          </div>
         ) : reading ? (
           <ReadBar key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} />
         ) : (
@@ -133,7 +149,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
             <button onClick={() => setSheet(true)} className="flex-1 h-12 rounded-xl bg-cardiac-accent text-slate-950 font-semibold text-[15px]">
               What do you do next?
             </button>
-            <button onClick={stopNow} className="xs:hidden px-3 h-12 rounded-xl border border-red-500/40 text-xs text-red-200">End</button>
+            <button onClick={stopNow} aria-label="End case" title="End case" className="xs:hidden px-3 h-12 rounded-xl border border-red-500/40 text-xs text-red-200">End</button>
           </>
         )}
       </div>
@@ -224,31 +240,38 @@ function TwelveLead({ state }: { state: SimState }) {
       </div>
     );
   }
-  const changed = last.profile !== state.rhythm.profile && state.pulse;
-  const read = state.reads.filter((r) => r.kind === 'ecg').at(-1);
+  const { note, changed, canRepeat } = twelveLeadNote(state);
+  const youRead = note.kind === 'verdict' || note.kind === 'unchanged';
   // the feedback's verdict on the read of this tracing
-  const verdictLine = read && read.minute === last.minute
-    ? [...state.log].reverse().find((l) => l.who === 'feedback' && l.minute === read.minute && /^(Correct|Partly right|Not quite)/.test(l.text))
+  const verdictLine = note.kind === 'verdict'
+    ? [...state.log].reverse().find((l) => l.who === 'feedback' && l.minute === note.minute && /^(Correct|Partly right|Not quite)/.test(l.text))
     : undefined;
   return (
     <div className="absolute inset-0 flex flex-col">
       <div className="shrink-0 px-3 py-1.5 border-b border-slate-700/60 text-[12px] leading-snug max-h-[45%] overflow-y-auto">
         <span className="text-slate-400">12-lead recorded at {clockText(last.minute)}. </span>
-        {state.role === 1 ? (
+        {note.kind === 'emt' ? (
           <span className="text-slate-300">Reading it is outside EMT scope — transmit it to the hospital.</span>
-        ) : state.pendingRead?.kind === 'ecg' ? (
+        ) : note.kind === 'ask' ? (
           <span className="text-amber-200 font-medium">What does it show? Choose your read — it is checked at once.</span>
-        ) : read && read.minute === last.minute ? (
-          <span className={read.verdict === 'correct' ? 'text-emerald-300' : read.verdict === 'partial' ? 'text-amber-200' : 'text-red-300'}>
-            {read.verdict === 'correct' ? '✓ ' : read.verdict === 'partial' ? '½ ' : '✗ '}
+        ) : note.kind === 'queued' ? (
+          <span className="text-amber-200 font-medium">Answer the question open now; your read of this tracing comes next.</span>
+        ) : note.kind === 'unread' ? (
+          <span className="text-slate-300">The case ended before you read it.</span>
+        ) : note.kind === 'verdict' ? (
+          <span className={note.verdict === 'correct' ? 'text-emerald-300' : note.verdict === 'partial' ? 'text-amber-200' : 'text-red-300'}>
+            {note.verdict === 'correct' ? '✓ ' : note.verdict === 'partial' ? '½ ' : '✗ '}
             {verdictLine ? verdictLine.text : ''}
           </span>
-        ) : (
-          <span className="text-slate-300">Unchanged from your earlier read.</span>
-        )}
+        ) : note.kind === 'unchanged' ? (
+          <span className="text-slate-300">Unchanged from the tracing you read at {clockText(note.readAt)}.</span>
+        ) : null}
+        {/* the tracing below always draws the live rhythm: say so when it is not the one recorded (after the case too) */}
         {changed && (
           <div className="mt-1 px-2 py-1 rounded bg-amber-500/15 border border-amber-500/40 text-amber-200">
-            The patient has changed since then — the tracing below is live. Repeat the 12-lead to record it.
+            {canRepeat
+              ? 'The patient has changed since this one was recorded — the tracing below is live. Repeat the 12-lead to record it.'
+              : `The patient has changed since this one was recorded — the tracing below is live, not the one ${youRead ? 'you read' : 'recorded'}.`}
           </div>
         )}
       </div>
@@ -273,16 +296,23 @@ function ActionList({ sc, state, onDone, showLatest = false }: { sc: Scenario; s
     .filter((g) => g.items.length > 0);
 
   const jump = (c: Category) => {
-    const el = listRef.current?.querySelector<HTMLElement>(`[data-cat="${c}"]`);
-    if (el && listRef.current) listRef.current.scrollTo({ top: el.offsetTop - 4, behavior: 'smooth' });
+    const list = listRef.current;
+    const el = list?.querySelector<HTMLElement>(`[data-cat="${c}"]`);
+    if (!list || !el) return;
+    // the list scrolls by itself, or (a phone on its side) the whole column scrolls with it
+    const box = getComputedStyle(list).overflowY === 'visible' && list.parentElement ? list.parentElement : list;
+    box.scrollTo({ top: el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 4, behavior: 'smooth' });
   };
   const choose = (id: string) => {
     act(id);
     onDone?.();
   };
 
+  // A phone on its side (short) leaves the column about 300 px: the search and the category chips scroll away with the
+  // list, so every pixel can hold actions, and the "After …" panel stays out: each action brings the case story beside it
+  // back (the tab effect above), and the story shows the same lines
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col short:overflow-y-auto">
       {showLatest && <Latest state={state} />}
       <div className="shrink-0 px-3 pt-2 pb-2 border-b border-slate-700 space-y-2">
         {!onDone && <div className="text-sm font-semibold text-white">What do you do next?</div>}
@@ -310,7 +340,7 @@ function ActionList({ sc, state, onDone, showLatest = false }: { sc: Scenario; s
           </div>
         )}
       </div>
-      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto px-2 pb-4 relative">
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto short:flex-none short:overflow-visible px-2 pb-4 relative">
         {groups.map((g) => (
           <section key={g.c} data-cat={g.c} className="pt-2">
             <h3 className="sticky top-0 z-10 px-1 py-1 text-[10px] uppercase tracking-wider text-slate-400 bg-cardiac-panel">{CATEGORY_LABELS[g.c]}</h3>
@@ -365,7 +395,7 @@ function Latest({ state }: { state: SimState }) {
   const lines = state.log.slice(from + 1).slice(-4);
   if (!lines.length) return null;
   return (
-    <div className="shrink-0 px-3 py-2 border-b border-slate-700 bg-cardiac-dark/50 space-y-1 max-h-48 overflow-y-auto">
+    <div className="short:hidden shrink-0 px-3 py-2 border-b border-slate-700 bg-cardiac-dark/50 space-y-1 max-h-48 overflow-y-auto">
       <div className="text-[10px] uppercase tracking-wider text-slate-500">After “{label}”</div>
       {lines.map((l, i) => (
         <div key={`${state.log.length}-${i}`} className="text-[12px] leading-snug animate-fade-in">
@@ -377,23 +407,35 @@ function Latest({ state }: { state: SimState }) {
   );
 }
 
-function EndedCard({ state, percent, onReview }: { state: SimState; percent?: number; onReview: () => void }) {
-  const reason = state.ended!.reason;
-  const g = gradeStyle(percent ?? 0);
+/** The colors of the end card: red for a death, else the grade's */
+const endedBox = (state: SimState, percent?: number) => (state.ended!.reason === 'death' ? 'border-red-500/50 bg-red-500/10' : gradeStyle(percent ?? 0).box);
+
+function EndedCard({ state, percent, outcome, onReview }: { state: SimState; percent?: number; outcome?: string; onReview: () => void }) {
+  // a hand-off also ends the case as complete: say so plainly when critical steps were still missing
+  const { title, text } = endedSummary(state.ended!.reason, outcome);
   return (
     <div className="p-4">
-      <div className={`rounded-xl border p-4 ${reason === 'death' ? 'border-red-500/50 bg-red-500/10' : g.box}`}>
-        <div className="text-lg font-semibold text-white">
-          {reason === 'complete' ? 'Case complete' : reason === 'death' ? 'The patient died' : 'Case ended'}
-        </div>
+      <div className={`rounded-xl border p-4 ${endedBox(state, percent)}`}>
+        <div className="text-lg font-semibold text-white">{title}</div>
         <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-          {reason === 'complete' ? 'Every critical step for your role is done.' : reason === 'death' ? 'There was no return of circulation.' : 'You ended the case early.'}
+          {text}
           {' '}Your review shows your score, your times and what to fix.
         </p>
         <button onClick={onReview} className="mt-3 w-full h-11 rounded-lg bg-cardiac-accent text-slate-950 font-semibold">
           See your score and review →
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Phones and tablets: the same verdict as the end card, in one compact box above the review button */
+function EndedNote({ state, percent, outcome }: { state: SimState; percent?: number; outcome?: string }) {
+  const { title, text } = endedSummary(state.ended!.reason, outcome);
+  return (
+    <div className={`rounded-lg border px-3 py-1.5 ${endedBox(state, percent)}`} role="status">
+      <div className="text-[13px] font-semibold text-white leading-snug">{title}</div>
+      <p className="text-[12px] text-slate-300 leading-snug">{text}</p>
     </div>
   );
 }

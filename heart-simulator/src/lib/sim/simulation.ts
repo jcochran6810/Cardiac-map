@@ -13,23 +13,28 @@ import type { RhythmMods } from '@/lib/ecg/mods';
 
 const engine = new ECGEngine('normal-sinus', 72);
 
+/** How much of the recent past a rewrite covers: more than any tracing keeps on screen */
+export const REWRITE_MS = 30000;
+
 export const sim = {
   engine,
   hemo: new HemoModel(engine),
-  /** simulation time in ms */
-  time: 0,
+  /**
+   * simulation time in ms. It starts half a minute in, with the heart already beating since 0, so the first tracing
+   * a learner opens is full from edge to edge instead of being drawn in from an empty strip.
+   */
+  time: REWRITE_MS,
   /** bumps whenever time jumps non-continuously (scrub) so renderers can fully redraw */
   epoch: 0,
   /** set by showRhythm: the next sync rewrites the recent past in the new rhythm */
   rewrite: false,
 };
 
-/** How much of the recent past a rewrite covers: more than any tracing keeps on screen */
-export const REWRITE_MS = 30000;
-
 /**
  * Keep the engine on the selected rhythm, rate and drug effects — called every frame by the simulation driver.
  * After showRhythm, the recent past is rewritten too (with the same drug effects) and every tracing redraws.
+ * While nothing changes the engine leaves its recording alone, also when the playhead has been dragged back
+ * into it; a change made there takes effect from the playhead.
  */
 export function syncRhythm(profileId: string, hr: number, mods: RhythmMods | null = null) {
   if (!sim.rewrite) {
@@ -43,7 +48,10 @@ export function syncRhythm(profileId: string, hr: number, mods: RhythmMods | nul
 }
 
 export function scrubTo(ms: number) {
-  sim.time = Math.max(0, ms);
+  // After a long run the engine discards its oldest beats. Stop where the recording still fills the screen:
+  // an empty strip behind the playhead would read as asystole.
+  const kept = sim.engine.keptFrom;
+  sim.time = Math.max(0, kept > 0 ? kept + REWRITE_MS : 0, ms);
   sim.engine.ensure(sim.time + 4000);
   sim.epoch++;
 }

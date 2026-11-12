@@ -83,7 +83,8 @@ function windowsFor(t: number): Partial<Record<SegKey, Win>> & { focus?: V3; foc
   const seg = e.segmentAt(t);
   const rhythm = seg.profile.rhythm;
   if (rhythm === 'af') out.af = true;
-  if (rhythm === 'flutter') out.flutter = (((t - seg.start) % 200) + 200) % 200 / 200;
+  // counted from where the flutter began, like the flutter waves on the tracing, so a rate change does not jump the loop
+  if (rhythm === 'flutter') out.flutter = (((t - seg.origin) % 200) + 200) % 200 / 200;
 
   const ai = e.lastAtrialIndex(t);
   const a = ai >= 0 ? e.atrial[ai] : null;
@@ -102,7 +103,16 @@ function windowsFor(t: number): Partial<Record<SegKey, Win>> & { focus?: V3; foc
       let conductedTo = null as null | number;
       for (let k = vi; k >= 0 && k > vi - 3; k--) if (e.vent[k].pTime === a.t) conductedTo = e.vent[k].t;
       if (conductedTo !== null) out.av = { start: a.t + 45, end: conductedTo - 12 };
-      else if (rhythm !== 'vt' && rhythm !== 'chb') out.av = { start: a.t + 45, end: a.t + 160, blocked: true };
+      else if (rhythm === 'mobitz2') {
+        // Mobitz II: the impulse crosses the AV node and stops below it, in the His bundle or the bundle branches
+        out.av = { start: a.t + 45, end: a.t + 150 };
+        out.his = { start: a.t + 150, end: a.t + 200, blocked: true };
+      } else if (rhythm === 'chb' && vi >= 0 && e.vent[vi].qrsDur >= 120) {
+        // complete block with a wide ventricular escape: the block is below the AV node (infranodal), so the impulse
+        // still crosses the node and stops in the His bundle; a narrow escape means a block in the node itself
+        out.av = { start: a.t + 45, end: a.t + 150 };
+        out.his = { start: a.t + 150, end: a.t + 200, blocked: true };
+      } else if (rhythm !== 'vt' && rhythm !== 'chb') out.av = { start: a.t + 45, end: a.t + 160, blocked: true };
       else out.av = { start: a.t + 45, end: a.t + 130, blocked: true };
     }
   }
@@ -143,6 +153,7 @@ function windowsFor(t: number): Partial<Record<SegKey, Win>> & { focus?: V3; foc
     }
   }
   if (out.av?.blocked) out.blocked.push('av');
+  if (out.his?.blocked) out.blocked.push('his');
   return out;
 }
 
@@ -265,7 +276,7 @@ export default function ConductionSystem({ emphasis = 1 }: { emphasis?: number }
         />
       ))}
       {/* Block markers (red ✕) */}
-      {(['av', 'rbb', 'lbb', 'laf'] as SegKey[]).map((k) => {
+      {(['av', 'his', 'rbb', 'lbb', 'laf'] as SegKey[]).map((k) => {
         const seg = SEGMENTS.find((s) => s.key === k)!;
         const mid = new THREE.CatmullRomCurve3(seg.pts.map((p) => new THREE.Vector3(...p))).getPoint(k === 'av' ? 0.6 : 0.5);
         return (

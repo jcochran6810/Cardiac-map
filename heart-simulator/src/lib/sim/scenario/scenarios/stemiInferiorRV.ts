@@ -1,14 +1,17 @@
 import type { Effect, Scenario, SimState } from '../types';
-import { has } from '../kit';
+import { bpAfter, has } from '../kit';
 
-/** RV infarction: nitrates drop preload and blood pressure */
+/** RV infarction: nitrates drop preload and blood pressure — to 74/44, or further down from a pressure already lower */
 function nitroCrash(s: SimState): Effect {
+  const fall = bpAfter(s, -10, -6);
+  const sbp = Math.min(74, fall.sbp);
+  const dbp = Math.min(44, fall.dbp);
   return {
     say: [
-      ['patient', '"I feel like I\'m going to pass out…" She goes grey and slumps in the chair.', 'bad'],
-      ['monitor', 'BP 74/44.', 'bad'],
+      ['patient', '"I feel like I\'m going to pass out…" She goes gray and slumps in the chair.', 'bad'],
+      ['monitor', `BP ${sbp}/${dbp}.`, 'bad'],
     ],
-    vitals: { sbp: 74, dbp: 44, gcs: 14, pain: Math.max(0, s.vitals.pain - 1) },
+    vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 14), pain: Math.max(0, s.vitals.pain - 1) },
     flags: ['nitro', 'hypotension'],
   };
 }
@@ -24,8 +27,8 @@ export const stemiInferiorRV: Scenario = {
   briefing: {
     default: [
       ['dispatch', 'Priority 1: 66-year-old woman, "indigestion", nearly fainted.'],
-      ['scene', 'She is sitting at the kitchen table, grey and clammy, nauseated. Her daughter says the "heartburn" started about an hour ago and she nearly fainted when she stood up.'],
-      ['hospital', 'PCI-capable heart centre: 12 minutes. Nearest emergency department (no cath lab): 6 minutes.'],
+      ['scene', 'She is sitting at the kitchen table, gray and clammy, nauseated. Her daughter says the "heartburn" started about an hour ago and she nearly fainted when she stood up.'],
+      ['hospital', 'PCI-capable heart center: 12 minutes. Nearest emergency department (no cath lab): 6 minutes.'],
     ],
   },
   initial: {
@@ -41,7 +44,9 @@ export const stemiInferiorRV: Scenario = {
     perfusion: 'Pale and clammy. Neck veins distended even sitting upright. Radial pulses weak.',
     ecg12: (s) => s.rhythm.profile === 'inferior-stemi-chb'
       ? `Complete heart block with a narrow junctional escape at ${s.rhythm.hr}; ST elevation persists in II, III and aVF.`
-      : `Sinus ${s.rhythm.hr < 60 ? 'bradycardia' : 'rhythm'} ${s.rhythm.hr} with ST elevation in II, III and aVF (III > II) and reciprocal depression in aVL and I: inferior STEMI. ST elevation in III greater than II points to the RCA.`,
+      : s.rhythm.profile === 'tcp'
+        ? 'Transcutaneous pacing at 70: a wide QRS after every pacing spike (electrical capture). The paced beats hide the inferior ST elevation.'
+        : `Sinus ${s.rhythm.hr < 60 ? 'bradycardia' : 'rhythm'} ${s.rhythm.hr} with ST elevation in II, III and aVF (III > II) and reciprocal depression in aVL and I: inferior STEMI. ST elevation in III greater than II points to the RCA.`,
     ecgRight: 'V4R: 1.5 mm ST elevation.',
     ecgPosterior: 'V7–V9: no ST elevation.',
   },
@@ -117,16 +122,16 @@ export const stemiInferiorRV: Scenario = {
     { id: 'fluid', label: 'Fluid bolus for hypotension with clear lungs', why: 'RV infarction: the right heart needs filling pressure. 250–500 mL boluses, reassessing the lungs.', done: ['fluid'], after: 'hypotension', roles: [2], points: 10, applies: (s) => has(s, 'hypotension') },
     { id: 'brady', label: 'Treat the symptomatic AV block (atropine, pacing if it fails)', why: 'AV-nodal block in inferior MI is usually atropine-responsive; pace if it is not.', done: ['atropine', 'pace'], after: 'chb', roles: [2], points: 10, target: { within: { flag: 'chb', minutes: 5 } }, applies: (s) => has(s, 'chb') },
     { id: 'alert', label: 'STEMI alert from the field', why: 'Reperfusion is the definitive treatment — and the RCA occlusion is causing the block.', done: ['stemi-alert', 'ecg-transmit'], roles: [2], points: 15, target: { by: 15 } },
-    { id: 'pci', label: 'Straight to the PCI-capable heart centre', why: 'Primary PCI within 90 minutes of first contact.', done: (s) => s.flags['dest-pci'] ?? null, points: 10 },
-    { id: 'handoff', label: 'Hand-off at the heart centre', why: 'Report the RV involvement and the AV block so the team is ready (pacing wire, fluids).', done: ['handoff'], points: 5 },
+    { id: 'pci', label: 'Straight to the PCI-capable heart center', why: 'Primary PCI within 90 minutes of first contact.', done: (s) => s.flags['dest-pci'] ?? null, points: 10 },
+    { id: 'handoff', label: 'Hand-off at the heart center', why: 'Report the RV involvement and the AV block so the team is ready (pacing wire, fluids).', done: ['handoff'], points: 5 },
   ],
   harms: [
-    { id: 'nitro-rv', actions: ['nitro'], roles: [2], points: 15, severity: 'critical', text: 'Nitroglycerin in an inferior STEMI with RV involvement: it drops preload and the blood pressure crashed to 74/44. Check V4R (and the BP) before nitrates; RV infarction is a contraindication.' },
-    { id: 'nitro-assist-rv', actions: ['nitro-assist'], roles: [1], points: 15, severity: 'critical', text: "Assisting with her nitroglycerin despite a borderline BP (102) and a slow pulse: it crashed her pressure to 74/44. With an inferior STEMI (which the physician sees on your transmitted ECG), nitrates are dangerous — check with medical control first." },
+    { id: 'nitro-rv', actions: ['nitro'], roles: [2], replaces: ['nitro-hypotension'], points: 15, severity: 'critical', text: 'Nitroglycerin in an inferior STEMI with RV involvement: it drops preload and the blood pressure crashed to 74/44. Check V4R (and the BP) before nitrates; RV infarction is a contraindication.' },
+    { id: 'nitro-assist-rv', actions: ['nitro-assist'], roles: [1], replaces: ['nitro-hypotension'], points: 15, severity: 'critical', text: "Assisting with her nitroglycerin despite a borderline BP (102) and a slow pulse: it crashed her pressure to 74/44. With an inferior STEMI (which the physician sees on your transmitted ECG), nitrates are dangerous — check with medical control first." },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 3, severity: 'minor', text: 'Oxygen is for SpO₂ below 90 %.' },
     { id: 'beta-blocker', actions: ['metoprolol'], points: 10, severity: 'major', text: 'An IV beta-blocker with bradycardia and borderline blood pressure worsens both — and can push AV block to asystole.' },
     { id: 'opioid-hypotension', actions: ['fentanyl'], when: (s) => s.vitals.sbp < 90, points: 4, severity: 'minor', text: 'Opioids venodilate: avoid them while she is hypotensive with RV infarction.' },
-    { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable centre; the nearest ED has no cath lab.' },
+    { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable center; the nearest ED has no cath lab.' },
     { id: 'cpap-hypotension', actions: ['cpap'], points: 6, severity: 'major', text: 'CPAP lowers venous return — dangerous in a hypotensive, preload-dependent patient with clear lungs.' },
   ],
   timings: [
@@ -137,7 +142,7 @@ export const stemiInferiorRV: Scenario = {
   ],
   transportMinutes: 12,
   nearestMinutes: 6,
-  arrival: 'You arrive at the heart centre; the cath lab team is waiting with a pacing wire ready.',
+  arrival: 'You arrive at the heart center; the cath lab team is waiting with a pacing wire ready.',
   teaching: [
     'Inferior STEMI: ST elevation in II, III, aVF. STE in III greater than II, with reciprocal depression in aVL, points to the RCA.',
     'Record V4R in every inferior STEMI: RV infarction occurs in up to 40 %. STE ≥ 0.5–1 mm in V4R is diagnostic.',

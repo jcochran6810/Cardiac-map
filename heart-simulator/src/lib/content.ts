@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import type { CathLabItem, ConditionContent, MedicationContent, ProcedureContent, QuizQuestion, StructureContent } from '@/types/content';
+import type { Course } from '@/types/course';
 
 /**
  * The teaching library is large (~1 MB of text), so it is code-split and loaded
@@ -16,6 +17,8 @@ export interface ContentLibrary {
   /** the cath lab catalog: views, devices, drugs, pressures, complications, team */
   cathlab: Record<string, CathLabItem>;
   quiz: QuizQuestion[];
+  /** guided courses: lessons that set up the heart and the ECG step by step */
+  courses: Course[];
 }
 
 interface ContentState {
@@ -35,7 +38,7 @@ export function loadContent(): Promise<void> {
   pending = import('@/data/content')
     .then((m) => {
       useContentStore.setState({
-        lib: { structures: m.STRUCTURES, conditions: m.CONDITIONS, procedures: m.PROCEDURES, medications: m.MEDICATIONS, cathlab: m.CATHLAB, quiz: m.QUIZ_QUESTIONS },
+        lib: { structures: m.STRUCTURES, conditions: m.CONDITIONS, procedures: m.PROCEDURES, medications: m.MEDICATIONS, cathlab: m.CATHLAB, quiz: m.QUIZ_QUESTIONS, courses: m.COURSES },
         loading: false,
       });
     })
@@ -55,10 +58,11 @@ export function useContent(): ContentLibrary | null {
   return lib;
 }
 
-export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case';
+export type SearchKind = 'structure' | 'condition' | 'procedure' | 'medication' | 'cathlab' | 'case' | 'lesson' | 'tool' | 'simcase' | 'term';
 
 export interface SearchHit {
   kind: SearchKind;
+  /** the library item's id; for a lesson, "course/lesson" */
   id: string;
   name: string;
   sub: string;
@@ -69,13 +73,55 @@ function norm(s: string) {
   return s.toLowerCase().normalize('NFKD').replace(/[^\w\s/+-]/g, ' ');
 }
 
-/** Lightweight ranked search across the whole library (names, synonyms, summaries) */
-export function searchLibrary(lib: ContentLibrary, cases: { id: string; title: string }[], query: string, limit = 24): SearchHit[] {
+/** Something to find that is not a library page: a tool, a simulator case, a glossary term */
+export interface SearchExtra {
+  kind: 'tool' | 'simcase' | 'term';
+  id: string;
+  name: string;
+  sub: string;
+  /** other words people type for it */
+  keys: string[];
+}
+
+/** What people type → the word the library uses for it */
+const ALIASES: [RegExp, string][] = [
+  [/\bekgs?\b/g, 'ecg'],
+  [/\bheart attacks?\b/g, 'stemi'],
+  [/\ba[- ]?fib\b/g, 'atrial fibrillation'],
+  [/\ba[- ]?flutter\b/g, 'atrial flutter'],
+  [/\bv[- ]?tach\b/g, 'ventricular tachycardia'],
+  [/\bv[- ]?fib\b/g, 'ventricular fibrillation'],
+  [/\bchf\b/g, 'heart failure'],
+  [/\bheart block\b/g, 'av block'],
+  [/\bnitro\b/g, 'nitroglycerin'],
+  [/\bepi\b/g, 'epinephrine'],
+  [/\basa\b/g, 'aspirin'],
+  [/\btnk\b/g, 'tenecteplase'],
+  [/\bblood thinners?\b/g, 'anticoagulant'],
+  [/\bwidow ?maker\b/g, 'lad'],
+  [/\bpacer\b/g, 'pacemaker'],
+  [/\bbypass\b/g, 'cabg'],
+];
+
+/** The query with everyday words swapped for the library's own (null when nothing changes) */
+export function withAliases(q: string): string | null {
+  let out = q;
+  for (const [re, to] of ALIASES) out = out.replace(re, to);
+  return out === q ? null : out;
+}
+
+/**
+ * Lightweight ranked search across the whole library (names, synonyms, summaries), the guided lessons and
+ * whatever else the caller offers (`extras`: tools, simulator cases). Everyday words are understood too
+ * ("ekg", "heart attack", "afib"): a query is tried as typed and with those words swapped for the library's own.
+ */
+export function searchLibrary(lib: ContentLibrary, cases: { id: string; title: string }[], query: string, limit = 24, extras: SearchExtra[] = []): SearchHit[] {
   const q = norm(query).trim();
   if (q.length < 2) return [];
-  const terms = q.split(/\s+/).filter(Boolean);
+  const alias = withAliases(q);
+  const queries = [q, ...(alias ? [alias] : [])].map((x) => x.split(/\s+/).filter(Boolean));
   const hits: SearchHit[] = [];
-  const score = (name: string, extra: string[], body: string) => {
+  const scoreFor = (terms: string[], name: string, extra: string[], body: string) => {
     const n = norm(name);
     let s = 0;
     for (const t of terms) {
@@ -88,6 +134,7 @@ export function searchLibrary(lib: ContentLibrary, cases: { id: string; title: s
     }
     return s;
   };
+  const score = (name: string, extra: string[], body: string) => Math.max(...queries.map((terms) => scoreFor(terms, name, extra, body)));
   for (const s of Object.values(lib.structures)) {
     const sc = score(s.name, s.synonyms, norm(s.summary));
     if (sc) hits.push({ kind: 'structure', id: s.id, name: s.name, sub: s.group.replace('-', ' '), score: sc + 0.5 });
@@ -111,6 +158,18 @@ export function searchLibrary(lib: ContentLibrary, cases: { id: string; title: s
   for (const c of cases) {
     const sc = score(c.title, [], '');
     if (sc) hits.push({ kind: 'case', id: c.id, name: c.title, sub: 'Case scenario', score: sc });
+  }
+  // guided lessons: by title, by what the lesson teaches and by the titles of its steps
+  for (const course of lib.courses) {
+    for (const l of course.lessons) {
+      const sc = score(l.title, [course.title, ...l.steps.map((s) => s.title)], norm(l.goal));
+      if (sc) hits.push({ kind: 'lesson', id: `${course.id}/${l.id}`, name: l.title, sub: `Lesson · ${course.title}`, score: sc + 0.1 });
+    }
+  }
+  for (const x of extras) {
+    const sc = score(x.name, x.keys, '');
+    // a tool named in the query is very likely what was wanted; a glossary term comes just after the library page of the same name
+    if (sc) hits.push({ kind: x.kind, id: x.id, name: x.name, sub: x.sub, score: sc + (x.kind === 'tool' ? 2 : x.kind === 'term' ? -0.2 : 0) });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }

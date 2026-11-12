@@ -1,0 +1,154 @@
+import { create } from 'zustand';
+
+/**
+ * Guided courses: the lesson being taken, and what has been finished (kept on this device).
+ * The lessons themselves are in `src/data/courses/`; what a step shows is applied by `src/lib/courses.ts`.
+ */
+export interface LessonProgress {
+  /** the step the learner had reached (to resume) */
+  step: number;
+  done: boolean;
+  /** checks answered right at the first try, of all the checks in the lesson (the best finished run) */
+  correct: number;
+  total: number;
+  /** when it was last opened (ms since 1970), to offer "continue" */
+  at: number;
+  /**
+   * a new run of a finished lesson is under way ("Do this lesson again", or picked again from a list): it resumes at
+   * `step` with its own answers and is offered to continue, like an unfinished lesson; `done`, `correct` and `total`
+   * still hold the best finished run until this one is finished
+   */
+  rerun?: boolean;
+  /**
+   * the answers of the run in progress (or of the last finished run), by step index: leaving the lesson and coming
+   * back — by the close button, Back, or a library page opened from a step — keeps them, so the score counts them
+   */
+  answers?: Record<number, StepAnswer>;
+}
+
+export interface StepAnswer {
+  /** right at the first try */
+  ok: boolean;
+  /** answered right in the end (after however many tries) */
+  solved: boolean;
+  tries: number;
+  /** choice checks: the option picked first */
+  picked?: number;
+}
+
+export interface ActiveLesson {
+  course: string;
+  lesson: string;
+  step: number;
+}
+
+interface CourseState {
+  active: ActiveLesson | null;
+  /** answers given in this run of the active lesson, by step index */
+  answers: Record<number, StepAnswer>;
+  /** the last step is done: the lesson's result card is showing */
+  finished: boolean;
+  /**
+   * the result card was shown again (Back to a finished lesson), not reached by finishing a run just now: only then
+   * may it fall back to the best run's score when the answers of the last run are not known
+   */
+  restored: boolean;
+  progress: Record<string, LessonProgress>;
+
+  /**
+   * Open a lesson at `step`. `fresh`: a new run (its answers start empty); otherwise the answers saved with the
+   * lesson come back. `finished`: show the result card of the last finished run (a page restored by Back).
+   */
+  begin: (course: string, lesson: string, step: number, opts?: { fresh?: boolean; finished?: boolean }) => void;
+  setStep: (step: number) => void;
+  /** record one try at the current step's check; returns the answer so far */
+  answer: (step: number, right: boolean, picked?: number) => StepAnswer;
+  /** the learner finished the last step: store the result (`total` checks in the lesson) */
+  finish: (total: number) => void;
+  /** leave the lesson (progress so far is kept) */
+  end: () => void;
+  resetProgress: () => void;
+}
+
+const KEY = 'cardiosim.courses.v1';
+export const lessonKey = (course: string, lesson: string) => `${course}/${lesson}`;
+
+function load(): Record<string, LessonProgress> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, LessonProgress>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function save(progress: Record<string, LessonProgress>) {
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(progress));
+  } catch {
+    /* storage unavailable (private mode): progress lasts for this visit only */
+  }
+}
+
+export const useCourseStore = create<CourseState>((set, get) => {
+  const touch = (key: string, patch: Partial<LessonProgress>) => {
+    const old = get().progress[key] ?? { step: 0, done: false, correct: 0, total: 0, at: 0 };
+    const progress = { ...get().progress, [key]: { ...old, ...patch, at: Date.now() } };
+    set({ progress });
+    save(progress);
+  };
+  return {
+    active: null,
+    answers: {},
+    finished: false,
+    restored: false,
+    progress: load(),
+
+    begin: (course, lesson, step, opts = {}) => {
+      const key = lessonKey(course, lesson);
+      const saved = get().progress[key];
+      const answers = opts.fresh ? {} : { ...(saved?.answers ?? {}) };
+      set({ active: { course, lesson, step }, answers, finished: !!opts.finished, restored: !!opts.finished });
+      // a finished lesson shown again keeps its "done" place (step 0, to start again from the top); a new run of a
+      // finished lesson is marked, so that coming back to it resumes the run rather than showing the old result
+      if (opts.finished) touch(key, { answers });
+      else touch(key, opts.fresh && saved?.done ? { step, answers, rerun: true } : { step, answers });
+    },
+    setStep: (step) => {
+      const a = get().active;
+      if (!a) return;
+      set({ active: { ...a, step }, finished: false, restored: false });
+      touch(lessonKey(a.course, a.lesson), { step });
+    },
+    answer: (step, right, picked) => {
+      const prev = get().answers[step];
+      const next: StepAnswer = prev
+        ? { ...prev, tries: prev.solved ? prev.tries : prev.tries + 1, solved: prev.solved || right }
+        : { ok: right, solved: right, tries: 1, picked };
+      const answers = { ...get().answers, [step]: next };
+      set({ answers });
+      const a = get().active;
+      if (a) touch(lessonKey(a.course, a.lesson), { answers });
+      return next;
+    },
+    finish: (total) => {
+      const a = get().active;
+      if (!a) return;
+      const key = lessonKey(a.course, a.lesson);
+      const correct = Object.values(get().answers).filter((x) => x.ok).length;
+      const old = get().progress[key];
+      // keep the best finished run's score
+      const best = old?.done && old.total === total ? Math.max(old.correct, correct) : correct;
+      // the card that follows is this run's: scored from its own answers, never the saved best
+      set({ finished: true, restored: false });
+      touch(key, { step: 0, done: true, correct: best, total, rerun: false });
+    },
+    end: () => set({ active: null, answers: {}, finished: false, restored: false }),
+    resetProgress: () => {
+      set({ progress: {} });
+      save({});
+    },
+  };
+});

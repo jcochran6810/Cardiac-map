@@ -1,5 +1,5 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
-import { has, line } from '../kit';
+import { bpAfter, has, line } from '../kit';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, operator, type LabAsk } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
@@ -111,7 +111,7 @@ export const cathlabPerforation: Scenario = {
   facts: {
     allergies: 'No allergies. Yes — I agreed to the stent.',
     sample: 'No allergies. Aspirin, clopidogrel, atorvastatin, lisinopril. High blood pressure.',
-    labs: 'Pre-procedure: haemoglobin 13.1, creatinine 0.8, platelets 240, INR 1.0.',
+    labs: 'Pre-procedure: hemoglobin 13.1, creatinine 0.8, platelets 240, INR 1.0.',
     ecg12: (s) => `Sinus rhythm ${s.rhythm.hr}, low voltage in the limb leads, no new ST elevation.`,
     echo: 'A new pericardial effusion, 1.5 cm, with the right ventricle collapsing in diastole and a plethoric IVC.',
   },
@@ -126,7 +126,11 @@ export const cathlabPerforation: Scenario = {
     echo: (s) => ({ say: [['you', has(s, 'drained') ? 'A small residual effusion; the right ventricle fills normally.' : 'A new pericardial effusion, 1.5 cm, with the right ventricle collapsing in diastole and a plethoric IVC.']], flags: ['echo'] }),
     'stent-covered': (s) => (s.role === 5 ? { say: [['you', 'Covered stent, 3.0 × 16, deployed across the hole.']], flags: ['covered-stent', 'sealed'] } : null),
     'final-angio': (s) => (s.role === 5 ? { ...finalRun('you'), flags: ['final-angio'] } : null),
-    fluid: (s) => ({ say: [['monitor', `Fluid wide open. BP ${s.vitals.sbp + 10}/${s.vitals.dbp + 6}.`]], vitals: { sbp: s.vitals.sbp + 10, dbp: s.vitals.dbp + 6 }, flags: ['fluid'] }),
+    fluid: (s) => {
+      if (!s.pulse) return { say: [['you', 'Fluid running wide open.']], flags: ['fluid'] };
+      const bp = bpAfter(s, 10, 6);
+      return { say: [['monitor', `Fluid wide open. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['fluid'] };
+    },
     cpr: (s) => (!s.pulse ? { say: [['you', 'Compressions — but the heart is squeezed by the blood around it: CPR barely moves a pressure.', 'warn']], flags: ['cpr'] } : null),
   },
   events: [
@@ -154,14 +158,19 @@ export const cathlabPerforation: Scenario = {
     ...RN_ASKS.flatMap(askEvents),
     {
       id: 'tamponade', when: (s) => has(s, 'perforation') && !has(s, 'drained') && s.minute >= (has(s, 'balloon-up') ? 2 : 1),
-      effect: (s) => ({
-        say: [
-          ['monitor', 'BP 76/52, heart rate 124; the RA pressure is rising. On fluoroscopy the heart border barely moves.', 'bad'],
-          ['patient', '"I feel faint…"'],
-          ...(s.role === 5 ? [line('team', 'Tech: "Doctor — pressure\'s 76!"', 'warn')] : []),
-        ],
-        vitals: { sbp: 76, dbp: 52, gcs: 14 }, rhythm: { ...s.rhythm, hr: 124 }, flags: ['tamponade'], read: tamponadeRead,
-      }),
+      effect: (s) => {
+        // the tamponade squeezes the heart: the pressure falls to 76/52, or stays lower if a drug had already dropped it
+        const sbp = Math.min(s.vitals.sbp, 76);
+        const dbp = Math.min(s.vitals.dbp, 52);
+        return {
+          say: [
+            ['monitor', `BP ${sbp}/${dbp}, heart rate 124; the RA pressure is rising. On fluoroscopy the heart border barely moves.`, 'bad'],
+            ['patient', '"I feel faint…"'],
+            ...(s.role === 5 ? [line('team', `Tech: "Doctor — pressure's ${sbp}!"`, 'warn')] : []),
+          ],
+          vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 14) }, rhythm: { ...s.rhythm, hr: 124 }, flags: ['tamponade'], read: tamponadeRead,
+        };
+      },
     },
     {
       id: 'surgery-for-tech', when: (s) => s.role === 3 && has(s, 'perforation'),
@@ -195,14 +204,14 @@ export const cathlabPerforation: Scenario = {
     { id: 'final', label: 'Final angiogram: no more leak', why: 'Prove the seal before you leave.', done: ['final-angio'], after: 'perforation', roles: MD, points: 5 },
     ...TECH_ASKS.map(askCritical),
     ...RN_ASKS.map(askCritical),
-    { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent haemostasis, as always.', done: ['hemostasis'], after: 'sealed', roles: [3, 4], points: 5, applies: (s) => has(s, 'sealed') },
+    { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always.', done: ['hemostasis'], after: 'sealed', roles: [3, 4], points: 5, applies: (s) => has(s, 'sealed') },
     { id: 'handoff', label: 'Hand-off to the cardiac ICU', why: 'The perforation, the covered stent, the drain and how much came out, the heparin decision, surgery\'s plan, and a repeat echo.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
     { id: 'des-for-perforation', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'perforation'), points: 4, severity: 'minor', text: 'A drug-eluting stent for a perforation. It does not seal the hole; a covered stent does.' },
     { id: 'gp-in-perforation', actions: ['gp2b3a'], when: (s) => has(s, 'perforation'), points: 12, severity: 'critical', text: 'A GP IIb/IIIa inhibitor during an active perforation. It keeps the hole bleeding.' },
     { id: 'more-heparin', actions: ['heparin', 'bivalirudin'], when: (s) => has(s, 'perforation'), points: 10, severity: 'major', text: 'More anticoagulant during an active perforation.' },
-    { id: 'nitro-in-tamponade', actions: ['nitro', 'ic-nitro'], when: (s) => has(s, 'perforation'), points: 6, severity: 'major', text: 'Nitroglycerin with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
+    { id: 'nitro-in-tamponade', actions: ['nitro', 'ic-nitro'], when: (s) => has(s, 'perforation'), replaces: ['nitro-hypotension'], points: 6, severity: 'major', text: 'Nitroglycerin with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
     { id: 'beta-blocker', actions: ['metoprolol'], when: (s) => has(s, 'perforation'), points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a covered stent to seal the perforation.'),
     askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5),

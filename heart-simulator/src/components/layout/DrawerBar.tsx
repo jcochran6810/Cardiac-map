@@ -2,24 +2,27 @@
 
 import React from 'react';
 import { useAppStore, type ViewMode } from '@/store/useAppStore';
-import { useECGStore } from '@/store/useECGStore';
+import { useECGStore, useRateHidden } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { IconChevron, IconCollapse, IconCube, IconExpand, IconPulse } from '@/components/ui/icons';
 
 const VIEW_LABEL: Record<ViewMode, string> = {
   external: 'Exterior', sectioned: 'Sectioned', xray: 'X-ray', conduction: 'Conduction', territories: 'Territories', activation: 'Activation map',
 };
-const ECG_LABEL = { ecg: '12-lead EKG', wiggers: 'Pressure & volume', defib: 'Defibrillator' } as const;
+const ECG_LABEL = { ecg: '12-lead ECG', wiggers: 'Pressure & volume', defib: 'Defibrillator' } as const;
+/** what the bottom drawer's button hides */
+const ECG_SHORT = { ecg: 'ECG', wiggers: 'pressure & volume', defib: 'defibrillator' } as const;
 
 /**
  * The learning screen's two drawer bars: "3D heart" at the top slides the heart down,
- * "12-lead EKG" at the bottom slides the ECG up. The same button closes it again; ⤢ gives it the whole screen.
+ * "12-lead ECG" at the bottom slides the ECG up. The same button closes it again; ⤢ gives it the whole screen.
  */
 export default function DrawerBar({ kind, style }: { kind: 'heart' | 'ecg'; style?: React.CSSProperties }) {
   const state = useAppStore((s) => (kind === 'heart' ? s.heart : s.ecg));
   const viewMode = useAppStore((s) => s.viewMode);
   const bottomView = useECGStore((s) => s.bottomView);
   const hr = useTimelineStore((s) => s.displayHR);
+  const rateHidden = useRateHidden();
   const open = state !== 'closed';
   const heart = kind === 'heart';
   const name = heart ? '3D heart' : ECG_LABEL[bottomView];
@@ -42,7 +45,7 @@ export default function DrawerBar({ kind, style }: { kind: 'heart' | 'ecg'; styl
         {heart ? (
           <span className="truncate hidden xs:inline">{open ? `${VIEW_LABEL[viewMode]} view` : ''}</span>
         ) : (
-          <span className="font-mono text-emerald-400" title="Heart rate on the monitor">{hr > 0 ? hr : '---'}<span className="ml-0.5 font-sans text-[10px] text-slate-500">bpm</span></span>
+          <span className="font-mono text-emerald-400" title="Heart rate on the monitor">{rateHidden ? '··' : hr > 0 ? hr : '---'}<span className="ml-0.5 font-sans text-[10px] text-slate-500">bpm</span></span>
         )}
       </div>
 
@@ -56,7 +59,7 @@ export default function DrawerBar({ kind, style }: { kind: 'heart' | 'ecg'; styl
         }`}
       >
         {heart ? <IconCube size={15} /> : <IconPulse size={15} />}
-        {open ? `Hide ${heart ? '3D heart' : 'EKG'}` : name}
+        {open ? `Hide ${heart ? '3D heart' : ECG_SHORT[bottomView]}` : name}
         <IconChevron size={14} className={down ? 'rotate-90' : '-rotate-90'} />
       </button>
 

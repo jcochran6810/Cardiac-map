@@ -12,7 +12,7 @@ import {
   AnyLead, DipolePulse, LEAD_VECTORS, Vec3, dot, norm, rotateAbout, scale,
 } from './vector';
 import {
-  ECGProfile, P_TEMPLATES, PTemplate, QRS_TEMPLATES, QRSTemplate, TWaveSpec,
+  ECGProfile, P_TEMPLATES, PTemplate, QRS_TEMPLATES, QRSTemplate, RhythmKind, TWaveSpec,
   prForRate, qtForRR, resolveProfile,
 } from './profiles';
 import { applyMods, modsKey, type RhythmMods } from './mods';
@@ -29,6 +29,13 @@ export interface AtrialEvent {
   prEnd?: number;
   prSegment?: Vec3;
   scale: number;
+  /**
+   * When the beat this wave is part of began, if that is before the wave itself (the retrograde P after an SVT
+   * beat, the blocked sinus P that goes with a PVC). A beat that has begun is finished: see ECGEngine.setRhythm.
+   */
+  onset?: number;
+  /** Place in the rhythm's repeating pattern (Wenckebach group, every-4th PVC, alternans), so a change of rate carries on from it */
+  n?: number;
 }
 
 export interface VentEvent {
@@ -48,6 +55,10 @@ export interface VentEvent {
   efficiency: number;
   /** Cycle length (ms) used for rate-dependent timing (QT, ejection time) */
   rr: number;
+  /** Cycle length the QT was worked out from, where that is not `rr` (atrial fibrillation: the average cycle) */
+  qtRR?: number;
+  /** When this beat began, if that is before its QRS and it has no `pTime` (the retrograde P ahead of a junctional beat, the blocked P ahead of a late PVC) */
+  onset?: number;
   /** Isovolumic relaxation override (ms) — short when LA pressure is high (mitral stenosis) */
   ivrt?: number;
 }
@@ -59,7 +70,22 @@ interface Segment {
   hr: number;
   /** key of the drug modifiers in force (empty when none) */
   mods: string;
+  /**
+   * When this rhythm began. It is carried over while only the rate or a drug effect changes, so that flutter
+   * waves, the twisting of torsades and the coarse-to-fine decay of VF run on without a jump.
+   */
+  origin: number;
 }
+
+/** Rhythms whose P waves come from the sinus node, whether or not they reach the ventricles */
+const SINUS_P: ReadonlySet<RhythmKind> = new Set<RhythmKind>(['sinus', 'pvc', 'wenckebach', 'mobitz2', 'paced', 'chb', 'vpaced', 'vt', 'aivr']);
+
+/** The T wave is over by this fraction of the cycle: a QT cannot outlast the RR interval it sits in */
+const QT_ROOM = 0.9;
+/** Shortest JT (end of QRS to end of T), ms: keeps the T wave of a wide beat clear of its QRS */
+const MIN_JT = 140;
+/** How much of the recording is kept once it is trimmed, ms */
+const KEEP_MS = 5 * 60000;
 
 // ─── Deterministic noise helpers ───────────────────────────────────────────
 
@@ -72,6 +98,11 @@ function mulberry32(seed: number) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** One repeatable draw in [0, 1) for a moment in time (the same moment always gives the same draw) */
+function unit(t: number): number {
+  return mulberry32(Math.round(t * 16))();
 }
 
 function hash1(n: number): number {
@@ -115,7 +146,13 @@ function buildVent(
   profile: ECGProfile,
   templateId: string,
   rr: number,
-  opts: { pTime?: number; amp?: number; rotate?: { axis: Vec3; angle: number }; useProfileT?: boolean; spike?: boolean } = {},
+  opts: {
+    pTime?: number; amp?: number; rotate?: { axis: Vec3; angle: number }; useProfileT?: boolean; spike?: boolean;
+    /** cycle length the QT follows, when that is not `rr` */
+    qtRR?: number;
+    /** time until the next QRS, when that is not `rr` */
+    room?: number;
+  } = {},
 ): VentEvent {
   const tpl = QRS_TEMPLATES[templateId] ?? QRS_TEMPLATES.normal;
   const widen = kind === 'conducted' || kind === 'svt' || kind === 'junctional' ? profile.qrsWiden ?? 1 : 1;
@@ -126,7 +163,9 @@ function buildVent(
     pulses = pulses.map((p) => ({ ...p, v: rotateAbout(p.v, axis, angle) }));
   }
   const qrsDur = tpl.duration * widen;
-  const qt = Math.max(qtForRR(profile.qtc, rr), qrsDur + 190);
+  // Fridericia for the cycle length; a wide QRS still needs a short JT after it; and whatever the formula says,
+  // the T wave is over before the next beat is due (at very fast rates the QT has to shorten with the cycle)
+  const qt = Math.min(Math.max(qtForRR(profile.qtc, opts.qtRR ?? rr), qrsDur + MIN_JT), QT_ROOM * (opts.room ?? rr));
   const useProfile = opts.useProfileT ?? (kind === 'conducted' || kind === 'svt' || kind === 'junctional');
   const tSpec: TWaveSpec = useProfile && profile.t ? profile.t : tpl.t;
   let tw = buildT(tSpec, qt);
@@ -135,7 +174,8 @@ function buildVent(
   let st: Vec3 | undefined;
   if (useProfile && profile.injury) st = profile.injury;
   if (tpl.st) st = st ? [st[0] + tpl.st[0], st[1] + tpl.st[1], st[2] + tpl.st[2]] : tpl.st;
-  const efficiency = kind === 'conducted' || kind === 'svt' || kind === 'junctional'
+  // (a narrow escape beat comes from the AV junction and spreads through the normal wiring: it squeezes like a conducted beat)
+  const efficiency = kind === 'conducted' || kind === 'svt' || kind === 'junctional' || (kind === 'escape' && tpl.duration < 120)
     ? (tpl.conduction === 'lbbb' ? 0.85 : 1)
     : kind === 'paced' ? 0.85 : kind === 'torsades' ? 0.15 : kind === 'vt' ? 0.6 : 0.7;
   return {
@@ -145,6 +185,7 @@ function buildVent(
     conduction: tpl.conduction ?? 'normal',
     efficiency,
     rr,
+    qtRR: opts.qtRR,
     ivrt: profile.hemo === 'mitral-stenosis' ? 65 : undefined,
   };
 }
@@ -173,6 +214,8 @@ export class ECGEngine {
   atrial: AtrialEvent[] = [];
   vent: VentEvent[] = [];
   segments: Segment[] = [];
+  /** The recording before this time has been discarded (0 while all of it is still kept) */
+  keptFrom = 0;
   private gen: Generator | null = null;
 
   constructor(profileId = 'normal-sinus', hr = 72) {
@@ -191,19 +234,31 @@ export class ECGEngine {
   setRhythm(profileId: string, hr: number, now: number, mods: RhythmMods | null = null, from = now) {
     const base = resolveProfile(profileId);
     const key = modsKey(mods);
+    const rate = hr > 0 ? hr : base.defaultHR;
     const start = Math.max(0, Math.min(from, now));
     const cur = this.segments[this.segments.length - 1];
-    if (cur && cur.profile.id === base.id && cur.hr === hr && cur.mods === key && cur.start <= start) return;
+    // Nothing to change. That holds too when `now` lies before the start of this rhythm: the playhead was dragged
+    // back into the recording, which is replayed as it was recorded — only an explicit rewrite (`from` before
+    // `now`) or a real change made there replaces it.
+    if (cur && cur.profile.id === base.id && cur.hr === rate && cur.mods === key && (cur.start <= start || from >= now)) return;
     const profile = applyMods(base, mods);
 
-    // Drop anything scheduled after the switch
-    this.atrial = this.atrial.filter((e) => e.t <= start);
-    this.vent = this.vent.filter((e) => e.t <= start);
-    // Segments that start later (after a scrub-back, or inside the rewritten past) are discarded
+    // A beat that has begun is finished: once its P wave is on the screen its QRS follows (and so does the
+    // retrograde P of a QRS already drawn), so a change of rate, rhythm or drug never leaves a P wave without
+    // its QRS. Everything scheduled after that is dropped. In VF and asystole the ventricles have stopped
+    // beating, so there nothing more follows.
+    const stopped = profile.rhythm === 'vf' || profile.rhythm === 'asystole';
+    this.atrial = this.atrial.filter((e) => (stopped ? e.t : e.onset ?? e.t) <= start);
+    this.vent = this.vent.filter((e) => (stopped ? e.t : e.onset ?? e.pTime ?? e.t) <= start);
+    // Segments that start later (a change made after dragging back, or inside the rewritten past) are discarded
     this.segments = this.segments.filter((s) => s.start < start);
-    const seg: Segment = { start, profile, hr: hr > 0 ? hr : profile.defaultHR, mods: key };
+    const before = this.segments[this.segments.length - 1];
+    const seg: Segment = {
+      start, profile, hr: rate, mods: key,
+      origin: before && before.profile.rhythm === profile.rhythm ? before.origin : start,
+    };
     this.segments.push(seg);
-    this.gen = this.createGenerator(seg);
+    this.gen = this.createGenerator(seg, before);
   }
 
   /** Make sure events exist up to `until` ms. */
@@ -216,39 +271,69 @@ export class ECGEngine {
 
   private prune(until: number) {
     if (this.vent.length < 3000 && this.atrial.length < 3000) return;
-    const cutoff = until - 60000;
-    this.atrial = this.atrial.filter((e) => e.t > cutoff);
-    this.vent = this.vent.filter((e) => e.t > cutoff);
+    const cutoff = until - KEEP_MS;
+    // In place: the running generator goes on adding beats to these same lists
+    this.atrial.splice(0, ECGEngine.lastIndex(this.atrial, cutoff) + 1);
+    this.vent.splice(0, ECGEngine.lastIndex(this.vent, cutoff) + 1);
+    this.keptFrom = Math.max(this.keptFrom, cutoff);
   }
 
+  /** The rhythm in force at time `t`: the latest segment that had begun by then (the first one for any earlier time) */
   segmentAt(t: number): Segment {
-    for (let i = this.segments.length - 1; i >= 0; i--) {
-      if (this.segments[i].start <= t) return this.segments[i];
+    // Segments are in order of their start. A binary search, because every step of a dragged rate slider adds
+    // one: looking back into a long recording must not walk through all of them for every sample that is drawn.
+    let lo = 0;
+    let hi = this.segments.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (this.segments[mid].start <= t) lo = mid;
+      else hi = mid - 1;
     }
-    return this.segments[0];
+    return this.segments[lo];
   }
 
   // ─── Generators ──────────────────────────────────────────────────────────
 
-  private createGenerator(seg: Segment): Generator {
+  /**
+   * Schedules the beats of a segment. `before` is the rhythm in force until then: what a monitor shows at a
+   * change is the last beat, then the next one a full cycle of the NEW rhythm later — never an extra early beat,
+   * and never before the last T wave is over. A pacemaker that simply carries on (the sinus node through a change
+   * of rate, an escape focus, flutter waves) keeps its own time.
+   */
+  private createGenerator(seg: Segment, before?: Segment): Generator {
     const { profile } = seg;
     const hr = seg.hr;
-    const rng = mulberry32(Math.floor(seg.start) * 9301 + 49297);
+    const start = seg.start;
+    const was = before?.profile.rhythm;
+    const rng = mulberry32(Math.floor(start) * 9301 + 49297);
     const lastV = this.vent[this.vent.length - 1];
     const lastA = this.atrial[this.atrial.length - 1];
     const rrNominal = hr > 0 ? 60000 / hr : 1000;
-    // Earliest time the next ventricular beat can begin (after previous T wave)
-    const vReady = lastV ? Math.max(seg.start, lastV.t + Math.min(lastV.qt + 60, Math.max(250, rrNominal * 0.85))) : seg.start + 120;
-    const aReady = lastA ? Math.max(seg.start, lastA.t + 200) : seg.start + 50;
+    // The same kind of rhythm carries on: only its rate or a drug effect changed
+    const same = was === profile.rhythm;
+    // The sinus node was setting the atrial rate and still does: its next P comes one sinus cycle after its last
+    const sinusOn = !!lastA && lastA.kind === 'sinus' && !!was && SINUS_P.has(was);
+    // The last T wave has to be over before the next QRS (the same room a QT is given within its own cycle)
+    const tOver = lastV ? lastV.t + lastV.qt / QT_ROOM : Number.NEGATIVE_INFINITY;
+    // Earliest next beat of a ventricular (or AV-nodal) pacemaker: one new cycle after the last beat
+    const vReady = lastV ? Math.max(start, lastV.t + rrNominal, tOver) : start + 120;
+    const aReady = lastA ? Math.max(start, lastA.t + 200) : start + 50;
     const pr = prForRate(profile.pr, hr);
     const atrial = this.atrial;
     const vent = this.vent;
-    let beat = 0;
-    let lastQRS = lastV ? lastV.t : seg.start - rrNominal;
+    let lastQRS = lastV ? lastV.t : start - rrNominal;
+    let lastQT = lastV ? lastV.qt : 0;
 
     const pushV = (e: VentEvent) => {
       vent.push(e);
       lastQRS = e.t;
+      lastQT = e.qt;
+    };
+    const pushA = (e: AtrialEvent) => {
+      // A wave kept from a beat in progress can lie a little ahead: the list stays in time order
+      let i = atrial.length;
+      while (i > 0 && atrial[i - 1].t > e.t) i--;
+      atrial.splice(i, 0, e);
     };
 
     switch (profile.rhythm) {
@@ -257,44 +342,52 @@ export class ECGEngine {
       case 'wenckebach':
       case 'mobitz2':
       case 'paced': {
-        let nextP = Math.max(aReady, vReady - (profile.rhythm === 'paced' ? 160 : pr));
+        const av = profile.rhythm === 'paced' ? 160 : pr;
+        const pReady = sinusOn ? lastA.t + rrNominal : lastA ? lastA.t + 200 : start + 50;
+        // The QRS that follows the P needs the ventricles ready: after the last T wave and, when another
+        // pacemaker fired the last beat (VT, an escape rhythm, AF, SVT), one new cycle after that beat. What
+        // counts is the beat itself, not the rhythm in force until now: a second change (the rate nudged just
+        // after the rhythm was chosen) can arrive before this rhythm has had a beat of its own.
+        const ownBeat = !!lastV && (lastV.pTime !== undefined || lastV.kind === 'pvc');
+        const vFloor = lastV && !(sinusOn && ownBeat) ? Math.max(tOver, lastV.t + rrNominal) : tOver;
+        let nextP = Math.max(start, pReady, vFloor - av);
+        let n = same && lastA?.n !== undefined ? lastA.n + 1 : 0;
         const rsa = hr < 100 ? 0.025 : 0.008;
         return {
           get cursor() { return nextP; },
           step() {
             const rr = rrNominal * (1 + rsa * Math.sin((2 * Math.PI * nextP) / 4600));
-            const idx = beat++;
+            const idx = n++;
+            const p = (conducted: boolean, prEnd?: number): AtrialEvent => ({ ...buildAtrial(nextP, profile, 'sinus', conducted, prEnd), n: idx });
+            // Electrical alternans: the heart swings in the effusion, so every other QRS is smaller
+            const amp = profile.alternans && idx % 2 ? 1 - profile.alternans : 1;
+            const conduct = (delay: number) => {
+              pushA(p(true, nextP + delay));
+              pushV(buildVent(nextP + delay, 'conducted', profile, profile.qrs, rr, { pTime: nextP, amp }));
+            };
             if (profile.avBlock && profile.rhythm !== 'paced') {
               // Every P blocked at the AV node (adenosine): P waves march on without QRS complexes
-              atrial.push(buildAtrial(nextP, profile, 'sinus', false));
+              pushA(p(false));
             } else if (profile.rhythm === 'pvc' && idx % 4 === 3) {
-              // PVC arrives early; the sinus P on schedule is blocked (full compensatory pause)
-              const pvcT = lastQRS + rrNominal * 0.6;
-              pushV(buildVent(pvcT, 'pvc', profile, 'pvc', rr * 0.6));
-              atrial.push(buildAtrial(nextP, profile, 'sinus', false));
+              // The PVC arrives early — but after the T wave before it, not on it, which at fast sinus rates
+              // leaves it only a little early. The sinus P on schedule is blocked (full compensatory pause).
+              const pvcT = Math.max(start, lastQRS + Math.max(rrNominal * 0.6, lastQT + 20));
+              const onset = Math.min(pvcT, nextP);
+              // One beat: whichever of the two is drawn first, the other follows
+              pushV({ ...buildVent(pvcT, 'pvc', profile, 'pvc', rr * 0.6, { room: nextP + rr + pr - pvcT }), onset });
+              pushA({ ...p(false), onset });
             } else if (profile.rhythm === 'wenckebach') {
               const cyc = idx % 4;
-              if (cyc === 3) {
-                atrial.push(buildAtrial(nextP, profile, 'sinus', false));
-              } else {
-                const prI = pr + [0, 95, 140][cyc];
-                atrial.push(buildAtrial(nextP, profile, 'sinus', true, nextP + prI));
-                pushV(buildVent(nextP + prI, 'conducted', profile, profile.qrs, rr, { pTime: nextP }));
-              }
+              if (cyc === 3) pushA(p(false));
+              else conduct(pr + [0, 95, 140][cyc]);
             } else if (profile.rhythm === 'mobitz2') {
-              if (idx % 4 === 3) {
-                atrial.push(buildAtrial(nextP, profile, 'sinus', false));
-              } else {
-                atrial.push(buildAtrial(nextP, profile, 'sinus', true, nextP + pr));
-                pushV(buildVent(nextP + pr, 'conducted', profile, profile.qrs, rr, { pTime: nextP }));
-              }
+              if (idx % 4 === 3) pushA(p(false));
+              else conduct(pr);
             } else if (profile.rhythm === 'paced') {
-              const av = 160;
-              atrial.push(buildAtrial(nextP, profile, 'sinus', true, nextP + av));
+              pushA(p(true, nextP + av));
               pushV(buildVent(nextP + av, 'paced', profile, 'paced', rr, { pTime: nextP, spike: true }));
             } else {
-              atrial.push(buildAtrial(nextP, profile, 'sinus', true, nextP + pr));
-              pushV(buildVent(nextP + pr, 'conducted', profile, profile.qrs, rr, { pTime: nextP }));
+              conduct(pr);
             }
             nextP += rr;
           },
@@ -303,17 +396,21 @@ export class ECGEngine {
 
       case 'chb': {
         const atrialRR = 60000 / 76;
-        let nextP = aReady + rng() * 300;
-        let nextV = Math.max(vReady, seg.start + 400);
+        let nextP = sinusOn ? Math.max(start, lastA.t + atrialRR) : aReady + rng() * 300;
+        // A new escape focus takes a moment to wake up; one that is already running keeps its time
+        let nextV = same ? vReady : Math.max(vReady, start + 400);
+        // The escape beats carry the profile's ST-T where it has one (the injury current of an infarct, a drug
+        // effect); otherwise the secondary T wave of the escape complex itself
+        const useProfileT = !!(profile.injury || profile.t);
         return {
           get cursor() { return Math.min(nextP, nextV); },
           step() {
             if (nextP <= nextV) {
-              atrial.push(buildAtrial(nextP, profile, 'sinus', false));
+              pushA(buildAtrial(nextP, profile, 'sinus', false));
               nextP += atrialRR * (1 + 0.02 * Math.sin(nextP / 3100));
             } else {
               const rr = rrNominal * (1 + 0.015 * (rng() - 0.5));
-              pushV(buildVent(nextV, 'escape', profile, profile.qrs, rr, { useProfileT: false }));
+              pushV(buildVent(nextV, 'escape', profile, profile.qrs, rr, { useProfileT }));
               nextV += rr;
             }
           },
@@ -323,13 +420,13 @@ export class ECGEngine {
       case 'vpaced': {
         // Fixed-rate ventricular pacing (transcutaneous) with independent atrial activity
         const atrialRR = 60000 / 74;
-        let nextP = aReady + rng() * 300;
-        let nextV = Math.max(vReady, seg.start + 300);
+        let nextP = sinusOn ? Math.max(start, lastA.t + atrialRR) : aReady + rng() * 300;
+        let nextV = same ? vReady : Math.max(vReady, start + 300);
         return {
           get cursor() { return Math.min(nextP, nextV); },
           step() {
             if (nextP <= nextV) {
-              atrial.push(buildAtrial(nextP, profile, 'sinus', false));
+              pushA(buildAtrial(nextP, profile, 'sinus', false));
               nextP += atrialRR * (1 + 0.02 * Math.sin(nextP / 2900));
             } else {
               pushV(buildVent(nextV, 'paced', profile, 'paced', rrNominal, { spike: true, useProfileT: false }));
@@ -339,19 +436,22 @@ export class ECGEngine {
         };
       }
 
-      case 'vt': {
-        const atrialRR = 60000 / 82;
-        let nextP = aReady + rng() * 400;
+      case 'vt':
+      case 'aivr': {
+        // AIVR wins by running a little faster than the sinus node; VT runs away from it
+        const aivr = profile.rhythm === 'aivr';
+        const atrialRR = aivr ? rrNominal * 1.12 : 60000 / 82;
+        let nextP = sinusOn ? Math.max(start, lastA.t + atrialRR) : aReady + rng() * 400;
         let nextV = vReady;
         return {
           get cursor() { return Math.min(nextP, nextV); },
           step() {
             if (nextP <= nextV) {
               // AV dissociation: sinus P waves continue independently
-              atrial.push(buildAtrial(nextP, profile, 'sinus', false));
+              pushA(buildAtrial(nextP, profile, 'sinus', false));
               nextP += atrialRR;
             } else {
-              pushV(buildVent(nextV, 'vt', profile, profile.qrs, rrNominal, { useProfileT: false }));
+              pushV(buildVent(nextV, aivr ? 'escape' : 'vt', profile, profile.qrs, rrNominal, { useProfileT: false }));
               nextV += rrNominal * (1 + 0.01 * (rng() - 0.5));
             }
           },
@@ -359,17 +459,30 @@ export class ECGEngine {
       }
 
       case 'af': {
-        let nextV = vReady;
+        // The QT follows the average rate, not the cycle just before each beat: it adapts over many beats, so
+        // in AF it hardly moves from beat to beat
+        const beatAt = (t: number, prev: number) =>
+          buildVent(t, 'conducted', profile, profile.qrs, Math.max(300, t - prev), { qtRR: rrNominal, room: rrNominal });
+        const qt = beatAt(0, -rrNominal).qt;
+        // Irregularly irregular: no pattern, wide spread of RR intervals. For uniform r, s = (0.62 + 0.8·r²) / 0.887
+        // averages 1 and is never below S_MIN. The AV node lets nothing through sooner than ~300 ms after a beat,
+        // nor before the T wave is over; where that limit cuts into the spread (fast rates) the short cycles bunch
+        // up against it and the rest are scaled so the average rate stays on the one asked for.
+        const S_MIN = 0.62 / 0.887;
+        const shortest = Math.max(Math.min(300, 0.9 * rrNominal), qt + 10, S_MIN * rrNominal);
+        // The cycle after a beat depends only on when that beat fell, so re-applying the rhythm (a rate slider
+        // being dragged) does not draw again and again until a short one comes up
+        const gap = (after: number) => {
+          const r = unit(after);
+          const s = (0.62 + 0.8 * r * r) / 0.887;
+          return shortest + ((rrNominal - shortest) * (s - S_MIN)) / (1 - S_MIN);
+        };
+        let nextV = lastV ? Math.max(start, lastV.t + gap(lastV.t), tOver) : start + 120;
         return {
           get cursor() { return nextV; },
           step() {
-            const prev = lastQRS;
-            pushV(buildVent(nextV, 'conducted', profile, profile.qrs, Math.max(300, nextV - prev)));
-            // Irregularly irregular: no pattern, wide spread of RR intervals
-            // mean of (0.62 + 0.8·r²) for uniform r is ≈ 0.887, so normalise to keep the mean rate on target
-            const r = rng();
-            const spread = (0.62 + 0.8 * r * r) / 0.887;
-            nextV += Math.max(300, rrNominal * spread);
+            pushV(beatAt(nextV, lastQRS));
+            nextV += gap(nextV);
           },
         };
       }
@@ -380,13 +493,15 @@ export class ECGEngine {
         // rate setting lower, giving the long runs of flutter waves that unmask the diagnosis
         const ratio = Math.max(2, Math.min(hr < 70 ? 10 : 4, Math.round(300 / Math.max(30, hr))));
         const fr = 250; // F-wave to QRS latency
-        const segStart = seg.start;
-        let k = Math.ceil((vReady - fr - segStart) / fPeriod);
-        k = Math.ceil(k / ratio) * ratio;
+        const origin = seg.origin;
+        // Each QRS follows a flutter wave: the first one not before the ventricles are ready (one new cycle after
+        // the last beat), counted from where the flutter waves began so a change of ratio keeps their rhythm
+        const ready = lastV ? Math.max(start, lastV.t + ratio * fPeriod, tOver) : start + 120;
+        let k = Math.max(0, Math.ceil((ready - fr - origin) / fPeriod - 1e-6));
         return {
-          get cursor() { return segStart + k * fPeriod + fr; },
+          get cursor() { return origin + k * fPeriod + fr; },
           step() {
-            const t = segStart + k * fPeriod + fr;
+            const t = origin + k * fPeriod + fr;
             pushV(buildVent(t, 'conducted', profile, profile.qrs, fPeriod * ratio));
             k += ratio;
           },
@@ -401,19 +516,20 @@ export class ECGEngine {
             const e = buildVent(nextV, 'svt', profile, profile.qrs, rrNominal);
             pushV(e);
             // Retrograde P buried at the end of the QRS (pseudo-r′ in V1, pseudo-S inferiorly)
-            atrial.push(buildAtrial(nextV + 42, profile, 'retrograde', false));
+            pushA({ ...buildAtrial(nextV + 42, profile, 'retrograde', false), onset: nextV });
             nextV += rrNominal;
           },
         };
       }
 
       case 'junctional': {
-        let nextV = vReady;
+        // the retrograde P comes 70 ms ahead of the QRS: not before this rhythm starts
+        let nextV = Math.max(vReady, start + 70);
         return {
           get cursor() { return nextV - 70; },
           step() {
-            atrial.push(buildAtrial(nextV - 70, profile, 'retrograde', false));
-            pushV(buildVent(nextV, 'junctional', profile, profile.qrs, rrNominal));
+            pushA(buildAtrial(nextV - 70, profile, 'retrograde', false));
+            pushV({ ...buildVent(nextV, 'junctional', profile, profile.qrs, rrNominal), onset: nextV - 70 });
             nextV += rrNominal;
           },
         };
@@ -421,12 +537,12 @@ export class ECGEngine {
 
       case 'torsades': {
         let nextV = vReady;
-        const segStart = seg.start;
+        const origin = seg.origin;
         const axis = norm([0.55, -0.6, 0.55]);
         return {
           get cursor() { return nextV; },
           step() {
-            const el = nextV - segStart;
+            const el = nextV - origin;
             const angle = (2 * Math.PI * el) / 2600;
             const env = 0.35 + 0.65 * Math.abs(Math.sin((Math.PI * el) / 2600));
             const rr = rrNominal * (1 + 0.08 * (rng() - 0.5));
@@ -439,7 +555,7 @@ export class ECGEngine {
       case 'vf':
       case 'asystole':
       default: {
-        let c = seg.start;
+        let c = start;
         return { get cursor() { return c; }, step() { c = Number.POSITIVE_INFINITY; } };
       }
     }
@@ -530,14 +646,15 @@ export class ECGEngine {
       const s1 = 0.055 * Math.sin(2 * Math.PI * 6.3 * t / 1000 + 2.5 * noise1(t / 700)) + 0.03 * Math.sin(2 * Math.PI * 8.7 * t / 1000 + 3 * noise1(t / 500 + 17));
       const s2 = 0.04 * Math.sin(2 * Math.PI * 7.4 * t / 1000 + 2.5 * noise1(t / 650 + 41));
       const amp = 0.75 + 0.35 * noise1(t / 1300 + 5);
-      d[0] += amp * (0.05 * s1 + 0.6 * s2); d[1] += amp * (-0.8 * s1 - 0.3 * s2); d[2] += amp * (-0.6 * s1 - 0.2 * s2);
+      // mostly right-atrial, anterior and inferior: the f waves show best in V1–V3 and the inferior leads
+      d[0] += amp * (-0.35 * s1 + 0.2 * s2); d[1] += amp * (-0.75 * s1 - 0.3 * s2); d[2] += amp * (-0.55 * s1 - 0.5 * s2);
     } else if (r === 'flutter') {
-      const ph = (((t - seg.start) % 200) + 200) % 200 / 200;
+      const ph = (((t - seg.origin) % 200) + 200) % 200 / 200;
       const g = ph < 0.72 ? ph / 0.72 : (1 - ph) / 0.28;
       const a = 0.19 * (g - 0.45);
       d[0] += 0.1 * a; d[1] += -0.5 * a; d[2] += 0.86 * a;
     } else if (r === 'vf') {
-      const el = t - seg.start;
+      const el = t - seg.origin;
       const coarse = 0.35 + 0.65 * Math.exp(-el / 90000);
       const env = coarse * (0.55 + 0.45 * noise1(t / 900));
       const f1 = Math.sin(2 * Math.PI * 4.6 * t / 1000 + 4 * noise1(t / 600));
@@ -606,22 +723,37 @@ export class ECGEngine {
     return dt > 0 ? Math.round(60000 / dt) : null;
   }
 
-  /** Nominal intervals for the current rhythm at the current rate */
+  /** Fridericia-corrected QT of one beat (ms), or null where no QT can be measured (VT, torsades: no T wave apart from the QRS) */
+  qtcOf(v: VentEvent): number | null {
+    if (v.kind === 'vt' || v.kind === 'torsades') return null;
+    // corrected with the cycle the QT belongs to, not the average of the last few beats (which swings in AF)
+    return v.qt / Math.cbrt((v.qtRR ?? v.rr) / 1000);
+  }
+
+  /** Intervals of the current rhythm at the current rate, read from its latest beat */
   intervals(t: number) {
     const seg = this.segmentAt(t);
     const p = seg.profile;
-    const i = this.lastVentIndex(t);
+    let i = this.lastVentIndex(t);
+    // read the rhythm's own beats: a PVC among them has intervals of its own
+    while (i > 0 && this.vent[i].kind === 'pvc') i--;
     const v = i >= 0 ? this.vent[i] : null;
-    const rr = this.heartRate(t) > 0 ? 60000 / this.heartRate(t) : 1000;
-    const hasP = !['af', 'flutter', 'vf', 'asystole', 'torsades', 'svt', 'junctional', 'vt', 'chb', 'vpaced'].includes(p.rhythm);
-    const qt = v ? v.qt : qtForRR(p.qtc, rr);
+    const rate = this.heartRate(t);
+    const rr = rate > 0 ? 60000 / rate : 1000;
+    const hasP = !['af', 'flutter', 'vf', 'asystole', 'torsades', 'svt', 'junctional', 'vt', 'aivr', 'chb', 'vpaced'].includes(p.rhythm);
+    // VF and asystole have no beats: nothing to measure (the last beat before them is not of this rhythm)
+    const noBeats = p.rhythm === 'vf' || p.rhythm === 'asystole';
+    // …and VT and torsades have no T wave that can be told from the QRS: no QT to report
+    const noQT = noBeats || p.rhythm === 'vt' || p.rhythm === 'torsades';
+    const qt = v ? v.qt : Math.min(qtForRR(p.qtc, rr), QT_ROOM * rr);
+    const qtc = v ? this.qtcOf(v) : qt / Math.cbrt(rr / 1000);
     let pr: number | null = hasP ? (p.rhythm === 'paced' ? 160 : prForRate(p.pr, seg.hr)) : null;
     if (p.rhythm === 'wenckebach') pr = null;
     return {
       pr,
-      qrs: v ? Math.round(v.qrsDur) : null,
-      qt: p.rhythm === 'vf' || p.rhythm === 'asystole' ? null : Math.round(qt),
-      qtc: p.rhythm === 'vf' || p.rhythm === 'asystole' ? null : Math.round(qt / Math.cbrt(rr / 1000)),
+      qrs: v && !noBeats ? Math.round(v.qrsDur) : null,
+      qt: noQT || qtc === null ? null : Math.round(qt),
+      qtc: noQT || qtc === null ? null : Math.round(qtc),
       rr: Math.round(rr),
     };
   }
@@ -673,7 +805,7 @@ export class ECGEngine {
       out.fibrillating = 'atria';
       out.atrialContraction = 0.12 + 0.08 * noise1(t / 40);
     } else if (rhythm === 'flutter') {
-      const ph = (((t - seg.start) % 200) + 200) % 200 / 200;
+      const ph = (((t - seg.origin) % 200) + 200) % 200 / 200;
       out.atrialContraction = 0.25 + 0.2 * Math.sin(ph * 2 * Math.PI);
       out.atrialActivation = ph;
     }
@@ -704,6 +836,17 @@ export class ECGEngine {
       ? 1 - smoothstep(ev.mc - 20, ev.mc, t)
       : smoothstep(ev.mo, ev.mo + 30, t) * (1 - (next ? smoothstep(ev.nextMc - 20, ev.nextMc, t) : 0));
 
+    // Electrical activity without a pulse (PEA, pulseless VT, torsades): the wave still sweeps the ventricles, but
+    // they barely move, the aortic valve stays shut and there is nothing to hear
+    if (seg.profile.hemo === 'no-output') {
+      out.phase = 'pulseless';
+      out.ventContraction *= 0.12;
+      out.aorticOpen = 0;
+      out.mitralOpen = 0.6;
+      out.events = null;
+      return out;
+    }
+
     // Phase label (ventricular-centred)
     if (t < ev.mc) out.phase = prevPhase(t, prev, v);
     else if (t < ev.ao) out.phase = 'isovolumetric-contraction';
@@ -729,6 +872,7 @@ export type CyclePhase =
   | 'rapid-filling'
   | 'diastasis'
   | 'fibrillation'
+  | 'pulseless'
   | 'arrest';
 
 export interface CycleEvents {
@@ -749,15 +893,20 @@ export interface CycleEvents {
 export function cycleEvents(v: VentEvent, next: VentEvent | null): CycleEvents {
   const wide = v.qrsDur > 125;
   const hr = 60000 / Math.max(250, Math.min(2400, v.rr || 833));
-  const mc = v.t + (wide ? 70 : 45);
+  // Above ~180/min a narrow-complex heart squeezes every phase a little further (0 → 1 between 180 and 250/min), so a
+  // very fast SVT still leaves a sliver of filling time and a weak pulse instead of no diastole at all. Wide, dyssynchronous
+  // beats (VT) keep their longer floors: at those rates they lose the pulse first.
+  const squeeze = wide ? 0 : Math.max(0, Math.min(1, (hr - 180) / 70));
+  const mc = v.t + (wide ? 70 : 45 - 4 * squeeze);
   // Isovolumic contraction shortens a little with rate; prolonged with dyssynchronous (wide) activation
-  const ao = mc + (wide ? 60 : Math.max(38, Math.min(55, 50 - 0.1 * (hr - 72))));
+  const ao = mc + (wide ? 60 : Math.max(38 - 5 * squeeze, Math.min(55, 50 - 0.1 * (hr - 72))));
   // LV ejection time falls with heart rate (Weissler: LVET ≈ 413 − 1.7·HR ms). At rest Q–S2 ≈ QT,
   // so S2 lands near the end of the T wave; at fast rates systole shortens to preserve diastole.
-  const lvet = Math.max(150, Math.min(340, 415 - 1.7 * hr));
+  const lvet = Math.max(150 - 15 * squeeze, Math.min(340, 415 - 1.7 * hr));
   const ac = ao + lvet;
-  const mo = ac + (v.ivrt ?? Math.max(50, Math.min(90, 80 - 0.3 * (hr - 72))));
-  const nextMc = next ? next.t + (next.qrsDur > 125 ? 70 : 45) : mo + 600;
+  const mo = ac + (v.ivrt ?? Math.max(50 - 6 * squeeze, Math.min(90, 80 - 0.3 * (hr - 72))));
+  const nextSqueeze = !next || next.qrsDur > 125 ? 0 : Math.max(0, Math.min(1, (60000 / Math.max(250, Math.min(2400, next.rr || 833)) - 180) / 70));
+  const nextMc = next ? next.t + (next.qrsDur > 125 ? 70 : 45 - 4 * nextSqueeze) : mo + 600;
   return { qrs: v.t, mc, ao, ac, mo, nextMc };
 }
 
@@ -797,17 +946,19 @@ export const PHASE_LABELS: Record<CyclePhase, string> = {
   'rapid-filling': 'Rapid (passive) filling',
   diastasis: 'Diastasis (slow filling)',
   fibrillation: 'Fibrillation — no effective contraction',
+  pulseless: 'Electrical activity — no pulse',
   arrest: 'No electrical or mechanical activity',
 };
 
 export const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
-  'atrial-systole': 'Atria contract after the P wave, topping up ventricular filling (~15–25% of filling volume). AV valves open, semilunar valves closed.',
+  'atrial-systole': 'Atria contract after the P wave, topping up ventricular filling (~20–30% of filling volume). AV valves open, semilunar valves closed.',
   'isovolumetric-contraction': 'Begins at S1 (mitral/tricuspid closure) just after the QRS. All four valves closed; pressure rises with no change in volume.',
   'rapid-ejection': 'LV pressure exceeds aortic pressure and the aortic valve opens. Most of the stroke volume is ejected. Corresponds to the ST segment.',
-  'reduced-ejection': 'Ejection slows as ventricular repolarisation (T wave) begins. Aortic pressure starts to fall.',
+  'reduced-ejection': 'Ejection slows as ventricular repolarization (T wave) begins. Aortic pressure starts to fall.',
   'isovolumetric-relaxation': 'Starts at S2 (aortic/pulmonic closure, ~end of T wave). All valves closed; pressure falls with no change in volume.',
   'rapid-filling': 'Ventricular pressure drops below atrial pressure, the AV valves open and blood rushes in (an S3 here is normal in the young, pathological in HF / volume overload).',
-  diastasis: 'Slow filling as atrial and ventricular pressures equalise. Shortens first when heart rate rises.',
-  fibrillation: 'Disorganised electrical activity: the ventricles quiver, no stroke volume, no pulse. CPR + defibrillation.',
+  diastasis: 'Slow filling as atrial and ventricular pressures equalize. Shortens first when heart rate rises.',
+  fibrillation: 'Disorganized electrical activity: the ventricles quiver, no stroke volume, no pulse. CPR + defibrillation.',
+  pulseless: 'The ventricles are being activated but are not pumping: no stroke volume, no pulse, no heart sounds (PEA, pulseless VT, torsades). CPR, a shock if the rhythm is shockable, and the cause.',
   arrest: 'No electrical activity and no contraction. CPR, epinephrine, reversible causes.',
 };

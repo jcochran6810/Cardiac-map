@@ -7,20 +7,12 @@ import {
   startPacing, stopPacing, toggleCPR, toggleSync, useDefibStore, type DefibMode, type LogKind,
 } from '@/lib/sim/defib';
 import { ECG_PROFILES, resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
-import { useECGStore } from '@/store/useECGStore';
+import { useBlind, useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { sim } from '@/lib/sim/simulation';
 import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
+import { canUseManualDefib, drugAuthority } from '@/lib/scope';
 
-/** Device functions and drug authority by role (scope of practice) */
-const MANUAL_OK = new Set([2, 3, 4, 5]);
-const DRUG_AUTHORITY: Record<number, string | null> = {
-  1: null,
-  2: 'per protocol / medical direction',
-  3: "on the physician's order (where state law and facility policy permit)",
-  4: "on the physician's order / ACLS protocol",
-  5: '',
-};
 
 const MODES: { v: DefibMode; l: string }[] = [
   { v: 'monitor', l: 'Monitor' },
@@ -45,14 +37,25 @@ const BASELINES: { v: HemoProfile | 'default'; l: string }[] = [
 export default function DefibPanel({ onProjector }: { onProjector?: () => void }) {
   const d = useDefibStore();
   const role = useAppStore((s) => s.learningLevel);
-  const manualOk = MANUAL_OK.has(role);
-  const drugAuthority = DRUG_AUTHORITY[role];
+  // device functions and drug authority by role (scope of practice: src/lib/scope.ts)
+  const manualOk = canUseManualDefib(role);
+  const authority = drugAuthority(role);
   useEffect(() => {
     if (!manualOk && (useDefibStore.getState().mode === 'manual' || useDefibStore.getState().mode === 'pacer')) setMode('aed');
   }, [manualOk]);
   const profileId = useECGStore((s) => s.activeProfileId);
   const heartRate = useTimelineStore((s) => s.heartRate);
   const [instructor, setInstructor] = useState(false);
+  // A question about the tracing is open (the rhythm trainer, a quiz strip, a lesson check): the panel neither names
+  // the rhythm nor changes the patient. The instructor's rhythm select would give the answer, its rate stepper would
+  // get round the locked rate slider (and show the rate), and a scenario or rhythm button would swap the tracing
+  // being read. The treatments do the same: a drug, a shock or the pacer converts or paces the rhythm being read,
+  // and the device's verdict names its class ("AED: shock advised", "Adenosine does not terminate (most) VT").
+  // Assessment (pulse check, NIBP — what the pleth and SpO₂ already show), CPR (its artefact goes when it stops),
+  // the device's settings and stopping the pacer or removing a charge stay. As with the rate slider, everything
+  // comes back once the question has been answered.
+  const asked = useBlind();
+  const lockedTitle = 'Locked while a question is open';
   const profiles = useMemo(() => Object.values(ECG_PROFILES), []);
   const codeT = (t: number) => fmt(t - (d.codeStart ?? d.log[0]?.t ?? 0));
 
@@ -82,7 +85,12 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
       )}
       {(role === 3 || role === 4) && (
         <p className="text-[10px] text-slate-400 leading-snug">
-          {LEVEL_LABELS[role].short}: device use per ACLS certification, facility policy and physician direction; medications {DRUG_AUTHORITY[role]}.
+          {LEVEL_LABELS[role].short}: device use per ACLS certification, facility policy and physician direction; medications {authority}.
+        </p>
+      )}
+      {asked && (
+        <p className="text-[10px] text-slate-400 leading-snug rounded bg-cardiac-dark/60 border border-slate-700 p-1.5">
+          Shocks, the pacer and drugs are locked while a question is open — the question sets the patient. They come back when you have answered.
         </p>
       )}
 
@@ -102,18 +110,19 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
             </>
           )}
           {d.mode === 'aed' && (
-            <button onClick={analyze} disabled={d.aed.phase === 'analyzing'} className="w-full py-1.5 touch:py-2.5 rounded font-semibold bg-sky-600/40 text-sky-100 disabled:opacity-50">
-              {d.aed.phase === 'analyzing' ? 'Analysing…' : 'ANALYZE'}
+            <button onClick={analyze} disabled={d.aed.phase === 'analyzing' || asked} title={asked ? lockedTitle : undefined} className="w-full py-1.5 touch:py-2.5 rounded font-semibold bg-sky-600/40 text-sky-100 disabled:opacity-50 disabled:cursor-not-allowed">
+              {d.aed.phase === 'analyzing' ? 'Analyzing…' : 'ANALYZE'}
             </button>
           )}
           <div className="grid grid-cols-2 gap-1">
             {d.mode === 'manual' && (
-              <button onClick={charge} disabled={d.charge !== 'idle'} className="py-1.5 touch:py-2.5 rounded font-bold bg-yellow-400 text-black disabled:opacity-40">CHARGE</button>
+              <button onClick={charge} disabled={d.charge !== 'idle' || asked} title={asked ? lockedTitle : undefined} className="py-1.5 touch:py-2.5 rounded font-bold bg-yellow-400 text-black disabled:opacity-40 disabled:cursor-not-allowed">CHARGE</button>
             )}
             <button
               onClick={shock}
-              disabled={d.charge !== 'charged'}
-              className={`py-1.5 touch:py-2.5 rounded font-bold ${d.mode === 'aed' ? 'col-span-2' : ''} ${d.charge === 'charged' ? 'bg-orange-600 text-white animate-pulse' : 'bg-orange-900/40 text-orange-200/50'}`}
+              disabled={d.charge !== 'charged' || asked}
+              title={asked ? lockedTitle : undefined}
+              className={`py-1.5 touch:py-2.5 rounded font-bold disabled:cursor-not-allowed ${d.mode === 'aed' ? 'col-span-2' : ''} ${d.charge === 'charged' && !asked ? 'bg-orange-600 text-white animate-pulse' : 'bg-orange-900/40 text-orange-200/50'}`}
             >
               ⚡ SHOCK
             </button>
@@ -121,7 +130,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
           {d.charge !== 'idle' && <button onClick={dumpCharge} className="w-full py-0.5 touch:py-1.5 rounded text-slate-400 hover:text-white">Disarm</button>}
           <p className="text-[10px] text-slate-500 leading-snug">
             Biphasic defibrillation for VF / pulseless VT: device-recommended dose (typically 120–200 J; use the maximum if unknown).
-            Synchronised: narrow regular 50–100 J · AF 120–200 J (many start at 200 J) · monomorphic VT 100 J. Polymorphic VT → defibrillate.
+            Synchronized (2025 AHA, biphasic): narrow regular 100 J · AF 200 J or more · atrial flutter 200 J · monomorphic VT 100 J. Polymorphic VT → defibrillate.
           </p>
         </section>
       )}
@@ -129,13 +138,20 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
       {/* Pacing */}
       {d.mode === 'pacer' && (
         <section className="rounded-md border border-slate-700 p-2 space-y-1.5">
-          <button onClick={d.pacer.on ? stopPacing : startPacing} className={`w-full py-1.5 touch:py-2.5 rounded font-bold ${d.pacer.on ? 'bg-orange-600 text-white' : 'bg-orange-900/50 text-orange-100'}`}>
+          {/* (a pacer already running when the question opened can still be stopped; while it runs, its settings would
+              gain or lose capture, so they wait for the answer too — with the pacer off they only prepare the next start) */}
+          <button
+            onClick={d.pacer.on ? stopPacing : startPacing}
+            disabled={asked && !d.pacer.on}
+            title={asked && !d.pacer.on ? lockedTitle : undefined}
+            className={`w-full py-1.5 touch:py-2.5 rounded font-bold disabled:opacity-40 disabled:cursor-not-allowed ${d.pacer.on ? 'bg-orange-600 text-white' : 'bg-orange-900/50 text-orange-100'}`}
+          >
             {d.pacer.on ? 'STOP PACER' : 'START PACER'}
           </button>
-          <Stepper label="Rate" unit="ppm" value={d.pacer.rate} step={5} min={30} max={180} onChange={(v) => setPacer({ rate: v })} />
-          <Stepper label="Output" unit="mA" value={d.pacer.mA} step={5} min={0} max={200} onChange={(v) => setPacer({ mA: v })} />
+          <Stepper label="Rate" unit="ppm" value={d.pacer.rate} step={5} min={30} max={180} locked={asked && d.pacer.on} onChange={(v) => setPacer({ rate: v })} />
+          <Stepper label="Output" unit="mA" value={d.pacer.mA} step={5} min={0} max={200} locked={asked && d.pacer.on} onChange={(v) => setPacer({ mA: v })} />
           <label className="flex items-center gap-1.5 text-slate-300">
-            <input type="checkbox" checked={d.pacer.demand} onChange={(e) => setPacer({ demand: e.target.checked })} /> Demand mode (inhibited by intrinsic beats)
+            <input type="checkbox" checked={d.pacer.demand} disabled={asked && d.pacer.on} onChange={(e) => setPacer({ demand: e.target.checked })} /> Demand mode (inhibited by intrinsic beats)
           </label>
           <p className="text-[10px] text-slate-500 leading-snug">
             Typical start: 60–80 ppm. Increase output until every spike is followed by a wide QRS (electrical capture), then set slightly above threshold.
@@ -160,15 +176,21 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
 
       {/* Drugs */}
       <section className="rounded-md border border-slate-700 p-2">
-        <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Medications{drugAuthority ? ` · ${drugAuthority}` : ''}</div>
-        {drugAuthority === null ? (
+        <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Medications{authority ? ` · ${authority}` : ''}</div>
+        {authority === null ? (
           <p className="text-[10px] text-slate-400 leading-snug">
             🔒 ACLS medications are outside EMT scope. Within EMT scope (per protocol): aspirin for suspected ACS, assisting with the patient&apos;s own nitroglycerin, oxygen — none are given during cardiac arrest.
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-1">
             {DRUGS.map((drug) => (
-              <button key={drug.id} onClick={() => giveDrug(drug.id, drugAuthority || undefined)} title={`${drug.dose(d)} — ${drug.indication}`} className="px-1.5 py-1 touch:py-2 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight">
+              <button
+                key={drug.id}
+                onClick={() => giveDrug(drug.id, authority || undefined)}
+                disabled={asked}
+                title={asked ? lockedTitle : `${drug.dose(d)} — ${drug.indication}`}
+                className="px-1.5 py-1 touch:py-2 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-sky-900/40"
+              >
                 {drug.label}
                 <span className="block text-[9px] text-sky-300/80 truncate">{drug.dose(d)}</span>
               </button>
@@ -189,41 +211,62 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
       {instructor && (
         <section className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 space-y-1.5">
           <div className="text-[9px] uppercase tracking-wider text-amber-300">Instructor</div>
+          {asked && (
+            <p className="text-[10px] text-slate-400 leading-snug">
+              Locked while a question is open — the question sets the patient. The controls come back when you have answered.
+            </p>
+          )}
           <div className="flex flex-wrap gap-1">
             {SCENARIOS.map((sc) => (
-              <button key={sc.id} onClick={() => loadScenario(sc)} title={sc.story} className={`px-1.5 py-0.5 touch:py-1.5 rounded ${d.scenario?.id === sc.id ? 'bg-amber-500/30 text-amber-100' : 'bg-cardiac-surface text-slate-200'}`}>{sc.label}</button>
+              <button
+                key={sc.id}
+                onClick={() => loadScenario(sc)}
+                disabled={asked}
+                title={asked ? 'Locked while a question is open' : sc.story}
+                className={`px-1.5 py-0.5 touch:py-1.5 rounded disabled:opacity-40 disabled:cursor-not-allowed ${d.scenario?.id === sc.id && !asked ? 'bg-amber-500/30 text-amber-100' : 'bg-cardiac-surface text-slate-200'}`}
+              >
+                {sc.label}
+              </button>
             ))}
           </div>
           <label className="block">
             <span className="text-slate-400">Rhythm</span>
-            <select
-              value={d.pacer.captured && d.underlying ? d.underlying.profileId : profileId}
-              onChange={(e) => instructorRhythm(e.target.value)}
-              className="w-full rounded bg-cardiac-dark border border-slate-600 text-slate-200 px-1 py-0.5"
-            >
-              {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            {asked ? (
+              <select value="hidden" disabled className="w-full rounded bg-cardiac-dark border border-slate-600 text-slate-400 px-1 py-0.5 disabled:opacity-60">
+                <option value="hidden">Hidden while a question is open</option>
+              </select>
+            ) : (
+              <select
+                value={d.pacer.captured && d.underlying ? d.underlying.profileId : profileId}
+                onChange={(e) => instructorRhythm(e.target.value)}
+                className="w-full rounded bg-cardiac-dark border border-slate-600 text-slate-200 px-1 py-0.5"
+              >
+                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            )}
           </label>
-          {resolveProfile(profileId).rateControl !== 'none' && (
-            <Stepper label="Rate" unit="/min" value={heartRate} step={5} min={20} max={260} onChange={(v) => instructorRhythm(d.pacer.captured && d.underlying ? d.underlying.profileId : profileId, v)} />
+          {/* (while a question is open the row stays, locked and without a number: whether a rhythm has a rate to set is a hint too) */}
+          {(asked || resolveProfile(profileId).rateControl !== 'none') && (
+            <Stepper label="Rate" unit="/min" value={heartRate} step={5} min={20} max={260} locked={asked} masked={asked} onChange={(v) => instructorRhythm(d.pacer.captured && d.underlying ? d.underlying.profileId : profileId, v)} />
           )}
           <label className="block">
             <span className="text-slate-400">Patient&apos;s heart (sets BP / output)</span>
             <select
               value={d.baseline ?? 'default'}
               onChange={(e) => setBaseline(e.target.value === 'default' ? null : (e.target.value as HemoProfile))}
-              className="w-full rounded bg-cardiac-dark border border-slate-600 text-slate-200 px-1 py-0.5"
+              disabled={asked}
+              className="w-full rounded bg-cardiac-dark border border-slate-600 text-slate-200 px-1 py-0.5 disabled:opacity-60"
             >
               {BASELINES.map((b) => <option key={b.v} value={b.v}>{b.l}</option>)}
             </select>
           </label>
-          <Stepper label="SpO₂ baseline" unit="%" value={d.vitals.spo2} step={1} min={60} max={100} onChange={(v) => setVitals({ spo2: v })} />
-          <Stepper label="Resp rate" unit="/min" value={d.vitals.rr} step={2} min={0} max={40} onChange={(v) => setVitals({ rr: v })} />
-          <Stepper label="EtCO₂ (with pulse)" unit="mmHg" value={d.vitals.etco2} step={2} min={10} max={80} onChange={(v) => setVitals({ etco2: v })} />
+          <Stepper label="SpO₂ baseline" unit="%" value={d.vitals.spo2} step={1} min={60} max={100} locked={asked} onChange={(v) => setVitals({ spo2: v })} />
+          <Stepper label="Resp rate" unit="/min" value={d.vitals.rr} step={2} min={0} max={40} locked={asked} onChange={(v) => setVitals({ rr: v })} />
+          <Stepper label="EtCO₂ (with pulse)" unit="mmHg" value={d.vitals.etco2} step={2} min={10} max={80} locked={asked} onChange={(v) => setVitals({ etco2: v })} />
           <div className="grid grid-cols-2 gap-1">
-            <button onClick={forceRosc} className="py-1 touch:py-2 rounded bg-emerald-700/40 text-emerald-100">ROSC</button>
-            <button onClick={() => instructorRhythm('vf')} className="py-1 touch:py-2 rounded bg-rose-800/40 text-rose-100">Deteriorate → VF</button>
-            <button onClick={() => resetCode()} className="col-span-2 py-1 touch:py-2 rounded bg-cardiac-surface text-slate-200">Reset code</button>
+            <button onClick={forceRosc} disabled={asked} className="py-1 touch:py-2 rounded bg-emerald-700/40 text-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed">ROSC</button>
+            <button onClick={() => instructorRhythm('vf')} disabled={asked} className="py-1 touch:py-2 rounded bg-rose-800/40 text-rose-100 disabled:opacity-40 disabled:cursor-not-allowed">Deteriorate → VF</button>
+            <button onClick={() => resetCode()} disabled={asked} className="col-span-2 py-1 touch:py-2 rounded bg-cardiac-surface text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">Reset code</button>
           </div>
           <p className="text-[10px] text-slate-500 leading-snug">Pacing capture threshold this session: {d.pacer.threshold} mA. Outcome odds are teaching settings, not clinical predictions.</p>
         </section>
@@ -249,7 +292,8 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
             {[...d.log].reverse().map((e, i) => (
               <li key={`${e.t}-${i}`} className={`${LOG_COLORS[e.kind]} leading-snug`}>
                 <span className="text-slate-500 mr-1">{codeT(e.t)}</span>
-                {d.trainee && e.kind === 'rhythm' ? 'Rhythm changed' : e.text}
+                {/* (hidden in words true either way: a rhythm entry may also say the rhythm did not change — "VT persists") */}
+                {(d.trainee || asked) && e.kind === 'rhythm' ? 'Rhythm finding hidden — read the monitor' : e.text}
               </li>
             ))}
           </ol>
@@ -259,14 +303,15 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
   );
 }
 
-function Stepper({ label, unit, value, step, min, max, onChange }: { label: string; unit: string; value: number; step: number; min: number; max: number; onChange: (v: number) => void }) {
+/** `locked`: the buttons do nothing; `masked`: no number either (it would give an answer away) */
+function Stepper({ label, unit, value, step, min, max, onChange, locked = false, masked = false }: { label: string; unit: string; value: number; step: number; min: number; max: number; onChange: (v: number) => void; locked?: boolean; masked?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-1">
+    <div className="flex items-center justify-between gap-1" title={locked ? `${label}: locked while a question is open` : undefined}>
       <span className="text-slate-400">{label}</span>
       <div className="flex items-center gap-1">
-        <button onClick={() => onChange(Math.max(min, value - step))} className="w-6 h-6 touch:w-9 touch:h-9 rounded bg-cardiac-surface text-slate-200" aria-label={`Decrease ${label}`}>−</button>
-        <span className="w-16 text-center font-mono text-white">{value} {unit}</span>
-        <button onClick={() => onChange(Math.min(max, value + step))} className="w-6 h-6 touch:w-9 touch:h-9 rounded bg-cardiac-surface text-slate-200" aria-label={`Increase ${label}`}>+</button>
+        <button onClick={() => onChange(Math.max(min, value - step))} disabled={locked} className="w-6 h-6 touch:w-9 touch:h-9 rounded bg-cardiac-surface text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed" aria-label={`Decrease ${label}`}>−</button>
+        <span className="w-16 text-center font-mono text-white">{masked ? '—' : `${value} ${unit}`}</span>
+        <button onClick={() => onChange(Math.min(max, value + step))} disabled={locked} className="w-6 h-6 touch:w-9 touch:h-9 rounded bg-cardiac-surface text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed" aria-label={`Increase ${label}`}>+</button>
       </div>
     </div>
   );

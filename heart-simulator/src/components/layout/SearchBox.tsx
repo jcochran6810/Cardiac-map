@@ -1,9 +1,16 @@
 'use client';
 
 import React, { forwardRef, useEffect, useMemo, useState } from 'react';
-import { useContent, searchLibrary, type SearchHit } from '@/lib/content';
-import { openById } from '@/lib/actions';
+import { useContent, searchLibrary, type SearchExtra, type SearchHit } from '@/lib/content';
+import { openById, openTool, openTreatment } from '@/lib/actions';
+import { openTrainer } from '@/lib/drillRun';
+import { useAppStore, type LearningLevel } from '@/store/useAppStore';
+import { useTutorStore } from '@/store/useTutorStore';
+import { scenariosFor } from '@/lib/sim/scenario/scenarios';
+import { openLesson } from '@/lib/courses';
+import { showInPicker } from '@/components/simulator/ScenarioPicker';
 import { CASE_DATA } from '@/data/caseData';
+import { GLOSSARY } from '@/data/glossary';
 import { IconSearch } from '@/components/ui/icons';
 
 const KIND_STYLE: Record<SearchHit['kind'], string> = {
@@ -13,7 +20,42 @@ const KIND_STYLE: Record<SearchHit['kind'], string> = {
   medication: 'bg-emerald-500/15 text-emerald-300',
   cathlab: 'bg-cyan-500/15 text-cyan-300',
   case: 'bg-amber-500/15 text-amber-300',
+  lesson: 'bg-orange-500/15 text-orange-300',
+  tool: 'bg-teal-500/15 text-teal-300',
+  simcase: 'bg-amber-500/15 text-amber-300',
+  term: 'bg-slate-500/25 text-slate-200',
 };
+
+/** What each kind of result is called (the same words the main menu uses) */
+const KIND_LABEL: Record<SearchHit['kind'], string> = {
+  structure: 'Anatomy', condition: 'Condition', procedure: 'Procedure', medication: 'Drug', cathlab: 'Cath lab',
+  case: 'Case study', lesson: 'Lesson', tool: 'Tool', simcase: 'Simulator', term: 'Glossary',
+};
+
+/** The tools and screens, with the words people use for them */
+const TOOLS: (SearchExtra & { open: () => void })[] = [
+  { kind: 'tool', id: 'tool:heart', name: '3D heart', sub: 'Tool', keys: ['3d', 'model', 'anatomy viewer', 'rotate'], open: () => openTool('heart') },
+  { kind: 'tool', id: 'tool:ecg', name: '12-lead ECG', sub: 'Tool', keys: ['12 lead', 'twelve lead', 'ecg', 'ekg', 'tracing', 'strip', 'monitor'], open: () => openTool('ecg') },
+  { kind: 'tool', id: 'tool:lab', name: 'Electrode lab', sub: 'Tool', keys: ['electrode', 'lead placement', 'cable', 'reversal', 'v1', 'limb leads'], open: () => openTool('lab') },
+  { kind: 'tool', id: 'tool:defib', name: 'Defibrillator', sub: 'Tool', keys: ['defib', 'defibrillation', 'aed', 'cardioversion', 'pacing', 'pacer', 'shock', 'cpr', 'code', 'monitor'], open: () => openTool('defib') },
+  { kind: 'tool', id: 'tool:wiggers', name: 'Pressure & volume', sub: 'Tool', keys: ['wiggers', 'pv loop', 'pressure volume', 'hemodynamics', 'heart sounds'], open: () => openTool('wiggers') },
+  { kind: 'tool', id: 'tool:meds', name: 'Give a medication', sub: 'Tool', keys: ['give meds', 'medication', 'drug', 'push', 'dose'], open: () => openTreatment('avnrt') },
+  { kind: 'tool', id: 'tool:trainer', name: 'Rhythm trainer', sub: 'Practice', keys: ['rhythm', 'practice', 'drill', 'strip', 'recognition'], open: openTrainer },
+  { kind: 'tool', id: 'tool:courses', name: 'Courses', sub: 'Guided lessons', keys: ['course', 'lesson', 'learn', 'tutorial', 'guided'], open: () => useAppStore.getState().setMode('courses') },
+  { kind: 'tool', id: 'tool:sim', name: 'Case simulator', sub: 'Treat a patient', keys: ['simulator', 'case', 'scenario', 'patient', 'practice'], open: () => useAppStore.getState().setMode('simulator') },
+  { kind: 'tool', id: 'tool:quiz', name: 'Quiz', sub: 'Practice', keys: ['quiz', 'questions', 'test'], open: () => useAppStore.getState().setQuizOpen(true) },
+  { kind: 'tool', id: 'tool:glossary', name: 'Glossary', sub: 'Terms in plain words', keys: ['glossary', 'dictionary', 'definition', 'terms', 'what does', 'meaning'], open: () => useAppStore.getState().setGlossaryOpen(true) },
+  { kind: 'tool', id: 'tool:tutor', name: 'Tutor', sub: 'Ask a question', keys: ['tutor', 'ask', 'question', 'help me'], open: () => useTutorStore.getState().setTutorOpen(true) },
+];
+const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
+// a term is found by its name and its other names only (its definition would match half the library's words)
+const TERMS: SearchExtra[] = GLOSSARY.map((g) => ({ kind: 'term', id: `term:${g.id}`, name: g.term, sub: g.def, keys: g.aka ?? [] }));
+
+/** Tools, the simulator cases written for this role (the others are in the case list, under another role) and the glossary */
+function extrasFor(role: LearningLevel): SearchExtra[] {
+  const simCases: SearchExtra[] = scenariosFor(role).map((sc) => ({ kind: 'simcase', id: `sim:${sc.id}`, name: sc.title, sub: 'Simulator case', keys: [sc.summary] }));
+  return [...TOOLS, ...simCases, ...TERMS];
+}
 
 const CASES = Object.values(CASE_DATA).map((c) => ({ id: c.id, title: c.title }));
 
@@ -27,16 +69,18 @@ interface Props {
   onDone?: () => void;
 }
 
-/** Search the whole library (anatomy, conditions, drugs, procedures, cath lab, cases) and open a result */
+/** Search everything — the library, the guided lessons, the tools and the simulator cases — and open a result */
 const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
   { id, className = '', inputClassName = '', placeholder = 'Search anatomy, conditions, drugs…', onDone }, ref,
 ) {
   const lib = useContent();
+  const role = useAppStore((s) => s.learningLevel);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const resultsOpen = open && q.trim().length >= 2;
-  const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q) : []), [lib, q]);
+  const extras = useMemo(() => extrasFor(role), [role]);
+  const hits = useMemo(() => (lib ? searchLibrary(lib, CASES, q, 24, extras) : []), [lib, q, extras]);
 
   useEffect(() => {
     if (resultsOpen) document.getElementById(`${id}-result-${active}`)?.scrollIntoView({ block: 'nearest' });
@@ -48,7 +92,17 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
     onDone?.();
   };
   const choose = (h: SearchHit) => {
-    openById(h.id);
+    if (h.kind === 'lesson') {
+      const [course, lesson] = h.id.split('/');
+      // a finished lesson starts again from the top (not on its result card); a run under way — a new run of a
+      // finished lesson included — resumes where it was left, as from the course list
+      openLesson(course, lesson);
+    } else if (h.kind === 'tool') TOOL_BY_ID[h.id]?.open();
+    // a simulator case is started from the case list, where its briefing and Start button are: open the list at it
+    // (or, while a case is open, go back to it or ask before leaving it)
+    else if (h.kind === 'simcase') showInPicker(h.id.slice('sim:'.length));
+    else if (h.kind === 'term') useAppStore.getState().setGlossaryOpen(true, h.id.slice(5));
+    else openById(h.id);
     close();
     (document.activeElement as HTMLElement | null)?.blur();
   };
@@ -96,9 +150,9 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
               role="option"
               aria-selected={i === active}
             >
-              <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{h.kind}</span>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide shrink-0 ${KIND_STYLE[h.kind]}`}>{KIND_LABEL[h.kind]}</span>
               <span className="text-slate-100 truncate min-w-0">{h.name}</span>
-              <span className="ml-auto hidden sm:block text-xs text-ui-muted truncate capitalize max-w-[45%]">{h.sub}</span>
+              <span className="ml-auto hidden sm:block text-xs text-ui-muted truncate first-letter:uppercase max-w-[45%]">{h.sub}</span>
             </button>
           ))}
         </div>

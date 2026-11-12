@@ -5,8 +5,7 @@ import { sim, syncRhythm } from '@/lib/sim/simulation';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useECGStore } from '@/store/useECGStore';
 import { tickDefib } from '@/lib/sim/defib';
-import { tickMeds, useMedStore } from '@/store/useMedStore';
-import { useAppStore } from '@/store/useAppStore';
+import { drugMods, tickMeds } from '@/store/useMedStore';
 
 /**
  * Single animation loop that advances simulation time, keeps the rhythm engine
@@ -26,9 +25,8 @@ export default function SimulationDriver() {
       const tl = useTimelineStore.getState();
       const ecg = useECGStore.getState();
 
-      // drug effects given in the Learn view (useMedStore) apply only there
-      const mods = useAppStore.getState().mode === 'learn' ? useMedStore.getState().mods : null;
-      syncRhythm(ecg.activeProfileId, tl.heartRate, mods);
+      // drugs given in Give meds act on that patient wherever the learner goes, until the case simulator takes the monitor
+      syncRhythm(ecg.activeProfileId, tl.heartRate, drugMods());
       if (tl.playing) sim.time += dt * tl.speed;
       sim.engine.ensure(sim.time + 4000);
       tickDefib(sim.time);
