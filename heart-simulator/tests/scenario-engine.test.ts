@@ -150,6 +150,29 @@ describe('anterior STEMI in the field', () => {
   });
 });
 
+describe('a hand-off in the cath lab', () => {
+  it('waits until the procedure is over: the patient is still on the table', () => {
+    const sc = SCENARIO_BY_ID['stemi-inferior-cathlab'];
+    const s = run(sc, 4, ['consent', 'iv', 'heparin', 'p2y12', 'timeout', 'handoff']);
+    expect(s.ended).toBeNull();
+    expect(s.counts.handoff).toBeUndefined();
+    expect(s.log.at(-1)!.text).toMatch(/procedure is not over/);
+  });
+
+  it('a case that ended with a hand-off never reads as every critical item done, even when nothing due yet was missed', () => {
+    // what an early hand-off used to leave: the contrast and the reaction never came, so their items never applied
+    const sc = SCENARIO_BY_ID['contrast-cathlab'];
+    const s = run(sc, 5, ['consent', 'timeout', 'access']);
+    const handedOver: SimState = {
+      ...s, flags: { ...s.flags, handoff: s.minute }, performed: [...s.performed, { id: 'handoff', minute: s.minute }],
+      ended: { reason: 'complete', minute: s.minute },
+    };
+    const r = review(sc, handedOver);
+    expect(r.missed).toBe(0);
+    expect(r.outcome).toMatch(/^Care handed over at \d+:\d\d, before the case was over\.$/);
+  });
+});
+
 describe('built-in safety rules judge what the action really did', () => {
   it('an AED that advises no shock costs nothing, even with a pulse', () => {
     const s = run(stemiAnterior, 2, ['primary', 'aed']);
@@ -188,6 +211,19 @@ describe('built-in safety rules judge what the action really did', () => {
       expect(s.penalties.map((p) => p.id), sc.id).toEqual(['pace-not-slow']);
       expect(s.log.slice(-2).map((l) => l.text).join(' '), sc.id).toMatch(new RegExp(`\\b${hr}\\b`));
     }
+  });
+
+  it('at exactly 70 the pacer is not "slower than the heart"; over a heart already paced the pads wait on standby, at no cost', () => {
+    const inf = SCENARIO_BY_ID['stemi-inferior-rv-field'];
+    const at70 = perform(inf, { ...start(inf, 2), rhythm: { profile: 'inferior-stemi', hr: 70 } }, 'pace');
+    const said = at70.log.slice(-2).map((l) => l.text).join(' ');
+    expect(said).not.toMatch(/faster|perfusing/);
+    expect(said).toMatch(/\b70\b/);
+    expect(at70.penalties.map((p) => p.id)).toEqual(['pace-not-slow']);
+    const paced = perform(inf, { ...start(inf, 2), rhythm: { profile: 'paced', hr: 70 } }, 'pace');
+    expect(paced.log.at(-1)!.text).toMatch(/already paced at 70/);
+    expect(paced.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(paced.penalties).toEqual([]);
   });
 
   it('pacing in cardiac arrest is penalised and shows no pulse', () => {
