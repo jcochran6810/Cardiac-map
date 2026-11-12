@@ -525,13 +525,13 @@ export default function ECGRenderer({ scrub = true }: { scrub?: boolean }) {
         markAt(v.t + v.tw.tp, 'T');
         bracket(v.t, v.t + v.qt, yBr, `QT ${Math.round(v.qt)} ms (QTcF ${Math.round(qtc)})`);
       }
-      // ST measurement point (J + 60 ms)
-      const jx = X(v.t + v.qrsDur + 60);
+      // ST measured at the J point (the end of the QRS) against the PR segment, as the universal definition of MI does
+      const jx = X(v.t + v.qrsDur);
       c.setLineDash([3, 3]);
       c.beginPath(); c.moveTo(jx, s.y + 20); c.lineTo(jx, yBr - rowGap - 8); c.stroke();
       c.setLineDash([]);
-      const stv = engine.voltage(s.lead, v.t + v.qrsDur + 60) - engine.voltage(s.lead, v.t - 15);
-      const stText = `ST ${stv >= 0 ? '+' : ''}${(stv * 10).toFixed(1)} mm`;
+      const stv = engine.voltage(s.lead, v.t + v.qrsDur) - engine.voltage(s.lead, v.t - 12);
+      const stText = `ST at J ${stv >= 0 ? '+' : ''}${(stv * 10).toFixed(1)} mm`;
       // beside its dashed line, on whichever side has room
       const stW = c.measureText(stText).width;
       c.fillText(stText, jx + 4 + stW > s.x + s.w - 2 ? jx - 4 - stW : jx + 4, s.y + (small ? 14 : 30));

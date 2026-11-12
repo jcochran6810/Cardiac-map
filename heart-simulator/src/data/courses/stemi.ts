@@ -81,7 +81,7 @@ export const STEMI: Course = {
             'The ST segment runs from the end of the QRS to the start of the T wave. The point where the QRS ends is called the J point. Normally the J point sits level with the flat line before the QRS.',
             'ST elevation is measured at the J point: how far it sits above that line, in millimeters. At the standard setting one small box is 1 mm high.',
           ],
-          look: 'Lead V3 is enlarged. The ST segment leaves the QRS about 2 mm above the baseline and climbs into a tall T wave. The dashed line is where the app measures, 60 ms after the J point, so its label reads a little higher.',
+          look: 'Lead V3 is enlarged. The ST segment leaves the QRS about 3 mm above the baseline and climbs into a tall T wave. The dashed line marks the J point, where the ST segment is measured, and its label gives the height.',
           show: { heart: 'territories', camera: 'Front', vector: false, speed: 1, inspect: 'V3', focus: 'ecg' },
         },
         {

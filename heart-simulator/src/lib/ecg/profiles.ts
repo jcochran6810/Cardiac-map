@@ -454,7 +454,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   'anterior-stemi': {
     id: 'anterior-stemi', name: 'Anterior STEMI', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 92, ...STD,
     pr: 160, p: 'normal', qrs: 'anterior-mi', qtc: 430, hemo: 'stemi',
-    injury: scale(norm([0.25, -0.92, 0.22]), 0.24),
+    injury: scale(norm([0.25, -0.92, 0.22]), 0.34),
     t: { dir: [0.4, -0.75, -0.35], mag: 0.62, rise: 0.12, fall: 0.08 },
     headline: 'Anterior STEMI — proximal LAD occlusion',
     findings: ['ST elevation in V1–V4 (± I, aVL with proximal LAD)', 'Hyperacute, broad-based T waves', 'Loss of R waves / developing Q waves in V1–V3', 'Reciprocal ST depression in III and aVF', 'STE criteria: ≥ 1 mm in 2 contiguous leads (V2–V3: ≥ 2 mm men ≥ 40 y, ≥ 2.5 mm men < 40 y, ≥ 1.5 mm women)'],
@@ -463,7 +463,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   'inferior-stemi': {
     id: 'inferior-stemi', name: 'Inferior STEMI', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 64, ...STD,
     pr: 180, p: 'normal', qrs: 'normal', qtc: 420, hemo: 'stemi',
-    injury: scale(norm([-0.32, 0.18, -0.93]), 0.22),
+    injury: scale(norm([-0.32, 0.18, -0.93]), 0.36),
     t: { dir: [0.05, -0.15, -0.98], mag: 0.5, rise: 0.12, fall: 0.08 },
     headline: 'Inferior STEMI — RCA occlusion',
     findings: ['ST elevation in II, III, aVF with STE III > II (favors RCA)', 'Reciprocal ST depression in aVL (often the earliest sign) and I', 'ST depression V1–V3 suggests posterior extension', 'Record V4R: STE ≥ 0.5 mm (classically ≥ 1 mm) suggests RV infarction (avoid nitrates; fluid bolus if hypotensive)', 'Watch for bradycardia and AV block (AV nodal artery)'],
@@ -472,7 +472,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   'inferior-stemi-chb': {
     id: 'inferior-stemi-chb', name: 'Inferior STEMI with Complete Heart Block', rhythm: 'chb', rateControl: 'ventricular', defaultHR: 42, minHR: 30, maxHR: 60,
     pr: 0, p: 'normal', qrs: 'normal', qtc: 430, hemo: 'stemi',
-    injury: scale(norm([-0.32, 0.18, -0.93]), 0.22),
+    injury: scale(norm([-0.32, 0.18, -0.93]), 0.36),
     t: { dir: [0.05, -0.15, -0.98], mag: 0.5, rise: 0.12, fall: 0.08 },
     headline: 'Inferior STEMI with complete heart block (narrow junctional escape)',
     findings: ['ST elevation in II, III, aVF with reciprocal depression in aVL', 'P waves and QRS complexes are dissociated; narrow escape at 40–50 bpm', 'AV-nodal ischemia (RCA supplies the AV node in ~90%): usually transient and often atropine-responsive', 'Pacing pads on; treat hypotension; urgent reperfusion'],
@@ -499,7 +499,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   'lateral-stemi': {
     id: 'lateral-stemi', name: 'Lateral STEMI', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 84, ...STD,
     pr: 160, p: 'normal', qrs: 'normal', qtc: 420, hemo: 'stemi',
-    injury: scale(norm([0.92, 0.25, 0.3]), 0.19),
+    injury: scale(norm([0.92, 0.25, 0.3]), 0.30),
     t: { dir: [0.92, -0.1, -0.25], mag: 0.45, rise: 0.12, fall: 0.08 },
     headline: 'Lateral STEMI — LCx or diagonal occlusion',
     findings: ['ST elevation in I, aVL, V5–V6', 'Reciprocal ST depression in III and aVF', 'High lateral (I, aVL ± V2) pattern suggests first diagonal', 'LCx occlusions are often electrically "silent" — get posterior leads V7–V9'],
@@ -563,7 +563,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   'cardiogenic-shock': {
     id: 'cardiogenic-shock', name: 'Cardiogenic Shock (Anterior MI)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 118, ...STD,
     pr: 150, p: 'normal', qrs: 'anterior-mi', qrsScale: 0.85, qtc: 450, hemo: 'shock',
-    injury: scale(norm([0.25, -0.92, 0.22]), 0.2),
+    injury: scale(norm([0.25, -0.92, 0.22]), 0.3),
     headline: 'Sinus tachycardia with evolving anterior STEMI',
     findings: ['Sinus tachycardia (compensatory)', 'Anterior ST elevation with Q waves — large territory infarction', 'Acute MI is a leading cause of cardiogenic shock (with decompensated chronic HF): AMI-shock needs emergent culprit-vessel revascularization'],
     keyLeads: ['V1', 'V2', 'V3', 'V4'],
