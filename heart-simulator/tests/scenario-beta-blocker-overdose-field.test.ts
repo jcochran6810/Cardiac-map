@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONDITIONS } from '@/data/content';
 import { resolveProfile } from '@/lib/ecg/profiles';
-import { criticalsFor, perform, review, start, stop, unavailableReason } from '@/lib/sim/scenario/engine';
+import { answerRead, criticalsFor, perform, review, start, stop, takeHint, unavailableReason } from '@/lib/sim/scenario/engine';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { betaBlockerField as sc } from '@/lib/sim/scenario/scenarios/betaBlockerField';
 import type { SimState } from '@/lib/sim/scenario/types';
@@ -83,7 +83,8 @@ describe('beta-blocker overdose (field): the case itself', () => {
   });
 
   it('every rhythm the case reaches is a real ECG profile inside its rate range', () => {
-    const runs = [IDEAL, PACED, [...READY, 'diltiazem', ...R(4)], [...READY, ...R(14), 'cpr', 'epinephrine', 'cpr'], [...READY, 'glucagon', ...R(10)]];
+    const runs = [IDEAL, PACED, [...READY, 'diltiazem', ...R(4)], [...READY, ...R(14), 'cpr', 'epinephrine', 'cpr'], [...READY, 'glucagon', ...R(10)],
+      [...READY, 'pace', ...R(14)], [...READY, 'epinephrine', 'pressor', 'glucagon', 'glucagon', 'push-epi', 'calcium-chloride', 'fluid', 'fluid']];
     for (const steps of runs) {
       run(sc, 2, steps, (s) => {
         const p = resolveProfile(s.rhythm.profile);
@@ -175,6 +176,34 @@ describe('beta-blocker overdose (field): the right treatments work as they would
     expect(fixed.rhythm.profile).toBe('normal-sinus');
   });
 
+  it('fentanyl just before the pacer goes on is premedication: no penalty, the analgesia item is done, and the pacing does not hurt', () => {
+    const steps = ['primary', 'pads', 'ecg12', 'sample', 'iv', 'glucose', 'dextrose', 'fentanyl', 'pace', 'pulse-check', 'glucagon', 'pressor', 'med-control',
+      'transport-pci', UNTIL_ARRIVED, 'handoff'];
+    const s = run(sc, 2, steps);
+    fullMarks(s);
+    expect(s.flags.analgesia).toBeDefined();
+    expect(s.log.some((l) => /stand it/.test(l.text))).toBe(true);
+    expect(s.log.some((l) => /thumping in my chest hurts/.test(l.text))).toBe(false);
+  });
+
+  it('premedication the pacer never followed (or followed too late) costs points once, at the hand-off', () => {
+    // fentanyl while she was slow and failing, then the drugs fixed her and nobody paced
+    const unused = run(sc, 2, ['primary', 'pads', 'ecg12', 'sample', 'iv', 'glucose', 'dextrose', 'fentanyl', 'glucagon', 'pressor', 'med-control',
+      'transport-pci', UNTIL_ARRIVED]);
+    expect(penalties(unused)).toEqual([]);
+    const handed = perform(sc, unused, 'handoff');
+    expect(penalties(handed)).toEqual(['premed-no-pacing']);
+    expect(handed.penalties[0].severity).toBe('minor');
+    // given more than 5 minutes before the pacer: not premedication, so the pacing still needs its analgesia
+    const early = run(sc, 2, [...READY, 'fentanyl', 'glucose', 'dextrose', 'ecg12', 'lungs', 'perfusion', 'neuro', 'pace']);
+    expect(early.performed.at(-1)!.minute - early.performed.find((p) => p.id === 'fentanyl')!.minute).toBeGreaterThan(5);
+    expect(missed(early)).toContain('Analgesia for pacing');
+    expect(early.flags.analgesia).toBeUndefined();
+    // and at the hand-off that early dose is the one the pacer did not follow
+    expect(penalties(perform(sc, run(sc, 2, [...READY, 'fentanyl', 'glucose', 'dextrose', 'ecg12', 'lungs', 'perfusion', 'neuro', 'pace', 'fentanyl',
+      'pulse-check', 'glucagon', 'pressor', 'med-control', 'transport-pci', UNTIL_ARRIVED]), 'handoff'))).toEqual(['premed-no-pacing']);
+  });
+
   it('a patient paced once she no longer responds needs no analgesia item; capture still has to be confirmed', () => {
     let s = run(sc, 2, READY);
     while (!s.flags.obtunded) s = perform(sc, s, 'reassess');
@@ -182,6 +211,38 @@ describe('beta-blocker overdose (field): the right treatments work as they would
     expect(s.rhythm).toEqual({ profile: 'tcp', hr: 70 });
     expect(missed(s)).not.toContain('Analgesia for pacing');
     expect(missed(s)).toContain('Confirm mechanical capture with a pulse');
+  });
+
+  it('pacing alone holds the rate, not the poisoned heart: she still gets worse and stops protecting her airway, but does not arrest while it captures', () => {
+    let s = run(sc, 2, [...READY, 'pace', 'pulse-check', 'fentanyl']);
+    const start = s.vitals.sbp;
+    while (s.minute < 34) s = perform(sc, s, 'reassess');
+    expect(s.fired).toEqual(expect.arrayContaining(['worse', 'peri']));
+    expect(s.fired).not.toContain('arrest-untreated');
+    expect(s.pulse).toBe(true);
+    expect(s.rhythm).toEqual({ profile: 'tcp', hr: 70 });
+    expect(s.vitals.sbp).toBeLessThan(start);
+    expect(s.vitals.gcs).toBeLessThanOrEqual(8);
+    expect(missed(s)).toEqual(expect.arrayContaining(['Glucagon IV for the slow rate and the low pressure', 'Epinephrine infusion for the hypotension']));
+    // the drugs still rescue her: the pressure comes back over 90
+    s = perform(sc, perform(sc, s, 'glucagon'), 'pressor');
+    expect(s.vitals.sbp).toBeGreaterThanOrEqual(90);
+  });
+
+  it('a second glucagon dose adds to the first only while the first still works', () => {
+    let s = run(sc, 2, [...READY, 'glucagon']);
+    while (!s.fired.includes('glucagon-fades')) s = perform(sc, s, 'reassess');
+    const faded = s.rhythm.hr;
+    s = perform(sc, s, 'glucagon');
+    // a fresh single dose (+12), not the two overlapping doses (+16)
+    expect(s.rhythm.hr).toBe(faded + 12);
+  });
+
+  it('the 12-lead shows the heart as it is when it is taken: a 1 mg epinephrine surge that has worn off is gone from it', () => {
+    const s = run(sc, 2, [...READY, 'epinephrine', 'glucose', 'opqrst', 'lungs', 'perfusion', 'ecg12']);
+    expect(s.reads.at(-1)).toMatchObject({ answer: 'junctional' });
+    expect(s.rhythm).toEqual({ profile: 'junctional', hr: 38 });
+    expect(s.vitals.sbp).toBeLessThan(90);
   });
 
   it('calcium is reasonable in this overdose: a little pressure, no penalty', () => {
@@ -301,6 +362,24 @@ describe('beta-blocker overdose (field): the traps', () => {
     }
   });
 
+  it('the potassium dose of albuterol gives no rate back (and keeps the rhythm a real one): a minor error', () => {
+    // with glucagon running she is at 50 on her own sinus node; the engine's default would push it past 59 and leave it "sinus bradycardia"
+    const base = run(sc, 2, [...READY, 'glucagon']);
+    const s = perform(sc, base, 'albuterol-hyperk');
+    expect(penalties(s)).toEqual(['albuterol-hyperk-no-indication']);
+    expect(s.rhythm).toEqual(base.rhythm);
+    const p = resolveProfile(s.rhythm.profile);
+    expect(s.rhythm.hr).toBeLessThanOrEqual(p.maxHR);
+  });
+
+  it('amiodarone or lidocaine in her arrest (an organized rhythm without a pulse) is a minor error, once', () => {
+    const arrested = run(sc, 2, [...READY, ...R(14)]);
+    expect(arrested.pulse).toBe(false);
+    const s = run(sc, 2, [...READY, ...R(14), 'amio-arrest', 'lidocaine']);
+    expect(penalties(s)).toEqual(['antiarrhythmic-pea']);
+    expect(s.penalties[0].severity).toBe('minor');
+  });
+
   it('adenosine and a vagal maneuver slow her further for seconds and cost points', () => {
     const s = run(sc, 2, [...READY, 'adenosine6']);
     expect(penalties(s)).toEqual(['adenosine-brady']);
@@ -314,10 +393,18 @@ describe('beta-blocker overdose (field): the traps', () => {
     expect(penalties(run(sc, 2, [...READY, 'magnesium-sulfate']))).toEqual(['magnesium-no-indication']);
     expect(penalties(run(sc, 2, [...READY, 'nitro']))).toEqual(['nitro-hypotension']);
     expect(penalties(run(sc, 2, [...READY, 'cpap']))).toEqual(['cpap-shock']);
-    expect(penalties(run(sc, 2, [...READY, 'fentanyl', 'sedation']))).toEqual(['sedative-no-indication']);
+    // once the drugs have fixed the rate and the pressure there is no pacing to cover: an opioid or a sedative costs at once
+    expect(penalties(run(sc, 2, [...READY, 'glucagon', 'pressor', 'fentanyl', 'sedation']))).toEqual(['sedative-no-indication']);
     expect(penalties(run(sc, 2, [...READY, 'albuterol-hyperk']))).toEqual(['albuterol-hyperk-no-indication']);
     // an awake patient is no candidate for an advanced airway
     expect(penalties(run(sc, 2, [...READY, 'airway']))).toEqual(['airway-awake']);
+  });
+
+  it('a STEMI alert for a 12-lead without ST elevation costs points, and the cardiologist declines it', () => {
+    const s = run(sc, 2, ['primary', 'pads', 'ecg12', 'stemi-alert']);
+    expect(penalties(s)).toEqual(['false-stemi-alert']);
+    expect(s.flags.alert).toBeUndefined();
+    expect(s.log.at(-1)).toMatchObject({ who: 'hospital', text: expect.stringMatching(/not activated/) });
   });
 
   it('a drug that dropped her pressure keeps it lower: getting worse never brings it back up', () => {
@@ -383,7 +470,21 @@ describe('beta-blocker overdose (field): what the learner reads', () => {
     IDEAL, PACED, [...READY, 'atropine', 'atropine', 'atropine', ...R(3)], [...READY, 'diltiazem', ...R(4)], [...READY, 'glucagon', ...R(10)],
     [...READY, ...R(14), 'cpr', 'epinephrine', 'cpr', 'bvm', 'pressor', 'glucagon'], [...READY, 'adenosine6', 'adenosine12', 'vagal', 'push-epi', 'epinephrine'],
     [...READY, 'pace', 'diltiazem', 'atropine', 'adenosine6'],
+    [...READY, 'fentanyl', 'pace', 'pulse-check', ...R(14)], ['primary', 'pads', 'ecg12', 'stemi-alert', 'sample', 'iv', 'epinephrine', ...R(2), 'ecg12-repeat'],
   ];
+
+  it('a hint before the history points to the question, never to the drug', () => {
+    let s = start(sc, 2);
+    for (const id of ['primary', 'pads', 'ecg12']) {
+      s = takeHint(sc, s);
+      s = perform(sc, s, id);
+      while (s.pendingRead) s = answerRead(sc, s, s.pendingRead.answer);
+    }
+    s = takeHint(sc, s);
+    const hints = s.log.filter((l) => l.who === 'system' && /^Hint/.test(l.text));
+    expect(hints.at(-1)!.text).toMatch(/what she took/);
+    for (const h of hints) expect(h.text, h.text).not.toMatch(/metoprolol|beta-blocker|propranolol|sotalol/i);
+  });
 
   it('no monitor or event line names the rhythm or the diagnosis', () => {
     for (const steps of RUNS) {
@@ -404,6 +505,9 @@ describe('beta-blocker overdose (field): what the learner reads', () => {
     expect(text).toMatch(/glucagon[^.]*0\.05–0\.15 mg\/kg/i);
     expect(text).toMatch(/vasopressor is recommended/);
     expect(text).toMatch(/high-dose insulin/);
+    // class 1 in the 2023 update: for hypotension refractory to, or alongside, vasopressors; 1 unit/kg, then 1–10 units/kg/h
+    expect(text).toMatch(/high-dose insulin is recommended for hypotension despite, or alongside, vasopressors[^.]*1–10 units\/kg\/h/);
+    expect(text).toMatch(/lipid emulsion is not likely to help/);
     expect(text).toMatch(/ECMO/);
     expect(text).toMatch(/1-800-222-1222/);
     expect(text).toMatch(/extended-release/i);

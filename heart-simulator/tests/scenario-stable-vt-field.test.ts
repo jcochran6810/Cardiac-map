@@ -10,6 +10,8 @@ import { UNTIL_ARRIVED, readAfter, runScenario as run } from './helpers';
 const R = (n: number) => Array<string>(n).fill('reassess');
 const penalties = (s: SimState) => s.penalties.map((p) => p.id);
 const missed = (s: SimState) => review(sc, stop(s)).toFix.filter((t) => t.kind === 'missed').map((t) => t.label);
+const STOP_IT = 'Stop it while he is stable: procainamide or amiodarone 150 mg over 10 minutes (or a sedated synchronized cardioversion)';
+const ECG_OF_IT = '12-lead of the tachycardia itself, before it stops';
 
 /** The paramedic's ideal run: pads, a blood pressure, the 12-lead, history, IV, medical control, amiodarone, transport; the repeat 12-lead once it breaks */
 const IDEAL = ['primary', 'pads', 'nibp', 'ecg12', 'sample', 'iv', 'med-control', 'amio-infusion', 'transport-pci', ...R(6), 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'];
@@ -91,12 +93,14 @@ describe('stable VT in the field: ideal runs end by themselves with full marks',
     expect(broke).toBeGreaterThanOrEqual(10);
     expect(broke).toBeLessThan(14);
     expect(s.log.some((l) => /stop at 17 mg\/kg/.test(l.text))).toBe(true);
-    expect(s.log.some((l) => /Procainamide stopped/.test(l.text))).toBe(true);
+    expect(s.log.some((l) => /Procainamide loading stopped/.test(l.text))).toBe(true);
   });
 
   it('every rhythm the runs reach is a real ECG profile, and no monitor line names the rhythm', () => {
     const runs = [IDEAL, IDEAL_PROCAINAMIDE, [...WORKED_UP, 'diltiazem', 'sedation', 'cardiovert'], ['pads', 'defib', 'defib'],
-      [...WORKED_UP, ...R(6), ...R(3), 'defib'], [...WORKED_UP, 'adenosine6', 'adenosine12', 'lidocaine', 'metoprolol']];
+      [...WORKED_UP, ...R(6), ...R(3), 'defib'], [...WORKED_UP, 'adenosine6', 'adenosine12', 'lidocaine', 'metoprolol'],
+      [...WORKED_UP, 'med-control', 'sedation', 'cardiovert', 'ecg12-repeat'], [...WORKED_UP, 'epinephrine', ...R(4)],
+      [...WORKED_UP, 'push-epi', 'pressor', 'amio-arrest', ...R(8)]];
     for (const steps of runs) {
       const s = run(sc, 2, steps, (st) => expect(resolveProfile(st.rhythm.profile).id, st.rhythm.profile).toBe(st.rhythm.profile));
       for (const l of s.log) if (l.who === 'monitor') expect(l.text, l.text).not.toMatch(giveaway);
@@ -109,7 +113,7 @@ describe('stable VT in the field: ideal runs end by themselves with full marks',
     const s = run(sc, 2, readAfter(['primary', 'pads', 'nibp', 'ecg12'], 'ecg12', 'svt'), undefined, 'manual');
     expect(s.reads[0]).toMatchObject({ answer: 'vt', chosen: 'svt', verdict: 'wrong' });
     expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is Ventricular tachycardia \(monomorphic\)\. .*AV dissociation/);
-    expect(missed(s)).not.toContain('12-lead of the tachycardia, before it is treated');
+    expect(missed(s)).not.toContain(ECG_OF_IT);
   });
 });
 
@@ -146,9 +150,9 @@ describe('stable VT in the field: the traps', () => {
     expect(s.vitals.sbp).toBeGreaterThanOrEqual(100);
     expect(penalties(s)).toEqual(['ccb-wide-complex']);
     const r = review(sc, stop(s));
-    expect(r.wentWell.map((t) => t.label)).toEqual(expect.arrayContaining(['Unstable: synchronized cardioversion at 100 J within 3 minutes', 'Sedation before the cardioversion (he was awake)']));
-    // the wrong drug is not the right one: the antiarrhythmic item is missed
-    expect(r.toFix.some((t) => t.kind === 'missed' && /One antiarrhythmic/.test(t.label))).toBe(true);
+    expect(r.wentWell.map((t) => t.label)).toEqual(expect.arrayContaining(['Unstable: synchronized cardioversion at 100 J within 3 minutes', 'Sedation or analgesia before the cardioversion (he was awake)']));
+    // the wrong drug is not the right one, and the shock came once he was unstable: the item for stopping it while stable is missed
+    expect(r.toFix.some((t) => t.kind === 'missed' && t.label === STOP_IT)).toBe(true);
   });
 
   it('calcium after the diltiazem lifts the pressure a little, at no cost — but he stays unstable; without diltiazem it has no indication', () => {
@@ -204,12 +208,12 @@ describe('stable VT in the field: the traps', () => {
     expect(s.rhythm.profile).toBe('vt');
   });
 
-  it('cardioverting him awake without sedation costs points', () => {
+  it('cardioverting him awake without sedation, and without asking medical control, costs points', () => {
     const s = run(sc, 2, [...WORKED_UP, 'cardiovert']);
     expect(s.rhythm.profile).toBe('normal-sinus');
-    expect(penalties(s)).toEqual(['no-sedation']);
+    expect(penalties(s)).toEqual(['no-sedation', 'cardiovert-stable']);
     expect(s.log.some((l) => l.who === 'patient' && /Aagh/.test(l.text))).toBe(true);
-    expect(missed(s)).toContain('Sedation before the cardioversion (he was awake)');
+    expect(missed(s)).toContain('Sedation or analgesia before the cardioversion (he was awake)');
   });
 });
 
@@ -230,7 +234,7 @@ describe('stable VT in the field: delay and the other responders', () => {
     expect([s.vitals.spo2, s.vitals.rr]).toEqual([96, 18]);
     expect(s.penalties).toEqual([]);
     const r = review(sc, stop(s));
-    expect(r.toFix.some((t) => t.kind === 'missed' && /One antiarrhythmic/.test(t.label))).toBe(true);
+    expect(r.toFix.some((t) => t.kind === 'missed' && t.label === STOP_IT)).toBe(true);
     expect(r.timings.find((t) => t.label === 'Synchronized cardioversion once unstable')?.met).toBe(true);
   });
 
@@ -249,12 +253,19 @@ describe('stable VT in the field: delay and the other responders', () => {
     expect(s.penalties).toEqual([]);
   });
 
-  it('lidocaine changes nothing and is a minor error; amiodarone after it is not counted as stacking', () => {
+  it('lidocaine (still in some US protocols) costs nothing but does not break it; amiodarone after it is full care, not stacking', () => {
     const s = run(sc, 2, [...WORKED_UP, 'lidocaine']);
     expect(s.rhythm).toEqual({ profile: 'vt', hr: 150 });
-    expect(penalties(s)).toEqual(['lidocaine-not-first']);
-    expect(penalties(perform(sc, s, 'amio-infusion'))).toEqual(['lidocaine-not-first']);
-    expect(missed(s)).toContain('One antiarrhythmic infusion: procainamide, or amiodarone 150 mg over 10 minutes');
+    expect(s.penalties).toEqual([]);
+    expect(missed(s)).toContain(STOP_IT);
+    // relied on alone, it lets him slide into instability at 15:00
+    let alone = s;
+    while (!alone.fired.includes('unstable-delay') && !alone.ended) alone = perform(sc, alone, 'reassess');
+    expect(alone.flags.unstable).toBeGreaterThanOrEqual(15);
+    // the medical-control call after it says why
+    expect(perform(sc, s, 'med-control').log.at(-1)!.text).toMatch(/^Medical control: thanks for the 12-lead\. Lidocaine seldom breaks these\./);
+    const then = run(sc, 2, [...WORKED_UP, 'med-control', 'lidocaine', 'amio-infusion', 'transport-pci', ...R(6), 'ecg12-repeat', UNTIL_ARRIVED, 'handoff']);
+    expectFullMarks(then);
   });
 
   it('metoprolol lowers the pressure without slowing it: a minor error', () => {
@@ -281,7 +292,7 @@ describe('stable VT in the field: delay and the other responders', () => {
   it('a 12-lead only after it has stopped does not count as the 12-lead of the tachycardia', () => {
     const s = run(sc, 2, ['primary', 'pads', 'nibp', 'iv', 'sedation', 'cardiovert', 'ecg12']);
     expect(s.reads.map((r) => r.answer)).toEqual(['nsr']);
-    expect(missed(s)).toContain('12-lead of the tachycardia, before it is treated');
+    expect(missed(s)).toContain(ECG_OF_IT);
   });
 
   it('teaches the 2025 algorithm: 100 J for monomorphic VT, adenosine only if regular and monomorphic, procainamide\'s stop rules, no sotalol', () => {
@@ -292,5 +303,114 @@ describe('stable VT in the field: delay and the other responders', () => {
     expect(text).toMatch(/COR 3, Harm/);
     expect(text).toMatch(/Sotalol is no longer in the 2025 algorithm/);
     expect(text).not.toMatch(/50–100 J|120–200 J/);
+  });
+});
+
+describe('stable VT in the field: fair scoring and physiology (review fixes)', () => {
+  it('a sedated cardioversion while he is still stable, on medical control\'s advice, is accepted care: full marks', () => {
+    const s = run(sc, 2, [...WORKED_UP, 'med-control', 'sedation', 'cardiovert', 'ecg12-repeat', 'transport-pci', UNTIL_ARRIVED, 'handoff']);
+    expect(s.log.some((l) => l.who === 'hospital' && /sedated synchronized cardioversion at 100 J now is a reasonable alternative/.test(l.text))).toBe(true);
+    expectFullMarks(s);
+    expect(review(sc, s).wentWell.map((t) => t.label)).toContain(STOP_IT);
+    // without asking medical control first it still stops it while stable, at a small, explained cost
+    const own = run(sc, 2, [...WORKED_UP, 'sedation', 'cardiovert']);
+    expect(penalties(own)).toEqual(['cardiovert-stable']);
+    expect(missed(own)).not.toContain(STOP_IT);
+  });
+
+  it('an analgesic before the shock counts like sedation: no "without sedation or analgesia" penalty when he had one', () => {
+    const s = run(sc, 2, [...WORKED_UP, 'med-control', 'fentanyl', 'cardiovert']);
+    expect(s.log.some((l) => l.who === 'patient' && /Aagh/.test(l.text))).toBe(false);
+    expect(s.penalties).toEqual([]);
+    expect(missed(s)).not.toContain('Sedation or analgesia before the cardioversion (he was awake)');
+  });
+
+  it('a drug started only once he is unstable earns nothing for stopping it while stable — not even half', () => {
+    const s = run(sc, 2, [...WORKED_UP, ...R(5), 'amio-infusion']);
+    expect(penalties(s)).toEqual(['drug-while-unstable']);
+    const r = review(sc, stop(s));
+    expect(r.toFix.find((t) => t.label === STOP_IT)?.kind).toBe('missed');
+  });
+
+  it('the 300 mg arrest push with a pulse still acts on the circuit (it breaks about 14 minutes later, no instability), but earns no credit', () => {
+    let s = run(sc, 2, [...WORKED_UP, 'amio-arrest']);
+    const at = s.performed.find((p) => p.id === 'amio-arrest')!.minute;
+    while (!s.fired.includes('drug-breaks') && !s.ended) s = perform(sc, s, 'reassess');
+    expect(s.flags['drug-converted'] - at).toBeGreaterThanOrEqual(14);
+    expect(s.fired).not.toContain('unstable-delay');
+    expect(s.rhythm.profile).toBe('normal-sinus');
+    expect(penalties(s)).toEqual(['arrest-amio-with-pulse']);
+    expect(missed(s)).toContain(STOP_IT);
+  });
+
+  it('a drug that breaks it during the hand-off does not count the 12-lead after conversion as missed', () => {
+    // amiodarone at 10:00 breaks it at 24:00, while the hand-off (23:30–24:30) is being given
+    const s = run(sc, 2, ['scene', 'primary', 'vitals', 'monitor', 'opqrst', 'sample', 'iv', 'pads', 'ecg12', 'amio-infusion', 'med-control', 'transport-near', UNTIL_ARRIVED, 'ecg12-repeat', 'handoff']);
+    expect(s.fired).toContain('drug-breaks');
+    expect(s.flags.converted).toBeGreaterThan(s.performed.find((p) => p.id === 'handoff')!.minute);
+    expect(missed(s)).not.toContain('12-lead after conversion');
+    // a conversion before the hand-off still needs one
+    expect(missed(run(sc, 2, [...WORKED_UP, 'amio-infusion', 'transport-pci', UNTIL_ARRIVED, 'handoff']))).toContain('12-lead after conversion');
+  });
+
+  it('with no monitor on, nothing on the monitor alarms or reads out: the crew notices instead', () => {
+    const left = run(sc, 2, ['primary', 'vitals', ...R(11)]);
+    expect(left.pulse).toBe(false);
+    expect(left.log.some((l) => l.who === 'monitor')).toBe(false);
+    expect(left.log.some((l) => l.who === 'partner' && /gone limp/.test(l.text))).toBe(true);
+    const drug = run(sc, 2, ['primary', 'vitals', 'sample', 'iv', 'amio-infusion', ...R(8)]);
+    expect(drug.fired).toContain('drug-breaks');
+    expect(drug.log.some((l) => l.who === 'partner' && /pulse has suddenly slowed/.test(l.text))).toBe(true);
+    expect(drug.log.some((l) => l.text === 'The rate falls suddenly to 78.')).toBe(false);
+  });
+
+  it('the arrest dose of epinephrine with a pulse drives the rate and pressure up and makes him unstable (ischemic chest pain)', () => {
+    const s = run(sc, 2, [...WORKED_UP, 'epinephrine']);
+    expect(s.rhythm).toEqual({ profile: 'vt', hr: 170 });
+    expect(s.vitals.sbp).toBeGreaterThan(160);
+    expect(s.vitals.sbp).toBeLessThanOrEqual(196);
+    expect(s.vitals.pain).toBeGreaterThanOrEqual(8);
+    expect(s.flags.unstable).toBeDefined();
+    expect(penalties(s)).toEqual(['arrest-epi-with-pulse']);
+    expect(perform(sc, s, 'perfusion').log.at(-1)!.text).toMatch(/bounding/);
+    const shocked = perform(sc, perform(sc, s, 'sedation'), 'cardiovert');
+    expect(shocked.rhythm.profile).toBe('normal-sinus');
+    expect(review(sc, stop(shocked)).wentWell.map((t) => t.label)).toContain('Unstable: synchronized cardioversion at 100 J within 3 minutes');
+  });
+
+  it('a pressor with a normal pressure costs points and drives the rate faster; with a low one it is not a penalty', () => {
+    for (const id of ['push-epi', 'pressor']) {
+      const s = run(sc, 2, [...WORKED_UP, id]);
+      expect(penalties(s), id).toEqual(['pressor-not-low']);
+      expect(s.rhythm.hr, id).toBe(158);
+      expect(s.vitals.sbp, id).toBeGreaterThan(118);
+      expect(s.vitals.sbp, id).toBeLessThanOrEqual(150);
+    }
+    const low = run(sc, 2, [...WORKED_UP, 'diltiazem', 'push-epi']);
+    expect(penalties(low)).toEqual(['ccb-wide-complex']);
+  });
+
+  it('other care that only lowers the pressure or wastes resources costs points: nitroglycerin with no pain, a STEMI alert, CPAP while hypotensive, adenosine once unstable', () => {
+    expect(penalties(run(sc, 2, [...WORKED_UP, 'nitro']))).toEqual(['nitro-no-pain']);
+    expect(penalties(run(sc, 2, [...WORKED_UP, 'stemi-alert']))).toEqual(['stemi-alert-no-ste']);
+    expect(penalties(run(sc, 2, [...WORKED_UP, 'cpap']))).toEqual([]);
+    expect(penalties(run(sc, 2, [...WORKED_UP, 'diltiazem', 'cpap']))).toEqual(['ccb-wide-complex', 'cpap-hypotension']);
+    expect(penalties(run(sc, 2, [...WORKED_UP, ...R(5), 'adenosine6']))).toEqual(['adenosine-unstable']);
+    // while he is stable, adenosine is a fair diagnostic try (regular and monomorphic: COR 2b)
+    expect(penalties(run(sc, 2, [...WORKED_UP, 'adenosine6']))).toEqual([]);
+  });
+
+  it('oxygen after the shock that brought him back is post-arrest care, not a mistake; before it, with a normal SpO₂, it is', () => {
+    expect(penalties(run(sc, 2, ['pads', 'defib', 'defib', 'o2-nrb']))).toEqual(['shock-with-pulse']);
+    expect(penalties(run(sc, 2, ['pads', 'o2-nrb']))).toEqual(['oxygen-normoxic']);
+  });
+
+  it('a crew that does nothing is graded Unsafe and he arrests; the main trap, rescued perfectly, still stays below Competent', () => {
+    const s = run(sc, 2, ['primary', 'pads', 'nibp', ...R(10)]);
+    expect(s.pulse).toBe(false);
+    expect(review(sc, stop(s)).grade).toBe('Unsafe');
+    // the main trap, rescued perfectly, still leaves the run below "Competent"
+    const rescued = run(sc, 2, [...WORKED_UP, 'diltiazem', 'med-control', 'sedation', 'cardiovert', 'ecg12-repeat', 'transport-pci', UNTIL_ARRIVED, 'handoff']);
+    expect(review(sc, rescued).percent).toBeLessThan(75);
   });
 });

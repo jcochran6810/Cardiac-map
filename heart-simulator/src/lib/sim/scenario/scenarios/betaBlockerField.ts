@@ -72,8 +72,10 @@ function picture(s: SimState, at = s.minute): Picture {
   const glucagon = count(s, 'glucagon') > 0 && (pressor || running(s, 'glucagonUntil', at));
   const pushEpi = running(s, 'pushEpiUntil', at);
   const bolus = running(s, 'epiBolusUntil', at);
+  // two doses add up only while both work: a dose given after the first wore off acts as a fresh single dose
+  const twice = count(s, 'glucagon') >= 2 && !has(s, 'glucagon-faded');
   const parts: [Delta, number][] = [
-    [count(s, 'glucagon') >= 2 ? GLUCAGON_TWICE : GLUCAGON, glucagon ? 1 : 0],
+    [twice ? GLUCAGON_TWICE : GLUCAGON, glucagon ? 1 : 0],
     [EPI_INFUSION, pressor ? 1 : 0],
     [PUSH_EPI, pushEpi ? 1 : 0],
     [EPI_BOLUS, bolus ? 1 : 0],
@@ -123,9 +125,30 @@ function after(s: SimState, o: { id?: string; flags?: string[]; timers?: Record<
   };
 }
 
-/** Something holds her up: an epinephrine infusion, the pacer, or a dose of glucagon or epinephrine still working */
-const supported = (s: SimState) => has(s, 'pressor') || has(s, 'paced')
+/**
+ * Something holds the poisoned heart up: an epinephrine infusion, or a dose of glucagon or epinephrine still working.
+ * The pacer is not on the list: it holds the rate, but the tablets keep releasing the drug and the squeeze keeps
+ * weakening, so a patient who is only paced still gets worse (she does not arrest while it captures).
+ */
+const supported = (s: SimState) => has(s, 'pressor')
   || (count(s, 'glucagon') > 0 && running(s, 'glucagonUntil')) || running(s, 'pushEpiUntil') || running(s, 'epiBolusUntil');
+
+/** Fentanyl or sedation given this many minutes or less before the pacer goes on covers the pacing (premedication) */
+const PREMED_WINDOW = 5;
+const ANALGESICS = ['fentanyl', 'sedation'];
+/** The minute the pacer was started, if it took over the rhythm */
+const paceStart = (s: SimState) => (has(s, 'paced') ? s.performed.find((p) => p.id === 'pace')?.minute ?? null : null);
+/** A dose of fentanyl or sedation in the last few minutes, ready for the pacer about to go on */
+const premedicated = (s: SimState) => s.performed.some((p) => ANALGESICS.includes(p.id) && p.minute >= s.minute - PREMED_WINDOW);
+/**
+ * A dose was given to cover pacing (she was slow and failing, not yet paced), and no dose came in the few minutes
+ * before the pacer went on: the pacer never followed, or followed too late for it
+ */
+const premedUnused = (s: SimState) => {
+  if (!has(s, 'premed')) return false;
+  const pace = paceStart(s);
+  return pace === null || !s.performed.some((p) => ANALGESICS.includes(p.id) && p.minute >= pace - PREMED_WINDOW && p.minute < pace);
+};
 
 /**
  * A rate worth pacing: under 50, or under 60 with the pressure still under 90 (in the poisoned heart a faster rate is
@@ -134,7 +157,7 @@ const supported = (s: SimState) => has(s, 'pressor') || has(s, 'paced')
 const slowAndFailing = (s: SimState) => s.rhythm.hr < 50 || (s.rhythm.hr < 60 && s.vitals.sbp < 90);
 
 /** Something more than atropine has been started */
-const escalated =(s: SimState) => count(s, 'glucagon') > 0 || has(s, 'pressor') || has(s, 'paced') || count(s, 'push-epi') > 0;
+const escalated = (s: SimState) => count(s, 'glucagon') > 0 || has(s, 'pressor') || has(s, 'paced') || count(s, 'push-epi') > 0;
 
 const BP = (p: Picture) => `BP ${p.sbp}/${p.dbp}`;
 const numbers = (p: Picture) => (p.rhythm.profile === 'tcp' ? `The pacer holds 70. ${BP(p)}.` : `Heart rate ${p.rhythm.hr}. ${BP(p)}.`);
@@ -251,6 +274,15 @@ export const betaBlockerField: Scenario = {
           : ['you', 'Femoral pulse at 70, matching the pacer: mechanical capture — but the pulse is weak.', 'warn']]
         : [['you', `Pulse present: ${p.rhythm.hr}/min${p.sbp < 90 ? ', weak and thready' : ''}.`]]), has(s, 'paced') ? ['capture-confirmed'] : []);
     },
+    // the 12-lead records the heart as it is when the tracing is taken: a short-acting drug that has worn off is gone from it
+    ecg12: (s) => (s.pulse ? settle(s, s, end(s, 'ecg12'), [], () => [['monitor', '12-lead acquired.']], ['ecg12', 'monitor']) : null),
+    'ecg12-repeat': (s) => (s.pulse && has(s, 'ecg12')
+      ? settle(s, s, end(s, 'ecg12-repeat'), [], () => [['monitor', '12-lead re-acquired.']], ['ecg12', 'monitor', 'ecg12-repeat'])
+      : null),
+    // the cath lab is for an artery to open; the cardiologist hears there is no ST elevation and stands the team down
+    'stemi-alert': (s) => (has(s, 'ecg12')
+      ? { say: [['hospital', 'The interventional cardiologist reviews your 12-lead: no ST elevation — the cath lab is not activated. Treat the cause of the slow rate, and bring her in.', 'warn']], flags: ['alert-declined'] }
+      : null),
 
     // ── glucose: the check remembers a low reading, so the first dose for it is never judged on a later value
     glucose: (s) => {
@@ -320,23 +352,29 @@ export const betaBlockerField: Scenario = {
     pace: (s) => {
       // pacing in arrest, or a rate that needs no pacer: the engine's own response
       if (!s.pulse || has(s, 'paced') || !slowAndFailing(s)) return null;
-      // only a patient who still feels it needs analgesia for it
-      const feels = s.vitals.gcs >= 9 ? ['paced-awake'] : [];
+      // only a patient who still feels it needs analgesia for it; a dose given just before covers it
+      const feels = s.vitals.gcs >= 9;
+      const covered = feels && premedicated(s);
+      const flags = ['pads', 'monitor', 'paced', ...(feels ? ['paced-awake'] : []), ...(covered ? ['analgesia'] : [])];
       return settle(s, after(s, { id: 'pace', flags: ['paced'] }), end(s, 'pace'), [['monitor', 'Pacer on: rate 70, output turned up to 90 mA.']],
-        (p) => [...awake(p, '"Ow! What is that?"', 'bad'), ['monitor', `${BP(p)}.`]], ['pads', 'monitor', 'paced', ...feels], { vitals: { pain: 6 } });
+        (p) => [...(covered ? awake(p, '"That thumps… but I can stand it."') : awake(p, '"Ow! What is that?"', 'bad')), ['monitor', `${BP(p)}.`]],
+        flags, { vitals: { pain: covered ? 2 : 6 } });
     },
+    // with the pacer on it is analgesia; just before pacing it is premedication; with neither it only deepens the shock
     fentanyl: (s) => {
       if (!s.pulse) return null;
       const pacing = has(s, 'paced');
+      const premed = !pacing && slowAndFailing(s);
       return settle(s, after(s, { id: 'fentanyl' }), end(s, 'fentanyl'), [['you', 'Fentanyl 25 mcg IV.']],
         (p) => [...(pacing ? awake(p, '"That\'s easier, thank you."', 'good') : []), ['monitor', `${BP(p)}.`]],
-        pacing ? ['analgesia'] : ['opioid'], pacing ? { vitals: { pain: 2 } } : {});
+        pacing ? ['analgesia'] : ['opioid', ...(premed ? ['premed'] : [])], pacing ? { vitals: { pain: 2 } } : {});
     },
     sedation: (s) => {
       if (!s.pulse) return null;
       const pacing = has(s, 'paced');
+      const premed = !pacing && slowAndFailing(s);
       return settle(s, after(s, { id: 'sedation' }), end(s, 'sedation'), [['you', 'Small dose of sedation and analgesia; capnography on.']],
-        (p) => [['monitor', `${BP(p)}.`]], pacing ? ['sedation', 'analgesia'] : ['sedation'], pacing ? { vitals: { pain: 1 } } : {});
+        (p) => [['monitor', `${BP(p)}.`]], pacing ? ['sedation', 'analgesia'] : ['sedation', ...(premed ? ['premed'] : [])], pacing ? { vitals: { pain: 1 } } : {});
     },
 
     // ── the wrong drugs do what they would
@@ -353,6 +391,10 @@ export const betaBlockerField: Scenario = {
     adenosine6: (s) => (s.pulse ? { say: [['monitor', has(s, 'paced') ? 'No change: the pacer holds 70.' : 'Seven seconds with no QRS complexes… then the same slow beats return.', 'bad']], flags: ['adenosine'] } : null),
     adenosine12: (s) => (s.pulse ? { say: [['monitor', has(s, 'paced') ? 'No change: the pacer holds 70.' : 'Nine seconds with no QRS complexes… then the same slow beats return.', 'bad']], flags: ['adenosine'] } : null),
     vagal: (s) => (s.pulse && !has(s, 'paced') ? { say: [['monitor', 'Heart rate 33 for a few seconds, then back.', 'bad']], flags: ['vagal'] } : null),
+    // the potassium dose of albuterol: the poisoned receptors give no rate back, only the tremor (the built-in rule penalizes it)
+    'albuterol-hyperk': (s) => (s.pulse
+      ? settle(s, s, end(s, 'albuterol-hyperk'), [['you', 'High-dose albuterol nebulizer running.']], (p) => [...awake(p, '"I feel shaky."'), ['monitor', numbers(p)]], ['albuterol-hyperk'])
+      : null),
 
     // ── airway: only once she can no longer protect it (an awake patient gets the engine's response)
     bvm: (s) => (s.pulse && s.vitals.gcs <= 8
@@ -365,7 +407,7 @@ export const betaBlockerField: Scenario = {
     // ── expert advice: medical control brings in the poison center, once you can tell them what she took
     'med-control': (s) => (has(s, 'sample')
       ? {
-        say: [['hospital', 'Medical control, with the poison center on the line: extended-release metoprolol, about 3 grams, two hours ago — expect it to get worse and to last. Glucagon 5 mg, once more if needed; an epinephrine infusion to a MAP of 65; pace if she stays slow. Treat her glucose. We will have high-dose insulin ready.']],
+        say: [['hospital', 'Medical control, with the poison center on the line: extended-release metoprolol, up to 3 grams, two hours ago — expect it to get worse and to last. Glucagon 5 mg, once more if needed; an epinephrine infusion to a MAP of 65; pace if she stays slow. Treat her glucose. We will have high-dose insulin ready.']],
         flags: ['med-control', 'consulted'],
       }
       : { blocked: true, say: [['system', 'Find out what she took first (SAMPLE): medical control and the poison center need the drug, the dose and the time.']] }),
@@ -404,8 +446,9 @@ export const betaBlockerField: Scenario = {
         (p) => [['monitor', numbers(p), 'bad']], ['peri'], { vitals: { rr: 8, spo2: 90, etco2: 50 } }),
     },
     {
+      // a pacer that captures keeps a low output going: she stays obtunded and hypotensive, but she does not arrest
       id: 'arrest-untreated',
-      when: (s) => s.pulse && has(s, 'peri') && !has(s, 'arrest') && s.minute >= s.flags.peri + 6 && !supported(s),
+      when: (s) => s.pulse && has(s, 'peri') && !has(s, 'arrest') && s.minute >= s.flags.peri + 6 && !supported(s) && !has(s, 'paced'),
       effect: () => arrest([]),
     },
     {
@@ -425,8 +468,9 @@ export const betaBlockerField: Scenario = {
   ],
   critical: [
     { id: 'pads', label: 'Monitor and pacing pads on at once', why: 'A slow rate with a systolic pressure in the 70s: with pads on you can pace in seconds if the drugs fail.', done: PADS, points: 10, target: { by: 5 } },
-    { id: 'ecg', label: '12-lead ECG', why: 'The rhythm, the QRS width (propranolol and other sodium-channel blockers widen it) and the QT (sotalol), and no inferior STEMI behind the slow rate.', done: ['ecg12'], points: 5, target: { by: 15 } },
-    { id: 'ingestion', label: 'Find out what she took, how much and when', why: 'The empty bottle is the diagnosis: extended-release metoprolol, about 3 g, two hours ago — the treatment, the call to the poison center and how long she must be watched all follow from it. Bring every bottle.', done: ['sample'], points: 10, target: { by: 8 } },
+    // a hint shows these before the history is taken, so they point to the question, not to the answer
+    { id: 'ecg', label: '12-lead ECG', why: 'The rhythm, the QRS width and the QT (some overdoses widen the QRS or lengthen the QT), and no inferior STEMI behind the slow rate.', done: ['ecg12'], points: 5, target: { by: 15 } },
+    { id: 'ingestion', label: 'Find out what she took, how much and when', why: 'The empty bottle is the key: the drug, its form (immediate or extended release), the dose and the time decide the treatment, the call to the poison center and how long she must be watched. Bring every bottle.', done: ['sample'], points: 10, target: { by: 8 } },
     { id: 'iv', label: 'IV access', why: 'For dextrose, glucagon and the epinephrine infusion.', done: ['iv', 'io'], points: 5, target: { by: 8 } },
     { id: 'glucose', label: 'Check the blood glucose', why: 'Every drowsy patient gets a glucose check. Beta-blockers can lower it and hide the warning signs (no shakes, no racing heart — only the sweating); a high glucose points to a calcium-channel blocker instead.', done: ['glucose'], points: 5, target: { by: 10 } },
     {
@@ -452,7 +496,16 @@ export const betaBlockerField: Scenario = {
     },
     { id: 'consult', label: 'Expert advice early: medical control and the poison center', why: 'Glucagon and an infusion are often an online-medical-control order, and the poison center (1-800-222-1222) and the hospital can get high-dose insulin, pacing and ECMO ready before she arrives.', done: ['med-control', 'notify'], after: 'sample', points: 5 },
     { id: 'capture', label: 'Confirm mechanical capture with a pulse', why: 'Spikes followed by wide complexes are electrical capture only: feel a femoral pulse at the paced rate (or check the BP).', done: ['pulse-check', 'nibp', 'vitals'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
-    { id: 'analgesia', label: 'Analgesia for pacing', why: 'Transcutaneous pacing hurts: a small dose of fentanyl (or sedation) once she is perfusing.', done: ['fentanyl', 'sedation'], after: 'paced', points: 5, applies: (s) => has(s, 'paced-awake') },
+    {
+      id: 'analgesia', label: 'Analgesia for pacing', why: 'Transcutaneous pacing hurts: a small dose of fentanyl (or sedation) just before the pacer goes on, or as soon as it captures.',
+      // premedication counts: a dose in the few minutes before the pacer started, or any dose after
+      done: (s) => {
+        const pace = paceStart(s);
+        const hit = pace === null ? undefined : s.performed.find((p) => ANALGESICS.includes(p.id) && p.minute >= pace - PREMED_WINDOW);
+        return hit ? hit.minute : null;
+      },
+      uses: ANALGESICS, points: 5, applies: (s) => has(s, 'paced-awake'),
+    },
     { id: 'airway', label: 'Support her breathing once she cannot protect her airway', why: 'At a GCS of 8 or less with slow, snoring breaths: bag-valve-mask ventilation or an advanced airway — and suction, because glucagon makes her vomit.', done: ['bvm', 'airway'], after: 'obtunded', points: 5, applies: (s) => has(s, 'obtunded'), target: { within: { flag: 'obtunded', minutes: 3 } } },
     { id: 'transport', label: 'Transport early', why: 'Treat on the way: she needs high-dose insulin, perhaps a transvenous pacing wire or ECMO, and 24 hours of ICU monitoring for an extended-release tablet.', done: ['transport-pci', 'transport-near'], points: 10, target: { by: 20 } },
     { id: 'handoff', label: 'Hand-off', why: 'The drug and its form (extended-release), the dose and the time, the glucose, what you gave and how she responded, and that this was a suicide attempt.', done: ['handoff'], points: 5 },
@@ -461,12 +514,17 @@ export const betaBlockerField: Scenario = {
     { id: 'av-blocker', actions: ['diltiazem', 'metoprolol'], points: 20, severity: 'critical', text: 'Another AV-nodal blocker on top of a beta-blocker overdose. A calcium-channel blocker or more beta-blocker slows the heart, weakens the squeeze and opens the vessels further, and can stop the heart: treat the poison, never add to it.' },
     { id: 'adenosine-brady', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
     // one penalty for one mistake: these stand in for the engine's procainamide and arrest-dose amiodarone rules
-    { id: 'antiarrhythmic-brady', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['procainamide-slow', 'procainamide-hypotension', 'arrest-amio-with-pulse'], text: 'An antiarrhythmic for a slow rhythm with a low pressure. Amiodarone, procainamide and lidocaine slow conduction, suppress the backup pacemaker and drop the pressure; there is nothing here to suppress.' },
+    { id: 'antiarrhythmic-brady', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['procainamide-slow', 'procainamide-hypotension', 'arrest-amio-with-pulse'], text: 'An antiarrhythmic for a slow rhythm with a low pressure. Amiodarone and procainamide slow conduction and drop the pressure, and all three can suppress the backup pacemaker that is keeping her going; there is nothing here to suppress.' },
+    // her arrest is an organized rhythm without a pulse: nothing for amiodarone or lidocaine to treat (procainamide has its own built-in rule)
+    { id: 'antiarrhythmic-pea', actions: ['lidocaine', 'amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'An antiarrhythmic in a cardiac arrest without VF or VT. Amiodarone and lidocaine are for shock-refractory VF or pulseless VT; with an organized rhythm and no pulse: CPR, epinephrine and the cause.' },
     { id: 'atropine-loop', actions: ['atropine'], when: (s) => s.pulse && count(s, 'atropine') >= 2 && !escalated(s), points: 5, severity: 'major', text: 'A third dose of atropine with nothing else started, while the pressure falls. Atropine often does little in a beta-blocker overdose: when the first dose fails, move on — glucagon, an epinephrine infusion, pacing.' },
     { id: 'atropine-in-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in cardiac arrest. It is no longer recommended for PEA or asystole: CPR, epinephrine and the reversible causes.' },
     // the engine's own rule judges on the real glucose; after a low one was found, the first dose is right even if glucagon has since raised it
     { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE && !(has(s, 'low-glucose') && count(s, 'dextrose') === 0 && !has(s, 'glucose-by-mouth')), points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
-    { id: 'sedative-no-indication', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse && !has(s, 'paced'), points: 5, severity: 'minor', text: 'An opioid or a sedative with no pain to treat and no pacing to cover. In a drowsy patient with a low pressure it deepens the sedation and the hypotension.' },
+    // a dose while she is slow and failing may be premedication for the pacer: judged at the hand-off, by whether pacing followed
+    { id: 'sedative-no-indication', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'An opioid or a sedative with no pain to treat and no pacing to cover. In a drowsy patient with a low pressure it deepens the sedation and the hypotension.' },
+    { id: 'premed-no-pacing', actions: ['handoff'], when: (s) => premedUnused(s), points: 5, severity: 'minor', text: 'Fentanyl or sedation given before pacing that never came. Premedicate just before the pacer goes on; with no pacing, an opioid or a sedative in a drowsy patient with a low pressure only deepens the sedation and the hypotension.' },
+    { id: 'false-stemi-alert', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. Her 12-lead shows none: the slow rate and the low pressure have another cause, and the cath lab team is called in for nothing.' },
     { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse, points: 6, severity: 'major', text: 'CPAP for a patient who is not short of breath. It cuts the venous return; with a systolic pressure in the 70s it deepens the shock.' },
     { id: 'magnesium-no-indication', actions: ['magnesium-sulfate'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Magnesium without torsades or a long QT. It has no role in a metoprolol overdose and drops the pressure (sotalol, which lengthens the QT, is the exception).' },
     // stands in for the engine's rule (a rate of 50 or more): here a rate of 50–59 with the pressure still low may be paced
@@ -489,10 +547,10 @@ export const betaBlockerField: Scenario = {
     'Atropine (0.5–1 mg) may be tried and pacing may be reasonable (AHA 2023 poisoning update), but both often fail here: do not keep repeating atropine while the pressure falls.',
     'Glucagon works past the blocked beta receptors: a bolus of 3–10 mg (0.05–0.15 mg/kg) IV over 3–5 minutes, then an infusion, is reasonable for bradycardia or hypotension (2025 AHA). Its effect fades within 10–20 minutes, and it makes patients vomit: protect the airway.',
     'A vasopressor is recommended for the hypotension (AHA 2023 poisoning update): an epinephrine infusion adds rate and squeeze as well as tone. Titrate to a MAP of 65 or more.',
-    'Transcutaneous pacing fixes the rate, not the poisoned squeeze: confirm mechanical capture with a femoral pulse, expect the pressure to still need a vasopressor, and give analgesia.',
-    'In hospital: high-dose insulin (about 1 unit/kg IV, then an infusion from 1 unit/kg/h, with dextrose and potassium) for hypotension despite vasopressors, calcium may be reasonable, and hemodialysis may be reasonable for atenolol, nadolol or sotalol (2025 AHA); VA-ECMO is reasonable for shock that drugs cannot reverse (AHA 2023).',
+    'Transcutaneous pacing fixes the rate, not the poisoned squeeze: confirm mechanical capture with a femoral pulse, expect the pressure to still need a vasopressor, and give analgesia (just before the pacer goes on, if there is time).',
+    'In hospital: high-dose insulin is recommended for hypotension despite, or alongside, vasopressors (about 1 unit/kg IV, then 1–10 units/kg/h, with dextrose and potassium; AHA 2023 and 2025); calcium may be reasonable, and hemodialysis may be reasonable for atenolol, nadolol or sotalol (2025 AHA); VA-ECMO is reasonable for shock that drugs cannot reverse, and lipid emulsion is not likely to help (AHA 2023).',
     'Extended-release tablets can make the poisoning start late and last more than 24 hours: ICU monitoring even when the patient looks better.',
-    'Never add an AV-nodal blocker (a calcium-channel blocker, more beta-blocker, adenosine) or a rate-suppressing antiarrhythmic (amiodarone, procainamide, lidocaine).',
+    'Never add an AV-nodal blocker (a calcium-channel blocker, more beta-blocker, adenosine) or an antiarrhythmic that can slow conduction or suppress the backup pacemaker (amiodarone, procainamide, lidocaine).',
     'The exceptions: propranolol also blocks sodium channels (a wide QRS, seizures — sodium bicarbonate) and sotalol lengthens the QT (torsades — magnesium). Call the poison center early: 1-800-222-1222.',
   ],
 };

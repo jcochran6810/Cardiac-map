@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveProfile } from '@/lib/ecg/profiles';
-import { BUILT_IN_HARMS, criticalsFor, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
+import { BUILT_IN_HARMS, clockText, criticalsFor, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { peaArrestField as sc } from '@/lib/sim/scenario/scenarios/peaArrestField';
 import type { SimState } from '@/lib/sim/scenario/types';
@@ -119,6 +119,10 @@ describe('PEA arrest in the field — the ideal runs', () => {
       medic(['capno', 'pads', 'defib', 'cardiovert', 'atropine', 'io', 'amio-arrest', 'sodium-bicarbonate', 'calcium-chloride', 'pace']),
       medic([...TO_ROSC, 'reassess', 'reassess', 'o2-nrb', 'cpap', 'pressor', 'push-epi', 'metoprolol', 'albuterol']),
       emt(['cpr', 'aed', 'aed', 'cpap', 'o2-nrb', 'epi-im', 'bvm', 'cpr', 'cpr', 'cpr', 'cpr', 'reassess', 'reassess']),
+      // the wrong drugs after ROSC, and breaths only after the flat line
+      medic([...TO_ROSC, 'bvm', 'atropine', 'epinephrine', 'nitro', 'amio-infusion', 'amio-arrest', 'fentanyl', 'adenosine6', 'ecg12', 'stemi-alert']),
+      medic([...NO_BREATHS, 'cpr', 'cpr', 'bvm', 'cpr', 'cpr', 'cpr']),
+      emt(IDEAL[1].slice(0, IDEAL[1].indexOf('bvm', 4) + 1).concat('epi-im')),
     );
     for (const s of runs) {
       expect(resolveProfile(s.rhythm.profile).id).toBe(s.rhythm.profile);
@@ -153,7 +157,9 @@ describe('PEA arrest in the field — what brings her back', () => {
     let s = medic(TO_ROSC.slice(0, -1));
     expect(s.pulse).toBe(false);
     expect(s.rhythm).toEqual({ profile: 'pea', hr: 52 });
-    expect(s.log.at(-1)!.text).toMatch(/still no pulse/);
+    // faster complexes, but the line does not report a pulse check: that is the learner's to do, and it finds none
+    expect(s.log.at(-1)!.text).toBe('Two minutes of compressions with 2 breaths of oxygen after every 30.');
+    expect(perform(sc, s, 'pulse-check').log.at(-1)!.text).toMatch(/^No carotid pulse/);
     s = perform(sc, s, 'cpr');
     expect(s.pulse).toBe(true);
     expect(s.flags.rosc).toBeDefined();
@@ -186,8 +192,9 @@ describe('PEA arrest in the field — what brings her back', () => {
     let s = medic([...NO_BREATHS, 'cpr', 'cpr', 'bvm']);
     expect(s.rhythm.profile).toBe('asystole');
     s = perform(sc, s, 'cpr');
-    // oxygen reaches the heart: organized complexes come back on the screen, still without a pulse
+    // oxygen reaches the heart: organized complexes come back on the screen, still without a pulse — and the monitor alarms
     expect(s.rhythm).toEqual({ profile: 'pea', hr: 30 });
+    expect(s.log.at(-1)).toMatchObject({ who: 'monitor', text: 'Monitor alarm.' });
     s = perform(sc, s, 'cpr');
     expect(s.pulse).toBe(false);
     s = perform(sc, s, 'cpr');
@@ -348,8 +355,12 @@ describe('PEA arrest in the field — capnography and stopping', () => {
     expect(s.log.at(-1)).toMatchObject({ who: 'hospital', text: expect.stringMatching(/not one to stop.*has not been treated yet.*measures nothing.*never stop on EtCO₂ alone/) });
     expect(s.penalties).toEqual([]);
     expect(s.pulse).toBe(false);
-    const e = emt(['cpr', 'med-control']);
+    const e = emt(['als', 'cpr', 'med-control']);
     expect(e.log.at(-1)!.text).toMatch(/ventilate her with oxygen and keep compressions going until the paramedics take over/);
+    // an EMT who has not called for the paramedics is told to
+    const alone = emt(['cpr', 'med-control']);
+    expect(alone.log.at(-1)!.text).toMatch(/get a paramedic intercept on the way: she needs epinephrine\.$/);
+    expect(alone.fired).not.toContain('als-arrives');
   });
 
   it('teaches that EtCO₂ alone, or any single cutoff, is never a reason to stop', () => {
@@ -401,7 +412,17 @@ describe('PEA arrest in the field — the traps', () => {
     expect(s.rhythm).toEqual(before.rhythm);
     expect(s.rhythm.hr).toBeLessThan(60);
     expect(s.log.at(-1)!.text).toBe('Atropine 1 mg IV — no change on the monitor.');
-    expect(penalties(s)).toEqual(['atropine-arrest']);
+    expect(penalties(s)).toEqual(['atropine-no-indication']);
+  });
+
+  it('atropine after ROSC speeds a heart that is already fast, and costs the same once', () => {
+    const rosc = perform(sc, medic(TO_ROSC), 'bvm');
+    const s = perform(sc, rosc, 'atropine');
+    expect(s.rhythm).toEqual({ profile: 'sinus-tachycardia', hr: 134 });
+    expect(s.log.at(-1)).toMatchObject({ who: 'monitor', text: 'Heart rate 134.' });
+    expect(penalties(s)).toEqual(['atropine-no-indication']);
+    // given in the arrest and again after ROSC, it is one mistake
+    expect(penalties(medic(['io', 'atropine', 'cpr', 'pads', 'pulse-check', 'bvm', 'epinephrine', 'cpr', 'cpr', 'atropine']))).toEqual(['atropine-no-indication']);
   });
 
   it('antiarrhythmics in PEA treat nothing: one minor penalty each, in place of the built-in procainamide rule', () => {
@@ -435,9 +456,16 @@ describe('PEA arrest in the field — the traps', () => {
 
   it('IM epinephrine from the EMT in the arrest does nothing and costs points; it is not the arrest epinephrine', () => {
     const s = emt(['cpr', 'epi-im']);
-    expect(penalties(s)).toEqual(['epi-im-arrest']);
+    expect(penalties(s)).toEqual(['epi-im-no-anaphylaxis']);
     expect(s.flags.epi).toBeUndefined();
     expect(s.log.at(-1)!.text).toMatch(/nothing carries it out of the muscle/);
+    // after ROSC it is absorbed, but she has no anaphylaxis: it still costs, and it is not the treatment for her pressure
+    const rosc = emt(IDEAL[1].slice(0, IDEAL[1].indexOf('bvm', 4) + 1));
+    expect(rosc.pulse).toBe(true);
+    const after = perform(sc, rosc, 'epi-im');
+    expect(penalties(after)).toEqual(['epi-im-no-anaphylaxis']);
+    expect(after.vitals.sbp).toBeGreaterThan(rosc.vitals.sbp);
+    expect(after.log.at(-1)!.who).toBe('monitor');
   });
 
   it('a pacer in the arrest is the built-in error', () => {
@@ -453,9 +481,94 @@ describe('PEA arrest in the field — the traps', () => {
       expect(penalties(s), id).toEqual(['rate-control-post-rosc']);
       expect(s.vitals.sbp, id).toBeLessThan(rosc.vitals.sbp);
     }
-    expect(penalties(perform(sc, rosc, 'nitro'))).toEqual(['nitro-hypotension']);
+    // the patient is unresponsive: compressions are stopped by the partner, not by her crying out
+    expect(perform(sc, rosc, 'cpr').log.at(-1)).toMatchObject({ who: 'partner', text: expect.stringMatching(/^Stop — she has a pulse/) });
+    // the arrest dose with a pulse surges the heart; the monitor shows it without naming a rhythm
+    expect(perform(sc, rosc, 'epinephrine').log.at(-1)!.text).toMatch(/races and the pressure surges/);
+    const nitro = perform(sc, rosc, 'nitro');
+    expect(penalties(nitro)).toEqual(['nitro-post-rosc']);
+    expect(nitro.log.at(-1)).toMatchObject({ who: 'monitor', text: 'BP 74/44.' });
     // her glucose is not low
     expect(penalties(perform(sc, rosc, 'dextrose'))).toEqual(['glucose-not-low']);
+  });
+
+  it('after ROSC, nitroglycerin or procainamide still cost once her pressure is above 90 — the built-in rules would not', () => {
+    const fluid = perform(sc, perform(sc, medic(TO_ROSC), 'bvm'), 'fluid');
+    expect(fluid.vitals.sbp).toBeGreaterThanOrEqual(90);
+    expect(penalties(perform(sc, fluid, 'nitro'))).toEqual(['nitro-post-rosc']);
+    const proc = perform(sc, fluid, 'procainamide');
+    expect(penalties(proc)).toEqual(['rate-control-post-rosc']);
+    expect(proc.vitals.sbp).toBeLessThan(fluid.vitals.sbp);
+    // with the low pressure the built-in rule is replaced, not added: one mistake, one penalty
+    expect(penalties(perform(sc, perform(sc, medic(TO_ROSC), 'bvm'), 'procainamide'))).toEqual(['rate-control-post-rosc']);
+  });
+
+  it('after ROSC, amiodarone drops her pressure and costs; adenosine and lidocaine treat nothing and cost a little', () => {
+    const rosc = perform(sc, medic(TO_ROSC), 'bvm');
+    const amio = perform(sc, rosc, 'amio-infusion');
+    expect(penalties(amio)).toEqual(['rate-control-post-rosc']);
+    expect(amio.vitals.sbp).toBeLessThan(rosc.vitals.sbp);
+    const push = perform(sc, rosc, 'amio-arrest');
+    expect(penalties(push)).toEqual(['arrest-amio-with-pulse']);
+    expect(push.vitals.sbp).toBeLessThan(rosc.vitals.sbp);
+    for (const id of ['adenosine6', 'lidocaine']) {
+      const s = perform(sc, rosc, id);
+      expect(penalties(s), id).toEqual(['antiarrhythmic-post-rosc']);
+      expect(s.penalties[0].points, id).toBe(3);
+    }
+  });
+
+  it('fentanyl and sedation: impossible in the arrest (no time, no cost); after ROSC, for a GCS of 3, they cost and lower the pressure', () => {
+    const arrest = medic(['cpr', 'iv']);
+    for (const id of ['fentanyl', 'sedation']) {
+      const s = perform(sc, arrest, id);
+      expect(s.counts[id], id).toBeUndefined();
+      expect(s.minute, id).toBe(arrest.minute);
+      expect(s.penalties, id).toEqual([]);
+      // the default would have made a pulseless patient breathe 10 a minute
+      expect(s.vitals.rr, id).toBe(0);
+    }
+    const rosc = perform(sc, medic(TO_ROSC), 'bvm');
+    for (const id of ['fentanyl', 'sedation']) {
+      const s = perform(sc, rosc, id);
+      expect(penalties(s), id).toEqual(['sedation-unresponsive']);
+      expect(s.vitals.sbp, id).toBeLessThan(rosc.vitals.sbp);
+      // she is unresponsive: nothing in her voice
+      expect(s.log.slice(rosc.log.length).some((l) => l.who === 'patient'), id).toBe(false);
+    }
+  });
+
+  it('a STEMI alert after ROSC is declined by the cardiologist and costs a little; glucagon is a drug for an overdose she does not have', () => {
+    const rosc = perform(sc, medic([...TO_ROSC, 'bvm', 'ecg12']), 'stemi-alert');
+    expect(rosc.log.at(-1)).toMatchObject({ who: 'hospital', text: expect.stringMatching(/no ST elevation — the cath lab is not activated/) });
+    expect(rosc.flags.alert).toBeUndefined();
+    expect(penalties(rosc)).toEqual(['stemi-alert-no-ste']);
+    expect(penalties(perform(sc, medic(['cpr', 'iv']), 'glucagon'))).toEqual(['glucagon-no-indication']);
+  });
+
+  it('epinephrine stacked less than 3 minutes apart is a minor error; every other cycle is not', () => {
+    expect(penalties(medic(['cpr', 'pads', 'pulse-check', 'iv', 'epinephrine', 'epinephrine']))).toEqual(['epi-too-soon']);
+    // 2.5 minutes after the first dose: still too soon
+    expect(penalties(medic(['cpr', 'iv', 'epinephrine', 'cpr', 'epinephrine']))).toEqual(['epi-too-soon']);
+    expect(penalties(medic(['cpr', 'iv', 'epinephrine', 'cpr', 'pads', 'pulse-check', 'epinephrine']))).toEqual([]);
+    expect(penalties(medic(['iv', 'epinephrine', 'cpr', 'cpr', 'epinephrine']))).toEqual([]);
+  });
+
+  it('rate-control drugs in the arrest are the same minor error as the antiarrhythmics', () => {
+    const before = medic(['io']);
+    for (const id of ['metoprolol', 'diltiazem', 'amio-infusion']) {
+      const s = perform(sc, before, id);
+      expect(penalties(s), id).toEqual(['antiarrhythmic-pea']);
+      expect(s.rhythm, id).toEqual(before.rhythm);
+    }
+  });
+
+  it('push-dose epinephrine in the arrest is not the arrest dose: no cost, but it does not count, and the crew is told the dose', () => {
+    const s = medic(['cpr', 'iv', 'push-epi']);
+    expect(s.penalties).toEqual([]);
+    expect(s.flags.epi).toBeUndefined();
+    expect(s.log.at(-1)!.text).toMatch(/In cardiac arrest the dose is 1 mg/);
+    expect(missed(s, /^Epinephrine 1 mg/)).toBe(true);
   });
 
   it('the hint names CPR first, then the AED (EMT) or the rhythm check (paramedic), and costs points', () => {
@@ -468,6 +581,79 @@ describe('PEA arrest in the field — the traps', () => {
   it('the rhythm check counts only with a pulse check after the ECG is on', () => {
     expect(missed(medic(['cpr', 'pulse-check', 'cpr']), /^Rhythm check/)).toBe(true);
     expect(missed(medic(['cpr', 'monitor', 'pulse-check']), /^Rhythm check/)).toBe(false);
+    // a crew that never checks a pulse misses it, and nothing in the story claims a pulse check before ROSC
+    const s = medic(['cpr', 'pads', 'bvm', 'iv', 'epinephrine', 'cpr', 'cpr']);
+    expect(s.pulse).toBe(true);
+    expect(missed(s, /^Rhythm check/)).toBe(true);
+    const beforeRosc = s.log.filter((l) => l.minute < s.flags.rosc).map((l) => l.text).join('\n');
+    expect(beforeRosc).not.toMatch(/pulse check|no pulse/i);
+  });
+
+  it('loading her in the arrest: the transport item counts from ROSC, and arriving in the arrest a hand-off ends the case', () => {
+    const s = medic(['cpr', 'pads', 'pulse-check', 'transport-near', 'bvm', 'iv', 'epinephrine', 'cpr', 'cpr']);
+    expect(s.pulse).toBe(true);
+    expect(penalties(s)).toEqual(['transport-in-arrest']);
+    const transport = review(sc, stop(s)).wentWell.find((w) => /^Transport after ROSC/.test(w.label));
+    expect(transport?.detail).toBe(`at ${clockText(s.flags.rosc)}`);
+    // no breaths, loaded in the arrest, still pulseless at the door: the resuscitation team takes over
+    let arrived = medic(['cpr', 'pads', 'pulse-check', 'transport-near', 'iv', 'epinephrine', 'cpr', 'cpr', 'cpr']);
+    expect(arrived.flags.arrived).toBeDefined();
+    expect(arrived.pulse).toBe(false);
+    arrived = perform(sc, arrived, 'handoff');
+    expect(arrived.ended?.reason).toBe('complete');
+    const r = review(sc, arrived);
+    expect(r.outcome).toMatch(/^Care handed over at .* with \d+ critical items? not done\.$/);
+    expect(r.toFix.some((t) => t.kind === 'missed' && /^Treat the cause/.test(t.label))).toBe(true);
+    // before arrival the hand-off is still refused
+    expect(perform(sc, medic(['cpr', 'transport-near']), 'handoff').ended).toBeNull();
+  });
+});
+
+describe('PEA arrest in the field — what the crew hears and sees', () => {
+  it('a reassessment in the arrest does not claim CPR is going on: only CPR cycles bring her back', () => {
+    expect(sc.status!(start(sc, 2))).toBe('Unresponsive, no pulse; her husband is still doing compressions.');
+    const s = medic(['cpr', 'pads', 'pulse-check', 'bvm', 'iv', 'epinephrine', 'reassess', 'reassess']);
+    expect(s.log.at(-1)).toMatchObject({ who: 'patient', text: 'Unresponsive, no pulse.' });
+    expect(s.pulse).toBe(false);
+    expect(said(s)).not.toMatch(/CPR continues/);
+  });
+
+  it('a vague call for help brings no one: dispatch asks the EMT what is needed, and tells the paramedic no engine is free', () => {
+    const e = emt(['call-help', 'cpr', 'cpr', 'cpr', 'cpr']);
+    expect(e.log.find((l) => l.who === 'dispatch' && /What do you need — a paramedic \(ALS\) intercept\?/.test(l.text))).toBeDefined();
+    expect(e.fired).not.toContain('als-arrives');
+    expect(e.flags.als).toBeUndefined();
+    expect(medic(['call-help']).log.at(-1)!.text).toMatch(/it is your crew and her husband for now/);
+  });
+
+  it('the intercept crew puts in an IV, as the case teaches (IV first)', () => {
+    const s = emt(IDEAL[1].slice(0, IDEAL[1].indexOf('bvm', 4)));
+    const arrival = s.log.find((l) => l.who === 'team' && /^The paramedics arrive/.test(l.text))!;
+    expect(arrival.text).toMatch(/an IV in her arm/);
+    expect(arrival.text).not.toMatch(/\bIO\b/);
+  });
+
+  it('no right-sided or posterior leads during CPR, and no vagal maneuver for an unresponsive patient: no time passes', () => {
+    const s = medic(['cpr', 'pads']);
+    for (const id of ['ecg-right', 'ecg-posterior', 'vagal']) {
+      const t = perform(sc, s, id);
+      expect(t.counts[id], id).toBeUndefined();
+      expect(t.minute, id).toBe(s.minute);
+    }
+    // after ROSC the extra leads can be recorded
+    const rosc = perform(sc, medic(TO_ROSC), 'bvm');
+    expect(perform(sc, rosc, 'ecg-right').counts['ecg-right']).toBe(1);
+    expect(perform(sc, rosc, 'vagal').counts.vagal).toBeUndefined();
+  });
+
+  it('the 12-lead explanation mentions epinephrine only when she had it', () => {
+    const withEpi = medic([...TO_ROSC, 'bvm', 'ecg12']);
+    expect(withEpi.log.find((l) => l.who === 'feedback')!.text).toMatch(/the arrest, the epinephrine and the low pressure/);
+    const noEpi = medic(['cpr', 'pads', 'pulse-check', 'bvm', 'cpr', 'cpr', 'cpr', 'cpr', 'bvm', 'ecg12']);
+    expect(noEpi.flags.epi).toBeUndefined();
+    const read = noEpi.log.find((l) => l.who === 'feedback')!.text;
+    expect(read).toMatch(/her response to the arrest and the low pressure/);
+    expect(read).not.toMatch(/epinephrine/);
   });
 });
 
@@ -484,6 +670,9 @@ describe('PEA arrest in the field — teaching', () => {
     expect(text).toMatch(/MAP ≥ 65/);
     expect(text).toMatch(/32–37\.5 °C for at least 36 hours/);
     expect(text).toMatch(/since 2010/);
+    // the 2025 post-arrest target is an arterial CO₂; EtCO₂ is only the field's guide to it
+    expect(text).toMatch(/PaCO₂ of 35–45 mmHg/);
+    expect(text).not.toMatch(/EtCO₂ (of about )?35–45/);
     // outdated numbers stay out
     expect(text).not.toMatch(/SBP ≥ 90|92–98|94–99|32–36 °C|vasopressin/);
   });
