@@ -50,10 +50,10 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
     answer: {
       title: 'The conduction system',
       bullets: [
-        'SA node (RA at the SVC junction) fires 60–100/min → P wave as both atria depolarise (Bachmann\'s bundle carries it to the LA)',
+        'SA node (RA at the SVC junction) fires 60–100/min → P wave as both atria depolarize (Bachmann\'s bundle carries it to the LA)',
         'AV node (Koch\'s triangle) delays conduction ~0.1 s — the PR segment — so the atria finish emptying first',
         'Bundle of His penetrates the fibrous skeleton, then divides into right and left bundle branches (left → anterior and posterior fascicles)',
-        'Purkinje fibres spread activation endocardium → epicardium in ~80–100 ms, producing the narrow QRS',
+        'Purkinje fibers spread activation endocardium → epicardium in ~80–100 ms, producing the narrow QRS',
         'Backup pacemakers: junction 40–60/min, ventricles 20–40/min — why escape rhythms are slow and wide escapes unreliable',
       ],
       links: ['sa-node', 'av-node', 'bundle-of-his', 'left-bundle-branch', 'right-bundle-branch'],
@@ -68,9 +68,9 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
       bullets: [
         'Preload = ventricular stretch at end-diastole (approximated by EDV or filling pressure); more stretch → stronger contraction (Frank–Starling) up to a limit',
         'Afterload = the load the ventricle ejects against (wall stress; clinically aortic pressure/SVR, or a stenotic aortic valve)',
-        'Contractility = intrinsic strength of contraction independent of loading (raised by sympathetic tone/inotropes, reduced by ischaemia, HF)',
+        'Contractility = intrinsic strength of contraction independent of loading (raised by sympathetic tone/inotropes, reduced by ischemia, HF)',
         'Stroke volume rises with preload and contractility and falls with afterload; CO = HR × SV',
-        'Preload-dependent states: RV infarction, tamponade, hypovolaemia, HCM with obstruction — vasodilators/nitrates can crash the BP',
+        'Preload-dependent states: RV infarction, tamponade, hypovolemia, HCM with obstruction — vasodilators/nitrates can crash the BP',
       ],
       links: ['left-ventricle', 'hfref', 'cardiogenic-shock'],
       followUps: ['What is ejection fraction?', 'Explain the cardiac cycle'],
@@ -84,7 +84,7 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
         'EF = (EDV − ESV) / EDV × 100; normal LVEF ~ 52–72% (men) / 54–74% (women) by ASE',
         'HF categories (2022 AHA/ACC/HFSA): HFrEF ≤ 40%, HFmrEF 41–49%, HFpEF ≥ 50%',
         'Stroke volume = EDV − ESV (~60–100 mL); cardiac output = SV × HR (~4–8 L/min); cardiac index = CO / BSA (~2.5–4 L/min/m²)',
-        'A normal EF does not mean normal output: tamponade and hypovolaemia shrink EDV, and severe MR inflates EF while forward flow falls',
+        'A normal EF does not mean normal output: tamponade and hypovolemia shrink EDV, and severe MR inflates EF while forward flow falls',
       ],
       links: ['left-ventricle', 'hfref', 'hfpef'],
       followUps: ['Explain preload and afterload'],
@@ -104,17 +104,17 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
         'Compare with old ECGs and always correlate with the patient',
       ],
       links: [],
-      followUps: ['What does this ECG show?', 'How do I localise a STEMI?'],
+      followUps: ['What does this ECG show?', 'How do I localize a STEMI?'],
       text: 'Use “Inspect” on the ECG to label waves and intervals, and the calipers to measure them.',
     },
   },
   {
     match: /locali[sz]e.*(stemi|mi|infarct)|which (artery|vessel).*(stemi|mi)|territor/i,
     answer: {
-      title: 'Localising a STEMI',
+      title: 'Localizing a STEMI',
       bullets: [
         'Anterior/septal (V1–V4) → LAD; add I/aVL for proximal LAD or diagonal',
-        'Inferior (II, III, aVF) → RCA in ~80%; STE III > II and STD in I/aVL favour RCA; STE II ≥ III with lateral STE favours LCx',
+        'Inferior (II, III, aVF) → RCA in ~80%; STE III > II and STD in I/aVL favor RCA; STE II ≥ III with lateral STE favors LCx',
         'Lateral (I, aVL, V5–V6) → LCx or diagonal; high lateral (I, aVL ± V2) → first diagonal',
         'Posterior → STD V1–V3 with tall R; confirm with STE in V7–V9',
         'RV infarction → STE in V4R with inferior STEMI (proximal RCA): preload-dependent — avoid nitrates; fluid bolus if hypotensive',
@@ -185,7 +185,7 @@ export function answerQuestion(question: string, lib: ContentLibrary, ctx: Tutor
       title: 'I could not find that in the library',
       bullets: [
         'Try naming a structure, condition, procedure or drug (e.g. “mitral valve”, “Mobitz II”, “TAVR”, “amiodarone dose”)',
-        'Or ask about a concept: cardiac cycle, conduction system, preload/afterload, ejection fraction, reading an ECG, localising a STEMI',
+        'Or ask about a concept: cardiac cycle, conduction system, preload/afterload, ejection fraction, reading an ECG, localizing a STEMI',
       ],
       links: [],
       followUps: ['What does this ECG show?', 'Explain the cardiac cycle'],

@@ -48,7 +48,7 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
     ],
     mustNot: [
       'Interpret ECG rhythms or 12-leads',
-      'Manual defibrillation, synchronised cardioversion or transcutaneous pacing',
+      'Manual defibrillation, synchronized cardioversion or transcutaneous pacing',
       'IV/IO access or IV medications; ACLS drugs',
       'Advanced airways beyond the state-approved EMT scope',
     ],
@@ -62,14 +62,14 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
     can: [
       'Everything in the EMT scope',
       'Cardiac monitoring, rhythm and 12-lead ECG interpretation, STEMI recognition and activation',
-      'Manual defibrillation, synchronised cardioversion and transcutaneous pacing',
+      'Manual defibrillation, synchronized cardioversion and transcutaneous pacing',
       'IV/IO access and ACLS medications per protocol (e.g. epinephrine, amiodarone, lidocaine, adenosine, atropine)',
       'Advanced airway management, needle decompression, per protocol',
       'Interfacility transport monitoring within protocol and medical direction',
     ],
     mustNot: [
       'Act outside written protocols or without online medical direction where required',
-      'Fibrinolytic or other system-specific therapies unless the EMS system protocol authorises them',
+      'Fibrinolytic or other system-specific therapies unless the EMS system protocol authorizes them',
       'Make in-hospital diagnostic or treatment decisions (e.g. choose PCI strategy)',
     ],
     escalateTo: 'Online medical direction; receiving physician / cath lab team',
@@ -108,14 +108,14 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
       'IV access; administer medications on physician order (anticoagulants, antiplatelets, vasoactives, antiarrhythmics)',
       "Moderate procedural sedation on the practitioner's order with the practitioner present; continuous monitoring incl. capnography",
       'Monitor anticoagulation (e.g. ACT), hemodynamics, rhythm and level of consciousness',
-      'Recognise and respond to complications (bleeding, vagal reaction, contrast reaction, tamponade, stroke), ACLS',
+      'Recognize and respond to complications (bleeding, vagal reaction, contrast reaction, tamponade, stroke), ACLS',
       'Sheath removal and hemostasis per protocol and validated competency; access-site care',
       'Patient and family education; post-procedure care and handoff',
     ],
     mustNot: [
       'Make medical diagnoses, prescribe or select treatment',
       'Perform the procedure or manipulate devices as operator',
-      'Deep sedation or general anaesthesia (anaesthesia professional only)',
+      'Deep sedation or general anesthesia (anesthesia professional only)',
       'Give medications without an order (except per approved standing protocols such as ACLS)',
     ],
     escalateTo: 'Operating / attending physician',
@@ -134,7 +134,7 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
     mustNot: [
       'Perform procedures outside granted privileges (e.g. structural or EP procedures without those privileges)',
     ],
-    escalateTo: 'Heart team, cardiac surgery, anaesthesia, critical care as needed',
+    escalateTo: 'Heart team, cardiac surgery, anesthesia, critical care as needed',
   },
 };
 
