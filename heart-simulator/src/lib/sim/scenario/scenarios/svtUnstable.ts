@@ -81,12 +81,19 @@ export const svtUnstable: Scenario = {
     },
     // with her pulse the AED advises no shock (the default); in the VF it shocks, as the manual defibrillator does
     aed: (s) => vfShock(s, 'AED: "Shock advised." Shock delivered.'),
-    diltiazem: (s) => s.rhythm.profile === 'avnrt'
-      ? { say: [['monitor', 'Rate 170, but BP falls to 64/38.', 'bad'], ['patient', 'She becomes drowsy.', 'bad']], rhythm: { profile: 'avnrt', hr: 170 }, vitals: { sbp: 64, dbp: 38, gcs: 13 }, flags: ['diltiazem'] }
-      : null,
-    metoprolol: (s) => s.rhythm.profile === 'avnrt'
-      ? { say: [['monitor', 'Rate 176; BP 66/40.', 'bad']], rhythm: { profile: 'avnrt', hr: 176 }, vitals: { sbp: 66, dbp: 40, gcs: 14 }, flags: ['beta-blocker'] }
-      : null,
+    // the blockers drop her pressure to 64/38 or 66/40 — and never raise one an earlier drug has already pushed lower
+    diltiazem: (s) => {
+      if (s.rhythm.profile !== 'avnrt') return null;
+      const sbp = Math.min(s.vitals.sbp, 64);
+      const dbp = Math.min(s.vitals.dbp, 38);
+      return { say: [['monitor', `Rate 170, but BP falls to ${sbp}/${dbp}.`, 'bad'], ['patient', 'She becomes drowsy.', 'bad']], rhythm: { profile: 'avnrt', hr: 170 }, vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 13) }, flags: ['diltiazem'] };
+    },
+    metoprolol: (s) => {
+      if (s.rhythm.profile !== 'avnrt') return null;
+      const sbp = Math.min(s.vitals.sbp, 66);
+      const dbp = Math.min(s.vitals.dbp, 40);
+      return { say: [['monitor', `Rate 176; BP ${sbp}/${dbp}.`, 'bad']], rhythm: { profile: 'avnrt', hr: 176 }, vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 14) }, flags: ['beta-blocker'] };
+    },
     sedation: (s) => s.rhythm.profile === 'avnrt'
       ? { say: [['you', 'Small dose of sedation/analgesia: drowsy but rousable, airway fine.']], vitals: bpAfter(s, -4, -2), flags: ['sedation'] }
       : null,

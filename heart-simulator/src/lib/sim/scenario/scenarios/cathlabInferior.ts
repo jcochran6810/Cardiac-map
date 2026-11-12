@@ -51,16 +51,20 @@ const fluid = (s: SimState): Effect | null => {
  * (fluid does the rest). Outside the reflex, the default response applies.
  */
 function paceReflex(s: SimState, how: Line[], profile: 'tcp' | 'paced', flags: string[]): Effect | null {
-  if (!has(s, 'bezold') || has(s, 'recovered') || !s.pulse || s.rhythm.hr >= 50) return null;
+  // a wire already pacing on demand at 50 is still too slow for her: pacing at 70 takes over from it
+  if (!has(s, 'bezold') || has(s, 'recovered') || !s.pulse || s.rhythm.hr >= (paced(s) ? 70 : 50)) return null;
   const bp = bpAfter(s, 12, 8);
   return {
     say: [...how, ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`]],
     rhythm: { profile, hr: 70 }, vitals: { ...bp, ...(profile === 'tcp' ? { pain: Math.max(s.vitals.pain, 6) } : {}) }, flags: ['paced', ...flags],
   };
 }
-const nitroCrash = (s: SimState): Effect => ({
-  say: [['monitor', 'BP 72/42.', 'bad'], ['patient', '"I feel like I\'m going to pass out…"']], vitals: { sbp: 72, dbp: 42 }, flags: ['nitro'],
-});
+/** Nitrates in an RV infarct: the pressure crashes to 72/42 — and from a pressure already lower (the reflex, an earlier dose), it falls further */
+const nitroCrash = (s: SimState): Effect => {
+  const fall = bpAfter(s, -10, -6);
+  const bp = { sbp: Math.min(72, fall.sbp), dbp: Math.min(42, fall.dbp) };
+  return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ['patient', '"I feel like I\'m going to pass out…"']], vitals: bp, flags: ['nitro'] };
+};
 
 const TECH_ASKS: LabAsk[] = [
   {

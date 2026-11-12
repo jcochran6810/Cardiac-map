@@ -171,7 +171,10 @@ export const cathlabShock: Scenario = {
     impella: (s) => {
       if (s.role === 3) return { say: [['you', 'Impella console primed, purge running with heparinized fluid; large-bore sheath, wire and closure sutures open.']], flags: ['impella-ready'] };
       if (!has(s, 'access')) return { blocked: true, say: [['system', 'No arterial access yet.']] };
-      return { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm into the LV: flow 3.2 L/min.'], ['monitor', 'BP 102/70.']], vitals: { sbp: 102, dbp: 70, spo2: Math.max(s.vitals.spo2, 92) }, flags: ['impella', 'mcs'] };
+      // the pump adds output: the pressure rises to 102/70, never down from a higher one
+      const sbp = Math.max(s.vitals.sbp, 102);
+      const dbp = Math.max(s.vitals.dbp, 70);
+      return { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm into the LV: flow 3.2 L/min.'], ['monitor', `BP ${sbp}/${dbp}.`]], vitals: { sbp, dbp, spo2: Math.max(s.vitals.spo2, 92) }, flags: ['impella', 'mcs'] };
     },
     fluid: (s) => {
       const spo2 = Math.max(70, s.vitals.spo2 - 3);

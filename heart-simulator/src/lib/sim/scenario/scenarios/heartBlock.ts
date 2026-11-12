@@ -4,14 +4,18 @@ import { PADS, bpAfter, has, paced } from '../kit';
 /** While the pacer drives the ventricles, a drug that slows the escape rhythm or the AV node cannot drop the rate */
 const PACER_HOLDS = 'No change: the pacer keeps the heart rate at 70.';
 
-/** Suppressing the ventricular escape (or the AV node) drops the rate to 22 — unless he is paced */
+/** Suppressing the ventricular escape (or the AV node) drops the rate to 22 — unless he is paced. Nothing improves: a lower number stays lower */
 function slower(s: SimState, text: string): Effect {
   if (paced(s)) return { say: [['monitor', PACER_HOLDS]] };
+  const v = s.vitals;
   return {
     say: [['monitor', text, 'bad'], ['patient', 'He stops answering and his eyes roll back.', 'bad']],
-    rhythm: { profile: 'third-degree-avb', hr: 22 }, vitals: { sbp: 58, dbp: 32, gcs: 9 },
+    rhythm: { profile: 'third-degree-avb', hr: 22 }, vitals: { sbp: Math.min(v.sbp, 58), dbp: Math.min(v.dbp, 32), gcs: Math.min(v.gcs, 9) },
   };
 }
+
+/** Pacing or an epinephrine infusion brings the pressure up to (at least) this: never down from a higher one */
+const atLeast = (s: SimState, sbp: number, dbp: number) => ({ sbp: Math.max(s.vitals.sbp, sbp), dbp: Math.max(s.vitals.dbp, dbp) });
 
 /** Beta- and calcium-channel blockers also weaken the squeeze and dilate the vessels: paced, the rate holds but the pressure falls */
 function blocker(s: SimState, text: string): Effect {
@@ -63,12 +67,16 @@ export const heartBlock: Scenario = {
         ['monitor', 'Pacer on: rate 70, output turned up to 85 mA.'],
         ['patient', '"Ow! What is that?"'],
       ],
-      rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp: 104, dbp: 62, gcs: 15, pain: 7 }, flags: ['pads', 'monitor', 'paced'],
+      rhythm: { profile: 'tcp', hr: 70 }, vitals: { ...atLeast(s, 104, 62), gcs: 15, pain: 7 }, flags: ['pads', 'monitor', 'paced'],
     } : null,
-    pressor: (s) => s.rhythm.profile === 'third-degree-avb' ? {
-      say: [['monitor', 'Epinephrine infusion running: heart rate up to 46, BP 96/58.', 'good']],
-      rhythm: { profile: 'third-degree-avb', hr: 46 }, vitals: { sbp: 96, dbp: 58, gcs: 15 }, flags: ['pressor'],
-    } : null,
+    pressor: (s) => {
+      if (s.rhythm.profile !== 'third-degree-avb') return null;
+      const bp = atLeast(s, 96, 58);
+      return {
+        say: [['monitor', `Epinephrine infusion running: heart rate up to 46, BP ${bp.sbp}/${bp.dbp}.`, 'good']],
+        rhythm: { profile: 'third-degree-avb', hr: 46 }, vitals: { ...bp, gcs: 15 }, flags: ['pressor'],
+      };
+    },
     lidocaine: (s) => slower(s, 'Heart rate falls to 22!'),
     'amio-infusion': (s) => slower(s, 'Heart rate falls to 22!'),
     metoprolol: (s) => blocker(s, 'Rate 22 after the beta-blocker!'),

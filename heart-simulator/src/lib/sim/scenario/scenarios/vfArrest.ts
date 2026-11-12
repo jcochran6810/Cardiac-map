@@ -81,6 +81,10 @@ export const vfArrest: Scenario = {
     bvm: (s) => (s.pulse && s.vitals.gcs <= 8
       ? { say: [['you', 'Assisting ventilations, 1 breath every 6 s. SpO₂ 96 %, EtCO₂ 38.']], vitals: { spo2: 96, rr: 10 }, flags: ['ventilated'] }
       : null),
+    // placed after ROSC in a comatose patient, the airway is then used to ventilate him, as the bag would be
+    airway: (s) => (s.pulse && s.vitals.gcs <= 8
+      ? { say: [['you', 'Airway placed; confirmed with waveform capnography. Ventilating through it, 1 breath every 6 s: SpO₂ 96 %, EtCO₂ 38.']], vitals: { spo2: 96, rr: 10 }, flags: ['airway', 'ventilated'] }
+      : null),
     'o2-nrb': (s) => (s.pulse && s.vitals.gcs <= 8
       ? { say: [['you', 'He is only breathing 8/min: a mask alone will not ventilate him. SpO₂ 93 %.']], vitals: { spo2: 93 }, flags: ['o2'] }
       : null),

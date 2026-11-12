@@ -264,15 +264,19 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
           rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp: Math.max(v.sbp, 102), dbp: Math.max(v.dbp, 64), pain: Math.max(v.pain, 6) }, flags: ['pads', 'monitor', 'paced'],
         };
       }
-      // a demand pacer set to 70 stays silent above 70; between 50 and 69 it would take over a rate that needs no help
-      if (s.rhythm.hr >= 70) {
+      // already paced (a wire or a pacemaker): the pads are a backup, and the demand pacer senses the paced beats
+      if (paced(s) && s.rhythm.hr >= 70) {
+        return { say: [['monitor', `Pacer on standby at 70 as a backup: the heart is already paced at ${s.rhythm.hr}, so it senses those beats and does not fire.`]], flags: ['pads', 'monitor'] };
+      }
+      // a demand pacer set to 70 stays silent above 70; between 50 and 70 it would take over a rate that needs no help
+      if (s.rhythm.hr > 70) {
         return { say: [['monitor', `Pacer on in demand mode at 70: the heart's own rate of ${s.rhythm.hr} is faster, so it senses and does not fire.`]], flags: ['pads', 'monitor'] };
       }
       const teammate: Speaker = sc.setting === 'field' ? 'partner' : 'team';
       return {
         say: [
           ['monitor', 'Pacer on at 70.'],
-          [teammate, `Hold on — the heart's own rate is ${s.rhythm.hr} and the patient is perfusing. Pacing is for a symptomatic rate under 50 that atropine has not fixed. Pacer off.`, 'warn'],
+          [teammate, `Hold on — the heart's own rate is ${s.rhythm.hr}. Pacing is for a symptomatic rate under 50 that atropine has not fixed. Pacer off.`, 'warn'],
         ],
         flags: ['pads', 'monitor'],
       };
@@ -315,7 +319,8 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
           rhythm: { profile: 'paced', hr: 70 }, vitals: bp, flags: ['temp-wire', 'paced'],
         };
       }
-      return { say: [['you', `Temporary wire in the RV apex: threshold 0.6 mA, output 3 mA, set to pace on demand below 50. The heart's own rate of ${s.rhythm.hr} is faster, so it is not pacing.`]], flags: ['temp-wire'] };
+      const faster = paced(s) ? `The heart is already paced at ${s.rhythm.hr}` : `The heart's own rate of ${s.rhythm.hr} is faster`;
+      return { say: [['you', `Temporary wire in the RV apex: threshold 0.6 mA, output 3 mA, set to pace on demand below 50. ${faster}, so it is not pacing.`]], flags: ['temp-wire'] };
     }
     case 'cath-tiger': case 'cath-jl4': case 'cath-jr4': case 'cath-pigtail':
     case 'guide-ebu': case 'guide-jr4': case 'guide-al1':
@@ -370,6 +375,8 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     }
     case 'handoff':
       if (sc.setting === 'field' && !has(s, 'arrived')) return { blocked: true, say: [['system', 'Hand off on arrival: keep caring for the patient en route (reassess) until you get there.']] };
+      // in the lab the patient leaves the table (and your care) only once the procedure is over
+      if (sc.setting === 'cathlab' && sc.completeWhen && !sc.completeWhen(s)) return { blocked: true, say: [['system', 'The procedure is not over yet: keep caring for the patient (reassess) and hand off at the end.']] };
       return { say: [['you', 'SBAR hand-off given; the receiving team takes over.']], flags: ['handoff'] };
   }
   return { say: [['you', 'Done.']] };
@@ -437,7 +444,8 @@ export const BUILT_IN_HARMS: Harm[] = [
   { id: 'arrest-epi-with-pulse', actions: ['epinephrine'], when: (s) => s.pulse, points: 15, severity: 'critical', text: '1 mg IV epinephrine is the cardiac-arrest dose. With a pulse it causes severe hypertension, arrhythmias and ischemia; use push-dose epinephrine or an infusion.' },
   { id: 'arrest-amio-with-pulse', actions: ['amio-arrest'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'A 300 mg amiodarone push is for cardiac arrest. With a pulse, give 150 mg over 10 minutes.' },
   { id: 'airway-awake', actions: ['airway'], when: (s) => s.pulse && s.vitals.gcs > 8, points: 10, severity: 'major', text: 'An advanced airway is not indicated in a patient who is awake and protecting their own airway.' },
-  { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50, points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
+  // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
+  { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
   { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
   { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further: hold them until it is back above 90.' },
 ];
@@ -783,13 +791,16 @@ export function review(sc: Scenario, s: SimState): Review {
     timings.push({ label: t.label, minute, target: t.target, met: t.target === undefined ? null : minute !== null && minute <= t.target });
   }
 
-  // a hand-off also ends the case as complete, whatever is still missing: say which it was
+  // a hand-off also ends the case as complete, whatever is still missing: say which it was. Items that had not come up
+  // yet are not counted as missed, so the count alone cannot tell a finished case from an early hand-off.
   const missed = toFix.filter((t) => t.kind === 'missed').length;
   const notDone = `${missed} critical item${missed === 1 ? '' : 's'} not done`;
   const outcome = s.ended?.reason === 'death'
     ? 'The patient died.'
     : s.ended?.reason === 'complete'
-      ? missed === 0 ? `Every critical intervention done in ${clockText(s.ended.minute)}.` : `Care handed over at ${clockText(s.ended.minute)} with ${notDone}.`
+      ? isComplete(sc, s)
+        ? `Every critical intervention done in ${clockText(s.ended.minute)}.`
+        : `Care handed over at ${clockText(s.ended.minute)}${missed === 0 ? ', before the case was over' : ` with ${notDone}`}.`
       : `Ended early at ${clockText(s.minute)} with ${notDone}.`;
 
   const reads = s.reads.map((r) => ({ kind: r.kind, minute: r.minute, chosen: READ_OPTION_BY_ID[r.chosen].label, answer: READ_OPTION_BY_ID[r.answer].label, verdict: r.verdict }));

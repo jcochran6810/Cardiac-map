@@ -178,6 +178,16 @@ describe('inferior STEMI with RV infarction', () => {
     expect(s.penalties.map((p) => p.id)).toEqual(['nitro-assist-rv']);
     expect(s.vitals.sbp).toBe(74);
   });
+
+  it('more nitroglycerin once the heart block has dropped her pressure drops it further — never back up to 74/44', () => {
+    let s = run(sc, 2, ['primary', 'vitals', 'iv', 'nitro', 'opqrst', 'sample', 'ecg12', 'lungs', 'perfusion']);
+    expect(s.rhythm.profile).toBe('inferior-stemi-chb');
+    const before = s.vitals.sbp;
+    expect(before).toBeLessThan(74);
+    s = perform(sc, s, 'nitro');
+    expect(s.vitals.sbp).toBeLessThan(before);
+    expect(s.log.some((l) => l.who === 'monitor' && l.text === `BP ${s.vitals.sbp}/${s.vitals.dbp}.`)).toBe(true);
+  });
 });
 
 describe('complete heart block', () => {
@@ -214,6 +224,21 @@ describe('complete heart block', () => {
       expect(s.penalties.map((p) => p.id), drug).toContain(harm);
       expect(s.vitals.sbp, drug).toBeGreaterThanOrEqual(80);
     }
+  });
+
+  it('a drug that slows the escape never raises a pressure already lower; pacing and a pressor never lower a higher one', () => {
+    const low = run(sc, 2, ['iv', 'nitro', 'nitro']);
+    expect(low.vitals.sbp).toBeLessThan(58);
+    const slowed = perform(sc, low, 'diltiazem');
+    expect(slowed.rhythm.hr).toBe(22);
+    expect(slowed.vitals.sbp).toBeLessThanOrEqual(low.vitals.sbp);
+    const high = run(sc, 2, ['iv', 'push-epi', 'push-epi', 'push-epi', 'push-epi']);
+    expect(high.vitals.sbp).toBeGreaterThan(104);
+    for (const id of ['pressor', 'pace']) {
+      const s = perform(sc, high, id);
+      expect(s.vitals.sbp, id).toBeGreaterThanOrEqual(high.vitals.sbp);
+    }
+    expect(perform(sc, high, 'pressor').log.at(-1)!.text).toContain(`BP ${high.vitals.sbp}/${high.vitals.dbp}`);
   });
 
   it('getting worse never speeds up an escape that lidocaine has already slowed', () => {
@@ -290,6 +315,16 @@ describe('unstable SVT', () => {
     expect(r.toFix.find((t) => t.kind === 'missed')?.label).toMatch(/12-lead after conversion/);
   });
 
+  it('a blocker never raises a pressure an earlier drug has already pushed lower, and the monitor says what it is', () => {
+    const low = run(sc, 2, ['iv', 'nitro', 'nitro']);
+    expect(low.vitals.sbp).toBeLessThan(64);
+    for (const id of ['diltiazem', 'metoprolol']) {
+      const s = perform(sc, low, id);
+      expect(s.vitals.sbp, id).toBeLessThanOrEqual(low.vitals.sbp);
+      expect(s.log.some((l) => l.who === 'monitor' && l.text.includes(`BP ${s.vitals.sbp}/${s.vitals.dbp}`) || l.text.includes(`BP falls to ${s.vitals.sbp}/${s.vitals.dbp}`)), id).toBe(true);
+    }
+  });
+
   it('getting worse never raises a pressure a drug has already dropped, and the monitor says what it is', () => {
     let s = run(sc, 2, ['pads', 'iv', 'diltiazem']);
     expect(s.vitals.sbp).toBe(64);
@@ -345,6 +380,16 @@ describe('VF cardiac arrest', () => {
     expect(r.percent).toBe(100);
     // the crew keeps bagging through the airway: 10 breaths a minute, not his own 8
     expect(s.vitals.rr).toBe(10);
+  });
+
+  it('an airway placed after ROSC is used to ventilate him, as the bag is', () => {
+    const rosc = run(sc, 2, ['cpr', 'defib', 'io', 'cpr', 'bvm', 'capno', 'defib', 'epinephrine', 'cpr', 'amio-arrest', 'defib']);
+    expect(rosc.pulse).toBe(true);
+    expect(rosc.vitals.rr).toBe(8);
+    const s = perform(sc, rosc, 'airway');
+    expect(s.flags.ventilated).toBeDefined();
+    expect([s.vitals.rr, s.vitals.spo2]).toEqual([10, 96]);
+    expect(sc.status!(s)).toMatch(/ventilated to 10/);
   });
 
   it('an EMT who lets the AED re-analyse after ROSC is not penalised: it advises no shock', () => {
@@ -516,6 +561,24 @@ describe('inferior STEMI in the cath lab', () => {
     expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
   });
 
+  it('nitroglycerin in the reflex drops the pressure further — never back up to 72/42', () => {
+    const reflex = run(sc, 5, MD_TO_BALLOON);
+    expect(reflex.vitals.sbp).toBe(68);
+    const s = perform(sc, reflex, 'nitro');
+    expect(s.vitals.sbp).toBeLessThan(68);
+    expect(s.log.some((l) => l.who === 'monitor' && l.text === `BP ${s.vitals.sbp}/${s.vitals.dbp}.`)).toBe(true);
+  });
+
+  it('a wire that only catches the reflex at 50 is still too slow: pacing at 70 takes over, and is no mistake', () => {
+    const at = MD_TO_BALLOON.indexOf('access-femoral') + 1;
+    let s = run(sc, 5, [...MD_TO_BALLOON.slice(0, at), 'access-venous', 'temp-wire', ...MD_TO_BALLOON.slice(at)]);
+    expect(s.rhythm).toEqual({ profile: 'paced', hr: 50 });
+    s = perform(sc, s, 'pace');
+    expect(s.rhythm).toEqual({ profile: 'tcp', hr: 70 });
+    expect(s.penalties.map((p) => p.id)).not.toContain('pace-not-slow');
+    expect(s.log.slice(-3).map((l) => l.text).join(' ')).not.toMatch(/own rate/);
+  });
+
   it('when the nurse never answers, the operator does it — and the patient responds', () => {
     const steps = IDEAL['stemi-inferior-cathlab'][4]!;
     const s = run(sc, 4, [...steps.slice(0, steps.indexOf('callout') + 1), ...R(4)]);
@@ -606,6 +669,15 @@ describe('cardiogenic shock in the cath lab', () => {
     expect(s.vitals.spo2).toBe(85);
     s = run(sc, 5, ['consent', 'timeout', 'access-femoral', 'access-venous', 'rhc'], undefined, 'manual');
     expect(s.pendingRead).toMatchObject({ kind: 'hemo', answer: 'hemo-cardiogenic' });
+  });
+
+  it('the pump never brings a higher pressure down', () => {
+    const s = run(sc, 5, ['consent', 'o2-nrb', 'pressor', 'timeout', 'access-femoral', 'push-epi', 'push-epi', 'push-epi', 'push-epi']);
+    expect(s.vitals.sbp).toBeGreaterThan(102);
+    const pumped = perform(sc, s, 'impella');
+    expect(pumped.flags.impella).toBeDefined();
+    expect([pumped.vitals.sbp, pumped.vitals.dbp]).toEqual([s.vitals.sbp, s.vitals.dbp]);
+    expect(pumped.log.at(-1)!.text).toBe(`BP ${s.vitals.sbp}/${s.vitals.dbp}.`);
   });
 
   it('support after the stent misses the support item', () => {

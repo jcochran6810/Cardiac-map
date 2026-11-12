@@ -1,14 +1,17 @@
 import type { Effect, Scenario, SimState } from '../types';
-import { has } from '../kit';
+import { bpAfter, has } from '../kit';
 
-/** RV infarction: nitrates drop preload and blood pressure */
+/** RV infarction: nitrates drop preload and blood pressure — to 74/44, or further down from a pressure already lower */
 function nitroCrash(s: SimState): Effect {
+  const fall = bpAfter(s, -10, -6);
+  const sbp = Math.min(74, fall.sbp);
+  const dbp = Math.min(44, fall.dbp);
   return {
     say: [
       ['patient', '"I feel like I\'m going to pass out…" She goes gray and slumps in the chair.', 'bad'],
-      ['monitor', 'BP 74/44.', 'bad'],
+      ['monitor', `BP ${sbp}/${dbp}.`, 'bad'],
     ],
-    vitals: { sbp: 74, dbp: 44, gcs: 14, pain: Math.max(0, s.vitals.pain - 1) },
+    vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 14), pain: Math.max(0, s.vitals.pain - 1) },
     flags: ['nitro', 'hypotension'],
   };
 }
