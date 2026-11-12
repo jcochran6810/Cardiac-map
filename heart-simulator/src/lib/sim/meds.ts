@@ -708,8 +708,9 @@ const sotalol: MedDef = {
   verb: 'Give',
   onset: 'Minutes; the QT is longest at the end of the infusion',
   guide: 'Stable monomorphic VT: 1.5 mg/kg (about 100 mg) IV over 5 min. Avoid with a long QT (QTc above 450 ms), bradycardia, heart failure, shock or asthma; correct K⁺ and Mg²⁺ first; dose by kidney function.',
-  usual: (p) => ({ low: 1.5 * p.kg, high: 1.5 * p.kg }),
-  max: (p) => 2 * p.kg,
+  // the AHA dose is "100 mg (1.5 mg/kg)"; IV loading doses on the label stop at 150 mg
+  usual: (p) => ({ low: Math.min(1.5 * p.kg, 150), high: Math.min(1.5 * p.kg, 150) }),
+  max: (p) => Math.min(2 * p.kg, 200),
   picks: (p) => uniq([round(0.75 * p.kg, 10), round(1.5 * p.kg, 10), round(2.5 * p.kg, 10)]),
   step: 10,
   plan(p, dose, cls) {
@@ -736,7 +737,7 @@ const sotalol: MedDef = {
         return {
           verdict: longQt
             ? bad(`Not with a long QT.${qtWarn} Procainamide lengthens it too: lidocaine (no effect on the QT) or synchronized cardioversion.`)
-            : good('Stable monomorphic VT: IV sotalol may be considered (1.5 mg/kg over 5 min), like procainamide and amiodarone. Avoid with a long QT or heart failure; synchronized cardioversion if it fails or the patient becomes unstable.'),
+            : good('Stable monomorphic VT: IV sotalol may be considered (1.5 mg/kg over 5 min; 2025 AHA class 2b, as are procainamide and amiodarone), though the 2025 tachycardia algorithm now lists only procainamide and amiodarone. Avoid with a long QT or heart failure; synchronized cardioversion if it fails or the patient becomes unstable.'),
           steps: [
             { at: 3 * MIN, hr: rate(p.hr, 0.9), mods, note: 'VT slowing; the QT lengthens.', tone: 'effect', mark: 'slower' },
             ...(torsades.length ? torsades : [{ at: 8 * MIN, profile: 'normal-sinus', hr: 62, mods, note: 'VT terminated: sinus rhythm — a slow rate (β-blockade) and a longer QT. Keep watching the QTc and the potassium and magnesium.', tone: 'good' as const, mark: 'sinus' }]),
@@ -746,8 +747,8 @@ const sotalol: MedDef = {
       case 'flutter':
         if (failing(p, prof)) return { verdict: bad('Not with heart failure or a low blood pressure: β-blockade and a long QT. For the rate, amiodarone or digoxin; cardioversion if unstable.'), steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.85, 50), mods, note: 'The rate falls and so does the blood pressure.', tone: 'warn' }] };
         return {
-          verdict: caution(`Sotalol keeps AF or flutter in sinus rhythm once it has been restored (by mouth, or started with an IV load on ECG monitoring) — for rate control now, a β-blocker or diltiazem is simpler.${qtWarn}`),
-          steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.82, 50), mods, note: 'The ventricular rate falls (β-blockade); the QT lengthens.', tone: 'effect', mark: 'rate ↓' }, ...torsades],
+          verdict: (p.hr < SLOW && noRateToControl(c, p)) || caution(`Sotalol keeps AF or flutter in sinus rhythm once it has been restored (by mouth, or started with an IV load on ECG monitoring) — for rate control now, a β-blocker or diltiazem is simpler.${qtWarn}`),
+          steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.82, 35), mods, note: 'The ventricular rate falls (β-blockade); the QT lengthens.', tone: 'effect', mark: 'rate ↓' }, ...torsades],
         };
       case 'svt':
         return { verdict: caution('Not a first-line SVT drug: vagal maneuvers, adenosine, then a calcium-channel blocker or β-blocker.'), steps: [{ at: 8 * MIN, profile: 'normal-sinus', hr: 76, mods, note: 'SVT terminated: sinus rhythm, with a longer QT.', tone: 'good', mark: 'sinus' }, ...torsades] };
@@ -756,7 +757,7 @@ const sotalol: MedDef = {
         return { verdict: s.verdict, steps: [{ ...s.steps[0], mods }] };
       }
       default:
-        if (isBrady(c) || slowSinus(c, p)) return { verdict: bad('Contraindicated: a slow or blocked rhythm — sotalol is a β-blocker too.'), steps: slowsBrady(p, prof, c, 8 * MIN, 0.85, 25).concat(isBrady(c) ? [] : [{ at: 8 * MIN, hr: rate(p.hr, 0.85, 30), mods, note: 'Slower still, and the QT lengthens.', tone: 'warn' }]) };
+        if (isBrady(c) || slowSinus(c, p)) return { verdict: bad('Not here: a slow or blocked rhythm, and sotalol is a β-blocker too — it slows the rate and lengthens the PR. It is contraindicated with sinus bradycardia below 50/min, sick sinus syndrome, or second- or third-degree AV block without a pacemaker.'), steps: slowsBrady(p, prof, c, 8 * MIN, 0.85, 25).concat(isBrady(c) ? [] : [{ at: 8 * MIN, hr: rate(p.hr, 0.85, 30), mods, note: 'Slower still, and the QT lengthens.', tone: 'warn' }]) };
         return { verdict: bad(`No indication in this rhythm — you will only see the rate fall and the QT lengthen.${qtWarn}`), steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.88, 30), mods, note: 'The rate falls; the QT lengthens.', tone: 'effect', mark: 'QT ↑' }, ...torsades] };
     }
   },
@@ -1148,7 +1149,8 @@ const insulinDextrose: MedDef = {
       return {
         verdict: good('Hyperkalemia: insulin drives K⁺ into the cells (by about 0.6–1.0 mmol/L at 30–60 min); the dextrose prevents hypoglycemia. It follows calcium when the ECG has changed, and buys time for K⁺ removal (dialysis, binders, diuretics).'),
         steps: [
-          { at: 20 * MIN, mods: { tScale: cls === 'low' ? 0.85 : 0.72, qrsWiden: 0.92 }, note: 'K⁺ falling: the T waves shrink and the QRS narrows a little.', tone: 'good', mark: 'K⁺ ↓' },
+          { at: 15 * MIN, mods: { tScale: cls === 'low' ? 0.92 : 0.85, qrsWiden: 0.96 }, note: 'K⁺ starting to fall (onset 10–20 min): the T waves begin to shrink.', tone: 'effect', mark: 'K⁺ ↓' },
+          { at: 45 * MIN, mods: { tScale: cls === 'low' ? 0.85 : 0.72, qrsWiden: 0.92 }, note: 'Peak effect (30–60 min): K⁺ down by about 0.6–1.0 mmol/L — smaller T waves and a slightly narrower QRS.', tone: 'good', mark: 'K⁺ ↓' },
           ...low,
         ],
       };
@@ -1178,7 +1180,7 @@ const albuterol: MedDef = {
     const prof = resolveProfile(p.profileId);
     const c = category(prof, p.hr);
     const tachy: EffectStep = { at: 10 * MIN, hr: rate(p.hr, dose >= 10 ? 1.12 : 1.06, 30, 200), note: 'The heart rate rises (β₂ stimulation) and a fine tremor appears.', tone: 'effect', mark: 'rate ↑' };
-    if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest: a nebulizer delivers nothing without breathing and a circulation. Calcium, and insulin + dextrose, are the options when hyperkalemia is suspected.'), steps: noEcg(60 * S, 'No change.') };
+    if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest: a nebulizer delivers nothing without breathing and a circulation. When hyperkalemia is suspected, insulin + dextrose (and calcium) may be considered — neither has proven benefit in arrest, and neither may pause CPR or shocks.'), steps: noEcg(60 * S, 'No change.') };
     if (c === 'hyperk') {
       return {
         verdict: cls === 'low'
@@ -1187,7 +1189,7 @@ const albuterol: MedDef = {
         steps: [tachy, { at: 45 * MIN, mods: { tScale: cls === 'low' ? 0.92 : 0.8 }, note: 'K⁺ falling: the peaked T waves shrink.', tone: 'good', mark: 'K⁺ ↓' }],
       };
     }
-    if (['svt', 'af', 'flutter', 'vt', 'sinus-tach'].includes(c)) {
+    if (['svt', 'vt', 'sinus-tach'].includes(c) || ((c === 'af' || c === 'flutter') && p.hr >= 100)) {
       return { verdict: bad('Avoid: it speeds the heart and can provoke arrhythmias — the rate is already fast.'), steps: [tachy] };
     }
     if (isAcs(prof)) return { verdict: caution('Only for real bronchospasm: the faster rate raises the oxygen demand of an ischemic heart.'), steps: [tachy] };
@@ -1203,15 +1205,22 @@ function p2y12Plan(p: Patient, drug: 'ticagrelor' | 'clopidogrel' | 'prasugrel')
   if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest — nothing by mouth.'), steps: noEcg(60 * S, 'No change.') };
   if (prof.id === DISSECTION) return { verdict: bad('Contraindicated: aortic dissection can mimic an MI — a P2Y12 inhibitor feeds the bleeding and delays surgery.'), steps: noEcg(60 * S, 'No ECG change.') };
   if (!isAcs(prof)) return { verdict: bad('No indication: a P2Y12 load is for an acute coronary syndrome or a planned stent.'), steps: none };
-  const stemi = c === 'stemi' || prof.id === 'inferior-stemi-chb' || prof.id === 'cardiogenic-shock';
+  // after a fibrinolytic the P2Y12 inhibitor is clopidogrel (2025 ACC/AHA, class 1): the others were not tested in the first hours after lysis
+  if (p.given.some((g) => g.id === 'tenecteplase')) {
+    return drug === 'clopidogrel'
+      ? { verdict: good('After fibrinolysis the P2Y12 inhibitor is clopidogrel: 300 mg (75 mg with no load over 75 years), then 75 mg daily, with aspirin and an anticoagulant. 600 mg is the PCI load.'), steps: none }
+      : { verdict: caution(`Not with a fibrinolytic: ${drug} was not tested in the first hours after lysis and adds bleeding. Give clopidogrel 300 mg (75 mg over 75 years); any later switch is the interventionalist's decision at PCI.`), steps: none };
+  }
+  const stemi = c === 'stemi' || ['inferior-stemi-chb', 'cardiogenic-shock', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused'].includes(prof.id);
   const lysisNote = 'With fibrinolysis the P2Y12 inhibitor is clopidogrel (300 mg, or 75 mg with no load over 75 years).';
   if (drug === 'ticagrelor') {
+    if (c === 'chb' || c === 'mobitz2' || c === 'wenckebach') return { verdict: caution(`ACS with second- or third-degree AV block: ticagrelor can cause ventricular pauses and AV block (FDA warning; PLATO excluded such patients without a pacemaker). Clopidogrel, or prasugrel at PCI, avoids this — or give it once pacing protects the rate. ${lysisNote}`), steps: none };
     return { verdict: good(`ACS with aspirin: ticagrelor 180 mg is preferred over clopidogrel (PLATO), then 90 mg twice daily. It can cause breathlessness and pauses. ${lysisNote}`), steps: none };
   }
   if (drug === 'prasugrel') {
     return {
       verdict: stemi
-        ? caution('Prasugrel 60 mg at PCI is reasonable once the anatomy is known — never with a previous stroke or TIA, generally not from 75 years, 5 mg maintenance under 60 kg. In NSTE-ACS it is loaded at PCI, not before angiography.')
+        ? caution('STEMI going to PCI: prasugrel 60 mg before or at primary PCI is an alternative to ticagrelor (2025 ACC/AHA: either is preferred over clopidogrel). Never with a previous stroke or TIA; generally not from 75 years; 5 mg maintenance under 60 kg. Not with fibrinolysis — that is clopidogrel.')
         : caution('NSTE-ACS: prasugrel is loaded at PCI once the anatomy is known (pretreatment added bleeding without benefit, ACCOAST). Never with a previous stroke or TIA.'),
       steps: none,
     };

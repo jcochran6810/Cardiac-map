@@ -889,6 +889,13 @@ describe('hyperkalemia shifters and the P2Y12 loads', () => {
     expect(planDose('prasugrel', patient('nstemi', 85), 60).verdict.text).toMatch(/at PCI/);
     expect(planDose('prasugrel', patient('nstemi', 85), 60).verdict.text).toMatch(/stroke or TIA/);
     expect(planDose('clopidogrel', patient('inferior-stemi', 70), 600).verdict.text).toMatch(/fibrinolysis/);
+    // after fibrinolysis: clopidogrel, not the newer two
+    const lysed = patient('anterior-stemi-reperfused', 80, { given: [{ id: 'tenecteplase', dose: 40, at: 1000 }] });
+    expect(planDose('clopidogrel', lysed, 300).verdict.tone).toBe('good');
+    expect(planDose('ticagrelor', lysed, 180).verdict.tone).toBe('caution');
+    expect(planDose('prasugrel', lysed, 60).verdict.tone).toBe('caution');
+    // ticagrelor can cause pauses and AV block: not "good" with a high-grade block
+    expect(planDose('ticagrelor', patient('inferior-stemi-chb', 40), 180).verdict.tone).toBe('caution');
     for (const id of ['ticagrelor', 'clopidogrel', 'prasugrel'] as const) {
       expect(planDose(id, patient('aortic-dissection', 100), MED_BY_ID[id].usual(patient('aortic-dissection', 100)).low).verdict.tone).toBe('bad');
       expect(planDose(id, patient('normal-sinus', 72), MED_BY_ID[id].usual(patient('normal-sinus', 72)).low).verdict.tone).toBe('bad');

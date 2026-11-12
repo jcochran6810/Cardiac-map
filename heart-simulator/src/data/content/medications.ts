@@ -2832,7 +2832,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Sotalol is not an EMT drug. A patient taking it is at risk of a slow pulse and of torsades: report fainting, palpitations or a slow pulse, and bring the medication list.',
       'Know it from the medication list: a slow rate, a long QT on the monitor or fainting in a patient taking sotalol is a warning of torsades. IV sotalol for stable VT is a hospital option in most systems; follow your protocol.',
       'Measure and report the QTc on every tracing while sotalol is started or loaded, with the heart rate and any pauses. An infusion is prepared only on a physician order where facility policy permits.',
-      'Give IV sotalol as ordered over the prescribed time on continuous ECG monitoring. Check the QTc, heart rate, blood pressure, potassium, magnesium and creatinine before and after, and stop and report a QTc above 500 ms or a new bradycardia.',
+      'Give IV sotalol as ordered over the prescribed time on continuous ECG monitoring. Check the QTc, heart rate, blood pressure, potassium, magnesium and creatinine before and after, and stop and report a QTc of 500 ms or more or a new bradycardia.',
       'IV sotalol 1.5 mg/kg (about 100 mg) over 5 min may be considered for stable monomorphic VT; avoid it with a long QT. Dose by creatinine clearance, and start or increase oral therapy with continuous ECG monitoring for at least 3 days (or after an IV load). Avoid in decompensated heart failure, shock, asthma, hypokalemia and hypomagnesemia.',
     ],
     mechanism: [
@@ -2874,7 +2874,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Hypotension, especially after an IV dose',
     ],
     monitoring: [
-      'QTc: reduce or stop above 500 ms',
+      'QTc: reduce or stop at 500 ms or more',
       'Heart rate and blood pressure',
       'Potassium, magnesium and creatinine',
     ],
