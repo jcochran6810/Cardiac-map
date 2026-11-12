@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../
 import { bpAfter, firstDone, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import {
-  LEFT_VIEWS, MD, NO_REFLOW_VASODILATORS, RN, TECH, askCritical, askEvents, askHarm, cine, type LabAsk,
+  LEFT_VIEWS, MD, NO_REFLOW_VASODILATORS, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
 
 /**

@@ -328,6 +328,8 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     const alert = run(sc, 2, [...READY, 'stemi-alert']);
     expect(ids(alert)).toEqual(['stemi-alert-no-ste']);
     expect(alert.log.at(-1)!.text).toMatch(/not activated/);
+    // the 12-lead in sinus rhythm has no ST elevation either
+    expect(ids(run(sc, 2, [...READY, 'sedation', 'cardiovert', 'ecg12-repeat', 'stemi-alert']))).toEqual(['cardiovert-stable', 'stemi-alert-no-ste']);
     // beta-agonists for his breathlessness: no wheeze, no anaphylaxis — the rate rises and it costs once
     const neb = run(sc, 2, [...READY, 'albuterol', 'epi-im']);
     expect(ids(neb)).toEqual(['beta-agonist-no-indication']);
