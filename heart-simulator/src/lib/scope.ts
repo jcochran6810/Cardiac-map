@@ -141,3 +141,27 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
 export function roleOf(level: LearningLevel): string {
   return SCOPES[level].role;
 }
+
+// ─── The monitor-defibrillator ─────────────────────────────────────────────
+
+/**
+ * May this role use the defibrillator's manual functions — manual defibrillation, synchronized cardioversion and
+ * transcutaneous pacing? The EMT uses the AED (and does CPR); the rest are ALS skills.
+ */
+export function canUseManualDefib(level: LearningLevel): boolean {
+  return level !== 1;
+}
+
+/**
+ * On whose authority this role gives the ACLS drugs during a code: null for the EMT (outside the scope), '' for the
+ * physician (their own), otherwise the order or protocol it needs.
+ */
+export function drugAuthority(level: LearningLevel): string | null {
+  switch (level) {
+    case 1: return null;
+    case 2: return 'per protocol / medical direction';
+    case 3: return "on the physician's order (where state law and facility policy permit)";
+    case 4: return "on the physician's order / ACLS protocol";
+    case 5: return '';
+  }
+}

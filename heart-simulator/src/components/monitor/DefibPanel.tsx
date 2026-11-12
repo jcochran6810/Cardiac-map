@@ -11,16 +11,8 @@ import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { sim } from '@/lib/sim/simulation';
 import { useAppStore, LEVEL_LABELS } from '@/store/useAppStore';
+import { canUseManualDefib, drugAuthority } from '@/lib/scope';
 
-/** Device functions and drug authority by role (scope of practice) */
-const MANUAL_OK = new Set([2, 3, 4, 5]);
-const DRUG_AUTHORITY: Record<number, string | null> = {
-  1: null,
-  2: 'per protocol / medical direction',
-  3: "on the physician's order (where state law and facility policy permit)",
-  4: "on the physician's order / ACLS protocol",
-  5: '',
-};
 
 const MODES: { v: DefibMode; l: string }[] = [
   { v: 'monitor', l: 'Monitor' },
@@ -45,8 +37,9 @@ const BASELINES: { v: HemoProfile | 'default'; l: string }[] = [
 export default function DefibPanel({ onProjector }: { onProjector?: () => void }) {
   const d = useDefibStore();
   const role = useAppStore((s) => s.learningLevel);
-  const manualOk = MANUAL_OK.has(role);
-  const drugAuthority = DRUG_AUTHORITY[role];
+  // device functions and drug authority by role (scope of practice: src/lib/scope.ts)
+  const manualOk = canUseManualDefib(role);
+  const authority = drugAuthority(role);
   useEffect(() => {
     if (!manualOk && (useDefibStore.getState().mode === 'manual' || useDefibStore.getState().mode === 'pacer')) setMode('aed');
   }, [manualOk]);
@@ -82,7 +75,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
       )}
       {(role === 3 || role === 4) && (
         <p className="text-[10px] text-slate-400 leading-snug">
-          {LEVEL_LABELS[role].short}: device use per ACLS certification, facility policy and physician direction; medications {DRUG_AUTHORITY[role]}.
+          {LEVEL_LABELS[role].short}: device use per ACLS certification, facility policy and physician direction; medications {authority}.
         </p>
       )}
 
@@ -160,15 +153,15 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
 
       {/* Drugs */}
       <section className="rounded-md border border-slate-700 p-2">
-        <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Medications{drugAuthority ? ` · ${drugAuthority}` : ''}</div>
-        {drugAuthority === null ? (
+        <div className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Medications{authority ? ` · ${authority}` : ''}</div>
+        {authority === null ? (
           <p className="text-[10px] text-slate-400 leading-snug">
             🔒 ACLS medications are outside EMT scope. Within EMT scope (per protocol): aspirin for suspected ACS, assisting with the patient&apos;s own nitroglycerin, oxygen — none are given during cardiac arrest.
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-1">
             {DRUGS.map((drug) => (
-              <button key={drug.id} onClick={() => giveDrug(drug.id, drugAuthority || undefined)} title={`${drug.dose(d)} — ${drug.indication}`} className="px-1.5 py-1 touch:py-2 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight">
+              <button key={drug.id} onClick={() => giveDrug(drug.id, authority || undefined)} title={`${drug.dose(d)} — ${drug.indication}`} className="px-1.5 py-1 touch:py-2 rounded bg-sky-900/40 text-sky-100 hover:bg-sky-800/60 text-left leading-tight">
                 {drug.label}
                 <span className="block text-[9px] text-sky-300/80 truncate">{drug.dose(d)}</span>
               </button>
