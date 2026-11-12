@@ -59,6 +59,66 @@ test('search offers a Paramedic only Paramedic cases, and opens the case list at
   await expect(card.getByRole('button', { name: /Start case/ })).toBeFocused();
 });
 
+/** Choose a simulator result in the main menu's search */
+async function chooseSimCase(page: Page, query: string, title: string) {
+  await page.getByRole('combobox', { name: 'Search the library' }).fill(query);
+  await page.locator('#menu-search-results').getByRole('option', { name: /simulator/i }).filter({ hasText: title }).click();
+}
+
+test('search while a case is open: the same case comes back, another one is opened only if the learner leaves the first', async ({ page }) => {
+  await openMenuAs(page, 2);
+  const menu = page.getByRole('button', { name: /Learn step by step/ });
+  const endCase = page.getByRole('button', { name: 'End case' });
+  const marked = page.locator('[id^="sim-case-"].ring-2');
+  // every question the page asks, and how the learner answers the next one
+  const asked: string[] = [];
+  let answer: 'accept' | 'dismiss' = 'dismiss';
+  page.on('dialog', (d) => { asked.push(d.message()); void (answer === 'accept' ? d.accept() : d.dismiss()); });
+
+  // start a case from search
+  await chooseSimCase(page, 'fainting', 'Weak, dizzy and fainting');
+  await page.getByRole('group', { name: 'Weak, dizzy and fainting' }).getByRole('button', { name: /Start case/ }).click();
+  await expect(endCase).toBeVisible();
+
+  // searching for the case that is open goes back to it, with no question
+  await page.getByRole('button', { name: 'Main menu' }).first().click();
+  await expect(menu).toBeVisible();
+  await chooseSimCase(page, 'fainting', 'Weak, dizzy and fainting');
+  await expect(endCase).toBeVisible();
+  expect(asked).toEqual([]);
+
+  // another case: the learner is asked first; Cancel keeps the case and the menu as they were
+  await page.getByRole('button', { name: 'Main menu' }).first().click();
+  await expect(menu).toBeVisible();
+  await chooseSimCase(page, 'indigestion', 'Indigestion');
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0]).toContain('“Weak, dizzy and fainting” is still in progress');
+  await expect(menu).toBeVisible();
+  const resume = page.getByRole('button', { name: /Continue your case/ }).first();
+  await expect(resume).toBeVisible();
+
+  // nothing was kept for later: leaving the case afterwards shows the list with no case marked
+  await resume.click();
+  await expect(endCase).toBeVisible();
+  answer = 'accept';
+  await page.getByRole('button', { name: '← Cases' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Your role' })).toBeVisible();
+  await expect(marked).toHaveCount(0);
+
+  // start it again, then choose another case and agree to leave: the list opens at the case chosen
+  await page.getByRole('group', { name: 'Weak, dizzy and fainting' }).getByRole('button', { name: /Start case/ }).click();
+  await expect(endCase).toBeVisible();
+  await page.getByRole('button', { name: 'Main menu' }).first().click();
+  await expect(menu).toBeVisible();
+  await chooseSimCase(page, 'indigestion', 'Indigestion');
+  await expect.poll(() => asked.length).toBe(3);
+  const card = page.getByRole('group', { name: '"Indigestion" and feeling faint' });
+  await expect(card).toBeFocused();
+  await expect(card).toBeInViewport({ ratio: 0.9 });
+  await expect(marked).toHaveCount(1);
+  await expect(endCase).toHaveCount(0);
+});
+
 test('the course row: a cath lab role sees its lab courses early, and cards snap clear of the edge', async ({ page }) => {
   await openMenuAs(page, 3);
   const section = page.getByRole('region', { name: 'Courses' });

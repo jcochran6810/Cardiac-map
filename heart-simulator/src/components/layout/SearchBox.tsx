@@ -97,10 +97,8 @@ const SearchBox = forwardRef<HTMLInputElement, Props>(function SearchBox(
       startLesson(course, lesson);
     } else if (h.kind === 'tool') TOOL_BY_ID[h.id]?.open();
     // a simulator case is started from the case list, where its briefing and Start button are: open the list at it
-    else if (h.kind === 'simcase') {
-      showInPicker(h.id.slice('sim:'.length));
-      useAppStore.getState().setMode('simulator');
-    }
+    // (or, while a case is open, go back to it or ask before leaving it)
+    else if (h.kind === 'simcase') showInPicker(h.id.slice('sim:'.length));
     else if (h.kind === 'term') useAppStore.getState().setGlossaryOpen(true, h.id.slice(5));
     else openById(h.id);
     close();

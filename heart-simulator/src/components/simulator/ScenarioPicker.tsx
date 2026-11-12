@@ -4,19 +4,37 @@ import React, { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
 import { bestKey, useSimStore } from '@/store/useSimStore';
-import { SCENARIOS } from '@/lib/sim/scenario/scenarios';
+import { SCENARIOS, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { openCategory } from '@/lib/actions';
 import type { Scenario } from '@/lib/sim/scenario/types';
 import { SETTING_LABEL, DIFFICULTY_STYLE, gradeStyle } from './simStyles';
 
 const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
 
-/** A case to bring into view the next time the list shows (one chosen in search) */
+/** A case to bring into view when the list shows (one chosen in search). Set only when the list is about to show. */
 const usePickerFocus = create<{ id: string | null }>(() => ({ id: null }));
 
-/** Show this case in the case list: scrolled into view, marked and focused (Tab then reaches its Start button) */
+/**
+ * Open the case simulator at this case (one chosen in search): the case list, scrolled to it, marked and focused
+ * (Tab then reaches its Start button). A case that is still open comes first, so the list never jumps later to a
+ * case searched for earlier: the same case simply comes back; another one is left only if the learner agrees, as
+ * with the case's own "← Cases" button (one that has ended closes, as there). Cancel leaves everything as it was.
+ */
 export function showInPicker(scenarioId: string) {
+  const sim = useSimStore.getState();
+  const open = sim.state;
+  if (open && !open.ended && open.scenarioId === scenarioId) {
+    useAppStore.getState().setMode('simulator');
+    return;
+  }
+  if (open) {
+    // quotes inside the title become single ones, inside the double quotes around it
+    const title = (SCENARIO_BY_ID[open.scenarioId]?.title ?? 'This case').replace(/"([^"]*)"/g, '‘$1’');
+    if (!open.ended && !window.confirm(`“${title}” is still in progress. Leave it to see the case you chose? Your progress in it will be lost.`)) return;
+    sim.closeScenario();
+  }
   usePickerFocus.setState({ id: scenarioId });
+  useAppStore.getState().setMode('simulator');
 }
 
 /** Choose your role and a case */
