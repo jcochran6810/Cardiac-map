@@ -12,6 +12,13 @@ const WINDOW = 6000; // ms across the screen
 const COLORS = { ecg: '#3cff7a', art: '#ff5c74', pleth: '#45d4ff', co2: '#ffd43b', grid: 'rgba(255,255,255,0.05)', text: '#9aa4b2' };
 /** the arterial trace is drawn on a fixed 0–160 mmHg scale, like a bedside monitor */
 const ART_SCALE = 160;
+/** the capnogram is drawn on a fixed 0–60 mmHg scale with a reference line at 40 */
+const CO2_SCALE = 60;
+const CO2_REF = 40;
+/** each channel's share of the screen height (the ECG gets the most room, as on a real monitor) */
+const ROWS3 = { ecg: [0, 0.42], art: null, pleth: [0.42, 0.71], co2: [0.71, 1] } as const;
+const ROWS4 = { ecg: [0, 0.34], art: [0.34, 0.56], pleth: [0.56, 0.78], co2: [0.78, 1] } as const;
+const pct = (f: number, plus = 0.8) => `${(f * 100 + plus).toFixed(1)}%`;
 
 /**
  * `art`: an arterial line (cath lab) — a pressure trace under the ECG, and the pressure box shows the live
@@ -56,12 +63,9 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
     let audio: AudioContext | null = null;
     let lastBeepV = -1;
     const rows = () => {
-      if (channelsRef.current.art) {
-        const h = H / 4;
-        return { ecg: [0, h], art: [h, 2 * h], pleth: [2 * h, 3 * h], co2: [3 * h, 4 * h] } as const;
-      }
-      const h = H / 3;
-      return { ecg: [0, h], art: null, pleth: [h, 2 * h], co2: [2 * h, 3 * h] } as const;
+      const f = channelsRef.current.art ? ROWS4 : ROWS3;
+      const px = (r: readonly [number, number]) => [Math.round(r[0] * H), Math.round(r[1] * H)] as const;
+      return { ecg: px(f.ecg), art: f.art ? px(f.art) : null, pleth: px(f.pleth), co2: px(f.co2) };
     };
     /** arterial pressure (mmHg) at t, scaled to the patient's numbers; a damped line loses the notch and the peaks */
     const artAt = (t: number, v: Vitals, damped: boolean) => {
@@ -95,10 +99,10 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
       const ecgMid = r.ecg[0] + (r.ecg[1] - r.ecg[0]) * 0.6;
       const pxPerMv = (r.ecg[1] - r.ecg[0]) * 0.36;
       const yE = ecgMid - (on.ecg ? Math.max(-2.2, Math.min(2.6, sim.engine.voltage('II', t))) : 0) * pxPerMv;
-      const pl = on.pleth ? plethAt(t, v.pulse, v.wave?.[0] ?? v.sbp, v.wave?.[1] ?? v.dbp) : 0;
+      const pl = on.pleth ? plethAt(t, v.pulse) : 0;
       const yP = r.pleth[1] - 8 - pl * (r.pleth[1] - r.pleth[0] - 18);
       const c = on.co2 ? capnoAt(t, v.rr, v.etco2) : 0;
-      const yC = r.co2[1] - 6 - (c / 50) * (r.co2[1] - r.co2[0] - 16);
+      const yC = r.co2[1] - 6 - (Math.min(CO2_SCALE, c) / CO2_SCALE) * (r.co2[1] - r.co2[0] - 16);
       const yA = r.art ? r.art[1] - 5 - (Math.min(ART_SCALE, artAt(t, v, on.art === 'damped')) / ART_SCALE) * (r.art[1] - r.art[0] - 12) : 0;
       return [yE, yP, yC, yA];
     };
@@ -156,6 +160,15 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
       ctx.lineWidth = 1;
       ctx.lineCap = 'butt'; // no overhang into the area that was not cleared
       for (const y of [...(r.art ? [r.art[0]] : []), r.pleth[0], r.co2[0]]) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); }
+      // capnogram reference line at 40 mmHg (dashes anchored to the screen, so the pieces drawn each frame line up)
+      if (channelsRef.current.co2) {
+        const y = Math.round(r.co2[1] - 6 - (CO2_REF / CO2_SCALE) * (r.co2[1] - r.co2[0] - 16)) + 0.5;
+        ctx.strokeStyle = 'rgba(255,212,59,0.22)';
+        ctx.setLineDash([2, 5]);
+        ctx.lineDashOffset = x0;
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
     };
     const erase = (a: number, b: number) => {
       // Whole device pixels, so the sweep leaves no half-erased seams behind
@@ -212,6 +225,7 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
   }, [large, profile.rhythm]);
 
   const nibp = d.nibp.last;
+  const layout = channels.art ? ROWS4 : ROWS3;
   const big = large ? 'text-6xl' : 'text-2xl sm:text-3xl';
   const mid = large ? 'text-3xl' : 'text-lg sm:text-xl';
   const shockFlash = sim.time - d.lastShock < 900;
@@ -227,12 +241,21 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
           II ×1 {showRhythmName && !d.trainee && role !== 1 && <span className="text-slate-400 ml-2">{profile.name}</span>}
           {d.sync && d.mode === 'manual' && <span className="ml-2 px-1 rounded bg-white text-black font-bold">SYNC</span>}
         </div>
-        {channels.art && <div className="absolute left-2 text-[10px] font-mono" style={{ top: '25.5%', color: COLORS.art }}>ART 0–{ART_SCALE}</div>}
-        <div className="absolute left-2 text-[10px] font-mono" style={{ top: channels.art ? '50.5%' : '34%', color: COLORS.pleth }}>Pleth</div>
-        <div className="absolute left-2 text-[10px] font-mono" style={{ top: channels.art ? '75.5%' : '67.5%', color: COLORS.co2 }}>CO₂ mmHg</div>
-        {!channels.ecg && <Unplugged top={channels.art ? '8%' : '12%'} large={large}>ECG leads not connected</Unplugged>}
-        {!channels.pleth && <Unplugged top={channels.art ? '58%' : '45%'} large={large}>SpO₂ probe not connected</Unplugged>}
-        {!channels.co2 && <Unplugged top={channels.art ? '83%' : '78%'} large={large}>No capnography</Unplugged>}
+        {channels.art && <div className="absolute left-2 text-[10px] font-mono" style={{ top: pct(layout.art?.[0] ?? 0), color: COLORS.art }}>ART 0–{ART_SCALE}</div>}
+        <div className="absolute left-2 text-[10px] font-mono" style={{ top: pct(layout.pleth[0]), color: COLORS.pleth }}>Pleth</div>
+        <div className="absolute left-2 text-[10px] font-mono" style={{ top: pct(layout.co2[0]), color: COLORS.co2 }}>CO₂ mmHg</div>
+        {channels.co2 && (
+          <div
+            className="absolute right-1 text-[9px] font-mono leading-none opacity-60 pointer-events-none"
+            style={{ top: `calc(100% - 6px - ${(CO2_REF / CO2_SCALE).toFixed(3)} * (${((layout.co2[1] - layout.co2[0]) * 100).toFixed(1)}% - 16px) - 11px)`, color: COLORS.co2 }}
+            aria-hidden
+          >
+            {CO2_REF}
+          </div>
+        )}
+        {!channels.ecg && <Unplugged top={pct((layout.ecg[0] + layout.ecg[1]) / 2, -4)} large={large}>ECG leads not connected</Unplugged>}
+        {!channels.pleth && <Unplugged top={pct((layout.pleth[0] + layout.pleth[1]) / 2, -2)} large={large}>SpO₂ probe not connected</Unplugged>}
+        {!channels.co2 && <Unplugged top={pct((layout.co2[0] + layout.co2[1]) / 2, -2)} large={large}>No capnography</Unplugged>}
         {d.message && (
           <div className={`absolute left-1/2 -translate-x-1/2 top-1 max-w-[80%] px-2 py-0.5 rounded text-center font-semibold ${large ? 'text-lg' : 'text-[11px]'} ${d.charge === 'charged' || d.aed.phase === 'shock' ? (blink ? 'bg-amber-400 text-black' : 'bg-amber-600 text-black') : 'bg-slate-800/90 text-amber-200'}`}>
             {d.message}

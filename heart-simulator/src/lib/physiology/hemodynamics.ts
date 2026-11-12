@@ -460,6 +460,35 @@ export class HemoModel {
     };
   }
 
+  /**
+   * Finger plethysmogram (the pulse-oximeter waveform), 0 at the baseline and ~1 at the peak of a normal pulse.
+   * Each ejection reaches the fingertip `delay` ms later as a volume pulse: a quick upstroke, a rounded peak, the
+   * dicrotic notch as the aortic valve closes, a small dicrotic wave and a slow run-off. A pulse is as big as its
+   * beat's pulse pressure, so weak beats (PVCs, short cycles in AF, pulsus alternans) show as small pulses or none.
+   */
+  pleth(t: number, delay = 200): number {
+    const i = this.engine.lastVentIndex(t - delay);
+    if (i < 0) return 0;
+    let y = 0;
+    for (let k = i; k >= 0 && k > i - 4; k--) {
+      const b = this.beat(k)!;
+      const x = t - (b.ev.ao + delay);
+      if (x > 2600) break;
+      if (x <= 0 || b.params.noOutput) continue;
+      const pp = b.ps - b.pd;
+      if (pp < 3) continue;
+      const amp = Math.min(1.3, Math.pow(pp / 40, 0.6));
+      const ej = Math.max(120, b.ev.ac - b.ev.ao);
+      const rise = Math.min(150, 0.45 * ej);
+      // run-off time constant chosen so the pulse has fallen to ~45% when the aortic valve closes (the notch)
+      const tau = (ej - rise) / 0.8;
+      const main = x < rise ? smooth(0, rise, x) : Math.exp(-(x - rise) / tau);
+      const dicrotic = 0.13 * Math.exp(-Math.pow((x - ej - 75) / 55, 2)) - 0.05 * Math.exp(-Math.pow((x - ej - 5) / 22, 2));
+      y += amp * (main + dicrotic);
+    }
+    return Math.max(0, y);
+  }
+
   /** Events of the beat in progress at t (for labelling the Wiggers diagram) */
   eventsAt(t: number): CycleEvents | null {
     const i = this.engine.lastVentIndex(t);

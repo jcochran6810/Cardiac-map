@@ -61,3 +61,47 @@ describe('hemodynamic profiles', () => {
     expect(p.edv).toBeGreaterThanOrEqual(p.esv);
   });
 });
+
+describe('finger plethysmogram', () => {
+  const trace = (profile: string, hr = 0, from = 12_000, to = 20_000) => {
+    const engine = new ECGEngine(profile, hr);
+    engine.ensure(to + 2_000);
+    const model = new HemoModel(engine);
+    const ys: number[] = [];
+    for (let t = from; t < to; t += 5) ys.push(model.pleth(t));
+    return { engine, model, ys };
+  };
+
+  it('pulses once per beat between a flat baseline and a peak near 1', () => {
+    const { ys } = trace('normal-sinus', 72);
+    expect(Math.max(...ys)).toBeGreaterThan(0.85);
+    expect(Math.max(...ys)).toBeLessThan(1.2);
+    expect(Math.min(...ys)).toBeLessThan(0.12);
+    // upstrokes through half height: one per beat (72/min for 8 s ≈ 9–10)
+    let ups = 0;
+    for (let i = 1; i < ys.length; i++) if (ys[i - 1] < 0.5 && ys[i] >= 0.5) ups++;
+    expect(ups).toBeGreaterThanOrEqual(8);
+    expect(ups).toBeLessThanOrEqual(11);
+  });
+
+  it('has a dicrotic notch on the way down (a dip, then a small second wave)', () => {
+    const { engine, model } = trace('normal-sinus', 72);
+    const v = engine.vent[engine.lastVentIndex(15_000)];
+    const ev = model.eventsAt(v.t + 100)!;
+    const at = (ms: number) => model.pleth(ev.ac + 200 + ms);
+    expect(at(80)).toBeGreaterThan(at(5));
+    expect(at(80)).toBeGreaterThan(at(260));
+  });
+
+  it('is flat when the heart has no output', () => {
+    expect(Math.max(...trace('vf').ys)).toBe(0);
+    expect(Math.max(...trace('asystole').ys)).toBe(0);
+  });
+
+  it('shows beat-to-beat pulse variation in atrial fibrillation', () => {
+    const { ys } = trace('atrial-fibrillation', 130);
+    const peaks: number[] = [];
+    for (let i = 1; i < ys.length - 1; i++) if (ys[i] > ys[i - 1] && ys[i] >= ys[i + 1] && ys[i] > 0.3) peaks.push(ys[i]);
+    expect(Math.max(...peaks) - Math.min(...peaks)).toBeGreaterThan(0.08);
+  });
+});

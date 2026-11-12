@@ -753,13 +753,13 @@ export function vitalsAt(t: number): Vitals {
   return { hr, pulse, spo2, etco2, rr, sbp: h.sbp, dbp: h.dbp, co: h.co };
 }
 
-/** Pulse-oximetry plethysmogram (0..1), delayed arterial pulse; CPR-driven waves when pulseless */
-export function plethAt(t: number, pulse: boolean, sbp: number, dbp: number): number {
+/**
+ * Pulse-oximetry plethysmogram (0..~1.1): the finger's volume pulse from the hemodynamic model (quick upstroke,
+ * rounded peak, dicrotic notch, slow run-off); CPR-driven waves when pulseless.
+ */
+export function plethAt(t: number, pulse: boolean): number {
   const s = get();
-  if (pulse) {
-    const a = sim.hemo.sample(t - 220).aop;
-    return Math.max(0, Math.min(1.1, (a - dbp) / Math.max(5, sbp - dbp)));
-  }
+  if (pulse) return Math.min(1.12, 0.86 * sim.hemo.pleth(t));
   for (let i = cprIntervals.length - 1; i >= 0; i--) {
     const c = cprIntervals[i];
     if (t >= c.start && t <= c.end) {
@@ -772,16 +772,24 @@ export function plethAt(t: number, pulse: boolean, sbp: number, dbp: number): nu
   return 0;
 }
 
-/** Capnogram (mmHg) for a breath cycle */
+const smooth = (a: number, b: number, x: number) => {
+  const k = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return k * k * (3 - 2 * k);
+};
+
+/**
+ * Capnogram (mmHg) for one breath: phase I (dead-space gas, flat at zero), phase II (the steep S-shaped rise as
+ * alveolar gas arrives), phase III (the gently rising alveolar plateau that ends at the end-tidal value) and the
+ * inspiratory down-stroke back to zero.
+ */
 export function capnoAt(t: number, rr: number, etco2: number): number {
   if (rr <= 0) return 0;
   const period = 60000 / rr;
-  const x = (t % period) / period;
-  // Phase I (dead space) → II (steep rise) → III (alveolar plateau) → 0 (inspiratory down-stroke)
-  const rise = x < 0.05 ? 0 : x < 0.12 ? (x - 0.05) / 0.07 : 1;
-  const fall = x < 0.55 ? 1 : x < 0.6 ? 1 - (x - 0.55) / 0.05 : 0;
-  const plateau = 0.92 + 0.08 * Math.min(1, Math.max(0, (x - 0.12) / 0.43));
-  return etco2 * Math.min(rise, fall) * plateau;
+  const x = (((t % period) + period) % period) / period;
+  const rise = smooth(0.04, 0.15, x);
+  const plateau = 0.9 + 0.1 * Math.min(1, Math.max(0, (x - 0.12) / 0.43));
+  const fall = 1 - smooth(0.55, 0.61, x);
+  return etco2 * rise * plateau * fall;
 }
 
 /** Mirror another window's device state (projector view): recreate artefacts on this clock */
