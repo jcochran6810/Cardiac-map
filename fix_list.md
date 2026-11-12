@@ -194,7 +194,7 @@ Add new items at the top of their group. Use the format:
   (insulin + dextrose, albuterol, sotalol, ticagrelor, clopidogrel, prasugrel), the case simulator's shared rules
   corrected, two screen reviews (40 findings) and a final integration review (26 findings) fixed and re-checked,
   a Playwright browser test (64 checks on five screen sizes) in CI, and the defibrillator's role permissions in
-  `scope.ts` with tests.
+  `scope.ts` with tests (`e4076b1` … `e7f4734`, 92 commits; merged by this session's end-session merge).
 - [x] 2026-10-26 — A small **Feedback** button in the top-right corner of every screen opens the feedback form
   (`81c2c6b`).
 - [x] 2026-10-26 — Feedback from learners (bugs, improvements, feature ideas; offline-safe) with the owner's admin

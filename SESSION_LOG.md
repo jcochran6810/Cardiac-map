@@ -6,6 +6,64 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-11-12 — claude/vigilant-goodall-e7bs4b (a teaching app to be proud of: courses, rhythm trainer, heart sounds, glossary, 2025 guidelines, six new cases and six new drugs, three reviews fixed)
+
+**Agent:** Claude
+
+**Asked:** "Review over the entire code base and previous sessions … Make it state of the art, easy to use and highly
+detailed graphics … do not stop until it is the top of the line education app"; "Try again"; "pause" (about 45
+minutes); "Continue the project updates"; "ETA until completion?"; "End session".
+
+**Branch:** started level with production `main` at `0748214`; production did not move during the session (0 behind
+at step 2). All 92 commits were made in this session. Several are labelled "Work in progress" snapshots (`8529628`,
+`29f9868`, `cc0ee60`, `3987f8e`, `857c904`, `e5ac480`, `620f3a9`, `feca9df`, `3eae44c`): each passed the type check
+and the tests when it was made and is superseded by the finished commits after it.
+
+**Shipped:**
+
+- Teaching: eight guided courses with multiple-choice, "tap the …" and "tap a lead" checks (`d1836cb`, `ddb95da`,
+  `b53c9db`, `95ee024`, `50bc887`), a rhythm trainer and audible heart sounds (`d1836cb`), a 198-term glossary
+  (`5e9140b`, `e4d6678`), a first-visit welcome that asks the role (`8f6e963`), search that finds lessons and tools
+  (`8a125cc`), a main menu with three clear ways in (`dbca0b7`).
+- Monitor and ECG: a real pulse-ox waveform and capnogram (`e4076b1`); an ECG engine that never drops or squeezes in
+  beats, a realistic QT, truer tracings and a new AIVR rhythm (`12711be`, `fc4c114`, `3d53481`, `65bcd18`); the first
+  tracing opens full (`d992165`); very fast SVT keeps a weak pulse, a pause after adenosine is not an arrest (`75a182b`).
+- Clinical content brought up to the 2025 AHA and ACC/AHA guidelines: condition pages, case studies, procedures, drug
+  cards, the cath lab catalog, anatomy, quiz, tutor and scope text (`dc43b21`, `1e33a68`, `6a5adfd`, `897944d`,
+  `c3b85a5`).
+- Lessons: answers kept when a lesson is left and resumed, every tap counted, the rhythm's name hidden only when it
+  would answer the question, both pictures side by side on a phone on its side when a step needs both, steps that set
+  their own cable swap (`8b0aa7b`, `bd5913b`).
+- Give meds: insulin + dextrose, albuterol, sotalol, ticagrelor, clopidogrel, prasugrel, corrected after an
+  independent clinical review (`787a2b5`, `30625b9`, `2560e61`, `18853db`).
+- Case simulator: six new cases, each written to the 2025 guidelines and checked by an independent clinical reviewer
+  (beta-blocker overdose, AF with RVR, stable VT, hyperkalemia in dialysis, PEA arrest, no-reflow in the lab;
+  `c325380`, `2bae0fb`); the shared engine rules corrected (`8634ba7`, `751190c`); the end card says when a patient
+  was handed over with steps missing (`b7c66e7`).
+- Two screen reviews (40 findings) fixed by six parallel teams, each re-checked by an independent reviewer
+  (`5feb462`…`bfb0fda`, `0d06355`…`701ea60`, `93fc492`…`e258927`, `7f1b9a5`…`60a1f31`, `eda4898`…`db8f7ab`,
+  `6673118`…`7be8354`); a final review of the combined app (26 findings) fixed the same way (`18853db`, `bd5913b`).
+- Projector monitor mirrors drug effects, cable swaps and question mode (`4a9be16`); defibrillator role permissions in
+  `scope.ts` with tests (`13e56c5`); one name for the Pressure & volume panel (`09e9be7`).
+- Playwright browser tests (`d5e591d`, now 64 checks on five screen sizes), run by CI as their own job.
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (2076) · build ✅ · e2e ✅ (64, small phone / phone / phone on its side /
+tablet / desktop). CI on the session branch: green for `18853db`; run 73 (`4aaad41`) failed the small-phone browser test
+(the End button had no "End case" name) and was fixed by the next commit `6fb5c17`. The preview and the production
+deploy are reported in the step-9 reply. **Not verified:** a real phone or tablet (emulated browsers only); the
+projector with two physical screens (two browser tabs only).
+
+**Files:** A: 78 files, among them `heart-simulator/src/data/courses/*` (eight courses), `src/data/glossary.ts`,
+`src/components/courses/*`, `src/components/drill/RhythmTrainer.tsx`, `src/components/tutor/QuizStrip.tsx`,
+`src/lib/courses.ts`, `src/lib/drill*.ts`, `src/lib/audio/*`, six case files in `src/lib/sim/scenario/scenarios/`,
+`playwright.config.ts`, `e2e/*` and 30 test files · M: 106 files across the app, the engine, the library content,
+`README.md`, `CLAUDE.md`, `.github/workflows/ci.yml`, `fix_list.md` · D: none.
+
+**Follow-up:** in `fix_list.md` — try the new features and the six cases on a real phone; optionally try the projector
+with a class; a frozen 12-lead per recording in the simulator; a left main and an EP / pacing case; the VT page outside
+Give meds still shows the shock heart; the tutor's `careField` into `scope.ts`; stacking two antiarrhythmics in Give
+meds is not judged.
+
 ### 2026-10-26 — ccr-79516388-9rwhsq (continued: a Feedback button in the top-right corner of every screen)
 
 **Agent:** Claude
