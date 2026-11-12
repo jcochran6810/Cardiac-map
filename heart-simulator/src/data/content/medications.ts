@@ -2821,6 +2821,76 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     relatedConditions: ['hyperkalemia', 'ventricular-fibrillation'],
   },
 
+  sotalol: {
+    id: 'sotalol',
+    name: 'Sotalol',
+    brandNames: ['Betapace', 'Sotylize'],
+    drugClass: 'Class III antiarrhythmic with nonselective β-blocking (class II) action',
+    summary:
+      'Lengthens repolarization (a longer QT) and blocks β-receptors. Given IV it is one of the options for stable monomorphic VT; by mouth it keeps AF and VT from coming back. Its danger is the QT: the risk of torsades rises with the dose and with poor kidney function.',
+    levelNotes: [
+      'Sotalol is not an EMT drug. A patient taking it is at risk of a slow pulse and of torsades: report fainting, palpitations or a slow pulse, and bring the medication list.',
+      'Know it from the medication list: a slow rate, a long QT on the monitor or fainting in a patient taking sotalol is a warning of torsades. IV sotalol for stable VT is a hospital option in most systems; follow your protocol.',
+      'Measure and report the QTc on every tracing while sotalol is started or loaded, with the heart rate and any pauses. An infusion is prepared only on a physician order where facility policy permits.',
+      'Give IV sotalol as ordered over the prescribed time on continuous ECG monitoring. Check the QTc, heart rate, blood pressure, potassium, magnesium and creatinine before and after, and stop and report a QTc above 500 ms or a new bradycardia.',
+      'IV sotalol 1.5 mg/kg (about 100 mg) over 5 min may be considered for stable monomorphic VT; avoid it with a long QT. Dose by creatinine clearance, and start or increase oral therapy with continuous ECG monitoring for at least 3 days (or after an IV load). Avoid in decompensated heart failure, shock, asthma, hypokalemia and hypomagnesemia.',
+    ],
+    mechanism: [
+      'Blocks the rapid delayed-rectifier potassium current (IKr): a longer action potential and refractory period, and a longer QT',
+      'Nonselective β-blockade: slows the sinus rate and AV conduction',
+      'Excreted unchanged by the kidneys: the dose depends on the creatinine clearance',
+    ],
+    indications: [
+      'Stable monomorphic VT (IV)',
+      'Keeping AF or atrial flutter in sinus rhythm (by mouth, or started with an IV load)',
+      'Preventing recurrent ventricular arrhythmias (by mouth)',
+    ],
+    dosing: [
+      'Stable monomorphic VT: 1.5 mg/kg (about 100 mg) IV over 5 min',
+      'By mouth: 80 mg twice daily to start, increased in 80 mg/day steps after at least 3 days at each dose; the dosing interval follows the creatinine clearance',
+      'Started or increased with continuous ECG monitoring; QTc checked 2–4 h after each dose',
+    ],
+    contraindications: [
+      'Long QT (QTc above 450 ms before starting) or a history of torsades',
+      'Sinus bradycardia below 50/min, sick sinus syndrome, or second- or third-degree AV block without a pacemaker',
+      'Cardiogenic shock or decompensated heart failure',
+      'Asthma or bronchospasm (nonselective β-blocker)',
+      'Severe kidney impairment (for AF: a creatinine clearance below 40 mL/min)',
+      'Hypokalemia or hypomagnesemia (correct them first)',
+    ],
+    adverseEffects: [
+      'Torsades de pointes, rising with the dose and with kidney failure',
+      'Bradycardia, AV block and hypotension',
+      'Fatigue, breathlessness and bronchospasm',
+      'Worsening heart failure',
+    ],
+    ecgEffects: [
+      'QT prolongation, dose-related',
+      'Sinus bradycardia and a longer PR interval',
+      'Torsades de pointes when the QT becomes too long',
+    ],
+    hemodynamics: [
+      '↓Heart rate and contractility (β-blockade)',
+      'Hypotension, especially after an IV dose',
+    ],
+    monitoring: [
+      'QTc: reduce or stop above 500 ms',
+      'Heart rate and blood pressure',
+      'Potassium, magnesium and creatinine',
+    ],
+    interactions: [
+      'Other QT-prolonging drugs: additive torsades risk',
+      'Other AV-nodal blockers and digoxin: bradycardia and AV block',
+      'Diuretics: a low potassium or magnesium raises the torsades risk',
+    ],
+    teaching: [
+      'Two drugs in one: a class III QT-prolonger and a β-blocker',
+      'The kidneys clear it, so the dose follows the creatinine clearance',
+      'Started in hospital with ECG monitoring because of torsades',
+    ],
+    relatedConditions: ['monomorphic-vt', 'atrial-fibrillation', 'atrial-flutter', 'torsades-de-pointes'],
+  },
+
   colchicine: {
     id: 'colchicine',
     name: 'Colchicine',

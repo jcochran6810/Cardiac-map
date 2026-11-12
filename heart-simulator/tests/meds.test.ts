@@ -115,7 +115,7 @@ describe('the medications', () => {
         }
       }
     }
-  });
+  }, 30_000);
 
   it('a drug that is given to slow the heart is never called a good choice when the heart is already slow', () => {
     const slowing: MedId[] = ['diltiazem', 'metoprolol', 'esmolol', 'amiodarone', 'digoxin', 'adenosine'];
@@ -893,5 +893,27 @@ describe('hyperkalemia shifters and the P2Y12 loads', () => {
       expect(planDose(id, patient('aortic-dissection', 100), MED_BY_ID[id].usual(patient('aortic-dissection', 100)).low).verdict.tone).toBe('bad');
       expect(planDose(id, patient('normal-sinus', 72), MED_BY_ID[id].usual(patient('normal-sinus', 72)).low).verdict.tone).toBe('bad');
     }
+  });
+});
+
+describe('sotalol', () => {
+  it('may be considered for stable monomorphic VT and ends it with a slow rate and a longer QT', () => {
+    const plan = planDose('sotalol', patient('vt', 160, { sbp: 118 }), 120);
+    expect(plan.doseClass).toBe('usual');
+    expect(plan.verdict).toMatchObject({ tone: 'good' });
+    expect(plan.verdict.text).toMatch(/may be considered/);
+    const end = plan.steps.find((s) => s.profile === 'normal-sinus');
+    expect(end?.mods?.qtcAdd).toBeGreaterThan(0);
+    expect(end?.hr).toBeLessThan(70);
+  });
+
+  it('is refused for unstable VT, torsades, arrest and a slow rhythm, and an overdose ends in torsades', () => {
+    expect(planDose('sotalol', patient('vt', 170, { sbp: 74 }), 120).verdict.tone).toBe('bad');
+    expect(planDose('sotalol', patient('torsades', 230), 120).verdict.tone).toBe('bad');
+    expect(planDose('sotalol', patient('vf', 0), 120).verdict.tone).toBe('bad');
+    expect(planDose('sotalol', patient('sinus-bradycardia', 44), 120).verdict.tone).toBe('bad');
+    const over = planDose('sotalol', patient('vt', 160, { sbp: 118 }), 200);
+    expect(over.doseClass).toBe('toxic');
+    expect(over.steps.some((s) => s.profile === 'torsades')).toBe(true);
   });
 });

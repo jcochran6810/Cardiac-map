@@ -16,7 +16,7 @@ import type { RhythmMods } from '@/lib/ecg/mods';
 import type { MedicationId } from '@/types/content';
 
 export type MedId = Extract<MedicationId,
-  | 'adenosine' | 'diltiazem' | 'metoprolol' | 'esmolol' | 'amiodarone' | 'procainamide' | 'lidocaine' | 'digoxin'
+  | 'adenosine' | 'diltiazem' | 'metoprolol' | 'esmolol' | 'amiodarone' | 'procainamide' | 'sotalol' | 'lidocaine' | 'digoxin'
   | 'atropine' | 'epinephrine' | 'magnesium-sulfate' | 'calcium-chloride' | 'sodium-bicarbonate' | 'insulin-dextrose' | 'albuterol'
   | 'aspirin' | 'ticagrelor' | 'clopidogrel' | 'prasugrel' | 'tenecteplase' | 'heparin' | 'nitroglycerin' | 'fentanyl' | 'phenylephrine'>;
 
@@ -695,6 +695,69 @@ const procainamide: MedDef = {
       }
       default:
         return { verdict: bad('No indication in this rhythm — you will only see the QRS widen and the QT lengthen.'), steps: [...widening, ...toxic] };
+    }
+  },
+};
+
+const sotalol: MedDef = {
+  id: 'sotalol',
+  name: 'Sotalol',
+  group: 'Antiarrhythmics & rate control',
+  unit: 'mg',
+  route: 'IV over 5 min',
+  verb: 'Give',
+  onset: 'Minutes; the QT is longest at the end of the infusion',
+  guide: 'Stable monomorphic VT: 1.5 mg/kg (about 100 mg) IV over 5 min. Avoid with a long QT (QTc above 450 ms), bradycardia, heart failure, shock or asthma; correct K⁺ and Mg²⁺ first; dose by kidney function.',
+  usual: (p) => ({ low: 1.5 * p.kg, high: 1.5 * p.kg }),
+  max: (p) => 2 * p.kg,
+  picks: (p) => uniq([round(0.75 * p.kg, 10), round(1.5 * p.kg, 10), round(2.5 * p.kg, 10)]),
+  step: 10,
+  plan(p, dose, cls) {
+    const prof = resolveProfile(p.profileId);
+    const c = category(prof, p.hr);
+    const mods: RhythmMods = { qtcAdd: cls === 'low' ? 25 : cls === 'usual' ? 45 : 70, prAdd: 15 };
+    // a long QT to start with (a QT long from repolarization, not from a wide QRS), or too much: the dose that ends in torsades
+    const longQt = prof.qtc > 450 && prof.qrs === 'normal';
+    const torsades: EffectStep[] = cls === 'toxic' || (longQt && c !== 'torsades' && c !== 'arrest')
+      ? [{ at: 9 * MIN, profile: 'torsades', note: `Torsades de pointes — ${cls === 'toxic' ? 'an overdose of a QT-prolonging drug' : 'sotalol on top of a QT that was already long'}. Defibrillate now (unsynchronized), pulse or not; then magnesium.`, tone: 'warn', mark: 'torsades' }]
+      : [];
+    const qtWarn = longQt ? ` The QTc was already ${prof.qtc} ms: sotalol is contraindicated above 450 ms.` : '';
+    if (c === 'arrest') return { verdict: bad('Not an arrest drug: for shock-refractory VF or pulseless VT, amiodarone or lidocaine.'), steps: noEcg(60 * S, 'No change.') };
+    if (c === 'torsades') return { verdict: bad(`Dangerous: sotalol lengthens the QT and feeds torsades. ${TORSADES}`), steps: [{ at: 60 * S, mods, note: 'No improvement — and the QT gets longer.', tone: 'warn' }] };
+    switch (c) {
+      case 'vt':
+        if (failing(p, prof)) {
+          return {
+            verdict: bad('Not for this patient: sotalol lowers the blood pressure and the heart\'s contractility, and this VT is unstable or the heart is failing. Synchronized cardioversion now.'),
+            steps: [{ at: 3 * MIN, mods, note: 'The blood pressure falls further while the VT carries on.', tone: 'warn' }],
+          };
+        }
+        if (cls === 'low') return { verdict: good(`Stable monomorphic VT — but the dose is 1.5 mg/kg.${qtWarn}`), steps: [{ at: 5 * MIN, hr: rate(p.hr, 0.9), mods, note: 'VT slows slightly but carries on.', tone: 'warn' }, ...torsades] };
+        return {
+          verdict: longQt
+            ? bad(`Not with a long QT.${qtWarn} Procainamide lengthens it too: lidocaine (no effect on the QT) or synchronized cardioversion.`)
+            : good('Stable monomorphic VT: IV sotalol may be considered (1.5 mg/kg over 5 min), like procainamide and amiodarone. Avoid with a long QT or heart failure; synchronized cardioversion if it fails or the patient becomes unstable.'),
+          steps: [
+            { at: 3 * MIN, hr: rate(p.hr, 0.9), mods, note: 'VT slowing; the QT lengthens.', tone: 'effect', mark: 'slower' },
+            ...(torsades.length ? torsades : [{ at: 8 * MIN, profile: 'normal-sinus', hr: 62, mods, note: 'VT terminated: sinus rhythm — a slow rate (β-blockade) and a longer QT. Keep watching the QTc and the potassium and magnesium.', tone: 'good' as const, mark: 'sinus' }]),
+          ],
+        };
+      case 'af':
+      case 'flutter':
+        if (failing(p, prof)) return { verdict: bad('Not with heart failure or a low blood pressure: β-blockade and a long QT. For the rate, amiodarone or digoxin; cardioversion if unstable.'), steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.85, 50), mods, note: 'The rate falls and so does the blood pressure.', tone: 'warn' }] };
+        return {
+          verdict: caution(`Sotalol keeps AF or flutter in sinus rhythm once it has been restored (by mouth, or started with an IV load on ECG monitoring) — for rate control now, a β-blocker or diltiazem is simpler.${qtWarn}`),
+          steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.82, 50), mods, note: 'The ventricular rate falls (β-blockade); the QT lengthens.', tone: 'effect', mark: 'rate ↓' }, ...torsades],
+        };
+      case 'svt':
+        return { verdict: caution('Not a first-line SVT drug: vagal maneuvers, adenosine, then a calcium-channel blocker or β-blocker.'), steps: [{ at: 8 * MIN, profile: 'normal-sinus', hr: 76, mods, note: 'SVT terminated: sinus rhythm, with a longer QT.', tone: 'good', mark: 'sinus' }, ...torsades] };
+      case 'aivr': {
+        const s = suppressesAivr('sotalol', 8 * MIN);
+        return { verdict: s.verdict, steps: [{ ...s.steps[0], mods }] };
+      }
+      default:
+        if (isBrady(c) || slowSinus(c, p)) return { verdict: bad('Contraindicated: a slow or blocked rhythm — sotalol is a β-blocker too.'), steps: slowsBrady(p, prof, c, 8 * MIN, 0.85, 25).concat(isBrady(c) ? [] : [{ at: 8 * MIN, hr: rate(p.hr, 0.85, 30), mods, note: 'Slower still, and the QT lengthens.', tone: 'warn' }]) };
+        return { verdict: bad(`No indication in this rhythm — you will only see the rate fall and the QT lengthen.${qtWarn}`), steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.88, 30), mods, note: 'The rate falls; the QT lengthens.', tone: 'effect', mark: 'QT ↑' }, ...torsades] };
     }
   },
 };
@@ -1414,7 +1477,7 @@ const phenylephrine: MedDef = {
 };
 
 export const MEDS: MedDef[] = [
-  adenosine, diltiazem, metoprolol, esmolol, amiodarone, procainamide, lidocaine, digoxin,
+  adenosine, diltiazem, metoprolol, esmolol, amiodarone, procainamide, sotalol, lidocaine, digoxin,
   atropine, epinephrine,
   magnesium, calcium, bicarbonate, insulinDextrose, albuterol,
   aspirin, ticagrelor, clopidogrel, prasugrel, tenecteplase, heparin, nitroglycerin, fentanyl, phenylephrine,
@@ -1436,7 +1499,7 @@ export function classifyDose(def: MedDef, p: Patient, dose: number): DoseClass {
 
 /** Is the dose given per kilogram (so the picker shows mg/kg)? */
 export const PER_KG: Partial<Record<MedId, true>> = {
-  diltiazem: true, esmolol: true, procainamide: true, lidocaine: true, 'sodium-bicarbonate': true, heparin: true, fentanyl: true,
+  diltiazem: true, esmolol: true, procainamide: true, sotalol: true, lidocaine: true, 'sodium-bicarbonate': true, heparin: true, fentanyl: true,
 };
 
 export function fmtDose(x: number): string {

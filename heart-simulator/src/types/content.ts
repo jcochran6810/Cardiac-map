@@ -299,7 +299,7 @@ export const MEDICATION_IDS = [
   // anti-ischemic
   'nitroglycerin', 'fentanyl', 'metoprolol', 'esmolol',
   // antiarrhythmics & rate control
-  'adenosine', 'diltiazem', 'amiodarone', 'procainamide', 'lidocaine', 'digoxin', 'magnesium-sulfate',
+  'adenosine', 'diltiazem', 'amiodarone', 'procainamide', 'sotalol', 'lidocaine', 'digoxin', 'magnesium-sulfate',
   // ACLS / pressors / inotropes
   'atropine', 'epinephrine', 'norepinephrine', 'vasopressin', 'phenylephrine', 'dopamine', 'dobutamine', 'milrinone',
   // heart failure & chronic
