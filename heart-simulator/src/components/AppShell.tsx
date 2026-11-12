@@ -109,8 +109,8 @@ export default function AppShell() {
   useEffect(() => { setHeartSize(null); setEcgSize(null); setEcgWidth(null); }, [phone, compact, short]);
   // …and a lesson lays its step out again for it (beside the pictures on wide screens, between them on upright ones)
   useEffect(() => {
-    if (useCourseStore.getState().active) applyStep();
-    else if (useDrillStore.getState().open) showQuestion();
+    if (useCourseStore.getState().active) applyStep(true);
+    else if (useDrillStore.getState().open) showQuestion(true);
   }, [compact, short]);
   // Wide screens and phones on their side: the lesson's text is a column beside the heart and the ECG
   const lessonSide = inLesson && (!compact || short);

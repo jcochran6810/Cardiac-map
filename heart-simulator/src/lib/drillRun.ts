@@ -14,9 +14,10 @@ import { leaveSimulator } from '@/store/useSimStore';
 import { DRILL_SET_BY_ID } from '@/lib/drill';
 import { exitLesson, tidy } from '@/lib/courses';
 import { showRhythm } from '@/lib/rhythm';
+import { cleanSlate } from '@/lib/actions';
 
-/** Show the tracing of the question on screen (again): after a new question, or a change of screen shape */
-export function showQuestion() {
+/** Show the tracing of the question on screen: after a new question, or (`relayout`) again after a change of screen shape */
+export function showQuestion(relayout = false) {
   const { setId, question } = useDrillStore.getState();
   const set = setId ? DRILL_SET_BY_ID[setId] : null;
   const app = useAppStore.getState();
@@ -27,7 +28,8 @@ export function showQuestion() {
     app.setEcg('closed');
     return;
   }
-  showRhythm(question.profile, question.hr);
+  // (turning the phone does not restart the tracing being read)
+  if (!relayout || ecg.activeProfileId !== question.profile) showRhythm(question.profile, question.hr);
   const tl = useTimelineStore.getState();
   tl.setSpeed(1);
   if (!tl.playing) tl.play();
@@ -51,6 +53,7 @@ export function openTrainer() {
   useConditionStore.getState().selectCondition(null);
   useCaseStore.getState().resetCase();
   useSceneStore.getState().selectStructure(null);
+  cleanSlate();
   useDrillStore.getState().show();
   app.setMode('learn');
   showQuestion();

@@ -19,6 +19,7 @@ import { leaveSimulator } from '@/store/useSimStore';
 import { loadContent, useContentStore } from '@/lib/content';
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { showRhythm } from '@/lib/rhythm';
+import { cleanSlate } from '@/lib/actions';
 
 // ─── Finding things ────────────────────────────────────────────────────────
 
@@ -156,16 +157,16 @@ let shownRhythm = '';
 let applying = false;
 export const isApplyingStep = () => applying;
 
-function applyShow(show: StepShow) {
+function applyShow(show: StepShow, relayout: boolean) {
   applying = true;
   try {
-    layOut(show);
+    layOut(show, relayout);
   } finally {
     applying = false;
   }
 }
 
-function layOut(show: StepShow) {
+function layOut(show: StepShow, relayout: boolean) {
   const app = useAppStore.getState();
   const ecg = useECGStore.getState();
   const scene = useSceneStore.getState();
@@ -174,7 +175,10 @@ function layOut(show: StepShow) {
   // rhythm
   const profile = resolveProfile(show.rhythm ?? 'normal-sinus');
   const key = `${profile.id}|${show.hr ?? ''}`;
-  if (key !== shownRhythm || ecg.activeProfileId !== profile.id) {
+  // Showing a rhythm starts a new patient (no CPR, no code record, standard cables). A new step shows its own
+  // rhythm afresh; laying the same step out again for a new screen shape (the phone turned) leaves alone what the
+  // learner has done to the patient since — a shock that converted VF, CPR running.
+  if (key !== shownRhythm || (!relayout && ecg.activeProfileId !== profile.id)) {
     showRhythm(profile.id, show.hr);
     shownRhythm = key;
   }
@@ -210,13 +214,13 @@ function layOut(show: StepShow) {
   if (ecg.inspectLead !== (show.inspect ?? null)) ecg.setInspectLead(show.inspect ?? null);
 }
 
-/** Put the active step on screen (again): after a step change, a resume, or a change of screen shape */
-export function applyStep() {
+/** Put the active step on screen (again): after a step change or a resume, or (`relayout`) a change of screen shape */
+export function applyStep(relayout = false) {
   const a = useCourseStore.getState().active;
   if (!a) return;
   const found = findLesson(a.course, a.lesson);
   if (!found) return;
-  applyShow(effectiveShow(found.lesson.steps, Math.min(a.step, found.lesson.steps.length - 1)));
+  applyShow(effectiveShow(found.lesson.steps, Math.min(a.step, found.lesson.steps.length - 1)), relayout);
 }
 
 // ─── Taking a lesson ───────────────────────────────────────────────────────
@@ -235,6 +239,8 @@ export function startLesson(courseId: string, lessonId: string, fromStep?: numbe
   useMedStore.getState().reset(null);
   useConditionStore.getState().selectCondition(null);
   useCaseStore.getState().resetCase();
+  // standard cables, the 12-lead in the bottom panel, real time: whatever the learner left the tools in
+  cleanSlate();
   const saved = useCourseStore.getState().progress[lessonKey(courseId, lessonId)];
   const resume = saved && !saved.done && saved.step < found.lesson.steps.length ? saved.step : 0;
   shownRhythm = '';
