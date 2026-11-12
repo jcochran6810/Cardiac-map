@@ -304,7 +304,7 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Classify HF by LVEF (HFrEF ≤40%, HFmrEF 41–49%, HFpEF ≥50%) and match wall motion to the culprit territory. Use LVEDP, LVEF and SCAI shock stage to guide contrast volume, revascularization strategy and mechanical support: a microaxial flow pump (Impella) is reasonable in selected STEMI shock, while routine IABP or VA-ECMO in MI shock shows no benefit (2025 ACC/AHA ACS).',
     ],
     overview: [
-      'Generates systemic pressure; normal pressure 100–140/3–12 mmHg',
+      'Generates systemic pressure; normal pressure 90–140/5–12 mmHg',
       'Normal LVEF ~52–72% (men) and ~54–74% (women) by ASE criteria, often quoted as 55–70%',
       'Forms the apex, most of the left heart border and much of the inferior surface',
       'The AHA 17-segment model standardizes wall-motion reporting',

@@ -354,7 +354,7 @@ export const CATHLAB_A: CathLabItem[] = [
       'Radial artery about 2–3 mm across; a 6 Fr sheath is about 2.6 mm on the outside',
       'Sheath usually 5–6 Fr (7 Fr with thin-walled sheaths or sheathless guides)',
       'Heparin about 50 U/kg or 5,000 units for a diagnostic study (PCI doses are higher, to an ACT target)',
-      "Radial cocktail commonly verapamil 2.5 mg with or without nitroglycerin 100–200 mcg, on the operator's order",
+      "Radial cocktail commonly verapamil 2.5–5 mg with or without nitroglycerin 100–200 mcg, on the operator's order",
       'Radial artery occlusion about 1–10%, lowest with enough heparin and patent hemostasis',
     ],
     pearls: [

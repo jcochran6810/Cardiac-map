@@ -694,7 +694,7 @@ export const CATHLAB_B: CathLabItem[] = [
     details: [
       'A little whole blood is mixed with an activator (celite or kaolin) in a point-of-care machine, which reports the clotting time in seconds.',
       'Baseline ACT without heparin is roughly 90–140 seconds, depending on the machine; heparin prolongs it in a dose-related way.',
-      'Check about 5 minutes after a heparin bolus, then about every 30 minutes in long cases and after any extra bolus.',
+      'Check about 5 minutes after a heparin bolus, then about every 20–30 minutes in long cases and after any extra bolus.',
       'Targets depend on the drugs and the machine: about 250–300 s for PCI with heparin alone, about 200–250 s with a GP IIb/IIIa inhibitor.',
       'Machines differ: the classic heparin-only PCI targets were 250–300 s on HemoTec and 300–350 s on Hemochron, so know which one your lab uses.',
       'Draw the sample from a line free of heparinized flush, discarding the dead space first, or the result will be falsely long.',
@@ -868,7 +868,7 @@ export const CATHLAB_B: CathLabItem[] = [
     ],
     pearls: [
       'Someone must watch the patient and the monitor at every moment; when the RN is busy with a drug, the monitoring tech keeps eyes on the pressures and rhythm.',
-      'Scope matters: techs don’t give drugs, RNs give drugs on order and the operator decides, but anyone can stop the case for safety.',
+      'Scope matters: techs give drugs only on a physician’s order where state law and facility policy allow, RNs give drugs on order and the operator decides, but anyone can stop the case for safety.',
       'In an emergency, the operator or a named leader assigns roles out loud: compressions, defibrillator, drugs, recorder.',
     ],
     image: { keys: ['cath-lab-ep-study-team', 'cath-lab-cv-technologists'], want: 'A real photo of the cath lab team at work: operator, tech, nurse and control room.' },

@@ -216,7 +216,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'The mix is diluted with about 10 mL or more of blood drawn back into the syringe and given slowly through the side arm to ease the burning.',
       'Warn the patient: a warm or burning feeling up the arm for a few seconds is expected.',
       'Verapamil can lower the pressure and heart rate and slow AV conduction: caution with hypotension, bradycardia, AV block, severe aortic stenosis or decompensated heart failure.',
-      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor (sildenafil, tadalafil) in the last 24–48 hours.',
+      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor in the last 12 hours (avanafil), 24 hours (sildenafil, vardenafil) or 48 hours (tadalafil).',
     ],
     roles: {
       tech: 'Makes sure the cocktail syringe on the sterile field is clearly labeled, watches the pressure and heart rate after it goes in, and calls out any drop or vagal reaction.',
@@ -252,7 +252,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Given routinely before FFR or iFR, IVUS or OCT, stent sizing and the final angiogram, so the vessel is seen fully relaxed.',
       'Injected through the engaged guide and flushed in, so the dose goes down the artery rather than into the aorta.',
       'Lowers the blood pressure: check the aortic pressure before every bolus.',
-      'Avoid with SBP < 90 mmHg, an RV infarct, or a PDE5 inhibitor in the last 24 h (sildenafil, vardenafil) or 48 h (tadalafil); caution in severe aortic stenosis.',
+      'Avoid with SBP < 90 mmHg, an RV infarct, or a PDE5 inhibitor in the last 12 h (avanafil), 24 h (sildenafil, vardenafil) or 48 h (tadalafil); caution in severe aortic stenosis.',
     ],
     roles: {
       tech: 'Reads the aortic pressure aloud before each bolus, calls out a drop after it, and notes the dose and time on the record.',
@@ -592,7 +592,7 @@ export const CATHLAB_C: CathLabItem[] = [
     summary: 'Opening a blocked artery often triggers ventricular rhythms: accelerated idioventricular rhythm (AIVR) is a harmless sign of reflow, while VT or VF needs an immediate shock.',
     details: [
       'Cause: blood rushing back into ischemic muscle (calcium overload, free radicals) makes it electrically unstable the moment the wire or balloon restores flow.',
-      'AIVR is a regular wide-complex rhythm at about 60–120/min, close to the sinus rate; it marks reperfusion and needs no treatment.',
+      'AIVR is a regular wide-complex rhythm at about 50–120/min (usually under 100), close to the sinus rate; it often accompanies reperfusion and usually needs no treatment.',
       'Do not suppress AIVR with amiodarone or lidocaine: the slower sinus rhythm may not take over, leaving no rhythm at all.',
       'VT or VF on reflow is most common with a large anterior STEMI and a proximal occlusion; in the lab it is witnessed with pads on — shock at once.',
       'Most lab VF converts with the first shock and the patient wakes within seconds; recurrent VF needs amiodarone or lidocaine and potassium and magnesium correction.',
@@ -605,7 +605,7 @@ export const CATHLAB_C: CathLabItem[] = [
       md: 'Recognizes AIVR as a reperfusion sign and leaves it alone, calls for an immediate shock for VT or VF, finishes the PCI once stable, and treats recurrent VF.',
     },
     numbers: [
-      'AIVR: wide, regular, about 60–120/min — no treatment',
+      'AIVR: wide, regular, about 50–120/min — usually no treatment',
       'VF or pulseless VT: shock at once, 200 J biphasic (or the device\'s recommended dose)',
       'Goal: shock within 1 minute of witnessed VF in the lab',
       'Recurrent VF: amiodarone 300 mg IV (then 150 mg) or lidocaine 1–1.5 mg/kg',

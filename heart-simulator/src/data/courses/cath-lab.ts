@@ -1005,7 +1005,7 @@ export const CATH_LAB: Course = {
           title: 'Reperfusion rhythms: the harmless one',
           text: [
             'Reperfusion means blood returning to muscle that was cut off. The moment the wire or balloon reopens the artery, that muscle is electrically irritable, and rhythms from the ventricles are common.',
-            'The usual one is accelerated idioventricular rhythm (AIVR): a run of wide, regular beats at about 60–120 a minute, close to the patient\'s own rate. The patient stays awake and the pressure holds. It usually means flow is back, it stops by itself, and it is left alone. Drugs that suppress it can leave no rhythm at all.',
+            'The usual one is accelerated idioventricular rhythm (AIVR): a run of wide, regular beats at about 50–120 a minute, close to the patient\'s own rate. The patient stays awake and the pressure holds. It usually means flow is back, it stops by itself, and it is left alone. Drugs that suppress it can leave no rhythm at all.',
             'Check the pressure before naming any wide rhythm. A wide rhythm at 80 a minute with a good pressure is AIVR, not ventricular tachycardia (VT), the fast, dangerous rhythm from the ventricles.',
           ],
           look: 'The artery is open: the purple pulsing has stopped, and in lead II the ST segment is back near the baseline with the T wave now upside down. AIVR itself is not drawn here: picture a run of wide beats at about this rate.',
@@ -1020,7 +1020,7 @@ export const CATH_LAB: Course = {
               'Start chest compressions',
             ],
             answer: 0,
-            explain: 'Wide, regular, about 60–120 a minute, with the patient awake and a good pressure, is AIVR: a marker of returning flow that ends by itself. Ventricular tachycardia is faster and the pressure usually falls. Suppressing AIVR risks leaving the patient with no rhythm.',
+            explain: 'Wide, regular, about 50–120 a minute, with the patient awake and a good pressure, is AIVR: a marker of returning flow that ends by itself. Ventricular tachycardia is faster and the pressure usually falls. Suppressing AIVR risks leaving the patient with no rhythm.',
           },
           roleNote: {
             3: 'In every heart-attack case, have the defibrillator pads on and connected before the wire crosses. Call the new rhythm and read out the pressure.',

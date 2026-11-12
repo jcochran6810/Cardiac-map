@@ -33,7 +33,7 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
     answer: {
       title: 'The cardiac cycle',
       bullets: [
-        'Atrial systole follows the P wave and tops up ventricular filling by ~15–25% (more in stiff ventricles; lost in AF)',
+        'Atrial systole follows the P wave and tops up ventricular filling by ~20–30% (more in stiff ventricles; lost in AF)',
         'Isovolumetric contraction starts at S1 (mitral/tricuspid closure) just after the QRS: all valves closed, pressure rises, volume constant',
         'Ejection begins when LV pressure exceeds aortic pressure (aortic valve opens) — this sits under the ST segment; rapid then reduced ejection',
         'Isovolumetric relaxation begins at S2 (aortic/pulmonic closure, ≈ end of the T wave): pressure falls with no volume change',
@@ -109,7 +109,7 @@ const PRIMERS: { match: RegExp; answer: TutorAnswer }[] = [
     },
   },
   {
-    match: /locali[sz]e.*(stemi|mi|infarct)|which (artery|vessel).*(stemi|mi)|territor/i,
+    match: /locali[sz](e|ing).*(stemi|mi|infarct)|which (artery|vessel).*(stemi|mi)|territor/i,
     answer: {
       title: 'Localizing a STEMI',
       bullets: [

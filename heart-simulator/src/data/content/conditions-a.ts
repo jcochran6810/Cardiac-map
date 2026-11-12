@@ -56,7 +56,7 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'P-wave duration < 120 ms and amplitude < 2.5 mm in lead II',
       'PR interval 120–200 ms and constant from beat to beat',
       'QRS duration < 120 ms (typically ~70–110 ms) with frontal axis −30° to +90°',
-      'QTc ≤ ~450 ms in men and ≤ ~460 ms in women; > 500 ms markedly raises torsades risk',
+      'QTc < ~450 ms in men and < ~460 ms in women; > 500 ms markedly raises torsades risk',
     ],
     imaging: [
       'No imaging is needed to diagnose the rhythm',

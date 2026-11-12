@@ -267,7 +267,7 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'LVEDP-guided hydration balances AKI prevention against volume overload (POSEIDON concept)',
     ],
     teaching: [
-      'Normal LVEDP ~3–12 mmHg, measured at end-diastole after the a-wave',
+      'Normal LVEDP ~5–12 mmHg, measured at end-diastole after the a-wave',
       'Cath peak-to-peak gradient differs from echo peak instantaneous gradient; mean gradients compare best',
       'Severe AS: mean gradient ≥ 40 mmHg and AVA ≤ 1.0 cm²',
       'HCM (Brockenbrough sign): after a PVC, LVOT gradient rises while aortic pulse pressure falls',
