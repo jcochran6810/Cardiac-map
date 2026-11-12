@@ -114,6 +114,54 @@ describe('finding what a question is about', () => {
     expect(findTopic('nitro in RV infarct?', lib)?.id).toBe('term:rv-infarction');
   });
 
+  // each of these landed on a page that only shared a letter or a fragment with the question: for a teaching tool
+  // "could not find" is better than a confident wrong answer
+  it.each([
+    ['what is a P wave', 'cl-ifr'], // "p" in "Pd/Pa"
+    ['how do I count the rate', 'cl-iabp'], // "count" in "Counterpulsation"
+    ['where do I put V1', 'vasopressin'], // its V1 receptor
+    ['how do I place V1', 'tavr'], // "place" in "Replacement"
+    ['limb leads', 'svc'],
+    ['lead placement', 'leadless-pacemaker'], // "lead" in "Leadless"
+    ['statin after MI', 'mitral-regurgitation'], // "mi" in "Mitral"
+    ['oxygen in MI', 'metoprolol'],
+    ['U wave', 'nstemi'], // "u" in "Unstable"
+    ['heart rate calculation', 'hfref'],
+    ['where does V4 go', 'inferior-stemi'], // "v4" in "V4R"
+    ['T wave', 'cl-aortic-waveform'], // "t" and "wave" in "The arterial (aortic) waveform"
+  ])('"%s" is not answered from %s', (q, wrong) => {
+    expect(findTopic(q, lib)?.id).not.toBe(wrong);
+  });
+
+  it.each(['how do I count the rate', 'where do I put V1', 'how do I place V1', 'U wave', 'heart rate calculation', 'where does V4 go', 'oxygen in MI'])(
+    '"%s" gets "could not find"',
+    (q) => expect(ask(q).title).toBe('I could not find that in the library'),
+  );
+
+  it('a glossary word with no library page of its own is answered with its definition', () => {
+    expect(ask('what is a P wave').title).toBe('P wave');
+    expect(ask('limb leads').title).toBe('Limb leads');
+    expect(ask('T wave').title).toBe('T wave');
+    expect(ask('QT interval').title).toBe('QT interval');
+  });
+
+  it('a retry says which words its answer leaves out, and only then', () => {
+    const lead = ask('lead placement');
+    expect(lead.title).toBe('Lead');
+    expect(lead.text).toMatch(/^Closest match: nothing here mentions “placement”\./);
+    expect(ask('statin after MI').title).toMatch(/^Atorvastatin/);
+    expect(ask('nitro in RV infarct?').text).not.toMatch(/Closest match/);
+    expect(ask('amiodarone dose').text).not.toMatch(/Closest match/);
+    expect(ask('digoxin toxicity').title).toBe('Digoxin — adverse effects');
+    expect(ask('heparin for PE').title).toMatch(/Heparin — /);
+  });
+
+  it('every library page and glossary word is still found by its own name', () => {
+    const pages = [...Object.values(lib.conditions), ...Object.values(lib.medications), ...Object.values(lib.structures)];
+    const missing = pages.filter((p) => !findTopic(p.name, lib)).map((p) => p.name);
+    expect(missing).toEqual([]);
+  });
+
   it('never lands on a lesson, a tool or a simulator case it cannot answer from', () => {
     for (const q of ['where the electrodes go', 'rhythm trainer', 'glossary', 'electrode placement']) {
       const a = ask(q);

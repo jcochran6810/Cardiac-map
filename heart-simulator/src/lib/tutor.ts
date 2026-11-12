@@ -155,7 +155,7 @@ const INTENTS: { key: string; re: RegExp }[] = [
   { key: 'dose', re: /\b(doses?|dosing|dosage|how much|mg|mcg|joules?|energy)\b/i },
   { key: 'symptoms', re: /\b(symptoms?|signs?|presents?|presentation|look like clinically|exam)\b/i },
   { key: 'mechanism', re: /\b(why|cause|causes|caused|pathophys\w*|mechanisms?|how does .* work|works?)\b/i },
-  { key: 'complications', re: /\b(complications?|risks?|dangers?|side effects?|adverse)\b/i },
+  { key: 'complications', re: /\b(complications?|risks?|dangers?|side effects?|adverse|toxicity|toxic)\b/i },
   { key: 'steps', re: /\b(step|steps|how is .* (done|performed)|walk me through|procedure)\b/i },
   { key: 'imaging', re: /\b(echo|imaging|ct|mri|angiograph\w*|x-?ray|tte|tee)\b/i },
   // "when do I hold nitro?" asks when not to give it
@@ -194,22 +194,112 @@ function keeping<T>(items: T[], size: number): T[][] {
   return [...keeping(rest, size - 1).map((k) => [first, ...k]), ...keeping(rest, size)];
 }
 
-/** Everything a hit's page says, lower-cased: used to tell which page also covers the words a retry left out */
-function pageText(lib: ContentLibrary, hit: SearchHit): string {
-  const item = hit.kind === 'term' ? GLOSSARY_BY_ID[hit.id.slice(5)]
-    : hit.kind === 'case' ? CASE_DATA[hit.id]
-      : lib.structures[hit.id] ?? lib.conditions[hit.id] ?? lib.procedures[hit.id] ?? lib.medications[hit.id] ?? lib.cathlab[hit.id];
-  return item ? JSON.stringify(item).toLowerCase() : hit.name.toLowerCase();
-}
-
 /** "electrodes" → "electrode" (the search matches inside words, so the singular still finds the plural) */
 const singular = (w: string) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
+
+/** The words of a text, lower-cased: "V1–V6" → v1, v6; "Pd/Pa" → pd, pa */
+const tokens = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(Boolean);
+
+/**
+ * The forms one word can take, so that "infarct" meets "infarction", "electrode" "electrodes" and "paced" "pacing" —
+ * but "lead" never meets "Leadless" and "place" never meets "Replacement".
+ */
+function forms(w: string): string[] {
+  const out = [w];
+  const n = w.length;
+  if (n > 3 && w.endsWith('s') && !w.endsWith('ss')) out.push(w.slice(0, -1));
+  if (n > 4 && /(s|x|z|ch|sh)es$/.test(w)) out.push(w.slice(0, -2));
+  if (n > 4 && w.endsWith('ies')) out.push(`${w.slice(0, -3)}y`);
+  if (n > 4 && w.endsWith('ed')) out.push(w.slice(0, -2), w.slice(0, -1));
+  if (n > 5 && w.endsWith('ing')) out.push(w.slice(0, -3), `${w.slice(0, -3)}e`);
+  if (n > 5 && w.endsWith('ion')) out.push(w.slice(0, -3), `${w.slice(0, -3)}e`);
+  if (n > 6 && w.endsWith('ions')) out.push(w.slice(0, -4), `${w.slice(0, -4)}e`);
+  return out;
+}
+
+/** Every string inside a library item */
+function strings(x: unknown, out: string[] = []): string[] {
+  if (typeof x === 'string') out.push(x);
+  else if (Array.isArray(x)) for (const v of x) strings(v, out);
+  else if (x && typeof x === 'object') for (const v of Object.values(x)) strings(v, out);
+  return out;
+}
+
+/** A page's words, as whole words with all their forms */
+interface PageWords {
+  /** each of its names, word by word: ["right", "ventricular", "infarction"], ["rv", "infarct"] */
+  names: string[][];
+  /** its name and other names (a drug's brand names, a glossary term's other spellings) */
+  named: Set<string>;
+  drugClass: Set<string>;
+  /** what the page says it is: its names, its drug class and its summary (a glossary term's definition) */
+  gist: Set<string>;
+  /** everything it says */
+  text: Set<string>;
+}
+
+function pageWords(lib: ContentLibrary, hit: SearchHit): PageWords {
+  let named: string[] = [hit.name];
+  let drugClass: string[] = [];
+  let summary = '';
+  let item: unknown = null;
+  if (hit.kind === 'term') {
+    const g = GLOSSARY_BY_ID[hit.id.slice(5)];
+    if (g) { named = [g.term, ...(g.aka ?? [])]; summary = g.def; item = g.def; }
+  } else if (hit.kind === 'case') {
+    item = CASE_DATA[hit.id];
+    summary = CASE_DATA[hit.id]?.presentation ?? '';
+  } else if (lib.medications[hit.id]) {
+    const m = lib.medications[hit.id];
+    named = [m.name, ...m.brandNames];
+    drugClass = [m.drugClass];
+    summary = m.summary;
+    item = m;
+  } else {
+    const page = lib.structures[hit.id] ?? lib.conditions[hit.id] ?? lib.cathlab[hit.id] ?? lib.procedures[hit.id];
+    if (page) { named = [page.name, ...(('synonyms' in page && page.synonyms) || [])]; summary = page.summary; item = page; }
+  }
+  const words = (list: string[]) => new Set(list.flatMap(tokens).flatMap(forms));
+  return {
+    names: named.map(tokens).filter((n) => n.length > 0),
+    named: words(named),
+    drugClass: words(drugClass),
+    gist: words([...named, ...drugClass, summary]),
+    text: words([...named, ...drugClass, ...strings(item)]),
+  };
+}
+
+/** Whether a word of the question is among `set`'s words, as typed or in the library's own words ("nitro" → "nitroglycerin") */
+function has(word: string, set: Set<string>): boolean {
+  return [word, withAliases(word)].some((variant) => {
+    const toks = variant ? tokens(variant) : [];
+    return toks.length > 0 && toks.every((t) => forms(t).some((f) => set.has(f)));
+  });
+}
+
+/**
+ * How well one word of a question fits a page, as whole words only (a letter or a fragment inside a longer word is
+ * no match): 3 = the page's name or other names, 2 = a drug's class, 1 = somewhere in what the page says, 0 = nowhere.
+ */
+const fitOf = (word: string, page: PageWords): number => (has(word, page.named) ? 3 : has(word, page.drugClass) ? 2 : has(word, page.text) ? 1 : 0);
+
+/** How much of a page's name the question says: "Lead" is all of it for "lead placement", "IVC Filter Placement" a third */
+function nameShare(page: PageWords, said: Set<string>): number {
+  let best = 0;
+  for (const name of page.names) best = Math.max(best, name.filter((t) => forms(t).some((f) => said.has(f))).length / name.length);
+  return best;
+}
+
+/** "p", "u", "mi", "v1": a letter or a two-character code is what the question is about, and it is found inside almost anything */
+const isShort = (w: string) => tokens(w).every((t) => t.length < 3);
 
 export interface TopicMatch {
   /** a library page id, or `term:<glossary id>` */
   id: string;
   /** other library pages the question named, worth a link beside a glossary definition */
   also: string[];
+  /** words of the question the page never mentions (a retry left them out): the answer says so */
+  missed?: string[];
 }
 
 /**
@@ -220,52 +310,108 @@ export interface TopicMatch {
  * library page the term points to, which says far more. A "what is …?" question also puts the cath lab catalog below
  * the glossary and the clinical pages: "what is a STEMI" wants the definition, not the door-to-device checklist.
  *
- * If no page has all the words ("when do I hold nitro", "nitro in RV infarct?"), fewer are tried, one more left out
- * at a time; each word kept must match a page's name, other names or glossary entry (not just appear in its text),
- * and the page that also mentions the words left out wins.
+ * The search matches inside words, so every hit is checked word by word (`fitOf`): each word must be a whole word of
+ * the page, a letter or a short code ("P wave", "V1", "MI") must be one of the page's names, and at least one word
+ * must name the page unless two or more words all appear in it. "What is a P wave" is not about "Pd/Pa", and
+ * "where do I put V1" is not about the V1 receptor in vasopressin's drug class.
+ *
+ * If no page has all the words ("digoxin toxicity", "nitro in RV infarct?"), fewer are tried, one more left out at a
+ * time and never more than half of the longer words. Each word kept must name the page (its name, other names,
+ * glossary entry or drug class), and a short word left out must still appear in the page. The winner is the page
+ * whose summary mentions the most of the words left out, then the one the kept words name best (a name before a drug
+ * class), then the one whose name the question says most of — but only a clear winner. Two pages that fit what is left
+ * equally well are a guess, and the tutor says it could not find the answer instead: for a teaching tool a confident
+ * wrong answer is worse than none. (Two names for one thing, such as the glossary's "IABP" and the cath lab's
+ * "Intra-aortic balloon pump (IABP)", are not a guess.) Words the winning page never mentions come back in `missed`.
  */
 export function findTopic(question: string, lib: ContentLibrary): TopicMatch | null {
   const q = question.trim();
   const definition = DEFINITION.test(q) && intentOf(q) === 'overview';
-  const typed = q.toLowerCase().replace(/['’]s\b/g, '').replace(/[?.!,;:()"“”]/g, ' ').replace(STOP, ' ').split(/\s+/).filter((w) => w.length > 0);
+  const typed = q.toLowerCase().replace(/['’]s\b/g, '').replace(/[?.!,;:()"“”]/g, ' ').replace(STOP, ' ').split(/\s+/)
+    .filter((w) => tokens(w).length > 0);
   const cases = caseTitles();
+  const known = new Map<string, PageWords>();
+  const wordsOf = (hit: SearchHit) => {
+    const key = `${hit.kind}:${hit.id}`;
+    if (!known.has(key)) known.set(key, pageWords(lib, hit));
+    return known.get(key)!;
+  };
   const search = (text: string) => searchLibrary(lib, cases, text, 8, GLOSSARY_EXTRAS)
     .filter((h) => ANSWERABLE.has(h.kind))
     .map((h) => (definition && h.kind === 'cathlab' ? { ...h, score: h.score - 3 } : h))
     .sort((a, b) => b.score - a.score);
+  /** how each word of `ws` fits a hit, or null when the hit only has the letters somewhere, not the words */
+  const fitting = (hit: SearchHit, ws: string[]) => {
+    const page = wordsOf(hit);
+    const fits = ws.map((w) => fitOf(w, page));
+    const sound = fits.every((f) => f >= 1)
+      && ws.every((w, i) => !isShort(w) || fits[i] === 3)
+      && (fits.some((f) => f >= 2) || ws.filter((w) => !isShort(w)).length >= 2);
+    return sound ? fits : null;
+  };
+  /** the hits about all of `ws`: a page they name before one that only mentions them */
+  const about = (ws: string[]) => search(ws.join(' '))
+    .map((hit) => ({ hit, fits: fitting(hit, ws) }))
+    .filter((x): x is { hit: SearchHit; fits: number[] } => x.fits !== null)
+    .sort((a, b) => Number(b.fits.some((f) => f >= 2)) - Number(a.fits.some((f) => f >= 2)) || b.hit.score - a.hit.score)
+    .map((x) => x.hit);
 
-  const words = typed.map(singular);
-  let asked = search(typed.length ? typed.join(' ') : q);
-  if (!asked.length && words.join(' ') !== typed.join(' ')) asked = search(words.join(' '));
+  // a question of nothing but question words ("what is an ECG?"): its last word is what it asks about
+  const asTyped = typed.length ? typed : q.toLowerCase().replace(/[?.!,;:()"“”]/g, ' ').split(/\s+/).filter(Boolean).slice(-1);
+  const words = asTyped.map(singular);
+  let asked = about(asTyped);
+  if (!asked.length && words.join(' ') !== asTyped.join(' ')) asked = about(words);
   if (asked.length) {
     const top = asked[0];
     const pages = asked.filter((h) => h.kind !== 'term').map((h) => h.id);
     if (top.kind !== 'term') return { id: top.id, also: [] };
-    if (definition) return { id: top.id, also: pages.slice(0, 2) };
     const see = GLOSSARY_BY_ID[top.id.slice(5)]?.see;
-    return see ? { id: see, also: [] } : pages.length ? { id: pages[0], also: [] } : { id: top.id, also: [] };
+    // "what is …?", or a term no library page teaches ("limb leads", "QT interval"): the definition itself
+    if (definition || !see) return { id: top.id, also: pages.slice(0, 2) };
+    return { id: see, also: [] };
   }
 
-  // each word, as typed and in the library's own words ("nitro" → "nitroglycerin")
-  const forms = words.map((w) => [w, ...(withAliases(w) ? [withAliases(w)!] : [])]);
-  const texts = new Map<string, string>();
-  const textOf = (hit: SearchHit) => {
-    if (!texts.has(hit.id)) texts.set(hit.id, pageText(lib, hit));
-    return texts.get(hit.id)!;
-  };
+  const all = words.map((_, i) => i);
+  const long = all.filter((i) => !isShort(words[i]));
+  const said = new Set(words.flatMap((w) => [w, withAliases(w) ?? '']).flatMap(tokens).flatMap(forms));
+  type Fit = { hit: SearchHit; covered: number; named: number; share: number };
+  // which of two fits is better: 1 / -1, or 0 when nothing but the search score tells them apart
+  const better = (a: Fit, b: Fit) => Math.sign(a.covered - b.covered || a.named - b.named || a.share - b.share);
   for (let drop = 1; drop <= MAX_DROPPED && drop < words.length; drop++) {
-    let best: { hit: SearchHit; covered: number } | null = null;
-    for (const kept of keeping(words.map((_, i) => i), words.length - drop)) {
-      // two-letter words alone ("rv", "mi") match inside too many names to stand for the question
-      if (kept.every((i) => words[i].length < 3)) continue;
+    // the best way each page fits what is left (a glossary term and the page it points to are one answer)
+    const found = new Map<string, Fit>();
+    for (const kept of keeping(all, words.length - drop)) {
+      // two-letter words alone ("rv", "mi") cannot stand for the question, nor one longer word out of three
+      if (kept.every((i) => isShort(words[i]))) continue;
+      if (kept.filter((i) => !isShort(words[i])).length * 2 < long.length) continue;
+      const left = all.filter((i) => !kept.includes(i));
       for (const hit of search(kept.map((i) => words[i]).join(' '))) {
-        if (hit.score < 4 * kept.length - 0.5) continue;
-        const text = textOf(hit);
-        const covered = forms.filter((f, i) => !kept.includes(i) && f.some((w) => text.includes(w))).length;
-        if (!best || covered > best.covered || (covered === best.covered && hit.score > best.hit.score)) best = { hit, covered };
+        const page = wordsOf(hit);
+        const fits = kept.map((i) => fitOf(words[i], page));
+        if (!kept.every((i, k) => fits[k] >= (isShort(words[i]) ? 3 : 2))) continue;
+        // "U wave" without the "U" is any wave
+        if (left.some((i) => isShort(words[i]) && fitOf(words[i], page) === 0)) continue;
+        const fit: Fit = {
+          hit,
+          covered: left.filter((i) => has(words[i], page.gist)).length,
+          named: fits.reduce((s, f) => s + f, 0),
+          share: nameShare(page, said),
+        };
+        const key = (hit.kind === 'term' && GLOSSARY_BY_ID[hit.id.slice(5)]?.see) || hit.id;
+        const prev = found.get(key);
+        if (!prev || better(fit, prev) > 0 || (better(fit, prev) === 0 && hit.score > prev.hit.score)) found.set(key, fit);
       }
     }
-    if (best) return { id: best.hit.id, also: [] };
+    const ranked = Array.from(found.values()).sort((a, b) => better(b, a) || b.hit.score - a.hit.score);
+    if (!ranked.length) continue;
+    const [top] = ranked;
+    const topNames = new Set(wordsOf(top.hit).names.map((n) => n.join(' ')));
+    const sameThing = (f: Fit) => wordsOf(f.hit).names.some((n) => topNames.has(n.join(' ')));
+    if (!ranked.every((f) => f === top || better(top, f) > 0 || sameThing(f))) return null;
+    // of two names for one thing, the library page says more than the glossary (unless a definition was asked for)
+    const pick = (!definition && top.hit.kind === 'term' && ranked.find((f) => f.hit.kind !== 'term' && better(top, f) === 0 && sameThing(f))) || top;
+    const page = wordsOf(pick.hit);
+    return { id: pick.hit.id, also: [], missed: all.filter((i) => fitOf(words[i], page) === 0).map((i) => asTyped[i]) };
   }
   return null;
 }
@@ -276,6 +422,15 @@ function careField(level: LearningLevel): 'fieldCare' | 'hospitalCare' | 'cardio
 }
 
 export function answerQuestion(question: string, lib: ContentLibrary, ctx: TutorContext): TutorAnswer {
+  const missed: string[] = [];
+  const answer = composeAnswer(question, lib, ctx, missed);
+  if (!missed.length) return answer;
+  // the closest page left part of the question out: say so rather than pass it off as the answer
+  const note = `Closest match: nothing here mentions ${missed.map((w) => `“${w}”`).join(' or ')}.`;
+  return { ...answer, text: answer.text ? `${note} ${answer.text}` : note };
+}
+
+function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext, missed: string[]): TutorAnswer {
   const q = question.trim();
   const level = ctx.level;
 
@@ -294,6 +449,7 @@ export function answerQuestion(question: string, lib: ContentLibrary, ctx: Tutor
     const match = findTopic(q, lib);
     targetId = match?.id ?? null;
     also = match?.also ?? [];
+    missed.push(...(match?.missed ?? []));
   }
   if (!targetId) {
     return {
