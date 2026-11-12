@@ -36,7 +36,7 @@ const MED_GROUPS: { label: string; ids: string[] }[] = [
   { label: 'Antiarrhythmic & rate control', ids: ['adenosine', 'diltiazem', 'amiodarone', 'procainamide', 'lidocaine', 'digoxin', 'magnesium-sulfate'] },
   { label: 'ACLS, pressors & inotropes', ids: ['atropine', 'epinephrine', 'norepinephrine', 'vasopressin', 'phenylephrine', 'dopamine', 'dobutamine', 'milrinone'] },
   { label: 'Heart failure & prevention', ids: ['furosemide', 'lisinopril', 'sacubitril-valsartan', 'spironolactone', 'empagliflozin', 'atorvastatin'] },
-  { label: 'Electrolytes & other', ids: ['calcium-chloride', 'sodium-bicarbonate', 'colchicine'] },
+  { label: 'Electrolytes & other', ids: ['calcium-chloride', 'insulin-dextrose', 'albuterol', 'sodium-bicarbonate', 'colchicine'] },
 ];
 
 const DIFF_STYLE: Record<string, string> = {

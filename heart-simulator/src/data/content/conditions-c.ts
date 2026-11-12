@@ -2058,7 +2058,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     affectedStructures: ['sa-node', 'av-node', 'bundle-of-his', 'purkinje-fibers', 'myocardium'],
     relatedProcedures: ['temporary-pacing'],
-    relatedMedications: ['calcium-chloride', 'sodium-bicarbonate', 'furosemide', 'spironolactone', 'lisinopril'],
+    relatedMedications: ['calcium-chloride', 'insulin-dextrose', 'albuterol', 'sodium-bicarbonate', 'furosemide', 'spironolactone', 'lisinopril'],
   },
 
   'paced-rhythm': {

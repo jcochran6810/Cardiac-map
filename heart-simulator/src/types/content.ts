@@ -305,7 +305,7 @@ export const MEDICATION_IDS = [
   // heart failure & chronic
   'furosemide', 'lisinopril', 'sacubitril-valsartan', 'spironolactone', 'empagliflozin', 'atorvastatin',
   // electrolytes / other
-  'calcium-chloride', 'sodium-bicarbonate', 'colchicine',
+  'calcium-chloride', 'insulin-dextrose', 'albuterol', 'sodium-bicarbonate', 'colchicine',
 ] as const;
 
 /**

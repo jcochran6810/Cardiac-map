@@ -2625,6 +2625,130 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     relatedConditions: ['hyperkalemia', 'ventricular-fibrillation', 'sinus-bradycardia'],
   },
 
+  'insulin-dextrose': {
+    id: 'insulin-dextrose',
+    name: 'Insulin (Regular) with Dextrose',
+    brandNames: ['Humulin R', 'Novolin R', 'Dextrose 50% (D50)'],
+    drugClass: 'Potassium-shifting therapy (insulin with glucose to prevent hypoglycemia)',
+    summary:
+      'Regular insulin given IV drives potassium into the cells within 15–30 minutes and is the most reliable way to lower the serum potassium quickly in hyperkalemia. Dextrose is given with it, unless the glucose is already high, to prevent hypoglycemia.',
+    levelNotes: [
+      'Not an EMT drug. Know why a dialysis patient with weakness, a slow pulse or a wide-complex rhythm needs ALS early, and report a fingerstick glucose: insulin given for high potassium can drop it hours later.',
+      'Most EMS systems do not carry IV insulin; calcium, albuterol and (if acidotic) bicarbonate are the field shift therapy per protocol. On interfacility transfers, check the glucose every hour after insulin and watch for a falling level.',
+      'Insulin is a high-alert medication: tech roles prepare it only on a physician order where facility policy permits, with an independent double check of the units. Report bradycardia, a widening QRS or a low glucose at once.',
+      'Give regular insulin 10 units IV push with dextrose 25 g (50 mL of D50) as ordered, with an independent double check. Check glucose before, then at least hourly for 4–6 h (hypoglycemia peaks at about 1–3 h); recheck potassium at 1–2 h for rebound.',
+      'Insulin lowers K+ by about 0.6–1.0 mmol/L at 30–60 min for 4–6 h. Consider 5 units, or a dextrose infusion afterwards, in kidney failure, low body weight or no diabetes (higher hypoglycemia risk). It only shifts potassium: plan removal (diuretic, binder or dialysis).',
+    ],
+    mechanism: [
+      'Insulin stimulates the Na⁺/K⁺-ATPase pump in muscle and liver, moving potassium from the blood into the cells',
+      'Glucose replaces what the insulin drives into cells and prevents hypoglycemia',
+      'Onset 10–20 min, peak 30–60 min, lasts about 4–6 h',
+      'Does not remove potassium from the body: it comes back out of the cells as the effect fades',
+    ],
+    indications: [
+      'Hyperkalemia with ECG changes or potassium of about 6.0 mmol/L or more',
+      'Hyperkalemic cardiac arrest, alongside CPR and defibrillation (benefit not well established, 2025 AHA)',
+    ],
+    dosing: [
+      'Regular insulin 10 units IV push',
+      'With dextrose 25 g IV (50 mL of D50) if the glucose is below about 250 mg/dL (14 mmol/L)',
+      'Some protocols: 5 units, or dextrose infusion after the bolus, when the hypoglycemia risk is high',
+      'May be repeated after a few hours if potassium stays high, guided by glucose and potassium',
+    ],
+    contraindications: [
+      'Hypoglycemia (correct it first)',
+      'Give insulin without dextrose only when the glucose is already high (about 250 mg/dL or more)',
+    ],
+    adverseEffects: [
+      'Hypoglycemia — common, often 1–3 h after the dose, worse in kidney failure',
+      'Hypokalemia if potassium is overcorrected',
+      'Dextrose 50%: vein irritation and tissue damage if it leaks',
+    ],
+    ecgEffects: [
+      'As potassium falls: peaked T waves flatten, the QRS narrows and P waves return',
+      'No direct electrical effect of its own',
+    ],
+    hemodynamics: [
+      'None directly; restoring a normal rhythm restores output',
+    ],
+    monitoring: [
+      'Glucose before the dose and at least hourly for 4–6 h',
+      'Potassium at 1–2 h and again later for rebound',
+      'Continuous ECG',
+    ],
+    interactions: [
+      'Additive potassium lowering with albuterol and sodium bicarbonate',
+      'Beta-blockers blunt the response and mask hypoglycemia symptoms',
+    ],
+    teaching: [
+      'Order of hyperkalemia care: stabilize the membrane (calcium), shift potassium in (insulin–dextrose, albuterol), remove it (diuretic, binder, dialysis)',
+      'Insulin is the most reliable shifter; albuterol adds to it',
+      'Hypoglycemia is the main danger: keep checking glucose for hours',
+      'Potassium rebounds as the insulin wears off: removal must follow',
+    ],
+    relatedConditions: ['hyperkalemia'],
+  },
+
+  albuterol: {
+    id: 'albuterol',
+    name: 'Albuterol (Salbutamol)',
+    brandNames: ['Ventolin', 'Proventil', 'ProAir'],
+    drugClass: 'Short-acting β2-adrenergic agonist (bronchodilator; potassium-shifting therapy)',
+    summary:
+      'Best known as the inhaled bronchodilator for asthma and COPD. In hyperkalemia a much larger nebulized dose shifts potassium into the cells and adds to the effect of insulin.',
+    levelNotes: [
+      'Nebulized albuterol for wheezing is given by EMTs in many systems per protocol and medical direction. For suspected high potassium, request ALS: the dose is several times larger and the cause needs ALS care.',
+      'Hyperkalemia with a pulse: nebulized albuterol 10–20 mg per protocol, together with calcium for ECG changes. Not a drug for cardiac arrest. Watch for tachycardia, tremor and chest pain.',
+      'Set up and monitor the nebulizer on order where policy permits; report a fast or irregular rhythm or new ST changes.',
+      'Give 10–20 mg nebulized over about 10 min as ordered (4–8 times the asthma dose), alongside insulin–dextrose. Monitor heart rate, rhythm, glucose and potassium.',
+      'Albuterol lowers K+ by about 0.5–1.0 mmol/L in 30–60 min and adds to insulin, but up to a third of patients (often on dialysis) barely respond: never use it alone. Caution in ischemia and tachyarrhythmias.',
+    ],
+    mechanism: [
+      'β2 stimulation activates the Na⁺/K⁺-ATPase pump and moves potassium into the cells',
+      'Relaxes bronchial smooth muscle (its usual use)',
+      'Onset 15–30 min by nebulizer, lasts about 2–4 h',
+    ],
+    indications: [
+      'Hyperkalemia, as an add-on to insulin with dextrose',
+      'Bronchospasm in asthma and COPD',
+    ],
+    dosing: [
+      'Hyperkalemia: 10–20 mg nebulized over about 10 min',
+      'Bronchospasm: 2.5–5 mg nebulized, repeated per protocol',
+    ],
+    contraindications: [
+      'Use with caution in active myocardial ischemia and tachyarrhythmias',
+      'Not used during cardiac arrest',
+    ],
+    adverseEffects: [
+      'Tachycardia and palpitations',
+      'Tremor and anxiety',
+      'Hyperglycemia; hypokalemia when used often',
+      'Can provoke ischemia or arrhythmias in heart disease',
+    ],
+    ecgEffects: [
+      'Sinus tachycardia; occasionally ectopic beats',
+      'As potassium falls: T waves flatten and the QRS narrows',
+    ],
+    hemodynamics: [
+      '↑Heart rate; mild fall in diastolic pressure from β2 vasodilation',
+    ],
+    monitoring: [
+      'Heart rate and rhythm',
+      'Potassium and glucose',
+    ],
+    interactions: [
+      'Non-selective β-blockers blunt its effect',
+      'Additive potassium lowering with insulin',
+    ],
+    teaching: [
+      'The hyperkalemia dose is 4–8 times the asthma dose',
+      'Adds to insulin; not reliable alone',
+      'Shifts potassium only: removal must follow',
+    ],
+    relatedConditions: ['hyperkalemia'],
+  },
+
   'sodium-bicarbonate': {
     id: 'sodium-bicarbonate',
     name: 'Sodium Bicarbonate',
