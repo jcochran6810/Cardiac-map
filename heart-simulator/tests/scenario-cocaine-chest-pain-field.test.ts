@@ -17,14 +17,14 @@ const missed = (s: SimState) => review(sc, s.ended ? s : stop(s)).toFix.filter((
 
 /** The ideal runs (the lead copies them into tests/scenarios.test.ts) */
 const IDEAL: Record<1 | 2, string[]> = {
-  1: ['scene', 'primary', 'als', 'vitals', 'opqrst', 'sample', 'aspirin', 'perfusion', 'ecg12', 'ecg-transmit', 'glucose', 'transport-pci', 'notify',
+  1: ['primary', 'als', 'vitals', 'opqrst', 'sample', 'aspirin', 'perfusion', 'ecg12', 'ecg-transmit', 'glucose', 'transport-pci', 'notify',
     'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
-  2: ['scene', 'primary', 'vitals', 'perfusion', 'sample', 'midazolam', 'monitor', 'ecg12', 'opqrst', 'aspirin', 'ask-pde5', 'iv', 'nitro', 'glucose',
+  2: ['primary', 'vitals', 'perfusion', 'sample', 'midazolam', 'monitor', 'ecg12', 'opqrst', 'aspirin', 'ask-pde5', 'iv', 'nitro', 'glucose',
     'transport-pci', 'notify', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
 };
 
 /** The paramedic who has assessed him, found the fever and has a line in, but has given nothing yet */
-const ASSESSED = ['scene', 'primary', 'vitals', 'perfusion', 'sample', 'ask-pde5', 'monitor', 'iv'];
+const ASSESSED = ['primary', 'vitals', 'perfusion', 'sample', 'ask-pde5', 'monitor', 'iv'];
 
 const GIVEAWAY = /STEMI|fibrillation|heart block|AV block|sinus|tachycardia|bradycardia|SVT|AVNRT|escape|ventricular|capture/i;
 const BRITISH = /haem|aemia|ischaem|oedem|synchronis|equalis|hyperaem|centre|levell|manoeuvre|nebulis|analyse\b|organis|colour|\bgrey|litres|metres|optimis|minimis|catheteris|heparinis|recognis|favour|behaviour|programme/i;
@@ -59,10 +59,10 @@ describe('cocaine chest pain in the field — the case itself', () => {
   it('each role has its own briefing and its own part', () => {
     expect(start(sc, 1).log.some((l) => /You are the BLS crew; a paramedic unit can meet you as an intercept/.test(l.text))).toBe(true);
     expect(start(sc, 2).log.some((l) => /you have the monitor and the drug box/.test(l.text))).toBe(true);
-    // in the order a hint names them: the EMT's intercept call right after the scene
-    expect(criticalsFor(sc, 1).map((c) => c.id)).toEqual(['scene', 'als', 'vitals', 'ecg', 'temperature', 'history', 'transmit', 'aspirin', 'glucose',
+    // in the order a hint names them: the EMT's intercept call first
+    expect(criticalsFor(sc, 1).map((c) => c.id)).toEqual(['als', 'vitals', 'ecg', 'temperature', 'history', 'transmit', 'aspirin', 'glucose',
       'repeat-ecg', 'transport', 'notify', 'handoff', 'arrest-shock']);
-    expect(criticalsFor(sc, 2).map((c) => c.id)).toEqual(['scene', 'vitals', 'benzo', 'ecg', 'temperature', 'history', 'aspirin', 'iv', 'nitro', 'glucose',
+    expect(criticalsFor(sc, 2).map((c) => c.id)).toEqual(['vitals', 'benzo', 'ecg', 'temperature', 'history', 'aspirin', 'iv', 'nitro', 'glucose',
       'repeat-ecg', 'transport', 'notify', 'handoff', 'arrest-shock']);
     // the EMT's one way to the drug he needs weighs as much as the paramedic's benzodiazepine
     expect(sc.critical.find((c) => c.id === 'als')?.points).toBe(20);
@@ -73,6 +73,19 @@ describe('cocaine chest pain in the field — the case itself', () => {
     const opening = [sc.title, sc.summary, ...sc.briefing.default.map((l) => l[1]), ...sc.briefing[1]!.map((l) => l[1])].join(' ');
     expect(opening).toMatch(/lines of coke about an hour ago/);
     expect(opening).not.toMatch(/fever|temperature|°|\bhot\b|hypertherm|beta|metoprolol/i);
+  });
+
+  it('the scene is safe and the calm approach starts at the door, in the opening for both roles — no menu step for it', () => {
+    for (const role of [1, 2] as const) {
+      const opening = start(sc, role).log.map((l) => l.text).join('\n');
+      expect(opening).toMatch(/Police are on scene and say it is safe to enter/);
+      expect(opening).toMatch(/A police officer stands by the door: "He hasn't hurt anyone — he's just wound up and scared\."/);
+      expect(opening).toMatch(/keep a clear path to the door, turn the music off and talk to him calmly, one voice at a time/);
+      expect(interventionsFor(role, 'field').some((i) => i.id === 'scene')).toBe(false);
+    }
+    expect(Object.keys(sc.respond)).not.toContain('scene');
+    expect(sc.critical.some((c) => c.id === 'scene')).toBe(false);
+    expect(sc.teaching.join(' ')).toMatch(/Calm talk is the first treatment of agitation/);
   });
 
   it('no event line names the rhythm, whatever state it fires in', () => {
@@ -143,7 +156,7 @@ describe('cocaine chest pain in the field — the ideal runs', () => {
   });
 
   it('other right ways earn full marks too: the paramedic with the line first and the nearest emergency department', () => {
-    const s = medic(['scene', 'primary', 'monitor', 'nibp', 'iv', 'midazolam', 'perfusion', 'ecg12', 'opqrst', 'sample', 'ask-pde5', 'aspirin', 'nitro', 'glucose',
+    const s = medic(['primary', 'monitor', 'nibp', 'iv', 'midazolam', 'perfusion', 'ecg12', 'opqrst', 'sample', 'ask-pde5', 'aspirin', 'nitro', 'glucose',
       'med-control', 'fluid', 'transport-near', 'notify', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff']);
     expect(said(s)).toMatch(/Midazolam 2\.5 mg IV\./);
     const r = review(sc, s);
@@ -152,7 +165,7 @@ describe('cocaine chest pain in the field — the ideal runs', () => {
   });
 
   it('…and the EMT who leaves the scene first, with the intercept meeting the ambulance on the way', () => {
-    const s = emt(['scene', 'primary', 'als', 'vitals', 'opqrst', 'sample', 'aspirin', 'perfusion', 'glucose', 'transport-near', 'ecg12', 'ecg-transmit', 'notify',
+    const s = emt(['primary', 'als', 'vitals', 'opqrst', 'sample', 'aspirin', 'perfusion', 'glucose', 'transport-near', 'ecg12', 'ecg-transmit', 'notify',
       'ecg12-repeat', UNTIL_ARRIVED, 'handoff']);
     expect(said(s)).toMatch(/The medic unit meets you on the way; the paramedic climbs in/);
     const r = review(sc, s);
@@ -223,14 +236,14 @@ describe('cocaine chest pain in the field — the traps', () => {
     expect(said(s)).toMatch(/Temperature 38\.4 °C \(101\.1 °F\)/);
     expect(said(s)).toMatch(/hoodie comes off, the air conditioning goes up/);
     expect(s.flags.cooling).toBeDefined();
-    const hot = medic(['scene', ...R(8), 'perfusion']);
+    const hot = medic([...R(8), 'perfusion']);
     expect(hot.fired).toEqual(['worse', 'severe']);
     expect(said(hot)).toMatch(/Temperature 39\.6 °C \(103\.3 °F\)/);
     expect(said(hot)).toMatch(/cold packs to his neck, armpits and groin, and a fan/);
   });
 
   it('no benzodiazepine: he gets worse at 10 minutes and out of control at 16 — hotter when nobody is cooling him', () => {
-    const uncooled = medic(['scene', 'primary', ...R(8)]);
+    const uncooled = medic(['primary', ...R(8)]);
     expect(uncooled.fired).toEqual(['worse', 'severe']);
     expect(uncooled.vitals.temp).toBe(39.6);
     expect(uncooled.vitals.gcs).toBe(14);
@@ -238,7 +251,7 @@ describe('cocaine chest pain in the field — the traps', () => {
     expect([uncooled.vitals.sbp, uncooled.vitals.dbp]).toEqual([196, 114]);
     expect(said(uncooled)).toMatch(/Not face down — he can't breathe like that/);
     expect(uncooled.penalties).toEqual([]);
-    const cooled = medic(['scene', 'primary', 'perfusion', ...R(8)]);
+    const cooled = medic(['primary', 'perfusion', ...R(8)]);
     expect(cooled.fired).toEqual(['worse', 'severe']);
     expect(cooled.vitals.temp).toBe(38.9);
     const r = review(sc, stop(uncooled));
@@ -246,7 +259,7 @@ describe('cocaine chest pain in the field — the traps', () => {
   });
 
   it('out of control, the first dose only takes the edge off and a second one settles him — neither is a mistake', () => {
-    let s = medic(['scene', 'primary', ...R(8)]);
+    let s = medic(['primary', ...R(8)]);
     s = perform(sc, s, 'midazolam');
     expect(said(s)).toMatch(/Midazolam 5 mg IM in the thigh \(no IV yet\)/);
     expect(s.flags.calm).toBeUndefined();
@@ -411,7 +424,7 @@ describe('cocaine chest pain in the field — the EMT\'s part', () => {
   });
 
   it('an intercept called late meets him out of control and needs two doses; one called before the aspirin and the fever reminds the EMT of both', () => {
-    const late = emt(['scene', 'primary', ...R(8), 'als', ...R(3)]);
+    const late = emt(['primary', ...R(8), 'als', ...R(3)]);
     expect(late.fired).toEqual(['worse', 'severe', 'als-arrives']);
     expect(said(late)).toMatch(/midazolam 5 mg IM, then 2\.5 mg IV, for the agitation/);
     expect(late.flags.calm).toBeDefined();
@@ -431,7 +444,7 @@ describe('cocaine chest pain in the field — the EMT\'s part', () => {
 
 describe('cocaine chest pain in the field — review fixes', () => {
   it('a paramedic who treats first and takes the history after is not late: the history is due by 15 minutes', () => {
-    const s = medic(['scene', 'primary', 'monitor', 'vitals', 'ecg12', 'iv', 'midazolam', 'perfusion', 'opqrst', 'sample', 'ask-pde5', 'aspirin', 'nitro',
+    const s = medic(['primary', 'monitor', 'vitals', 'ecg12', 'iv', 'midazolam', 'perfusion', 'lungs', 'opqrst', 'sample', 'ask-pde5', 'aspirin', 'nitro',
       'glucose', 'transport-near', 'notify', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff']);
     expect(s.flags.sample).toBeGreaterThan(10);
     const r = review(sc, s);
@@ -506,8 +519,8 @@ describe('cocaine chest pain in the field — review fixes', () => {
     expect(said(emt(['als', ...R(3)]))).toMatch(/he is burning up: 38\.4 °C \(101\.1 °F\)\. Get that hoodie off/);
   });
 
-  it('a hint names the intercept call right after the scene, before the slower assessment', () => {
-    const s = takeHint(sc, emt(['scene']));
+  it('a hint names the intercept call first, before the slower assessment', () => {
+    const s = takeHint(sc, start(sc, 1));
     expect(s.log.at(-1)!.text).toMatch(/^Hint: Request a paramedic intercept early\./);
   });
 
@@ -521,8 +534,8 @@ describe('cocaine chest pain in the field — review fixes', () => {
 
 describe('cocaine chest pain in the field — hints and teaching', () => {
   it('a hint names the next critical item for the role', () => {
-    expect(takeHint(sc, start(sc, 2)).log.at(-1)!.text).toMatch(/^Hint: Scene safety, and a calm approach\./);
-    const s = takeHint(sc, emt(['scene', 'primary', 'vitals', 'perfusion', 'opqrst', 'sample']));
+    expect(takeHint(sc, start(sc, 2)).log.at(-1)!.text).toMatch(/^Hint: Vital signs\./);
+    const s = takeHint(sc, emt(['primary', 'vitals', 'perfusion', 'opqrst', 'sample']));
     expect(s.log.at(-1)!.text).toMatch(/^Hint: Request a paramedic intercept early\./);
   });
 

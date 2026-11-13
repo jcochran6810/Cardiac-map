@@ -512,9 +512,9 @@ describe('LVAD in the field — review fixes', () => {
   });
 
   it('a sensible EMT crew that looks first and calls the intercept at 5:00 is on time', () => {
-    const s = emt(['scene', 'primary', 'vitals', 'monitor', 'nibp', 'lvad-check', 'als']);
+    const s = emt(['primary', 'lungs', 'vitals', 'monitor', 'nibp', 'lvad-check', 'als']);
     expect(s.performed.at(-1)).toEqual({ id: 'als', minute: 5 });
-    const done = emt(['scene', 'primary', 'vitals', 'monitor', 'nibp', 'lvad-check', 'als', 'doppler-map', 'sample', 'opqrst', 'perfusion', 'call-vad', 'ecg12', 'ecg-transmit', 'transport-pci', UNTIL_ARRIVED, 'handoff']);
+    const done = emt(['primary', 'lungs', 'vitals', 'monitor', 'nibp', 'lvad-check', 'als', 'doppler-map', 'sample', 'opqrst', 'perfusion', 'call-vad', 'ecg12', 'ecg-transmit', 'transport-pci', UNTIL_ARRIVED, 'handoff']);
     expect(review(sc, done)).toMatchObject({ percent: 100, toFix: [] });
   });
 

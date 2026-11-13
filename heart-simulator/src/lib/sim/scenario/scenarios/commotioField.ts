@@ -172,7 +172,7 @@ const noRoleInArrest = (what: string, flag: string): Effect => ({ say: [['you', 
 
 // dispatched as an injury, then upgraded en route: why the EMT's BLS unit is there with no paramedic unit behind it
 const DISPATCH: Line = ['dispatch', 'University baseball field, dispatched as a sports injury: 19-year-old man struck in the chest by a ball. Update en route, now Priority 1: he is unresponsive, and the caller says the coach is doing CPR.'];
-const SCENE: Line = ['scene', 'The pitcher lies on his back beside the mound. The head coach is pushing on his chest — fast but shallow, and tiring. "A line drive hit him square in the chest. He took a step and went down — five minutes ago, maybe." A baseball-sized red mark sits just left of his breastbone. Someone in the dugout shouts: "Don\'t move his neck — he got hit hard!"'];
+const SCENE: Line = ['scene', 'Play has stopped and the players are back by the dugout. The pitcher lies on his back beside the mound. The head coach is pushing on his chest — fast but shallow, and tiring. "A line drive hit him square in the chest. He took a step and went down — five minutes ago, maybe." A baseball-sized red mark sits just left of his breastbone. Someone in the dugout shouts: "Don\'t move his neck — he got hit hard!"'];
 const HOSPITALS: Line = ['hospital', 'Regional heart center (cardiac arrest center: cath lab, cardiac ICU, temperature control): 12 minutes. Nearest emergency department (a small community hospital: no cath lab, no ICU that takes post-arrest patients): 6 minutes.'];
 
 export const commotioField: Scenario = {
@@ -225,7 +225,6 @@ export const commotioField: Scenario = {
     return ventAfterRosc(s) !== null ? 'Unresponsive; withdraws from pain; ventilated at 10/min.' : `Unresponsive, breathing only ${s.vitals.rr} times a minute on his own.`;
   },
   respond: {
-    scene: () => ({ say: [['scene', 'The field is safe: play has stopped and the players are back by the dugout. Gloves on.']] }),
     // the coach answers for him
     opqrst: () => ({
       say: [['scene', 'The coach: "He was pitching. A line drive came straight back and hit him in the chest, left of the breastbone. He took a step toward the ball and dropped — on his side, on the grass; he didn\'t hit his head on anything. He felt fine before: no chest pain, nothing."']],

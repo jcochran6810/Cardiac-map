@@ -270,7 +270,7 @@ describe('commotio cordis in the field — what brings him back', () => {
   });
 
   it('for the EMT the medics arrive 6 minutes after the call; with VF that outlasts the shocks they give epinephrine and amiodarone', () => {
-    let s = emt(['scene', 'primary', 'opqrst', 'als', 'cpr', 'aed']);
+    let s = emt(['primary', 'opqrst', 'als', 'cpr', 'aed']);
     expect(s.flags.refractory).toBeDefined();
     for (let i = 0; i < 3; i++) s = perform(sc, perform(sc, s, 'cpr'), 'aed');
     expect(s.fired).toEqual(expect.arrayContaining(['als-arrives', 'als-epi', 'als-amio']));

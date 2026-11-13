@@ -347,7 +347,7 @@ describe('stable VT in the field: fair scoring and physiology (review fixes)', (
 
   it('a drug that breaks it during the hand-off does not count the 12-lead after conversion as missed', () => {
     // amiodarone at 10:00 breaks it at 24:00, while the hand-off (23:30–24:30) is being given
-    const s = run(sc, 2, ['scene', 'primary', 'vitals', 'monitor', 'opqrst', 'sample', 'iv', 'pads', 'ecg12', 'amio-infusion', 'med-control', 'transport-near', UNTIL_ARRIVED, 'ecg12-repeat', 'handoff']);
+    const s = run(sc, 2, ['primary', 'vitals', 'monitor', 'opqrst', 'sample', 'iv', 'pads', 'ecg12', 'amio-infusion', 'med-control', 'transport-near', UNTIL_ARRIVED, 'ecg12-repeat', 'handoff']);
     expect(s.fired).toContain('drug-breaks');
     expect(s.flags.converted).toBeGreaterThan(s.performed.find((p) => p.id === 'handoff')!.minute);
     expect(missed(s)).not.toContain('12-lead after conversion');

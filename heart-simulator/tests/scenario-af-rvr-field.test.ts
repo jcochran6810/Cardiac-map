@@ -32,7 +32,7 @@ const PATHS: string[][] = [
   [...READY, 'nitro', 'atropine', 'albuterol', 'epi-im', 'stemi-alert', 'epinephrine', 'lungs', 'perfusion', 'reassess'],
   [...READY, 'diltiazem', ...R(5), 'lungs', 'perfusion', 'neuro'],
   [...READY, 'fluid', 'fluid', 'lungs', 'fentanyl', 'cardiovert', 'reassess'],
-  ['primary', 'med-control', 'scene', 'vitals', 'monitor', 'pads', 'ecg12', 'sample', 'opqrst', 'lungs', 'iv', 'amio-infusion', 'transport-near', UNTIL_ARRIVED, 'handoff'],
+  ['primary', 'med-control', 'vitals', 'monitor', 'pads', 'ecg12', 'sample', 'opqrst', 'lungs', 'iv', 'amio-infusion', 'transport-near', UNTIL_ARRIVED, 'handoff'],
 ];
 
 /** The lead's view of a play-through: the patient never leaves what a living circulation can show */

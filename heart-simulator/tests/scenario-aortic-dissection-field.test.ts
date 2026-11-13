@@ -213,7 +213,7 @@ describe('aortic dissection in the field — finding it', () => {
 
 describe('aortic dissection in the field — other good orders score full marks', () => {
   it('the EMT who finishes the assessment before calling for the intercept is on time', () => {
-    const s = emt(['scene', 'primary', 'opqrst', 'vitals', 'bp-both-arms', 'perfusion', 'sample', 'als', 'ecg12', 'ecg-transmit', 'med-control', 'transport-pci', 'notify', UNTIL_ARRIVED, 'handoff']);
+    const s = emt(['primary', 'opqrst', 'vitals', 'bp-both-arms', 'perfusion', 'lungs', 'sample', 'als', 'ecg12', 'ecg-transmit', 'med-control', 'transport-pci', 'notify', UNTIL_ARRIVED, 'handoff']);
     expect(s.performed.find((p) => p.id === 'als')?.minute).toBe(6);
     expect(review(sc, s).percent).toBe(100);
   });

@@ -72,7 +72,6 @@ export function categoryLabel(category: Category, setting: Setting): string {
 
 export const INTERVENTIONS: Intervention[] = [
   // Assessment
-  { id: 'scene', label: 'Scene safety and PPE', category: 'assess', roles: [1, 2], settings: FIELD, minutes: 0.5 },
   // emergency department: the patient arrives — the crew's report, then triage (the nurse's: ESI)
   { id: 'ems-handoff', label: 'Take the EMS hand-off report', category: 'assess', roles: ED_TEAM, settings: ED, minutes: 1, detail: 'at the bedside, everyone listening: what happened, what they found, what they gave and how the patient responded' },
   { id: 'triage', label: 'Triage: Emergency Severity Index (ESI) level', category: 'assess', roles: ED_RN, settings: ED, minutes: 1, detail: 'ESI 1 needs a life-saving intervention now; chest pain that could be ACS is at least ESI 2, with a 12-lead within 10 minutes of arrival' },

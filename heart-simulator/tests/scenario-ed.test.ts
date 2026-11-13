@@ -55,7 +55,7 @@ const ED_BOTH = [
 ];
 /** The field's and the cath lab's own: never offered in the department */
 const NEVER_IN_ED = [
-  'scene', 'ecg-transmit', 'als', 'med-control', 'stemi-alert', 'notify', 'transport-pci', 'transport-near', 'nitro-assist', 'oral-glucose',
+  'ecg-transmit', 'als', 'med-control', 'stemi-alert', 'notify', 'transport-pci', 'transport-near', 'nitro-assist', 'oral-glucose',
   'transducer', 'act', 'echo', 'lvedp', 'rhc', 'view-rao-cranial', 'lv-gram', 'ffr', 'angio', 'access', 'access-venous', 'timeout', 'consent',
   'stent-des', 'guide-ebu', 'iabp', 'impella', 'callout', 'radial-cocktail', 'ic-nitro', 'bivalirudin', 'phenylephrine', 'sedation', 'clear-air',
 ];

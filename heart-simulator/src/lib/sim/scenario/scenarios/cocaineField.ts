@@ -173,6 +173,12 @@ function arrestShock(s: SimState, how: string): Effect | null {
   };
 }
 
+/**
+ * What the crew finds at the door, for both roles. The calm approach starts here: the police have made the scene safe, and
+ * the crew keeps a way out, turns the noise down and talks to him calmly — one voice, nobody crowding him.
+ */
+const SCENE: Line = ['scene', 'A friend\'s apartment after a party. He is pacing the living room, sweating through his hoodie, rubbing his chest and talking fast. His friend: "He did a few lines of coke about an hour ago. Then he started saying his chest was tight and his heart was going to explode." A police officer stands by the door: "He hasn\'t hurt anyone — he\'s just wound up and scared." No weapons in sight. Gloves on; you keep a clear path to the door, turn the music off and talk to him calmly, one voice at a time.'];
+
 export const cocaineField: Scenario = {
   id: 'cocaine-chest-pain-field',
   title: 'Chest pain after the party',
@@ -184,13 +190,13 @@ export const cocaineField: Scenario = {
   briefing: {
     default: [
       ['dispatch', 'Priority 1: 34-year-old man, chest pain, "acting wild". Police are on scene and say it is safe to enter. You are the ALS crew.'],
-      ['scene', 'A friend\'s apartment after a party. He is pacing the living room, sweating through his hoodie, rubbing his chest and talking fast. His friend: "He did a few lines of coke about an hour ago. Then he started saying his chest was tight and his heart was going to explode." A police officer stands by the door.'],
+      SCENE,
       ['partner', 'Your partner, an EMT, has the stretcher and the oxygen; you have the monitor and the drug box.'],
       ['hospital', 'Regional heart center (cath lab, ICU): 14 minutes. Nearest emergency department: 8 minutes.'],
     ],
     1: [
       ['dispatch', 'Priority 1: 34-year-old man, chest pain, "acting wild". Police are on scene and say it is safe to enter. You are the BLS crew; a paramedic unit can meet you as an intercept if you ask for one.'],
-      ['scene', 'A friend\'s apartment after a party. He is pacing the living room, sweating through his hoodie, rubbing his chest and talking fast. His friend: "He did a few lines of coke about an hour ago. Then he started saying his chest was tight and his heart was going to explode." A police officer stands by the door.'],
+      SCENE,
       ['partner', 'Your partner, an EMT, has the stretcher and the oxygen; the 12-lead monitor and the AED are in your bag.'],
       ['hospital', 'Regional heart center (cath lab, ICU): 14 minutes. Nearest emergency department: 8 minutes.'],
     ],
@@ -225,10 +231,6 @@ export const cocaineField: Scenario = {
   },
   status,
   respond: {
-    // the calm approach starts at the door: one voice, a clear way out, nobody crowding him
-    scene: () => ({
-      say: [['scene', 'The officer at the door: "He hasn\'t hurt anyone — he\'s just wound up and scared." No weapons in sight. Gloves on; you keep a clear path to the door, turn the music off and talk to him calmly, one voice at a time.']],
-    }),
     // a manual set: the hand on his wrist feels the heat before anyone takes a temperature
     vitals: (s) => (s.pulse
       ? { say: [['you', `${vitalsText(s)}${cooling(s) ? '' : '. His wrist is hot and slick with sweat under your fingers.'}`]], flags: ['bp'] }
@@ -424,10 +426,6 @@ export const cocaineField: Scenario = {
   // intercept call comes before anything else that takes time
   critical: [
     {
-      id: 'scene', label: 'Scene safety, and a calm approach', points: 5, target: { by: 1 }, done: ['scene'],
-      why: 'An agitated patient after cocaine: check that the scene is safe (the police are there), keep a way out, and approach calmly — one voice, a quiet room, nobody crowding him. Calm talk is the first treatment of agitation.',
-    },
-    {
       // the EMT's one way to the drug he needs: as much as the paramedic's benzodiazepine is worth
       id: 'als', label: 'Request a paramedic intercept early', roles: [1], points: 20, target: { by: 4 }, done: ['als'],
       why: 'He needs a benzodiazepine for the agitation, the rate and the pressure, and nitroglycerin for the pain — both ALS. Call at once; the intercept meets you, and you never wait on scene for it.',
@@ -565,6 +563,7 @@ export const cocaineField: Scenario = {
     'Aspirin 162–325 mg chewed and nitroglycerin 0.4 mg sublingual for the chest pain, as for any possible ACS (AHA statement on cocaine-associated chest pain); oxygen only for an SpO₂ under 90 % (2025 ACC/AHA ACS guideline). Ask about erectile-dysfunction drugs before any nitrate.',
     'No beta-blocker while the signs of acute intoxication last — a fast rate, a high pressure, agitation (2014 ACC/AHA NSTE-ACS guideline: 3 — Harm). With the beta receptors blocked, cocaine\'s alpha effect goes unopposed: the pressure climbs and the coronary spasm worsens. Treat the rate by treating its cause.',
     'Take the temperature of every stimulant patient. Hyperthermia is one of the deadliest effects of a stimulant: undress, cool the room, cold packs to the neck, armpits and groin, mist and fan; rapid external cooling (ice water where your protocol has it) for a life-threatening temperature (2023 AHA). The benzodiazepine stops the muscle work that makes the heat.',
+    'Calm talk is the first treatment of agitation. Make sure the scene is safe (here the police are already there), keep a clear way out for you and for him, turn the noise down and approach calmly: one voice, a quiet room, nobody crowding him.',
     'Never restrain a patient face down, hobbled or hog-tied, under a backboard or mattress, or with a hold that presses on the neck or chest (NAEMSP joint position statement on restraint, 2021): positional asphyxia kills. Talk him down first; if he must be restrained, keep him on his back or side, sedate him (ALS) so he is not fighting the restraints — which drives up the heat and the acid in his blood — and watch his breathing, SpO₂ and EtCO₂ without a break.',
     'A 12-lead within 10 minutes of first contact, transmitted from the field, and repeated: a first tracing without ST elevation does not rule out a heart attack after cocaine. ST elevation that meets STEMI criteria on any tracing means a STEMI alert, as for any patient (2025 ACC/AHA ACS guideline) — give the nitroglycerin and the benzodiazepine too, but do not wait to see whether it settles; primary PCI is preferred over a fibrinolytic after cocaine (AHA).',
     'Agitation has other causes: check the glucose, look for a head injury, an infection, withdrawal or other drugs. EMTs: aspirin, the 12-lead acquired and transmitted, the temperature and cooling, a calm approach, and a paramedic intercept called early — and never wait on scene for it.',

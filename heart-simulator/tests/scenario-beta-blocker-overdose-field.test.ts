@@ -298,7 +298,7 @@ describe('beta-blocker overdose (field): the right treatments work as they would
 
   it('a short-acting drug is recomputed when it wears off, not at the next assessment: the monitor shows her own rate again', () => {
     // the reviewers' run: push-dose epinephrine, then only questions and checks that do not recompute her
-    const QUIET = ['sample', 'opqrst', 'perfusion', 'neuro', 'scene', 'ask-pde5'];
+    const QUIET = ['sample', 'opqrst', 'perfusion', 'neuro', 'ask-pde5'];
     /** questions and checks (none of them recomputes her) until the clock reaches `until` */
     const idle = (from: SimState, until: number) => {
       let st = from;

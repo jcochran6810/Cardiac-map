@@ -112,7 +112,6 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
   const fact = (k: FactKey) => factText(sc, s, k);
   const v = s.vitals;
   switch (id) {
-    case 'scene': return { say: [['scene', 'Scene is safe. Gloves on.']] };
     case 'ems-handoff': {
       // a patient who walked in has no crew to report
       const report = fact('ems');
