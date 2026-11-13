@@ -14,6 +14,7 @@ import { SETTING_LABEL, SPEAKER_STYLE, TONE_STYLE, durationText, gradeStyle, spe
 import { ReadBar, ReadList } from './ReadPanel';
 import ImagingPanel from './ImagingPanel';
 import { endedSummary, twelveLeadNote } from './runnerText';
+import { groupActions } from './actionGroups';
 
 /** A phone on its side (the Tailwind `short:` variant) */
 const SHORT_QUERY = '(max-height: 500px)';
@@ -36,6 +37,9 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
   const setSheet = useSimStore((s) => s.setSheetOpen);
   const [unread, setUnread] = useState(false);
   const [newRun, setNewRun] = useState(false);
+  // the action menu's open category: kept here so the phone's sheet reopens where the learner was (null = the menu)
+  const [actionCat, setActionCat] = useState<Category | null>(null);
+  useEffect(() => setActionCat(null), [state.scenarioId, state.role]);
   const seen = useRef({ log: state.log.length, performed: state.performed.length, images: state.images.length });
   const lab = sc.setting === 'cathlab';
 
@@ -129,7 +133,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
         {/* Actions: a column on large screens */}
         <aside className="hidden lg:flex short:flex w-[400px] xl:w-[440px] short:w-[44%] shrink-0 flex-col min-h-0 border-l border-slate-700 bg-cardiac-panel">
-          {ended ? <EndedCard state={state} percent={review?.percent} outcome={review?.outcome} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} showLatest />}
+          {ended ? <EndedCard state={state} percent={review?.percent} outcome={review?.outcome} onReview={onReview} /> : reading ? <ReadList key={`${state.pendingRead!.kind}-${state.pendingRead!.minute}-${state.reads.length}`} kind={state.pendingRead!.kind} prompt={state.pendingRead!.prompt} /> : <ActionList sc={sc} state={state} cat={actionCat} setCat={setActionCat} showLatest />}
         </aside>
       </div>
 
@@ -161,7 +165,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
             <span className="font-mono text-sm text-amber-300 tabular-nums">{clockText(state.minute)}</span>
             <button onClick={() => setSheet(false)} className="p-2.5 text-slate-300 hover:text-white" aria-label="Close the action list"><IconClose size={18} /></button>
           </div>
-          <ActionList sc={sc} state={state} onDone={() => setSheet(false)} />
+          <ActionList sc={sc} state={state} cat={actionCat} setCat={setActionCat} onDone={() => setSheet(false)} />
         </div>
       )}
     </div>
@@ -285,40 +289,53 @@ function TwelveLead({ state }: { state: SimState }) {
 
 // ─── Actions ───────────────────────────────────────────────────────────────
 
-function ActionList({ sc, state, onDone, showLatest = false }: { sc: Scenario; state: SimState; onDone?: () => void; showLatest?: boolean }) {
+/**
+ * Everything the learner may do, as a menu: a grid of categories first (how many actions each holds, how many are
+ * done), then one category's actions on a page of their own with a way back. Search finds any action from any
+ * category. A long single list was hard to scan, above all on a phone.
+ */
+function ActionList({ sc, state, cat, setCat, onDone, showLatest = false }: {
+  sc: Scenario; state: SimState; cat: Category | null; setCat: (c: Category | null) => void; onDone?: () => void; showLatest?: boolean;
+}) {
   const act = useSimStore((s) => s.act);
   const [q, setQ] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLHeadingElement>(null);
   const all = useMemo(() => interventionsForScenario(sc, state.role), [sc, state.role]);
   const f = q.trim().toLowerCase();
-  const groups = CATEGORY_ORDER
-    .map((c) => ({ c, items: all.filter((i) => i.category === c && (!f || `${i.label} ${i.detail ?? ''}`.toLowerCase().includes(f))) }))
+  const byCat = CATEGORY_ORDER
+    .map((c) => {
+      const items = all.filter((i) => i.category === c);
+      return { c, items, done: items.filter((i) => (state.counts[i.id] ?? 0) > 0).length };
+    })
     .filter((g) => g.items.length > 0);
+  const found = f ? byCat.map((g) => ({ ...g, items: g.items.filter((i) => `${i.label} ${i.detail ?? ''}`.toLowerCase().includes(f)) })).filter((g) => g.items.length > 0) : [];
+  const open = !f && cat ? byCat.find((g) => g.c === cat) ?? null : null;
+  // a big category opens as a short list of groups, one unfolded at a time
+  const groups = open ? groupActions(open.c, open.items) : null;
+  const [unfolded, setUnfolded] = useState<string | null>(null);
+  useEffect(() => setUnfolded(null), [open?.c]);
 
-  const jump = (c: Category) => {
-    const list = listRef.current;
-    const el = list?.querySelector<HTMLElement>(`[data-cat="${c}"]`);
-    if (!list || !el) return;
-    // the list scrolls by itself, or (a phone on its side) the whole column scrolls with it
-    const box = getComputedStyle(list).overflowY === 'visible' && list.parentElement ? list.parentElement : list;
-    box.scrollTo({ top: el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 4, behavior: 'smooth' });
-  };
+  // a new page of the menu starts at its top, and the keyboard and screen readers land on its heading
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+    if (open) headRef.current?.focus({ preventScroll: true });
+  }, [open?.c]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const choose = (id: string) => {
     act(id);
+    // a search is for one action: the next choice starts from the menu (or the category) again
+    setQ('');
     onDone?.();
   };
 
-  // A phone on its side (short) leaves the column about 300 px: the search and the category chips scroll away with the
-  // list, so every pixel can hold actions, and the "After …" panel stays out: each action brings the case story beside it
-  // back (the tab effect above), and the story shows the same lines
+  // A phone on its side (short) leaves the column about 300 px: the header scrolls away with the list there, so every
+  // pixel can hold actions, and the "After …" panel stays out (the case story beside it shows the same lines)
   return (
     <div className="flex-1 min-h-0 flex flex-col short:overflow-y-auto">
       {showLatest && <Latest state={state} />}
       <div className="shrink-0 px-3 pt-2 pb-2 border-b border-slate-700 space-y-2">
         {!onDone && <div className="text-sm font-semibold text-white">What do you do next?</div>}
-        <p className="short:hidden text-[11px] text-slate-400 leading-snug">
-          All {all.length} actions in your scope as {LEVEL_LABELS[state.role].short} — some help, some harm. Each one takes case time.
-        </p>
         <div className="relative">
           <IconSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
@@ -326,33 +343,113 @@ function ActionList({ sc, state, onDone, showLatest = false }: { sc: Scenario; s
             onChange={(e) => setQ(e.target.value)}
             type="search"
             placeholder="Find an action (e.g. aspirin, 12-lead, pads)"
-            className="w-full h-9 bg-cardiac-dark text-[13px] text-slate-100 rounded-lg pl-8 pr-2 border border-slate-600 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
+            className="w-full h-9 touch:h-10 bg-cardiac-dark text-[13px] touch:text-base text-slate-100 rounded-lg pl-8 pr-2 border border-slate-600 focus:outline-none focus:border-cardiac-accent placeholder-slate-500"
             aria-label="Find an action"
           />
         </div>
-        {!f && (
-          <div className="flex gap-1 overflow-x-auto no-scrollbar -mx-1 px-1">
-            {groups.map((g) => (
-              <button key={g.c} onClick={() => jump(g.c)} className="px-2 py-1 rounded-full border border-slate-600 text-[11px] text-slate-300 hover:text-white hover:bg-cardiac-surface whitespace-nowrap shrink-0">
-                {CATEGORY_LABELS[g.c]}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
-      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto short:flex-none short:overflow-visible px-2 pb-4 relative">
-        {groups.map((g) => (
-          <section key={g.c} data-cat={g.c} className="pt-2">
-            <h3 className="sticky top-0 z-10 px-1 py-1 text-[10px] uppercase tracking-wider text-slate-400 bg-cardiac-panel">{CATEGORY_LABELS[g.c]}</h3>
-            <div className="grid gap-1">
-              {g.items.map((iv) => <ActionButton key={iv.id} iv={iv} sc={sc} state={state} onChoose={choose} />)}
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto short:flex-none short:overflow-visible px-2 pb-4">
+        {f ? (
+          // search: every match, under its category
+          found.length ? found.map((g) => (
+            <section key={g.c} data-cat={g.c} className="pt-2">
+              <h3 className="px-1 py-1 text-[11px] uppercase tracking-wider text-slate-400">{CATEGORY_LABELS[g.c]}</h3>
+              <div className="grid gap-1">{g.items.map((iv) => <ActionButton key={iv.id} iv={iv} sc={sc} state={state} onChoose={choose} />)}</div>
+            </section>
+          )) : <p className="px-2 py-6 text-center text-xs text-slate-400">No action matches “{q}”.</p>
+        ) : open ? (
+          // one category: what is still to do first, what is done after
+          <section data-cat={open.c} className="pt-1">
+            <div className="sticky top-0 z-10 -mx-2 px-2 pb-1 pt-1 bg-cardiac-panel flex items-center gap-2">
+              <button
+                onClick={() => setCat(null)}
+                className="shrink-0 h-9 touch:h-10 px-2.5 rounded-lg border border-slate-600 text-[13px] text-slate-200 hover:bg-cardiac-surface flex items-center gap-1"
+                aria-label="Back to all the categories"
+              >
+                <span aria-hidden>←</span> All
+              </button>
+              <h3 ref={headRef} tabIndex={-1} className="flex-1 min-w-0 truncate text-sm font-semibold text-white outline-none">{CATEGORY_LABELS[open.c]}</h3>
+              <span className="shrink-0 text-[11px] text-slate-400 tabular-nums">{open.items.length}</span>
             </div>
+            {groups ? (
+              <div className="grid gap-1.5 pt-1">
+                {groups.map((g) => {
+                  const isOpen = unfolded === g.label;
+                  const done = g.items.filter((i) => (state.counts[i.id] ?? 0) > 0).length;
+                  const id = `actions-${open.c}-${g.label.replace(/\W+/g, '-').toLowerCase()}`;
+                  return (
+                    <div key={g.label} className={`rounded-lg border ${isOpen ? 'border-slate-500 bg-cardiac-dark/40' : 'border-slate-600/80'}`}>
+                      <button
+                        onClick={() => setUnfolded(isOpen ? null : g.label)}
+                        aria-expanded={isOpen}
+                        aria-controls={id}
+                        className="w-full min-h-[48px] px-2.5 py-2 flex items-center gap-2 text-left rounded-lg hover:bg-cardiac-surface/60"
+                      >
+                        <span className="flex-1 min-w-0 text-[13px] font-medium text-slate-100 leading-snug">{g.label}</span>
+                        <span className="shrink-0 text-[11px] text-slate-400 tabular-nums">
+                          {g.items.length}{done > 0 && <span className="text-emerald-400"> · {done} done</span>}
+                        </span>
+                        <span aria-hidden className={`shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}>›</span>
+                      </button>
+                      {isOpen && (
+                        <div id={id} className="px-1.5 pb-1.5">
+                          <ActionGroup items={g.items} sc={sc} state={state} onChoose={choose} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                <ActionGroup items={open.items.filter((i) => !doneFor(sc, state, i))} sc={sc} state={state} onChoose={choose} />
+                {open.items.some((i) => doneFor(sc, state, i)) && (
+                  <>
+                    <h4 className="mt-3 px-1 py-1 text-[11px] uppercase tracking-wider text-slate-400">Done</h4>
+                    <ActionGroup items={open.items.filter((i) => doneFor(sc, state, i))} sc={sc} state={state} onChoose={choose} />
+                  </>
+                )}
+              </>
+            )}
           </section>
-        ))}
-        {groups.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-500">No action matches “{q}”.</p>}
+        ) : (
+          // the menu: one tile per category
+          <nav aria-label="Action categories" className="pt-2">
+            <p className="short:hidden px-1 pb-2 text-[12px] text-slate-400 leading-snug">
+              {all.length} actions in your scope as {LEVEL_LABELS[state.role].short}, in {byCat.length} groups — some help, some harm, each takes case time.
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {byCat.map((g) => (
+                <button
+                  key={g.c}
+                  onClick={() => setCat(g.c)}
+                  className="min-h-[56px] text-left px-2.5 py-2 rounded-lg border border-slate-600/80 bg-cardiac-dark/60 hover:border-cardiac-accent/70 hover:bg-cardiac-surface/60 active:bg-cardiac-surface flex flex-col justify-between"
+                  aria-label={`${CATEGORY_LABELS[g.c]}: ${g.items.length} actions${g.done ? `, ${g.done} done` : ''}`}
+                >
+                  <span className="text-[13px] leading-snug font-medium text-slate-100">{CATEGORY_LABELS[g.c]}</span>
+                  <span className="mt-1 text-[11px] text-slate-400 tabular-nums">
+                    {g.items.length} action{g.items.length === 1 ? '' : 's'}
+                    {g.done > 0 && <span className="text-emerald-400"> · {g.done} done</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </nav>
+        )}
       </div>
     </div>
   );
+}
+
+/** Done and cannot be done again (a repeatable action stays with the rest, with its count) */
+const doneFor = (sc: Scenario, state: SimState, iv: Intervention) => {
+  const reason = unavailableReason(sc, state, iv.id);
+  return reason === 'Already done' || (!!reason && reason.startsWith('Maximum'));
+};
+
+function ActionGroup({ items, sc, state, onChoose }: { items: Intervention[]; sc: Scenario; state: SimState; onChoose: (id: string) => void }) {
+  if (!items.length) return null;
+  return <div className="grid gap-1 pt-1">{items.map((iv) => <ActionButton key={iv.id} iv={iv} sc={sc} state={state} onChoose={onChoose} />)}</div>;
 }
 
 function ActionButton({ iv, sc, state, onChoose }: { iv: Intervention; sc: Scenario; state: SimState; onChoose: (id: string) => void }) {
