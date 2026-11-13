@@ -15,6 +15,7 @@ import { ReadBar, ReadList } from './ReadPanel';
 import ImagingPanel from './ImagingPanel';
 import { endedSummary, twelveLeadNote } from './runnerText';
 import { groupActions } from './actionGroups';
+import { monitorKeys, type MonitorKey } from './monitorKeys';
 
 /** A phone on its side (the Tailwind `short:` variant) */
 const SHORT_QUERY = '(max-height: 500px)';
@@ -75,6 +76,9 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
 
   const ended = !!state.ended;
   const reading = !!state.pendingRead && !ended;
+  // the monitor's keys: a 12-lead or a blood pressure in one tap (none while a read is open or once the case is over)
+  const scope = useMemo(() => new Set(interventionsForScenario(sc, state.role).map((i) => i.id)), [sc, state.role]);
+  const keys = monitorKeys(sc, state, scope);
   // A phone on its side (short) has about 300 px under the headers: the 12-lead tab then takes the whole patient column,
   // or the 12 leads squash into a strip too thin to read (the monitor comes back on the other tabs)
   const tracingOnly = tab === 'ecg' && !!state.lastEcg;
@@ -115,10 +119,15 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row short:flex-row">
         {/* The patient */}
         <div className="flex-1 min-h-0 min-w-0 flex flex-col">
-          {/* while you read a 12-lead on a phone held upright, the monitor shrinks so the tracing gets the room; on its side it steps aside */}
-          <div className={`shrink-0 max-h-[300px] lg:h-[38%] lg:max-h-[340px] short:h-[48%] short:min-h-0 p-1.5 ${reading ? 'h-[15dvh] min-h-[92px]' : 'h-[27dvh] min-h-[140px]'} ${tracingOnly ? 'short:hidden' : ''}`}>
-            <MonitorDisplay channels={attached(state)} showRhythmName={false} />
+          {/* while you read a 12-lead on a phone held upright, the monitor shrinks so the tracing gets the room; on its side it steps
+              aside. Its keys sit in a row under it, or beside it on a phone on its side (there the height is the monitor's) */}
+          <div className={`shrink-0 max-h-[300px] lg:h-[38%] lg:max-h-[340px] short:h-[48%] short:min-h-0 p-1.5 short:gap-1.5 ${reading ? 'h-[15dvh] min-h-[92px]' : 'h-[27dvh] min-h-[140px]'} ${tracingOnly ? 'short:hidden' : 'short:flex'}`}>
+            <div data-monitor className="h-full min-w-0 short:flex-1">
+              <MonitorDisplay channels={attached(state)} showRhythmName={false} />
+            </div>
+            {keys.length > 0 && <MonitorKeys keys={keys} side />}
           </div>
+          {keys.length > 0 && <MonitorKeys keys={keys} />}
           <div className="flex shrink-0 border-y border-slate-700 bg-cardiac-panel" role="tablist" aria-label="Patient views">
             <TabButton active={tab === 'story'} onClick={() => setTab('story')} dot={unread}>Case story</TabButton>
             <TabButton active={tab === 'ecg'} onClick={() => setTab('ecg')}>12-lead ECG</TabButton>
@@ -129,7 +138,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
             )}
           </div>
           <div className="flex-1 min-h-0 relative">
-            {tab === 'story' ? <CaseLog state={state} /> : tab === 'imaging' ? <ImagingPanel state={state} /> : <TwelveLead state={state} />}
+            {tab === 'story' ? <CaseLog state={state} /> : tab === 'imaging' ? <ImagingPanel state={state} /> : <TwelveLead sc={sc} state={state} ecgKey={scope.has('ecg12')} />}
           </div>
         </div>
 
@@ -170,6 +179,39 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
           <ActionList sc={sc} state={state} cat={actionCat} setCat={setActionCat} onDone={() => setSheet(false)} />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The monitor's hard keys (which action each runs: monitorKeys.ts), pressed like a menu choice. `side`: the column beside
+ * the monitor on a phone on its side; otherwise the row under it. Both are rendered and CSS shows the one that fits.
+ */
+function MonitorKeys({ keys, side = false }: { keys: MonitorKey[]; side?: boolean }) {
+  const act = useSimStore((s) => s.act);
+  const buttons = keys.map((k) => (
+    <button
+      key={k.kind}
+      type="button"
+      onClick={() => act(k.id)}
+      disabled={!!k.disabled}
+      title={k.disabled ?? k.name}
+      aria-label={k.name}
+      className={`rounded-md border border-slate-600 bg-cardiac-dark text-slate-100 flex items-center justify-center gap-x-2 gap-y-0.5 transition-colors hover:border-cardiac-accent/70 hover:bg-cardiac-surface/60 active:bg-cardiac-surface focus-visible:outline-none focus-visible:border-cardiac-accent focus-visible:ring-1 focus-visible:ring-cardiac-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-600 disabled:hover:bg-cardiac-dark ${
+        side ? 'flex-1 min-h-[36px] max-h-16 w-full flex-col px-1 text-center' : 'h-9 touch:h-10 px-3 flex-col xs:flex-row sm:w-[11.5rem]'
+      }`}
+    >
+      {/* a narrow key wraps between the words, never inside "12-lead" */}
+      <span className="font-mono text-[12px] font-semibold uppercase tracking-wide leading-tight">
+        {k.label.split(' ').map((w, i) => <React.Fragment key={i}>{i > 0 && ' '}<span className="whitespace-nowrap">{w}</span></React.Fragment>)}
+      </span>
+      <span className="font-mono text-[10px] text-slate-400 leading-tight tabular-nums">{k.time}</span>
+    </button>
+  ));
+  if (side) return <div role="group" aria-label="Monitor keys" className="hidden short:flex w-[92px] shrink-0 flex-col justify-center gap-1.5">{buttons}</div>;
+  return (
+    <div className="short:hidden shrink-0 px-1.5 pb-1.5">
+      <div role="group" aria-label="Monitor keys" className="grid grid-cols-2 gap-1.5 sm:flex sm:justify-end">{buttons}</div>
     </div>
   );
 }
@@ -232,15 +274,26 @@ function LogLine({ l, role }: { l: LogEntry; role: SimState['role'] }) {
 
 // ─── 12-lead ───────────────────────────────────────────────────────────────
 
-function TwelveLead({ state }: { state: SimState }) {
+/** `ecgKey`: the monitor has a 12-lead key for this learner (the action is in their scope) */
+function TwelveLead({ sc, state, ecgKey }: { sc: Scenario; state: SimState; ecgKey: boolean }) {
   const last = state.lastEcg;
   if (!last) {
+    const ecg12 = INTERVENTION_BY_ID.ecg12;
+    const fromMenu = <><b className="text-slate-200 whitespace-nowrap">{ecg12.label}</b> under {categoryLabel(ecg12.category, sc.setting)}</>;
     return (
       <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
         <div className="max-w-sm">
           <div className="text-sm font-semibold text-white">No 12-lead yet</div>
           <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-            Choose <b className="text-slate-200">Acquire a 12-lead ECG</b> under Monitoring &amp; ECG. It takes 2 minutes, then the tracing appears here.
+            {ecgKey ? (
+              <>
+                Press the <span className="px-1 py-px rounded border border-slate-500 bg-cardiac-dark font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-200">12-lead</span>{' '}
+                key on the monitor (or choose {fromMenu}).
+              </>
+            ) : (
+              <>Choose {fromMenu}.</>
+            )}
+            {' '}It takes {durationText(ecg12.minutes)} of case time, then the tracing appears here.
           </p>
         </div>
       </div>

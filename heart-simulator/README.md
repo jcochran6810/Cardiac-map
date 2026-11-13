@@ -163,6 +163,8 @@ library section or tool also resets the speed to real time and closes the electr
   and setting, including the cath lab's views, catheters, guides, wires, balloons, stents, support devices,
   physiology and imaging, and lab drugs). Each one takes case time and changes the patient: the rhythm on the monitor and the live
   12-lead, the vitals, and the story (patient, partner, team, monitor, hospital).
+- **Monitor keys** (`monitorKeys.ts`): **12-lead** (then **Repeat 12-lead**) and **NIBP** (**Manual BP** until the monitor
+  is on) under the monitor, beside it on a phone on its side, run the menu's own action in one tap — same time and scoring.
 - **The monitor starts unplugged**: the ECG, SpO₂ and capnography appear only once you attach them; the
   NIBP box shows the last blood pressure you took. Nothing reads the tracings for you: the monitor reports
   numbers, and rhythm changes come as a "monitor alarm". A case can put the patient on a continuous-flow **LVAD**

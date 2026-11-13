@@ -3,7 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * The case simulator on every layout (the projects in playwright.config.ts): a 12-lead the learner must read gets a
  * tracing big enough to read, the next action can still be tapped after a long reply (a phone on its side acts only
- * from the action column), and a finished case says how it ended on every screen, not only where the column shows.
+ * from the action column), a finished case says how it ended on every screen, not only where the column shows, and the
+ * monitor's keys take a blood pressure and a 12-lead in one tap.
  */
 
 let errors: string[] = [];
@@ -117,4 +118,49 @@ test('the action menu: categories first, one category at a time, and search find
   // search reaches across the categories
   await scope.getByRole('searchbox', { name: 'Find an action' }).fill('pads');
   await expect(scope.locator('section[data-cat] button').filter({ hasText: 'Apply defibrillation pads' })).toBeVisible();
+});
+
+test('the monitor keys: a blood pressure and a 12-lead in one tap, without the menu', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /Treat a patient/ }).first().click();
+  await page.getByRole('radiogroup', { name: 'Your role' }).getByRole('radio', { name: 'Paramedic', exact: true }).click();
+  const card = page.locator('#sim-case-stemi-anterior-field');
+  await card.scrollIntoViewIfNeeded();
+  await card.getByRole('button', { name: /Start case/ }).click();
+  await expect(page.getByRole('button', { name: '← Cases' })).toBeVisible();
+
+  // the keys sit under the monitor (beside it on a phone on its side): clear of its numbers and waveforms, the monitor
+  // still big enough to read, a key big enough for a finger, and nothing wider than the screen
+  const keys = page.getByRole('group', { name: 'Monitor keys' });
+  await expect(keys).toBeVisible();
+  const m = (await page.locator('[data-monitor]').boundingBox())!;
+  const k = (await keys.boundingBox())!;
+  expect(k.y >= m.y + m.height - 0.5 || k.x >= m.x + m.width - 0.5, 'the keys do not cover the monitor').toBe(true);
+  expect(m.height).toBeGreaterThanOrEqual(100);
+  for (const b of await keys.getByRole('button').all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(36);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  // the 12-lead tab points to the key while there is no tracing
+  await page.getByRole('tab', { name: '12-lead ECG' }).click();
+  await expect(page.getByText(/key on the monitor \(or choose Acquire a 12-lead ECG/)).toBeVisible();
+  await page.getByRole('tab', { name: /^Case story/ }).click();
+
+  // no monitor yet: the blood pressure key takes a manual set, and says so
+  const story = page.locator('[aria-live="polite"]');
+  await keys.getByRole('button', { name: /^Manual BP key/ }).click();
+  await expect(story.getByText(/^BP \d+\/\d+ · pulse \d+/)).toBeVisible();
+
+  // the 12-lead key records one; the 12-lead tab opens on it for the read, and the keys wait for the read
+  await keys.getByRole('button', { name: /^12-lead key/ }).click();
+  await expect(page.getByRole('tab', { name: '12-lead ECG' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText('What does it show? Choose your read')).toBeVisible();
+  await expect(keys).toHaveCount(0);
+  await giveRead(page, 'Anterior STEMI');
+  await expect(page.getByText(/^(Correct|Partly right|Not quite)/).first()).toBeAttached();
+
+  // the 12-lead put the monitor on: the blood pressure key now runs the monitor's cuff, the 12-lead key a repeat
+  await page.getByRole('tab', { name: /^Case story/ }).click();
+  await expect(keys.getByRole('button', { name: /^Repeat 12-lead key/ })).toBeVisible();
+  await keys.getByRole('button', { name: /^NIBP key/ }).click();
+  await expect(story.getByText(/^NIBP \d+\/\d+ mmHg\.$/)).toBeVisible();
 });
