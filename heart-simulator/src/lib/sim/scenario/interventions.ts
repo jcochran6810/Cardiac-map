@@ -183,6 +183,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'phenylephrine', label: 'Phenylephrine IV bolus', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.3, detail: '50–100 mcg, every 1–2 min as needed: a pure vasoconstrictor, it can slow the heart', repeatable: true, needsAccess: true },
   // ACEP / ACC: the physician decides on the fibrinolytic (a STEMI that cannot reach PCI in time)
   { id: 'tnk', label: 'Fibrinolytic: tenecteplase IV', category: 'meds', roles: [5, 7], minutes: 0.5, detail: 'weight-based', needsAccess: true },
+  // the approved regimen for pulmonary embolism with shock; the ER nurse runs it on the physician's order
+  { id: 'alteplase', label: 'Fibrinolytic: alteplase IV (pulmonary embolism)', category: 'meds', roles: ED_TEAM, settings: ED, minutes: 1, needsAccess: true, detail: '100 mg over 2 hours (stop the heparin infusion while it runs); in a cardiac arrest from PE, a bolus per protocol' },
   // ACEP procedural sedation: the physician sedates, with continuous monitoring and capnography, for a cardioversion or the pacer
   { id: 'procedural-sedation', label: 'Procedural sedation (etomidate or propofol)', category: 'meds', roles: ED_MD, settings: ED, minutes: 1, needsAccess: true, detail: 'etomidate 0.1–0.15 mg/kg or propofol 0.5–1 mg/kg IV, titrated (smaller doses with a low pressure); monitor, capnography, suction and airway equipment ready' },
   { id: 'epi-im', label: 'Epinephrine IM for anaphylaxis', category: 'meds', roles: [1, 2, 4, 5, 6, 7], minutes: 0.3, detail: '0.3–0.5 mg (1 mg/mL), lateral thigh' },

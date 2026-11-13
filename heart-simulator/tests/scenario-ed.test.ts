@@ -94,7 +94,7 @@ describe('emergency department scope', () => {
   it('leaves the field and the cath lab roles exactly as they were', () => {
     const edOnly = INTERVENTIONS.filter((iv) => iv.settings?.length === 1 && iv.settings[0] === 'ed').map((iv) => iv.id);
     expect(edOnly.sort()).toEqual([
-      'admit', 'cath-lab-activate', 'central-line', 'consult-cardiology', 'cxr', 'ems-handoff', 'notify-physician', 'pocus',
+      'admit', 'alteplase', 'cath-lab-activate', 'central-line', 'consult-cardiology', 'cxr', 'ems-handoff', 'notify-physician', 'pocus',
       'procedural-sedation', 'rsi', 'transfer', 'triage', 'troponin-repeat',
     ]);
     for (const [role, setting] of [[1, 'field'], [2, 'field'], [3, 'cathlab'], [4, 'cathlab'], [5, 'cathlab']] as const) {
@@ -622,5 +622,20 @@ describe('the field and the lab keep their scoring', () => {
     const tubed = edPatient({ vitals: { gcs: 6 } });
     expect(ids(run(tubed, 7, ['airway', 'iv', 'midazolam']))).toEqual([]);
     expect(ids(run(tubed, 7, ['iv', 'midazolam']))).toEqual(['midazolam-unsafe']);
+  });
+});
+
+describe('alteplase for pulmonary embolism', () => {
+  it('is an ED fibrinolytic the nurse runs on an order and the doctor decides, with the same rules as tenecteplase', async () => {
+    const { INTERVENTION_BY_ID } = await import('@/lib/sim/scenario/interventions');
+    const { BUILT_IN_HARMS, RN_ORDER_ONLY } = await import('@/lib/sim/scenario/engine');
+    const { DOOR_TO_NEEDLE } = await import('@/lib/sim/scenario/edKit');
+    const a = INTERVENTION_BY_ID['alteplase'];
+    expect(a.roles).toEqual([6, 7]);
+    expect(a.settings).toEqual(['ed']);
+    expect(a.detail).toMatch(/100 mg over 2 hours/);
+    expect(RN_ORDER_ONLY.alteplase).toBeDefined();
+    for (const id of ['lytic-no-indication', 'lytic-dissection']) expect(BUILT_IN_HARMS.find((h) => h.id === id)?.actions).toContain('alteplase');
+    expect(DOOR_TO_NEEDLE.actions).toContain('alteplase');
   });
 });

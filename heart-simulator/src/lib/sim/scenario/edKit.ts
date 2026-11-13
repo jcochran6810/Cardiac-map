@@ -98,7 +98,7 @@ export const DOOR_TO_ECG: Timing = { label: 'Door to 12-lead', actions: ['ecg12'
  * A STEMI that cannot reach PCI in time: the fibrinolytic within 30 minutes of arrival (2025 ACC/AHA ACS guideline). The
  * timing counts the first dose of 'tnk' (or a flag the case sets when the computer physician gives it)
  */
-export const DOOR_TO_NEEDLE: Timing = { label: 'Door to fibrinolytic', actions: ['tnk'], flag: 'lytic', target: 30 };
+export const DOOR_TO_NEEDLE: Timing = { label: 'Door to fibrinolytic', actions: ['tnk', 'alteplase'], flag: 'lytic', target: 30 };
 
 /** The ED's part of door-to-balloon: STEMI on the 12-lead to the cath lab activated (the flag 'alert') — as early as possible */
 export const ECG_TO_ACTIVATION: Timing = { label: '12-lead to cath lab activation', actions: ['cath-lab-activate'], flag: 'alert', from: 'ecg12' };

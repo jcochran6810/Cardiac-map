@@ -11,7 +11,7 @@ const SUBGROUPS: Partial<Record<Category, Group[]>> = {
   meds: [
     { label: 'Cardiac arrest', ids: ['epinephrine', 'amio-arrest', 'lidocaine'] },
     { label: 'Heart rhythm', ids: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion', 'procainamide', 'magnesium-sulfate', 'atropine'] },
-    { label: 'Chest pain & clots', ids: ['aspirin', 'nitro', 'nitro-high', 'p2y12', 'cangrelor', 'heparin', 'bivalirudin', 'gp2b3a', 'tnk', 'protamine'] },
+    { label: 'Chest pain & clots', ids: ['aspirin', 'nitro', 'nitro-high', 'p2y12', 'cangrelor', 'heparin', 'bivalirudin', 'gp2b3a', 'tnk', 'alteplase', 'protamine'] },
     { label: 'Pressure & shock', ids: ['push-epi', 'pressor', 'phenylephrine'] },
     { label: 'Breathing & allergy', ids: ['albuterol', 'epi-im', 'diphenhydramine', 'steroid'] },
     { label: 'Electrolytes, antidotes & glucose', ids: ['calcium-chloride', 'sodium-bicarbonate', 'insulin-dextrose', 'albuterol-hyperk', 'glucagon', 'oral-glucose', 'dextrose'] },
