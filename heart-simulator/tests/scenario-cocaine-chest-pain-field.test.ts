@@ -85,7 +85,7 @@ describe('cocaine chest pain in the field — the case itself', () => {
     }
     expect(Object.keys(sc.respond)).not.toContain('scene');
     expect(sc.critical.some((c) => c.id === 'scene')).toBe(false);
-    expect(sc.teaching.join(' ')).toMatch(/Calm talk is the first treatment of agitation/);
+    expect(sc.teaching.join(' ')).toMatch(/Calm talk comes first with any agitated patient, and it goes on while the benzodiazepine works/);
   });
 
   it('no event line names the rhythm, whatever state it fires in', () => {
