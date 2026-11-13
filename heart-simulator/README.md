@@ -210,10 +210,18 @@ library section or tool also resets the speed to real time and closes the electr
 - **Cases:** field — anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,
   paramedic) · complete heart block · beta-blocker (metoprolol) overdose · unstable SVT · AF with a rapid response
   and a weak heart · stable VT after an old infarct · hyperkalemia in a dialysis patient · VF cardiac arrest (EMT,
-  paramedic) · PEA cardiac arrest from hypoxia (EMT, paramedic). Cath lab (tech, nurse, cardiologist) — anterior STEMI
+  paramedic) · PEA cardiac arrest from hypoxia (EMT, paramedic) · posterior STEMI (posterior leads) · cocaine chest
+  pain · aortic dissection · massive pulmonary embolism · cardiac tamponade · flash pulmonary edema (SCAPE: CPAP and
+  high-dose nitroglycerin) · pre-excited AF (WPW: no AV-node blockers) · torsades de pointes (magnesium) · commotio
+  cordis at a ballgame · a patient on an LVAD (no pulse, still talking: Doppler MAP, the VAD team) — each for the
+  EMT and the paramedic. Cath lab (tech, nurse, cardiologist) — anterior STEMI
   (damped guide, reperfusion VF) · inferior STEMI from the groin (Bezold–Jarisch reflex) · FFR- and IVUS-guided PCI
   (radial spasm) · cardiogenic shock (right heart numbers, Impella) · no-reflow after the stent (heavy clot burden) ·
-  coronary perforation and tamponade · contrast reaction. Each new case was written to the 2025 AHA and ACC/AHA
+  coronary perforation and tamponade · contrast reaction · left main occlusion with cardiogenic shock · acute stent
+  thrombosis · spontaneous coronary artery dissection after childbirth · takotsubo with LV outflow obstruction (no
+  inotropes) · complete heart block and a temporary wire · guide-catheter dissection of the right coronary · coronary
+  air embolism · a stroke on the table · a vasovagal reaction at the sheath pull · retroperitoneal bleeding after a
+  femoral PCI. Each new case was written to the 2025 AHA and ACC/AHA
   guidelines and checked by an independent clinical reviewer, with its own test file (`tests/scenario-*.test.ts`)
   covering the ideal runs, the traps and every in-scope action. Tests play every case's ideal run for each role
   and its main traps (`tests/scenarios.test.ts`).

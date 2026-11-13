@@ -95,6 +95,123 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
     5: ['consent', 'heparin', 'p2y12', 'fentanyl', 'timeout', 'access', 'cath-tiger', 'angio', 'guide-ebu', 'reposition', 'view-rao-cranial',
       'wire-workhorse', 'balloon-predil', 'stent-des', 'defib', 'balloon-nc', 'final-angio', 'ecg12', 'echo', 'handoff'],
   },
+  'posterior-stemi-field': {
+    1: ['primary', 'vitals', 'als', 'opqrst', 'sample', 'ecg12', 'ecg-transmit', 'aspirin', 'transport-pci', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
+    2: ['primary', 'opqrst', 'sample', 'vitals', 'ecg12', 'pads', 'aspirin', 'ecg-posterior', 'stemi-alert', 'iv', 'ask-pde5', 'nitro',
+      'transport-pci', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
+  },
+  'cocaine-chest-pain-field': {
+    1: ['scene', 'primary', 'als', 'vitals', 'opqrst', 'sample', 'aspirin', 'perfusion', 'ecg12', 'ecg-transmit', 'glucose', 'transport-pci',
+      'notify', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
+    2: ['scene', 'primary', 'vitals', 'perfusion', 'sample', 'midazolam', 'monitor', 'ecg12', 'opqrst', 'aspirin', 'ask-pde5', 'iv', 'nitro',
+      'glucose', 'transport-pci', 'notify', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
+  },
+  'aortic-dissection-field': {
+    1: ['primary', 'opqrst', 'vitals', 'als', 'bp-both-arms', 'perfusion', 'sample', 'ecg12', 'ecg-transmit', 'transport-pci', 'notify',
+      UNTIL_ARRIVED, 'handoff'],
+    2: ['primary', 'opqrst', 'vitals', 'bp-both-arms', 'perfusion', 'sample', 'ecg12', 'iv', 'fentanyl', 'med-control', 'metoprolol',
+      'transport-pci', 'notify', UNTIL_ARRIVED, 'handoff'],
+  },
+  'pulmonary-embolism-field': {
+    1: ['primary', 'o2-nrb', 'als', 'vitals', 'perfusion', 'lungs', 'sample', 'ecg12', 'ecg-transmit', 'transport-pci', 'notify', UNTIL_ARRIVED,
+      'handoff'],
+    2: ['primary', 'vitals', 'o2-nrb', 'monitor', 'ecg12', 'perfusion', 'lungs', 'iv', 'pressor', 'sample', 'transport-pci', 'notify', UNTIL_ARRIVED,
+      'handoff'],
+  },
+  'tamponade-field': {
+    1: ['primary', 'vitals', 'als', 'perfusion', 'lungs', 'sample', 'o2-nc', 'ecg12', 'ecg-transmit', 'transport-pci', 'notify', UNTIL_ARRIVED,
+      'handoff'],
+    2: ['primary', 'vitals', 'perfusion', 'lungs', 'sample', 'o2-nc', 'ecg12', 'transport-pci', 'iv', 'fluid', 'notify', ...R(2), 'nibp', 'push-epi',
+      UNTIL_ARRIVED, 'handoff'],
+  },
+  'scape-field': {
+    1: ['primary', 'als', 'vitals', 'lungs', 'cpap', 'ask-pde5', 'nitro-assist', 'ecg12', 'ecg-transmit', 'vitals', 'notify', 'transport-near',
+      UNTIL_ARRIVED, 'handoff'],
+    2: ['primary', 'vitals', 'lungs', 'cpap', 'ask-pde5', 'nitro-high', 'monitor', 'ecg12', 'iv', 'nibp', 'nitro-high', 'notify', 'transport-near',
+      UNTIL_ARRIVED, 'handoff'],
+  },
+  'wpw-af-field': {
+    1: ['als', 'primary', 'vitals', 'pads', 'sample', 'ecg12', 'ecg-transmit', 'transport-pci', ...R(5), 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
+    2: ['primary', 'pads', 'nibp', 'ecg12', 'sample', 'iv', 'med-control', 'procainamide', 'transport-pci', ...R(4), 'ecg12-repeat', UNTIL_ARRIVED,
+      'handoff'],
+  },
+  'torsades-field': {
+    1: ['als', 'pads', 'primary', 'sample', 'pulse-check', 'ecg12', 'ecg-transmit', 'pulse-check', 'notify', 'transport-pci', 'aed', 'cpr', 'vitals',
+      'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
+    2: ['pads', 'primary', 'sample', 'pulse-check', 'ecg12', 'iv', 'magnesium-sulfate', 'notify', 'transport-pci', UNTIL_ARRIVED, 'handoff'],
+  },
+  'commotio-cordis-field': {
+    1: ['als', 'aed', 'cpr', 'bvm', 'vitals', 'ecg12', 'ecg-transmit', 'transport-pci', UNTIL_ARRIVED, 'handoff'],
+    2: ['defib', 'cpr', 'bvm', 'capno', 'iv', 'nibp', 'fluid', 'ecg12', 'transport-pci', UNTIL_ARRIVED, 'handoff'],
+  },
+  'lvad-field': {
+    1: ['primary', 'lvad-check', 'als', 'doppler-map', 'perfusion', 'call-vad', 'sample', 'legs-up', 'ecg12', 'ecg-transmit', 'transport-pci',
+      'doppler-map', UNTIL_ARRIVED, 'handoff'],
+    2: ['primary', 'lvad-check', 'doppler-map', 'perfusion', 'call-vad', 'sample', 'ecg12', 'iv', 'fluid', 'doppler-map', 'transport-pci',
+      UNTIL_ARRIVED, 'handoff'],
+  },
+  'left-main-shock-cathlab': {
+    3: ['prep', 'transducer', 'pads', 'timeout', 'cath-jl4', 'act', 'impella', 'perfusion', 'guide-ebu', 'ivus', 'stent-des', 'callout',
+      'balloon-nc', 'ecg12'],
+    4: ['iv', 'pressor', 'o2-nrb', 'consent', 'timeout', 'ecg12', 'heparin', 'call-surgery', 'act', 'cangrelor', 'fentanyl', 'perfusion', ...R(3),
+      'callout', 'ecg12-repeat', 'handoff'],
+    5: ['consent', 'o2-nrb', 'pressor', 'ecg12', 'timeout', 'access-femoral', 'cath-jl4', 'angio', 'call-surgery', 'heparin', 'act', 'echo',
+      'impella', 'cangrelor', 'guide-ebu', 'wire-workhorse', 'ivus', 'stent-des', 'balloon-nc', 'ivus', 'final-angio', 'ecg12-repeat', 'handoff'],
+  },
+  'stent-thrombosis-cathlab': {
+    3: ['callout', 'act', 'aspiration', 'ivus', 'balloon-nc', 'ivus', 'ecg12', 'hemostasis'],
+    4: ['callout', 'cangrelor', 'p2y12', 'heparin', 'fentanyl', 'ecg12', ...R(2), 'hemostasis', 'handoff'],
+    5: ['act', 'heparin', 'cangrelor', 'p2y12', 'aspiration', 'ivus', 'balloon-nc', 'ivus', 'final-angio', 'ecg12', 'handoff'],
+  },
+  'scad-cathlab': {
+    3: ['prep', 'transducer', 'pads', 'timeout', 'cath-jl4', 'callout', 'view-lao-cranial', 'cath-jr4', 'hemostasis', 'ecg12'],
+    4: ['consent', 'heparin', 'timeout', 'ecg12', 'callout', 'ic-nitro', 'callout', 'metoprolol', 'fentanyl', 'hemostasis', 'ecg12-repeat', 'handoff'],
+    5: ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'metoprolol', 'fentanyl',
+      'ecg12', 'echo', 'handoff'],
+  },
+  'takotsubo-lvot-cathlab': {
+    3: ['prep', 'transducer', 'pads', 'timeout', 'cath-tiger', 'callout', 'cath-pigtail', 'lvedp', 'callout', 'lv-gram', 'ecg12', 'hemostasis'],
+    4: ['consent', 'heparin', 'timeout', 'perfusion', 'nibp', 'callout', 'lungs', 'fluid', 'phenylephrine', 'reassess', 'fentanyl', 'ecg12',
+      'hemostasis', 'handoff'],
+    5: ['consent', 'heparin', 'timeout', 'access', 'cath-tiger', 'angio', 'cath-pigtail', 'lvedp', 'fluid', 'phenylephrine', 'lv-gram', 'ecg12',
+      'handoff'],
+  },
+  'heart-block-temp-wire-cathlab': {
+    3: ['ecg12', 'pads', 'nibp', 'temp-wire', 'prep', 'timeout', 'reassess', 'callout', 'ecg12-repeat', 'reassess', 'callout', 'reassess',
+      'pericardiocentesis', 'callout', 'reassess'],
+    4: ['pads', 'pace', 'fentanyl', 'midazolam', 'pulse-check', 'consent', 'timeout', 'reassess', 'ecg12-repeat', 'reassess', 'callout', ...R(3),
+      'callout', 'fluid', 'handoff'],
+    5: ['pads', 'pace', 'fentanyl', 'midazolam', 'pulse-check', 'sample', 'consent', 'timeout', 'access-venous', 'temp-wire', 'ecg12-repeat',
+      'reassess', 'reposition', 'echo', 'reassess', 'pericardiocentesis', 'handoff'],
+  },
+  'guide-dissection-cathlab': {
+    3: ['callout', 'stop-contrast', 'wire-workhorse', 'ivus', 'stent-des', 'balloon-nc', 'ecg12', 'hemostasis'],
+    4: ['callout', 'atropine', 'fluid', 'fentanyl', 'ecg12', 'reassess', 'ecg12-repeat', 'hemostasis', 'handoff'],
+    5: ['stop-contrast', 'reposition', 'atropine', 'fluid', 'wire-workhorse', 'ivus', 'stent-des', 'final-angio', 'ecg12', 'echo', 'handoff'],
+  },
+  'air-embolism-cathlab': {
+    3: ['callout', 'stop-contrast', 'clear-air', 'reassess', 'clear-air', 'stent-des', 'ecg12', 'hemostasis'],
+    4: ['callout', 'o2-nrb', 'atropine', 'phenylephrine', 'reassess', 'ecg12', 'hemostasis', 'handoff'],
+    5: ['stop-contrast', 'o2-nrb', 'clear-air', 'atropine', 'ic-epinephrine', 'reassess', 'stent-des', 'final-angio', 'ecg12', 'handoff'],
+  },
+  'periprocedural-stroke-cathlab': {
+    3: ['callout', 'stop-contrast', 'stroke-team', 'act', ...R(2)],
+    4: ['callout', 'stroke-team', 'neuro', 'glucose', 'nibp', 'primary', 'act', 'ct-urgent', 'handoff'],
+    5: ['stop-contrast', 'stroke-team', 'neuro', 'glucose', 'act', 'ct-urgent', 'handoff'],
+  },
+  'vasovagal-sheath-cathlab': {
+    3: ['callout', 'perfusion', 'callout', ...R(5), 'hemostasis'],
+    4: ['callout', 'legs-up', 'atropine', 'fluid', 'perfusion', ...R(4), 'hemostasis', 'handoff'],
+    5: ['legs-up', 'atropine', 'fluid', 'perfusion', ...R(4), 'handoff'],
+  },
+  'retroperitoneal-bleed-cathlab': {
+    3: ['act', 'perfusion', 'call-vascular', 'transducer', 'pads', 'ecg12', 'callout', 'prep', 'timeout', 'reassess', 'callout', ...R(4),
+      'stent-covered', 'hemostasis'],
+    4: ['perfusion', 'callout', 'fluid', 'labs', 'iv', 'transfuse', 'act', 'callout', 'timeout', 'protamine', 'transfuse', 'ecg12', ...R(4),
+      'hemostasis', 'handoff'],
+    5: ['perfusion', 'fluid', 'labs', 'transfuse', 'consent', 'act', 'protamine', 'call-vascular', 'ecg12', 'timeout', 'access-femoral',
+      'balloon-tamponade', 'transfuse', 'echo', 'stent-covered', 'final-angio', 'handoff'],
+  },
 };
 
 describe('scenario library', () => {

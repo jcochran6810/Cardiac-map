@@ -417,7 +417,9 @@ describe('a patient on a continuous-flow LVAD', () => {
     expect(lastText(run(patient(), 2, ['monitor', 'nibp']))).toBe('NIBP 132/80 mmHg.');
     expect(lastText(run(patient(), 2, ['iv', 'fluid']))).toBe('Bolus in. BP 140/85.');
     expect(monitorVitals(s)).toEqual({ pulse: true, sbp: 132, dbp: 80, spo2: 96, rr: 16, etco2: 36 });
-    for (const sc of Object.values(SCENARIO_BY_ID)) expect(sc.initial.lvad, sc.id).toBeUndefined();
+    // the LVAD case is the only registered patient with a pump
+    for (const sc of Object.values(SCENARIO_BY_ID)) if (sc.id !== 'lvad-field' && sc.id !== 'kit2-lvad') expect(sc.initial.lvad, sc.id).toBeUndefined();
+    expect(SCENARIO_BY_ID['lvad-field'].initial.lvad).toBe(true);
   });
 });
 
