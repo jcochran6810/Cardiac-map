@@ -20,6 +20,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the valve system, large-bore sheath, stiff pre-shaped LV wire, pigtail and pacing set-up; confirm rapid-pacing capture, record simultaneous LV–aortic gradients before and after deployment, and call out new AV block, hypotension or ST change immediately',
       'Complete pre-checks (consent, allergies, renal function, anticoagulants); give heparin and moderate sedation only on order with the practitioner present, monitoring ACT and capnography; afterwards watch for new heart block, access bleeding, tamponade and neuro deficits and escalate immediately',
       'Transfemoral TAVR is favored > 80 y, SAVR generally < 65 y, with shared decision at 65–80 (2020 ACC/AHA); gated CT sizing, coronary heights and iliofemoral size predict annular rupture, coronary obstruction and PVL, and pre-existing RBBB plus deep implant predict PPM',
+      'Triage syncope, a slow pulse or new breathlessness after a recent TAVR as high acuity: monitor with pacing pads on, get a 12-lead within 10 minutes and show it to the physician at once, and check the groin and distal pulses; report a new focal deficit as a stroke alert and a falling BP at once',
+      'Compare the 12-lead with the pre-TAVR tracing: high-grade AV block after TAVR is usually below the AV node, so atropine rarely helps — pace (transcutaneous, then transvenous if it persists) and call the structural team about a permanent pacemaker; bedside echo checks for effusion and valve function, and a new deficit is a stroke alert',
     ],
     overview: [
       'A balloon-expandable or self-expanding bioprosthesis is implanted within the calcified native valve, pushing the native leaflets aside',
@@ -152,6 +154,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the steerable guide, clip delivery system and transseptal needle; transduce and record LA pressure and v-waves before and after each clip, hand components only as the operator directs, and report hypotension or arrhythmia immediately',
       'Complete pre-checks and hand over to the anesthesia team, who manage general anesthesia; give heparin on order and report ACT (commonly ≥ 250 s); afterwards monitor for tamponade, femoral venous bleeding and worsening heart failure, and teach patients to report breathlessness',
       'Secondary MR benefits with a COAPT-like profile (optimized GDMT, LVEF 20–50%, LVESD ≤ 70 mm, PASP ≤ 70 mmHg); puncture inferior-posterior ~3.5–4.5 cm above the annulus, and accept a post-clip mean gradient ≤ ~5 mmHg to avoid iatrogenic MS',
+      'After TEER, sit a breathless patient up, give oxygen to target, start BiPAP on order and check BP before any nitroglycerin; report hypotension, tachycardia or JVD in the days after the procedure at once (possible tamponade), and check the groin for a venous hematoma',
+      'New pulmonary edema after TEER may be severe MR again from a clip that has come off one leaflet, and hypotension with a new effusion suggests tamponade from the transseptal puncture or a wire: use bedside echo, treat edema with nitrates and noninvasive ventilation if BP allows, and get a formal echo and the structural team',
     ],
     overview: [
       'Percutaneous adaptation of the surgical Alfieri edge-to-edge stitch',
@@ -272,6 +276,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the transseptal kit, access sheath, pigtail, contrast and occluder; record LA pressure, keep the pericardiocentesis tray ready, and alert the operator to falling pressure or inferior ST elevation (possible air embolism)',
       'Verify consent, renal function and anticoagulant instructions; give heparin on order and track ACT (commonly ~250–350 s); post-implant monitor for tamponade, access bleeding and new neuro deficits, and teach the prescribed antithrombotic schedule and follow-up imaging',
       'Reasonable for non-valvular AF with high CHA₂DS₂-VASc when long-term OAC is contraindicated for a nonreversible reason (2023 ACC/AHA/ACCP/HRS); size from landing zone and depth on TEE/CT, confirm PASS-type release criteria, and re-image at ~45 days–1 year for DRT and leak',
+      'LAAO patients have AF and most take only antiplatelet drugs once the device has healed in, so a new deficit is a stroke alert: record last known well, check glucose and report which antithrombotic they take and the last dose; after a recent implant, report hypotension, tachycardia or chest pain at once (possible pericardial effusion)',
+      'Work up a stroke in an LAAO patient as usual and find out why anticoagulation was stopped: a prior intracranial hemorrhage, a recent DOAC dose or a raised INR weigh against thrombolysis (decide with neurology), but thrombectomy stays open for a large-vessel occlusion; after a recent implant, hypotension calls for bedside echo and pericardiocentesis for tamponade',
     ],
     overview: [
       'About 90% of thrombi in non-valvular AF arise in the LAA',
@@ -389,6 +395,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Draw serial oximetry samples (SVC, IVC, PA, systemic) and calculate Qp:Qs, record RA and PA pressures, and prepare the sizing balloon, delivery sheath and occluder; flush meticulously to avoid air and alert the operator to arrhythmia or ST change',
       'Check consent, allergies (including nickel), renal function and anticoagulants; give heparin and moderate sedation on order (practitioner present) with capnography; afterwards monitor rhythm, the venous site and tamponade signs, and teach antiplatelet adherence and 6-month endocarditis prophylaxis',
       'Close secundum ASDs with RA/RV enlargement and Qp:Qs ≥ 1.5 if PASP < 50% systemic and PVR < 1/3 systemic; assess all rims on TEE/ICE (deficient aortic rim acceptable, deficient IVC/posterior not), avoid oversizing to limit erosion, and consider test occlusion in older adults',
+      'Chest pain, fainting or collapse in a patient with a septal occluder can be device erosion with tamponade: get a 12-lead within 10 minutes, keep the patient monitored and report hypotension, tachycardia or JVD at once; palpitations after closure are often AF or flutter, so record a strip for the physician',
+      'In a septal occluder patient with chest pain, hypotension or syncope, do bedside echo at once: a new effusion suggests device erosion, which needs emergency cardiac surgery with pericardiocentesis only as a bridge; treat new AF or flutter as usual and ask cardiology about anticoagulation',
     ],
     overview: [
       'Only secundum ASDs are suitable; primum, sinus venosus and coronary sinus defects need surgery',
@@ -495,6 +503,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare agitated saline for bubble studies, a multipurpose catheter, exchange wire and occluder; flush and de-air the delivery system meticulously because air crosses to the systemic side, record RA pressure and alert the operator to arrhythmia or ST change',
       'Confirm consent and that pre-procedure antiplatelet doses were given as ordered; give heparin and moderate sedation on order with the practitioner present and capnography; afterwards check the venous site and rhythm, and teach antiplatelet adherence and reporting palpitations or neuro symptoms',
       'Reasonable for ~18–60 y with non-lacunar cryptogenic embolic stroke and a high-risk PFO (atrial septal aneurysm or large shunt) after excluding AF and other mechanisms; RoPE and PASCAL estimate causality (CLOSE, RESPECT, REDUCE), and a ~6-month bubble study confirms closure',
+      'Triage a young adult with a sudden deficit as a stroke alert like any other: check glucose, record last known well and get the patient to CT fast; ask about long travel, leg swelling or recent straining, and report a known PFO or septal device to the physician',
+      'A stroke with no obvious cause in a young adult raises paradoxical embolism through a PFO: treat it by standard criteria first (thrombolysis or thrombectomy), then look for a leg DVT and for AF and refer for the neurology–cardiology PFO workup; after closure, treat new AF as usual with cardiology input',
     ],
     overview: [
       'A PFO is present in ~25% of adults and is usually incidental',
@@ -600,6 +610,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the valvuloplasty balloon (diluted contrast), stiff LV wire, pacing lead and large-bore sheath; confirm pacing capture, record simultaneous LV–aortic gradients before and after inflation, and call out sustained hypotension or VF after rapid pacing',
       'Patients are often frail or in shock: confirm consent and renal function, give heparin, vasopressors or inotropes on order, and after BAV monitor for access bleeding, acute AR (hypotension, pulmonary edema), stroke and conduction block, escalating immediately',
       'BAV is temporizing — restenosis within ~6–12 months and no survival benefit alone — so use it to bridge unstable AS to TAVR/SAVR or as palliation; size the balloon at or slightly below the annulus, inflate under rapid pacing and reassess for severe AR',
+      'Severe aortic stenosis is preload-dependent: lay a hypotensive patient flat, give fluid on order and clarify any nitroglycerin or other vasodilator order before giving it; after BAV, check the groin and distal pulses and report new breathlessness, hypotension or a slow rhythm at once',
+      'In severe AS with hypotension avoid nitrates and vasodilators, support BP with phenylephrine or norepinephrine (fluid only in small boluses and only if the lungs are dry), expect sedation or intubation to drop the BP, and call cardiology early — urgent BAV can bridge an unstable patient to TAVR; after a recent BAV, hypotension with pulmonary edema suggests acute severe AR or tamponade on bedside echo',
     ],
     overview: [
       'Retrograde transfemoral balloon dilation of the aortic valve',
@@ -703,6 +715,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Set up transducers for simultaneous LA (or PCWP) and LV pressures, record the mean transmitral gradient and calculate MVA before and after each inflation, prepare the Inoue balloon at the size the operator chooses, and report falling BP or rising v-waves',
       'Verify the pre-procedure TEE and anticoagulation status (and the obstetric plan if pregnant); give heparin and moderate sedation on order (practitioner present), then monitor for tamponade, acute MR (pulmonary edema, hypotension) and neuro deficits, escalating immediately',
       'Recommended for symptomatic severe rheumatic MS (MVA ≤ 1.5 cm²) with favorable morphology, no LA thrombus and < moderate MR; Wilkins ≤ 8 without commissural calcium predicts success — inflate stepwise from below reference size and stop if MR rises ≥ 1 grade',
+      'In mitral stenosis a fast rate floods the lungs: report rapid AF at once, sit the patient up, give oxygen to target and give rate-control drugs on order with a BP check before each dose; ask about pregnancy, warfarin and the last INR',
+      'In decompensated MS slow the rate to lengthen diastole (IV beta-blocker or diltiazem), give a diuretic, anticoagulate AF with heparin and cardiovert if unstable; after a recent BMV, new pulmonary edema or shock suggests acute severe MR from a leaflet tear or tamponade — bedside echo and an urgent cardiology call',
     ],
     overview: [
       'Percutaneous mitral balloon commissurotomy, usually with the Inoue balloon',
@@ -810,6 +824,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the coronary guide, short OTW balloon, echo contrast and temporary pacing set-up, with dehydrated ethanol drawn up and labeled only on the physician’s order; record rest and post-PVC LV–aortic gradients and alert the operator to heart block or ST change',
       'Expect chest pain from the intended septal infarct — give analgesia and heparin on order; monitor continuously for complete heart block (temporary pacing ready), VT and hypotension for several days, trend ECGs and troponin as ordered, and escalate rhythm changes',
       'For obstructive HCM with LVOT gradient ≥ 50 mmHg and symptoms despite GDMT (including myosin inhibitors), choose ASA vs myectomy at an experienced center (2024 AHA/ACC); confirm the perforator territory on myocardial contrast echo and seal it with an OTW balloon to prevent LAD reflux',
+      'Fainting or a slow pulse in the days after septal ablation may be complete heart block, and VT also occurs: put pacing pads on, get a 12-lead within 10 minutes and show it at once, and be ready to pace or shock; in obstructive HCM, clarify any nitroglycerin or diuretic order and give fluid for hypotension on order',
+      'Complete heart block and VT are known early complications of the septal infarct: pace (transcutaneous, then transvenous), cardiovert or defibrillate VT and admit to a monitored bed with cardiology; treat hypotension in obstructive HCM with fluid and phenylephrine, and avoid nitrates, inotropes and other vasodilators',
     ],
     overview: [
       'Percutaneous septal reduction therapy for obstructive HCM',
@@ -923,6 +939,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare steerable sheaths, hydrophilic wires, snares, several plug sizes and an AV-rail set-up if planned; record gradients across the prosthesis before and after each plug and alert the operator to a rising gradient, arrhythmia or hypotension',
       'Check hemoglobin, LDH, INR and the anticoagulation plan before the case; give heparin on order and track ACT; afterwards trend hemolysis labs, watch for tamponade, stroke and bleeding, and restart anticoagulation for mechanical valves promptly as ordered',
       'Transcatheter closure is reasonable for PVL with intractable hemolysis or NYHA III–IV HF at high surgical risk with suitable anatomy at an expert center (2020 ACC/AHA, 2a); exclude endocarditis, localize on a 3D TEE/CT clock face and size plugs to avoid leaflet impingement',
+      'Ask every prosthetic valve patient which anticoagulant they take (warfarin and the last INR for a mechanical valve); report dark urine, jaundice or pallor (possible hemolysis), fever (possible endocarditis) or new breathlessness, and draw blood cultures before any antibiotic when they are ordered',
+      'New heart failure or hemolysis (high LDH, low haptoglobin, schistocytes) in a prosthetic valve patient suggests a paravalvular leak, but rule out endocarditis first with blood cultures before antibiotics and an echo (often TEE); transfuse and treat heart failure as needed, and refer to the structural or cardiac surgery team',
     ],
     overview: [
       'Paravalvular leak is commoner with mitral and mechanical prostheses and also occurs after TAVR',
@@ -1028,6 +1046,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the micropuncture kit, sheaths, pigtail and selective catheters and the DSA runoff set-up (or CO₂ system in CKD); program the power injector as directed, coach breath-holds for subtraction runs and apply ALARA with collimation and shielding',
       'Check allergies, renal function, metformin and antithrombotic instructions and baseline distal pulses; after the case perform access-site, pulse and neurovascular checks per protocol, encourage hydration as ordered, and escalate hematoma, back pain with hypotension or a cold limb',
       'ABI and duplex, CTA or MRA come first; invasive angiography plans revascularization of refractory claudication, CLTI or ALI — choose contralateral up-and-over, antegrade, radial or pedal access by lesion, use CO₂ in CKD and image runoff to the foot',
+      'Check any recent arterial puncture site with distal pulses, color, sensation and movement; report back or flank pain with hypotension at once (possible retroperitoneal bleed), hold manual pressure for external bleeding or a growing hematoma, and send a hemoglobin and type and screen on order',
+      'Hypotension with back or flank pain after femoral access is a retroperitoneal bleed until CT shows otherwise: resuscitate, stop heparin and call the interventionalist or vascular surgery; a pulsatile groin mass with a bruit suggests pseudoaneurysm (duplex), and a cold pulseless limb is acute limb ischemia needing heparin and an emergency vascular consult',
     ],
     overview: [
       'Invasive imaging of the aorta, iliac, femoropopliteal and infrapopliteal arteries',
@@ -1133,6 +1153,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare balloons, drug-coated devices, stents, atherectomy or lithotripsy consoles and long sheaths per the operator’s plan; track ACT timing and contrast volume, record pressure gradients if requested, and alert the operator to patient pain, hemodynamic change or arrhythmia',
       'Give heparin on order to the ACT target and antiplatelet loading as prescribed; after the case do frequent distal pulse/Doppler and neurovascular checks, watch for compartment syndrome, hyperkalemia and access bleeding, and reinforce antiplatelet, statin and smoking-cessation teaching',
       'Revascularize for lifestyle-limiting claudication after exercise therapy and GDMT, or for CLTI; match tool to segment (iliac stents, drug-coated femoropopliteal devices, inline tibial flow to the wound), consider vein bypass (BEST-CLI) and afterwards rivaroxaban 2.5 mg bid plus aspirin (VOYAGER PAD)',
+      'Triage a newly cold, pale, painful or numb leg after a recent stent as an emergency: mark the last palpable or Doppler pulse and report it at once; after reperfusion, watch the monitor for peaked T waves and the calf for tense swelling or pain out of proportion, and send potassium on order',
+      'An acutely ischemic leg after peripheral stenting usually means stent thrombosis: start heparin, grade the limb by sensation and strength (any loss means it is threatened) and call vascular surgery or the interventionalist for emergent revascularization; after reperfusion, check potassium and CK and look for compartment syndrome',
     ],
     overview: [
       'Endovascular-first strategies are common for many lesions',
@@ -1238,6 +1260,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the long sheath, embolic protection device, carotid stent and balloons, with atropine or glycopyrrolate drawn up on the physician’s order; record continuous arterial pressure and heart rate and call out bradycardia or asystole during post-dilation immediately',
       'Perform baseline and serial neuro checks (speech, grip, facial symmetry) during and after the case; give atropine or vasopressors on order for bradycardia or hypotension, keep BP within the ordered range to limit hyperperfusion, and escalate any neuro change immediately',
       'For symptomatic severe stenosis choose CEA, transfemoral CAS or TCAR by age, arch anatomy and surgical risk — CAS carries more periprocedural stroke in older patients (CREST); pretreat with DAPT and statin, use embolic protection and blunt reflex bradycardia before post-dilation',
+      'After carotid stenting, call a stroke alert for a new deficit, severe headache or seizure, record last known well and take the patient to CT; check BP and heart rate often, ask the physician for the BP range, and report BP above it (hyperperfusion), bradycardia or hypotension at once',
+      'A new deficit after carotid stenting needs CT and CTA to separate embolic stroke (a thrombectomy candidate) from hyperperfusion syndrome or hemorrhage (headache, seizure, high BP — lower it promptly); treat persistent bradycardia or hypotension from carotid sinus stretch with atropine, fluid or a vasopressor, and involve the neurointerventional team',
     ],
     overview: [
       'Transfemoral CAS with embolic protection; transcarotid revascularization (TCAR) with flow reversal is an alternative',
@@ -1347,6 +1371,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare venous sheaths, a pigtail, and infusion or large-bore aspiration catheters; record RA, RV and PA pressures before and after treatment, watch for ectopy or VT during RV passage, and track aspirated blood loss for the operator',
       'Verify lytic contraindication screening and orders; give alteplase and heparin exactly as ordered and monitor frequently per protocol for bleeding, access-site oozing and neuro change, with hemoglobin and fibrinogen as ordered, escalating any decline immediately',
       'Classify with the 2026 AHA/ACC PE Clinical Categories A–E (severity score, RV function, biomarkers, hemodynamics): advanced therapy (systemic or catheter-directed lysis, mechanical thrombectomy, surgical embolectomy) is reasonable in E1 and may be considered in D1–D2, the benefit of lysis or catheter therapy in C3 is uncertain, and systemic lysis is not used in A–C2 — decide with the PERT',
+      'Suspected PE with tachycardia, hypoxia or low BP is high acuity: monitor, give oxygen to target, place two large-bore IVs and get a 12-lead within 10 minutes; give heparin exactly as ordered, report a falling BP or rising oxygen need at once, and if lysis is ordered, confirm the contraindication checklist and watch closely for bleeding and neuro change',
+      'Stratify PE with the 2026 AHA/ACC categories (severity score, bedside echo for RV strain, troponin, BP) and anticoagulate unless contraindicated; activate the PERT for categories C–E, choose an advanced therapy with it for cardiopulmonary failure (systemic lysis, or catheter or surgical removal when lysis is contraindicated), and avoid intubation and large fluid boluses',
     ],
     overview: [
       'Includes catheter-directed thrombolysis, ultrasound-facilitated thrombolysis and mechanical or aspiration thrombectomy',
@@ -1459,6 +1485,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the filter kit and delivery sheath, a marker pigtail for cavography and the power injector as directed; record filter type, lot and position for retrieval tracking, and apply ALARA during jugular or femoral access',
       'Confirm the indication and retrieval plan are documented; after placement check the access site and both legs, monitor for bleeding and new swelling, and teach the filter type, MRI-conditional status and the need for retrieval follow-up',
       'Place filters only for acute proximal DVT/PE with an absolute contraindication to anticoagulation — not routinely with anticoagulation (PREPIC 2) or for primary prophylaxis; cavography defines renal veins and IVC diameter, then anticoagulate when safe and retrieve promptly',
+      'Ask any VTE patient whether they have an IVC filter and why, and triage breathlessness, chest pain or hypoxia as possible PE even with one in place; report new swelling of both legs (possible filter or IVC thrombosis) and any bleeding that would affect anticoagulation',
+      'A filter does not rule out PE — work up and treat as usual, and check whether the reason anticoagulation was withheld has resolved; ask for a new filter only for acute proximal DVT or PE with an absolute contraindication to anticoagulation (e.g. active bleeding), and image the legs and IVC for new bilateral swelling',
     ],
     overview: [
       'A mechanical barrier — it does not stop clot formation',
@@ -1559,6 +1587,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'For graft angiography, prepare IMA and bypass graft catheters (and left radial or femoral set-ups for LIMA access), keep the operative graft list at hand, and alert the operator to pressure damping, ST change or arrhythmia during selective injections',
       'Coordinate ordered holds (P2Y12 inhibitors, anticoagulants) and pre-op teaching; after CABG monitor chest tube output, rhythm, pacing wires, glucose and the sternal wound, and escalate tamponade signs (falling BP, rising CVP, sudden drop in drainage)',
       'Favor CABG for left main with high SYNTAX, multivessel disease with diabetes (FREEDOM) and ischemic cardiomyopathy with LVEF ≤ 35% (STICH); LIMA–LAD drives survival, and radial or second IMA beats vein for high-grade non-LAD targets — decide with the heart team',
+      'After CABG, chest pain or its equivalents need a 12-lead within 10 minutes, shown to the physician, with the graft history in the report; check the sternal and leg wounds for redness or drainage, and report fever, a new irregular rhythm, or hypotension with JVD in the first weeks (possible tamponade)',
+      'A STEMI after CABG still goes to the cath lab (share the graft map), but early post-op chest pain may also be pericarditis, mediastinitis or early graft failure; rate-control post-op AF and plan anticoagulation with the surgeon, and for hypotension with JVD after recent surgery get bedside echo and the surgeon, since a localized clot can be missed',
     ],
     overview: [
       'Conduits: left and right internal mammary arteries, radial artery and saphenous vein',
@@ -1675,6 +1705,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Identify the prosthesis on fluoroscopy, prepare pigtails and transducers for simultaneous gradients during pre-op angiography or prosthesis assessment, and alert the operator before any catheter approaches a mechanical valve (entrapment risk)',
       'Verify INR and bridging orders before procedures, monitor for bleeding and tamponade after surgery, and teach warfarin adherence to the team’s INR target, that DOACs cannot replace warfarin for mechanical valves, and dental endocarditis prophylaxis',
       'Prefer repair for degenerative MR when durable repair is likely; choose mechanical vs bioprosthetic by age, anticoagulation tolerance and preference, avoid patient–prosthesis mismatch (consider root enlargement) and record true internal diameter for future valve-in-valve',
+      'Ask mechanical valve patients about warfarin, the last INR and missed doses; treat any head injury on warfarin as high acuity (point-of-care INR, physician at once for urgent CT), and report fever, a new murmur, muffled valve clicks or stroke signs at once',
+      'For life-threatening bleeding on warfarin with a mechanical valve, reverse with 4-factor PCC and IV vitamin K while weighing valve thrombosis with cardiology; fever with a prosthetic valve is endocarditis until blood cultures and TEE say otherwise, and muffled clicks with HF or emboli suggest valve thrombosis',
     ],
     overview: [
       'Includes SAVR, mitral repair or replacement, tricuspid repair and the Ross procedure',
@@ -1783,6 +1815,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'During right heart cath or ramp studies, record RA, PA, PCWP and cardiac output at each pump speed the team sets, note controller speed, flow, power and PI, protect the driveline, and alert the operator to suction events or VT',
       'Keep Doppler MAP in the center’s target range (commonly ~75–90 mmHg), monitor LDH, hemoglobin, INR and pump parameters, do sterile driveline care, and escalate GI bleeding, pump thrombosis signs (dark urine, power rise), stroke or RV failure',
       'Select by INTERMACS profile, RV function, end-organ status and social support; HeartMate 3 cut pump thrombosis and stroke vs axial-flow pumps (MOMENTUM 3) and ARIES-HM3 supports omitting aspirin; anticipate RV failure, aortic regurgitation and outflow graft obstruction',
+      'At triage take a Doppler MAP, read the controller display and alarms, and keep the pump on wall power or charged batteries; send LDH, hemoglobin and INR on order, report GI bleeding, dark urine, driveline redness or new neuro signs, call the VAD coordinator early, and if the patient is unresponsive with poor perfusion, start compressions and call the code',
+      'Judge an LVAD patient by perfusion, Doppler MAP and pump data (speed, flow, power, PI), not the pulse; common ED problems are GI bleeding, pump thrombosis (high LDH, rising power), stroke, driveline infection, suction events from hypovolemia (give fluid) and VT (cardiovert or defibrillate as usual) — call the VAD center before changing speed or anticoagulation',
     ],
     overview: [
       'Fully magnetically levitated centrifugal pumps (HeartMate 3) now dominate; the HeartWare HVAD was withdrawn in 2021',
@@ -1900,6 +1934,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Recipients return for surveillance biopsy, right heart cath and coronary angiography with IVUS: prepare the bioptome and specimen containers, record RA, PA, PCWP and cardiac output, and alert the operator to arrhythmia or heart block during RV work',
       'Use strict asepsis; check tacrolimus timing and level, renal function and interacting drugs; after biopsy or cath monitor for tamponade, arrhythmia and access bleeding, and reinforce immunosuppression adherence and infection warning signs',
       'Surveil for cellular (ISHLT 0R–3R) and antibody-mediated rejection by EMB ± gene-expression profiling or dd-cfDNA, screen yearly for CAV (IVUS detects early intimal thickening), and treat new arrhythmia or HF as rejection until proven otherwise',
+      'Recipients are immunosuppressed: triage fever as high risk, keep strict asepsis and send cultures and a tacrolimus trough on order; a resting rate of 90–110 is normal, but report a new arrhythmia, hypotension or breathlessness at once (possible rejection) and put pacing pads on for a slow rate, since atropine does not work on the denervated heart',
+      'A new arrhythmia or heart failure in a recipient may be rejection: get bedside echo and troponin and call the transplant team early; ischemia may be painless (allograft vasculopathy), atropine does not work for bradycardia (pace, or use epinephrine or isoproterenol), adenosine starts at 3 mg, and check tacrolimus interactions (azoles, macrolides, diltiazem) before prescribing',
     ],
     overview: [
       'Median survival after adult heart transplant is ~12–13 years',
@@ -2013,6 +2049,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Place pads before high-risk cases (not over a device generator) and know the lab defibrillator; call out VF the instant it appears, shock when the operator calls for it or per your ACLS role and facility policy, and log times, energies and rhythms',
       'Support the code per ACLS: confirm pad placement, deliver shocks as the team directs, give epinephrine and amiodarone or lidocaine per ACLS standing orders, use capnography to gauge CPR quality, and document times, energies and drugs',
       'For refractory VF (≥ 3 shocks) consider antiarrhythmics, reversible causes and mechanical CPR/ECPR in selected patients — the 2025 AHA guidelines rate vector change and DSED (DOSE-VF) as of unestablished usefulness (2b); electrical storm needs ischemia treatment, electrolyte correction, beta-blockade, sedation and urgent revascularization or ablation; interrogate CIEDs after shocks',
+      'Do not wait for the physician: if a monitored ED patient goes into VF or pulseless VT, start compressions and shock at the device’s biphasic dose as soon as pads are on, then resume CPR at once; get IV access (IO if IV fails), give epinephrine and amiodarone or lidocaine per the ED’s ACLS protocol, and watch waveform capnography for CPR quality',
+      'Lead the code: shock VF/pVT with minimal pauses, give epinephrine once initial shocks have failed and amiodarone or lidocaine for refractory VF, use bedside echo only if it does not interrupt CPR and consider ECPR for refractory VF where available; after ROSC get a 12-lead (cath lab for STEMI), keep MAP ≥ 65 mmHg and SpO₂ 90–98%, and start temperature control if the patient does not follow commands',
     ],
     overview: [
       'Unsynchronized shock delivered at any point in the cardiac cycle',
@@ -2125,6 +2163,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare pads, the defibrillator with SYNC checked on the monitored lead, suction and airway equipment; join the time-out, record pre- and post-shock rhythm strips and energies, and alert the team if sync markers fall on T waves',
       'Verify NPO status, consent, potassium, digoxin use and anticoagulation (≥ 3 weeks or TEE as ordered); give moderate sedation only on order with the practitioner present and capnography on; monitor rhythm, BP and airway until recovered and reinforce ongoing anticoagulation',
       'For AF/flutter ≥ 48 h or of unknown duration, give ≥ 3 weeks of therapeutic anticoagulation or exclude LAA thrombus by TEE and continue ≥ 4 weeks after; an initial biphasic energy ≥ 200 J and antiarrhythmic pretreatment improve success, and CIEDs need interrogation afterwards',
+      'Put pads on with an IV, suction and airway kit at hand; on the physician’s direction press SYNC, check that the markers sit on the R waves and that SYNC is still on before every repeat shock (many devices switch it off); give the sedative on order with the physician at the bedside, watch capnography, SpO₂ and BP until the patient is awake, and if VF appears, turn SYNC off and defibrillate',
+      'Cardiovert unstable tachycardia at once, sedating if time allows (2025 AHA initial biphasic: AF ≥ 200 J, flutter 200 J, narrow regular and monomorphic VT 100 J), and defibrillate polymorphic VT; before an elective ED cardioversion of AF or flutter lasting ≥ 48 h or of unknown onset, require 3 weeks of anticoagulation or a TEE, and discharge only with an anticoagulation plan',
     ],
     overview: [
       'Delivering the shock on the R wave avoids the vulnerable period of the T wave (R-on-T can induce VF)',
@@ -2233,6 +2273,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the balloon-tipped lead, sheath and generator with fresh batteries; record capture threshold and sensing as the operator tests them, label final settings, and alert the operator to loss of capture, ectopy or an RBBB-pattern paced QRS',
       'Assess perfusion and mental status, give atropine, chronotropes and analgesia/sedation on order, and confirm mechanical capture; secure the lead and generator, limit access-limb movement, check thresholds per protocol and competency, and escalate loss of capture or tamponade signs',
       'Correct reversible causes (ischemia, hyperkalemia, drug toxicity, Lyme carditis) first — AV block in inferior MI often resolves; place the TVP via the RIJ to the RV, aim for threshold < ~1 mA, set output ~2–3× threshold and verify sensing',
+      'Put pacing pads on any symptomatic slow rhythm and give atropine on order; when the physician directs TCP, use demand mode, raise the mA until every spike is followed by a wide QRS, confirm a femoral pulse at the paced rate and give analgesia or sedation on order, and report loss of capture, or chest pain or a falling BP after a transvenous wire (possible perforation)',
+      'Pace symptomatic bradycardia when atropine fails or will not work (infranodal block), with a chronotrope infusion as a bridge, moving from painful, unreliable TCP to a transvenous wire through the right IJ under ultrasound (check capture, position on echo and a chest X-ray), while you treat the cause: hyperkalemia, drug toxicity, inferior MI or Lyme carditis',
     ],
     overview: [
       'Transcutaneous pacing (TCP) uses external pads — fast but painful and less reliable',
@@ -2353,6 +2395,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'If perforation is suspected (falling pressure, rising heart rate, reduced cardiac border motion), alert the operator, open the pericardiocentesis tray, prepare echo, agitated saline and the drainage set, and record pressures before and after drainage',
       'Recognize tamponade (hypotension, tachycardia, pulsus paradoxus, rising RA pressure), escalate immediately and give fluids or vasopressors on order; after drainage record drain output, monitor vitals and rhythm, and keep the drain sterile and patent per protocol',
       'Tamponade is a clinical diagnosis supported by echo (RA/RV collapse, plethoric IVC, respiratory variation); choose subxiphoid, apical or parasternal entry by echo, confirm with agitated saline and leave a pigtail — but send trauma, dissection or free-wall rupture to surgery',
+      'Bring the physician for hypotension with tachycardia, JVD or muffled heart sounds and measure pulsus paradoxus if time allows; give fluid on order, set up the ultrasound, pericardiocentesis kit and drainage bag with the patient at ~30–45°, and watch the monitor for ectopy or ST change as the needle advances',
+      'Bedside echo backs up the clinical picture — an effusion with RA/RV diastolic collapse and a plethoric IVC in a hypotensive patient; give fluid, avoid intubation and positive pressure if you can, and drain under echo guidance at once if the patient is crashing or in PEA, but for trauma or type A dissection call the surgeon and drain only enough to restore BP as a bridge to the OR',
     ],
     overview: [
       'Echo guidance gives high success and low complication rates',
@@ -2464,6 +2508,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Set up ultrasound, fluoroscopy, wires, dilators and cannulas, help keep connections air-free as directed, record ACT and arterial pressures, and alert the operator to falling pulse pressure, arrhythmia or limb color change; the perfusionist or ECMO specialist runs the circuit',
       'Give heparin on order and monitor ACT or anti-Xa; do hourly distal limb perfusion checks, right radial SpO₂ or gases for differential hypoxia and access-site bleeding checks, and escalate falling pulse pressure, pulmonary edema or a cold leg immediately',
       'VA-ECMO is a bridge — define the exit strategy early, vent the LV for distension, place the venous tip at the RA–IVC junction and protect the leg with a distal perfusion cannula; ECLS-SHOCK showed no mortality benefit from routine use in AMI shock',
+      'In refractory arrest the ED keeps ECPR possible: minimize pauses, apply the mechanical CPR device per protocol, record the arrest, CPR-start and shock times, keep both groins free for cannulation (arm IVs or an IO), and have labs and blood ready for the ECMO team; once on ECMO, check distal leg pulses and right-hand SpO₂ and report bleeding at once',
+      'Pick ECPR candidates early by local criteria (typically witnessed, shockable, refractory after ≥ 3 shocks, short low-flow time, no futility): call the ECMO team, start mechanical CPR and secure ultrasound-guided femoral arterial and venous access for them; in refractory shock consult early, remembering that routine VA-ECMO gives no benefit in MI shock',
     ],
     overview: [
       'Peripheral VA-ECMO: femoral venous drainage → pump → oxygenator → femoral arterial return with retrograde aortic flow',
@@ -2577,6 +2623,8 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Prepare the bioptome, long sheath and labeled specimen containers (formalin and other media per pathology request), record right heart pressures if ordered, watch for PVCs, heart block or chest pain, and keep the pericardiocentesis kit immediately available',
       'Check coagulation, anticoagulant holds and consent, and give moderate sedation on order (practitioner present); after the biopsy monitor vitals, rhythm and the jugular or femoral site, and escalate chest pain, hypotension or JVD (possible perforation) immediately',
       'Key indications: transplant rejection surveillance, new HF < 2 weeks with hemodynamic compromise, or HF of 2 weeks–3 months with new ventricular arrhythmias or high-grade block (suspect giant cell myocarditis); target the RV septum, take ~4–6 samples and avoid the free wall',
+      'After a recent heart biopsy, chest pain, hypotension or JVD can be perforation with tamponade: monitor, bring the physician to the bedside and give fluid on order; check the neck or groin site for bleeding, and in a transplant recipient report any new arrhythmia and keep strict asepsis',
+      'Post-biopsy chest pain or hypotension is RV perforation until bedside echo excludes an effusion — drain tamponade, and look for pneumothorax after jugular access; in suspected fulminant or giant cell myocarditis (rapid HF, VT, heart block), stabilize with pacing, cardioversion and inotropes and transfer early to a center that can biopsy and provide mechanical support',
     ],
     overview: [
       'Usually right ventricular biopsy via jugular or femoral venous access',

@@ -22,6 +22,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'On right heart cath, zero and level the transducer at mid-chest (phlebostatic axis) and record RA a, v and mean pressures at end-expiration (normal mean ~2–6 mmHg). Report cannon a waves, large v waves or equalized diastolic pressures to the operator.',
       'Trend RA/CVP with other hemodynamics rather than acting on single values, and expect atrial ectopy when catheters enter the RA. Hypotension with rising RA pressure after a right-heart or transseptal procedure suggests tamponade: notify the physician immediately and bring the pericardiocentesis tray.',
       'Read the RA waveform: cannon a waves (AV dissociation), giant a waves (TS, reduced RV compliance), large cv waves (severe TR), steep y descent (constriction), blunted y (tamponade). Know Koch triangle, the cavotricuspid isthmus and crista terminalis for CTI ablation, lead placement and transseptal navigation.',
+      'A regular narrow-complex rate fixed near 150/min may be atrial flutter with 2:1 block: record a 12-lead and show it to the physician. Distended neck veins with low BP after trauma, a procedure or sudden breathlessness suggest high right-heart pressure (tamponade, tension pneumothorax, PE): get the physician and the ultrasound to the bedside at once.',
+      'Bedside echo shows what the neck veins suggest: RA systolic collapse with a plethoric IVC points to tamponade, a dilated RA and RV to PE or RV failure. Treat flutter like AF: cardiovert if unstable, otherwise control the rate (often harder than in AF) and anticoagulate by the same stroke-risk score, with the same 48-hour rule before elective cardioversion.',
     ],
     overview: [
       'Receives SVC, IVC and coronary sinus return and delivers it to the RV across the tricuspid valve',
@@ -110,6 +112,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'For transseptal cases, prepare the sheath, needle and flushed pressure line, and record LA pressure once across (mean ~6–12 mmHg; note the v wave). Keep LA sheaths continuously flushed and alert the operator to hypotension, sudden inferior ST elevation (possible air embolism) or arrhythmia.',
       'Verify anticoagulant history and that LA/LAA thrombus has been excluded per protocol. After transseptal access, give heparin as ordered and check ACT against the ordered target; monitor for tamponade, neuro changes and groin bleeding, and escalate promptly.',
       'PCWP approximates LA pressure (normal ~6–12 mmHg); LA volume index >34 mL/m² reflects chronic filling pressure and predicts AF, stroke and HF. Tailor the transseptal site to the procedure and respect the posterior wall–esophagus relationship and PV ostial anatomy during ablation.',
+      'In rapid AF, record when the palpitations started and which anticoagulant the patient takes, with the time of the last dose, and report both: the physician needs them before any cardioversion. For pulmonary edema, sit the patient upright, start CPAP or BiPAP as ordered and recheck BP before each nitroglycerin dose.',
+      'Rapid AF with pulmonary edema: cardiovert at once if unstable. Otherwise, while the lungs are wet, slow the rate with IV digoxin or amiodarone rather than an IV beta-blocker or diltiazem (never diltiazem or verapamil with EF ≤40%), treat the congestion and look for a trigger the ED can treat (sepsis, ischemia, PE, thyrotoxicosis, alcohol).',
     ],
     overview: [
       'Receives four pulmonary veins (typically RSPV, RIPV, LSPV, LIPV)',
@@ -204,6 +208,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Record RV pressures as the catheter crosses (normal ~15–30/2–8 mmHg) and expect ectopy; report sustained runs to the operator. The thin RV wall can be perforated by wires, bioptomes or pacing leads, so flag new hypotension or a damped waveform immediately.',
       'RV infarction is preload-dependent: give fluids and vasoactives as ordered, monitor BP, rhythm (AV block) and lung sounds, and clarify any nitrate or diuretic order with the physician. After biopsy or lead placement, watch for tamponade and escalate immediately.',
       'Quantify RV function with TAPSE (≥17 mm), S′ (≥9.5 cm/s), FAC (≥35%) and RV/LV ratio. Acute RV failure spirals (afterload rise → dilation → septal shift → ischemia): support MAP with norepinephrine, avoid over-filling, hypoxia and hypercapnia, and consider early RV mechanical support.',
+      'With an inferior STEMI, record right-sided leads (V4R) and show them to the physician before any nitroglycerin is given. Low BP with clear lungs and distended neck veins suggests RV involvement: report it, have a fluid bolus ready to give on order, and watch the monitor for AV block.',
+      'In shock, an RV larger than the LV with a D-shaped septum on bedside echo points to PE or RV infarction: support the BP with norepinephrine and small fluid boluses, give no nitrates, and expect collapse at intubation. Both need reperfusion: the cath lab for RV infarction, and for PE with persistent hypotension (2026 Category E1) lysis or catheter or surgical therapy, chosen with the PE team.',
     ],
     overview: [
       'Most anterior chamber, directly behind the sternum',
@@ -302,6 +308,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Record LV systolic pressure and LVEDP (normal ≤12 mmHg) before ventriculography and on pullback across the aortic valve to document any gradient. Set up the pigtail and power injector as directed, and alert the operator to a high LVEDP, ectopy or VT during injection.',
       'Assess for LV failure (crackles, SpO₂, urine output, mentation) before and after the case; a high LVEDP may change contrast and fluid orders. Monitor for VT/VF, hypotension and pulmonary edema, start ACLS when needed, notify the physician and titrate vasoactives as ordered.',
       'Classify HF by LVEF (HFrEF ≤40%, HFmrEF 41–49%, HFpEF ≥50%) and match wall motion to the culprit territory. Use LVEDP, LVEF and SCAI shock stage to guide contrast volume, revascularization strategy and mechanical support: a microaxial flow pump (Impella) is reasonable in selected STEMI shock, while routine IABP or VA-ECMO in MI shock shows no benefit (2025 ACC/AHA ACS).',
+      'For chest pain, record a 12-lead within 10 minutes of arrival and hand it to the physician at once; give aspirin per standing order, and before any nitroglycerin check BP and ask about sildenafil, vardenafil or tadalafil. With STEMI or shock, keep pads on, watch for VT/VF and prepare the patient for the cath lab.',
+      'Read the 12-lead within 10 minutes and activate the cath lab for STEMI or an equivalent (posterior MI, de Winter, LBBB or paced rhythm meeting Sgarbossa criteria); if PCI is over 120 minutes away and onset under 12 hours, give a fibrinolytic unless contraindicated. In shock, look for a mechanical complication on bedside echo and send the patient to a shock-capable PCI center.',
     ],
     overview: [
       'Generates systemic pressure; normal pressure 90–140/5–12 mmHg',
@@ -409,6 +417,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'On fluoroscopy an atrial J-lead in the RAA points anteriorly/leftward and swings with each beat. Record sensing, threshold and impedance values as directed, and report loss of capture, lead movement or new hypotension to the operator.',
       'After device implant, monitor the paced rhythm for loss of atrial capture or sensing, check the pocket for hematoma, and assess for pleuritic pain, hypotension or JVD (possible perforation); notify the physician promptly. Teach the arm-movement restrictions ordered by the implanting team.',
       'The broad triangular RAA with pectinate muscles around the vestibule defines a morphologic RA in situs assessment. Its inter-pectinate wall is paper-thin, so use care with active-fixation leads and stiff catheters; it can also host focal AT and rare appendage–ventricle pathways.',
+      'For a pacemaker patient, find the device card (maker, implant date), record a 12-lead and show the physician any pacing spikes not followed by a P wave or QRS. Place defibrillation pads away from the generator, and report chest pain, low BP or distended neck veins in the weeks after an implant at once (possible lead perforation).',
+      'Chest pain, hypotension or a rub days to weeks after a pacemaker implant suggests lead perforation: look for an effusion on bedside echo and drain tamponade by pericardiocentesis. Check the chest X-ray for pneumothorax and lead position, and have the device interrogated by the manufacturer’s representative or electrophysiology when spikes fail to capture.',
     ],
     overview: [
       'Derived from the trabeculated primitive right atrium',
@@ -480,6 +490,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'For LAA occlusion, prepare the transseptal kit, access sheath and the device size the operator selects, and record LA pressure. Keep pericardiocentesis and snare kits ready, and alert the operator immediately to hypotension, arrhythmia or a change in the pressure trace.',
       'Before cardioversion, ablation or LAAO, verify anticoagulant type, last dose and the TEE/CT result required by the order set. After LAAO, check the access site and neuro status, monitor for tamponade, and teach the prescribed antithrombotic regimen and follow-up imaging schedule.',
       'Anticoagulate by stroke risk (CHA₂DS₂-VASc ≥2 men, ≥3 women), not AF pattern; reserve LAAO for patients with a sound reason to avoid long-term OAC. Size from TEE/CT ostium and landing zone, and screen for peri-device leak and device-related thrombus at follow-up.',
+      'In an AF patient with a sudden neurologic deficit, call the stroke alert per ED protocol, check the glucose, and record the last-known-well time and the anticoagulant with its last dose: the physician needs both for the thrombolysis decision. Before any AF cardioversion, confirm the anticoagulation history the physician asks for.',
+      'Stable AF of 48 hours or more (or unknown duration) needs 3 weeks of anticoagulation or a TEE that excludes LAA thrombus (TTE cannot) before cardioversion, and at least 4 weeks after. In an AF-related stroke, a DOAC dose within 48 hours weighs against IV thrombolysis: decide with the stroke team (last-dose time, drug levels) and look for a large-vessel occlusion for thrombectomy.',
     ],
     overview: [
       'Derived from the primitive left atrium; trabeculated with pectinate muscles',
@@ -554,6 +566,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'For shunt runs, draw oxygen saturations (SVC, IVC, RA, RV, PA, arterial) and calculate Qp:Qs. For transseptal access, prepare the sheath, needle or RF wire, record LA pressure once across, and report hypotension immediately.',
       'For ASD/PFO closure or transseptal cases, verify allergies (including nickel for some occluders) and antithrombotic status, de-air all IV lines, and give heparin as ordered with ACT checks. Afterwards monitor for arrhythmia, effusion and neuro changes, and teach the prescribed antiplatelet plan.',
       'Classify ASD (secundum, primum, sinus venosus, coronary sinus) and judge significance by RV volume overload and Qp:Qs ≥1.5; only secundum defects with adequate rims suit device closure. Puncture only within the fossa floor under ICE/TEE, choosing height and position for the procedure.',
+      'In a patient with a known ASD or PFO, run every IV line and pump air-free, because a venous bubble can cross to the brain; if air enters a line, clamp it, start high-flow oxygen per protocol and call the physician at once. A young patient or diver with sudden neuro symptoms still gets a stroke alert per protocol.',
+      'Stroke or limb ischemia in a young patient with DVT or PE suggests paradoxical embolism across a PFO or ASD: run the usual stroke or limb-ischemia pathway, image the leg veins, and leave the shunt workup (bubble study, TEE) to neurology and cardiology. Neuro symptoms after a dive mean gas embolism or decompression illness: 100% oxygen and an urgent hyperbaric medicine consult.',
     ],
     overview: [
       'Divides RA from LA; normally no flow across it after birth',
@@ -630,6 +644,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'The fossa is the transseptal target: on fluoroscopy the needle "jumps" into it on pullback, and ICE/TEE shows tenting. Prepare the needle, sheath and pressure line, confirm the change from RA to LA waveform, and report an aortic-looking waveform or hypotension immediately.',
       'After PFO closure, monitor rhythm (new AF is usually early and transient), the access site and neuro status, and report palpitations or chest pain. Teach the ordered antiplatelet regimen, endocarditis-prevention advice for the first 6 months, and to call emergency services for stroke symptoms.',
       'Use RoPE and PASCAL to judge whether a PFO is causal; closure plus antiplatelet therapy reduces recurrence in selected patients ≤60 (CLOSE, REDUCE, RESPECT). Confirm tenting on ICE/TEE, avoid the aortic mound, and puncture superior-posterior for TEER, inferior-posterior for LAAO.',
+      'A patient back in the ED after PFO or ASD closure or another transseptal procedure (AF ablation, LAAO, TEER) with chest pain, palpitations or low BP needs a 12-lead and the physician at once: new AF and pericardial effusion are the usual early problems. Check the groin site and ask which antiplatelet or anticoagulant they went home on.',
+      'Hypoxemia out of proportion to the lung findings in a large PE, RV failure or high PEEP suggests right-to-left flow through a PFO; agitated saline on bedside echo shows early left-sided bubbles. A thrombus caught across the fossa (impending paradoxical embolism) is an emergency: start heparin and call cardiology and cardiothoracic surgery at once.',
     ],
     overview: [
       'Remnant of the fetal foramen ovale',
@@ -701,6 +717,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'If post-MI VSD is suspected, draw a saturation run and report an RA-to-RV/PA step-up to the operator. For alcohol septal ablation, prepare the over-the-wire balloon, echo contrast and temporary pacing wire, and record the LVOT gradient before and after.',
       'After alcohol septal ablation, keep continuous rhythm monitoring with the temporary pacing wire in place and report new AV block, VT or chest pain. In post-MI patients, a new murmur, hypotension or pulmonary edema warrants immediate physician notification.',
       'HCM: wall thickness ≥15 mm (≥13 mm with family history or genotype); LVOT gradient ≥30 mmHg defines obstruction, and septal reduction is considered at ≥50 mmHg with refractory symptoms. Septal perforator anatomy guides ASA; ~10–20% need a permanent pacemaker.',
+      'In anterior STEMI, watch the monitor for new bundle branch block, Mobitz II or complete heart block, and keep pacing pads on so transcutaneous pacing can start at the physician’s direction. A patient days after an MI with new breathlessness, low BP or a new loud murmur needs the physician at the bedside at once.',
+      'A new harsh holosystolic murmur with shock days after MI is septal or papillary rupture until bedside color Doppler shows which: call cardiology and cardiac surgery at once. In anterior STEMI, new RBBB with left anterior fascicular block, or Mobitz II, marks a proximal LAD occlusion that can progress to complete heart block: have transcutaneous pacing ready and plan a transvenous wire.',
     ],
     overview: [
       'Separates LV and RV; functionally part of the LV',
@@ -790,6 +808,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'In RAO ventriculography the apex is the inferior tip of the LV silhouette; keep it in the field of view. Set up the pigtail and injector as the operator orders, record LVEDP first, and report ectopy or VT during injection.',
       'After a large anterior MI with apical akinesis, the patient is at risk of LV thrombus and embolism: perform neuro and limb pulse checks and escalate changes immediately. Give anticoagulation as ordered with the specified monitoring and teach bleeding precautions.',
       'Apical akinesis/aneurysm after anterior MI warrants LV thrombus screening (contrast echo or CMR) and anticoagulation if thrombus is found. Separate Takotsubo from wraparound LAD occlusion angiographically; the thin apex is the LVAD inflow site and former transapical TAVR/TMVR route.',
+      'The LVAD inflow cannula sits in the apex: an LVAD patient may have no palpable pulse or reliable SpO₂, so take the MAP with a Doppler and manual cuff, listen over the left chest for the pump hum, read the controller alarms and call the VAD coordinator. Report confusion, low-flow alarms or a damaged driveline at once.',
+      'Apical ballooning on bedside echo with anterior and inferior ST elevation fits Takotsubo or a wraparound LAD occlusion; only angiography tells them apart, so activate the cath lab. A stroke or cold limb after a large anterior MI suggests embolism from an apical LV thrombus, which contrast echo or cardiac MRI finds better than a standard echo.',
     ],
     overview: [
       'Formed by the left ventricle',
@@ -862,6 +882,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'The valve annuli and great-vessel origins at the base are the working zone for TAVR, TEER and LAAO, within a few centimeters on fluoroscopy. Record pressures and gradients before and after deployment, watch the rhythm for new AV block, and report it immediately.',
       'Procedures at the base (TAVR, valve and septal work) can injure the AV node: monitor rhythm and PR/QRS closely afterwards, report new block or bradycardia promptly, and keep transcutaneous pacing available. Also assess for hypotension or tamponade.',
       'Echo segments run base → mid → apex; basal versus apical patterns help separate infarction, Takotsubo variants (reverse/basal) and amyloid (apical sparing). The fibrous skeleton links all four valves and the His bundle, so TAVR, TEER and His-region work share conduction and coronary risks.',
+      'When the 12-lead shows ST depression in V1–V3, record posterior leads V7–V9 as ordered and show them to the physician at once (possible posterior STEMI). A patient in the weeks after TAVR or valve surgery with dizziness or fainting needs continuous monitoring with pacing pads on, because new heart block is a known complication.',
+      'ST depression maximal in V1–V3 with tall R waves suggests posterior MI: STE ≥0.5 mm in V7–V9 confirms a STEMI equivalent, so activate the cath lab, and normal posterior leads with ongoing pain still need cardiology at once. New high-grade AV block after TAVR or valve surgery needs transcutaneous pacing ready, a transvenous wire if unstable, and a call to the implanting team.',
     ],
     overview: [
       'Anatomic base = posterior surface, opposite the apex, formed mostly by the LA',
@@ -935,6 +957,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'On RHC, severe TR ventricularizes the RA trace with large cv waves; record and flag it for the operator. For transcatheter tricuspid repair or replacement, prepare the delivery system and temporary pacing, and report new AV block or inferior ST change immediately.',
       'For patients who inject drugs, assess vein access, pain and withdrawal needs, and draw blood cultures as ordered before antibiotics. After transcatheter tricuspid procedures, monitor rhythm for heart block, the femoral access site and signs of right-heart congestion.',
       'Most TR is secondary (atrial or ventricular functional); severe TR: vena contracta ≥7 mm, EROA ≥0.40 cm², hepatic vein systolic reversal. The AV node/His lie near the septal leaflet and the RCA in the AV groove, so annuloplasty and TV devices risk heart block and RCA injury.',
+      'For a patient who injects drugs and has a fever, draw the blood cultures as ordered before the first antibiotic dose and report hypoxia or pleuritic chest pain (septic lung emboli). Ask about recent use without judgment, watch for withdrawal, and use ultrasound-guided IV access when veins are hard to find.',
+      'Fever with multiple peripheral lung nodules, some cavitating, in a patient who injects drugs is tricuspid endocarditis until proven otherwise: draw at least three blood culture sets, start empiric antibiotics covering S. aureus including MRSA, and admit for echo. Bedside echo may show the vegetation and a TR jet, but a negative scan does not exclude it.',
     ],
     overview: [
       'Separates RA from RV; opens in diastole and closes in systole (contributes to S1)',
@@ -1012,6 +1036,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'The PA catheter crosses this valve from the RVOT: record the RV-to-PA pullback to document any gradient, and expect ectopy. Warn the operator if the patient has pre-existing LBBB, because catheter-induced RBBB can cause complete heart block; have pacing ready.',
       'After pulmonary valvuloplasty or transcatheter valve replacement, monitor rhythm, SpO₂ and the femoral site, and report chest pain, hemoptysis or hypotension immediately (possible coronary compression or conduit injury). Reinforce endocarditis warning signs and the prevention advice given by the cardiology team.',
       'Severe PS: peak velocity >4 m/s (peak gradient >64 mmHg); balloon valvuloplasty is first-line for dome-shaped valvar PS. After tetralogy repair, severe PR drives RV dilation and valve-replacement timing (CMR volumes, symptoms, QRS ≥180 ms); test for coronary compression before TPVR.',
+      'Adults with repaired tetralogy of Fallot have a baseline RBBB and a high risk of VT: compare the 12-lead with an old tracing, keep pads on during any tachycardia and prepare for synchronized cardioversion at the physician’s direction. Ask about an ICD and the congenital heart center that follows the patient.',
+      'In repaired tetralogy, a regular wide-complex tachycardia is VT until proven otherwise, even with a baseline RBBB: cardiovert if unstable, otherwise give procainamide or amiodarone. Admit after sustained VT and involve the adult congenital heart center early, because these patients need electrophysiology evaluation for an ICD.',
     ],
     overview: [
       'Separates the RVOT (infundibulum) from the pulmonary trunk',
@@ -1085,6 +1111,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'A large v wave on the PCWP trace suggests significant MR: record it and alert the operator. For TEER or balloon mitral valvotomy, prepare the transseptal set and delivery system, and record LA pressure and mean mitral gradient before and after each step.',
       'Before mitral procedures, verify anticoagulation (INR or DOAC hold), renal function and allergies. During TEER or valvotomy, keep ACT at the ordered target and monitor for tamponade, stroke and arrhythmia; afterwards watch for heart-failure signs and access-site bleeding.',
       'Separate primary from secondary MR; severe MR: EROA ≥0.40 cm², RVol ≥60 mL, RF ≥50%, VC ≥0.7 cm. TEER suitability depends on leaflet anatomy (MVA ≥4 cm², low gradient, grasping length, flail gap/width) and a transseptal height of ~3.5–4.5 cm.',
+      'Flash pulmonary edema with high BP: sit the patient upright, start CPAP or BiPAP as ordered and give nitroglycerin per order with frequent BP checks, stopping and reporting if the pressure falls. Pulmonary edema with low BP after an MI may be acute mitral regurgitation: report it at once and prepare the vasoactive infusions ordered.',
+      'Acute severe MR (papillary or chordal rupture, endocarditis) presents as flash pulmonary edema and shock with a soft or absent murmur: look for a flail leaflet and an eccentric jet on bedside color Doppler. Use positive-pressure ventilation, unload with vasodilators if BP allows (mechanical support through cardiology if not), and call cardiac surgery.',
     ],
     overview: [
       'Two leaflets: anterior (aortic) and posterior (mural), described as scallops A1–A3 and P1–P3',
@@ -1172,6 +1200,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'For AS, record simultaneous LV and aortic pressures (or a careful pullback) for peak-to-peak and mean gradients, plus cardiac output for the Gorlin valve area. During TAVR, set up rapid-pacing equipment and the valve system the operator selects, and report new AV block immediately.',
       'Patients with severe AS tolerate sedation, vasodilators and volume loss poorly: monitor arterial pressure closely, give vasopressors as ordered for hypotension and report it promptly. After TAVR, monitor for new LBBB or heart block, access-site bleeding, neuro changes and kidney function.',
       'Severe AS = Vmax ≥4 m/s, mean gradient ≥40 mmHg or AVA ≤1.0 cm²; confirm low-flow, low-gradient AS with dobutamine echo or CT calcium score. Plan TAVR on CT: annulus, coronary heights (<~10 mm high risk), sinus dimensions, calcium and access; anticipate conduction disease.',
+      'Before nitroglycerin, opioids or sedation in a patient with known severe aortic stenosis, tell the physician: these drugs can drop the BP sharply. Keep a patient who fainted on exertion on the monitor with fall precautions, and after a recent TAVR watch for new heart block.',
+      'A late-peaking murmur radiating to the carotids with syncope, angina or heart failure suggests severe aortic stenosis: avoid nitrates and hypovolemia, treat hypotension with phenylephrine or norepinephrine, and induce gently if intubating. Acute aortic regurgitation from dissection or endocarditis needs emergency surgery, and an IABP is contraindicated.',
     ],
     overview: [
       'Three cusps: right coronary (RCC), left coronary (LCC) and non-coronary (NCC)',
@@ -1258,6 +1288,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Central lines, PA catheters, pacing wires and leads pass through the SVC; the ideal central-line tip sits at the lower SVC/cavoatrial junction on fluoroscopy. For lead extraction, confirm the occlusion balloon and surgical backup are ready and report sudden hypotension immediately.',
       'In SVC syndrome, avoid arm IVs and monitor airway, mental status and swelling. During lead extraction, have arterial monitoring, large-bore access and blood products ready as ordered; sudden hypotension suggests SVC tear or tamponade, so call the operator and surgical team immediately.',
       'Lead-related SVC stenosis or occlusion complicates upgrades and extraction (venography first). SVC tear is the most feared extraction complication: have a compliant occlusion balloon and surgical standby. SVC isolation for AF triggers risks phrenic and sinus-node injury.',
+      'When the physician places an internal jugular or subclavian line, position the patient head-down as asked, watch the monitor for ectopy as the wire advances, and keep every hub capped or clamped against air embolism. Use the line only once placement is confirmed per ED policy, and report new swelling of the face, neck or arm.',
+      'SVC syndrome becomes an airway emergency with stridor, laryngeal edema or confusion: plan for a difficult airway, get CT venography and involve oncology or interventional radiology. Place central lines under ultrasound with the tip at the lower SVC/cavoatrial junction; ectopy during wire passage means the wire is in the heart, so pull it back until the ectopy stops.',
     ],
     overview: [
       'Formed by the right and left brachiocephalic veins behind the right 1st costal cartilage',
@@ -1335,6 +1367,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Femoral venous catheters travel up the IVC to the RA, just right of the spine on fluoroscopy; anticipate long sheaths for transseptal, leadless-pacemaker or ECMO cases. Record RA pressure and report ectopy, wire resistance or hypotension to the operator.',
       'After femoral venous access, check the site and distal pulses, keep bed rest as ordered, and manage figure-of-eight sutures or manual pressure per protocol. Report leg swelling or pain (possible DVT) and back or flank pain (possible retroperitoneal bleed).',
       'IVC POCUS: ≤2.1 cm with >50% sniff collapse ≈ RAP 3 mmHg; >2.1 cm with <50% collapse ≈ 15 mmHg (unreliable on ventilators). IVC filters are for acute VTE with a contraindication to anticoagulation; retrieve them once anticoagulation is possible.',
+      'A pregnant patient with the uterus at or above the umbilicus should not lie flat: tilt her to the left or displace the uterus to her left by hand to relieve IVC compression. In cardiac arrest, assign one person to continuous manual left uterine displacement during CPR, and call obstetrics and the neonatal team at once for resuscitative delivery.',
+      'On bedside ultrasound, a small collapsing IVC in hypotension suggests hypovolemia, while a plethoric one points to tamponade, tension pneumothorax, PE or RV failure (less reliable on a ventilator). In maternal arrest, prepare resuscitative delivery as soon as the arrest is recognized and aim to complete it within 5 minutes if there is no ROSC (2025 AHA).',
     ],
     overview: [
       'Formed by the common iliac veins at about L5',
@@ -1412,6 +1446,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'For CRT, prepare the CS guide sheath, occlusion venography balloon and LV leads; in LAO the CS runs along the left AV groove. Help test for phrenic stimulation at high output as directed, and report diaphragm twitching, contrast staining or hypotension to the operator.',
       'After CRT implant, monitor the paced ECG and pocket, and watch for hiccups or abdominal twitching (phrenic stimulation); report loss of biventricular pacing or chest pain. Teach arm restrictions, wound care and remote-monitoring follow-up as instructed.',
       'Use CS venography to target lateral/posterolateral veins for CRT, avoiding apical and anterior sites; a dilated CS suggests persistent left SVC. The CS catheter gives LA/LV reference electrograms, and the slow-pathway region for AVNRT ablation lies just anterior to the CS ostium.',
+      'For a heart-failure patient with a CRT (biventricular) device, find the device card, record a 12-lead and show the physician if the paced QRS is wider than on old tracings or spikes do not capture. Report hiccups or abdominal twitching in time with the heartbeat (phrenic stimulation from the LV lead).',
+      'In decompensated heart failure with a CRT device, compare the paced QRS with old tracings (loss of LV capture widens it), look for AF or frequent PVCs that stop biventricular pacing, and arrange device interrogation. A dilated coronary sinus on bedside echo suggests a persistent left SVC, which can steer a left-sided central line or pacing wire into the coronary sinus.',
     ],
     overview: [
       'Drains most of the venous blood from the LV myocardium',
@@ -1484,6 +1520,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'During RHC, record PA pressures and PCWP at end-expiration plus cardiac output, then calculate PVR in Wood units. Watch for a persistent wedge trace after balloon deflation and report it, or any hemoptysis, to the operator at once (PA rupture risk).',
       'For catheter-directed PE therapy, give anticoagulant and lytic infusions only as ordered, monitor for bleeding (access sites, neuro checks, GI/urine) and respiratory status, and report changes at once. With a PA catheter, never leave the balloon wedged; report hemoptysis immediately.',
       'PH = mean PAP >20 mmHg; precapillary PH also needs PAWP ≤15 mmHg and PVR >2 WU (2022 ESC/ERS). PE with cardiopulmonary failure (AHA/ACC 2026 Category E, formerly "massive"/high-risk): systemic thrombolysis, catheter-directed therapy or surgical embolectomy are reasonable, chosen with the PERT, with VA-ECMO for refractory shock or arrest.',
+      'For suspected PE, put the patient on the monitor, record a 12-lead and place a large-bore antecubital IV for CT angiography; report SpO₂ below 90% or a falling BP at once. If a thrombolytic is ordered, go through the contraindication checklist with the physician, then do frequent neuro checks and watch every site for bleeding.',
+      'Classify PE by the 2026 AHA/ACC categories: persistent hypotension or shock (Category E1) calls for systemic thrombolysis or catheter or surgical reperfusion with the PE response team, while categories A1–C2 get anticoagulation, not systemic lysis. In PE arrest, systemic fibrinolysis may be considered and ECPR is reasonable where available (2025 AHA).',
     ],
     overview: [
       'Arises from the RV outflow tract via the pulmonary valve',
@@ -1556,6 +1594,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'During PVI, prepare the RF, cryoballoon or pulsed-field system, mapping and ICE as directed, and help monitor phrenic capture during right-vein lesions. Report loss of diaphragm movement, esophageal temperature alarms or hypotension to the operator immediately.',
       'During AF ablation, give heparin as ordered and keep ACT at the ordered target (often >300 s), monitor sedation and watch for tamponade. Before discharge, teach patients to report fever, chest pain, trouble swallowing, hemoptysis or neuro symptoms in the following weeks.',
       'PV Doppler (S/D ratio, systolic reversal) helps grade MR and filling pressures. PVI is first-line rhythm control in selected symptomatic paroxysmal AF (2023 ACC/AHA/ACCP/HRS); aim for durable antral isolation and protect the esophagus, right phrenic nerve and PV ostia (stenosis).',
+      'For cardiogenic pulmonary edema, sit the patient upright, start CPAP or BiPAP as ordered and report an SpO₂ that stays below 90% on it. Ask every AF patient about a recent ablation: fever, chest pain, trouble swallowing, vomiting blood or stroke symptoms in the following weeks need the physician at once.',
+      'Fever, chest pain, dysphagia, GI bleeding or neuro events about 1–6 weeks after AF ablation suggest an atrio-esophageal fistula: get a contrast CT of the chest, avoid endoscopy (insufflated air can embolize) and call cardiothoracic surgery. Recurrent "pneumonia" or hemoptysis months after ablation should prompt a CT for pulmonary vein stenosis.',
     ],
     overview: [
       'Usually four: right superior, right inferior, left superior and left inferior',
@@ -1627,6 +1667,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'On aortography the root and sinuses sit just above the valve; anticipate root injections for AR grading and TAVR. Catheters and wires can dissect the root or coronary ostia: report contrast staining, new chest pain, ST change or hypotension to the operator at once.',
       'For suspected type A dissection, establish large-bore IV access and arterial monitoring as ordered, and titrate the ordered IV beta-blocker, then vasodilator, to the HR and SBP targets (commonly HR 60–80 bpm, SBP <120 mmHg). Clarify any antithrombotic order before giving it.',
       'Type A dissection needs emergency surgery; meanwhile give IV beta-blocker first (then a vasodilator) to HR 60–80 bpm and SBP <120 mmHg (2022 ACC/AHA). Repair the ascending aorta at ≥5.5 cm (≥5.0 cm is reasonable at experienced aortic centers), earlier with Marfan, Loeys–Dietz, bicuspid risk features or rapid growth; know coronary heights and STJ dimensions before TAVR.',
+      'Tearing chest or back pain, a BP difference between the arms, fainting or a new neuro deficit: tell the physician before giving standing-order aspirin or any heparin. Once dissection is suspected, place two large-bore IVs, titrate the ordered IV beta-blocker before any vasodilator to the physician’s heart-rate and BP targets, and prepare for CT angiography.',
+      'Before lytics or heparin for chest pain, look for dissection: a pulse or BP deficit, neuro signs, a new diastolic murmur, or a dilated root, intimal flap or effusion on bedside echo; confirm with CT angiography and call cardiothoracic surgery at once for type A. Tamponade from dissection needs the operating room, with pericardiocentesis only as small, controlled drainage to buy time.',
     ],
     overview: [
       'Begins at the aortic annulus and ends at the brachiocephalic trunk origin',
@@ -1699,6 +1741,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Arch type (I–III) and variants such as a common brachiocephalic–left carotid origin affect catheter choice: have the Judkins, Simmons and other shapes the operator may request ready. During carotid stenting, watch for bradycardia, hypotension or neuro change and report immediately.',
       'During carotid or arch procedures, perform baseline and serial neuro checks and report any change at once. Carotid stenting can cause bradycardia and hypotension, so have atropine and vasopressors ready to give as ordered, and monitor BP in the arm the team specifies.',
       'Know arch variants (common brachiocephalic–left carotid origin in ~10–25%, aberrant right subclavian) and coarctation signs (arm hypertension, radio-femoral delay). Arch type guides catheter selection for carotid work and TAVR embolic protection; complex arch atheroma (≥4 mm or mobile) is an embolic stroke source.',
+      'With suspected dissection, take BP in both arms, record both, and run titrations from the arm the physician chooses (usually the higher reading). Do serial neuro and arm-pulse checks, because a dissection reaching the arch branches can cause stroke or arm ischemia, and report any change at once.',
+      'A stroke with chest or neck pain or a pulse deficit may be dissection extending into the carotid: image the aorta before IV thrombolysis, which is contraindicated in arch dissection. After high-speed deceleration trauma, a widened mediastinum or obscured aortic knob prompts CT angiography for blunt aortic injury at the isthmus, with vascular or cardiothoracic surgery for TEVAR.',
     ],
     overview: [
       'Lies in the superior mediastinum; begins and ends at about the level of the sternal angle (T4/T5)',
@@ -1769,6 +1813,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'The IABP sits in the descending thoracic aorta: on fluoroscopy the radiopaque tip should be ~1–2 cm below the left subclavian origin (near the carina). Set timing on the console as directed, and report poor augmentation, alarms or limb ischemia to the operator.',
       'With an IABP or large-bore femoral device, check distal pulses, leg color and temperature, urine output (renal compromise if the balloon migrates) and left radial pulse (subclavian occlusion), and keep the leg straight. Report limb ischemia, bleeding or falling urine output promptly.',
       'Uncomplicated type B dissection: medical anti-impulse therapy; complicated (rupture, malperfusion, refractory pain or hypertension): TEVAR. Repair thresholds: descending thoracic ≥5.5 cm (thoracoabdominal ≥6.0 cm), AAA ≥5.5 cm (men) or ~5.0 cm (women); TEVAR needs ~2 cm landing zones and spinal-cord protection planning.',
+      'For an older patient with sudden back, flank or abdominal pain and low BP, place two large-bore IVs, send type and crossmatch and get the physician at once. Give fluid and blood only to the BP target the physician sets, because over-resuscitation can worsen bleeding from a ruptured aneurysm, and prepare for direct transfer to the OR or a vascular center.',
+      'Hypotension with back or abdominal pain and an infrarenal aorta of 3 cm or more on bedside ultrasound is a ruptured AAA until proven otherwise: call vascular surgery, activate massive transfusion, accept permissive hypotension and take an unstable patient to the OR, not CT. Uncomplicated type B dissection is treated medically, IV beta-blocker first; malperfusion or rupture needs TEVAR.',
     ],
     overview: [
       'Thoracic segment: isthmus (~T4) to the aortic hiatus (T12)',
@@ -1847,6 +1893,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Sudden hypotension during a procedure may be perforation and tamponade: alert the operator and bring the pericardiocentesis tray (needle, wire, sheath, pigtail drain, pressure tubing). Record pericardial pressure and drained volume, and flag equalized diastolic pressures on a right-heart run.',
       'Recognize tamponade early (hypotension, tachycardia, rising RA pressure, falling SpO₂) and notify the operator immediately; give fluids and vasopressors as ordered while the pericardiocentesis tray is prepared. Afterwards monitor drain output, hemodynamics and rhythm, and keep the drain patent per protocol.',
       'Tamponade is a clinical/echo diagnosis (RA systolic and RV diastolic collapse, plethoric IVC, exaggerated respiratory inflow variation); distinguish effusive-constrictive and constrictive physiology. Echo-guided pericardiocentesis is standard, but tamponade from type A dissection or free-wall rupture needs surgery.',
+      'Low BP with distended neck veins and a rising heart rate after chest trauma, cancer, dialysis or a cardiac procedure suggests tamponade: get the physician and the ultrasound to the bedside, check for pulsus paradoxus with a manual cuff and set up the pericardiocentesis tray. Give the ordered fluid bolus and keep pads on, since tamponade can progress to PEA.',
+      'Bedside echo supports the clinical diagnosis of tamponade: effusion with RA systolic collapse, RV diastolic collapse and a plethoric IVC. Drain it by ultrasound-guided pericardiocentesis where the fluid is deepest and closest to the skin; fluid only temporizes, positive-pressure ventilation can precipitate arrest, and tamponade from trauma, dissection or free-wall rupture needs surgery.',
     ],
     overview: [
       'Fibrous pericardium: dense outer collagen layer that limits acute cardiac dilation',
@@ -1922,6 +1970,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Angiography shows the epicardial coronaries. For epicardial VT ablation via subxiphoid access, prepare the epicardial needle, sheath and pericardial drain, and anticipate coronary angiography before ablation; report bloody return, hypotension or ST change to the operator immediately.',
       'After subxiphoid epicardial access, monitor drain output, hemodynamics and pain (post-procedure pericarditis is common), and report rising drainage or hypotension promptly. Give anti-inflammatory medications as ordered and teach pericarditis patients about activity restriction and recurrence symptoms.',
       'Subepicardial or midwall LGE suggests myocarditis or non-ischemic disease, whereas infarction starts subendocardially. Epicardial VT substrate (ARVC, non-ischemic cardiomyopathy, Brugada RVOT) may need subxiphoid access; delineate the coronaries and phrenic nerve before ablating.',
+      'Sharp chest pain that is worse lying flat and better sitting forward still gets a 12-lead within 10 minutes, shown to the physician: diffuse ST elevation can be pericarditis or STEMI, and the physician decides which. Watch for falling BP, a rising heart rate or distended neck veins (effusion), and teach the ordered anti-inflammatory and colchicine plan at discharge.',
+      'Diffuse concave ST elevation with PR depression, and reciprocal change only in aVR and V1, favors pericarditis; a territorial pattern, other reciprocal depression or a regional wall-motion abnormality on bedside echo points to STEMI and the cath lab. Treat pericarditis with aspirin or an NSAID plus colchicine; admit for fever, a large effusion, a troponin rise or anticoagulant use.',
     ],
     overview: [
       'The serous pericardium reflected onto the heart surface',
@@ -1993,6 +2043,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Ischemic myocardium shows as ST change: watch the monitor during balloon inflation and injections and report ST shifts, ectopy or VT/VF to the operator immediately. Keep the defibrillator ready with pads on high-risk patients and participate in ACLS as certified.',
       'After PCI, monitor for reperfusion arrhythmias, recurrent chest pain and ST changes and report them promptly; follow ACLS for VT/VF. Give antiplatelets, anticoagulants and vasoactives as ordered, and teach medication adherence and cardiac rehabilitation.',
       'Troponin rise = myocardial injury; MI needs ischemia plus a rise/fall (4th UDMI), so consider myocarditis, PE, sepsis and demand. CMR (LGE, T1/T2 mapping, ECV) separates ischemic, inflammatory, infiltrative and genetic cardiomyopathies; LGE <50% transmural predicts recovery after revascularization.',
+      'Draw serial high-sensitivity troponins at exactly the times ordered, because the rule-out pathway depends on the interval, and repeat the 12-lead whenever pain returns or changes. In STEMI, keep pads on, watch for VT/VF and reperfusion arrhythmias, and give the ordered antiplatelet and anticoagulant so the patient is ready for the cath lab.',
+      'Use a validated high-sensitivity troponin pathway (0/1–2 h or 0/3 h) to send low-risk chest pain home, and remember that a rise without ischemic symptoms or ECG change is injury, not necessarily MI (myocarditis, PE, sepsis, demand). For NSTE-ACS, start aspirin and an anticoagulant and agree the timing of angiography with cardiology: immediate for refractory pain or instability.',
     ],
     overview: [
       'Middle and thickest layer of the heart wall',
@@ -2089,6 +2141,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Most EP ablation is endocardial: prepare the mapping and ablation system, irrigation and ICE as directed, and monitor contact-force and lesion data with the team. Report impedance spikes, audible steam pops or hypotension to the operator immediately.',
       'For suspected endocarditis, draw blood culture sets from separate sites before the first antibiotic dose as ordered, and monitor temperature, neuro status, renal function and IV sites. Report new heart-failure signs, new AV block on the monitor or stroke symptoms promptly.',
       'Suspected endocarditis: ≥3 blood culture sets before antibiotics, TTE then TEE (PET-CT for prosthetic or device infection), Duke-ISCVID 2023 criteria. Subendocardial ischemia gives non-localizing ST depression; endocardial ablation lesion depth depends on contact force, power, duration and wall thickness.',
+      'Fever in a patient with a prosthetic valve, a cardiac device or injection drug use: draw each ordered blood culture set from a separate venipuncture before the first antibiotic, without letting it delay antibiotics in septic shock. Report new neuro deficits, tender fingertip nodules, splinter hemorrhages or a new murmur.',
+      'Fever with a prosthetic valve, a device, injection drug use or a new regurgitant murmur means at least three blood culture sets before empiric antibiotics, then echo and admission. A stroke in suspected endocarditis is septic embolism until proven otherwise and gets no IV thrombolysis; new PR prolongation or AV block suggests a root abscess and needs urgent cardiac surgery input.',
     ],
     overview: [
       'Innermost layer: endothelium plus subendothelial connective tissue',
@@ -2167,6 +2221,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'New large v waves on the PCWP trace during ischemia (for example, balloon inflation) suggest dynamic MR: record them and alert the operator. On ventriculography, MR opacifies the LA, so keep the LA in the field of view as directed.',
       'Ischemic papillary dysfunction can cause sudden MR: watch for new dyspnea, falling SpO₂, crackles or hypotension after MI or during ischemia and escalate immediately. Prepare CPAP, vasoactive infusions or mechanical support as ordered.',
       'Rupture of this muscle is rare (dual LAD diagonal and LCx marginal supply), but ischemia can cause dynamic MR. Papillary displacement tethers the leaflets (secondary MR), anomalous insertion contributes to LVOT obstruction in HCM, and A1/P1 subvalvular anatomy affects TEER and TMVR.',
+      'During active chest pain, new breathlessness, crackles or a falling SpO₂ can mean ischemic mitral regurgitation: sit the patient up, give oxygen for SpO₂ below 90% per protocol, repeat the 12-lead and report at once. Have CPAP or BiPAP ready to start on order.',
+      'Flash pulmonary edema during chest pain with lateral (I, aVL, V5–V6) or anterior ischemia can be dynamic MR from papillary ischemia: bedside color Doppler shows a new jet, and it calls for urgent angiography. Support with BiPAP and nitroglycerin if BP allows; a flail leaflet after MI usually means the posteromedial muscle has ruptured, since this one rarely does.',
     ],
     overview: [
       'One of two LV papillary muscles anchoring the mitral valve through chordae',
@@ -2235,6 +2291,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'Papillary rupture produces giant v waves on the PCWP trace with shock: record the tracing and alert the operator. Draw a saturation run if requested to exclude VSD, and prepare IABP or Impella equipment as directed for a likely transfer to surgery.',
       'Expect a critically ill patient: monitor arterial pressure, SpO₂ and urine output, titrate vasopressors or inotropes as ordered, and prepare for IABP/Impella and transfer to surgery. After IABP insertion, check distal pulses, the access site and left radial pulse regularly.',
       'Typically within the first week (classically 2–7 days), often after small inferior or inferolateral infarcts, because the PDA is usually its only supply. Acute severe MR with shock needs afterload reduction, IABP/Impella and emergency surgery; TEER has been used in highly selected inoperable patients.',
+      'A patient a few days after an inferior MI, even a small one, who suddenly becomes breathless, hypoxic and hypotensive may have a ruptured papillary muscle: get the physician and the ultrasound to the bedside, start BiPAP and vasoactive infusions as ordered, and hold nitroglycerin while the BP is low.',
+      'Flash pulmonary edema with shock 2–7 days after an inferior MI is papillary rupture until echo excludes a flail leaflet (TEE if the bedside view is unclear); the murmur may be soft or absent. Ventilate with positive pressure, support the BP with norepinephrine or inotropes, and call cardiology and cardiac surgery at once for mechanical support and emergency repair, transferring if needed.',
     ],
     overview: [
       'Second LV papillary muscle, arising from the inferior (posteromedial) wall',
@@ -2303,6 +2361,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'During TEER, keep the delivery system flushed and stabilized as the operator directs and watch the imaging with the team. Report sudden changes in LA pressure or v wave, or hypotension (possible chordal entanglement or leaflet injury), to the operator immediately.',
       'Acute chordal rupture can cause rapid decompensation: monitor breathing, SpO₂ and BP, give diuretics or vasoactives as ordered and escalate early. After surgical repair or TEER, monitor for a new murmur, hypotension, arrhythmia and access-site bleeding.',
       'A flail segment from ruptured chordae means severe primary MR; repairability (isolated P2 flail is most repairable) guides surgery vs TEER. Avoid chordal entanglement during TEER/TMVR; chordal-sparing replacement and neochords preserve LV geometry.',
+      'Sudden breathlessness in a patient with known mitral valve prolapse or recent endocarditis may be a ruptured chord: sit the patient up, start CPAP or BiPAP as ordered, and report a new murmur, new AF or falling BP at once. Draw blood cultures as ordered if the patient has a fever.',
+      'Sudden pulmonary edema in mitral valve prolapse suggests chordal rupture: bedside echo shows a flail leaflet tip pointing into the LA with an eccentric jet. Treat it as acute MR (positive pressure, diuretic, vasodilator if BP allows), draw blood cultures if there is fever, and arrange urgent cardiac surgery evaluation.',
     ],
     overview: [
       'Collagen and elastin cords covered by endocardium',
@@ -2370,6 +2430,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'On ICE or echo it is a bright band across the distal RV, a normal structure rather than thrombus. For moderator band ablation, prepare ICE and the mapping system; during RV lead or catheter work, report runs of PVCs or VT to the operator immediately.',
       'Patients with idiopathic VF from moderator band triggers often have an ICD: monitor for PVCs and VT/VF, keep the defibrillator available and follow ACLS. Teach what to do after an ICD shock and when to call emergency services.',
       'Moderator band PVCs (LBBB morphology, left superior axis, late transition) can trigger idiopathic VF; ablation needs ICE to confirm contact. It identifies the morphologic RV in congenital disease (e.g., congenitally corrected transposition) and can mimic thrombus on imaging.',
+      'Survivors of idiopathic VF (sometimes triggered from the moderator band) usually have an ICD: after a shock, put the patient on the monitor, record a 12-lead, ask how many shocks they felt and report repeated shocks or symptoms at once. A magnet usually suspends ICD shocks only while it stays on; apply one only on the physician’s order.',
+      'On bedside echo for suspected PE, do not mistake the moderator band, a normal bright band across the distal RV, for a clot in transit. In a young survivor of unexplained VF, look on the post-ROSC 12-lead and monitor for short-coupled LBBB-morphology PVCs (a possible moderator-band trigger) as well as Brugada, long QT, pre-excitation and ischemia, and call electrophysiology early if VF recurs.',
     ],
     overview: [
       'Part of the septomarginal trabecula of the RV',
@@ -2434,6 +2496,8 @@ export const STRUCTURES_A: Record<string, StructureContent> = {
       'On ICE the crista is a ridge along the lateral RA from the SVC and can be mistaken for a mass. During focal AT or flutter mapping, prepare multipolar catheters and the mapping system and help check for phrenic capture as directed.',
       'After focal AT ablation, monitor for sinus node dysfunction (bradycardia, pauses) and report breathlessness or diaphragm weakness (possible phrenic injury). Give isoproterenol for arrhythmia induction only as ordered, with continuous monitoring.',
       'Map along the crista for focal AT (P upright in I/II, often biphasic or negative in V1); it forms a line of transverse block on the posterior boundary of the typical flutter circuit. Avoid phrenic nerve injury on the lateral RA and sinus-node injury superiorly.',
+      'For a narrow-complex tachycardia, record a 12-lead before any treatment and run a continuous strip while adenosine is pushed (rapid push, immediate saline flush): the strip shows what the rhythm was. For a sinus-looking tachycardia, check temperature, pain, bleeding and fluid losses and report them, because treating the cause slows the rate.',
+      'A sinus-looking tachycardia is usually a response: look for sepsis, bleeding, hypovolemia, PE, pain or thyrotoxicosis before slowing it. Abrupt onset and offset, a fixed rate and a P wave that differs from the old ECG favor focal atrial tachycardia (often from the crista), treated first with an IV beta-blocker or diltiazem if stable (2015 ACC/AHA/HRS).',
     ],
     overview: [
       'Internal ridge corresponding to the external sulcus terminalis',
