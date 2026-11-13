@@ -4,7 +4,7 @@ import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interve
 import { SCENARIOS, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Scenario, SimState } from '@/lib/sim/scenario/types';
 import { ROLE_SETTING, type LearningLevel } from '@/store/useAppStore';
-import { monitorKeys, type MonitorKey } from '@/components/simulator/monitorKeys';
+import { monitorKey, monitorKeys, noTracingNote, type MonitorKey } from '@/components/simulator/monitorKeys';
 import { durationText } from '@/components/simulator/simStyles';
 
 /**
@@ -155,5 +155,67 @@ describe('which keys show', () => {
       }
     }
     expect(Array.from(settings)).toEqual(expect.arrayContaining(['field', 'cathlab']));
+  });
+});
+
+describe("the 12-lead tab's words before there is a tracing", () => {
+  const scope2 = new Set(interventionsForScenario(field, 2).map((i) => i.id));
+
+  it('names the key the monitor shows now, its action in the menu and its time', () => {
+    const s = start(field, 2);
+    const note = noTracingNote(field, s, scope2);
+    expect(note).toEqual({ kind: 'press', key: key(field, s, 'ecg'), afterRead: false });
+    expect(note).toMatchObject({ key: { label: '12-lead', time: '2 min' } });
+  });
+
+  it('a 12-lead counted with no tracing (the pulse was lost while it was being recorded) is offered as the repeat', () => {
+    const base = start(field, 2);
+    // the engine sets the 'ecg12' flag, then records no tracing without a pulse
+    const counted: SimState = { ...base, flags: { ...base.flags, ecg12: base.minute }, counts: { ...base.counts, ecg12: 1 } };
+    expect(counted.lastEcg).toBeNull();
+    expect(noTracingNote(field, counted, scope2)).toMatchObject({ kind: 'press', key: { id: 'ecg12-repeat', label: 'Repeat 12-lead', time: '1½ min' } });
+    // without the pulse the engine records no 12-lead at all: no key or menu item would bring a tracing
+    expect(noTracingNote(field, { ...counted, pulse: false }, scope2)).toEqual({ kind: 'arrest' });
+  });
+
+  it('no instruction once the case has ended', () => {
+    const stopped = stop(start(field, 2));
+    expect(stopped.lastEcg).toBeNull();
+    expect(noTracingNote(field, stopped, scope2)).toEqual({ kind: 'ended' });
+  });
+
+  it('while another read is open the keys step aside: the note says to give it first, then names the key that comes back', () => {
+    const s: SimState = { ...start(field, 2), pendingRead: { kind: 'clinical', minute: 0, answer: 'clin-vasovagal', explain: '' } };
+    expect(monitorKeys(field, s)).toEqual([]);
+    const note = noTracingNote(field, s, scope2);
+    expect(note).toMatchObject({ kind: 'press', afterRead: true, key: { id: 'ecg12', label: '12-lead' } });
+    // once the read is given, the strip offers exactly that key
+    if (note.kind !== 'press') throw new Error('expected a key');
+    expect({ ...note.key, disabled: null }).toEqual(key(field, { ...s, pendingRead: null }, 'ecg'));
+  });
+
+  it('out of scope: no key named; refused: the key and the reason', () => {
+    const without = new Set(Array.from(scope2).filter((id) => id !== 'ecg12'));
+    expect(noTracingNote(field, start(field, 2), without)).toEqual({ kind: 'none' });
+    const refused = { ...start(field, 2), counts: { ecg12: 1 } };
+    expect(noTracingNote(field, refused, scope2)).toMatchObject({ kind: 'refused', key: { id: 'ecg12', disabled: 'Already done' } });
+  });
+
+  it('every case and role: whenever the strip shows a 12-lead key and there is no tracing, the tab names that same key', () => {
+    let checked = 0;
+    for (const sc of SCENARIOS) {
+      for (const role of sc.roles) {
+        const scope = new Set(interventionsForScenario(sc, role).map((i) => i.id));
+        // at the start, and after a manual blood pressure (time passes: some patients change)
+        for (const s of [readAll(sc, start(sc, role)), readAll(sc, perform(sc, readAll(sc, start(sc, role)), 'vitals'))]) {
+          if (s.lastEcg || s.ended || !s.pulse) continue;
+          const shown = monitorKeys(sc, s, scope).find((k) => k.kind === 'ecg');
+          expect(noTracingNote(sc, s, scope), `${sc.id} as ${role}`).toEqual({ kind: 'press', key: shown, afterRead: false });
+          expect(monitorKey(sc, s, 'ecg', scope)).toEqual(shown);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(20);
   });
 });

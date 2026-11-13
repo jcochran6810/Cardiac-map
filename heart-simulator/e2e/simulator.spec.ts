@@ -120,7 +120,28 @@ test('the action menu: categories first, one category at a time, and search find
   await expect(scope.locator('section[data-cat] button').filter({ hasText: 'Apply defibrillation pads' })).toBeVisible();
 });
 
-test('the monitor keys: a blood pressure and a 12-lead in one tap, without the menu', async ({ page }) => {
+/**
+ * The monitor and its keys as laid out now: the keys clear of the monitor's numbers and waveforms and taking none of its
+ * height (they sit under its box, or beside it on a phone on its side), the monitor still tall enough to read
+ * (`minHeight`) and its waveforms still wide enough (the monitor draws 6 s across the width the numbers and the keys leave
+ * it), a key big enough for a finger, and nothing wider than the screen.
+ */
+async function checkMonitorLayout(page: Page, where: string, minHeight = 100) {
+  const keys = page.getByRole('group', { name: 'Monitor keys' });
+  const monitor = page.locator('[data-monitor]');
+  const m = (await monitor.boundingBox())!;
+  const box = (await monitor.locator('xpath=..').boundingBox())!;
+  const k = (await keys.boundingBox())!;
+  const wave = (await monitor.locator('canvas').first().boundingBox())!;
+  expect(k.y >= m.y + m.height - 0.5 || k.x >= m.x + m.width - 0.5, `${where}: the keys do not cover the monitor`).toBe(true);
+  expect(m.height, `${where}: the monitor keeps the height of its box`).toBeGreaterThanOrEqual(box.height - 12.5);
+  expect(m.height, `${where}: the monitor's height`).toBeGreaterThanOrEqual(minHeight);
+  expect(wave.width / m.width, `${where}: the waveforms keep most of the monitor's width`).toBeGreaterThanOrEqual(0.55);
+  for (const b of await keys.getByRole('button').all()) expect((await b.boundingBox())!.height, `${where}: a key's height`).toBeGreaterThanOrEqual(36);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${where}: no sideways scroll`).toBe(true);
+}
+
+test('the monitor keys: a blood pressure and a 12-lead in one tap, without the menu', async ({ page }, info) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /Treat a patient/ }).first().click();
   await page.getByRole('radiogroup', { name: 'Your role' }).getByRole('radio', { name: 'Paramedic', exact: true }).click();
@@ -129,26 +150,23 @@ test('the monitor keys: a blood pressure and a 12-lead in one tap, without the m
   await card.getByRole('button', { name: /Start case/ }).click();
   await expect(page.getByRole('button', { name: '← Cases' })).toBeVisible();
 
-  // the keys sit under the monitor (beside it on a phone on its side): clear of its numbers and waveforms, the monitor
-  // still big enough to read, a key big enough for a finger, and nothing wider than the screen
+  // the keys sit under the monitor (beside it on a phone on its side)
   const keys = page.getByRole('group', { name: 'Monitor keys' });
   await expect(keys).toBeVisible();
-  const m = (await page.locator('[data-monitor]').boundingBox())!;
-  const k = (await keys.boundingBox())!;
-  expect(k.y >= m.y + m.height - 0.5 || k.x >= m.x + m.width - 0.5, 'the keys do not cover the monitor').toBe(true);
-  expect(m.height).toBeGreaterThanOrEqual(100);
-  for (const b of await keys.getByRole('button').all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(36);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await checkMonitorLayout(page, info.project.name);
 
   // the 12-lead tab points to the key while there is no tracing
   await page.getByRole('tab', { name: '12-lead ECG' }).click();
-  await expect(page.getByText(/key on the monitor \(or choose Acquire a 12-lead ECG/)).toBeVisible();
+  await expect(page.getByText(/Press the 12-lead key on the monitor \(or choose Acquire a 12-lead ECG/)).toBeVisible();
   await page.getByRole('tab', { name: /^Case story/ }).click();
 
-  // no monitor yet: the blood pressure key takes a manual set, and says so
+  // no monitor yet: the blood pressure key takes a manual set, and says so; a double tap takes it once, not twice
   const story = page.locator('[aria-live="polite"]');
-  await keys.getByRole('button', { name: /^Manual BP key/ }).click();
-  await expect(story.getByText(/^BP \d+\/\d+ · pulse \d+/)).toBeVisible();
+  const manual = /^BP \d+\/\d+ · pulse \d+/;
+  await keys.getByRole('button', { name: /^Manual BP key/ }).dblclick();
+  await expect(story.getByText(manual)).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(story.getByText(manual)).toHaveCount(1);
 
   // the 12-lead key records one; the 12-lead tab opens on it for the read, and the keys wait for the read
   await keys.getByRole('button', { name: /^12-lead key/ }).click();
@@ -161,6 +179,22 @@ test('the monitor keys: a blood pressure and a 12-lead in one tap, without the m
   // the 12-lead put the monitor on: the blood pressure key now runs the monitor's cuff, the 12-lead key a repeat
   await page.getByRole('tab', { name: /^Case story/ }).click();
   await expect(keys.getByRole('button', { name: /^Repeat 12-lead key/ })).toBeVisible();
-  await keys.getByRole('button', { name: /^NIBP key/ }).click();
+  const nibp = keys.getByRole('button', { name: /^NIBP key/ });
+  await nibp.click();
   await expect(story.getByText(/^NIBP \d+\/\d+ mmHg\.$/)).toBeVisible();
+  // on a touch screen a tapped key does not stay lit (the hover look is for a mouse only)
+  if (await page.evaluate(() => !matchMedia('(hover: hover)').matches)) {
+    expect(await nibp.evaluate((b) => getComputedStyle(b).borderColor)).not.toContain('245, 158, 11');
+  }
+
+  // a phone on its side narrower than the Pixel 7 (an iPhone SE, 8 or 13 mini; the first iPhone SE): the waveforms
+  // share the width with the numbers and the keys, and must stay wide enough to read. (On a 320 px tall screen the
+  // monitor's box is 48% of a 276 px column, about 99 px, with or without the keys.)
+  if (info.project.name === 'phone-landscape') {
+    for (const [width, height] of [[667, 375], [568, 320]]) {
+      await page.setViewportSize({ width, height });
+      await expect(keys).toBeVisible();
+      await checkMonitorLayout(page, `${width}x${height}`, height < 360 ? 90 : 100);
+    }
+  }
 });

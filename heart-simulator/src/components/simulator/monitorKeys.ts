@@ -11,6 +11,8 @@ import { durationText } from './simStyles';
 
 export type MonitorKeyKind = 'ecg' | 'bp';
 
+const KINDS: MonitorKeyKind[] = ['ecg', 'bp'];
+
 export interface MonitorKey {
   kind: MonitorKeyKind;
   /** the action the key runs (an ordinary action of the menu) */
@@ -36,26 +38,61 @@ function candidates(kind: MonitorKeyKind, state: SimState): { id: string; label:
   return has(state, 'monitor') ? [{ id: 'nibp', label: 'NIBP' }, manual] : [manual];
 }
 
+const scopeOf = (sc: Scenario, state: SimState) => new Set(interventionsForScenario(sc, state.role).map((i) => i.id));
+
+/**
+ * The key of one kind as it stands, whether or not the strip is showing now (a read open, the case over: its `disabled`
+ * then gives the engine's reason), or null when its action is outside the learner's scope in this case. `scope`: the ids
+ * of the learner's actions in this case (interventionsForScenario), when the caller already has them.
+ */
+export function monitorKey(sc: Scenario, state: SimState, kind: MonitorKeyKind, scope?: ReadonlySet<string>): MonitorKey | null {
+  const inScope = scope ?? scopeOf(sc, state);
+  const pick = candidates(kind, state).find((c) => inScope.has(c.id));
+  if (!pick) return null;
+  const iv = INTERVENTION_BY_ID[pick.id];
+  const time = durationText(iv.minutes);
+  return {
+    kind, id: pick.id, label: pick.label, time,
+    name: `${pick.label} key: ${iv.label} — ${time} of case time`,
+    disabled: unavailableReason(sc, state, pick.id),
+  };
+}
+
 /**
  * The keys to show now: the 12-lead, then the blood pressure. None while a read is waiting (every action is locked until
  * it is given) or once the case has ended. A key whose action is outside the learner's scope in this case is left out;
- * one the engine would refuse now is disabled, with the engine's reason. `scope`: the ids of the learner's actions in
- * this case (interventionsForScenario), when the caller already has them.
+ * one the engine would refuse now is disabled, with the engine's reason.
  */
 export function monitorKeys(sc: Scenario, state: SimState, scope?: ReadonlySet<string>): MonitorKey[] {
   if (state.ended || state.pendingRead) return [];
-  const inScope = scope ?? new Set(interventionsForScenario(sc, state.role).map((i) => i.id));
-  const keys: MonitorKey[] = [];
-  for (const kind of ['ecg', 'bp'] as const) {
-    const pick = candidates(kind, state).find((c) => inScope.has(c.id));
-    if (!pick) continue;
-    const iv = INTERVENTION_BY_ID[pick.id];
-    const time = durationText(iv.minutes);
-    keys.push({
-      kind, id: pick.id, label: pick.label, time,
-      name: `${pick.label} key: ${iv.label} — ${time} of case time`,
-      disabled: unavailableReason(sc, state, pick.id),
-    });
-  }
-  return keys;
+  const inScope = scope ?? scopeOf(sc, state);
+  return KINDS.map((kind) => monitorKey(sc, state, kind, inScope)).filter((k): k is MonitorKey => k !== null);
+}
+
+/**
+ * What the 12-lead tab says while it has no tracing, in the words of the key that would record one (the key the strip
+ * offers, so the tab never names a key that is not there, or the wrong one):
+ * - `ended`: the case ended before a 12-lead was recorded (no instruction);
+ * - `arrest`: no pulse: the engine records no 12-lead in an arrest, so no key or menu item would bring a tracing;
+ * - `none`: recording a 12-lead is not among the learner's actions in this case;
+ * - `press`: press `key` (or choose its action in the menu); `afterRead`: once the read open now is given (the strip
+ *   steps aside until then);
+ * - `refused`: the key is there but disabled (`key.disabled` says why).
+ * A 12-lead counted with no tracing (the pulse was lost while it was being recorded) is offered as the repeat, as the
+ * key and the menu both do.
+ */
+export type NoTracingNote =
+  | { kind: 'ended' }
+  | { kind: 'arrest' }
+  | { kind: 'none' }
+  | { kind: 'press'; key: MonitorKey; afterRead: boolean }
+  | { kind: 'refused'; key: MonitorKey };
+
+export function noTracingNote(sc: Scenario, state: SimState, scope?: ReadonlySet<string>): NoTracingNote {
+  if (state.ended) return { kind: 'ended' };
+  if (!state.pulse) return { kind: 'arrest' };
+  const key = monitorKey(sc, state, 'ecg', scope);
+  if (!key) return { kind: 'none' };
+  if (state.pendingRead) return { kind: 'press', key, afterRead: true };
+  return key.disabled ? { kind: 'refused', key } : { kind: 'press', key, afterRead: false };
 }
