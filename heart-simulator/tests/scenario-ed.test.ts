@@ -490,11 +490,16 @@ describe('the case list for a role', () => {
     }
   });
 
-  it('lists an ED case under the ER roles once one is written', () => {
-    const list = caseSections(6, [...SCENARIOS, edPatient()]);
-    expect(list.mine.map((sc) => sc.id)).toEqual(['ed-test']);
-    expect(list.empty).toBe(false);
-    expect(caseSections(2, [...SCENARIOS, edPatient()]).others.map((sc) => sc.id)).toContain('ed-test');
+  it('lists the ED cases under the ER roles, and under the other roles\' "other cases"', () => {
+    const ed = SCENARIOS.filter((sc) => sc.setting === 'ed').map((sc) => sc.id);
+    expect(ed).toHaveLength(10);
+    for (const role of [6, 7] as const) {
+      const list = caseSections(role);
+      expect(list.mine.map((sc) => sc.id).sort(), LEVEL_LABELS[role].short).toEqual([...ed].sort());
+      expect(list.empty).toBe(false);
+    }
+    expect(caseSections(6, [...SCENARIOS, edPatient()]).mine.map((sc) => sc.id)).toContain('ed-test');
+    expect(caseSections(2).others.map((sc) => sc.id)).toEqual(expect.arrayContaining(ed));
   });
 });
 

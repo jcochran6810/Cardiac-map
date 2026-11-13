@@ -5,7 +5,7 @@ import { answerRead, criticalsFor, perform, review, start, stop } from '@/lib/si
 import { INTERVENTIONS, INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { READ_SETS } from '@/lib/sim/scenario/reads';
 import { SCENARIOS, SCENARIO_BY_ID, scenariosFor } from '@/lib/sim/scenario/scenarios';
-import { ROLE_SETTING, type LearningLevel } from '@/store/useAppStore';
+import { ROLES, ROLE_SETTING, type LearningLevel } from '@/store/useAppStore';
 import type { Speaker } from '@/lib/sim/scenario/types';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { CATHLAB_C } from '@/data/content/cathlab-c';
@@ -212,6 +212,63 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
     5: ['perfusion', 'fluid', 'labs', 'transfuse', 'consent', 'act', 'protamine', 'call-vascular', 'ecg12', 'timeout', 'access-femoral',
       'balloon-tamponade', 'transfuse', 'echo', 'stent-covered', 'final-angio', 'handoff'],
   },
+  'stemi-walk-in-ed': {
+    6: ['triage', 'ecg12', 'notify-physician', 'aspirin', 'pads', 'iv', 'heparin', 'p2y12', 'labs', 'sample', 'ask-pde5', 'notify-physician',
+      'fentanyl', ...R(3), 'defib', 'call-help', 'ecg12-repeat', ...R(3), 'handoff'],
+    7: ['primary', 'opqrst', 'cath-lab-activate', 'aspirin', 'sample', 'ask-pde5', 'heparin', 'p2y12', 'fentanyl', ...R(5), 'defib', 'ecg12-repeat',
+      ...R(3), 'handoff'],
+  },
+  'nstemi-troponin-ed': {
+    6: ['triage', 'ecg12', 'notify-physician', 'ecg-posterior', 'labs', 'monitor', 'aspirin', 'iv', 'heparin', 'sample', 'opqrst', ...R(10),
+      'ecg12-repeat', 'nitro', 'notify-physician', ...R(16), 'troponin-repeat', ...R(4), 'notify-physician', 'handoff'],
+    7: ['opqrst', 'sample', 'ecg-posterior', 'aspirin', 'heparin', 'troponin-repeat', ...R(4), 'consult-cardiology', 'admit', ...R(8),
+      'ecg12-repeat', 'nitro', 'consult-cardiology', ...R(19), 'handoff'],
+  },
+  'complete-heart-block-ed': {
+    6: ['ems-handoff', 'pads', 'notify-physician', 'ecg12', 'iv', 'labs', 'atropine', 'pace', 'pulse-check', 'nibp', 'notify-physician', 'fentanyl',
+      'notify-physician', 'calcium-chloride', 'insulin-dextrose', 'sample', ...R(5), 'pulse-check', 'nibp', 'handoff'],
+    7: ['ems-handoff', 'sample', 'labs', 'perfusion', 'atropine', 'pace', 'pulse-check', 'nibp', 'fentanyl', 'lungs', 'calcium-chloride',
+      'insulin-dextrose', 'consult-cardiology', 'central-line', 'temp-wire', 'cxr', 'admit', 'handoff'],
+  },
+  'hyperkalemia-ed': {
+    6: ['triage', 'pads', 'notify-physician', 'iv', 'ecg12', 'notify-physician', 'calcium-chloride', 'labs', 'glucose', 'insulin-dextrose',
+      'albuterol-hyperk', 'sample', ...R(4), 'notify-physician', 'calcium-chloride', ...R(2), 'sodium-bicarbonate', ...R(3), 'ecg12-repeat', ...R(4),
+      'glucose', 'handoff'],
+    7: ['primary', 'opqrst', 'calcium-chloride', 'labs', 'insulin-dextrose', 'albuterol-hyperk', 'sample', 'lungs', 'perfusion', 'reassess',
+      'calcium-chloride', ...R(2), 'sodium-bicarbonate', 'admit', ...R(5), 'ecg12-repeat', ...R(4), 'glucose', 'handoff'],
+  },
+  'unstable-af-cardioversion-ed': {
+    6: ['ems-handoff', 'notify-physician', 'pads', 'neuro', 'ecg12', 'iv', 'labs', 'capno', 'bvm', 'cardiovert', 'cardiovert', 'nibp',
+      'notify-physician', 'heparin', 'ecg12-repeat', 'magnesium-sulfate', 'sample', 'handoff'],
+    7: ['ems-handoff', 'sample', 'neuro', 'labs', 'procedural-sedation', 'cardiovert', 'cardiovert', 'heparin', 'cxr', 'magnesium-sulfate', 'admit',
+      'handoff'],
+  },
+  'scape-ed': {
+    6: ['ems-handoff', 'cpap', 'notify-physician', 'monitor', 'nibp', 'nitro-high', 'iv', 'nibp', 'ecg12', 'labs', 'neuro', 'reassess',
+      'notify-physician', 'reassess', 'handoff'],
+    7: ['ems-handoff', 'cpap', 'lungs', 'nitro-high', 'sample', 'pocus', 'reassess', 'admit', 'handoff'],
+  },
+  'pulmonary-embolism-lysis-ed': {
+    6: ['ems-handoff', 'triage', 'monitor', 'o2-nrb', 'notify-physician', 'iv', 'labs', 'ecg12', 'perfusion', 'heparin', 'pressor', 'sample',
+      'neuro', 'alteplase', ...R(2), 'notify-physician', ...R(5), 'handoff'],
+    7: ['ems-handoff', 'pocus', 'heparin', 'pressor', 'sample', 'alteplase', 'consult-cardiology', 'admit', ...R(5), 'handoff'],
+  },
+  'aortic-dissection-ed': {
+    6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(9),
+      'handoff'],
+    7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro', 'ct-urgent', ...R(5), 'handoff'],
+  },
+  'tamponade-ed': {
+    6: ['triage', 'monitor', 'o2-nc', 'vitals', 'perfusion', 'lungs', 'notify-physician', 'iv', 'labs', 'ecg12', 'sample', 'fluid', 'pads',
+      'notify-physician', 'pressor', 'reassess', 'notify-physician', 'vitals', 'reassess', 'handoff'],
+    7: ['perfusion', 'lungs', 'sample', 'pocus', 'fluid', 'pericardiocentesis', 'consult-cardiology', 'admit', 'handoff'],
+  },
+  'vf-arrest-ed': {
+    6: ['call-help', 'cpr', 'defib', 'iv', 'cpr', 'defib', 'epinephrine', 'bvm', 'cpr', 'defib', 'amio-arrest', 'epinephrine', 'capno', 'cpr',
+      'defib', 'cpr', 'pulse-check', 'pressor', 'bvm', 'ecg12', 'notify-physician', 'neuro', ...R(5), 'handoff'],
+    7: ['defib', 'cpr', 'defib', 'epinephrine', 'airway', 'epinephrine', 'capno', 'cpr', 'defib', 'amio-arrest', 'hs-ts', 'cpr', 'defib', 'cpr',
+      'pulse-check', 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'neuro', ...R(5), 'handoff'],
+  },
 };
 
 describe('scenario library', () => {
@@ -221,10 +278,8 @@ describe('scenario library', () => {
       expect(SCENARIO_BY_ID[sc.id]).toBe(sc);
       for (const role of sc.roles) expect(IDEAL[sc.id]?.[role], `${sc.id} role ${role}`).toBeDefined();
     }
-    // the emergency department's roles (6 ER nurse, 7 ER doctor) get their cases in a phase of their own: once the first
-    // ED case is in, every role needs at least one
-    const roles: LearningLevel[] = SCENARIOS.some((s) => s.setting === 'ed') ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5];
-    for (const role of roles) expect(scenariosFor(role).length, `role ${role}`).toBeGreaterThan(0);
+    // every role, the ER nurse and the ER doctor included, has cases of its own
+    for (const role of ROLES) expect(scenariosFor(role).length, `role ${role}`).toBeGreaterThan(0);
   });
 
   it('lists only the roles that work in the case\'s setting (field: 1–2, emergency department: 6–7, cath lab: 3–5)', () => {

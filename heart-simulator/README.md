@@ -41,7 +41,8 @@ bar's **←** is the same button.
 
 ## First visit, search and the glossary
 
-- **First visit:** a welcome card asks what you do (EMT, paramedic, cath lab tech, cath lab nurse, cardiologist) and
+- **First visit:** a welcome card asks what you do (EMT, paramedic, ER nurse, ER doctor, cath lab tech, cath lab nurse,
+  cardiologist) and
   offers the first lesson; the choice sets the role everywhere and is remembered (`src/components/home/Welcome.tsx`).
 - **Search** (main menu, and the icon in the top bar) covers the library, the lessons, the tools, the simulator cases
   and the glossary, and understands everyday words ("ekg", "heart attack", "afib"): `searchLibrary` in
@@ -191,6 +192,13 @@ library section or tool also resets the speed to real time and closes the electr
   **Imaging** tab lists every cine run
   with a C-arm diagram, its angles, what the view shows best and, where the app has one, the real image (tap to
   enlarge).
+- **The emergency department works as a team too** (`edKit.ts`, setting `ed`): as the **ER nurse** you triage,
+  record the 12-lead within 10 minutes of arrival, start lines, draw labs and report (SBAR); the (computer) ED
+  physician examines and gives the orders, and a drug given with no order or standing order costs points — the chest
+  pain standing order, the ACLS drugs in an arrest and the shocks need none. As the **ER doctor**, a computer nurse
+  does the nursing and every medical decision is yours: the read, bedside ultrasound, the cath lab activation or the
+  fibrinolytic, intubation, a central line, pacing, a pericardiocentesis, the cardiology consult and where the patient
+  goes. The review times door-to-ECG, ECG-to-activation and door-to-needle.
 - **Events happen on time or because of what you did** (VF en route, heart block, a wedged catheter,
   reperfusion VF), built-in safety rules catch dangerous choices (a manual shock with a pulse, arrest-dose
   epinephrine with a pulse, nitroglycerin with a systolic pressure under 90, cardioversion without a
@@ -221,7 +229,11 @@ library section or tool also resets the speed to real time and closes the electr
   thrombosis · spontaneous coronary artery dissection after childbirth · takotsubo with LV outflow obstruction (no
   inotropes) · complete heart block and a temporary wire · guide-catheter dissection of the right coronary · coronary
   air embolism · a stroke on the table · a vasovagal reaction at the sheath pull · retroperitoneal bleeding after a
-  femoral PCI. Each new case was written to the 2025 AHA and ACC/AHA
+  femoral PCI. Emergency department (ER nurse, ER doctor) — a STEMI that walks in (no nitrate after tadalafil) ·
+  NSTEMI on the serial troponin · complete heart block from hyperkalemia (pads, calcium) · severe hyperkalemia ·
+  unstable AF and synchronized cardioversion · hypertensive flash pulmonary edema (SCAPE) · massive pulmonary
+  embolism and alteplase · type A aortic dissection (no lytic, the surgeon) · cardiac tamponade and the
+  pericardiocentesis · VF arrest in an ED bed (the code). Each new case was written to the 2025 AHA and ACC/AHA
   guidelines and checked by an independent clinical reviewer, with its own test file (`tests/scenario-*.test.ts`)
   covering the ideal runs, the traps and every in-scope action. Tests play every case's ideal run for each role
   and its main traps (`tests/scenarios.test.ts`).
@@ -287,6 +299,8 @@ monitor/defibrillator permissions stay inside that role's scope (`src/lib/scope.
 | --- | --- |
 | EMT (NREMT, BLS) | National EMS Scope of Practice Model 2019 (NHTSA) + state/local protocols and medical direction |
 | Paramedic (NREMT, ALS) | National EMS Scope of Practice Model 2019 (NHTSA) + state/local protocols and medical direction |
+| ER Nurse (RN, emergency department) | State Nurse Practice Act, Board of Nursing rulings, ENA Scope and Standards of Emergency Nursing Practice, facility policy, standing orders and competency validation |
+| ER Doctor (emergency physician, MD/DO) | Medical licensure, board certification (ABEM / AOBEM), hospital credentialing and privileges, ACEP policy statements |
 | Cath Lab Tech (RCIS) | RCIS credential, SCAI best-practices consensus (2021), state law and facility policy |
 | Cath Lab Nurse (RN) | State Nurse Practice Act, Board of Nursing rulings and facility policy |
 | Cardiologist | Licensure and hospital privileges — full technical depth |

@@ -23,6 +23,16 @@ import { cathlabVasovagal } from './cathlabVasovagal';
 import { cocaineField } from './cocaineField';
 import { commotioField } from './commotioField';
 import { dissectionField } from './dissectionField';
+import { edDissection } from './edDissection';
+import { edHeartBlock } from './edHeartBlock';
+import { edHyperkalemia } from './edHyperkalemia';
+import { edNstemi } from './edNstemi';
+import { edPeLysis } from './edPeLysis';
+import { edScape } from './edScape';
+import { edStemiWalkIn } from './edStemiWalkIn';
+import { edTamponade } from './edTamponade';
+import { edUnstableAf } from './edUnstableAf';
+import { edVfArrest } from './edVfArrest';
 import { heartBlock } from './heartBlock';
 import { hyperkalemiaField } from './hyperkalemiaField';
 import { lvadField } from './lvadField';
@@ -45,6 +55,8 @@ export const SCENARIOS: Scenario[] = [
   posteriorStemiField, cocaineField, dissectionField, peField, tamponadeField,
   scapeField, wpwAfField, torsadesField, commotioField, lvadField,
   // the emergency department (setting 'ed', roles [6, 7]: see edKit.ts)
+  edStemiWalkIn, edNstemi, edHeartBlock, edHyperkalemia, edUnstableAf,
+  edScape, edPeLysis, edDissection, edTamponade, edVfArrest,
   // the cath lab
   cathlabStemi, cathlabInferior, cathlabFfr, cathlabShock, cathlabNoReflow, cathlabPerforation, cathlabContrast,
   cathlabLeftMain, cathlabStentThrombosis, cathlabScad, cathlabTakotsubo, cathlabTempWire,
