@@ -20,6 +20,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Record baseline rhythm, heart rate and intervals at the start of the case so changes are obvious; watch for ectopy, bradycardia or ST shifts during catheter manipulation and contrast injection, and alert the operator immediately.',
       'Document baseline rhythm, rate, PR/QRS/QTc and vital signs before sedation or medications; a normal rhythm does not exclude ischemia, so reassess chest pain and perfusion and escalate any rhythm or ST change to the physician.',
       'Confirm sinus origin by P-wave axis (upright in I, II, aVF; inverted in aVR) and scan for pre-excitation, Brugada pattern, long QT or conduction disease; the SA node and right phrenic nerve lie near the SVC–RA junction, at risk during SVC isolation.',
+      'A normal rhythm does not lower the triage level: chest pain, syncope or dyspnea still gets a 12-lead within 10 minutes of arrival, shown to the physician at once and repeated when symptoms change. On any monitor alarm, check the patient and a pulse: a normal-looking rhythm with no pulse is PEA, so start compressions and call the code.',
+      'A normal first ECG does not rule out ACS: repeat it when symptoms change and use serial high-sensitivity troponin. In syncope, look for a delta wave, a Brugada pattern, a long QT or bifascicular block; in shock with sinus rhythm, bedside ultrasound looks for tamponade, RV strain, a poor LV or a flat IVC.',
     ],
     overview: [
       'Normal adult rhythm originating in the sinoatrial (SA) node',
@@ -134,6 +136,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Expect vagal or contrast-induced slowing (especially RCA injections, sheath insertion or removal); call out rate and BP to the operator at once, coach a cough if directed, and have atropine prepared for the physician\'s order, pacing pads and a temporary pacing kit ready.',
       'Assess perfusion and mental status, look for vasovagal triggers (pain, sheath removal, full bladder) and rate-slowing medications, and give atropine 1 mg IV or a fluid bolus as ordered; escalate persistent symptoms and keep pacing pads on.',
       'Exclude reversible causes and correlate symptoms with rhythm; pace only symptomatic sinus node dysfunction (2018 ACC/AHA/HRS), preferring dual-chamber or atrial over single-chamber ventricular pacing, minimizing RV pacing and adding rate response for chronotropic incompetence.',
+      'For a slow rate with low BP, confusion or chest pain, bring the physician to the bedside, place pacing pads, get a 12-lead at once and have atropine 1 mg ready to give on order. Report the medication list (β-blockers, calcium channel blockers, digoxin, clonidine), the glucose and the temperature.',
+      'Treat the cause too: inferior STEMI (cath lab), hyperkalemia (IV calcium), β-blocker or calcium channel blocker toxicity, hypothermia (rewarm) or raised ICP (head CT). With poor perfusion give atropine 1 mg every 3–5 min to 3 mg (not after heart transplant), then pace or start an infusion, and float a transvenous wire if that fails.',
     ],
     overview: [
       'Sinus rhythm < 60 bpm traditionally; the 2018 ACC/AHA/HRS bradycardia guideline defines it as < 50 bpm',
@@ -250,6 +254,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'In the lab, sinus tachycardia often signals pain, anxiety, bleeding (including retroperitoneal), contrast reaction or tamponade; record the trend, check the pressure waveform and access site, and report a rising rate or falling BP to the operator at once.',
       'Treat tachycardia as a clue: assess pain, anxiety, volume status, temperature and access sites for bleeding and escalate promptly; clarify any order for β-blockers or calcium channel blockers, which can cause collapse when tachycardia is compensatory.',
       'Exclude secondary causes before diagnosing IST (resting > 100, mean 24-h > 90 bpm) or POTS (≥ 30 bpm rise on standing); IST is treated with β-blockers or ivabradine, POTS with volume expansion and reconditioning. Sinus node modification is rarely used: high recurrence, phrenic and SVC injury.',
+      'In ESI triage an adult heart rate over 100 is a danger-zone vital sign, so consider up-triage to ESI 2 and look for the driver: bleeding, fever, dehydration, hypoxia, pain. Trend HR against BP, report a rising rate with a falling BP at once (SBAR), and question a rate-slowing drug ordered before the cause is treated.',
+      'Treat the cause, not the rate: sepsis, hemorrhage, PE, tamponade, thyrotoxicosis, stimulants or withdrawal, using bedside ultrasound (IVC, FAST, RV, effusion), targeted labs and CT pulmonary angiography when PE is likely. Do not slow a compensatory rate with β-blockers, and do not discharge a patient with unexplained tachycardia.',
     ],
     overview: [
       'Sinus rhythm > 100 bpm',
@@ -359,6 +365,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Catheter manipulation in the atria can trigger AF; alert the operator, record rate and BP, and prepare the defibrillator for synchronized cardioversion if requested. In AF, average pressures and cardiac output over several beats, and record ACTs during ablation.',
       'Verify anticoagulant, last dose and renal function before cardioversion or ablation; give heparin on order and monitor ACT (commonly > 300 s for AF ablation). Give moderate sedation only on order with the practitioner present, using capnography, and watch afterward for bleeding, tamponade and stroke signs.',
       'Apply the 2023 ACC/AHA/ACCP/HRS guideline: anticoagulate by stroke risk (DOAC preferred), treat risk factors and favor early rhythm control, with ablation first-line in selected paroxysmal AF and recommended in selected HFrEF. PVI (RF, cryo or pulsed field) is the cornerstone; consider LAAO when anticoagulation is contraindicated.',
+      'At triage, check for stroke signs (a new deficit: stroke alert per protocol, last-known-well time) and ask when the palpitations began, which anticoagulant and the last dose. Give diltiazem or metoprolol on order with a BP before and after each dose, and report a very fast, wide, irregular rhythm before any AV nodal blocker goes in.',
+      'Cardiovert unstable AF now (synchronized, ≥ 200 J biphasic); in stable RVR treat the driver first, then control the rate (diltiazem only if EF > 40%), and give procainamide or cardiovert, never AV nodal blockers, for pre-excited AF. AF ≥ 48 h or of unknown onset needs 3 weeks of anticoagulation or a TEE before elective cardioversion.',
     ],
     overview: [
       'Most common sustained arrhythmia; lifetime risk ~1 in 3 to 1 in 5 adults',
@@ -511,6 +519,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Flutter may be induced deliberately during EP study or CTI ablation; run the recording system and stimulator as directed, label intracardiac channels, record cycle length for the operator, and keep the defibrillator ready for cardioversion.',
       'Confirm anticoagulation status (same rules as AF) before cardioversion or ablation; give ibutilide only on order after checking potassium and magnesium, with continuous ECG and QT monitoring for ≥ 4 h, and give moderate sedation on order with the practitioner present.',
       'CTI ablation is first-line for symptomatic typical flutter (> 90% success), but AF often follows, so tie anticoagulation to stroke risk. Confirm CTI dependence by entrainment (PPI − TCL < ~20–30 ms) and prove bidirectional isthmus block; atypical left atrial flutters need 3D activation mapping.',
+      'Report a narrow regular rate that stays fixed near 150 despite fluids, rest or pain relief, and run a continuous strip during any vagal maneuver or adenosine dose so the flutter waves are captured. Ask about anticoagulants and the last dose; for a cardioversion, place pads and monitor the sedation with capnography.',
+      'Fixed 2:1 flutter is hard to rate-control, so synchronized cardioversion (200 J biphasic initially) under procedural sedation is often the better choice, after the same 48-hour anticoagulation check as AF. Suspect 1:1 flutter in a very fast, wide, regular rhythm on flecainide or propafenone, and refer for CTI ablation.',
     ],
     overview: [
       'Organized macroreentrant atrial rhythm with an atrial rate of ~250–350/min (typically ~300)',
@@ -640,6 +650,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'During EP study, run the recording system and stimulator as directed, label His, CS and RV channels and record intervals such as AH jumps; during slow-pathway ablation, call out fast junctional rhythm, VA block or PR prolongation immediately.',
       'Give adenosine on order as a rapid push with an immediate 20 mL flush via a proximal IV, warning of brief chest pressure; during EP study give moderate sedation and isoproterenol only on order, and monitor rhythm and PR afterward for AV block.',
       'Slow-pathway ablation is first-line for recurrent symptomatic AVNRT (~95% cure, < 1% AV block). Confirm dual-pathway physiology (AH jump ≥ 50 ms), target the posteroseptal triangle of Koch near the CS ostium, and stop energy for fast junctional rhythm or junctional beats with VA block.',
+      'Coach the modified Valsalva as ordered (15 s strain half sitting up, then flat with legs raised) with a strip running. For adenosine on order, use a large antecubital IV with a stopcock so the 20 mL flush follows instantly, warn of a few seconds of chest pressure, keep pads on and record a 12-lead after conversion.',
+      'Stable: modified Valsalva, adenosine 6 mg then 12 mg (3 mg first via a central line or after heart transplant), then IV diltiazem or a β-blocker; unstable: synchronized cardioversion at 100 J. Check the sinus ECG for a delta wave; most patients go home with vagal maneuver teaching, and recurrent episodes are referred for ablation.',
     ],
     overview: [
       'Most common regular paroxysmal SVT in adults, more frequent in women',
@@ -763,6 +775,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'During accessory-pathway ablation, run the recording system and stimulator as directed, anticipate transseptal equipment for left-sided pathways, call out loss of pre-excitation, AV block or AF, and keep defibrillator pads connected: induced pre-excited AF can degenerate to VF.',
       'AV nodal blockers can be lethal in pre-excited AF: clarify any order for adenosine, diltiazem, β-blockers or digoxin in an irregular wide-complex rhythm, keep pads on, and give procainamide only on order, holding it and notifying the physician if hypotension or QRS widening > 50% occurs.',
       'Ablate symptomatic WPW (~95% success) and risk-stratify asymptomatic pre-excitation: abrupt loss of pre-excitation suggests low risk, while SPERRI ≤ 250 ms, multiple pathways or inducible AVRT mark high risk. Localize by delta-wave polarity; septal pathways near the His may favor cryoablation.',
+      'Known WPW with fast palpitations or syncope goes straight to a monitored bed with pads on and a 12-lead shown to the physician. Question any AV nodal blocker ordered for a fast, irregular, wide rhythm, defibrillate at once if it degenerates to VF, and repeat the 12-lead after conversion: the delta wave may show only in sinus rhythm.',
+      'In pre-excited AF, cardiovert if unstable; if stable, give procainamide (20–50 mg/min to 17 mg/kg, stopping for hypotension or QRS widening > 50%) or ibutilide, and no AV nodal blocker, IV amiodarone included. Treat a wide regular tachycardia as VT, and consult EP for early ablation after any pre-excited AF or syncope.',
     ],
     overview: [
       'WPW pattern: ECG pre-excitation without symptoms; WPW syndrome: pre-excitation plus arrhythmia',
@@ -889,6 +903,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Junctional beats are expected during slow-pathway ablation, but call out fast junctional rhythm or junctional beats without 1:1 retrograde atrial conduction at once; loss of AV synchrony can drop arterial pressure, so record the BP trend and have pacing equipment ready.',
       'Assess for lost atrial kick (hypotension, dizziness) and digoxin toxicity (nausea, visual change, confusion); report the rhythm, review potassium and magnesium results, hold AV nodal blockers and notify the physician, and give atropine on order if symptomatic.',
       'Identify why the sinus node failed or the junction accelerated (digoxin toxicity, inferior MI, drugs, post-surgery, vagal tone); pace persistent symptomatic junctional rhythm from sinus node dysfunction with atrial-based pacing. During slow-pathway ablation, stop energy for fast junctional rhythm or loss of 1:1 VA conduction.',
+      'Report a slow, regular, narrow rhythm without normal P waves with the BP, mental status and any digoxin, β-blocker or calcium channel blocker use, and draw potassium, magnesium and a digoxin level as ordered, noting the time of the last dose. Ask about nausea and yellow-green vision, and keep pads on if symptomatic.',
+      'Find why the junction took over: inferior STEMI on the 12-lead, digoxin toxicity (suspect it when AF turns slow and regular; digoxin immune Fab for a life-threatening arrhythmia or hyperkalemia), β-blocker or calcium channel blocker excess, or sinus node disease. Treat a symptomatic slow rate with atropine, then pacing or an infusion.',
     ],
     overview: [
       'Impulse originates in the AV junction instead of the SA node',
@@ -998,6 +1014,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Record the baseline PR on the lab monitor; a lengthening PR or new dropped beats during RCA injection, TAVR valve deployment or septal ablation can herald higher-grade block, so alert the operator and have a temporary pacing wire ready.',
       'Note the baseline PR before giving AV nodal blockers or sedation and hold doses per order parameters if it lengthens markedly; new PR prolongation with fever (possible root abscess) or suspected Lyme carditis needs prompt physician notification and telemetry.',
       'Isolated first-degree AV block needs no pacing; pacing is reasonable when marked PR prolongation (often > 300 ms) clearly causes pacemaker syndrome–like symptoms (2018 ACC/AHA/HRS). Use AH (nodal) versus HV (infranodal) intervals to localize delay, and suspect root abscess when PR lengthens in endocarditis.',
+      'Record the PR on the triage 12-lead so later strips can be compared, and report a lengthening PR, dropped beats or a new wide QRS. Check the rate and PR before giving a β-blocker, calcium channel blocker or digoxin on order, and tell the physician about fever with a new murmur, or a tick bite or rash.',
+      'Treat the long PR as context: compare with old ECGs and look for inferior STEMI and AV nodal drugs. A new long PR with fever and a murmur is an aortic root abscess until proven otherwise (blood cultures, urgent TEE, cardiology and cardiac surgery); suspected Lyme carditis with PR > 300 ms needs telemetry admission and IV ceftriaxone.',
     ],
     overview: [
       'PR interval > 200 ms with every P wave followed by a QRS',
@@ -1102,6 +1120,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Wenckebach often appears transiently with vagal surges or RCA injections; record a labeled strip, report it to the operator, and watch for progression to 2:1 or complete block during the case, with pacing pads and a temporary wire available.',
       'Usually benign: assess perfusion, hold AV nodal blockers per order parameters, and notify the physician of symptoms, hypotension or a wide QRS; give atropine on order if symptomatic, and monitor for progression after inferior MI.',
       'Narrow-QRS Wenckebach is typically nodal and needs no pacing unless symptoms are clearly attributable to it (2018 ACC/AHA/HRS, Class 2a). A wide QRS, exercise-induced block or 2:1 block suggests possible infranodal disease; infra-Hisian Wenckebach on EP study warrants pacing.',
+      'Run a long strip for the physician; grouped beats with a lengthening PR are usually benign, but report a wide QRS, symptoms with a slow rate, or progression to 2:1 or complete block at once. With chest pain, get a 12-lead within 10 minutes; Wenckebach with inferior MI needs continuous monitoring and pads within reach.',
+      'Confirm progressive PR lengthening with a narrow QRS and look for inferior STEMI, AV nodal drugs and Lyme disease; a well patient with no acute cause can usually go home. Give atropine if symptomatic, and admit to telemetry with cardiology if the QRS is wide or the block appears with exertion (possible infranodal disease).',
     ],
     overview: [
       'Progressive PR prolongation followed by a single non-conducted P wave',
@@ -1206,6 +1226,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Mobitz II can progress abruptly to complete block, so keep pacing pads connected and a temporary pacing wire, sheath and generator prepared; report new dropped beats immediately, especially during TAVR, septal ablation or right heart catheterization with existing LBBB.',
       'Keep pads on with continuous monitoring, assess perfusion and level of consciousness frequently, give chronotropic infusions only on order, and prepare the patient for temporary or permanent pacing (verify consent, NPO status and anticoagulant review, educate).',
       'Mobitz II without a reversible cause is a Class 1 pacing indication even if asymptomatic (2018 ACC/AHA/HRS). Block is usually infra-Hisian; screen patients < 60 for sarcoidosis, and consider conduction system pacing or CRT when LVEF is reduced and pacing burden high.',
+      'Put pacing pads on at once even if the patient looks well, keep continuous monitoring, and report more dropped beats, a falling rate or syncope immediately. If pacing starts, give analgesia and sedation on order, confirm capture by femoral pulse and BP, and set up for a transvenous wire.',
+      'Treat Mobitz II as unstable conduction disease even when the patient looks well: pads on, look for anterior STEMI and hyperkalemia, and do not rely on atropine. Pace transcutaneously if symptomatic, float a transvenous wire (right IJ or femoral) if pacing must continue, and admit with cardiology for a permanent pacemaker.',
     ],
     overview: [
       'Intermittent non-conducted P waves with a constant PR in the conducted beats',
@@ -1323,6 +1345,8 @@ export const CONDITIONS_A: Record<string, ConditionContent> = {
       'Prepare for emergent temporary transvenous pacing (sheath, pacing wire, generator), report escape rate, BP and pacing capture to the operator, and anticipate complete block during TAVR, alcohol septal ablation or RCA intervention, with pads applied on high-risk patients.',
       'Keep pads on and pacing ready, assess perfusion and mental status frequently, give atropine or chronotropic infusions only on order, provide analgesia/sedation on order during transcutaneous pacing, and after temporary wire placement monitor capture, the insertion site and limb restrictions.',
       'Acquired CHB without a reversible cause is a Class 1 pacing indication regardless of symptoms (2018 ACC/AHA/HRS); allow recovery time after inferior MI or TAVR, screen patients < 60 for sarcoidosis, and prefer CSP or CRT if LVEF is 36–50% with > 40% expected pacing.',
+      'Call the physician to the bedside for a very slow rate with weakness, syncope or confusion; put pads on with the defibrillator ready to pace, get a 12-lead at once and send potassium and a digoxin level as ordered. Watch for long pauses and torsades, start CPR if the pulse is lost, and set up for a transvenous wire.',
+      'Reverse what you can: STEMI (activate the cath lab), hyperkalemia (calcium, then insulin with glucose), β-blocker, calcium channel blocker or digoxin toxicity, and Lyme carditis. Atropine may bridge a narrow escape; pace an unstable patient at once, and with a wide escape keep pads on and be ready to float a transvenous wire.',
     ],
     overview: [
       'Complete failure of AV conduction with independent atrial and ventricular rhythms',

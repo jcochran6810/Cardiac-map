@@ -8,7 +8,8 @@ import type { QuizQuestion } from '@/types/content';
 /**
  * Per-role notes (levelNotes on every library page, roleBriefs on the case studies) and the quiz, now that there are
  * seven roles. The ER nurse's and ER doctor's notes are written in a separate content phase: until an item has them,
- * levelNote() gives its ER readers a labelled stand-in, and the items still waiting are listed below as todos.
+ * levelNote() would give its ER readers a labelled stand-in; since 2026-11-13 every item has all seven notes, and the test
+ * below requires them.
  */
 
 const NOTED: { kind: string; id: string; notes: readonly string[] }[] = [
@@ -55,7 +56,8 @@ describe('levelNote: one note per role, and a labelled stand-in for the ER roles
 
 describe('every library page and case study carries five or seven role notes', () => {
   it.each(NOTED.map((n) => [`${n.kind} ${n.id}`, n] as const))('%s', (_, { notes }) => {
-    expect([5, 7]).toContain(notes.length);
+    // every page carries all seven roles' notes: a new page must come with its ER nurse and ER doctor notes too
+    expect(notes.length).toBe(7);
     for (const note of notes) expect(note.trim().length).toBeGreaterThan(20);
     // every role has something to read, its own note or a labelled stand-in
     for (const level of ROLES) expect(levelNote(notes, level), `role ${level}`).not.toBeNull();
