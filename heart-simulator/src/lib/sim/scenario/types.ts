@@ -10,7 +10,12 @@
 import type { LearningLevel } from '@/store/useAppStore';
 import type { ReadKind, Verdict } from './reads';
 
-export type Setting = 'field' | 'cathlab';
+/**
+ * Where a case happens: an ambulance call (EMT and paramedic), the emergency department (ER nurse and ER doctor) or the
+ * cath lab (tech, nurse and cardiologist). The setting decides which actions are offered (Intervention.settings) and how
+ * the defaults answer: who comes when you call for help, when a hand-off is allowed, who the teammate beside you is.
+ */
+export type Setting = 'field' | 'ed' | 'cathlab';
 
 export type Category = 'assess' | 'monitor' | 'imaging' | 'airway' | 'access' | 'meds' | 'devices' | 'resus' | 'procedure' | 'team';
 
@@ -26,6 +31,11 @@ export interface Intervention {
   minutes: number;
   /** Dose, route or a short how-to */
   detail?: string;
+  /**
+   * The detail where one setting needs other words (e.g. the ED's heparin dose next to the lab's PCI dose): it replaces
+   * `detail` in that setting (interventionsFor and the engine's log read it through detailFor)
+   */
+  detailBySetting?: Partial<Record<Setting, string>>;
   repeatable?: boolean;
   maxTimes?: number;
   /** IV/IO medication or fluid: needs vascular access first */
@@ -47,8 +57,17 @@ export interface Vitals {
   temp: number;
 }
 
-/** `feedback`: the simulator's own feedback — it checks each of your reads the moment you give it (self-paced: no instructor needed) */
-export type Speaker = 'dispatch' | 'scene' | 'patient' | 'partner' | 'team' | 'operator' | 'monitor' | 'you' | 'hospital' | 'system' | 'feedback';
+/**
+ * Who says a line. `feedback`: the simulator's own feedback — it checks each of your reads the moment you give it
+ * (self-paced: no instructor needed). `operator`: the cardiologist at the table in a cath lab case (shown as
+ * "Cardiologist") — never in an emergency department case. The emergency department's own voices: `physician` (the ED
+ * physician, who gives the orders when the learner is the ER nurse), `nurse` (the ED nurse, who does the nursing when the
+ * learner is the ER doctor), `consultant` (cardiology, on the phone or at the bedside) and `ems` (the crew that brought
+ * the patient in). `dispatch`, `scene` and `partner` belong to the field.
+ */
+export type Speaker =
+  | 'dispatch' | 'scene' | 'patient' | 'partner' | 'team' | 'operator' | 'monitor' | 'you' | 'hospital' | 'system' | 'feedback'
+  | 'physician' | 'nurse' | 'consultant' | 'ems';
 export type Tone = 'info' | 'good' | 'warn' | 'bad';
 
 export interface LogEntry {
@@ -226,7 +245,11 @@ export type Problem =
   /** an acute aortic dissection: antithrombotic and fibrinolytic drugs make the tear bleed */
   | 'aortic-dissection'
   /** major bleeding (e.g. a retroperitoneal bleed): what a transfusion of packed red cells treats */
-  | 'bleeding';
+  | 'bleeding'
+  /** cardiac tamponade: what a pericardiocentesis treats (in the emergency department the built-in rule reads it) */
+  | 'tamponade'
+  /** a pulmonary embolism: with a STEMI, the indication for a fibrinolytic in the emergency department (high risk, or in arrest) */
+  | 'pulmonary-embolism';
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'
@@ -241,6 +264,18 @@ export type FactKey =
   | 'vadTeam'
   /** the urgent CT ('ct-urgent') */
   | 'ct'
+  /** emergency department: the EMS crew's hand-off report ('ems-handoff'; none: the patient came in on their own) */
+  | 'ems'
+  /** emergency department: the triage nurse's level and reason ('triage'; default: an ESI level from the vitals) */
+  | 'triage'
+  /** emergency department: the portable chest X-ray ('cxr') */
+  | 'cxr'
+  /** emergency department: the physician's bedside ultrasound of the heart, lungs, IVC and aorta ('pocus'; falls back to 'echo') */
+  | 'pocus'
+  /** emergency department: what the cardiology consultant says ('consult-cardiology') */
+  | 'consult'
+  /** emergency department: the repeat high-sensitivity troponin, 1–3 hours after the first ('troponin-repeat'; the first is in 'labs') */
+  | 'troponin'
   | 'angio' | 'lvgram' | 'lvedp' | 'rhc' | 'ivus' | 'oct' | 'ffr' | 'final';
 
 export interface Timing {
@@ -294,6 +329,12 @@ export interface Scenario {
   transportMinutes?: number;
   /** minutes of transport to the nearest emergency department (default 8) */
   nearestMinutes?: number;
+  /**
+   * emergency department: minutes from activating the cath lab ('cath-lab-activate', or a case event that sets the timer
+   * `cathReady`) to the team being ready for the patient (default 20). The flag 'cath-ready' is set then, and the hand-off
+   * to the cath lab team waits for it
+   */
+  cathLabMinutes?: number;
   arrival?: string;
   /** minutes pulseless without ROSC before the patient dies (default 15) */
   deathAfter?: number;

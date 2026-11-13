@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useAppStore, LEVEL_LABELS, type LearningLevel, type PanelCategory } from '@/store/useAppStore';
+import { useAppStore, LEVEL_LABELS, ROLES, type LearningLevel, type PanelCategory } from '@/store/useAppStore';
 import { useTutorStore } from '@/store/useTutorStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useLearningStore } from '@/store/useLearningStore';
@@ -34,8 +34,6 @@ import Welcome from '@/components/home/Welcome';
 import {
   IconBook, IconChart, IconChevron, IconClipboard, IconCube, IconDownload, IconHeart, IconHeartPulse, IconHelp, IconMessage, IconPerson, IconPill, IconPlay, IconPulse, IconQuiz, IconTutor, IconZap,
 } from '@/components/ui/icons';
-
-const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
 
 const CATEGORY_LOOK: Record<PanelCategory, { icon: React.ReactNode; tint: string }> = {
   conditions: { icon: <IconHeartPulse size={22} />, tint: 'text-rose-300 bg-rose-500/15' },
@@ -89,7 +87,11 @@ const TOURS: { title: string; text: string; go: () => void }[] = [
   },
 ];
 
-/** Courses the menu's course row brings to the front for a role, in this order (the cath lab roles' own work after the basics) */
+/**
+ * Courses the menu's course row brings to the front for a role, in this order (the cath lab roles' own work after the
+ * basics). A role without an entry gets its own courses in the course list's order (the ER roles: the basics, the ECG,
+ * rhythms, STEMI, then cardiac arrest).
+ */
 const COURSES_FIRST: Partial<Record<LearningLevel, string[]>> = {
   3: ['heart-basics', 'cath-lab', 'hemodynamics'],
   4: ['heart-basics', 'cath-lab', 'hemodynamics'],
@@ -266,7 +268,7 @@ export default function HomeScreen() {
           />
           <StartCard
             icon={<IconPlay size={24} />} tone="amber" title="Treat a patient"
-            text={`What you do changes the monitor, the 12-lead and the story — then you get a score. ${cases} case${cases === 1 ? '' : 's'} for ${LEVEL_LABELS[role].short}.`}
+            text={`What you do changes the monitor, the 12-lead and the story — then you get a score. ${cases ? `${cases} case${cases === 1 ? '' : 's'} for ${LEVEL_LABELS[role].short}.` : `No cases for ${LEVEL_LABELS[role].short} yet — they are being written. Meanwhile you can play the other roles' cases.`}`}
             action={caseInProgress ? 'Continue your case' : 'Open the case simulator'}
             onClick={() => useAppStore.getState().setMode('simulator')}
           />

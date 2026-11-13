@@ -10,7 +10,7 @@ import { useCaseStore } from '@/store/useCaseStore';
 import { useCathLabStore } from '@/store/useCathLabStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
-import { useContent } from '@/lib/content';
+import { decisionOwner, levelNote, useContent } from '@/lib/content';
 import { kindOf, nameOf, openById, openCase, openStructure, showCineView, showConditionEcg, showEcg, showHeart } from '@/lib/actions';
 import { enterSimulator, useSimStore } from '@/store/useSimStore';
 import { SCENARIOS, labCasesUsing } from '@/lib/sim/scenario/scenarios';
@@ -191,10 +191,11 @@ function Header({ title, badge, badgeClass, summary, children }: { title: string
   );
 }
 
-function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }) {
+function LevelFocus({ notes, level }: { notes?: readonly string[]; level: LearningLevel }) {
   const [showScope, setShowScope] = useState(false);
   const [open, toggle] = useFold('focus');
-  const note = notes?.[level - 1];
+  // the learner's own note, or (an ER role on a page whose ER notes are not written yet) a labelled stand-in
+  const note = levelNote(notes, level);
   if (!note) return null;
   return (
     <div className="mt-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
@@ -211,8 +212,9 @@ function LevelFocus({ notes, level }: { notes?: string[]; level: LearningLevel }
       </div>
       {open && (
         <div className="px-2 pb-2">
-          <p className="text-xs phone:text-[13px] text-slate-200 leading-relaxed">{note}</p>
-          <p className="mt-1 text-[11px] text-slate-400">Within {SCOPES[level].role} scope · {SCOPES[level].framework.split(' · ')[0]}</p>
+          {note.standIn && <p className="mb-1 text-[11px] text-amber-200/90 leading-snug">{note.standIn}.</p>}
+          <p className="text-xs phone:text-[13px] text-slate-200 leading-relaxed">{note.text}</p>
+          <p className="mt-1 text-[11px] text-slate-400">Within {SCOPES[note.from].role} scope · {SCOPES[note.from].framework.split(' · ')[0]}</p>
           {showScope && <div className="mt-2 pt-2 border-t border-emerald-500/20"><ScopeCard level={level} compact /></div>}
         </div>
       )}
@@ -245,9 +247,9 @@ const STRUCTURE_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1, 2] },
   { key: 'anatomy', label: 'Anatomy', levels: [3, 5] },
   { key: 'physiology', label: 'Physiology', levels: [4] },
-  { key: 'clinical', label: 'Clinical', levels: [1, 2, 4] },
-  { key: 'ecg', label: 'ECG', levels: [2, 3] },
-  { key: 'imaging', label: 'Imaging', levels: [3, 5] },
+  { key: 'clinical', label: 'Clinical', levels: [1, 2, 4, 6, 7] },
+  { key: 'ecg', label: 'ECG', levels: [2, 3, 6, 7] },
+  { key: 'imaging', label: 'Imaging', levels: [3, 5, 7] },
   { key: 'procedures', label: 'Procedures', levels: [3, 4, 5] },
   { key: 'teaching', label: 'Pearls' },
 ];
@@ -287,17 +289,17 @@ function StructureView({ s, level }: { s: StructureContent; level: LearningLevel
 
 const CONDITION_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1] },
-  { key: 'treat', label: 'Give meds', levels: [2, 4, 5] },
+  { key: 'treat', label: 'Give meds', levels: [2, 4, 5, 6, 7] },
   { key: 'pathophysiology', label: 'Pathophysiology', levels: [5] },
-  { key: 'symptoms', label: 'Signs & symptoms', levels: [1, 2, 4] },
-  { key: 'ecg', label: 'ECG', levels: [2, 3, 5] },
-  { key: 'imaging', label: 'Imaging', levels: [5] },
-  { key: 'medications', label: 'Medications', levels: [2, 4] },
+  { key: 'symptoms', label: 'Signs & symptoms', levels: [1, 2, 4, 6, 7] },
+  { key: 'ecg', label: 'ECG', levels: [2, 3, 5, 6, 7] },
+  { key: 'imaging', label: 'Imaging', levels: [5, 7] },
+  { key: 'medications', label: 'Medications', levels: [2, 4, 6] },
   { key: 'fieldCare', label: 'Field care', levels: [1, 2] },
-  { key: 'hospitalCare', label: 'ED / ICU', levels: [4] },
+  { key: 'hospitalCare', label: 'ED / ICU', levels: [4, 6, 7] },
   { key: 'cardiologyCare', label: 'Cardiology', levels: [5] },
   { key: 'procedure', label: 'Procedures', levels: [3, 4, 5] },
-  { key: 'complications', label: 'Complications', levels: [3, 4] },
+  { key: 'complications', label: 'Complications', levels: [3, 4, 6] },
   { key: 'anatomy', label: 'Anatomy' },
   { key: 'teaching', label: 'Pearls' },
 ];
@@ -382,14 +384,14 @@ function PractiseCase({ conditionId, level }: { conditionId: string; level: Lear
 
 const PROCEDURE_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', levels: [1, 2] },
-  { key: 'indications', label: 'Indications', levels: [5] },
-  { key: 'contraindications', label: 'Contraindications', levels: [4, 5] },
+  { key: 'indications', label: 'Indications', levels: [5, 7] },
+  { key: 'contraindications', label: 'Contraindications', levels: [4, 5, 6, 7] },
   { key: 'anatomy', label: 'Anatomy & access', levels: [3, 5] },
-  { key: 'steps', label: 'Steps', levels: [3, 4, 5] },
+  { key: 'steps', label: 'Steps', levels: [3, 4, 5, 7] },
   { key: 'ecg', label: 'ECG / rhythm', levels: [3] },
   { key: 'equipment', label: 'Equipment', levels: [3] },
-  { key: 'complications', label: 'Complications', levels: [2, 3, 4, 5] },
-  { key: 'postCare', label: 'Post-care', levels: [1, 2, 4] },
+  { key: 'complications', label: 'Complications', levels: [2, 3, 4, 5, 6, 7] },
+  { key: 'postCare', label: 'Post-care', levels: [1, 2, 4, 6] },
   { key: 'teaching', label: 'Pearls' },
 ];
 
@@ -456,14 +458,14 @@ function ProcedureView({ p, level }: { p: ProcedureContent; level: LearningLevel
 
 const MED_TABS: TabDef[] = [
   { key: 'mechanism', label: 'Mechanism', levels: [5] },
-  { key: 'indications', label: 'Indications', levels: [1, 2, 5] },
-  { key: 'dosing', label: 'Dosing', levels: [2, 4] },
-  { key: 'contraindications', label: 'Contraindications', levels: [1, 2, 4] },
-  { key: 'adverseEffects', label: 'Adverse effects', levels: [3, 4] },
-  { key: 'ecgEffects', label: 'ECG effects', levels: [2, 3] },
+  { key: 'indications', label: 'Indications', levels: [1, 2, 5, 7] },
+  { key: 'dosing', label: 'Dosing', levels: [2, 4, 6, 7] },
+  { key: 'contraindications', label: 'Contraindications', levels: [1, 2, 4, 6, 7] },
+  { key: 'adverseEffects', label: 'Adverse effects', levels: [3, 4, 6] },
+  { key: 'ecgEffects', label: 'ECG effects', levels: [2, 3, 7] },
   { key: 'hemodynamics', label: 'Hemodynamics', levels: [3] },
-  { key: 'monitoring', label: 'Monitoring', levels: [3, 4] },
-  { key: 'interactions', label: 'Interactions', levels: [4, 5] },
+  { key: 'monitoring', label: 'Monitoring', levels: [3, 4, 6] },
+  { key: 'interactions', label: 'Interactions', levels: [4, 5, 7] },
   { key: 'teaching', label: 'Pearls' },
 ];
 
@@ -595,7 +597,7 @@ function PractiseLab({ item, level }: { item: CathLabItem; level: LearningLevel 
 
 const CASE_TABS: TabDef[] = [
   { key: 'scenario', label: 'Scenario' },
-  { key: 'decisions', label: 'Decisions', levels: [1, 2, 3, 4, 5] },
+  { key: 'decisions', label: 'Decisions', levels: [1, 2, 3, 4, 5, 6, 7] },
   { key: 'management', label: 'Management' },
   { key: 'medications', label: 'Medications' },
   { key: 'pitfalls', label: 'Pitfalls' },
@@ -659,6 +661,11 @@ function CaseDecisions({ c, level }: { c: CaseData; level: LearningLevel }) {
   const d = decisions[idx];
   const choice = picked[idx];
   const answered = choice !== undefined;
+  // a stand-in brief (an ER role before its brief is written) is another role's part, so it is not offered as "your part"
+  const brief = levelNote(c.roleBriefs, level);
+  // the learner's own decision when their role owns it or owns it too (an ED decision for the ER roles)
+  const owner = decisionOwner(d, level);
+  const mine = owner === level;
   return (
     <div>
       <div className="flex items-center gap-1 mb-2">
@@ -667,11 +674,11 @@ function CaseDecisions({ c, level }: { c: CaseData; level: LearningLevel }) {
         ))}
       </div>
       <div className="text-[9px] uppercase tracking-wider text-amber-300 font-semibold">{d.stage} · decision {idx + 1} of {decisions.length}</div>
-      {d.owner && (
-        <div className={`mt-1 text-[10px] px-2 py-1 rounded border ${d.owner === level ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-slate-600 bg-cardiac-dark/60 text-slate-300'}`}>
-          Decision owner: <b>{SCOPES[d.owner].role}</b>
-          {d.owner !== level && (
-            <span className="text-slate-400"> — outside your role as {SCOPES[level].role}{c.roleBriefs ? `. Your part: ${c.roleBriefs[level - 1]}` : '. Know what to anticipate and how to assist.'}</span>
+      {owner && (
+        <div className={`mt-1 text-[10px] px-2 py-1 rounded border ${mine ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-slate-600 bg-cardiac-dark/60 text-slate-300'}`}>
+          Decision owner: <b>{SCOPES[owner].role}</b>
+          {!mine && (
+            <span className="text-slate-400"> — outside your role as {SCOPES[level].role}{brief && !brief.standIn ? `. Your part: ${brief.text}` : '. Know what to anticipate and how to assist.'}</span>
           )}
         </div>
       )}
@@ -725,6 +732,7 @@ function CaseDecisions({ c, level }: { c: CaseData; level: LearningLevel }) {
 
 function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
   const [tab, setTab] = useTab(CASE_TABS, c.id);
+  const brief = levelNote(c.roleBriefs, level);
   const diff: Record<string, string> = {
     beginner: 'bg-emerald-500/15 text-emerald-300', intermediate: 'bg-yellow-500/15 text-yellow-300',
     advanced: 'bg-orange-500/15 text-orange-300', expert: 'bg-red-500/15 text-red-300',
@@ -743,10 +751,11 @@ function CaseView({ c, level }: { c: CaseData; level: LearningLevel }) {
         {tab === 'scenario' && (
           <>
             <p className="text-slate-200 leading-relaxed">{c.presentation}</p>
-            {c.roleBriefs && (
+            {brief && (
               <div className="p-2 rounded-md bg-emerald-500/10 border border-emerald-500/25">
                 <div className="text-[9px] uppercase tracking-wider text-emerald-300 font-semibold mb-0.5">Your role: {LEVEL_LABELS[level].long}</div>
-                <p className="text-[11px] text-slate-200 leading-relaxed">{c.roleBriefs[level - 1]}</p>
+                {brief.standIn && <p className="mb-0.5 text-[11px] text-amber-200/90 leading-snug">{brief.standIn}.</p>}
+                <p className="text-[11px] text-slate-200 leading-relaxed">{brief.text}</p>
               </div>
             )}
             <div><div className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">History</div><p className="text-slate-300 leading-relaxed">{c.history}</p></div>

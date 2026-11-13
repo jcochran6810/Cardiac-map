@@ -5,7 +5,8 @@ import { answerRead, criticalsFor, perform, review, start, stop } from '@/lib/si
 import { INTERVENTIONS, INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { READ_SETS } from '@/lib/sim/scenario/reads';
 import { SCENARIOS, SCENARIO_BY_ID, scenariosFor } from '@/lib/sim/scenario/scenarios';
-import type { LearningLevel } from '@/store/useAppStore';
+import { ROLE_SETTING, type LearningLevel } from '@/store/useAppStore';
+import type { Speaker } from '@/lib/sim/scenario/types';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { CATHLAB_C } from '@/data/content/cathlab-c';
 import { UNTIL_ARRIVED, readAfter, runScenario as run } from './helpers';
@@ -103,7 +104,25 @@ describe('scenario library', () => {
       expect(SCENARIO_BY_ID[sc.id]).toBe(sc);
       for (const role of sc.roles) expect(IDEAL[sc.id]?.[role], `${sc.id} role ${role}`).toBeDefined();
     }
-    for (const role of [1, 2, 3, 4, 5] as LearningLevel[]) expect(scenariosFor(role).length).toBeGreaterThan(0);
+    // the emergency department's roles (6 ER nurse, 7 ER doctor) get their cases in a phase of their own: once the first
+    // ED case is in, every role needs at least one
+    const roles: LearningLevel[] = SCENARIOS.some((s) => s.setting === 'ed') ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5];
+    for (const role of roles) expect(scenariosFor(role).length, `role ${role}`).toBeGreaterThan(0);
+  });
+
+  it('lists only the roles that work in the case\'s setting (field: 1–2, emergency department: 6–7, cath lab: 3–5)', () => {
+    for (const sc of SCENARIOS) for (const role of sc.roles) expect(ROLE_SETTING[role], `${sc.id} role ${role}`).toBe(sc.setting);
+  });
+
+  it('emergency department cases speak with the department\'s voices: never the cath lab operator or the field', () => {
+    const NOT_IN_ED: Speaker[] = ['operator', 'dispatch', 'scene', 'partner'];
+    for (const sc of SCENARIOS.filter((x) => x.setting === 'ed')) {
+      for (const line of Object.values(sc.briefing).flat()) expect(NOT_IN_ED, `${sc.id} briefing: ${line[1]}`).not.toContain(line[0]);
+      for (const [role, steps] of Object.entries(IDEAL[sc.id] ?? {})) {
+        const s = run(sc, Number(role) as LearningLevel, steps!);
+        for (const l of s.log) expect(NOT_IN_ED, `${sc.id} role ${role}: ${l.who} "${l.text}"`).not.toContain(l.who);
+      }
+    }
   });
 
   it('only refers to interventions, rhythms and conditions that exist', () => {

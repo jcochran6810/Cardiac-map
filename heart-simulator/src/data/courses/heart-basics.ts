@@ -9,7 +9,7 @@ export const HEART_BASICS: Course = {
   id: 'heart-basics',
   title: 'How the heart works',
   summary: 'The chambers and valves, the path blood takes, what happens in one heartbeat, the arteries that feed the heart and the wiring that fires it.',
-  roles: [1, 2, 3, 4, 5],
+  roles: [1, 2, 3, 4, 5, 6, 7],
   level: 'beginner',
   lessons: [
     // ─── 1 ───────────────────────────────────────────────────────────────

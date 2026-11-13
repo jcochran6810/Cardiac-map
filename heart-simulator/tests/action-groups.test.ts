@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { groupActions } from '@/components/simulator/actionGroups';
 import { interventionsFor } from '@/lib/sim/scenario/interventions';
+import type { Setting } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 
-const ROLES: [LearningLevel, 'field' | 'cathlab'][] = [[1, 'field'], [2, 'field'], [3, 'cathlab'], [4, 'cathlab'], [5, 'cathlab']];
+const ROLES: [LearningLevel, Setting][] = [[1, 'field'], [2, 'field'], [3, 'cathlab'], [4, 'cathlab'], [5, 'cathlab'], [6, 'ed'], [7, 'ed']];
 
 describe('the action menu groups the big categories', () => {
   it('splits each big category into groups that hold every action exactly once', () => {

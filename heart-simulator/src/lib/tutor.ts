@@ -4,9 +4,9 @@
  * best-matching item, and composes a level-appropriate answer with links.
  */
 import type { ContentLibrary, SearchExtra, SearchHit } from '@/lib/content';
-import { searchLibrary, withAliases } from '@/lib/content';
+import { levelNote, searchLibrary, withAliases } from '@/lib/content';
 import type { AppMode, LearningLevel } from '@/store/useAppStore';
-import { LEVEL_LABELS } from '@/store/useAppStore';
+import { LEVEL_LABELS, ROLE_SETTING } from '@/store/useAppStore';
 import { resolveProfile, CONDITION_TO_PROFILE } from '@/lib/ecg/profiles';
 import { CASE_DATA } from '@/data/caseData';
 import { GLOSSARY, GLOSSARY_BY_ID, type GlossaryTerm } from '@/data/glossary';
@@ -518,8 +518,10 @@ export function findTopic(question: string, lib: ContentLibrary): TopicMatch | n
 }
 
 function careField(level: LearningLevel): 'fieldCare' | 'hospitalCare' | 'cardiologyCare' {
-  // EMS roles → field care; cath lab tech / nurse → in-hospital care (carried out on orders); cardiologist → specialist care
-  return level <= 2 ? 'fieldCare' : level <= 4 ? 'hospitalCare' : 'cardiologyCare';
+  // EMS roles → field care; the ER nurse and doctor, and the cath lab tech and nurse → in-hospital (ED / ICU) care;
+  // cardiologist → specialist care
+  if (ROLE_SETTING[level] === 'field') return 'fieldCare';
+  return level === 5 ? 'cardiologyCare' : 'hospitalCare';
 }
 
 export function answerQuestion(question: string, lib: ContentLibrary, ctx: TutorContext): TutorAnswer {
@@ -567,6 +569,11 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
 
   const intent = intentOf(q);
   const lv = `Focus for ${LEVEL_LABELS[level].long}`;
+  // the role's own note, or (an ER role before the item's ER notes are written) the stand-in, labelled
+  const focus = (notes: readonly string[]): string[] => {
+    const n = levelNote(notes, level);
+    return n ? [n.standIn ? `${lv} — ${n.standIn}: ${n.text}` : `${lv}: ${n.text}`] : [];
+  };
   const s = lib.structures[targetId];
   if (s) {
     const field = intent === 'ecg' ? 'ecg' : intent === 'imaging' ? 'imaging' : intent === 'steps' ? 'procedures'
@@ -575,7 +582,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     return {
       title: `${s.name}${field !== 'overview' ? ` — ${field}` : ''}`,
       text: `${s.summary}${s.bloodSupply && field === 'anatomy' ? ` Blood supply: ${s.bloodSupply}.` : ''}`,
-      bullets: [...bullets.slice(0, 6), `${lv}: ${s.levelNotes[level - 1]}`],
+      bullets: [...bullets.slice(0, 6), ...focus(s.levelNotes)],
       links: [s.id, ...s.relatedConditions.slice(0, 3)],
       followUps: [`What does ${s.name.toLowerCase()} pathology look like on ECG?`, `Which procedures involve the ${s.name.toLowerCase()}?`],
     };
@@ -593,7 +600,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     return {
       title: `${c.name}${field !== 'overview' ? ` — ${labels[field] ?? field}` : ''}`,
       text: c.summary,
-      bullets: [...bullets.slice(0, 6), ...extra, `${lv}: ${c.levelNotes[level - 1]}`],
+      bullets: [...bullets.slice(0, 6), ...extra, ...focus(c.levelNotes)],
       links: [c.id, ...c.relatedMedications.slice(0, 3), ...c.relatedProcedures.slice(0, 2)],
       followUps: next.filter(([k]) => k !== (intent === 'dose' ? 'treat' : intent)).map(([, f]) => f),
     };
@@ -615,7 +622,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     return {
       title: `${p.name}${field !== 'overview' ? ` — ${field}` : ''}`,
       text: p.summary,
-      bullets: [...bullets.slice(0, 6), `${lv}: ${p.levelNotes[level - 1]}`],
+      bullets: [...bullets.slice(0, 6), ...focus(p.levelNotes)],
       links: [p.id, ...p.relatedConditions.slice(0, 3)],
       followUps: [`Walk me through ${p.name}`, `What are the complications of ${p.name}?`],
     };
@@ -631,7 +638,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     return {
       title: `${m.name} — ${field === 'adverseEffects' ? 'adverse effects' : field === 'ecgEffects' ? 'ECG effects' : field}`,
       text: `${m.drugClass}. ${m.summary}`,
-      bullets: [...bullets.slice(0, 6), ...note, `${lv}: ${m.levelNotes[level - 1]}`],
+      bullets: [...bullets.slice(0, 6), ...note, ...focus(m.levelNotes)],
       links: [m.id, ...m.relatedConditions.slice(0, 3)],
       followUps: [`What is the dose of ${m.name}?`, `What are the contraindications to ${m.name}?`],
     };
@@ -639,6 +646,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
   const cl = lib.cathlab[targetId];
   if (cl) {
     const numbers = (intent === 'dose' || /normal|value|size|how much|target|range/i.test(q)) && cl.numbers?.length;
+    // the catalog is written for the three lab roles; the others (the EMS and ER roles) get no lab-role line
     const role = level === 3 ? cl.roles.tech : level === 4 ? cl.roles.rn : level === 5 ? cl.roles.md : null;
     return {
       title: `${cl.name}${numbers ? ' — numbers to know' : ''}`,

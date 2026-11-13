@@ -11,13 +11,21 @@
  * own harms; the drug rules also read what the case says the patient has (scenario.problems: high
  * potassium, an overdose, heart failure, a long QT). The scenario ends by itself once every critical
  * intervention for the learner's role is done and the patient has a pulse (plus any scenario-specific condition).
+ *
+ * Three settings (Scenario.setting): the field (a hand-off waits for arrival at the hospital), the emergency department
+ * (the arrest is run there, and a hand-off waits for a disposition: the flag 'dispo', set by activating the cath lab,
+ * admitting or transferring — or by a case event when the computer physician decides) and the cath lab (the hand-off
+ * waits for the end of the procedure). In the department the built-in rules also hold the ER nurse to the physician's
+ * orders (RN_ORDER_ONLY) and the ER doctor's procedures to their indications (see edKit).
  */
 import type { LearningLevel } from '@/store/useAppStore';
 import { resolveProfile, stLevel } from '@/lib/ecg/profiles';
-import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
+import { INTERVENTION_BY_ID, detailFor, interventionsFor } from './interventions';
 import { READ_KIND_NAME, READ_OPTIONS, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
-import { angioGate } from './labKit';
-import { LOW_GLUCOSE, LVAD_MIN_PULSE_PRESSURE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, mapOf, paced, ventilated } from './kit';
+import { angioGate, answeringWrong } from './labKit';
+import {
+  LOW_GLUCOSE, LVAD_MIN_PULSE_PRESSURE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, mapOf, orderedFlag, paced, ventilated,
+} from './kit';
 import type {
   Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
@@ -105,14 +113,31 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
   const v = s.vitals;
   switch (id) {
     case 'scene': return { say: [['scene', 'Scene is safe. Gloves on.']] };
+    case 'ems-handoff': {
+      // a patient who walked in has no crew to report
+      const report = fact('ems');
+      if (!report) return { blocked: true, say: [['system', 'This patient came in on their own: there is no EMS crew to give a report. Take the history from the patient.']] };
+      return { say: [['ems', report]], flags: ['ems-report'] };
+    }
+    case 'triage': {
+      const own = fact('triage');
+      if (own) return { say: [['you', own]], flags: ['triage'] };
+      const esi = triageLevel(s);
+      return {
+        say: [['you', esi === 1
+          ? 'ESI 1: this patient needs a life-saving intervention now — straight to a resuscitation bed, and the physician to the bedside.'
+          : 'ESI 2: high risk — a monitored bed now, the physician told, and a 12-lead within 10 minutes of arrival.']],
+        flags: ['triage', `esi-${esi}`],
+      };
+    }
     case 'primary':
       if (s.pulse && s.lvad) return { say: [['you', `Airway open, breathing ${v.rr}/min, no palpable radial or carotid pulse, GCS ${v.gcs}.`]] };
       return s.pulse
         ? { say: [['you', `Airway open, breathing ${v.rr}/min, radial pulse ${s.rhythm.hr}/min, GCS ${v.gcs}.`]] }
         : { say: [['you', 'Unresponsive, not breathing normally, no pulse.', 'bad']] };
-    case 'opqrst': return { say: [['patient', fact('opqrst') ?? 'It just feels wrong.']], flags: ['opqrst'] };
-    case 'sample': return { say: [['patient', fact('sample') ?? 'No allergies, no medicines.']], flags: ['sample'] };
-    case 'ask-pde5': return { say: [['patient', fact('pde5') ?? 'No, nothing like that.']], flags: ['pde5-asked'] };
+    case 'opqrst': return historyAnswer(s, fact('opqrst'), 'It just feels wrong.', 'opqrst');
+    case 'sample': return historyAnswer(s, fact('sample'), 'No allergies, no medicines.', 'sample');
+    case 'ask-pde5': return historyAnswer(s, fact('pde5'), 'No, nothing like that.', 'pde5-asked');
     case 'vitals':
       // with an LVAD the cuff hears no Korotkoff sounds: no pressure by hand (the Doppler finds the MAP)
       if (s.pulse && s.lvad) return { say: [['you', `No palpable pulse, and no sounds with the cuff: no blood pressure by hand. RR ${v.rr} · SpO₂ ${v.spo2}%.`]] };
@@ -182,6 +207,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     }
     case 'transducer': return { say: [['you', 'Transducers zeroed to air and leveled at the phlebostatic axis.']], flags: ['transducer'] };
     case 'labs': return { say: [['team', fact('labs') ?? 'Labs sent: troponin, electrolytes, CBC, coagulation.']], flags: ['labs'] };
+    case 'troponin-repeat':
+      // the second of the serial high-sensitivity troponins: the change from the first decides as much as either value
+      if (!has(s, 'labs') && !did(s, 'labs')) return { blocked: true, say: [['system', 'There is nothing to repeat yet: draw the first set of labs (with the first troponin).']] };
+      return { say: [['team', fact('troponin') ?? 'Repeat high-sensitivity troponin drawn and sent; the result is back within the hour.']], flags: ['troponin-repeat'] };
     case 'act': return { say: [['team', has(s, 'heparin') ? 'ACT 286 s: therapeutic for PCI.' : 'ACT 128 s: no heparin effect yet.']], flags: ['act'] };
     case 'echo': return { say: [['you', fact('echo') ?? 'Normal biventricular function; no effusion.']], flags: ['echo'] };
     case 'lvedp':
@@ -212,7 +241,22 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         };
       }
       return { say: [['you', 'Ventilating 1 breath every 6 seconds; chest rising.']], flags: ['ventilated'] };
-    case 'cpap': return { say: [['you', 'CPAP applied at 5 cmH₂O.']], flags: ['cpap'] };
+    case 'cpap':
+      // a mask that pushes air in helps only a patient who breathes on their own and can guard the airway
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: CPAP needs a patient who breathes on their own. Ventilate with the bag-mask.']] };
+      if (v.gcs <= 8) return { blocked: true, say: [['system', 'Not with a GCS of 8 or less: CPAP needs a patient awake enough to breathe on their own and protect the airway. Ventilate with the bag-mask instead.']] };
+      return { say: [['you', 'CPAP applied at 5 cmH₂O.']], flags: ['cpap'] };
+    case 'rsi': {
+      // drugs to take the airway of a patient who still has a pulse; in an arrest the advanced airway needs none
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: no induction drug or paralytic is needed. Place the advanced airway (or keep bagging) without stopping compressions.']] };
+      // induction and positive pressure drop the pressure; the oxygen comes up on the ventilator; sedated and paralyzed
+      const bp = bpAfter(s, -14, -8);
+      const spo2 = Math.min(99, v.spo2 + 6);
+      return {
+        say: [['you', 'Preoxygenated; induction drug and paralytic pushed; tube through the cords on the first pass, confirmed with waveform capnography; on the ventilator.'], ...bpLine(s, bp)],
+        vitals: { ...bp, spo2: Math.max(v.spo2, spo2), rr: 16, gcs: 3 }, flags: ['airway', 'ventilated', 'sedation', 'rsi'],
+      };
+    }
     case 'airway':
       // an awake patient gags on any airway device and protects their own airway: it cannot be placed
       if (s.pulse && v.gcs > 8) return { say: [['patient', 'The patient gags, coughs and pushes it away: someone this awake protects their own airway. The airway comes out.', 'bad']] };
@@ -220,6 +264,15 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
 
     case 'iv': return { say: [['you', 'IV established: 18 G, left forearm.']], flags: ['iv'] };
     case 'io': return { say: [['you', 'IO established: proximal humerus.']], flags: ['iv'] };
+    case 'central-line':
+      // an introducer sheath: vascular access for drugs and pressors (its side port), and the way in for a transvenous
+      // pacing wire — which goes through a sheath, not through the lumens of a multi-lumen catheter
+      return {
+        say: [['you', s.pulse
+          ? 'Right internal jugular introducer sheath (6 Fr, with a side port) placed under ultrasound, full sterile barrier: dark venous blood back, flushed and secured; the tip still to be confirmed (chest film or ultrasound).'
+          : 'Femoral venous introducer sheath placed under ultrasound while the compressions go on; flushed and secured.']],
+        flags: ['central', 'venous', 'iv'],
+      };
     case 'fluid': {
       if (!s.pulse) return { say: [['you', 'Fluid running.']], flags: ['fluid'] };
       const bp = bpAfter(s, 8, 5);
@@ -237,7 +290,14 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'Lying flat with the legs raised.'], ...bpLine(s, bp)], vitals: bp, flags: ['legs-up'] };
     }
 
-    case 'aspirin': return { say: [['patient', 'Chews the aspirin.']], flags: ['aspirin'] };
+    case 'aspirin':
+    case 'p2y12': {
+      // by mouth: only for a patient awake enough to chew and swallow (the P2Y12 inhibitor the lab gives IV is cangrelor)
+      const what = id === 'aspirin' ? 'Aspirin' : 'The P2Y12 loading dose';
+      if (!s.pulse) return { blocked: true, say: [['system', `Not in cardiac arrest: ${what.charAt(0).toLowerCase()}${what.slice(1)} goes by mouth, and nothing goes in the mouth of a patient who cannot swallow.`]] };
+      if (!canSwallow(s)) return { blocked: true, say: [['system', `${what} goes by mouth, and this patient is too drowsy to swallow safely (it could be inhaled): nothing by mouth until they are awake enough.`]] };
+      return id === 'aspirin' ? { say: [['patient', 'Chews the aspirin.']], flags: ['aspirin'] } : { say: [['you', 'P2Y12 loading dose given.']], flags: ['p2y12'] };
+    }
     case 'nitro-assist':
       if (!fact('ownNitro')) return { blocked: true, say: [['patient', "I don't have any nitroglycerin of my own."]] };
       return nitroEffect(s);
@@ -253,7 +313,6 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'Fentanyl IV given.'], ...ifAwake(s, feels)], vitals: { pain, rr }, flags: ['analgesia'] };
     }
     case 'heparin': return { say: [['you', 'Heparin bolus given (weight-based).']], flags: ['heparin'] };
-    case 'p2y12': return { say: [['you', 'P2Y12 loading dose given.']], flags: ['p2y12'] };
     case 'metoprolol': {
       if (!s.pulse) return noRoleInArrest('Metoprolol', 'beta-blocker');
       const bp = bpAfter(s, -12, -8);
@@ -314,6 +373,14 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'sedation':
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: there is no one awake to sedate. CPR, the rhythm and the cause come first.']] };
       return { say: [['you', 'Sedated and comfortable; airway maintained, capnography on.']], flags: ['sedation'] };
+    case 'procedural-sedation': {
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: there is no one awake to sedate. CPR, the rhythm and the cause come first.']] };
+      const bp = bpAfter(s, -6, -4);
+      return {
+        say: [['you', 'Etomidate 0.15 mg/kg IV: eyes closed, no response to voice, still breathing on their own; the capnography waveform stays steady.'], ...bpLine(s, bp)],
+        vitals: bp, flags: ['sedation', 'procedural-sedation'],
+      };
+    }
     case 'midazolam': {
       if (!s.pulse) return noRoleInArrest('Midazolam', 'benzodiazepine');
       // a benzodiazepine calms (and is the first drug for a stimulant's agitation, racing heart and high pressure): it drops
@@ -321,8 +388,11 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       const bp = bpAfter(s, -8, -5);
       const rr = Math.min(v.rr, Math.max(10, v.rr - 2));
       const gcs = Math.min(v.gcs, Math.max(12, 14 - (s.counts.midazolam ?? 0)));
-      // in the lab it is procedural (moderate) sedation: 0.5–1 mg IV at a time, titrated; in the field, 2.5 mg IV or 5 mg IM
-      const dose = sc.setting === 'cathlab' ? 'Midazolam 1 mg IV.' : has(s, 'iv') ? 'Midazolam 2.5 mg IV.' : 'Midazolam 5 mg IM (no IV yet).';
+      // in the lab, and in the emergency department before a shock or the pacer, it is procedural (moderate) sedation:
+      // 0.5–1 mg IV at a time, titrated, never IM. For agitation or a stimulant (the field): 2.5 mg IV, or 5 mg IM
+      const procedure = sc.setting === 'ed' && (tachyarrhythmia(s) || s.rhythm.hr < 50 || paced(s));
+      if (procedure && !has(s, 'iv')) return { blocked: true, say: [['system', 'Sedation for a procedure goes in IV, a little at a time and titrated: start a line first.']] };
+      const dose = sc.setting === 'cathlab' ? 'Midazolam 1 mg IV.' : procedure ? 'Midazolam 1 mg IV, titrated.' : has(s, 'iv') ? 'Midazolam 2.5 mg IV.' : 'Midazolam 5 mg IM (no IV yet).';
       return { say: [['you', dose], ...ifAwake(s, '"…Okay. I feel calmer."'), ...bpLine(s, bp)], vitals: { ...bp, rr, gcs }, flags: ['benzodiazepine', 'sedation'] };
     }
     case 'tnk': return { say: [['you', 'Tenecteplase given.']], flags: ['lytic'] };
@@ -510,9 +580,14 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'access-venous': return { say: [['you', 'Femoral venous sheath in.']], flags: ['venous'] };
     case 'balloon-tamponade': return { say: [['you', 'Balloon inflated at low pressure over the site.']], flags: ['balloon-tamponade'] };
     case 'pericardiocentesis':
-      return s.role === 3
-        ? { say: [['you', 'Pericardiocentesis tray open: needle, wire, drain and a drainage bag; echo probe in a sterile sleeve.']], flags: ['pericardiocentesis-ready'] }
-        : { say: [['you', 'Pericardial drain in under echo guidance.']], flags: ['pericardiocentesis'] };
+      if (s.role === 3) return { say: [['you', 'Pericardiocentesis tray open: needle, wire, drain and a drainage bag; echo probe in a sterile sleeve.']], flags: ['pericardiocentesis-ready'] };
+      // in the emergency department the physician's own ultrasound finds the effusion and the window first; only in an
+      // arrest, with no time for it, does the needle go in blind
+      if (sc.setting === 'ed' && !has(s, 'pocus')) {
+        if (s.pulse) return { blocked: true, say: [['system', 'The needle goes in under ultrasound: scan the heart first (point-of-care ultrasound) — is there an effusion, is it squeezing the heart, and where is the safest window?']] };
+        return { say: [['you', 'Emergency pericardiocentesis during the arrest, without imaging: a long needle below the xiphoid, aimed at the left shoulder and aspirating as it goes; a drain left in.']], flags: ['pericardiocentesis'] };
+      }
+      return { say: [['you', 'Pericardial drain in under echo guidance.']], flags: ['pericardiocentesis'] };
     case 'closure-device': return { say: [['you', 'Femoral closure device deployed; hemostasis.']], flags: ['closure', 'hemostasis'] };
     case 'angio': return angioGate(s) ?? { say: [['you', 'Angiography complete.']], image: { id, view: 'Diagnostic angiography', image: sc.images?.angio }, flags: ['angio'] };
     case 'reposition': return { say: [['operator', 'Catheter disengaged and repositioned.']], flags: ['repositioned'] };
@@ -526,18 +601,25 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         : { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm below the valve; P-6, flow 3.3 L/min.']], vitals: bpAfter(s, 14, 10, { sbp: 140, dbp: 90 }), flags: ['impella', 'mcs'] };
     case 'temp-wire': {
       if (s.role === 3) return { say: [['you', 'Pacing wire and generator ready: rate 70, output 5 mA.']], flags: ['temp-wire-ready'] };
-      // a transvenous wire goes up a vein into the right ventricle, and nobody floats one during CPR
-      if (!has(s, 'venous')) return { blocked: true, say: [['system', 'A transvenous pacing wire goes in through a vein: get femoral venous access first.']] };
+      // a transvenous wire goes up a vein into the right ventricle, and nobody floats one during CPR. In the lab through a
+      // femoral venous sheath; in the emergency department through a central line ('central-line')
+      if (!has(s, 'venous')) {
+        return { blocked: true, say: [['system', sc.setting === 'ed'
+          ? 'A transvenous pacing wire goes in through a central vein: place a central venous line first.'
+          : 'A transvenous pacing wire goes in through a vein: get femoral venous access first.']] };
+      }
       if (!s.pulse) return { blocked: true, say: [['system', 'Not during cardiac arrest: CPR and the arrest algorithm come first.']] };
+      // in the emergency department a balloon-tipped wire is floated through the central line's introducer sheath
+      const wire = sc.setting === 'ed' ? 'Balloon-tipped pacing wire floated through the introducer sheath, ECG-guided, to the RV apex' : 'Temporary wire in the RV apex';
       if (s.rhythm.hr < 50) {
         const bp = { sbp: Math.max(v.sbp, 100), dbp: Math.max(v.dbp, 62) };
         return {
-          say: [['you', 'Temporary wire in the RV apex: threshold 0.6 mA; pacing at 70, output 3 mA.'], ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`, 'good']],
+          say: [['you', `${wire}: threshold 0.6 mA; pacing at 70, output 3 mA.`], ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`, 'good']],
           rhythm: { profile: 'paced', hr: 70 }, vitals: bp, flags: ['temp-wire', 'paced'],
         };
       }
       const faster = paced(s) ? `The heart is already paced at ${s.rhythm.hr}` : `The heart's own rate of ${s.rhythm.hr} is faster`;
-      return { say: [['you', `Temporary wire in the RV apex: threshold 0.6 mA, output 3 mA, set to pace on demand below 50. ${faster}, so it is not pacing.`]], flags: ['temp-wire'] };
+      return { say: [['you', `${wire}: threshold 0.6 mA, output 3 mA, set to pace on demand below 50. ${faster}, so it is not pacing.`]], flags: ['temp-wire'] };
     }
     case 'cath-tiger': case 'cath-jl4': case 'cath-jr4': case 'cath-pigtail':
     case 'guide-ebu': case 'guide-jr4': case 'guide-al1':
@@ -573,7 +655,20 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'ct-urgent':
       // nobody goes to the scanner in the middle of CPR (an unstable patient can be sent: the built-in rule scores it)
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: nobody goes to the scanner during CPR.']] };
-      return { say: [['team', 'Scanned and back: the patient went with a nurse and the monitor, the sheath secured.'], ['hospital', fact('ct') ?? 'Radiology: no acute finding on the CT.']], flags: ['ct'] };
+      return {
+        say: [['team', sc.setting === 'cathlab' ? 'Scanned and back: the patient went with a nurse and the monitor, the sheath secured.' : 'Scanned and back: the patient went with a nurse and the monitor.'], ['hospital', fact('ct') ?? 'Radiology: no acute finding on the CT.']],
+        flags: ['ct'],
+      };
+    // emergency department imaging: the ER doctor reads the film and scans the patient; the ER nurse hears the physician's read
+    case 'cxr':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not during cardiac arrest: the chest film waits until there is a pulse.']] };
+      return { say: [[s.role === 6 ? 'physician' : 'you', fact('cxr') ?? 'Portable chest X-ray: normal heart size, clear lungs, a normal mediastinum.']], flags: ['cxr'] };
+    case 'pocus': {
+      const own = fact('pocus') ?? fact('echo');
+      // in an arrest it is done within the 10-second pulse check, never by pausing the compressions longer
+      if (!s.pulse) return { say: [['you', own ?? 'Ultrasound during the 10-second pulse check: no pericardial effusion and no dilated right ventricle; compressions resume.']], flags: ['pocus'] };
+      return { say: [['you', own ?? 'Bedside ultrasound: both ventricles squeeze well; no pericardial effusion; the lungs slide, with A-lines; the IVC is normal in size and narrows with each breath; the aortic root is not dilated.']], flags: ['pocus'] };
+    }
     case 'clear-air':
       // the tech readies the syringes and keeps the line free of air; the operator aspirates and flushes (whether the
       // bubbles clear and the flow comes back is the case's to say)
@@ -588,6 +683,15 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'call-help':
       // in the lab the code team is down the hall; in the field nobody comes without a named request, so nothing is promised
       if (sc.setting === 'cathlab') return { say: [['team', 'Help is on the way.']], flags: ['help'] };
+      // in the emergency department more hands come into the room (for the nurse, the physician too)
+      if (sc.setting === 'ed') {
+        return {
+          say: [['team', s.role === 6
+            ? 'The ED physician, the charge nurse and another nurse come into the room; respiratory therapy is on the way.'
+            : 'The charge nurse, another nurse, a tech and respiratory therapy come into the room.']],
+          flags: ['help'],
+        };
+      }
       return {
         say: [['dispatch', s.role === 1
           ? '"Copy. What do you need? For a paramedic, request an ALS intercept."'
@@ -597,12 +701,16 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'callout': return { say: [['operator', 'Copy.']], flags: ['callout'] };
     case 'als': return { say: [['dispatch', 'Medic unit assigned, about 6 minutes out.']], flags: ['als'] };
     case 'med-control': return { say: [['hospital', 'Medical control: continue per protocol.']], flags: ['med-control'] };
-    case 'call-vad':
+    case 'call-vad': {
       if (!s.lvad) return { blocked: true, say: [['system', 'This patient has no VAD: there is no controller, and no VAD team to call.']] };
-      return {
-        say: [['hospital', fact('vadTeam') ?? 'VAD coordinator: "Read me the controller — flow, speed, power and any alarms — and give me a Doppler MAP. Then bring the patient to us, the implanting center, with the controller, the spare batteries and the charger."']],
-        flags: ['vad-team'],
-      };
+      // the field: where to take the patient; the department: where the patient is treated is the ED physician's call
+      const coordinator = sc.setting !== 'ed'
+        ? 'VAD coordinator: "Read me the controller — flow, speed, power and any alarms — and give me a Doppler MAP. Then bring the patient to us, the implanting center, with the controller, the spare batteries and the charger."'
+        : s.role === 7
+          ? 'VAD coordinator: "Read me the controller — flow, speed, power, alarms — and a Doppler MAP. If you are not our implanting center, we will arrange the transfer with you, physician to physician."'
+          : 'VAD coordinator: "Read me the controller — flow, speed, power, alarms — and a Doppler MAP. Have your ED physician call me: if you are not our implanting center, we will arrange the transfer."';
+      return { say: [['hospital', fact('vadTeam') ?? coordinator]], flags: ['vad-team'] };
+    }
     case 'poison-control': {
       // a case with a poisoning says what the specialist advises (fact 'poisonControl'); one that lists an overdose but
       // says nothing gets the specialist's first questions, never "no poisoning"
@@ -620,6 +728,31 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       }
       return { say: [['hospital', 'Cath lab activated — the team will meet you at the door.']], flags: ['alert'] };
     case 'notify': return { say: [['hospital', "Copy. We'll be ready for you."]], flags: ['notified'] };
+
+    // Emergency department: the nurse's report, and the physician's calls and decisions. A case answers each in its own words
+    // (respond): the ED physician's orders, the consultant's advice, who accepts the patient
+    case 'notify-physician': return { say: [['physician', "Got it — I'm coming to the bedside."]], flags: ['physician-notified'] };
+    case 'cath-lab-activate': {
+      if (!has(s, 'ecg12')) return { blocked: true, say: [['system', 'You need a 12-lead showing a STEMI first.']] };
+      // the same test as the field's STEMI alert: a tracing so far met STEMI criteria (the built-in rule scores the call)
+      if (!ecgShowsStemi(s)) {
+        return { say: [['consultant', 'The interventional cardiologist calls back: "This 12-lead does not meet STEMI criteria — I am not bringing the team in. Repeat the 12-lead while the pain goes on, send a troponin, and call me with what you find."', 'warn']], flags: ['alert-declined'] };
+      }
+      const mins = sc.cathLabMinutes ?? CATH_LAB_MINUTES;
+      return {
+        say: [['hospital', `Cath lab activated: the interventional cardiologist and the team are on their way — the room will be ready in about ${mins} minutes.`]],
+        flags: ['alert', 'dispo'], timers: { cathReady: s.minute + mins },
+      };
+    }
+    case 'consult-cardiology':
+      return { say: [['consultant', fact('consult') ?? 'Cardiology: "Thanks for the call — I\'ll come down and see the patient. Keep them on the monitor, and call me back if anything changes."']], flags: ['consult'] };
+    case 'admit':
+    case 'transfer':
+      // nobody leaves the department in the middle of a cardiac arrest
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: the resuscitation goes on here. Decide where the patient goes once there is a pulse.']] };
+      return id === 'admit'
+        ? { say: [['hospital', 'Admission accepted: the inpatient team takes the patient, and a monitored bed in the CCU or ICU is being readied.']], flags: ['dispo', 'admit'] }
+        : { say: [['hospital', 'The receiving center accepts the patient, physician to physician: a critical care transport team is on its way.']], flags: ['dispo', 'transfer'] };
     case 'transport-pci':
     case 'transport-near': {
       if (has(s, 'enroute')) return { blocked: true, say: [['system', 'You are already transporting.']] };
@@ -630,6 +763,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       };
     }
     case 'handoff':
+      if (sc.setting === 'ed') return edHandoff(s);
       if (sc.setting === 'field' && !has(s, 'arrived')) return { blocked: true, say: [['system', 'Hand off on arrival: keep caring for the patient en route (reassess) until you get there.']] };
       // in the lab the patient leaves the table (and your care) only once the procedure is over
       if (sc.setting === 'cathlab' && sc.completeWhen && !sc.completeWhen(s)) return { blocked: true, say: [['system', 'The procedure is not over yet: keep caring for the patient (reassess) and hand off at the end.']] };
@@ -649,6 +783,38 @@ const nothingToFilm: Effect = { blocked: true, say: [['system', 'Nothing to film
 const noCatheter: Effect = { blocked: true, say: [['system', 'The operator has no catheter in yet.']] };
 const noWire = (s: SimState, mine: string): Effect => ({ blocked: true, say: [['system', s.role === 5 ? mine : 'There is no wire in the vessel yet.']] });
 
+/** Minutes from activating the cath lab in the emergency department to the team being ready (Scenario.cathLabMinutes) */
+export const CATH_LAB_MINUTES = 20;
+
+/**
+ * The emergency department's triage level when the case gives none of its own (ENA Emergency Severity Index): ESI 1 when
+ * the patient needs a life-saving intervention now — no pulse, unresponsive or nearly, failing breathing or oxygen, a low
+ * pressure, or a rate that needs pacing or a shock; every other cardiac complaint in these cases is high risk, ESI 2
+ */
+function triageLevel(s: SimState): 1 | 2 {
+  const v = s.vitals;
+  const rate = !paced(s) && (s.rhythm.hr < 40 || s.rhythm.hr > 150);
+  return !s.pulse || v.gcs <= 8 || v.spo2 < 90 || v.rr < 8 || v.rr > 30 || lowPressure(s) || rate ? 1 : 2;
+}
+
+/**
+ * A hand-off in the emergency department: the arrest is run in the department, and the patient leaves only once someone
+ * has decided where to (the flag 'dispo') — and, for the cath lab, once the team is ready ('cath-ready')
+ */
+function edHandoff(s: SimState): Effect {
+  if (!s.pulse) return { blocked: true, say: [['system', 'Not in the middle of a cardiac arrest: the resuscitation is run here, and the patient goes nowhere until there is a pulse.']] };
+  if (!has(s, 'dispo')) {
+    return { blocked: true, say: [['system', s.role === 7
+      ? 'Decide where the patient goes first: the cath lab, admission or a transfer. Until then keep caring for them (reassess).'
+      : 'The patient stays in the department until the ED physician decides where they go: keep caring for them (reassess).']] };
+  }
+  if (has(s, 'alert') && !has(s, 'cath-ready') && !has(s, 'admit') && !has(s, 'transfer')) {
+    return { blocked: true, say: [['system', 'The cath lab team is still on its way: keep caring for the patient (reassess), and hand off when the lab is ready.']] };
+  }
+  const to = has(s, 'transfer') ? 'the transport team' : has(s, 'admit') ? 'the admitting team' : has(s, 'alert') ? 'the cath lab team' : 'the receiving team';
+  return { say: [['you', `SBAR hand-off to ${to}; they take over.`]], flags: ['handoff'] };
+}
+
 /**
  * A drug with no role in cardiac arrest, given in one. Not "it cannot circulate": compressions move enough blood to carry
  * an IV/IO drug (that is how epinephrine and amiodarone work during CPR) — this one simply has nothing to treat there.
@@ -660,6 +826,18 @@ const teammate = (sc: Scenario): Speaker => (sc.setting === 'field' ? 'partner' 
 
 /** Only a patient awake enough to talk says how a drug feels */
 const ifAwake = (s: SimState, text: string): Line[] => (s.pulse && s.vitals.gcs >= 13 ? [['patient', text]] : []);
+
+/**
+ * An answer to a history question (OPQRST, SAMPLE, the erectile-dysfunction drugs). The case's own answer is said as the
+ * case wrote it (for a patient who cannot talk, it gives a bystander's words); without one, nobody answers in cardiac
+ * arrest, and a patient too drowsy to talk gives no history
+ */
+function historyAnswer(s: SimState, own: string | null, text: string, flag: string): Effect {
+  if (own) return { say: [['patient', own]], flags: [flag] };
+  if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: the patient cannot answer. Ask whoever is with them once the resuscitation allows.']] };
+  const said = ifAwake(s, text);
+  return said.length ? { say: said, flags: [flag] } : { say: [['you', 'No answer: the patient is too drowsy to give a history. Ask whoever came with them.', 'warn']] };
+}
 
 const noEcgInArrest: Effect = { blocked: true, say: [['system', 'No 12-lead in cardiac arrest: treat the rhythm on the monitor.']] };
 
@@ -817,6 +995,32 @@ const AV_NODAL_BLOCKERS = ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol
 /** Antiplatelet, anticoagulant and fibrinolytic drugs (an aortic dissection bleeds with them) */
 const ANTITHROMBOTICS = ['aspirin', 'heparin', 'p2y12', 'bivalirudin', 'gp2b3a', 'cangrelor'];
 
+/**
+ * The drugs the ER nurse gives in the emergency department only on the ED physician's order (state Nurse Practice Act,
+ * ENA scope and standards, facility policy), with the name the review gives each. None is on the chest pain standing
+ * order (aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs, the chest film) or the ACLS arrest protocol
+ * (epinephrine, amiodarone, lidocaine, the shocks); the glucose, antiemetic, anaphylaxis and bronchospasm drugs are left
+ * to the department's protocols. Given with no order — the flag `ordered:<id>` (kit's orderedFlag, set by edKit's
+ * edOrder, physicianOrder, physicianDispo or standingOrders) — each costs points once ('rn-without-order-<id>')
+ */
+export const RN_ORDER_ONLY: Record<string, string> = {
+  heparin: 'Heparin', p2y12: 'A P2Y12 loading dose', metoprolol: 'IV metoprolol', diltiazem: 'IV diltiazem', procainamide: 'Procainamide',
+  'amio-infusion': 'An amiodarone infusion', pressor: 'A vasopressor infusion', 'push-epi': 'Push-dose epinephrine',
+  'insulin-dextrose': 'Insulin and dextrose', transfuse: 'A blood transfusion', steroid: 'IV methylprednisolone', glucagon: 'Glucagon',
+  'albuterol-hyperk': 'High-dose albuterol', midazolam: 'Midazolam', fentanyl: 'IV fentanyl', 'nitro-high': 'High-dose nitroglycerin',
+  atropine: 'Atropine', adenosine6: 'Adenosine', adenosine12: 'Adenosine',
+  'calcium-chloride': 'Calcium chloride', 'sodium-bicarbonate': 'Sodium bicarbonate', 'magnesium-sulfate': 'Magnesium sulfate',
+};
+/** …of these, only with a pulse: in an arrest the code leader directs them, and the drug rules score the choice */
+const RN_ORDER_WITH_A_PULSE = ['calcium-chloride', 'sodium-bicarbonate', 'magnesium-sulfate', 'atropine'];
+
+const rnWithoutOrder = ([id, name]: [string, string]): Harm => ({
+  id: `rn-without-order-${id}`, actions: [id], roles: [6], points: 5, severity: 'major',
+  // a wrong answer to an open order is the order's own harm (labKit askHarm): one mistake, one penalty
+  when: (s, sc) => sc.setting === 'ed' && !has(s, orderedFlag(id)) && !answeringWrong(s, id) && (s.pulse || !RN_ORDER_WITH_A_PULSE.includes(id)),
+  text: `${name} without an order. The ER nurse gives a medication on a provider's order or an approved standing order or protocol (the state Nurse Practice Act, ENA scope and standards, facility policy), and this one is on neither: the chest pain standing order covers aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs and the chest film, and the ACLS protocol the arrest drugs. Tell the ED physician what you see and what you think it needs (SBAR, closed loop), and give it once it is ordered.`,
+});
+
 export const BUILT_IN_HARMS: Harm[] = [
   { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse && !s.lvad, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
   // the LVAD patient whose pump is perfusing has no pulse to check: the mistake is a different one, and so is the lesson
@@ -835,9 +1039,20 @@ export const BUILT_IN_HARMS: Harm[] = [
   // an arrest that begins en route is worked in the ambulance, and that is no mistake
   { id: 'transport-in-arrest', actions: ['transport-near', 'transport-pci'], when: (s, sc) => sc.setting === 'field' && !s.pulse, points: 6, severity: 'major', text: 'Loading the patient for transport during cardiac arrest. Compressions on a stretcher and in a moving ambulance are poorer and keep being interrupted, and what the arrest needs — high-quality CPR, a shock for VF or pulseless VT, epinephrine and the reversible causes — works right here. For most adults, work the arrest on scene until there is a sustained ROSC, then transport (2025 AHA).' },
   { id: 'airway-awake', actions: ['airway'], when: (s) => s.pulse && s.vitals.gcs > 8, points: 10, severity: 'major', text: 'An advanced airway is not indicated in a patient who is awake and protecting their own airway.' },
+  // the emergency department's drug-assisted airway and procedural sedation (ACEP clinical policy: monitoring and capnography)
+  { id: 'rsi-no-indication', actions: ['rsi'], when: (s) => s.pulse && s.vitals.gcs >= 13 && s.vitals.spo2 >= 92 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && !lowPressure(s), points: 10, severity: 'major', text: 'Rapid sequence intubation without an indication. A tube is for a patient who cannot protect the airway, cannot oxygenate or ventilate, or whose expected course will soon take one of those away; an awake patient breathing well, with a normal oxygen saturation and pressure, gets only its risks — a failed airway, aspiration, a falling pressure and the ventilator.' },
+  { id: 'rsi-unmonitored', actions: ['rsi'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Rapid sequence intubation without the cardiac monitor on. The induction drug, the paralytic and positive-pressure ventilation can drop the pressure, the oxygen saturation and the heart rate within a minute: the ECG, pulse oximetry, the blood pressure and waveform capnography run before the first drug goes in.' },
+  { id: 'rsi-unresuscitated', actions: ['rsi'], when: (s) => s.pulse && lowPressure(s) && !has(s, 'pressor') && !has(s, 'push-epi'), points: 8, severity: 'major', text: 'Rapid sequence intubation with a low blood pressure and nothing to hold it up. The induction drug and positive-pressure ventilation drop the pressure further, and the patient can arrest around the tube: resuscitate before you intubate — fluids or blood, push-dose epinephrine or an infusion running — and give a reduced dose of the most stable induction drug.' },
+  { id: 'sedation-unmonitored', actions: ['procedural-sedation'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Procedural sedation without the cardiac monitor on. Sedation can stop the breathing and drop the pressure: the ECG, pulse oximetry, the blood pressure and capnography run from before the first dose until the patient is awake again.' },
+  { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s) => s.pulse && !tachyarrhythmia(s) && rhythmKind(s) !== 'torsades' && !(s.rhythm.hr < 50 || paced(s)), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
   // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
   { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
   { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
+  // the emergency physician's invasive procedures need their indication (the cath lab's cases score their own). In the lab
+  // a transvenous wire can be a backup on demand, so the rate rule is the department's only
+  { id: 'temp-wire-not-slow', actions: ['temp-wire'], when: (s, sc) => sc.setting === 'ed' && s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'A transvenous pacing wire without a slow heart rate to treat. It is for bradycardia (usually under 50/min) that drugs and the transcutaneous pacer cannot hold; with a faster rate it brings only its risks — a perforated ventricle, arrhythmias, a pneumothorax, bleeding and infection.' },
+  { id: 'pericardiocentesis-no-tamponade', actions: ['pericardiocentesis'], when: (_s, sc) => sc.setting === 'ed' && !hasProblem(sc, ['tamponade']), points: 15, severity: 'critical', text: 'A pericardiocentesis without tamponade. The needle can puncture the heart, a coronary artery or the lung: it is for an effusion that is squeezing the heart (a low pressure, distended neck veins, the right heart collapsing in diastole on the ultrasound). Find the real cause of the shock instead.' },
+  { id: 'lytic-no-indication', actions: ['tnk'], when: (s, sc) => sc.setting === 'ed' && !has(s, 'ecg-stemi') && !hasProblem(sc, ['pulmonary-embolism', 'aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic without an indication. In the emergency department it is for a STEMI on the 12-lead when PCI cannot happen within 120 minutes of first medical contact (then within 30 minutes of arrival), or a high-risk pulmonary embolism; any other patient gets only its bleeding — intracranial in about 1 in 100.' },
   { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'nitro-high', 'ic-nitro'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg (with an LVAD, a Doppler MAP under 60). Nitrates drop the pressure further: hold them until it is back up.' },
   { id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.' },
   // atropine is for symptomatic bradycardia. With a pulse: a rate of 60 or more has nothing for it to treat (over a pacer,
@@ -846,6 +1061,8 @@ export const BUILT_IN_HARMS: Harm[] = [
   { id: 'atropine-in-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in cardiac arrest. It has not been part of the cardiac arrest algorithm since 2010: routine atropine does not help PEA or asystole, and it does nothing for VF. CPR, epinephrine, a shock for VF or pulseless VT, and the reversible causes.' },
   // the physician stands the cath lab down (the default response); a case can say it in its own words
   { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => !ecgShowsStemi(s), points: 3, severity: 'minor', text: 'A STEMI alert for a 12-lead that does not meet STEMI criteria. The alert calls the cath lab team in for an artery that is not known to be blocked (pericarditis, a bundle branch block, a thick heart muscle or a high potassium can raise the ST segments too). Transmit the 12-lead or give a radio report, and let the hospital decide.' },
+  // the emergency department's activation, in its own words (the interventional cardiologist declines it: the default)
+  { id: 'cath-lab-no-ste', actions: ['cath-lab-activate'], when: (s) => !ecgShowsStemi(s), points: 3, severity: 'minor', text: 'Activating the cath lab for a 12-lead that does not meet STEMI criteria. It calls the team in for an artery that is not known to be blocked (pericarditis, a bundle branch block, a thick heart muscle or a high potassium can raise the ST segments too). Repeat the 12-lead every 15–30 minutes while the pain goes on, add the posterior leads, send a troponin and consult cardiology.' },
   // diltiazem's contraindications (verapamil is the same drug class; the simulator offers it only intracoronary)
   { id: 'diltiazem-heart-failure', actions: ['diltiazem'], when: (s, sc) => s.pulse && hasProblem(sc, ['heart-failure']), points: 15, severity: 'critical', text: 'Diltiazem in a patient with heart failure. Calcium-channel blockers weaken the squeeze and open the vessels: with a reduced ejection fraction (40 % or less), with or without decompensated heart failure, IV diltiazem and verapamil must not be given (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm). Control the rate with amiodarone, or a beta-blocker if the lungs are not congested; an unstable patient needs synchronized cardioversion.' },
   { id: 'diltiazem-vt', actions: ['diltiazem'], when: (s) => s.pulse && ['vt', 'torsades'].includes(rhythmKind(s)), points: 15, severity: 'critical', text: 'Diltiazem for ventricular tachycardia. Treat a wide-complex tachycardia as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest (2025 AHA: 3 — Harm). A stable monomorphic VT gets procainamide or amiodarone; an unstable one, synchronized cardioversion.' },
@@ -883,7 +1100,9 @@ export const BUILT_IN_HARMS: Harm[] = [
   { id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160), points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.' },
   // sedation before a cardioversion or for the pacer is needed even with a low pressure (a smaller dose, titrated): a case
   // with its own sedation rule says so in its own words
-  { id: 'midazolam-unsafe', actions: ['midazolam'], when: (s) => s.pulse && (lowPressure(s) || s.vitals.gcs <= 12) && !tachyarrhythmia(s) && !(s.rhythm.hr < 50 || paced(s)), points: 5, severity: 'major', text: 'Midazolam with a low pressure or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further: it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
+  // in the emergency department a drowsy patient with an advanced airway (RSI, or a tube after the arrest) is a ventilated
+  // one, sedated for the tube on the physician's decision: no mistake there. The field and the lab score it as before
+  { id: 'midazolam-unsafe', actions: ['midazolam'], when: (s, sc) => s.pulse && (lowPressure(s) || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !tachyarrhythmia(s) && !(s.rhythm.hr < 50 || paced(s)), points: 5, severity: 'major', text: 'Midazolam with a low pressure or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further: it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
   { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && (s.lvad ? mapOf(s.vitals) >= 70 : s.vitals.sbp >= 120), points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension (sedation, a vasovagal drop, LV outflow obstruction); with a normal pressure it only adds afterload (which cuts an LVAD\'s flow) and slows the heart.' },
   { id: 'phenylephrine-slow', actions: ['phenylephrine'], when: (s) => s.pulse && s.rhythm.hr < 50 && !paced(s), points: 3, severity: 'minor', text: 'Phenylephrine with a slow heart rate. The reflex slowing it brings makes the bradycardia worse: treat the rate first (atropine, pacing), or support the pressure with a drug that also speeds the heart (epinephrine).' },
   { id: 'legs-up-pulmonary-edema', actions: ['legs-up'], when: (_s, sc) => hasProblem(sc, ['pulmonary-edema']), points: 5, severity: 'major', text: 'Raising the legs of a patient with fluid on the lungs. It pours more blood back into a heart that is already backing up into the lungs: sit them up with the legs down.' },
@@ -897,6 +1116,9 @@ export const BUILT_IN_HARMS: Harm[] = [
   { id: 'lytic-dissection', actions: ['tnk'], when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic in an aortic dissection. It can turn the tear into a fatal hemorrhage: a dissection that blocks a coronary ostium can mimic a STEMI — think of it before any lytic.' },
   { id: 'av-blocker-preexcited-af', actions: AV_NODAL_BLOCKERS, when: (s) => preexcitedAf(s), points: 15, severity: 'critical', text: 'An AV-nodal blocker in pre-excited atrial fibrillation. Blocking the node sends every impulse down the accessory pathway: the rate climbs and it can turn into VF (2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem, verapamil, digoxin and IV amiodarone are harmful; beta-blockers too, 2015 SVT guideline). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.' },
   { id: 'amiodarone-long-qt', actions: ['amio-infusion'], when: (s, sc) => s.pulse && longQt(s, sc), points: 5, severity: 'major', text: 'Amiodarone with a long QT. It lengthens the QT further and can set off (or keep up) torsades de pointes: magnesium, potassium, a faster heart rate and stopping the QT-prolonging drugs are the treatment.' },
+
+  // the ER nurse's scope: a drug that needs the physician's order, given without one (see RN_ORDER_ONLY)
+  ...Object.entries(RN_ORDER_ONLY).map(rnWithoutOrder),
 ];
 
 // ─── Engine ────────────────────────────────────────────────────────────────
@@ -994,12 +1216,21 @@ function advance(sc: Scenario, s: SimState) {
     setFlag(s, 'arrived');
     say(s, 'hospital', sc.arrival ?? 'You arrive at the hospital; the team meets you at the door.');
   }
+  // emergency department: the cath lab team activated earlier is ready for the patient
+  if (s.timers.cathReady !== undefined && s.minute >= s.timers.cathReady && !has(s, 'cath-ready')) {
+    setFlag(s, 'cath-ready');
+    say(s, 'hospital', 'Cath lab: the team is in and the room is ready — bring the patient up.');
+  }
   for (let pass = 0; pass < 4; pass++) {
     let fired = false;
     for (const ev of sc.events) {
       if (s.fired.includes(ev.id) || !ev.when(s)) continue;
       s.fired.push(ev.id);
-      applyEffect(s, ev.effect(s));
+      const e = ev.effect(s);
+      applyEffect(s, e);
+      // a teammate's 12-lead (an event that sets 'ecg12': the computer nurse's, in the ER doctor's run) is a recorded
+      // tracing like the learner's own — it asks for the read, and a STEMI on it counts for the activation and the lytic
+      if (e.flags?.includes('ecg12')) requestRead(sc, s);
       fired = true;
       if (s.ended) return;
     }
@@ -1036,7 +1267,7 @@ function finish(sc: Scenario, s: SimState) {
     // a hand-off ends your care, whatever is still missing — in an arrest too: the receiving team takes over the CPR. The
     // review scores a hand-over without ROSC as it scores a death: it is no finished case
     // never "scenario complete" here: the case is not complete (isComplete failed), and the story must not read as if it were
-    if (!s.pulse) say(s, 'system', 'Care handed over in cardiac arrest: the emergency department team takes over the resuscitation.', 'warn');
+    if (!s.pulse) say(s, 'system', sc.setting === 'field' ? 'Care handed over in cardiac arrest: the emergency department team takes over the resuscitation.' : 'Care handed over in cardiac arrest: the resuscitation team takes over.', 'warn');
     else {
       const missing = missingCriticals(sc, s);
       if (missing > 0) say(s, 'system', `Care handed over with ${missing} critical item${missing === 1 ? '' : 's'} still not done.`, 'warn');
@@ -1158,7 +1389,8 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   }
   harmsFor(sc, s, id);
   // an intervention counts from the minute it was started; its result comes when it is finished
-  say(s, 'you', iv.detail ? `${iv.label} — ${iv.detail}` : iv.label);
+  const detail = detailFor(iv, sc.setting);
+  say(s, 'you', detail ? `${iv.label} — ${detail}` : iv.label);
   s.counts[id] = (s.counts[id] ?? 0) + 1;
   s.performed.push({ id, minute: s.minute });
   s.minute = round(s.minute + iv.minutes);

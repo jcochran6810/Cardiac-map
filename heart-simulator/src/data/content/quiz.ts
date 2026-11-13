@@ -1,11 +1,14 @@
 /**
  * Multiple-choice quiz bank for CardioSim.
  *
- * 66 questions spanning every QuizTopic. `level` is the LOWEST role whose scope of
- * practice covers answering the question (see src/lib/scope.ts): 1 EMT (BLS),
- * 2 Paramedic (ALS, rhythm/12-lead, ACLS), 3 Cath lab tech, 4 Cath lab RN,
- * 5 Cardiologist (diagnosis, treatment decisions, procedural strategy). Learners see
- * every question with level ≤ their role. Section dividers below are topic bands only.
+ * 66 questions spanning every QuizTopic. `level` is the role the question is written
+ * for first, within that role's scope of practice (see src/lib/scope.ts): 1 EMT (BLS),
+ * 2 Paramedic (ALS, rhythm/12-lead, ACLS), 3 Cath lab tech, 4 Cath lab RN (the hospital
+ * nurse's questions), 5 Cardiologist (diagnosis, treatment decisions, procedural strategy),
+ * 6 ER nurse, 7 ER doctor. The roles are not a ladder: which roles see which levels is
+ * spelled out in quizForRole() (src/lib/content.ts). `alsoFor` hands a question to a role
+ * its level leaves out — here the cardiologist's acute-care questions that the ER doctor
+ * owns too. Section dividers below are topic bands only.
  * Questions with `ecgProfile` switch the live monitor to that rhythm while shown.
  *
  * Educational content only — typical adult doses; verify with local protocol.
@@ -453,6 +456,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctIndex: 3,
     explanation: 'Wellens pattern (deep symmetric or biphasic T waves in V2–V3 in a pain-free patient) reflects reperfusion of a critically stenosed proximal LAD. Stress testing can precipitate an extensive anterior MI, so these patients need early angiography. An old anterior MI would show Q waves and R-wave loss, which are absent here. Wellens is not itself an emergent STEMI equivalent while pain-free, but recurrent pain with ST elevation needs immediate cath lab activation.',
     level: 5,
+    alsoFor: [7],
     topic: 'ischemia',
     ecgProfile: 'wellens',
     heartRate: 72,
@@ -480,6 +484,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctIndex: 2,
     explanation: 'This is pre-excited AF: atrial fibrillation conducting down an accessory pathway in WPW. AV nodal blockers — adenosine, calcium-channel blockers, beta-blockers, digoxin and IV amiodarone — can increase conduction over the pathway and precipitate VF. Use synchronized cardioversion if unstable; if stable, IV procainamide (or ibutilide) slows pathway conduction. Catheter ablation of the pathway is the definitive treatment.',
     level: 5,
+    alsoFor: [7],
     topic: 'arrhythmia',
     relatedIds: ['wpw-syndrome', 'atrial-fibrillation', 'catheter-ablation', 'cardioversion'],
   },
@@ -550,6 +555,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctIndex: 3,
     explanation: 'In obstructive HCM, hypovolemia and increased contractility worsen dynamic LVOT obstruction. Treat with volume and a pure vasoconstrictor without inotropic effect, such as phenylephrine, which raises afterload and widens the outflow tract; add beta-blockade once BP allows. Inotropes such as dobutamine and dopamine increase the gradient, and vasodilators such as nitrates shrink the LV cavity — both can precipitate collapse.',
     level: 5,
+    alsoFor: [7],
     topic: 'cardiomyopathy',
     relatedIds: ['hcm', 'interventricular-septum', 'mitral-valve'],
   },
@@ -565,6 +571,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctIndex: 1,
     explanation: 'First-line therapy is aspirin or an NSAID (e.g., ibuprofen 600 mg TID) with gastroprotection plus colchicine (0.6 mg once or twice daily, weight-based) for ~3 months; colchicine roughly halves recurrence (COPE, ICAP). Corticosteroids are second-line — for NSAID contraindication or incomplete response — because they increase recurrence. Anticoagulation risks hemopericardium. Restrict strenuous exercise until symptoms and CRP resolve (at least 1 month).',
     level: 5,
+    alsoFor: [7],
     topic: 'pericardial',
     relatedIds: ['acute-pericarditis', 'fibrous-pericardium'],
   },
@@ -628,6 +635,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     correctIndex: 2,
     explanation: 'CHA2DS2-VASc = hypertension 1 + age 65–74 1 + female sex 1 = 3. The 2023 ACC/AHA/ACCP/HRS AF guideline recommends oral anticoagulation when annual stroke risk is ≥ 2% (generally a score ≥ 2 in men or ≥ 3 in women); the 2024 ESC CHA2DS2-VA score (sex removed) gives 2, which also favors anticoagulation. DOACs are preferred over warfarin except with mechanical valves or moderate–severe rheumatic mitral stenosis. Stroke risk depends on risk factors, not on whether AF is paroxysmal, and aspirin is not an alternative for stroke prevention.',
     level: 5,
+    alsoFor: [7],
     topic: 'arrhythmia',
     relatedIds: ['atrial-fibrillation', 'left-atrial-appendage', 'laa-occlusion'],
   },

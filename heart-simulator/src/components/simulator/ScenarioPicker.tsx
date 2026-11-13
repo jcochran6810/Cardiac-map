@@ -2,14 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { create } from 'zustand';
-import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
+import { useAppStore, LEVEL_LABELS, ROLES, ROLE_SETTING } from '@/store/useAppStore';
 import { bestKey, useSimStore } from '@/store/useSimStore';
-import { SCENARIOS, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
+import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { openCategory } from '@/lib/actions';
 import type { Scenario } from '@/lib/sim/scenario/types';
 import { SETTING_LABEL, DIFFICULTY_STYLE, gradeStyle } from './simStyles';
-
-const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
+import { caseSections } from './caseList';
 
 /** A case to bring into view when the list shows (one chosen in search). Set only when the list is about to show. */
 const usePickerFocus = create<{ id: string | null }>(() => ({ id: null }));
@@ -43,9 +42,7 @@ export default function ScenarioPicker() {
   const setRole = useAppStore((s) => s.setLearningLevel);
   const best = useSimStore((s) => s.best);
   const startScenario = useSimStore((s) => s.startScenario);
-  const mine = SCENARIOS.filter((sc) => sc.roles.includes(role));
-  const studyLab = () => openCategory('cathlab');
-  const others = SCENARIOS.filter((sc) => !sc.roles.includes(role));
+  const { mine, others, studyLab, empty } = caseSections(role);
   const focusId = usePickerFocus((s) => s.id);
   const [marked, setMarked] = useState<string | null>(null);
 
@@ -97,13 +94,25 @@ export default function ScenarioPicker() {
         </div>
 
         <h2 className="mt-6 text-sm font-semibold text-white">Cases for {LEVEL_LABELS[role].long}</h2>
-        {role >= 3 && (
-          <button onClick={studyLab} className="mt-2 w-full text-left flex items-center gap-3 p-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20">
+        {studyLab && (
+          <button onClick={() => openCategory('cathlab')} className="mt-2 w-full text-left flex items-center gap-3 p-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20">
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-semibold text-cyan-100">Study before you scrub in: the cath lab catalog →</span>
               <span className="block text-xs text-cyan-200/75 leading-snug mt-0.5">Every view, catheter, wire, balloon, stent, lab drug, pressure and complication these cases use — and what the tech, the nurse and the cardiologist each do.</span>
             </span>
           </button>
+        )}
+        {empty && (
+          <div role="status" className="mt-2 p-4 rounded-xl border border-dashed border-slate-600 bg-cardiac-panel/60">
+            <div className="text-[13px] font-semibold text-white">No cases for {LEVEL_LABELS[role].short} yet</div>
+            <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+              {ROLE_SETTING[role] === 'ed' ? 'The emergency department cases for this role are not in the simulator yet.' : 'This role has no cases in the simulator yet.'}{' '}
+              Meanwhile you can play any case below as the role it is written for (that switches your role), or study the conditions in the library.
+            </p>
+            <button onClick={() => openCategory('conditions')} className="mt-2.5 px-3 py-1.5 rounded-lg border border-slate-600 text-xs text-slate-200 hover:bg-cardiac-surface">
+              Study the conditions →
+            </button>
+          </div>
         )}
         <div className="mt-2 grid gap-3 md:grid-cols-2">
           {mine.map((sc) => (

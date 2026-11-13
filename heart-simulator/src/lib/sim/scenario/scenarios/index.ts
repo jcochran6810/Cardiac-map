@@ -22,6 +22,7 @@ import { vfArrest } from './vfArrest';
 export const SCENARIOS: Scenario[] = [
   // the field
   stemiAnterior, stemiInferiorRV, heartBlock, betaBlockerField, svtUnstable, afRvrField, stableVtField, hyperkalemiaField, vfArrest, peaArrestField,
+  // the emergency department (setting 'ed', roles [6, 7]: see edKit.ts)
   // the cath lab
   cathlabStemi, cathlabInferior, cathlabFfr, cathlabShock, cathlabNoReflow, cathlabPerforation, cathlabContrast,
 ];

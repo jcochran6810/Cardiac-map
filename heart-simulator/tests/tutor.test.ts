@@ -229,6 +229,10 @@ describe('what kind of answer a question wants', () => {
     const af = lib.conditions['atrial-fibrillation'].name;
     expect(ask('How is atrial fibrillation treated?').title).toBe(`${af} — field care`);
     expect(ask('How is atrial fibrillation treated?', { level: 4 }).title).toBe(`${af} — ED / ICU care`);
+    // the ER nurse and the ER doctor get the ED care, not the field's or the cardiologist's
+    expect(ask('How is atrial fibrillation treated?', { level: 6 }).title).toBe(`${af} — ED / ICU care`);
+    expect(ask('How is atrial fibrillation treated?', { level: 7 }).title).toBe(`${af} — ED / ICU care`);
+    expect(ask('How is atrial fibrillation treated?', { level: 5 }).title).toBe(`${af} — cardiology care`);
     expect(ask('What are the complications of atrial fibrillation?').title).toBe(`${af} — complications`);
     expect(ask('What are the signs of cardiac tamponade?').title).toMatch(/ — symptoms$/);
     expect(ask('What are the contraindications to nitroglycerin?').title).toBe('Nitroglycerin — contraindications');
@@ -330,5 +334,35 @@ describe('what kind of answer a question wants', () => {
     const a = ask('How is atrial fibrillation treated?');
     expect(a.followUps).not.toContain(`How is ${lib.conditions['atrial-fibrillation'].name} treated?`);
     expect(a.followUps.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the role focus line', () => {
+  const focusOf = (q: string, level: TutorContext['level']) => ask(q, { level }).bullets.filter((b) => b.startsWith('Focus for '));
+
+  it.each([
+    ['What is amiodarone?', 'amiodarone'], ['What is atrial fibrillation?', 'atrial-fibrillation'],
+    ['What is the mitral valve?', 'mitral-valve'], ['What is pericardiocentesis?', 'pericardiocentesis'],
+  ])('"%s": every role gets one focus line, never "undefined"', (q) => {
+    for (const level of [1, 2, 3, 4, 5, 6, 7] as const) {
+      const lines = focusOf(q, level);
+      expect(lines, `level ${level}`).toHaveLength(1);
+      expect(lines[0], `level ${level}`).not.toMatch(/undefined/);
+    }
+  });
+
+  it('labels a stand-in note as another role\'s until the ER notes are written', () => {
+    const notes = lib.medications.amiodarone.levelNotes;
+    const [nurse] = focusOf('What is amiodarone?', 6);
+    const [doctor] = focusOf('What is amiodarone?', 7);
+    if (notes.length === 7) {
+      expect(nurse).toBe(`Focus for Emergency Nurse (RN · ED): ${notes[5]}`);
+      expect(doctor).toBe(`Focus for Emergency Physician (MD/DO): ${notes[6]}`);
+    } else {
+      expect(nurse).toMatch(/^Focus for Emergency Nurse \(RN · ED\) — Not written for the ER Nurse yet — this is the Cath Lab RN note/);
+      expect(nurse.endsWith(notes[3])).toBe(true);
+      expect(doctor).toMatch(/^Focus for Emergency Physician \(MD\/DO\) — Not written for the ER Doctor yet — this is the Cardiologist note/);
+      expect(doctor.endsWith(notes[4])).toBe(true);
+    }
   });
 });

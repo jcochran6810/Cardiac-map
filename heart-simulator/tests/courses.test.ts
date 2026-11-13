@@ -17,7 +17,7 @@ import { ECG_PROFILES, resolveProfile } from '@/lib/ecg/profiles';
 import { ALL_LEADS } from '@/lib/ecg/vector';
 import { CONDITION_IDS, ECG_PROFILE_IDS, MEDICATION_IDS, PROCEDURE_IDS, STRUCTURE_IDS } from '@/types/content';
 import type { Course, Lesson, LessonStep, StepShow } from '@/types/course';
-import type { ViewMode } from '@/store/useAppStore';
+import { ROLES, type ViewMode } from '@/store/useAppStore';
 
 const has = (list: readonly string[], id: string) => list.includes(id);
 const LIBRARY_ID = (id: string) =>
@@ -56,18 +56,25 @@ describe('course catalogue', () => {
       expect(c.lessons.length, c.id).toBeGreaterThan(0);
       expect(new Set(c.lessons.map((l) => l.id)).size, c.id).toBe(c.lessons.length);
       expect(c.roles.length, c.id).toBeGreaterThan(0);
-      for (const r of c.roles) expect([1, 2, 3, 4, 5]).toContain(r);
+      for (const r of c.roles) expect(ROLES).toContain(r);
       expect(c.title.length).toBeGreaterThan(3);
       expect(c.summary.length).toBeGreaterThan(20);
     }
   });
 
   it('offers every role a course written for it, listed first', () => {
-    for (const role of [1, 2, 3, 4, 5] as const) {
+    for (const role of ROLES) {
       const mine = COURSES.filter((c) => c.roles.includes(role));
       expect(mine.length, `role ${role}`).toBeGreaterThanOrEqual(2);
       // …and the list for that role starts with them
       expect(coursesFor(role, COURSES).slice(0, mine.length)).toEqual(mine);
+    }
+  });
+
+  it('writes the ED courses for the ER nurse and the ER doctor: the heart, the ECG, rhythms, STEMI and cardiac arrest', () => {
+    for (const role of [6, 7] as const) {
+      expect(COURSES.filter((c) => c.roles.includes(role)).map((c) => c.id), `role ${role}`)
+        .toEqual(['heart-basics', 'ecg-foundations', 'rhythm-recognition', 'stemi', 'cardiac-arrest']);
     }
   });
 
@@ -95,7 +102,7 @@ describe('every step', () => {
       expect(p.length, 'a paragraph a phone can show without scrolling for ever').toBeLessThanOrEqual(520);
     }
     if (step.look) expect(step.look.length).toBeLessThanOrEqual(260);
-    for (const r of Object.keys(step.roleNote ?? {})) expect(['1', '2', '3', '4', '5']).toContain(r);
+    for (const r of Object.keys(step.roleNote ?? {})) expect(ROLES.map(String)).toContain(r);
     for (const id of step.more ?? []) expect(LIBRARY_ID(id), `"${id}" is in the library`).toBe(true);
 
     // what it shows

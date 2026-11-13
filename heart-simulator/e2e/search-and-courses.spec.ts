@@ -18,7 +18,7 @@ test.afterEach(() => {
   expect(errors, 'errors reported by the page').toEqual([]);
 });
 
-/** The main menu, as a learner who has already picked this role (1 EMT … 5 Cardiologist) */
+/** The main menu, as a learner who has already picked this role (1 EMT, 2 Paramedic, 3 Cath Lab Tech, 4 Cath Lab RN, 5 Cardiologist, 6 ER Nurse, 7 ER Doctor) */
 async function openMenuAs(page: Page, role: number) {
   await page.addInitScript((r) => {
     try {
@@ -142,4 +142,24 @@ test('the course row: a cath lab role sees its lab courses early, and cards snap
   expect(snap.start).toBeGreaterThanOrEqual(16);
   expect(Math.abs(snap.snapped - snap.start)).toBeLessThanOrEqual(1);
   for (const l of snap.lines) expect(l).toBeLessThanOrEqual(3.05);
+});
+
+test('an ER role: a saved ER role is kept, its own courses come first, and the case count never reads 0 cases', async ({ page }) => {
+  await openMenuAs(page, 6);
+  // the saved role was read back (an unknown one falls back to Paramedic)
+  const roles = page.getByRole('radiogroup', { name: /^Your role/ });
+  await expect(roles.getByRole('radio', { name: 'ER Nurse', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(roles.getByRole('radio')).toHaveCount(7);
+
+  const section = page.getByRole('region', { name: 'Courses' });
+  const cards = section.getByRole('button').filter({ hasText: /lessons/ });
+  await expect(cards.first()).toBeVisible();
+  const titles = await cards.evaluateAll((els) => els.map((e) => e.querySelector('.font-semibold')?.textContent));
+  expect(titles.slice(0, 5)).toEqual([
+    'How the heart works', 'Reading an ECG from scratch', 'Recognizing rhythms', 'Finding a heart attack on the 12-lead', 'Cardiac arrest and the defibrillator',
+  ]);
+  await expect(cards.first()).toContainText('For ER Nurse');
+
+  // the simulator card counts the ER nurse's cases, or says plainly there are none yet
+  await expect(page.getByRole('button', { name: /Treat a patient/ })).toContainText(/\d+ cases? for ER Nurse\.|No cases for ER Nurse yet/);
 });

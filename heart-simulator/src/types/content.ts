@@ -6,9 +6,17 @@
  * render them consistently. `levelNotes` gives one focused sentence per
  * learner level so the level selector changes what is emphasised.
  */
+import type { LearningLevel } from '@/store/useAppStore';
 
-/** One note per role, each strictly within that role's scope of practice (see lib/scope.ts): [EMT, Paramedic, Cath lab tech (RCIS), Cath lab RN, Cardiologist] */
-export type LevelNotes = [string, string, string, string, string];
+/**
+ * One note per role, each strictly within that role's scope of practice (see lib/scope.ts), by position:
+ * [EMT, Paramedic, Cath lab tech (RCIS), Cath lab RN, Cardiologist, ER nurse, ER doctor].
+ * Items written before the ER roles carry the first five; the ER nurse's and ER doctor's notes are added together
+ * (never one without the other), after the cardiologist's — inserting them anywhere else would shift every note onto
+ * the wrong role. Read a note only through levelNote() in lib/content.ts: it shows a labelled stand-in until an item
+ * has its ER notes.
+ */
+export type LevelNotes = [string, string, string, string, string] | [string, string, string, string, string, string, string];
 
 export type StructureGroup =
   | 'chambers'
@@ -197,8 +205,13 @@ export interface QuizQuestion {
   options: string[];
   correctIndex: number;
   explanation: string;
-  /** Minimum learner level this question targets (1 = EMT … 5 = interventional/EP) */
-  level: 1 | 2 | 3 | 4 | 5;
+  /**
+   * The role this question is written for first (1 EMT, 2 paramedic, 3 cath lab tech, 4 cath lab RN, 5 cardiologist,
+   * 6 ER nurse, 7 ER doctor). Who else sees it is decided by quizForRole() in lib/content.ts.
+   */
+  level: LearningLevel;
+  /** other roles that get this question although its level leaves them out (e.g. a cardiologist question on acute care that the ER doctor owns too) */
+  alsoFor?: LearningLevel[];
   topic: QuizTopic;
   /** When set, the live ECG monitor switches to this ECG profile while the question is shown */
   ecgProfile?: string;
@@ -221,8 +234,13 @@ export interface CaseDecision {
   prompt: string;
   /** Optional vitals/ECG change revealed at this decision point */
   update?: string;
-  /** Role that owns this decision (1 EMT, 2 Paramedic, 3 Cath lab tech, 4 Cath lab RN, 5 Physician/cardiologist) */
-  owner?: 1 | 2 | 3 | 4 | 5;
+  /** Role that owns this decision (1 EMT, 2 Paramedic, 3 Cath lab tech, 4 Cath lab RN, 5 Physician/cardiologist, 6 ER nurse, 7 ER doctor) */
+  owner?: LearningLevel;
+  /**
+   * Other roles whose own decision this is too, without re-owning it (e.g. a decision made in the emergency department
+   * that the ER doctor owns as well as the cardiologist). Read through decisionOwner() in lib/content.ts.
+   */
+  alsoOwner?: LearningLevel[];
   options: CaseDecisionOption[];
 }
 

@@ -6,7 +6,7 @@ import { attached, useSimStore } from '@/store/useSimStore';
 import { LEVEL_LABELS } from '@/store/useAppStore';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { HINT_POINTS, clockText, interventionsForScenario, unavailableReason } from '@/lib/sim/scenario/engine';
-import { CATEGORY_LABELS, CATEGORY_ORDER, INTERVENTION_BY_ID } from '@/lib/sim/scenario/interventions';
+import { CATEGORY_ORDER, INTERVENTION_BY_ID, categoryLabel } from '@/lib/sim/scenario/interventions';
 import type { Category, Intervention, LogEntry, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { IconClose, IconSearch } from '@/components/ui/icons';
 import { matches } from '@/lib/device';
@@ -41,7 +41,9 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
   const [actionCat, setActionCat] = useState<Category | null>(null);
   useEffect(() => setActionCat(null), [state.scenarioId, state.role]);
   const seen = useRef({ log: state.log.length, performed: state.performed.length, images: state.images.length });
-  const lab = sc.setting === 'cathlab';
+  // the cath lab films every run; a case elsewhere shows the tab only once it has a picture to show (the emergency
+  // department's X-ray, CT and ultrasound are told in words)
+  const imagingTab = sc.setting === 'cathlab' || state.images.length > 0;
 
   // A new 12-lead to read opens the 12-lead tab and an image to read (an angiogram, a pressure-wire
   // screen) the imaging tab; any other read needs the story. On a phone on its side the action column has no
@@ -53,7 +55,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
     const last = state.performed.at(-1);
     const fresh = state.performed.length > prev.performed;
     const kind = state.pendingRead?.kind;
-    const onImage = kind === 'angio' || !!state.pendingRead?.run;
+    const onImage = imagingTab && (kind === 'angio' || !!state.pendingRead?.run);
     if (fresh && last && (last.id === 'ecg12' || last.id === 'ecg12-repeat') && kind === 'ecg') setTab('ecg');
     else if (onImage && tab !== 'imaging') setTab('imaging');
     else if (kind && kind !== 'ecg' && !onImage && tab !== 'story') setTab('story');
@@ -65,7 +67,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
       if (state.images.length > prev.images && tab !== 'imaging') setNewRun(true);
     }
     seen.current = { log: state.log.length, performed: state.performed.length, images: state.images.length };
-  }, [state, tab]);
+  }, [state, tab, imagingTab]);
   useEffect(() => {
     if (tab === 'story') setUnread(false);
     if (tab === 'imaging') setNewRun(false);
@@ -120,7 +122,7 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
           <div className="flex shrink-0 border-y border-slate-700 bg-cardiac-panel" role="tablist" aria-label="Patient views">
             <TabButton active={tab === 'story'} onClick={() => setTab('story')} dot={unread}>Case story</TabButton>
             <TabButton active={tab === 'ecg'} onClick={() => setTab('ecg')}>12-lead ECG</TabButton>
-            {lab && (
+            {imagingTab && (
               <TabButton active={tab === 'imaging'} onClick={() => setTab('imaging')} dot={newRun}>
                 Imaging{state.images.length > 0 && <span className="ml-1 text-slate-500 tabular-nums">{state.images.length}</span>}
               </TabButton>
@@ -353,7 +355,7 @@ function ActionList({ sc, state, cat, setCat, onDone, showLatest = false }: {
           // search: every match, under its category
           found.length ? found.map((g) => (
             <section key={g.c} data-cat={g.c} className="pt-2">
-              <h3 className="px-1 py-1 text-[11px] uppercase tracking-wider text-slate-400">{CATEGORY_LABELS[g.c]}</h3>
+              <h3 className="px-1 py-1 text-[11px] uppercase tracking-wider text-slate-400">{categoryLabel(g.c, sc.setting)}</h3>
               <div className="grid gap-1">{g.items.map((iv) => <ActionButton key={iv.id} iv={iv} sc={sc} state={state} onChoose={choose} />)}</div>
             </section>
           )) : <p className="px-2 py-6 text-center text-xs text-slate-400">No action matches “{q}”.</p>
@@ -368,7 +370,7 @@ function ActionList({ sc, state, cat, setCat, onDone, showLatest = false }: {
               >
                 <span aria-hidden>←</span> All
               </button>
-              <h3 ref={headRef} tabIndex={-1} className="flex-1 min-w-0 truncate text-sm font-semibold text-white outline-none">{CATEGORY_LABELS[open.c]}</h3>
+              <h3 ref={headRef} tabIndex={-1} className="flex-1 min-w-0 truncate text-sm font-semibold text-white outline-none">{categoryLabel(open.c, sc.setting)}</h3>
               <span className="shrink-0 text-[11px] text-slate-400 tabular-nums">{open.items.length}</span>
             </div>
             {groups ? (
@@ -424,9 +426,9 @@ function ActionList({ sc, state, cat, setCat, onDone, showLatest = false }: {
                   key={g.c}
                   onClick={() => setCat(g.c)}
                   className="min-h-[56px] text-left px-2.5 py-2 rounded-lg border border-slate-600/80 bg-cardiac-dark/60 hover:border-cardiac-accent/70 hover:bg-cardiac-surface/60 active:bg-cardiac-surface flex flex-col justify-between"
-                  aria-label={`${CATEGORY_LABELS[g.c]}: ${g.items.length} actions${g.done ? `, ${g.done} done` : ''}`}
+                  aria-label={`${categoryLabel(g.c, sc.setting)}: ${g.items.length} actions${g.done ? `, ${g.done} done` : ''}`}
                 >
-                  <span className="text-[13px] leading-snug font-medium text-slate-100">{CATEGORY_LABELS[g.c]}</span>
+                  <span className="text-[13px] leading-snug font-medium text-slate-100">{categoryLabel(g.c, sc.setting)}</span>
                   <span className="mt-1 text-[11px] text-slate-400 tabular-nums">
                     {g.items.length} action{g.items.length === 1 ? '' : 's'}
                     {g.done > 0 && <span className="text-emerald-400"> · {g.done} done</span>}

@@ -8,6 +8,13 @@ export const shocks = (s: SimState) => count(s, 'defib') + count(s, 'aed');
 export const cprCycles = (s: SimState) => count(s, 'cpr');
 export const interpret = (s: SimState) => s.role !== 1;
 
+/**
+ * The flag an order sets for one action in the emergency department: the ED physician's order (edKit's edOrder sets it
+ * when the order is given), a standing order or a case event. Until it is set, the ER nurse giving a drug that needs an
+ * order costs points (engine RN_ORDER_ONLY)
+ */
+export const orderedFlag = (id: string) => `ordered:${id}`;
+
 /** Every action that puts defibrillation pads on the chest: a "pads on" item counts any of them */
 export const PADS = ['pads', 'aed', 'defib', 'cardiovert', 'pace'];
 

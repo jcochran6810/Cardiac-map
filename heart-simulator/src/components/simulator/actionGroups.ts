@@ -15,7 +15,7 @@ const SUBGROUPS: Partial<Record<Category, Group[]>> = {
     { label: 'Pressure & shock', ids: ['push-epi', 'pressor', 'phenylephrine'] },
     { label: 'Breathing & allergy', ids: ['albuterol', 'epi-im', 'diphenhydramine', 'steroid'] },
     { label: 'Electrolytes, antidotes & glucose', ids: ['calcium-chloride', 'sodium-bicarbonate', 'insulin-dextrose', 'albuterol-hyperk', 'glucagon', 'oral-glucose', 'dextrose'] },
-    { label: 'Pain, nausea & sedation', ids: ['fentanyl', 'sedation', 'midazolam', 'ondansetron'] },
+    { label: 'Pain, nausea & sedation', ids: ['fentanyl', 'sedation', 'procedural-sedation', 'midazolam', 'ondansetron'] },
     { label: 'Through the catheter', ids: ['radial-cocktail', 'ic-nitro', 'ic-adenosine', 'ic-verapamil', 'ic-nitroprusside', 'ic-epinephrine', 'adenosine-iv-ffr'] },
   ],
   devices: [

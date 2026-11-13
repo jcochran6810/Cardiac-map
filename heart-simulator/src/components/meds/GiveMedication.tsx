@@ -19,6 +19,7 @@ const SCOPE_NOTE: Partial<Record<LearningLevel, string>> = {
   2: 'Paramedic: per your protocols and medical direction.',
   3: 'Cath lab techs give medications only on a physician’s order, where facility policy allows.',
   4: 'Nurse: on a prescriber’s order or a standing protocol (e.g. ACLS).',
+  6: 'ER nurse: on a provider’s order, a standing order or an ED protocol (e.g. ACLS) — know the dose, the rate and what to watch on the monitor.',
 };
 
 export const fmtClock = (ms: number) => {

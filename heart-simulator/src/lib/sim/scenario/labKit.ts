@@ -6,7 +6,7 @@
  */
 import type { LearningLevel } from '@/store/useAppStore';
 import type { Critical, Effect, Harm, Line, PendingRead, ScenarioEvent, SimState, Speaker } from './types';
-import { has } from './kit';
+import { has, orderedFlag } from './kit';
 
 /** Roles a scenario item applies to, by name */
 export const TECH: LearningLevel[] = [3];
@@ -45,12 +45,17 @@ export function doneAfter(s: SimState, ids: string[], flag: string): number | nu
   return hit ? hit.minute : null;
 }
 
-/** The operator asks the learner for something: the tech for a device or a view, the nurse for a drug */
+/**
+ * The operator asks the learner for something: the tech for a device or a view, the nurse for a drug. The emergency
+ * department uses the same pattern with the ED physician ordering and the ER nurse answering (edKit's edOrder).
+ */
 export interface LabAsk {
   /** short name, e.g. 'guide' (flags: asked-guide, then the `gives` flag) */
   id: string;
   /** who is asked (default: the tech) */
   role?: LearningLevel;
+  /** who asks, thanks and steps in (default: the cath lab operator; the ED physician in the emergency department) */
+  speaker?: Speaker;
   /** when the operator asks */
   when: (s: SimState) => boolean;
   ask: string;
@@ -81,6 +86,17 @@ export interface LabAsk {
 }
 
 const askedRole = (a: LabAsk) => a.role ?? 3;
+const asker = (a: LabAsk): Speaker => a.speaker ?? 'operator';
+
+/**
+ * While an ED physician's order is open, a wrong answer to it is scored by askHarm alone, not also as a drug given
+ * without an order (engine RN_ORDER_ONLY): one mistake, one penalty. The flag lasts from the order until it is carried out
+ */
+export const wrongAnswerFlag = (askId: string, id: string) => `wrong-answer:${askId}:${id}`;
+
+/** An open ED physician's order lists this action as a wrong answer to it (askHarm scores it) */
+export const answeringWrong = (s: SimState, id: string) =>
+  Object.keys(s.flags).some((f) => f.startsWith('wrong-answer:') && f.endsWith(`:${id}`));
 
 /** Minute the learner answered a request (a device opened early counts from the request), or null */
 export function askDone(s: SimState, a: LabAsk): number | null {
@@ -90,33 +106,40 @@ export function askDone(s: SimState, a: LabAsk): number | null {
   return hit ? Math.max(hit.minute, at) : null;
 }
 
-/** The request, the operator's word on a wrong answer, the thank-you and the fallback, as events */
+/**
+ * The request, the operator's word on a wrong answer, the thank-you and the fallback, as events. When the ED physician
+ * asks (edKit's edOrder), the request is the order: it sets `ordered:<id>` for each right answer, so the ER nurse may give it
+ */
 export function askEvents(a: LabAsk): ScenarioEvent[] {
   const asked = `asked-${a.id}`;
   const wait = a.wait ?? 3;
   const mine = (s: SimState) => s.role === askedRole(a);
+  const order = asker(a) === 'physician';
+  const ordered = order ? a.accept.map(orderedFlag) : [];
+  const wrongOpen = order ? (a.wrong ?? []).map((id) => wrongAnswerFlag(a.id, id)) : [];
   return [
     {
       id: `${a.id}-ask`,
       when: (s) => mine(s) && a.when(s),
-      effect: () => ({ say: [['operator', a.ask]], flags: [asked] }),
+      effect: () => ({ say: [[asker(a), a.ask]], flags: [asked, ...ordered, ...wrongOpen] }),
     },
     {
       id: `${a.id}-wrong`,
       when: (s) => mine(s) && !!a.wrongSay && !has(s, a.gives) && doneAfter(s, a.wrong ?? [], asked) !== null,
-      effect: () => ({ say: [['operator', a.wrongSay ?? '', 'warn']] }),
+      effect: () => ({ say: [[asker(a), a.wrongSay ?? '', 'warn']] }),
     },
     {
       id: `${a.id}-got`,
       when: (s) => mine(s) && !has(s, a.gives) && askDone(s, a) !== null,
-      effect: () => ({ say: [['operator', a.thanks, 'good']], flags: [a.gives] }),
+      effect: () => ({ say: [[asker(a), a.thanks, 'good']], flags: [a.gives], ...(wrongOpen.length ? { clear: wrongOpen } : {}) }),
     },
     {
       id: `${a.id}-fallback`,
       when: (s) => mine(s) && has(s, asked) && !has(s, a.gives) && s.minute >= s.flags[asked] + wait,
       effect: (s) => {
         const done = a.fallbackEffect?.(s) ?? {};
-        return { ...done, say: [['operator', a.fallback, 'warn'], ...(done.say ?? [])], flags: [a.gives, ...(done.flags ?? [])] };
+        const clear = [...wrongOpen, ...(done.clear ?? [])];
+        return { ...done, say: [[asker(a), a.fallback, 'warn'], ...(done.say ?? [])], flags: [a.gives, ...(done.flags ?? [])], ...(clear.length ? { clear } : {}) };
       },
     },
   ];

@@ -6,7 +6,7 @@
  * Educational content only — typical adult doses; always verify against local protocol.
  */
 
-import type { CaseDecision } from '../types/content';
+import type { CaseDecision, LevelNotes } from '../types/content';
 
 export interface CaseVitals {
   hr: number;
@@ -35,8 +35,11 @@ export interface CaseData {
   disposition: string;          // Expected outcome / disposition
   teaching: string[];           // Educational pearls
   decisions: CaseDecision[];    // Ordered decision points with feedback
-  /** What each role does in this case, within its scope: [EMT, Paramedic, Cath lab tech, Cath lab RN, Cardiologist] */
-  roleBriefs?: [string, string, string, string, string];
+  /**
+   * What each role does in this case, within its scope, by position: [EMT, Paramedic, Cath lab tech, Cath lab RN,
+   * Cardiologist, ER nurse, ER doctor] — five, or all seven once the ER briefs are written. Read through levelNote().
+   */
+  roleBriefs?: LevelNotes;
 }
 
 export const CASE_DATA: Record<string, CaseData> = {
@@ -101,6 +104,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'chest-pain-acs-1',
         stage: 'Initial assessment (arrival)',
         owner: 4,
+        alsoOwner: [6],
         prompt: 'He arrives by private car with ongoing 8/10 chest pressure. SpO2 96% on room air. As the nurse receiving him under the chest-pain protocol, what is your first priority?',
         options: [
           {
@@ -129,6 +133,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'chest-pain-acs-2',
         stage: 'Key diagnostic step (15 minutes)',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'How should this presentation be classified?',
         update: 'ECG: sinus rhythm 88, 1.5 mm horizontal ST depression in V4–V6, I and aVL; no ST elevation. hs-troponin I: 48 ng/L at 0 h → 112 ng/L at 1 h (99th-percentile URL 26 ng/L).',
         options: [
@@ -158,6 +163,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'chest-pain-acs-3',
         stage: 'Treatment (20 minutes)',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Pain is now 6/10. BP 146/90, HR 86, no crackles. Which initial treatment bundle is most appropriate?',
         options: [
           {
@@ -759,6 +765,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'bradycardia-with-shock-4',
         stage: 'One hour later',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the best next plan?',
         update: 'Mechanical capture at 90 mA; BP 104/62. Labs: K+ 6.2 mmol/L, creatinine 2.4 mg/dL (baseline 1.1), digoxin 2.6 ng/mL (toxic range).',
         options: [
@@ -874,6 +881,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'vt-storm-2',
         stage: '20 minutes later',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the most important next step?',
         update: 'Sinus rhythm at 92 after one 100 J synchronized shock, then two further VT episodes terminated by ICD shocks. Labs: K+ 3.1 mmol/L, Mg 1.4 mg/dL, hs-troponin mildly elevated and flat. ECG between episodes: old anterior Q waves, no new ST elevation.',
         options: [
@@ -1018,6 +1026,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'tamponade-1',
         stage: 'Initial assessment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Hypotensive, tachycardic, distended neck veins, clear lungs, pulsus paradoxus 18 mmHg. What is the most useful immediate test?',
         options: [
           {
@@ -1046,6 +1055,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'tamponade-2',
         stage: 'Key diagnostic step',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'How do you interpret these findings?',
         update: 'Echo: large circumferential effusion (~2.5 cm), RA systolic collapse, RV early-diastolic collapse, IVC 2.4 cm without respiratory variation, mitral inflow variation 35%. ECG: sinus tachycardia 118, low voltage, electrical alternans.',
         options: [
@@ -1075,6 +1085,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'tamponade-3',
         stage: 'Preparing for drainage',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the best interim management?',
         update: 'BP 82/66 and falling, RR 30, SpO2 91%. The pericardiocentesis kit will be ready in 10 minutes. A colleague proposes intubation for work of breathing.',
         options: [
@@ -1190,6 +1201,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'pe-presentation-1',
         stage: 'Initial assessment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'HR 112, SpO2 89%, unilateral calf swelling, BP 108/72; PE is the most likely diagnosis. What is the best diagnostic approach?',
         options: [
           {
@@ -1218,6 +1230,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'pe-presentation-2',
         stage: 'Key diagnostic step',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'How do you risk-stratify this PE?',
         update: 'CTPA: bilateral main and lobar pulmonary emboli; RV/LV ratio 1.3. hs-troponin and NT-proBNP elevated. BP 106/70, HR 110, SpO2 94% on 2 L.',
         options: [
@@ -1247,6 +1260,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'pe-presentation-3',
         stage: 'Treatment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Which management is most appropriate now?',
         options: [
           {
@@ -1362,6 +1376,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'aortic-dissection-1',
         stage: 'Triage',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Triage started the chest pain protocol and asks whether to give aspirin 324 mg and heparin. As the treating physician, what do you do?',
         options: [
           {
@@ -1390,6 +1405,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'aortic-dissection-2',
         stage: 'Key diagnostic step',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the best next step for diagnosis and planning?',
         update: 'ECG: sinus tachycardia 102 with LVH, no ST elevation. Bedside TTE: aortic root 5.0 cm with a mobile intimal flap, moderate AR, no pericardial effusion. Creatinine 1.0 mg/dL.',
         options: [
@@ -1419,6 +1435,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'aortic-dissection-3',
         stage: 'Treatment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'BP 198/112, HR 102, pain 9/10. Which anti-impulse regimen is best?',
         options: [
           {
@@ -1447,6 +1464,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'aortic-dissection-4',
         stage: 'Complication',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the most appropriate action?',
         update: 'CTA: Stanford type A dissection from the aortic root to the iliac arteries. While awaiting the OR, BP suddenly falls to 76/40 with JVD, muffled heart sounds and new pericardial fluid on echo.',
         options: [
@@ -1535,6 +1553,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'cardiogenic-shock-1',
         stage: 'Rural ED',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Anterior STEMI ~6 h old, BP 76/52, cold and wet, lactate 5.8 mmol/L. The nearest PCI center is 70 minutes away by air. What is the priority?',
         options: [
           {
@@ -1563,6 +1582,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'cardiogenic-shock-2',
         stage: 'Before transfer',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'He has a new soft apical systolic murmur. Why does this matter, and what do you do?',
         options: [
           {

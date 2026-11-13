@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
+import { useAppStore, LEVEL_LABELS, ROLES } from '@/store/useAppStore';
 import { lessonKey, useCourseStore } from '@/store/useCourseStore';
 import { useContent } from '@/lib/content';
 import { courseProgress, coursesFor, lessonInProgress, nextLesson, openLesson, runUnderWay, startLesson } from '@/lib/courses';
 import type { Course } from '@/types/course';
 import { IconCheck, IconChevron, IconPlay } from '@/components/ui/icons';
 
-const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
 const LEVEL_TEXT: Record<Course['level'], { label: string; tone: string }> = {
   beginner: { label: 'Start here', tone: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' },
   core: { label: 'Core', tone: 'text-sky-300 border-sky-500/40 bg-sky-500/10' },

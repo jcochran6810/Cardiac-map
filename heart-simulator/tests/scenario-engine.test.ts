@@ -6,7 +6,8 @@ import { READ_OPTIONS, answerFor, judgeRead } from '@/lib/sim/scenario/reads';
 import { SCENARIOS, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
-import type { Problem, Scenario, SimState } from '@/lib/sim/scenario/types';
+import type { Problem, Scenario, Setting, SimState } from '@/lib/sim/scenario/types';
+import type { LearningLevel } from '@/store/useAppStore';
 import { UNTIL_ARRIVED, runScenario as run } from './helpers';
 
 const MEDIC_IDEAL = [
@@ -419,7 +420,7 @@ describe('12-lead reads, checked at once', () => {
 describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
   /** The same case, with the patient given problems the built-in drug rules read */
   const withProblems = (sc: Scenario, ...problems: Problem[]): Scenario => ({ ...sc, problems });
-  const ids = (role: 1 | 2 | 3 | 4 | 5, setting: 'field' | 'cathlab') => interventionsFor(role, setting).map((i) => i.id);
+  const ids = (role: LearningLevel, setting: Setting) => interventionsFor(role, setting).map((i) => i.id);
   const penalties = (s: SimState) => s.penalties.map((p) => p.id);
   const vf = SCENARIO_BY_ID['vf-arrest-field'];
   const block = SCENARIO_BY_ID['complete-heart-block-field'];
@@ -443,6 +444,12 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
       const rnMd = ids(role, 'cathlab');
       for (const id of [...ALS, 'insulin-dextrose', ...NO_REFLOW]) expect(rnMd, `role ${role} ${id}`).toContain(id);
       expect(rnMd).not.toContain('oral-glucose');
+    }
+    // the emergency department: the ER nurse (on order) and the ER doctor; no oral glucose, nothing through a catheter
+    for (const role of [6, 7] as const) {
+      const ed = ids(role, 'ed');
+      for (const id of [...ALS, 'insulin-dextrose']) expect(ed, `role ${role} ${id}`).toContain(id);
+      for (const id of ['oral-glucose', ...NO_REFLOW]) expect(ed, `role ${role} ${id}`).not.toContain(id);
     }
     expect(unavailableReason(stemiAnterior, start(stemiAnterior, 2), 'insulin-dextrose')).toMatch(/scope/);
   });
@@ -899,6 +906,8 @@ describe('default responses follow the patient in front of them', () => {
     for (const role of [1, 2] as const) expect(interventionsFor(role, 'field').map((i) => i.id), `role ${role}`).toContain('poison-control');
     for (const role of [3, 4, 5] as const) expect(interventionsFor(role, 'cathlab').map((i) => i.id), `role ${role}`).not.toContain('poison-control');
     for (const role of [2, 4, 5] as const) expect(interventionsFor(role, role === 2 ? 'field' : 'cathlab').map((i) => i.id), `role ${role}`).toContain('ondansetron');
+    // the emergency department calls the poison center too, and gives ondansetron
+    for (const role of [6, 7] as const) expect(interventionsFor(role, 'ed').map((i) => i.id), `role ${role}`).toEqual(expect.arrayContaining(['poison-control', 'ondansetron']));
     for (const role of [1, 3] as const) expect(interventionsFor(role, role === 1 ? 'field' : 'cathlab').map((i) => i.id), `role ${role}`).not.toContain('ondansetron');
     expect(INTERVENTION_BY_ID.ondansetron.needsAccess).toBe(true);
     const call = run(stemiAnterior, 2, ['poison-control']);
