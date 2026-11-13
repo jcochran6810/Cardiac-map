@@ -26,6 +26,7 @@ export const READ_OPTIONS: ReadOption[] = [
   { id: 'sinus-brady', label: 'Sinus bradycardia', group: 'Rhythm', profiles: ['sinus-bradycardia'] },
   { id: 'sinus-tach', label: 'Sinus tachycardia', group: 'Rhythm', profiles: ['sinus-tachycardia'] },
   { id: 'afib', label: 'Atrial fibrillation', group: 'Rhythm', profiles: ['atrial-fibrillation'] },
+  { id: 'afib-preexcited', label: 'Pre-excited atrial fibrillation (WPW)', group: 'Rhythm', profiles: ['af-wpw'] },
   { id: 'aflutter', label: 'Atrial flutter', group: 'Rhythm', profiles: ['atrial-flutter'] },
   { id: 'svt', label: 'Supraventricular tachycardia (SVT, e.g. AVNRT)', group: 'Rhythm', profiles: ['avnrt'] },
   { id: 'junctional', label: 'Junctional rhythm', group: 'Rhythm', profiles: ['junctional'] },
@@ -51,6 +52,7 @@ export const READ_OPTIONS: ReadOption[] = [
   { id: 'stemi-anterior', label: 'Anterior STEMI', group: 'Ischemia and infarction', profiles: ['anterior-stemi', 'cardiogenic-shock'] },
   { id: 'stemi-inferior', label: 'Inferior STEMI', group: 'Ischemia and infarction', profiles: ['inferior-stemi'] },
   { id: 'stemi-lateral', label: 'Lateral STEMI', group: 'Ischemia and infarction', profiles: ['lateral-stemi'] },
+  { id: 'stemi-posterior', label: 'Posterior STEMI', group: 'Ischemia and infarction', profiles: ['posterior-stemi'] },
   { id: 'stemi-inferior-chb', label: 'Inferior STEMI with complete heart block', group: 'Ischemia and infarction', profiles: ['inferior-stemi-chb'] },
   { id: 'reperfused-anterior', label: 'Anterior MI after reperfusion (ST elevation resolving)', group: 'Ischemia and infarction', profiles: ['anterior-stemi-reperfused'] },
   { id: 'reperfused-inferior', label: 'Inferior MI after reperfusion (ST elevation resolving)', group: 'Ischemia and infarction', profiles: ['inferior-stemi-reperfused'] },
@@ -60,6 +62,7 @@ export const READ_OPTIONS: ReadOption[] = [
 
   { id: 'pericarditis', label: 'Acute pericarditis (diffuse ST elevation, PR depression)', group: 'Other patterns', profiles: ['pericarditis'] },
   { id: 'hyperkalaemia', label: 'Hyperkalemia (peaked T waves, wide QRS)', group: 'Other patterns', profiles: ['hyperkalemia'] },
+  { id: 'long-qt', label: 'Long QT interval with PVCs', group: 'Other patterns', profiles: ['long-qt'] },
   { id: 'right-strain', label: 'Right heart strain (S1Q3T3)', group: 'Other patterns', profiles: ['pulmonary-embolism'] },
   { id: 'lvh', label: 'Left ventricular hypertrophy with strain', group: 'Other patterns', profiles: ['aortic-stenosis', 'hfpef', 'aortic-dissection'] },
   { id: 'hcm', label: 'LVH with deep, narrow ("dagger") Q waves', group: 'Other patterns', profiles: ['hcm'] },
@@ -81,6 +84,8 @@ const HEMO_OPTIONS: ReadOption[] = [
   { id: 'hemo-ph', label: 'Pre-capillary pulmonary hypertension (high PA pressure, normal PCWP)', group: 'Pressures' },
   { id: 'hemo-damped', label: 'Damped / ventricularized catheter pressure (catheter wedged)', group: 'Waveforms' },
   { id: 'hemo-as', label: 'Aortic stenosis gradient on pullback', group: 'Waveforms' },
+  // takotsubo with a hyperdynamic base, hypertrophic cardiomyopathy: the gradient is inside the LV, below the valve
+  { id: 'hemo-lvoto', label: 'Dynamic LV outflow tract obstruction: a gradient inside the LV on pullback', group: 'Waveforms' },
 ];
 
 /** Coronary physiology (FFR / iFR) */
@@ -116,6 +121,7 @@ const CLINICAL_OPTIONS: ReadOption[] = [
   { id: 'clin-stent-thrombosis', label: 'Acute stent thrombosis', group: 'Coronary complications' },
   { id: 'clin-tamponade', label: 'Cardiac tamponade', group: 'Hemodynamic emergencies' },
   { id: 'clin-rp-bleed', label: 'Retroperitoneal bleed', group: 'Hemodynamic emergencies' },
+  { id: 'clin-lvoto', label: 'Dynamic LV outflow tract obstruction', group: 'Hemodynamic emergencies' },
   { id: 'clin-spasm', label: 'Radial artery spasm', group: 'Access' },
   { id: 'clin-hematoma', label: 'Access-site hematoma', group: 'Access' },
   { id: 'clin-stroke', label: 'Stroke', group: 'Other' },
@@ -128,10 +134,13 @@ const ANGIO_OPTIONS: ReadOption[] = [
   { id: 'angio-lad-prox-occlusion', label: 'Proximal LAD occlusion (TIMI 0 flow)', group: 'Occlusions' },
   { id: 'angio-rca-occlusion', label: 'RCA occlusion (TIMI 0 flow)', group: 'Occlusions' },
   { id: 'angio-lcx-occlusion', label: 'Circumflex / obtuse marginal occlusion', group: 'Occlusions' },
+  { id: 'angio-lm-occlusion', label: 'Left main occlusion (TIMI 0 flow)', group: 'Occlusions' },
   { id: 'angio-lm', label: 'Left main stenosis', group: 'Stenoses' },
   { id: 'angio-lad-intermediate', label: 'Intermediate (40–70 %) LAD stenosis', group: 'Stenoses' },
   { id: 'angio-severe-stenosis', label: 'Severe (> 70 %) stenosis', group: 'Stenoses' },
   { id: 'angio-thrombus', label: 'Thrombus', group: 'Findings' },
+  // a tear or a bleed in the wall with no atheroma, typically a long smooth narrowing in a younger woman: not a catheter's doing
+  { id: 'angio-scad', label: 'Spontaneous coronary artery dissection (SCAD)', group: 'Findings' },
   { id: 'angio-dissection', label: 'Dissection', group: 'Complications' },
   { id: 'angio-perforation', label: 'Perforation with contrast extravasation', group: 'Complications' },
   // the catalog's definition (cathlab no-reflow): TIMI 2 or less once the artery is open, not only TIMI 0–1
@@ -174,6 +183,10 @@ const PARTIAL: Record<string, string[]> = {
   'cardiogenic-shock': ['sinus-tach'],
   tcp: ['paced'],
   paced: ['tcp'],
+  // the rhythm or the pathway alone: half of the read — and the half that leads to an AV-nodal blocker
+  'af-wpw': ['afib', 'wpw'],
+  // the PVCs without the QT that makes them dangerous
+  'long-qt': ['pvcs'],
 };
 
 /** The correct read for an ECG profile */

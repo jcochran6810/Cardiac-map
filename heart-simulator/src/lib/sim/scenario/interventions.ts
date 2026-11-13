@@ -42,6 +42,10 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'ask-pde5', label: 'Ask about erectile-dysfunction drugs (sildenafil, vardenafil, tadalafil, avanafil)', category: 'assess', roles: ALL, minutes: 0.25 },
   { id: 'vitals', label: 'Manual vital signs: BP, pulse, breathing, SpO₂', category: 'assess', roles: ALL, minutes: 1, repeatable: true },
   { id: 'pulse-check', label: 'Check for a pulse (no more than 10 s)', category: 'assess', roles: ALL, minutes: 0.2, repeatable: true },
+  { id: 'bp-both-arms', label: 'Blood pressure in both arms', category: 'assess', roles: ALL, minutes: 1, repeatable: true, detail: 'manual cuff on the right arm, then the left; compare the two' },
+  // a patient on a continuous-flow LVAD has no pulse to feel and no cuff pressure: the Doppler finds the flow
+  { id: 'doppler-map', label: 'Doppler MAP (manual cuff and a Doppler probe)', category: 'assess', roles: [1, 2], settings: FIELD, minutes: 1, repeatable: true, detail: 'Doppler probe over the brachial artery; deflate the cuff slowly: the pressure at which flow returns is the MAP with an LVAD (the systolic with a pulse)' },
+  { id: 'lvad-check', label: 'LVAD check: pump hum, controller display and alarms, power and driveline', category: 'assess', roles: [1, 2], settings: FIELD, minutes: 1, repeatable: true, detail: 'listen over the left chest; read the controller (flow, speed, power, alarms); both power sources connected; driveline intact' },
   { id: 'lungs', label: 'Listen to the lungs', category: 'assess', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'perfusion', label: 'Skin signs, neck veins (JVD) and peripheral pulses', category: 'assess', roles: ALL, minutes: 0.5 },
   // repeatable: a glucose is rechecked after dextrose, oral glucose or glucagon
@@ -82,6 +86,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'oct', label: 'OCT run (contrast flush)', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 2, repeatable: true },
   { id: 'final-angio', label: 'Final angiogram in two views', category: 'imaging', roles: TECH_MD, settings: LAB, minutes: 1 },
   { id: 'stop-contrast', label: 'Stop all contrast injections', category: 'imaging', roles: LAB_TEAM, settings: LAB, minutes: 0.1 },
+  { id: 'ct-urgent', label: 'Urgent CT scan', category: 'imaging', roles: RN_MD, settings: LAB, minutes: 10, detail: 'head CT for a stroke (CT angiography if a clot could be pulled), abdomen and pelvis for a retroperitoneal bleed, chest CT angiography for a dissection — once the patient is stable enough to leave the lab' },
 
   // Airway & breathing
   { id: 'o2-nc', label: 'Oxygen by nasal cannula', category: 'airway', roles: ALL, minutes: 0.5, detail: '2–4 L/min' },
@@ -94,11 +99,15 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'iv', label: 'IV access', category: 'access', roles: ALS_RN_MD, minutes: 2 },
   { id: 'io', label: 'IO access', category: 'access', roles: ALS_RN_MD, minutes: 1.5 },
   { id: 'fluid', label: 'Normal saline bolus', category: 'access', roles: ALS_RN_MD, minutes: 1, detail: '250–500 mL, reassess', repeatable: true, maxTimes: 4, needsAccess: true },
+  { id: 'transfuse', label: 'Transfuse packed red cells', category: 'access', roles: RN_MD, settings: LAB, minutes: 2, detail: '1 unit after the bedside check, through a warmer; for massive bleeding, the massive transfusion protocol', repeatable: true, maxTimes: 4, needsAccess: true },
 
   // Medications
   { id: 'aspirin', label: 'Aspirin, chewed', category: 'meds', roles: [1, 2, 4, 5], minutes: 0.5, detail: '324 mg (162–325 mg) non-enteric-coated' },
   { id: 'nitro-assist', label: "Help the patient take their own nitroglycerin", category: 'meds', roles: [1], settings: FIELD, minutes: 0.5, detail: 'per protocol / medical direction' },
   { id: 'nitro', label: 'Nitroglycerin sublingual', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '0.4 mg, every 5 min, max 3', repeatable: true, maxTimes: 3 },
+  // hypertensive acute pulmonary edema (SCAPE): the sublingual high dose most US EMS protocols carry (IV infusions are not
+  // carried by most services), with CPAP
+  { id: 'nitro-high', label: 'Nitroglycerin 0.8 mg sublingual (high dose, pulmonary edema)', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'two 0.4 mg tablets or sprays every 5 min while the systolic stays 160 or more (1.2 mg over 200 in some protocols), with CPAP; step down to 0.4 mg below 160', repeatable: true, maxTimes: 3 },
   { id: 'fentanyl', label: 'Fentanyl IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '25–50 mcg (0.5–1 mcg/kg)', repeatable: true, maxTimes: 3, needsAccess: true },
   { id: 'heparin', label: 'Unfractionated heparin IV bolus', category: 'meds', roles: [4, 5], settings: LAB, minutes: 0.5, detail: '70–100 U/kg for primary PCI', needsAccess: true },
   { id: 'p2y12', label: 'P2Y12 loading dose', category: 'meds', roles: [4, 5], settings: LAB, minutes: 0.5, detail: 'ticagrelor 180 mg (or prasugrel 60 mg)' },
@@ -114,6 +123,9 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'push-epi', label: 'Push-dose epinephrine', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '10–20 mcg IV, repeat as needed', repeatable: true, needsAccess: true },
   { id: 'pressor', label: 'Vasopressor infusion', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'norepinephrine, epinephrine or dopamine, titrated to MAP ≥ 65', needsAccess: true },
   { id: 'sedation', label: 'Sedation / analgesia for the procedure', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'per protocol or order, with monitoring', needsAccess: true },
+  // IM or intranasal without a line, so it needs no IV
+  { id: 'midazolam', label: 'Midazolam (benzodiazepine) for agitation or stimulant toxicity', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'agitation or a stimulant: 2.5–5 mg IV, or 5 mg IM or intranasal without a line, repeated to calm; procedural sedation (the cath lab, before a shock or the pacer): 0.5–1 mg IV at a time, titrated; watch the breathing and the pressure', repeatable: true, maxTimes: 3 },
+  { id: 'phenylephrine', label: 'Phenylephrine IV bolus', category: 'meds', roles: RN_MD, settings: LAB, minutes: 0.3, detail: '50–100 mcg, every 1–2 min as needed: a pure vasoconstrictor, it can slow the heart', repeatable: true, needsAccess: true },
   { id: 'tnk', label: 'Fibrinolytic: tenecteplase IV', category: 'meds', roles: [5], minutes: 0.5, detail: 'weight-based', needsAccess: true },
   { id: 'epi-im', label: 'Epinephrine IM for anaphylaxis', category: 'meds', roles: [1, 2, 4, 5], minutes: 0.3, detail: '0.3–0.5 mg (1 mg/mL), lateral thigh' },
   // two actions, not one with a dose to pick: the hyperkalemia dose is 4–8 times the wheezing dose, and choosing it is the point
@@ -153,6 +165,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'pace', label: 'Transcutaneous pacing', category: 'resus', roles: MANUAL, minutes: 1, detail: 'rate 70, raise mA until capture' },
   { id: 'vagal', label: 'Vagal maneuver (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5], minutes: 0.5 },
   { id: 'hs-ts', label: 'Look for reversible causes (Hs and Ts)', category: 'resus', roles: ALS_RN_MD, minutes: 0.5 },
+  { id: 'legs-up', label: 'Lay flat and raise the legs', category: 'resus', roles: ALL, minutes: 0.3, detail: 'about 45°: blood from the legs returns to the heart for a few minutes' },
 
   // Procedures (cath lab)
   { id: 'timeout', label: 'Procedural time-out', category: 'procedure', roles: [3, 4, 5], settings: LAB, minutes: 1 },
@@ -166,6 +179,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'balloon-tamponade', label: 'Inflate a balloon over the perforation', category: 'procedure', roles: [5], settings: LAB, minutes: 1, detail: 'low pressure, 5–10 minutes' },
   { id: 'pericardiocentesis', label: 'Pericardiocentesis (echo-guided)', category: 'procedure', roles: TECH_MD, settings: LAB, minutes: 3 },
   { id: 'closure-device', label: 'Femoral closure device', category: 'procedure', roles: [5], settings: LAB, minutes: 1 },
+  // the cardiologist aspirates and flushes; the tech holds the syringe tip-down, back-bleeds the guide and keeps the line free of air
+  { id: 'clear-air', label: 'Clear coronary air: aspirate back through the guide, then a forceful saline flush', category: 'procedure', roles: TECH_MD, settings: LAB, minutes: 0.5, repeatable: true, maxTimes: 3, detail: 'with 100 % oxygen; repeat until the bubbles are gone and flow is back' },
 
   // Catheters, wires & devices: the tech opens, prepares and hands them; the cardiologist uses them
   { id: 'cath-tiger', label: 'Tiger (TIG) diagnostic catheter — both coronaries from the radial', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 0.5 },
@@ -187,6 +202,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'temp-wire', label: 'Temporary transvenous pacing wire', category: 'devices', roles: TECH_MD, settings: LAB, minutes: 3 },
   { id: 'hemostasis', label: 'Access-site hemostasis (radial band or femoral pressure)', category: 'procedure', roles: [3, 4], settings: LAB, minutes: 1 },
   { id: 'call-surgery', label: 'Call cardiac surgery', category: 'team', roles: LAB_TEAM, settings: LAB, minutes: 0.2 },
+  { id: 'call-vascular', label: 'Call vascular surgery / interventional radiology', category: 'team', roles: LAB_TEAM, settings: LAB, minutes: 0.2 },
+  { id: 'stroke-team', label: 'Activate the stroke team (stroke alert)', category: 'team', roles: LAB_TEAM, settings: LAB, minutes: 0.2 },
 
   // Team, calls & transport
   { id: 'call-help', label: 'Call for help / the code team', category: 'team', roles: ALL, minutes: 0.2 },
@@ -195,12 +212,15 @@ export const INTERVENTIONS: Intervention[] = [
   // a call back once the 12-lead or the history is in, or when the patient changes, is part of the job
   { id: 'med-control', label: 'Contact online medical control', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, repeatable: true, maxTimes: 3 },
   // a call back with what the bottle says is part of the job: the first call often only brings the questions
+  // the implanting center's VAD coordinator, on call around the clock: the number is on the controller and the patient's card
+  { id: 'call-vad', label: 'Call the VAD team (the number on the controller)', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'the implanting center, 24/7: they talk you through the alarms and say where to take the patient', repeatable: true, maxTimes: 3 },
   { id: 'poison-control', label: 'Call the poison center', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, detail: 'Poison Help line 1-800-222-1222: what was taken, how much, when, and the weight', repeatable: true, maxTimes: 3 },
   { id: 'stemi-alert', label: 'STEMI alert: activate the cath lab from the field', category: 'team', roles: [2], settings: FIELD, minutes: 0.5 },
   { id: 'notify', label: 'Radio report to the receiving hospital', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
-  // the far destination in every field case: the STEMI's cath lab, a pacing wire, the ICU, emergency dialysis. The STEMI
-  // cases call it the "PCI-capable heart center" (briefing, critical step, hint): the detail carries that name for the search
-  { id: 'transport-pci', label: 'Transport to the regional heart center (PCI, pacing, dialysis)', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2, detail: 'PCI-capable: a cath lab, transvenous pacing, emergency dialysis and an ICU' },
+  // the far destination in every field case: the STEMI's cath lab, a pacing wire, cardiac surgery, the ICU, emergency
+  // dialysis. The STEMI cases call it the "PCI-capable heart center" (briefing, critical step, hint): the detail carries that
+  // name for the search
+  { id: 'transport-pci', label: 'Transport to the regional heart center (PCI, pacing, dialysis)', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2, detail: 'PCI-capable: a cath lab, cardiac surgery, transvenous pacing, emergency dialysis and an ICU' },
   { id: 'transport-near', label: 'Transport to the nearest emergency department', category: 'team', roles: [1, 2], settings: FIELD, minutes: 2 },
   { id: 'handoff', label: 'Hand-off report (SBAR)', category: 'team', roles: ALL, minutes: 1 },
 ];

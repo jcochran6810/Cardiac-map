@@ -269,6 +269,19 @@ function transientSlowing(slower: (hr: number) => number, lasts: number, note: s
   });
 }
 
+/**
+ * An AV-nodal blocker in pre-excited AF (a profile with an accessory `pathway`): harmful (2023 ACC/AHA/ACCP/HRS AF
+ * guideline: adenosine, diltiazem, verapamil, digoxin and IV amiodarone; beta-blockers too). With the node blocked, every
+ * impulse goes down the pathway: the ventricles speed up (as the Give-meds tool shows, ×1.12, to 250 at most), never slow.
+ */
+function pathwayBlocked(drug: string, ms: number) {
+  log(`${drug} in pre-excited AF is harmful: with the AV node blocked every impulse goes down the accessory pathway — the rate climbs and it can degenerate into VF. Unstable: synchronized cardioversion; stable: procainamide or ibutilide`, 'warn');
+  respond(ms, () => {
+    const hr = useTimelineStore.getState().heartRate;
+    changeRhythm(currentProfile().id, Math.min(250, Math.round(hr * 1.12)), `Faster and wider complexes after ${drug}: more impulses down the pathway`, 'warn');
+  });
+}
+
 /** A complete heart block with a narrow escape rhythm: the block is in the AV node itself (inferior MI, vagal tone) */
 function nodalBlock(p: ECGProfile): boolean {
   return p.rhythm === 'chb' && (QRS_TEMPLATES[p.qrs]?.duration ?? 0) < 120;
@@ -417,7 +430,12 @@ function deliver(t: number, synced: boolean) {
     log('No shockable or cardiovertible rhythm — the shock was not indicated', 'warn');
     return;
   }
-  if (rand < energySuccess(kind, s.energy)) respond(1500, () => changeRhythm('normal-sinus', 88, 'Cardioversion successful — sinus rhythm'));
+  // pre-excited AF converts to sinus rhythm that still comes down the pathway: the WPW pattern, delta waves and all
+  if (rand < energySuccess(kind, s.energy)) {
+    respond(1500, () => (prof.pathway
+      ? changeRhythm('wpw', 88, 'Cardioversion successful — sinus rhythm with pre-excitation (the delta waves remain)')
+      : changeRhythm('normal-sinus', 88, 'Cardioversion successful — sinus rhythm')));
+  }
   else log('Cardioversion unsuccessful — consider escalating energy', 'rhythm');
 }
 
@@ -574,6 +592,8 @@ export function giveDrug(id: string, authority?: string) {
       } else if (pulse && prof.rhythm === 'vt') {
         if (sim.hemo.summary(sim.time).sbp < 90) log('Hypotension = unstable VT: synchronized cardioversion is indicated; drugs are for stable VT', 'warn');
         respond(60000, () => { if (Math.random() < 0.35) changeRhythm('normal-sinus', 84, 'VT terminated after amiodarone'); else log('VT persists after amiodarone — consider synchronized cardioversion / expert consultation', 'rhythm'); });
+      } else if (pulse && prof.pathway) {
+        pathwayBlocked('IV amiodarone', 60000);
       } else if (pulse && (prof.rhythm === 'af' || prof.rhythm === 'flutter')) {
         log('IV amiodarone can slow the rate in critically ill or HFrEF patients (it may also cardiovert — consider anticoagulation status)', 'info');
         respond(90000, () => slowVentricles(prof.rhythm === 'flutter' ? 100 : 98, 'amiodarone'));
@@ -593,6 +613,8 @@ export function giveDrug(id: string, authority?: string) {
       const dose12 = s.adenosineDoses === 1;
       set({ adenosineDoses: s.adenosineDoses + 1 });
       if (!pulse) { log('Adenosine has no role in cardiac arrest', 'warn'); break; }
+      // no AV-nodal pause down an accessory pathway: the node's share goes to the pathway instead
+      if (prof.pathway) { pathwayBlocked('Adenosine', 4000); break; }
       if (prof.rhythm === 'svt') {
         if (Math.random() < (dose12 ? 0.85 : 0.6)) {
           respond(4000, () => {
@@ -649,7 +671,8 @@ export function giveDrug(id: string, authority?: string) {
     }
     case 'diltiazem': {
       if (s.baseline === 'hfref' || s.baseline === 'shock' || !pulse) log('Avoid diltiazem in decompensated HFrEF, hypotension or shock', 'warn');
-      if ((prof.rhythm === 'af' || prof.rhythm === 'flutter') && pulse) respond(60000, () => slowVentricles(prof.rhythm === 'flutter' ? 75 : 88, 'diltiazem'));
+      if (prof.pathway && pulse) pathwayBlocked('Diltiazem', 60000);
+      else if ((prof.rhythm === 'af' || prof.rhythm === 'flutter') && pulse) respond(60000, () => slowVentricles(prof.rhythm === 'flutter' ? 75 : 88, 'diltiazem'));
       else if (prof.rhythm === 'svt' && pulse) respond(30000, () => { if (Math.random() < 0.5) changeRhythm('normal-sinus', 80, 'SVT terminated after diltiazem'); });
       break;
     }
@@ -859,8 +882,14 @@ export interface Vitals {
   wave?: [number, number];
 }
 
-/** A simulator scenario scripts the patient's numbers; the rhythm still comes from the ECG engine */
-export interface ScriptedVitals { pulse: boolean; sbp: number; dbp: number; spo2: number; rr: number; etco2: number }
+/**
+ * A simulator scenario scripts the patient's numbers; the rhythm still comes from the ECG engine. `continuousFlow`: the
+ * circulation is a continuous-flow LVAD's — perfusing (`pulse`) but with almost no pulsation, so the pleth is nearly flat
+ */
+export interface ScriptedVitals { pulse: boolean; sbp: number; dbp: number; spo2: number; rr: number; etco2: number; continuousFlow?: boolean }
+
+/** How much of a normal plethysmogram a continuous-flow pump leaves (the native heart's own small pulsation) */
+export const CONTINUOUS_FLOW_PLETH = 0.15;
 let scripted: ScriptedVitals | null = null;
 
 export function setScriptedVitals(v: ScriptedVitals | null) { scripted = v; }
@@ -907,7 +936,7 @@ export function vitalsAt(t: number): Vitals {
  */
 export function plethAt(t: number, pulse: boolean): number {
   const s = get();
-  if (pulse) return Math.min(1.12, 0.86 * sim.hemo.pleth(t));
+  if (pulse) return Math.min(1.12, 0.86 * sim.hemo.pleth(t)) * (scripted?.continuousFlow ? CONTINUOUS_FLOW_PLETH : 1);
   for (let i = cprIntervals.length - 1; i >= 0; i--) {
     const c = cprIntervals[i];
     if (t >= c.start && t <= c.end) {

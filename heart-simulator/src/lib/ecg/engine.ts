@@ -144,7 +144,8 @@ function buildVent(
   t: number,
   kind: VentKind,
   profile: ECGProfile,
-  templateId: string,
+  /** a QRS template id, or a template built for this one beat (a fusion beat in pre-excited AF) */
+  templateId: string | QRSTemplate,
   rr: number,
   opts: {
     pTime?: number; amp?: number; rotate?: { axis: Vec3; angle: number }; useProfileT?: boolean; spike?: boolean;
@@ -154,7 +155,7 @@ function buildVent(
     room?: number;
   } = {},
 ): VentEvent {
-  const tpl = QRS_TEMPLATES[templateId] ?? QRS_TEMPLATES.normal;
+  const tpl = typeof templateId === 'string' ? QRS_TEMPLATES[templateId] ?? QRS_TEMPLATES.normal : templateId;
   const widen = kind === 'conducted' || kind === 'svt' || kind === 'junctional' ? profile.qrsWiden ?? 1 : 1;
   const amp = (opts.amp ?? 1) * (kind === 'conducted' || kind === 'svt' || kind === 'junctional' ? profile.qrsScale ?? 1 : 1);
   let pulses = tpl.pulses.map((p) => ({ t: p.t * widen, w: p.w * widen, v: scale(p.v, amp), w2: p.w2 }));
@@ -187,6 +188,26 @@ function buildVent(
     rr,
     qtRR: opts.qtRR,
     ivrt: profile.hemo === 'mitral-stenosis' ? 65 : undefined,
+  };
+}
+
+/**
+ * A fusion beat: a share `d` (0–1) of the ventricles activated from the accessory pathway (the pre-excited template) and
+ * the rest through the AV node (the normal one). Each wavefront and the secondary T wave are weighted by its share, and the
+ * QRS is as wide as the share of slow pre-excited activation makes it.
+ */
+export function fusedTemplate(pre: QRSTemplate, nodal: QRSTemplate, d: number): QRSTemplate {
+  const k = Math.min(1, Math.max(0, d));
+  const tv: Vec3 = [0, 0, 0];
+  for (const [t, w] of [[pre.t, k], [nodal.t, 1 - k]] as const) {
+    const v = scale(norm(t.dir), t.mag * w);
+    tv[0] += v[0]; tv[1] += v[1]; tv[2] += v[2];
+  }
+  return {
+    duration: nodal.duration + (pre.duration - nodal.duration) * k,
+    pulses: [...pre.pulses.map((p) => ({ ...p, v: scale(p.v, k) })), ...nodal.pulses.map((p) => ({ ...p, v: scale(p.v, 1 - k) }))],
+    t: { dir: tv, mag: Math.hypot(tv[0], tv[1], tv[2]) },
+    conduction: pre.conduction,
   };
 }
 
@@ -368,7 +389,7 @@ export class ECGEngine {
             if (profile.avBlock && profile.rhythm !== 'paced') {
               // Every P blocked at the AV node (adenosine): P waves march on without QRS complexes
               pushA(p(false));
-            } else if (profile.rhythm === 'pvc' && idx % 4 === 3) {
+            } else if (profile.rhythm === 'pvc' && idx % (profile.pvcEvery ?? 4) === (profile.pvcEvery ?? 4) - 1) {
               // The PVC arrives early — but after the T wave before it, not on it, which at fast sinus rates
               // leaves it only a little early. The sinus P on schedule is blocked (full compensatory pause).
               const pvcT = Math.max(start, lastQRS + Math.max(rrNominal * 0.6, lastQT + 20));
@@ -468,8 +489,13 @@ export class ECGEngine {
         // averages 1 and is never below S_MIN. The AV node lets nothing through sooner than ~300 ms after a beat,
         // nor before the T wave is over; where that limit cuts into the spread (fast rates) the short cycles bunch
         // up against it and the rest are scaled so the average rate stays on the one asked for.
+        // Down an accessory pathway (pre-excited AF) the pathway's own refractory period sets the shortest cycle
+        // instead, far shorter than the node's: each beat's QT is then fitted into the cycle that follows it.
         const S_MIN = 0.62 / 0.887;
-        const shortest = Math.max(Math.min(300, 0.9 * rrNominal), qt + 10, S_MIN * rrNominal);
+        const pathway = profile.pathway;
+        const shortest = pathway
+          ? Math.min(pathway.shortestRR, 0.9 * rrNominal)
+          : Math.max(Math.min(300, 0.9 * rrNominal), qt + 10, S_MIN * rrNominal);
         // The cycle after a beat depends only on when that beat fell, so re-applying the rhythm (a rate slider
         // being dragged) does not draw again and again until a short one comes up
         const gap = (after: number) => {
@@ -478,6 +504,22 @@ export class ECGEngine {
           return shortest + ((rrNominal - shortest) * (s - S_MIN)) / (1 - S_MIN);
         };
         let nextV = lastV ? Math.max(start, lastV.t + gap(lastV.t), tOver) : start + 120;
+        if (pathway) {
+          const pre = QRS_TEMPLATES[profile.qrs] ?? QRS_TEMPLATES.normal;
+          return {
+            get cursor() { return nextV; },
+            step() {
+              const cycle = Math.max(shortest, nextV - lastQRS);
+              const next = gap(nextV);
+              // the shorter the cycle before it, the more of the beat the pathway activates (the AV node is still
+              // refractory); after a long one the node joins in and the QRS narrows toward a fusion beat
+              const late = Math.min(1, Math.max(0, (cycle - shortest) / Math.max(1, 2 * rrNominal - shortest)));
+              const d = Math.max(0.35, 1 - 0.55 * late - 0.2 * unit(nextV + 7.3));
+              pushV(buildVent(nextV, 'conducted', profile, fusedTemplate(pre, QRS_TEMPLATES.normal, d), cycle, { qtRR: rrNominal, room: next }));
+              nextV += next;
+            },
+          };
+        }
         return {
           get cursor() { return nextV; },
           step() {
@@ -744,7 +786,8 @@ export class ECGEngine {
     // VF and asystole have no beats: nothing to measure (the last beat before them is not of this rhythm)
     const noBeats = p.rhythm === 'vf' || p.rhythm === 'asystole';
     // …and VT and torsades have no T wave that can be told from the QRS: no QT to report
-    const noQT = noBeats || p.rhythm === 'vt' || p.rhythm === 'torsades';
+    // (nor in pre-excited AF, where each wide beat's T wave runs into the next fast one)
+    const noQT = noBeats || p.rhythm === 'vt' || p.rhythm === 'torsades' || !!p.pathway;
     const qt = v ? v.qt : Math.min(qtForRR(p.qtc, rr), QT_ROOM * rr);
     const qtc = v ? this.qtcOf(v) : qt / Math.cbrt(rr / 1000);
     let pr: number | null = hasP ? (p.rhythm === 'paced' ? 160 : prForRate(p.pr, seg.hr)) : null;
@@ -891,7 +934,10 @@ export interface CycleEvents {
 }
 
 export function cycleEvents(v: VentEvent, next: VentEvent | null): CycleEvents {
-  const wide = v.qrsDur > 125;
+  // A pre-excited beat is wide on the ECG, but the pathway starts the contraction early at its insertion and (in a fusion
+  // beat) the His–Purkinje system activates the rest: it does not carry the long electromechanical delay of a VT beat, which
+  // is why pre-excited AF at 200–230/min usually still has a (weak) pulse
+  const wide = v.qrsDur > 125 && v.conduction !== 'preexcited';
   const hr = 60000 / Math.max(250, Math.min(2400, v.rr || 833));
   // Above ~180/min a narrow-complex heart squeezes every phase a little further (0 → 1 between 180 and 250/min), so a
   // very fast SVT still leaves a sliver of filling time and a weak pulse instead of no diastole at all. Wide, dyssynchronous
@@ -905,8 +951,9 @@ export function cycleEvents(v: VentEvent, next: VentEvent | null): CycleEvents {
   const lvet = Math.max(150 - 15 * squeeze, Math.min(340, 415 - 1.7 * hr));
   const ac = ao + lvet;
   const mo = ac + (v.ivrt ?? Math.max(50 - 6 * squeeze, Math.min(90, 80 - 0.3 * (hr - 72))));
-  const nextSqueeze = !next || next.qrsDur > 125 ? 0 : Math.max(0, Math.min(1, (60000 / Math.max(250, Math.min(2400, next.rr || 833)) - 180) / 70));
-  const nextMc = next ? next.t + (next.qrsDur > 125 ? 70 : 45 - 4 * nextSqueeze) : mo + 600;
+  const nextWide = !!next && next.qrsDur > 125 && next.conduction !== 'preexcited';
+  const nextSqueeze = !next || nextWide ? 0 : Math.max(0, Math.min(1, (60000 / Math.max(250, Math.min(2400, next.rr || 833)) - 180) / 70));
+  const nextMc = next ? next.t + (nextWide ? 70 : 45 - 4 * nextSqueeze) : mo + 600;
   return { qrs: v.t, mc, ao, ac, mo, nextMc };
 }
 

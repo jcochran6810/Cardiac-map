@@ -53,6 +53,13 @@ function adrenergic(s: SimState, dSbp: number, dDbp: number, flag: string): Effe
   return { say: [['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]], rhythm: { ...s.rhythm, hr }, vitals: bp, flags: [flag] };
 }
 
+/** Nitroglycerin for his congested lungs (no chest pain): 0.4 mg, or the 0.8 mg high dose */
+function nitroAf(s: SimState, high: boolean): Effect | null {
+  if (!inAf(s)) return null;
+  const bp = high ? bpAfter(s, -20, -10) : bpAfter(s, -10, -6);
+  return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`], ...awake(s, '"Maybe a little easier to breathe."')], vitals: bp, flags: high ? ['nitro', 'nitro-high'] : ['nitro'] };
+}
+
 export const afRvrField: Scenario = {
   id: 'af-rvr-field',
   title: 'Racing, irregular heart and short of breath',
@@ -73,8 +80,9 @@ export const afRvrField: Scenario = {
     rhythm: { profile: AF, hr: 148 },
     vitals: { sbp: 112, dbp: 74, spo2: 93, rr: 24, etco2: 33, pain: 0, gcs: 15, glucose: 132, temp: 36.8 },
   },
-  // what the built-in drug rules need to know: a weak heart (procainamide is to be avoided in heart failure)
-  problems: ['heart-failure'],
+  // what the built-in drug rules need to know: a weak heart (procainamide is to be avoided in heart failure), and the fluid
+  // backing up into his lungs (crackles at both bases: no legs up, no bolus)
+  problems: ['heart-failure', 'pulmonary-edema'],
   facts: {
     // the onset time is what the hospital needs to decide on cardioversion and anticoagulation
     opqrst: 'It started suddenly at breakfast, about 7 o\'clock — three hours ago: a fluttering, racing heartbeat. Now I get breathless walking to the bathroom. No chest pain, no fainting. I\'ve never felt this before.',
@@ -207,6 +215,15 @@ export const afRvrField: Scenario = {
         vitals: bp, flags: ['sedation'],
       };
     },
+    // midazolam is his sedation before a shock: the same small, titrated dose, and the weak heart drops the pressure the same way
+    midazolam: (s) => {
+      if (!inAf(s)) return null;
+      const bp = has(s, 'unstable') ? bpAfter(s, -4, -2) : bpAfter(s, -8, -4);
+      return {
+        say: [['you', 'Midazolam 1 mg IV, small and titrated: drowsy but rousable, airway fine, capnography on.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
+        vitals: bp, flags: ['sedation', 'benzodiazepine'],
+      };
+    },
     cardiovert: (s) => {
       if (!inAf(s)) return null;
       // 200 J biphasic (2025 AHA: atrial fibrillation 200 J or more); with a normal rate the failing heart fills and pumps again
@@ -288,12 +305,10 @@ export const afRvrField: Scenario = {
       const hr = Math.min(180, s.rhythm.hr + 10);
       return { say: [['monitor', `Heart rate ${hr}.`]], rhythm: { ...s.rhythm, hr }, flags: ['atropine'] };
     },
-    // he has no chest pain: nitroglycerin only unloads his congested lungs a little, and lowers the pressure
-    nitro: (s) => {
-      if (!inAf(s)) return null;
-      const bp = bpAfter(s, -10, -6);
-      return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`], ...awake(s, '"Maybe a little easier to breathe."')], vitals: bp, flags: ['nitro'] };
-    },
+    // he has no chest pain: nitroglycerin only unloads his congested lungs a little, and lowers the pressure (the high
+    // dose twice as much)
+    nitro: (s) => nitroAf(s, false),
+    'nitro-high': (s) => nitroAf(s, true),
     // no pain to treat: fentanyl only takes the edge off a shock to come (it counts as analgesia for one)
     fentanyl: (s) => {
       if (!inAf(s)) return null;
@@ -412,7 +427,7 @@ export const afRvrField: Scenario = {
     { id: 'atropine-fast', actions: ['atropine'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'Atropine for a fast heart rate. It is for symptomatic bradycardia; it speeds AV conduction, so with fibrillating atria the ventricular rate went up.' },
     { id: 'beta-agonist-no-indication', actions: ['epi-im', 'albuterol'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'A beta-agonist with no anaphylaxis and no wheeze. His breathlessness is fluid from a weak heart (crackles, not wheezing): IM epinephrine or albuterol treats nothing here, and speeds AV conduction, so the rate went up.' },
     { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. His 12-lead shows none: a fast rate in a weak heart can cause chest tightness and a troponin rise, but that is the emergency department\'s to sort out, not the cath lab team\'s to be called in for.' },
-    { id: 'fluid-hf', actions: ['fluid'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A fluid bolus for a failing heart with crackles at both bases. It goes to the lungs: his pressure falls because of the fast rate (and any drug), not for want of volume.' },
+    { id: 'fluid-hf', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A fluid bolus for a failing heart with crackles at both bases. It goes to the lungs: his pressure falls because of the fast rate (and any drug), not for want of volume.' },
     { id: 'cpap-hypotension', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 5, severity: 'major', text: 'CPAP with a systolic pressure under 90. Positive pressure cuts the blood returning to the heart and drops the pressure further.' },
     // calcium for the low pressure diltiazem caused: the built-in rule 'calcium-no-indication' spares it (a pulse and a
     // systolic under 90), and still charges it once the pressure is back or in the arrest an unsynchronized shock can cause

@@ -50,11 +50,11 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'support', role: 4, when: (s) => has(s, 'perforation'), within: 2,
     ask: 'Her pressure is falling — support it, please.',
-    accept: ['fluid', 'push-epi', 'pressor'], wrong: ['nitro', 'metoprolol', 'gp2b3a'],
+    accept: ['fluid', 'push-epi', 'pressor', 'phenylephrine'], wrong: ['nitro', 'nitro-high', 'metoprolol', 'gp2b3a'],
     wrongSay: 'No! That makes it worse. Fluid, wide open.',
     thanks: 'Thanks.', fallback: 'Open the fluids, someone!', gives: 'supported',
     label: 'Support the falling pressure (fluid wide open)',
-    why: 'Fluid keeps the heart filling against the blood collecting around it; push-dose epinephrine or a pressor bridges until it is drained.',
+    why: 'Fluid keeps the heart filling against the blood collecting around it; push-dose epinephrine, phenylephrine or a pressor infusion bridges until it is drained.',
   },
   {
     id: 'surgery', role: 4, when: (s) => has(s, 'perforation'), within: 3,
@@ -108,6 +108,8 @@ export const cathlabPerforation: Scenario = {
     rhythm: { profile: 'normal-sinus', hr: 74 },
     vitals: { sbp: 128, dbp: 76, spo2: 97, rr: 16, etco2: 35, pain: 1, gcs: 15, glucose: 118, temp: 36.6 },
   },
+  // the perforated coronary bleeds into the pericardium: blood for her is no mistake
+  problems: ['bleeding'],
   facts: {
     allergies: 'No allergies. Yes — I agreed to the stent.',
     sample: 'No allergies. Aspirin, clopidogrel, atorvastatin, lisinopril. High blood pressure.',
@@ -197,7 +199,7 @@ export const cathlabPerforation: Scenario = {
     { id: 'balloon', label: 'Balloon up over the perforation at once', why: 'A low-pressure balloon over the hole stops the bleeding into the pericardium while you get everything else ready.', done: ['balloon-tamponade'], roles: MD, points: 15, target: { within: { flag: 'perforation', minutes: 1 } } },
     { id: 'callout', label: 'Call out the contrast outside the vessel', why: 'Say it out loud: the whole team has to switch to the perforation plan.', done: ['callout'], after: 'perforation', roles: [3, 4], points: 10, target: { within: { flag: 'perforation', minutes: 1 } } },
     { id: 'md-surgery', label: 'Call cardiac surgery early', why: 'An Ellis III perforation may need surgery; the surgeons need time to get ready.', done: ['call-surgery'], after: 'perforation', roles: MD, points: 5, target: { within: { flag: 'perforation', minutes: 3 } } },
-    { id: 'md-support', label: 'Support the pressure (fluid, push-dose epinephrine)', why: 'Keep the heart filling against the effusion until it is drained.', done: ['fluid', 'push-epi', 'pressor'], after: 'perforation', roles: MD, points: 5 },
+    { id: 'md-support', label: 'Support the pressure (fluid, push-dose epinephrine)', why: 'Keep the heart filling against the effusion until it is drained.', done: ['fluid', 'push-epi', 'pressor', 'phenylephrine'], after: 'perforation', roles: MD, points: 5 },
     { id: 'md-echo', label: 'Echo to look for the effusion', why: 'Echo confirms the effusion and tamponade physiology and guides the needle.', done: ['echo'], roles: MD, points: 5 },
     { id: 'md-drain', label: 'Drain the tamponade (echo-guided pericardiocentesis)', why: 'Taking out even 100–200 mL brings the pressure back.', done: ['pericardiocentesis'], roles: MD, points: 15, target: { within: { flag: 'tamponade', minutes: 6 } }, applies: (s) => has(s, 'tamponade') },
     { id: 'md-cover', label: 'Seal the hole with a covered stent', why: 'A covered stent seals a perforation of a large vessel for good.', done: ['stent-covered'], roles: MD, points: 10 },
@@ -211,7 +213,7 @@ export const cathlabPerforation: Scenario = {
     { id: 'des-for-perforation', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'perforation'), points: 4, severity: 'minor', text: 'A drug-eluting stent for a perforation. It does not seal the hole; a covered stent does.' },
     { id: 'gp-in-perforation', actions: ['gp2b3a'], when: (s) => has(s, 'perforation'), points: 12, severity: 'critical', text: 'A GP IIb/IIIa inhibitor during an active perforation. It keeps the hole bleeding.' },
     { id: 'more-heparin', actions: ['heparin', 'bivalirudin'], when: (s) => has(s, 'perforation'), points: 10, severity: 'major', text: 'More anticoagulant during an active perforation.' },
-    { id: 'nitro-in-tamponade', actions: ['nitro', 'ic-nitro'], when: (s) => has(s, 'perforation'), replaces: ['nitro-hypotension'], points: 6, severity: 'major', text: 'Nitroglycerin with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
+    { id: 'nitro-in-tamponade', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => has(s, 'perforation'), replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 6, severity: 'major', text: 'Nitroglycerin with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
     { id: 'beta-blocker', actions: ['metoprolol'], when: (s) => has(s, 'perforation'), points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a covered stent to seal the perforation.'),
     askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5),

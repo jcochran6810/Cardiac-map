@@ -422,7 +422,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Moderate sedation can slide into deep sedation — whoever gives it must be ready to rescue the airway.',
     ],
     image: { keys: ['midazolam-vials-1-and-5-mg-ml'], want: 'A real photo of midazolam and fentanyl vials.' },
-    sim: ['sedation', 'fentanyl'],
+    sim: ['sedation', 'fentanyl', 'midazolam'],
     related: ['fentanyl', 'cl-comp-radial-spasm'],
   },
 
@@ -541,7 +541,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'A low reading may be a damped line — flush it and check the waveform before reaching for a push dose.',
     ],
     image: { keys: ['norepinephrine-levophed-ampule', 'dopamine-400mg-vial'], want: 'A real photo of a norepinephrine ampule or an infusion pump running a pressor.' },
-    sim: ['pressor', 'push-epi'],
+    sim: ['pressor', 'push-epi', 'phenylephrine'],
     related: ['norepinephrine', 'epinephrine', 'phenylephrine', 'dopamine', 'dobutamine', 'milrinone', 'vasopressin', 'cl-shock-profiles', 'cardiogenic-shock', 'cl-impella', 'cl-damped'],
   },
 
@@ -688,6 +688,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Explaining each step and treating pain early prevents many reactions.',
     ],
     image: { keys: ['vasovagal-tilt-map-hr-trend'], want: 'A real monitor screen during femoral sheath removal showing sinus bradycardia with a falling arterial pressure, and its recovery after atropine and fluid.' },
+    sim: ['legs-up', 'atropine', 'fluid'],
     related: ['cl-drug-atropine', 'sinus-bradycardia', 'cl-comp-bezold', 'cl-comp-rp-bleed', 'cl-hemostasis'],
   },
 
@@ -937,7 +938,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Radial access avoids most of these complications (RIVAL, MATRIX); ultrasound and fluoroscopy guidance make femoral access safer.',
     ],
     image: { keys: ['high-puncture-iliac-extravasation'], want: 'A real non-contrast CT slice of the pelvis showing a large retroperitoneal hematoma after femoral access, with the femoral angiogram showing a puncture above the inferior epigastric artery.' },
-    sim: ['hemostasis'],
+    sim: ['hemostasis', 'transfuse', 'ct-urgent', 'call-vascular'],
     related: ['cl-femoral-access', 'cl-hemostasis', 'cl-stent-covered', 'cl-drug-protamine', 'cl-comp-vasovagal'],
   },
 
@@ -971,6 +972,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'Say "air" out loud the moment you see it in the syringe, the line or the artery.',
     ],
     image: { keys: ['rca-air-embolism'], want: 'A real angiogram frame showing round air bubbles as clear filling defects in a contrast-filled coronary artery with slowed distal flow.' },
+    sim: ['clear-air', 'o2-nrb'],
     related: ['cl-closed-loop', 'ventricular-fibrillation', 'defibrillation'],
   },
 
@@ -1007,5 +1009,41 @@ export const CATHLAB_C: CathLabItem[] = [
     ],
     image: { keys: ['stent-thrombosis'], want: 'A real angiogram frame of acute stent thrombosis showing an abrupt cutoff inside a recently placed stent, with the IVUS or OCT frame showing the under-expanded stent and clot.' },
     related: ['clopidogrel', 'ticagrelor', 'prasugrel', 'cl-stent-des', 'cl-ivus', 'cl-oct', 'cl-aspiration', 'cl-balloon-nc', 'cl-drug-gp2b3a', 'cl-drug-p2y12'],
+  },
+
+  {
+    id: 'cl-comp-stroke',
+    name: 'Stroke during or after a procedure',
+    group: 'complications',
+    synonyms: ['periprocedural stroke', 'cath lab stroke', 'stroke alert', 'neurologic deficit', 'cerebral embolism'],
+    summary: 'A sudden new neurologic deficit on the table or soon after — weakness, a facial droop, slurred or absent speech, lost vision or a drop in alertness — is a stroke until proven otherwise: note the time, call the stroke team and get a CT.',
+    details: [
+      'Causes: debris or clot knocked off the aortic arch by catheters and wires (most), clot formed on a catheter or wire, air, and bleeding into the brain on full anticoagulation.',
+      'Risk rises with age, prior stroke, a heavily diseased arch, large catheters crossing the arch, long procedures and a crossed aortic valve.',
+      'Look-alikes: a low glucose, oversedation, a seizure, and (rarely) contrast-induced encephalopathy — check the glucose and the sedation, but never wait on them to call the stroke team.',
+      'Note the time the patient was last seen normal: it decides what treatment is possible.',
+      'Act: stop or finish the procedure safely, keep the arterial sheath in, activate the stroke team, and go to CT (non-contrast head CT, with CT angiography for a large vessel occlusion).',
+      'A blocked large brain artery is treated with mechanical thrombectomy; IV thrombolysis is often unsafe after heparin and an arterial puncture, so the stroke team decides.',
+      'A bleed on CT: stop the anticoagulant and reverse heparin with protamine; control the blood pressure.',
+    ],
+    roles: {
+      tech: 'Notices and calls out a change in speech, movement or alertness at once, notes the time, keeps the sheath and the field secure, and gets the patient ready to move to CT.',
+      rn: 'Does a quick neuro check (face, arm, speech, alertness) and a glucose, records the time last seen normal, protects the airway, activates the stroke alert per protocol and goes with the patient to CT.',
+      md: 'Examines the patient (NIH stroke scale), decides how to end the procedure, orders CT and CT angiography, plans with neurology for thrombectomy, and manages the anticoagulation and the blood pressure.',
+    },
+    numbers: [
+      'Stroke after PCI: about 0.2–0.4 % of procedures; it carries a high mortality',
+      'Glucose under 60 mg/dL can mimic a stroke',
+      'Thrombectomy for a large vessel occlusion: within 6 hours, and up to 24 hours in selected patients',
+    ],
+    pearls: [
+      'Ask the patient to talk and squeeze your hands during long procedures: an early deficit is found by someone who looks.',
+      'Write down the time at once — "last seen normal" is the first question the stroke team asks.',
+      'Do not pull the femoral sheath: it may be the access for the thrombectomy.',
+    ],
+    sim: ['stroke-team', 'ct-urgent', 'neuro', 'glucose'],
+    related: ['cl-comp-air-embolism', 'cl-drug-protamine', 'cl-drug-heparin', 'heparin', 'cl-closed-loop'],
+    // no openly licensed image in CATH_IMAGES yet: add its keys once one is sourced
+    image: { want: 'A real non-contrast head CT and CT angiogram of a periprocedural stroke: a hyperdense middle cerebral artery (or the cutoff of a large vessel on the CT angiogram) after cardiac catheterization, beside the angiographic run that shows the blocked artery before thrombectomy.' },
   },
 ];

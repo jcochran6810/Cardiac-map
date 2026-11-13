@@ -85,11 +85,11 @@ function picture(s: SimState, at = s.minute): Picture {
     [PACED, has(s, 'paced') ? 1 : 0],
     [AV_BLOCKER, count(s, 'diltiazem') + count(s, 'metoprolol')],
     [ANTIARRHYTHMIC, count(s, 'lidocaine') + count(s, 'amio-infusion') + count(s, 'amio-arrest') + count(s, 'procainamide')],
-    [VASODILATOR, count(s, 'nitro')],
+    [VASODILATOR, count(s, 'nitro') + 2 * count(s, 'nitro-high')],
     [MAGNESIUM, count(s, 'magnesium-sulfate')],
     [CPAP, count(s, 'cpap')],
     [OPIOID, Math.min(1, count(s, 'fentanyl'))],
-    [SEDATIVE, count(s, 'sedation')],
+    [SEDATIVE, count(s, 'sedation') + count(s, 'midazolam')],
   ];
   let { hr, sbp, dbp } = st;
   for (const [d, k] of parts) {
@@ -108,7 +108,7 @@ function picture(s: SimState, at = s.minute): Picture {
   const shownDbp = clamp(dbp, PERFUSING_FLOOR.dbp, Math.min(110, shownSbp - 10));
   const g = s.vitals.glucose;
   const gcs = st.gcs - (g < LOW_GLUCOSE ? 1 : 0) - (g < 50 ? 1 : 0) + (sbp >= 90 ? 1 : 0) - (sbp < 56 ? 2 : 0)
-    - (count(s, 'sedation') > 0 ? 1 : 0) - (has(s, 'rosc') ? 3 : 0);
+    - (count(s, 'sedation') + count(s, 'midazolam') > 0 ? 1 : 0) - (has(s, 'rosc') ? 3 : 0);
   return { rhythm, sbp: shownSbp, dbp: shownDbp, gcs: clamp(gcs, 3, 15), raw: sbp };
 }
 
@@ -135,7 +135,7 @@ const supported = (s: SimState) => has(s, 'pressor')
 
 /** Fentanyl or sedation given this many minutes or less before the pacer goes on covers the pacing (premedication) */
 const PREMED_WINDOW = 5;
-const ANALGESICS = ['fentanyl', 'sedation'];
+const ANALGESICS = ['fentanyl', 'sedation', 'midazolam'];
 /** The minute the pacer was started, if it took over the rhythm */
 const paceStart = (s: SimState) => (has(s, 'paced') ? s.performed.find((p) => p.id === 'pace')?.minute ?? null : null);
 /** A dose of fentanyl or sedation in the last few minutes, ready for the pacer about to go on */
@@ -208,6 +208,18 @@ function fades(timer: string, said: string, copies: number): ScenarioEvent[] {
       return { ...e, timers: { ...e.timers, ...timers } };
     },
   }));
+}
+
+/**
+ * Sedation or midazolam: with the pacer on it treats the pain of it; just before pacing it is premedication; with neither it
+ * only deepens the shock
+ */
+function sedate(s: SimState, id: 'sedation' | 'midazolam', said: string): Effect | null {
+  if (!s.pulse) return null;
+  const pacing = has(s, 'paced');
+  const premed = !pacing && slowAndFailing(s);
+  return settle(s, after(s, { id }), end(s, id), [['you', said]],
+    (p) => [['monitor', `${BP(p)}.`]], pacing ? ['sedation', 'analgesia'] : ['sedation', ...(premed ? ['premed'] : [])], pacing ? { vitals: { pain: 1 } } : {});
 }
 
 /** A drug that only takes away: it is in, and the monitor shows what it did */
@@ -426,13 +438,8 @@ export const betaBlockerField: Scenario = {
         (p) => [...(pacing ? awake(p, '"That\'s easier, thank you."', 'good') : []), ['monitor', `${BP(p)}.`]],
         pacing ? ['analgesia'] : ['opioid', ...(premed ? ['premed'] : [])], pacing ? { vitals: { pain: 2 } } : {});
     },
-    sedation: (s) => {
-      if (!s.pulse) return null;
-      const pacing = has(s, 'paced');
-      const premed = !pacing && slowAndFailing(s);
-      return settle(s, after(s, { id: 'sedation' }), end(s, 'sedation'), [['you', 'Small dose of sedation and analgesia; capnography on.']],
-        (p) => [['monitor', `${BP(p)}.`]], pacing ? ['sedation', 'analgesia'] : ['sedation', ...(premed ? ['premed'] : [])], pacing ? { vitals: { pain: 1 } } : {});
-    },
+    sedation: (s) => sedate(s, 'sedation', 'Small dose of sedation and analgesia; capnography on.'),
+    midazolam: (s) => sedate(s, 'midazolam', has(s, 'iv') ? 'Midazolam 2.5 mg IV; capnography on.' : 'Midazolam 5 mg IM; capnography on.'),
 
     // ── the wrong drugs do what they would
     diltiazem: harmful('diltiazem', 'Diltiazem in.', 'diltiazem'),
@@ -442,6 +449,7 @@ export const betaBlockerField: Scenario = {
     'amio-arrest': harmful('amio-arrest', 'Amiodarone 300 mg IV push.', 'amiodarone'),
     procainamide: harmful('procainamide', 'Procainamide running at 30 mg/min.', 'procainamide'),
     nitro: harmful('nitro', 'Nitroglycerin 0.4 mg under the tongue.', 'nitro'),
+    'nitro-high': harmful('nitro-high', 'Nitroglycerin 0.8 mg under the tongue.', 'nitro'),
     'magnesium-sulfate': harmful('magnesium-sulfate', 'Magnesium sulfate 2 g running over 15 minutes.', 'magnesium'),
     cpap: harmful('cpap', 'CPAP applied at 5 cmH₂O.', 'cpap'),
     // adenosine blocks the AV node for seconds: a pause, then the same beats (the pacer is not blocked)
@@ -611,7 +619,8 @@ export const betaBlockerField: Scenario = {
     // the engine's own rule judges on the real glucose; after a low one was found, the first dose is right even if glucagon has since raised it
     { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE && !(has(s, 'low-glucose') && count(s, 'dextrose') === 0 && !has(s, 'glucose-by-mouth')), points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
     // a dose while she is slow and failing may be premedication for the pacer: judged at the hand-off, by whether pacing followed
-    { id: 'sedative-no-indication', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'An opioid or a sedative with no pain to treat and no pacing to cover. In a drowsy patient with a low pressure it deepens the sedation and the hypotension.' },
+    // her own rule judges midazolam as it judges sedation (premedication for the pacer is right even with a low pressure)
+    { id: 'sedative-no-indication', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'An opioid or a sedative with no pain to treat and no pacing to cover. In a drowsy patient with a low pressure it deepens the sedation and the hypotension.' },
     { id: 'premed-no-pacing', actions: ['handoff'], when: (s) => premedUnused(s), points: 5, severity: 'minor', text: 'Fentanyl or sedation given before pacing that never came. Premedicate just before the pacer goes on; with no pacing, an opioid or a sedative in a drowsy patient with a low pressure only deepens the sedation and the hypotension.' },
     { id: 'false-stemi-alert', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. Her 12-lead shows none: the slow rate and the low pressure have another cause, and the cath lab team is called in for nothing.' },
     { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse, points: 6, severity: 'major', text: 'CPAP for a patient who is not short of breath. It cuts the venous return; with a systolic pressure in the 70s it deepens the shock.' },

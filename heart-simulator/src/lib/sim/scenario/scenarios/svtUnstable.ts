@@ -103,6 +103,10 @@ export const svtUnstable: Scenario = {
     sedation: (s) => s.rhythm.profile === 'avnrt'
       ? { say: [['you', 'Small dose of sedation/analgesia: drowsy but rousable, airway fine.']], vitals: bpAfter(s, -4, -2), flags: ['sedation'] }
       : null,
+    // midazolam is the sedation before her shock: the same small, titrated dose with her low pressure
+    midazolam: (s) => s.rhythm.profile === 'avnrt'
+      ? { say: [['you', 'Midazolam 1 mg IV, a small titrated dose for her pressure: drowsy but rousable, airway fine.']], vitals: bpAfter(s, -4, -2), flags: ['sedation', 'benzodiazepine'] }
+      : null,
   },
   events: [
     {

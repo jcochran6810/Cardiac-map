@@ -165,6 +165,32 @@ describe('delayed responses belong to the rhythm they were aimed at', () => {
   });
 });
 
+describe('pre-excited AF: an AV-nodal blocker speeds it, never slows it', () => {
+  // 2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem and IV amiodarone are 3: Harm when AF runs down a pathway
+  it.each([['diltiazem', 61_000], ['amiodarone', 61_000], ['adenosine', 5_000]] as const)('%s: a warning, and the rate climbs (to 250 at most)', (drug, wait) => {
+    patient('af-wpw', 200);
+    D.giveDrug(drug);
+    expect(logged().some((t) => /pre-excited AF is harmful/.test(t))).toBe(true);
+    run(wait);
+    expect(useECGStore.getState().activeProfileId).toBe('af-wpw');
+    expect(rate()).toBe(224);
+    expect(logged().some((t) => /confirms AF|slowing after|can slow the rate/.test(t))).toBe(false);
+    run(30_000);
+    expect(rate()).toBe(224);
+    patient('af-wpw', 240);
+    D.giveDrug(drug === 'adenosine' ? 'diltiazem' : drug);
+    run(61_000);
+    expect(rate()).toBe(250);
+  });
+
+  it('a successful cardioversion leaves sinus rhythm that still comes down the pathway', () => {
+    patient('af-wpw', 214);
+    lucky();
+    cardiovert();
+    expect(monitor()).toBe('wpw@88');
+  });
+});
+
 describe('rate-control drugs slow the heart, whatever rate it starts from', () => {
   it('diltiazem in fast AF brings the rate down to about 90', () => {
     patient('atrial-fibrillation', 150);

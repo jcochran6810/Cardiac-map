@@ -71,8 +71,8 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'pressor', role: 4, when: () => true, within: 3,
     ask: 'His pressure is 78 over 50 and his lungs are wet. Get his pressure up, please.',
-    accept: ['pressor', 'push-epi'], wrong: ['fluid'],
-    wrongSay: 'Not fluid — his lungs are already full. A pressor: norepinephrine.',
+    accept: ['pressor', 'push-epi'], wrong: ['fluid', 'legs-up', 'transfuse', 'phenylephrine'],
+    wrongSay: 'Not that — his lungs are already full and his heart is failing. A pressor: norepinephrine.',
     thanks: 'Thanks — titrate to a mean of 65.', fallback: 'I\'ll start the norepinephrine myself.', gives: 'pressor-given',
     fallbackEffect: (s) => norepinephrine(s, 'monitor'),
     label: 'A vasopressor for the cardiogenic shock (norepinephrine)',
@@ -149,6 +149,8 @@ export const cathlabShock: Scenario = {
     rhythm: { profile: 'cardiogenic-shock', hr: 116 },
     vitals: { sbp: 78, dbp: 50, spo2: 88, rr: 28, etco2: 28, pain: 5, gcs: 14, glucose: 210, temp: 36.0 },
   },
+  // wet lungs and a high wedge: no legs up, no bolus (the built-in rules know it)
+  problems: ['pulmonary-edema'],
   facts: {
     allergies: 'His wife, on the phone: "No allergies. He takes metformin, that\'s all. Yes — do whatever you need to."',
     sample: 'No allergies. Metformin. Diabetes; smoker.',
@@ -182,9 +184,25 @@ export const cathlabShock: Scenario = {
       return worse(s, 2, 1, (bp) => `Bolus in. BP ${bp}; SpO₂ ${spo2} %, breathing faster.`, ['fluid'], { spo2, rr });
     },
     nitro: (s) => worse(s, -14, -10, (bp) => `BP ${bp}.`, ['nitro']),
+    'nitro-high': (s) => worse(s, -24, -14, (bp) => `BP ${bp}.`, ['nitro', 'nitro-high']),
     'ic-nitro': (s) => worse(s, -14, -10, (bp) => `BP ${bp}.`, ['ic-nitro']),
     metoprolol: (s) => worse(s, -18, -12, (bp) => `BP ${bp}.`, ['beta-blocker']),
     sedation: (s) => worse(s, -10, -8, (bp) => `Sedated. BP ${bp}, breathing slower.`, ['sedation'], { rr: Math.max(10, s.vitals.rr - 8) }),
+    midazolam: (s) => worse(s, -10, -8, (bp) => `Midazolam in. BP ${bp}, breathing slower.`, ['sedation', 'benzodiazepine'], { rr: Math.max(10, s.vitals.rr - 8) }),
+    // more volume for an overfilled LV, from the legs or a bag of blood: it goes to the lungs, as a fluid bolus does
+    'legs-up': (s) => {
+      const spo2 = Math.max(70, s.vitals.spo2 - 3);
+      return worse(s, 2, 1, (bp) => `Legs raised. BP ${bp}; SpO₂ ${spo2} %, more breathless lying flat.`, ['legs-up'], { spo2, rr: Math.min(44, s.vitals.rr + 4) });
+    },
+    transfuse: (s) => {
+      const spo2 = Math.max(70, s.vitals.spo2 - 3);
+      return worse(s, 2, 1, (bp) => `A unit of red cells running. BP ${bp}; SpO₂ ${spo2} %, breathing faster.`, ['transfused'], { spo2, rr: Math.min(44, s.vitals.rr + 4) });
+    },
+    // a pure vasoconstrictor squeezes the vessels the failing LV must empty into: a little pressure, less output
+    phenylephrine: (s) => {
+      const spo2 = Math.max(70, s.vitals.spo2 - 2);
+      return worse(s, 6, 4, (bp) => `Phenylephrine in. BP ${bp} — but his hands are colder and SpO₂ ${spo2} %.`, ['phenylephrine'], { spo2 });
+    },
   },
   events: [
     {
@@ -302,10 +320,11 @@ export const cathlabShock: Scenario = {
     { id: 'handoff', label: 'Hand-off to the cardiac ICU', why: 'The shock numbers, the pump settings and purge, the pressor, the culprit and the stent, the RCA left for later, the leg checks.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
-    { id: 'fluid-in-shock', actions: ['fluid'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
-    { id: 'nitro-in-shock', actions: ['nitro', 'ic-nitro'], replaces: ['nitro-hypotension'], points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
+    { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
+    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
+    { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing LV must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock (with an inotrope if the output stays low).' },
     { id: 'beta-blocker', actions: ['metoprolol'], points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
-    { id: 'sedation-in-shock', actions: ['sedation'], points: 3, severity: 'minor', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },
+    { id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], replaces: ['midazolam-unsafe'], points: 3, severity: 'minor', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'impella'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A pump or a coronary wire without anticoagulation. Both clot without heparin.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for an LAD culprit. Use a left guide with back-up (EBU).' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },

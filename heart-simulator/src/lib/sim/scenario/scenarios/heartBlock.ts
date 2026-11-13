@@ -93,6 +93,10 @@ export const heartBlock: Scenario = {
     sedation: (s) => has(s, 'paced')
       ? { say: [['you', 'Small dose of sedation/analgesia: comfortable, still talking, airway fine.', 'good']], vitals: { pain: 1 }, flags: ['sedation', 'analgesia'] }
       : null,
+    // midazolam for the pacer: calmer and less distressed by the thumping (it is no painkiller — fentanyl is)
+    midazolam: (s) => has(s, 'paced')
+      ? { say: [['you', 'Midazolam 1 mg IV: calmer, still talking, airway fine.', 'good']], vitals: { pain: Math.min(s.vitals.pain, 3) }, flags: ['sedation', 'benzodiazepine'] }
+      : null,
   },
   events: [
     {
@@ -118,7 +122,7 @@ export const heartBlock: Scenario = {
     { id: 'atropine', label: 'Atropine 1 mg first, without delaying pacing', why: 'Atropine is first-line for symptomatic bradycardia — but expect it to fail in a wide-escape (infranodal) block.', done: ['atropine'], points: 5 },
     { id: 'rate', label: 'Raise the rate: transcutaneous pacing or a pressor infusion', why: 'Atropine-resistant unstable bradycardia needs pacing or an epinephrine/dopamine infusion now.', done: (s) => [s.flags.paced, s.flags.pressor].filter((m): m is number => m !== undefined).sort((a, b) => a - b)[0] ?? null, points: 20, target: { by: 10 } },
     { id: 'capture', label: 'Confirm mechanical capture with a pulse', why: 'Electrical capture on the screen is not enough: feel a femoral pulse at the paced rate (or check the BP).', done: ['pulse-check', 'nibp', 'vitals'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
-    { id: 'analgesia', label: 'Analgesia or sedation for pacing', why: 'Transcutaneous pacing is painful: give analgesia (and sedation if needed) once the patient is perfusing.', done: ['fentanyl', 'sedation'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
+    { id: 'analgesia', label: 'Analgesia or sedation for pacing', why: 'Transcutaneous pacing is painful: give analgesia (and sedation if needed) once the patient is perfusing.', done: ['fentanyl', 'sedation', 'midazolam'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
     { id: 'destination', label: 'Transport to the regional heart center', why: 'He needs a transvenous pacing wire and probably a permanent pacemaker.', done: (s) => s.flags['dest-pci'] ?? null, points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report the rhythm, capture threshold, drugs and the beta-blocker.', done: ['handoff'], points: 5 },
   ],

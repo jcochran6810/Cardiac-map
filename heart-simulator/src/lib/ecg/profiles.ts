@@ -6,7 +6,7 @@
  * interval (Fridericia correction) and, slightly, the PR interval change with
  * rate, as they do in real life.
  */
-import { DipolePulse, Vec3, pulse, scale, norm, rotateFrontal } from './vector';
+import { AnyLead, DipolePulse, LEAD_VECTORS, Vec3, dot, pulse, scale, norm, rotateFrontal } from './vector';
 
 // ─── Rhythm kinds ──────────────────────────────────────────────────────────
 
@@ -190,6 +190,26 @@ export const QRS_TEMPLATES: Record<string, QRSTemplate> = {
     conduction: 'preexcited',
   },
 
+  // Atrial fibrillation down a left lateral accessory pathway: the ventricles are activated wholly from the pathway
+  // (full pre-excitation). A broad slurred delta, then slow muscle-to-muscle spread rightward, anterior and inferior:
+  // wide QRS, negative in I and aVL, positive in V1–V4 and the inferior leads, with a discordant secondary T wave.
+  // The beats the AV node also reaches are fusions with the normal QRS (ECGEngine: fusedTemplate)
+  'wpw-af': {
+    duration: 160,
+    pulses: [pulse(28, 20, [-0.5, -0.65, -0.45], 0.55), pulse(80, 22, [-0.4, -0.6, -0.7], 1.35), pulse(128, 16, [0.3, -0.1, -0.5], 0.35)],
+    t: { dir: [0.45, 0.6, 0.6], mag: 0.4 },
+    conduction: 'preexcited',
+  },
+
+  // Posterior MI: the dead posterolateral wall no longer pulls the activation backward, so the anterior forces win —
+  // tall, broad R waves in V1–V2 (the mirror image of posterior Q waves), the rest of the QRS normal
+  'posterior-mi': {
+    duration: 92,
+    pulses: [SEPTAL, pulse(30, 9, [0.2, -0.75, -0.6], 1.0), pulse(48, 10, [0.85, 0.05, -0.55], 1.2), pulse(70, 9, [-0.2, 0.75, 0.55], 0.15)],
+    t: NORMAL_T,
+    conduction: 'normal',
+  },
+
   // DCM / HFrEF: LBBB-type intraventricular conduction delay
   ivcd: {
     duration: 150,
@@ -303,6 +323,14 @@ export interface ECGProfile {
   keyLeads?: string[];
   /** Every P wave blocked at the AV node (set by a drug effect, e.g. adenosine — see ecg/mods.ts) */
   avBlock?: boolean;
+  /**
+   * Atrial fibrillation conducted down an accessory pathway (pre-excited AF): the pathway, not the AV node, sets the
+   * shortest RR interval (ms), and each beat is a fusion of the fully pre-excited QRS (`qrs`) with a normally conducted
+   * one — the shorter the cycle before it, the more of it the pathway activates (wider, with more delta wave)
+   */
+  pathway?: { shortestRR: number };
+  /** Rhythm 'pvc': one PVC in every this many beats (default 4, quadrigeminy) */
+  pvcEvery?: number;
 }
 
 const STD = { minHR: 30, maxHR: 180 };
@@ -353,6 +381,20 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     headline: 'Ventricular pre-excitation (Wolff-Parkinson-White)',
     findings: ['Short PR < 120 ms', 'Delta wave: slurred initial QRS upstroke', 'Wide QRS (> 110–120 ms) with secondary ST-T changes', 'Left lateral pathway shown: positive delta in V1, negative in I/aVL (pseudo-infarct)', 'Never give AV-nodal blockers for pre-excited AF'],
     keyLeads: ['V1', 'I', 'aVL'],
+  },
+  // Pre-excited AF: the WPW pathway above, with atrial fibrillation racing down it
+  'af-wpw': {
+    id: 'af-wpw', name: 'Pre-excited Atrial Fibrillation (WPW)', rhythm: 'af', rateControl: 'ventricular', defaultHR: 214, minHR: 150, maxHR: 250,
+    pr: 0, p: 'none', qrs: 'wpw-af', qtc: 400, hemo: 'normal', pathway: { shortestRR: 245 },
+    headline: 'Pre-excited atrial fibrillation — fast, broad and irregular',
+    findings: [
+      'Irregularly irregular and very fast (often 200–300/min), with wide QRS complexes that change in width and shape from beat to beat',
+      'Delta waves: slurred upstrokes as the impulses race down the accessory pathway; the narrower beats are fusions with impulses the AV node also conducted',
+      'Shortest RR intervals of 250 ms or less mark a pathway that can drive the ventricles into VF',
+      'No AV-nodal blockers (adenosine, diltiazem, verapamil, beta-blockers, digoxin, IV amiodarone): blocking the node sends every impulse down the pathway (2023 ACC/AHA/ACCP/HRS AF guideline: harm)',
+      'Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide (2023 AF guideline)',
+    ],
+    keyLeads: ['V1', 'II', 'I', 'aVL'],
   },
   junctional: {
     id: 'junctional', name: 'Junctional Rhythm', rhythm: 'junctional', rateControl: 'ventricular', defaultHR: 48, minHR: 35, maxHR: 120,
@@ -436,6 +478,21 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     headline: 'Torsades de pointes (polymorphic VT with long QT)',
     findings: ['Polymorphic VT: QRS axis "twists" around the baseline', 'Amplitude waxes and wanes over 5–20 beats', 'Arises on a prolonged QTc (often after a pause: short-long-short)', 'Sustained torsades: unsynchronized defibrillation at once (2025 AHA), then IV magnesium; stop QT-prolonging drugs, correct K⁺; short runs that stop by themselves: magnesium'],
   },
+  // The rhythm between runs of torsades: sinus with a long QT and the odd PVC landing late on the T wave
+  'long-qt': {
+    id: 'long-qt', name: 'Long QT Interval', rhythm: 'pvc', rateControl: 'sinus', defaultHR: 58, minHR: 40, maxHR: 100, pvcEvery: 7,
+    pr: 170, p: 'normal', qrs: 'normal', qtc: 580, hemo: 'normal',
+    t: { dir: [0.5, -0.5, -0.7], mag: 0.3, rise: 0.17, fall: 0.075 },
+    headline: 'Sinus rhythm with a long QT (QTc about 580 ms) and PVCs',
+    findings: [
+      'QTc about 580 ms: over 500 ms carries a high risk of torsades de pointes',
+      'Broad, slow T waves; measure the QT in II or V5 to the end of the T wave and correct it for the rate',
+      'PVCs landing on the T wave can start torsades, often after a pause (short-long-short)',
+      'Causes: QT-prolonging drugs (antiarrhythmics, antipsychotics, methadone, ondansetron, macrolides), low potassium or magnesium, a slow heart rate, congenital long QT syndrome',
+      'Treat: IV magnesium, potassium to 4.0 or more, stop every QT-prolonging drug; for pause-dependent torsades, speed the heart (isoproterenol or pacing)',
+    ],
+    keyLeads: ['II', 'V5'],
+  },
   // Accelerated idioventricular rhythm: a ventricular focus a little faster than the sinus node (classically just after
   // a blocked artery reopens). Not VT: the beats are drawn as escape beats, so nothing treats it as shockable
   aivr: {
@@ -504,6 +561,23 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     headline: 'Lateral STEMI — LCx or diagonal occlusion',
     findings: ['ST elevation in I, aVL, V5–V6', 'Reciprocal ST depression in III and aVF', 'High lateral (I, aVL ± V2) pattern suggests first diagonal', 'LCx occlusions are often electrically "silent" — get posterior leads V7–V9'],
     keyLeads: ['I', 'aVL', 'V5', 'V6', 'III'],
+  },
+  // Isolated posterior STEMI: the injury current points backward, so V1–V3 show the mirror image (ST depression, upright
+  // T waves, tall R) and the posterior leads V7–V9 show the ST elevation itself
+  'posterior-stemi': {
+    id: 'posterior-stemi', name: 'Posterior STEMI', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 78, ...STD,
+    pr: 160, p: 'normal', qrs: 'posterior-mi', qtc: 420, hemo: 'stemi',
+    injury: scale(norm([0.2, 0.97, -0.1]), 0.15),
+    t: { dir: [0.35, -0.8, -0.45], mag: 0.5, rise: 0.12, fall: 0.09 },
+    headline: 'Posterior STEMI — circumflex (or dominant RCA) occlusion',
+    findings: [
+      'Horizontal ST depression in V1–V3 (often V4) with upright T waves: the mirror image of posterior ST elevation',
+      'Tall, broad R waves in V1–V2 (R/S over 1 in V2): the mirror image of posterior Q waves',
+      'Posterior leads V7–V9: ST elevation of 0.5 mm or more (1 mm in men under 40) confirms it — a STEMI equivalent that needs emergent reperfusion',
+      'Usually the circumflex or a dominant RCA; it often comes with inferior or lateral ST elevation',
+      'Easily taken for anterior ischemia: record V7–V9 whenever the ST depression is deepest in V1–V3',
+    ],
+    keyLeads: ['V1', 'V2', 'V3', 'V4'],
   },
   nstemi: {
     id: 'nstemi', name: 'NSTEMI / Subendocardial Ischemia', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 88, ...STD,
@@ -778,4 +852,17 @@ export function qtForRR(qtc: number, rrMs: number): number {
 export function prForRate(basePr: number, hr: number): number {
   if (basePr <= 0) return 0;
   return Math.max(100, basePr - Math.max(0, hr - 75) * 0.25);
+}
+
+/**
+ * The ST deviation in a lead (mm at 10 mm/mV; positive = elevation) that a profile's injury current and its QRS
+ * template's own ST shift (bundle branch block discordance) project onto that lead: the same vector model the 12-lead
+ * is drawn from, so a lead that is not drawn (V4R, V7–V9) can still be read in words
+ */
+export function stLevel(profile: ECGProfile, lead: AnyLead): number {
+  const tpl = QRS_TEMPLATES[profile.qrs];
+  let mv = 0;
+  if (profile.injury) mv += dot(profile.injury, LEAD_VECTORS[lead]);
+  if (tpl?.st) mv += dot(tpl.st, LEAD_VECTORS[lead]);
+  return mv * 10;
 }

@@ -8,7 +8,7 @@
 import { create } from 'zustand';
 import { setRhythm, showRhythm } from '@/lib/rhythm';
 import { answerRead, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
-import { arrestEtco2, ventilated } from '@/lib/sim/scenario/kit';
+import { arrestEtco2, palpable, ventilated } from '@/lib/sim/scenario/kit';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Review, SimState } from '@/lib/sim/scenario/types';
 import { resetCode, setBaseline, setNibpReading, setScriptedVitals, useDefibStore, type ScriptedVitals } from '@/lib/sim/defib';
@@ -72,11 +72,12 @@ export function staleEtco2(prev: SimState | null, next: SimState, wasStale: bool
  * What the monitor's sensors would show for this patient. In cardiac arrest the case's own EtCO₂ is what the
  * capnograph reads; only a number left from before the arrest (`stale`: a perfusing 30–40, which during CPR would
  * look like ROSC) gives way to the shared arrest rule (arrestEtco2 in the scenario kit), which the engine's
- * capnography line reads too.
+ * capnography line reads too. A patient on a continuous-flow LVAD perfuses with almost no pulsation: the pleth is nearly
+ * flat (and the NIBP cannot read: see show), while the ECG, the SpO₂ number, the capnograph and an arterial line work.
  */
 export function monitorVitals(s: SimState, stale = false): ScriptedVitals {
   const v = s.vitals;
-  if (s.pulse) return { pulse: true, sbp: v.sbp, dbp: v.dbp, spo2: v.spo2, rr: v.rr, etco2: v.etco2 };
+  if (s.pulse) return { pulse: true, sbp: v.sbp, dbp: v.dbp, spo2: v.spo2, rr: v.rr, etco2: v.etco2, ...(s.lvad ? { continuousFlow: true } : {}) };
   return { pulse: false, sbp: 0, dbp: 0, spo2: v.spo2, rr: ventilated(s) ? 10 : 0, etco2: stale ? arrestEtco2(s) : v.etco2 };
 }
 
@@ -122,7 +123,8 @@ function show(s: SimState, prev: SimState | null) {
   const newLines = prev ? s.log.slice(prev.log.length) : [];
   const last = s.performed.at(-1);
   if (prev && last && s.performed.length > prev.performed.length) {
-    if (last.id === 'nibp') setNibpReading(s.pulse ? { sbp: s.vitals.sbp, dbp: s.vitals.dbp } : 'fail');
+    // the cuff reads only a pulse it can feel: none in arrest, none over a continuous-flow LVAD
+    if (last.id === 'nibp') setNibpReading(palpable(s) ? { sbp: s.vitals.sbp, dbp: s.vitals.dbp } : 'fail');
     if (newLines.some((l) => /shock delivered|synchroni[sz]ed shock/i.test(l.text))) useDefibStore.setState({ lastShock: sim.time });
     if ((last.id === 'ecg12' || last.id === 'ecg12-repeat') && s.lastEcg?.minute === s.minute) {
       // a 12-lead records 10 s of the rhythm the patient has now: skip ahead so the tracing does not

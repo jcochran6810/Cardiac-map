@@ -356,10 +356,11 @@ describe('a live change of rate, rhythm or drug effect', () => {
     for (const rr of rrIn(e, T0 + 1500, T0 + 11_000)) expect(rr).toBeCloseTo(800, 6);
   });
 
-  // one profile of every kind of rhythm, plus plain sinus rhythm, a long PR, a wide escape and VT with a pulse
+  // one profile of every kind of rhythm, plus plain sinus rhythm, a long PR, a wide escape and VT with a pulse — and the
+  // plain atrial fibrillation and PVCs beside their pre-excited and long-QT variants
   const KINDS = Array.from(new Set([
     ...Array.from(new Map(Object.values(ECG_PROFILES).map((p) => [p.rhythm, p.id])).values()),
-    'normal-sinus', 'first-degree-avb', 'third-degree-avb', 'vt',
+    'normal-sinus', 'first-degree-avb', 'third-degree-avb', 'vt', 'atrial-fibrillation', 'pvcs',
   ]));
 
   it.each(KINDS)('from %s to any other rhythm: the past is kept, nothing lands in it, and no QRS falls on the T wave before it', (from) => {

@@ -257,6 +257,11 @@ export const peaArrestField: Scenario = {
       const bp = bpAfter(s, -10, -6);
       return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad']], vitals: bp, flags: ['nitro'] };
     },
+    'nitro-high': (s) => {
+      if (!s.pulse) return null;
+      const bp = bpAfter(s, -20, -10);
+      return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad']], vitals: bp, flags: ['nitro', 'nitro-high'] };
+    },
     // no pain or agitation to treat in someone with a GCS of 3: they only slow her breathing and lower her pressure
     fentanyl: (s) => {
       if (!s.pulse) return { blocked: true, say: [['system', 'She is in cardiac arrest: there is no pain to treat, and fentanyl is no arrest drug.']] };
@@ -538,11 +543,11 @@ export const peaArrestField: Scenario = {
     },
     {
       // the default nitroglycerin rule only fires under a systolic of 90: after a bolus she has no reason for it either
-      id: 'nitro-post-rosc', actions: ['nitro'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: ['nitro-hypotension'],
+      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
       text: 'Nitroglycerin after ROSC. She has no chest pain and no ST elevation, and her pressure is low or only just held up by treatment: nitrates drop it further.',
     },
     {
-      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse, points: 5, severity: 'major',
       text: 'Fentanyl or sedation for a patient who is unresponsive. With a GCS of 3 she shows no pain or agitation to treat: an opioid or a sedative slows the breathing she has left and lowers her pressure.',
     },
     {

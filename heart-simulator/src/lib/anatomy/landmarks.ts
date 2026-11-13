@@ -149,4 +149,5 @@ export const PROFILE_TERRITORY: Record<string, 'LAD' | 'LCx' | 'RCA' | undefined
   'inferior-stemi': 'RCA',
   'inferior-stemi-chb': 'RCA',
   'lateral-stemi': 'LCx',
+  'posterior-stemi': 'LCx',
 };

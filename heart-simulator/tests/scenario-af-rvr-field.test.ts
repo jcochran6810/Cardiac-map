@@ -66,8 +66,8 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
       const ways = typeof c.done === 'function' ? c.uses ?? [] : c.done;
       expect(ways.some((id) => scope.has(id)), c.id).toBe(true);
     }
-    // the case says what the built-in drug rules need to know
-    expect(sc.problems).toEqual(['heart-failure']);
+    // the case says what the built-in drug rules need to know: a weak heart, and fluid backing up into the lungs
+    expect(sc.problems).toEqual(['heart-failure', 'pulmonary-edema']);
   });
 
   it('the ideal run ends by itself with full marks', () => {

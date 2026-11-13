@@ -13,11 +13,11 @@
  * intervention for the learner's role is done and the patient has a pulse (plus any scenario-specific condition).
  */
 import type { LearningLevel } from '@/store/useAppStore';
-import { resolveProfile } from '@/lib/ecg/profiles';
+import { resolveProfile, stLevel } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, interventionsFor } from './interventions';
 import { READ_KIND_NAME, READ_OPTIONS, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
 import { angioGate } from './labKit';
-import { LOW_GLUCOSE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, paced, ventilated } from './kit';
+import { LOW_GLUCOSE, LVAD_MIN_PULSE_PRESSURE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, mapOf, paced, ventilated } from './kit';
 import type {
   Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
@@ -68,6 +68,14 @@ function factText(sc: Scenario, s: SimState, key: FactKey): string | null {
 export function vitalsLine(s: SimState): string {
   if (!s.pulse) return 'No pulse. Not breathing normally.';
   const v = s.vitals;
+  if (s.lvad) {
+    // a continuous-flow pump: no pulse to count and no cuff pressure — the rate comes off the monitor, the pressure from
+    // the Doppler once the crew has one on the arm
+    const parts = ['No palpable pulse'];
+    if (has(s, 'monitor')) parts.push(`heart rate ${s.rhythm.hr} on the monitor`);
+    if (has(s, 'doppler')) parts.push(`Doppler MAP ${mapOf(v)}`);
+    return `${parts.join(' · ')} · RR ${v.rr} · SpO₂ ${v.spo2}%`;
+  }
   return `BP ${v.sbp}/${v.dbp} · pulse ${s.rhythm.hr} · RR ${v.rr} · SpO₂ ${v.spo2}%`;
 }
 
@@ -98,22 +106,52 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
   switch (id) {
     case 'scene': return { say: [['scene', 'Scene is safe. Gloves on.']] };
     case 'primary':
+      if (s.pulse && s.lvad) return { say: [['you', `Airway open, breathing ${v.rr}/min, no palpable radial or carotid pulse, GCS ${v.gcs}.`]] };
       return s.pulse
         ? { say: [['you', `Airway open, breathing ${v.rr}/min, radial pulse ${s.rhythm.hr}/min, GCS ${v.gcs}.`]] }
         : { say: [['you', 'Unresponsive, not breathing normally, no pulse.', 'bad']] };
     case 'opqrst': return { say: [['patient', fact('opqrst') ?? 'It just feels wrong.']], flags: ['opqrst'] };
     case 'sample': return { say: [['patient', fact('sample') ?? 'No allergies, no medicines.']], flags: ['sample'] };
     case 'ask-pde5': return { say: [['patient', fact('pde5') ?? 'No, nothing like that.']], flags: ['pde5-asked'] };
-    case 'vitals': return { say: [['you', vitalsLine(s)]], flags: ['bp'] };
+    case 'vitals':
+      // with an LVAD the cuff hears no Korotkoff sounds: no pressure by hand (the Doppler finds the MAP)
+      if (s.pulse && s.lvad) return { say: [['you', `No palpable pulse, and no sounds with the cuff: no blood pressure by hand. RR ${v.rr} · SpO₂ ${v.spo2}%.`]] };
+      return { say: [['you', vitalsLine(s)]], flags: ['bp'] };
     case 'nibp':
       if (!has(s, 'monitor')) return { blocked: true, say: [['system', 'Attach the monitor first, or take a manual set of vitals.']] };
+      // an oscillometric cuff reads the pulsations in the artery: a continuous-flow pump gives it none
+      if (s.pulse && s.lvad) return { say: [['monitor', 'NIBP: unable to measure.']] };
       return { say: [['monitor', s.pulse ? `NIBP ${bpText(s)} mmHg.` : 'NIBP: no reading.']], flags: ['bp'] };
+    case 'bp-both-arms': {
+      if (!s.pulse) return { blocked: true, say: [['system', 'No circulation: there is no blood pressure to take. CPR first.']] };
+      const arms = fact('bpArms');
+      if (arms) return { say: [['you', arms]], flags: s.lvad ? ['bp-arms'] : ['bp', 'bp-arms'] };
+      if (s.lvad) return { say: [['you', 'No sounds with the cuff on either arm: no blood pressure by hand.']], flags: ['bp-arms'] };
+      // the same pressure in both arms, within a few mmHg (a case with a difference says so in its own words)
+      const left = { sbp: Math.max(PERFUSING_FLOOR.sbp, v.sbp - 4), dbp: Math.max(PERFUSING_FLOOR.dbp, v.dbp - 2) };
+      return { say: [['you', `Right arm ${v.sbp}/${v.dbp} · left arm ${left.sbp}/${left.dbp}.`]], flags: ['bp', 'bp-arms'] };
+    }
+    case 'doppler-map':
+      if (!s.pulse) return { say: [['you', 'Doppler over the brachial artery: no flow sound.', 'bad']], flags: ['doppler'] };
+      // over a continuous-flow pump the flow sound returns at about the mean pressure; with a pulse, at the systolic
+      if (s.lvad) return { say: [['you', `Doppler MAP ${mapOf(v)} mmHg: the whooshing flow sound returns at ${mapOf(v)} as the cuff goes down.`]], flags: ['bp', 'doppler'] };
+      return { say: [['you', `Doppler over the brachial artery: the first beat returns at ${v.sbp} mmHg (the systolic pressure).`]], flags: ['bp', 'doppler'] };
+    case 'lvad-check':
+      if (!s.lvad) return { say: [['you', 'No pump hum over the chest, and no controller, batteries or driveline: this patient has no LVAD.']], flags: ['lvad-check'] };
+      return {
+        say: [['you', fact('lvad') ?? (s.pulse
+          ? 'A steady pump hum over the left chest. Controller: no alarms; both batteries connected and charged; driveline dressing clean and dry.'
+          : 'No pump hum over the chest. The controller shows a red pump-stop alarm.')]],
+        flags: ['lvad-check'],
+      };
     case 'pulse-check':
+      // a continuous-flow LVAD perfuses without a pulse: no pulse here is not cardiac arrest
+      if (s.pulse && s.lvad) return { say: [['you', v.gcs >= 13 ? 'No palpable pulse — yet the patient is awake and talking to you.' : 'No palpable pulse.', 'warn']] };
       return s.pulse
         ? { say: [['you', `Pulse present: ${s.rhythm.hr}/min${v.sbp < 90 ? ', weak and thready' : ''}.`]] }
         : { say: [['you', 'No pulse.', 'bad']], flags: ['pulseless-confirmed'] };
     case 'lungs': return { say: [['you', fact('lungs') ?? 'Clear and equal on both sides.']], flags: ['lungs'] };
-    case 'perfusion': return { say: [['you', fact('perfusion') ?? 'Skin warm and dry; no JVD; pulses equal.']], flags: ['perfusion'] };
+    case 'perfusion': return { say: [['you', fact('perfusion') ?? (s.lvad ? 'Skin warm and dry; no JVD; no pulse to feel at the wrist, the groin or the foot.' : 'Skin warm and dry; no JVD; pulses equal.')]], flags: ['perfusion'] };
     case 'glucose': return { say: [['you', `Blood glucose ${v.glucose} mg/dL.`]] };
     case 'neuro': return { say: [['you', `GCS ${v.gcs}. ${fact('neuro') ?? 'No focal deficit.'}`]] };
     case 'reassess':
@@ -135,7 +173,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['monitor', fact('ecgRight') ?? 'V4R: no ST elevation.']], flags: ['ecg-right'] };
     case 'ecg-posterior':
       if (!s.pulse) return noEcgInArrest;
-      return { say: [['monitor', fact('ecgPosterior') ?? 'V7–V9: no ST elevation.']], flags: ['ecg-posterior'] };
+      return { say: [['monitor', fact('ecgPosterior') ?? posteriorLeads(s)]], flags: ['ecg-posterior'] };
     case 'capno': {
       if (s.pulse) return { say: [['monitor', `EtCO₂ ${v.etco2} mmHg with a normal square waveform.`]], flags: ['capno'] };
       // the shared arrest rule, which the case monitor shows too: almost nothing with no breaths, then the blood flow
@@ -185,7 +223,18 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'fluid': {
       if (!s.pulse) return { say: [['you', 'Fluid running.']], flags: ['fluid'] };
       const bp = bpAfter(s, 8, 5);
-      return { say: [['monitor', `Bolus in. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['fluid'] };
+      return { say: bpLine(s, bp, 'Bolus in.'), vitals: bp, flags: ['fluid'] };
+    }
+    case 'transfuse': {
+      if (!s.pulse) return { say: [['you', 'Packed red cells running in fast; compressions go on.']], flags: ['transfused'] };
+      const bp = bpAfter(s, 10, 6);
+      return { say: [['you', `Unit ${(s.counts.transfuse ?? 0) + 1} of packed red cells checked at the bedside and running through the warmer.`], ...bpLine(s, bp)], vitals: bp, flags: ['transfused'] };
+    }
+    case 'legs-up': {
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: compressions move the blood, not the position of the legs.']] };
+      // about 300 mL of blood comes back from the legs for a few minutes
+      const bp = bpAfter(s, 8, 4);
+      return { say: [['you', 'Lying flat with the legs raised.'], ...bpLine(s, bp)], vitals: bp, flags: ['legs-up'] };
     }
 
     case 'aspirin': return { say: [['patient', 'Chews the aspirin.']], flags: ['aspirin'] };
@@ -193,6 +242,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (!fact('ownNitro')) return { blocked: true, say: [['patient', "I don't have any nitroglycerin of my own."]] };
       return nitroEffect(s);
     case 'nitro': return nitroEffect(s);
+    case 'nitro-high': return nitroEffect(s, true);
     case 'fentanyl': {
       // no flag 'analgesia' in arrest: nothing was relieved, and it must not count as analgesia for a later shock
       if (!s.pulse) return noRoleInArrest('Fentanyl', 'fentanyl');
@@ -207,9 +257,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'metoprolol': {
       if (!s.pulse) return noRoleInArrest('Metoprolol', 'beta-blocker');
       const bp = bpAfter(s, -12, -8);
+      if (preexcitedAf(s)) return { say: [...bpLine(s, bp, 'Metoprolol given.'), pathwayFaster], vitals: bp, rhythm: fasterDownPathway(s), flags: ['beta-blocker'] };
       // a pacer sets the rate, so only the heart's own rate slows — by 10, not below 40, and never up to 40 from a slower one
       const hr = Math.min(s.rhythm.hr, Math.max(40, s.rhythm.hr - 10));
-      return { say: [['monitor', `Metoprolol given. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, ...(paced(s) ? {} : { rhythm: atRate(s, hr) }), flags: ['beta-blocker'] };
+      return { say: bpLine(s, bp, 'Metoprolol given.'), vitals: bp, ...(paced(s) ? {} : { rhythm: atRate(s, hr) }), flags: ['beta-blocker'] };
     }
     case 'atropine': {
       if (!s.pulse) return noRoleInArrest('Atropine', 'atropine');
@@ -222,11 +273,14 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     }
     case 'adenosine6':
     case 'adenosine12':
+      // down an accessory pathway there is no AV-nodal pause to see: the node's share of the impulses goes to the pathway
+      if (preexcitedAf(s)) return { say: [['you', `Adenosine ${id === 'adenosine6' ? 6 : 12} mg rapid push, flushed.`], ['monitor', 'No pause at all. The complexes come faster and wider.', 'bad']], rhythm: fasterDownPathway(s), flags: ['adenosine'] };
       return { say: [['monitor', 'A brief pause, then the same rhythm returns.']], flags: ['adenosine'] };
     case 'diltiazem': {
       if (!s.pulse) return noRoleInArrest('Diltiazem', 'diltiazem');
       const bp = bpAfter(s, -12, -8);
-      return { say: [['monitor', `Diltiazem in. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['diltiazem'] };
+      if (preexcitedAf(s)) return { say: [...bpLine(s, bp, 'Diltiazem in.'), pathwayFaster], vitals: bp, rhythm: fasterDownPathway(s), flags: ['diltiazem'] };
+      return { say: bpLine(s, bp, 'Diltiazem in.'), vitals: bp, flags: ['diltiazem'] };
     }
     case 'epinephrine': {
       if (!s.pulse) return { say: [['you', 'Epinephrine 1 mg IV/IO, flushed.']], flags: ['epi'] };
@@ -243,21 +297,34 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       };
     }
     case 'amio-arrest': return { say: [['you', `Amiodarone ${(s.counts['amio-arrest'] ?? 0) === 0 ? '300' : '150'} mg IV/IO, flushed.`]], flags: ['amiodarone'] };
-    case 'amio-infusion': return { say: [['you', 'Amiodarone 150 mg running over 10 minutes.']], flags: ['amiodarone'] };
+    case 'amio-infusion':
+      if (preexcitedAf(s)) return { say: [['you', 'Amiodarone 150 mg running over 10 minutes.'], pathwayFaster], rhythm: fasterDownPathway(s), flags: ['amiodarone'] };
+      return { say: [['you', 'Amiodarone 150 mg running over 10 minutes.']], flags: ['amiodarone'] };
     case 'lidocaine': return { say: [['you', 'Lidocaine given.']], flags: ['lidocaine'] };
     case 'push-epi': {
       if (!s.pulse) return { say: [['you', 'Push-dose epinephrine given.']], flags: ['push-epi'] };
       const bp = bpAfter(s, 16, 10);
-      return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp} for a few minutes.`]], vitals: bp, flags: ['push-epi'] };
+      return { say: s.lvad ? [] : [['monitor', `BP ${bp.sbp}/${bp.dbp} for a few minutes.`]], vitals: bp, flags: ['push-epi'] };
     }
     case 'pressor': {
       if (!s.pulse) return { say: [['you', 'Infusion running — with no circulation there is no pressure to raise yet.']], flags: ['pressor'] };
       const bp = bpAfter(s, 22, 14, { sbp: 140, dbp: 88 });
-      return { say: [['monitor', `Infusion running. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['pressor'] };
+      return { say: bpLine(s, bp, 'Infusion running.'), vitals: bp, flags: ['pressor'] };
     }
     case 'sedation':
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: there is no one awake to sedate. CPR, the rhythm and the cause come first.']] };
       return { say: [['you', 'Sedated and comfortable; airway maintained, capnography on.']], flags: ['sedation'] };
+    case 'midazolam': {
+      if (!s.pulse) return noRoleInArrest('Midazolam', 'benzodiazepine');
+      // a benzodiazepine calms (and is the first drug for a stimulant's agitation, racing heart and high pressure): it drops
+      // the pressure and the breathing a little, and each dose leaves the patient a little drowsier (never below 12 here)
+      const bp = bpAfter(s, -8, -5);
+      const rr = Math.min(v.rr, Math.max(10, v.rr - 2));
+      const gcs = Math.min(v.gcs, Math.max(12, 14 - (s.counts.midazolam ?? 0)));
+      // in the lab it is procedural (moderate) sedation: 0.5–1 mg IV at a time, titrated; in the field, 2.5 mg IV or 5 mg IM
+      const dose = sc.setting === 'cathlab' ? 'Midazolam 1 mg IV.' : has(s, 'iv') ? 'Midazolam 2.5 mg IV.' : 'Midazolam 5 mg IM (no IV yet).';
+      return { say: [['you', dose], ...ifAwake(s, '"…Okay. I feel calmer."'), ...bpLine(s, bp)], vitals: { ...bp, rr, gcs }, flags: ['benzodiazepine', 'sedation'] };
+    }
     case 'tnk': return { say: [['you', 'Tenecteplase given.']], flags: ['lytic'] };
     case 'epi-im': return { say: [['you', 'Epinephrine 0.5 mg IM, lateral thigh.']], flags: ['epi-im'] };
     case 'albuterol': return { say: [['you', 'Albuterol nebulizer running.']], flags: ['albuterol'] };
@@ -295,6 +362,17 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         vitals: bp, ...(hr ? { rhythm: atRate(s, hr) } : {}), flags: ['ic-epinephrine'],
       };
     }
+    case 'phenylephrine': {
+      if (!s.pulse) return noRoleInArrest('Phenylephrine', 'phenylephrine');
+      // a pure alpha agonist: the pressure rises, and the baroreflex slows a sinus node a little (to 50 at the lowest)
+      const bp = bpAfter(s, 16, 10);
+      const slower = sinusNode(s) && bp.sbp > v.sbp ? Math.min(s.rhythm.hr, Math.max(50, s.rhythm.hr - 6)) : s.rhythm.hr;
+      const hr = slower !== s.rhythm.hr ? slower : null;
+      return {
+        say: [['you', 'Phenylephrine 100 mcg IV, flushed.'], ['monitor', `${hr ? `Heart rate ${hr}. ` : ''}BP ${bp.sbp}/${bp.dbp}.`]],
+        vitals: bp, ...(hr ? { rhythm: atRate(s, hr) } : {}), flags: ['phenylephrine'],
+      };
+    }
 
     // Electrolytes, antidotes and glucose: by themselves they change no rhythm (only the case knows whether the
     // patient's potassium, overdose or glucose is what they treat), so a case that uses them writes its own response
@@ -320,13 +398,13 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (!s.pulse) return { say: [['you', 'Magnesium sulfate 2 g pushed; compressions go on.']], flags: ['magnesium'] };
       // diluted over 15 minutes it flushes the skin and drops the pressure a little
       const bp = bpAfter(s, -6, -4);
-      return { say: [['you', 'Magnesium sulfate 2 g running over 15 minutes.'], ...ifAwake(s, '"I feel warm and flushed."'), ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['magnesium'] };
+      return { say: [['you', 'Magnesium sulfate 2 g running over 15 minutes.'], ...ifAwake(s, '"I feel warm and flushed."'), ...bpLine(s, bp)], vitals: bp, flags: ['magnesium'] };
     }
     case 'procainamide': {
       if (!s.pulse) return noRoleInArrest('Procainamide', 'procainamide');
       // it vasodilates and weakens the squeeze: the pressure falls; whether the arrhythmia stops is the case's to say
       const bp = bpAfter(s, -10, -6);
-      return { say: [['you', 'Procainamide running at 30 mg/min; BP and QRS width checked every few minutes.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['procainamide'] };
+      return { say: [['you', 'Procainamide running at 30 mg/min; BP and QRS width checked every few minutes.'], ...bpLine(s, bp)], vitals: bp, flags: ['procainamide'] };
     }
     case 'glucagon': {
       if (!s.pulse) return noRoleInArrest('Glucagon', 'glucagon');
@@ -347,6 +425,14 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'Ondansetron 4 mg IV, slowly over 30 seconds.']], flags: ['antiemetic'] };
 
     case 'cpr':
+      // an LVAD patient has no pulse to feel: the question is whether the pump perfuses (2025 AHA durable LVAD algorithm).
+      // Unresponsive with a MAP of 50 or less, compressions are right — and start without delay
+      if (s.pulse && s.lvad) {
+        if (!lvadPerfusing(s)) return { say: [['you', '2 minutes of compressions: 100–120/min, 5–6 cm, full recoil — the pump is checked (hum, alarms, power, driveline) as they go on.']], flags: ['cpr'] };
+        return v.gcs >= 9
+          ? { say: [['patient', 'The patient cries out — awake and talking: the pump is perfusing.', 'bad']] }
+          : { say: [[teammate(sc), `Stop — the pump is humming and the Doppler MAP is ${mapOf(v)}: check perfusion first.`, 'bad']] };
+      }
       if (s.pulse) {
         // only a patient awake enough to feel it cries out; otherwise a teammate stops it
         return v.gcs >= 9
@@ -358,6 +444,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       // An AED reads only the rhythm: it cannot feel a pulse, and it would advise a shock for a fast VT that has one.
       // So it goes only on a patient who is unresponsive, not breathing normally and pulseless: with a pulse it is not
       // applied at all (no time passes, nothing is scored)
+      if (lvadPerfusing(s)) return { blocked: true, say: [['system', 'Not while the pump is perfusing: an AED is only for a patient who is unresponsive, not breathing normally and without circulation. A continuous-flow LVAD leaves no pulse to feel even when it is working: judge perfusion by responsiveness, skin color, capillary refill and the Doppler MAP (over 50), and listen for the pump hum.']] };
+      // an unresponsive LVAD patient who is not perfusing gets BLS/ALS: the AED reads the rhythm alone, as it always does
+      if (s.pulse && s.lvad) {
+        if (['vf', 'vt', 'torsades'].includes(rhythmKind(s))) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
+        return { say: [['monitor', 'AED: "No shock advised. Start CPR."']], flags: ['pads', 'monitor'] };
+      }
       if (s.pulse) return { blocked: true, say: [['system', 'Not with a pulse: an AED is only for a patient who is unresponsive, not breathing normally and has no pulse. It reads the rhythm alone — it cannot feel a pulse — and would advise a shock for a fast VT. Keep assessing; if the pulse is lost, start CPR and analyze.']] };
       if (shockable(s)) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
       return { say: [['monitor', 'AED: "No shock advised. Start CPR."']], flags: ['pads', 'monitor'] };
@@ -372,6 +464,8 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         if (k === 'vt') return { say: [['monitor', 'SYNC is on: the device hunts for R waves in the fast, wide complexes and does not fire.', 'bad']], flags: ['pads', 'monitor'] };
         return { say: [['monitor', 'Synchronized shock delivered: 100 J. The same complexes come back — still no pulse.', 'bad']], flags: ['pads', 'monitor'] };
       }
+      // polymorphic VT has no R waves the device can lock onto (2025 AHA: defibrillate it, pulse or not)
+      if (rhythmKind(s) === 'torsades') return { say: [['monitor', 'SYNC is on: the device cannot lock onto the twisting complexes and does not fire.', 'bad']], flags: ['pads', 'monitor'] };
       if (!tachyarrhythmia(s)) {
         const awake: Line[] = v.gcs >= 13 ? [['patient', '"Aagh! What was that?"', 'bad']] : [];
         return { say: [['monitor', `Synchronized shock delivered: ${syncEnergy(s)}. No change on the monitor.`], ...awake], flags: ['pads', 'monitor'] };
@@ -474,6 +568,18 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['monitor', fact('final') ?? 'Final angiogram recorded in two views.']], image: { id, view: 'Final angiogram', image: sc.images?.[id] }, flags: ['final-angio'] };
     case 'stop-contrast': return { say: [['you', 'No more contrast — injector and manifold off.']], flags: ['contrast-stopped'] };
     case 'call-surgery': return { say: [['hospital', 'Cardiac surgery notified: the surgeon is on the way and the OR is being prepared.']], flags: ['surgery-called'] };
+    case 'call-vascular': return { say: [['hospital', 'Vascular surgery and interventional radiology paged: they are on their way to see the patient and review the imaging.']], flags: ['vascular-called'] };
+    case 'stroke-team': return { say: [['hospital', 'Stroke alert: the stroke neurologist is on the way, and CT is clearing the scanner for this patient.']], flags: ['stroke-alert'] };
+    case 'ct-urgent':
+      // nobody goes to the scanner in the middle of CPR (an unstable patient can be sent: the built-in rule scores it)
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: nobody goes to the scanner during CPR.']] };
+      return { say: [['team', 'Scanned and back: the patient went with a nurse and the monitor, the sheath secured.'], ['hospital', fact('ct') ?? 'Radiology: no acute finding on the CT.']], flags: ['ct'] };
+    case 'clear-air':
+      // the tech readies the syringes and keeps the line free of air; the operator aspirates and flushes (whether the
+      // bubbles clear and the flow comes back is the case's to say)
+      if (s.role === 3) return { say: [['you', 'Aspiration syringe on the manifold, tip down; guide back-bled; a 10 mL saline syringe drawn up free of bubbles for the forceful flush.']], flags: ['clear-air-ready'] };
+      if (!has(s, 'guide') && !has(s, 'catheter')) return { blocked: true, say: [['system', 'There is no catheter in a coronary to aspirate through.']] };
+      return { say: [['you', 'Aspirated back through the guide until the blood came back free of bubbles, then a forceful saline flush down the artery.']], flags: ['air-cleared'] };
     case 'hemostasis':
       return has(s, 'femoral')
         ? { say: [['you', 'Femoral sheath out; firm pressure for 15 minutes, then a dressing. Distal pulses checked; no hematoma.']], flags: ['hemostasis'] }
@@ -491,6 +597,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'callout': return { say: [['operator', 'Copy.']], flags: ['callout'] };
     case 'als': return { say: [['dispatch', 'Medic unit assigned, about 6 minutes out.']], flags: ['als'] };
     case 'med-control': return { say: [['hospital', 'Medical control: continue per protocol.']], flags: ['med-control'] };
+    case 'call-vad':
+      if (!s.lvad) return { blocked: true, say: [['system', 'This patient has no VAD: there is no controller, and no VAD team to call.']] };
+      return {
+        say: [['hospital', fact('vadTeam') ?? 'VAD coordinator: "Read me the controller — flow, speed, power and any alarms — and give me a Doppler MAP. Then bring the patient to us, the implanting center, with the controller, the spare batteries and the charger."']],
+        flags: ['vad-team'],
+      };
     case 'poison-control': {
       // a case with a poisoning says what the specialist advises (fact 'poisonControl'); one that lists an overdose but
       // says nothing gets the specialist's first questions, never "no poisoning"
@@ -572,9 +684,10 @@ function syncEnergy(s: SimState): string {
 
 /**
  * 12-lead patterns whose ST elevation meets STEMI criteria, so the cath lab is activated (a Takotsubo pattern looks the
- * same until the angiogram shows open arteries)
+ * same until the angiogram shows open arteries). A posterior STEMI is a STEMI equivalent: its ST elevation is in V7–V9,
+ * and the mirror image in V1–V3 already calls for emergent reperfusion (2022 ACC chest pain pathway; 2025 ACC/AHA ACS)
  */
-const STEMI_READS = ['stemi-anterior', 'stemi-inferior', 'stemi-lateral', 'stemi-inferior-chb', 'takotsubo'];
+const STEMI_READS = ['stemi-anterior', 'stemi-inferior', 'stemi-lateral', 'stemi-inferior-chb', 'stemi-posterior', 'takotsubo'];
 
 /** A tracing of this rhythm meets STEMI criteria */
 function profileShowsStemi(profile: string): boolean {
@@ -621,16 +734,37 @@ function deviceEffect(s: SimState, id: string): Effect {
   return result[id];
 }
 
-function nitroEffect(s: SimState): Effect {
+/** 0.4 mg sublingual; `high`: 0.8 mg, the pulmonary-edema dose, which unloads the heart (and drops the pressure) about twice as much */
+function nitroEffect(s: SimState, high = false): Effect {
   if (!s.pulse) return noRoleInArrest('Nitroglycerin', 'nitro');
   const pain = Math.max(0, s.vitals.pain - 2);
-  const bp = bpAfter(s, -10, -6);
+  const bp = high ? bpAfter(s, -20, -10) : bpAfter(s, -10, -6);
   // only a patient who has chest pain, and is awake enough to say so, says how it feels
   const feels = s.vitals.pain > 0 ? ifAwake(s, pain <= 4 ? '"The pressure is easing."' : '"Maybe a little better."') : [];
   return {
-    say: [...feels, ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
-    vitals: { pain, ...bp }, flags: ['nitro'],
+    say: [...feels, ...bpLine(s, bp)],
+    vitals: { pain, ...bp }, flags: high ? ['nitro', 'nitro-high'] : ['nitro'],
   };
+}
+
+/**
+ * The monitor line after a drug or a bolus moves the pressure (`lead` first, e.g. "Bolus in."). With an LVAD no cuff
+ * reads the pressure: the line keeps only what can be seen, and the Doppler MAP (or a reassessment after one) tells the rest.
+ */
+function bpLine(s: SimState, bp: { sbp: number; dbp: number }, lead = ''): Line[] {
+  if (s.lvad) return lead ? [['monitor', lead]] : [];
+  return [['monitor', `${lead ? `${lead} ` : ''}BP ${bp.sbp}/${bp.dbp}.`]];
+}
+
+/**
+ * What V7–V9 show when the case gives no words of its own: the ST elevation (0.5 mm or more, to the nearest 0.5 mm) that
+ * the rhythm's injury current projects onto the posterior leads — the same vector model the 12-lead is drawn from
+ */
+export function posteriorLeads(s: Pick<SimState, 'rhythm'>): string {
+  const p = resolveProfile(s.rhythm.profile);
+  const up = (['V7', 'V8', 'V9'] as const).map((l) => [l, Math.round(stLevel(p, l) * 2) / 2] as const).filter(([, mm]) => mm >= 0.5);
+  if (!up.length) return 'V7–V9: no ST elevation.';
+  return `V7–V9: ST elevation ${up.map(([l, mm]) => `${mm} mm in ${l}`).join(', ')}.`;
 }
 
 // ─── Built-in safety rules (every scenario) ────────────────────────────────
@@ -646,13 +780,55 @@ const BICARBONATE_FOR: Problem[] = ['hyperkalemia', 'metabolic-acidosis', 'sodiu
 /** Second- and third-degree AV block */
 const AV_BLOCKS = ['wenckebach', 'mobitz2', 'chb'];
 
+/**
+ * A long QT: the case says so (Scenario.problems), the monitor shows torsades, or the rhythm on it has a QTc of 500 ms or
+ * more (the 'long-qt' profile) — the drug rules read the tracing as well as the case
+ */
+function longQt(s: SimState, sc: Scenario): boolean {
+  return hasProblem(sc, ['long-qt']) || rhythmKind(s) === 'torsades' || resolveProfile(s.rhythm.profile).qtc >= 500;
+}
+
+/**
+ * An LVAD patient whose pump is perfusing (2025 AHA durable LVAD algorithm): no pulse to feel, so perfusion is judged — awake
+ * (GCS 9 or more), or a Doppler MAP over 50. An unresponsive LVAD patient with a MAP of 50 or less is not perfusing: CPR and
+ * BLS/ALS, the AED included, while the pump is checked. (Skin color, capillary refill and EtCO₂ are the case's to describe.)
+ */
+export const lvadPerfusing = (s: SimState) => s.pulse && !!s.lvad && (s.vitals.gcs >= 9 || mapOf(s.vitals) > 50);
+
+/**
+ * A low pressure for the drug and transport rules: a systolic under 90 — or, over a continuous-flow LVAD, whose systolic
+ * means little, a Doppler MAP under 60 (the pump's low-flow range)
+ */
+export const lowPressure = (s: SimState) => (s.lvad ? mapOf(s.vitals) < 60 : s.vitals.sbp < 90);
+
+/** Atrial fibrillation conducted down an accessory pathway is on the monitor (the 'af-wpw' profile) */
+const preexcitedAf = (s: SimState) => s.pulse && !!resolveProfile(s.rhythm.profile).pathway;
+
+/**
+ * An AV-nodal blocker in pre-excited AF (the default; a case can answer it in its own words): with the node blocked,
+ * more impulses race down the pathway — the rate climbs (×1.12, 250 at most, as the Give-meds tool and the
+ * defibrillator panel show), never falls. The monitor line describes what is seen and names nothing
+ */
+const fasterDownPathway = (s: SimState) => atRate(s, Math.min(250, Math.round(s.rhythm.hr * 1.12)));
+const pathwayFaster: Line = ['monitor', 'The complexes come faster and wider.', 'bad'];
+
+/** Drugs that slow or block the AV node: in pre-excited AF they send every impulse down the pathway */
+const AV_NODAL_BLOCKERS = ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion'];
+/** Antiplatelet, anticoagulant and fibrinolytic drugs (an aortic dissection bleeds with them) */
+const ANTITHROMBOTICS = ['aspirin', 'heparin', 'p2y12', 'bivalirudin', 'gp2b3a', 'cangrelor'];
+
 export const BUILT_IN_HARMS: Harm[] = [
-  { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
-  // a manual shock fires whatever the rhythm; an AED is not applied to a patient with a pulse (the default refuses it)
-  { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 15, severity: 'critical', text: 'Unsynchronized shock to a patient with a pulse: it can land on the T wave and cause VF. Unstable tachycardia with a pulse needs synchronized cardioversion.' },
+  { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse && !s.lvad, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
+  // the LVAD patient whose pump is perfusing has no pulse to check: the mistake is a different one, and so is the lesson
+  { id: 'cpr-lvad-perfusing', actions: ['cpr'], when: (s) => lvadPerfusing(s), points: 10, severity: 'major', text: 'Chest compressions on an LVAD patient whose pump is perfusing. A continuous-flow pump leaves no pulse to feel: judge perfusion instead — responsiveness, skin color and temperature, capillary refill, a Doppler MAP over 50 (2025 AHA durable LVAD algorithm). An unresponsive LVAD patient whose perfusion is inadequate gets compressions without delay, pump or no pump; one who is perfusing needs the cause of the problem found, not CPR.' },
+  // a manual shock fires whatever the rhythm; an AED is not applied to a patient with a pulse (the default refuses it). Two
+  // shocks with a pulse are right: sustained polymorphic VT (torsades) is defibrillated, pulse or not (2025 AHA), and an
+  // LVAD can keep a patient perfused through VF
+  { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse && rhythmKind(s) !== 'torsades' && !(s.lvad && (rhythmKind(s) === 'vf' || (rhythmKind(s) === 'vt' && !lvadPerfusing(s)))), points: 15, severity: 'critical', text: 'Unsynchronized shock to a patient with a pulse: it can land on the T wave and cause VF. Unstable tachycardia with a pulse needs synchronized cardioversion.' },
   { id: 'shock-nonshockable', actions: ['defib', 'cardiovert'], when: (s) => !s.pulse && !shockable(s), points: 10, severity: 'major', text: 'Asystole and PEA are not shockable: shocking them interrupts CPR and does not help. Give CPR and epinephrine and look for reversible causes.' },
   { id: 'sync-in-arrest', actions: ['cardiovert'], when: (s) => shockable(s), points: 8, severity: 'major', text: 'Synchronized mode needs R waves; in VF or pulseless VT it may never fire. Defibrillate unsynchronized.' },
-  { id: 'cardiovert-no-tachycardia', actions: ['cardiovert'], when: (s) => s.pulse && !tachyarrhythmia(s), points: 8, severity: 'major', text: 'Synchronized cardioversion without a tachyarrhythmia to treat. It is for an unstable SVT, atrial fibrillation or flutter, or monomorphic VT; on any other rhythm the shock cannot help, and it hurts an awake patient.' },
+  { id: 'sync-polymorphic', actions: ['cardiovert'], when: (s) => s.pulse && rhythmKind(s) === 'torsades', points: 5, severity: 'major', text: 'Synchronized cardioversion for polymorphic VT. The device cannot lock onto the R waves of a twisting rhythm and may never fire: sustained torsades is defibrillated, unsynchronized, pulse or not (2025 AHA) — then IV magnesium.' },
+  { id: 'cardiovert-no-tachycardia', actions: ['cardiovert'], when: (s) => s.pulse && !tachyarrhythmia(s) && rhythmKind(s) !== 'torsades', points: 8, severity: 'major', text: 'Synchronized cardioversion without a tachyarrhythmia to treat. It is for an unstable SVT, atrial fibrillation or flutter, or monomorphic VT; on any other rhythm the shock cannot help, and it hurts an awake patient.' },
   { id: 'arrest-epi-with-pulse', actions: ['epinephrine'], when: (s) => s.pulse, points: 15, severity: 'critical', text: '1 mg IV epinephrine is the cardiac-arrest dose. With a pulse it causes severe hypertension, arrhythmias and ischemia; use push-dose epinephrine or an infusion.' },
   { id: 'arrest-amio-with-pulse', actions: ['amio-arrest'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'A 300 mg amiodarone push is for cardiac arrest. With a pulse, give 150 mg over 10 minutes.' },
   // on-scene resuscitation until a sustained ROSC, for most adults (2025 AHA Systems of Care). Only the loading is judged:
@@ -662,8 +838,8 @@ export const BUILT_IN_HARMS: Harm[] = [
   // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
   { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
   { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
-  { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further: hold them until it is back above 90.' },
-  { id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.' },
+  { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'nitro-high', 'ic-nitro'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg (with an LVAD, a Doppler MAP under 60). Nitrates drop the pressure further: hold them until it is back up.' },
+  { id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.' },
   // atropine is for symptomatic bradycardia. With a pulse: a rate of 60 or more has nothing for it to treat (over a pacer,
   // whose 70 hides a slow rate of the heart's own, it is still a fair try). In arrest: out of the algorithm since 2010
   { id: 'atropine-fast', actions: ['atropine'], when: (s) => s.pulse && s.rhythm.hr >= 60 && !paced(s), points: 3, severity: 'minor', text: 'Atropine with no slow pulse to treat. It is for symptomatic bradycardia: with a normal or fast rate it has nothing to treat, and any speeding only adds to the heart\'s oxygen demand — in an acute MI that can worsen the ischemia.' },
@@ -673,27 +849,27 @@ export const BUILT_IN_HARMS: Harm[] = [
   // diltiazem's contraindications (verapamil is the same drug class; the simulator offers it only intracoronary)
   { id: 'diltiazem-heart-failure', actions: ['diltiazem'], when: (s, sc) => s.pulse && hasProblem(sc, ['heart-failure']), points: 15, severity: 'critical', text: 'Diltiazem in a patient with heart failure. Calcium-channel blockers weaken the squeeze and open the vessels: with a reduced ejection fraction (40 % or less), with or without decompensated heart failure, IV diltiazem and verapamil must not be given (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm). Control the rate with amiodarone, or a beta-blocker if the lungs are not congested; an unstable patient needs synchronized cardioversion.' },
   { id: 'diltiazem-vt', actions: ['diltiazem'], when: (s) => s.pulse && ['vt', 'torsades'].includes(rhythmKind(s)), points: 15, severity: 'critical', text: 'Diltiazem for ventricular tachycardia. Treat a wide-complex tachycardia as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest (2025 AHA: 3 — Harm). A stable monomorphic VT gets procainamide or amiodarone; an unstable one, synchronized cardioversion.' },
-  { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => hasProblem(sc, ['long-qt']) || rhythmKind(s) === 'torsades', points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
+  { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => longQt(s, sc), points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
 
   // Drugs for a specific problem: without it they cannot help and only bring their risks. The case lists what the patient
   // has (Scenario.problems); "not well established" in a hyperkalemic arrest (2025 AHA) is never penalized.
   // calcium also reverses part of the low pressure IV diltiazem causes: for that low pressure (a pulse, a systolic under 90)
   // it is a fair answer. Not routinely in a later arrest, and not once the pressure is back: one therapeutic dose is no overdose
-  { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (s, sc) => !hasProblem(sc, CALCIUM_FOR) && !(has(s, 'diltiazem') && s.pulse && s.vitals.sbp < 90), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose (or the low pressure IV diltiazem causes) or a low calcium; otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
+  { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (s, sc) => !hasProblem(sc, CALCIUM_FOR) && !(has(s, 'diltiazem') && s.pulse && lowPressure(s)), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose (or the low pressure IV diltiazem causes) or a low calcium; otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
   { id: 'bicarbonate-no-indication', actions: ['sodium-bicarbonate'], when: (_s, sc) => !hasProblem(sc, BICARBONATE_FOR), points: 3, severity: 'minor', text: 'Sodium bicarbonate without an indication. It is for hyperkalemia, metabolic acidosis or a sodium-channel-blocker (e.g. tricyclic) overdose; routine bicarbonate in cardiac arrest has no benefit (2025 AHA), and it adds a sodium load and CO₂ the lungs must clear.' },
   { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s) => s.vitals.glucose < LOW_GLUCOSE, points: 10, severity: 'major', text: 'Insulin with a blood glucose under 70 mg/dL. Treat the low glucose first: insulin drives it lower, and the worst lows come 1–3 hours later.' },
   // 10 units is the potassium dose; a beta- or calcium-channel-blocker overdose needs far more, so it is too little there, not a mistake
   { id: 'insulin-no-indication', actions: ['insulin-dextrose'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 5, severity: 'minor', text: 'Insulin and dextrose without hyperkalemia. They shift potassium into the cells; with no high potassium they only risk a low glucose.' },
   { id: 'albuterol-hyperk-no-indication', actions: ['albuterol-hyperk'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia']), points: 3, severity: 'minor', text: 'High-dose albuterol (10–20 mg) without hyperkalemia. That dose is for shifting potassium and it races the heart; for wheezing the dose is 2.5–5 mg.' },
-  { id: 'magnesium-routine-arrest', actions: ['magnesium-sulfate'], when: (s, sc) => !s.pulse && rhythmKind(s) !== 'torsades' && !hasProblem(sc, ['long-qt']), points: 3, severity: 'minor', text: 'Magnesium in a cardiac arrest without torsades. Routine magnesium does not help VF, pulseless VT, PEA or asystole; it is for torsades de pointes.' },
+  { id: 'magnesium-routine-arrest', actions: ['magnesium-sulfate'], when: (s, sc) => !s.pulse && !longQt(s, sc), points: 3, severity: 'minor', text: 'Magnesium in a cardiac arrest without torsades. Routine magnesium does not help VF, pulseless VT, PEA or asystole; it is for torsades de pointes.' },
 
   // Procainamide: the stop rules and contraindications on its drug card (2025 AHA tachycardia algorithm)
   { id: 'procainamide-in-arrest', actions: ['procainamide'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Procainamide in cardiac arrest. It is a slow infusion (20–50 mg/min), not an arrest drug: amiodarone 300 mg or lidocaine is.' },
-  { id: 'procainamide-hypotension', actions: ['procainamide'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one: an unstable tachycardia needs synchronized cardioversion.' },
+  { id: 'procainamide-hypotension', actions: ['procainamide'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one: an unstable tachycardia needs synchronized cardioversion.' },
   // a pacer (pads or a wire) protects against the block it would deepen
   { id: 'procainamide-slow', actions: ['procainamide'], when: (s) => s.pulse && !paced(s) && (AV_BLOCKS.includes(rhythmKind(s)) || s.rhythm.hr < 50), points: 10, severity: 'major', text: 'Procainamide with AV block or a slow heart rate. It slows conduction further and can stop the heart; it is a drug for tachycardia.' },
   { id: 'procainamide-heart-failure', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['heart-failure']), points: 8, severity: 'major', text: 'Procainamide in a patient with heart failure. It weakens the squeeze and drops the pressure: in heart failure use amiodarone, or synchronized cardioversion.' },
-  { id: 'procainamide-long-qt', actions: ['procainamide'], when: (s, sc) => hasProblem(sc, ['long-qt']) || rhythmKind(s) === 'torsades', points: 10, severity: 'major', text: 'Procainamide with a long QT. It lengthens the QT further and can set off torsades de pointes.' },
+  { id: 'procainamide-long-qt', actions: ['procainamide'], when: (s, sc) => longQt(s, sc), points: 10, severity: 'major', text: 'Procainamide with a long QT. It lengthens the QT further and can set off torsades de pointes.' },
   // when one antiarrhythmic has not worked, the next step is a shock or expert advice, not a second drug on top
   { id: 'procainamide-after-amiodarone', actions: ['procainamide'], when: (s) => s.pulse && has(s, 'amiodarone'), points: 5, severity: 'minor', text: 'Procainamide on top of amiodarone. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
   { id: 'amiodarone-after-procainamide', actions: ['amio-infusion'], when: (s) => s.pulse && has(s, 'procainamide'), points: 5, severity: 'minor', text: 'Amiodarone on top of procainamide. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
@@ -701,6 +877,26 @@ export const BUILT_IN_HARMS: Harm[] = [
   // Glucose: judged on the patient's real glucose, checked or not
   { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE, points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
   { id: 'oral-glucose-cannot-swallow', actions: ['oral-glucose'], when: (s) => !canSwallow(s), points: 8, severity: 'major', text: 'Oral glucose for a patient too drowsy to swallow. It can be inhaled into the lungs: by mouth only if awake enough to swallow and protect the airway — otherwise IV dextrose (ALS).' },
+
+  // The second batch of actions: the high nitrate dose, a benzodiazepine, phenylephrine, the legs, blood and the scanner
+  // (with an LVAD: a Doppler MAP over 90 is the high pressure, 60 the low one)
+  { id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160), points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.' },
+  // sedation before a cardioversion or for the pacer is needed even with a low pressure (a smaller dose, titrated): a case
+  // with its own sedation rule says so in its own words
+  { id: 'midazolam-unsafe', actions: ['midazolam'], when: (s) => s.pulse && (lowPressure(s) || s.vitals.gcs <= 12) && !tachyarrhythmia(s) && !(s.rhythm.hr < 50 || paced(s)), points: 5, severity: 'major', text: 'Midazolam with a low pressure or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further: it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
+  { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && (s.lvad ? mapOf(s.vitals) >= 70 : s.vitals.sbp >= 120), points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension (sedation, a vasovagal drop, LV outflow obstruction); with a normal pressure it only adds afterload (which cuts an LVAD\'s flow) and slows the heart.' },
+  { id: 'phenylephrine-slow', actions: ['phenylephrine'], when: (s) => s.pulse && s.rhythm.hr < 50 && !paced(s), points: 3, severity: 'minor', text: 'Phenylephrine with a slow heart rate. The reflex slowing it brings makes the bradycardia worse: treat the rate first (atropine, pacing), or support the pressure with a drug that also speeds the heart (epinephrine).' },
+  { id: 'legs-up-pulmonary-edema', actions: ['legs-up'], when: (_s, sc) => hasProblem(sc, ['pulmonary-edema']), points: 5, severity: 'major', text: 'Raising the legs of a patient with fluid on the lungs. It pours more blood back into a heart that is already backing up into the lungs: sit them up with the legs down.' },
+  { id: 'fluid-pulmonary-edema', actions: ['fluid'], when: (s, sc) => s.pulse && hasProblem(sc, ['pulmonary-edema']), points: 8, severity: 'major', text: 'A fluid bolus in pulmonary edema. The lungs are already flooded: more volume worsens the breathing and the oxygen. Sit the patient up, CPAP, and nitroglycerin for a high pressure.' },
+  { id: 'transfuse-no-bleeding', actions: ['transfuse'], when: (_s, sc) => !hasProblem(sc, ['bleeding']), points: 3, severity: 'minor', text: 'Packed red cells with no bleeding to treat. Blood is for hemorrhage or a low hemoglobin; otherwise it adds volume, reaction and infection risks for nothing.' },
+  { id: 'ct-unstable', actions: ['ct-urgent'], when: (s) => s.pulse && lowPressure(s), points: 5, severity: 'major', text: 'Sending an unstable patient to the CT scanner. A systolic under 90 (with an LVAD, a Doppler MAP under 60) needs treatment here first (fluids, blood, pressors, the bleeding stopped): the scanner is no place to deteriorate.' },
+
+  // Problems the case lists, and a rhythm on the monitor, that make a usual drug dangerous
+  { id: 'beta-blocker-stimulant', actions: ['metoprolol'], when: (_s, sc) => hasProblem(sc, ['sympathomimetic-toxicity']), points: 8, severity: 'major', text: 'A beta-blocker in acute cocaine or stimulant toxicity. With the beta receptors blocked, the stimulant\'s alpha effect goes unopposed: worse coronary spasm and a higher pressure (2014 ACC/AHA NSTE-ACS guideline: no beta-blocker with signs of acute intoxication). A benzodiazepine first, then nitroglycerin for the chest pain and the pressure.' },
+  { id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major', text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.' },
+  { id: 'lytic-dissection', actions: ['tnk'], when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic in an aortic dissection. It can turn the tear into a fatal hemorrhage: a dissection that blocks a coronary ostium can mimic a STEMI — think of it before any lytic.' },
+  { id: 'av-blocker-preexcited-af', actions: AV_NODAL_BLOCKERS, when: (s) => preexcitedAf(s), points: 15, severity: 'critical', text: 'An AV-nodal blocker in pre-excited atrial fibrillation. Blocking the node sends every impulse down the accessory pathway: the rate climbs and it can turn into VF (2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem, verapamil, digoxin and IV amiodarone are harmful; beta-blockers too, 2015 SVT guideline). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.' },
+  { id: 'amiodarone-long-qt', actions: ['amio-infusion'], when: (s, sc) => s.pulse && longQt(s, sc), points: 5, severity: 'major', text: 'Amiodarone with a long QT. It lengthens the QT further and can set off (or keep up) torsades de pointes: magnesium, potassium, a faster heart rate and stopping the QT-prolonging drugs are the treatment.' },
 ];
 
 // ─── Engine ────────────────────────────────────────────────────────────────
@@ -749,7 +945,9 @@ function boundVitals(s: SimState) {
   v.gcs = clamp(v.gcs, 3, 15);
   v.sbp = clamp(v.sbp, s.pulse ? PERFUSING_FLOOR.sbp : 0, 250);
   v.dbp = clamp(v.dbp, s.pulse ? PERFUSING_FLOOR.dbp : 0, 140);
-  if (s.pulse && v.dbp > v.sbp - 10) v.dbp = Math.max(PERFUSING_FLOOR.dbp, v.sbp - 10);
+  // a continuous-flow LVAD narrows the pulse pressure to a few mmHg: keep the case's own
+  const pp = s.lvad ? LVAD_MIN_PULSE_PRESSURE : 10;
+  if (s.pulse && v.dbp > v.sbp - pp) v.dbp = Math.max(PERFUSING_FLOOR.dbp, v.sbp - pp);
 }
 
 /** Ask the learner for a read (the next one waits if one is already open) */
@@ -920,6 +1118,7 @@ export function start(sc: Scenario, role: LearningLevel): SimState {
     flags: {}, timers: {}, counts: {}, performed: [], log: [], penalties: [], fired: [], ended: null,
     pendingRead: null, queuedReads: [], reads: [], images: [], lastEcg: null,
   };
+  if (sc.initial.lvad) s.lvad = true;
   if (!s.pulse) {
     s.timers.arrestAt = 0;
     setFlag(s, 'arrest');

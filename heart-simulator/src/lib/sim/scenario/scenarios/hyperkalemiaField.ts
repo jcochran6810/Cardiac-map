@@ -119,6 +119,10 @@ export const hyperkalemiaField: Scenario = {
     nibp: (s) => (has(s, 'monitor') && s.pulse
       ? { say: [['monitor', `NIBP ${s.vitals.sbp}/${s.vitals.dbp} mmHg (cuff on the right arm, away from the fistula).`]], flags: ['bp'] }
       : null),
+    // a pressure in both arms is no option here: a cuff on the fistula arm can clot the fistula he lives by
+    'bp-both-arms': (s) => (s.pulse
+      ? { say: [['you', `Right arm ${s.vitals.sbp}/${s.vitals.dbp}. Not on the left: it carries his dialysis fistula — no cuff on that arm.`]], flags: ['bp', 'bp-arms'] }
+      : null),
 
     // Calcium raises the threshold the potassium has pushed the cells toward: within minutes the rate and the pressure
     // come up. It lowers no potassium and wears off in 30–60 minutes, so a repeat dose is for changes that persist or return.
@@ -449,7 +453,8 @@ export const hyperkalemiaField: Scenario = {
     { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
     // a pacer that has captured (after the calcium wore off) hurts: then analgesia and sedation are right
     {
-      id: 'sedation-no-pain', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp', points: 3, severity: 'minor',
+      // midazolam is the same mistake as 'sedation' here, so it replaces the built-in midazolam rule (one penalty, not two)
+      id: 'sedation-no-pain', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp', points: 3, severity: 'minor',
       text: 'An opioid or sedation for a patient with no pain and nothing to sedate him for. With his pressure this low and his breathing muscles weak, it only adds hypotension and slower, shallower breathing.',
     },
     { id: 'false-alert', actions: ['stemi-alert'], points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. It calls the cath lab team in for an artery that is not blocked, and points the patient at a lab when what he needs is dialysis.' },

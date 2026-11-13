@@ -76,8 +76,20 @@ export interface SimState {
   minute: number;
   rhythm: { profile: string; hr: number };
   vitals: Vitals;
-  /** the patient has a perfusing pulse */
+  /**
+   * the patient has a perfusing circulation (not in cardiac arrest). With a continuous-flow LVAD (`lvad`) that circulation
+   * is the pump's, and it has no pulse to feel
+   */
   pulse: boolean;
+  /**
+   * the patient lives on a continuous-flow left ventricular assist device (Scenario.initial.lvad). While the pump runs
+   * (`pulse` true) there is no palpable pulse, no cuff or NIBP pressure and only a Doppler MAP (the mean of `vitals`);
+   * the monitor's pleth is nearly flat. Whether the pump is perfusing is judged as the 2025 AHA durable LVAD algorithm
+   * does (engine lvadPerfusing): awake (GCS 9 or more) or a Doppler MAP over 50. An unresponsive LVAD patient with a MAP of
+   * 50 or less is not perfusing even with `pulse` true: compressions and the AED are right, not penalized. The pressure
+   * rules read the MAP (engine lowPressure: under 60), not the systolic. Absent for every other patient
+   */
+  lvad?: true;
   phase: string;
   /** flag → minute it was first set (e.g. monitor, iv, rosc, vf) */
   flags: Record<string, number>;
@@ -206,13 +218,29 @@ export type Problem =
    * harmful (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm) and procainamide is to be avoided
    */
   | 'heart-failure'
-  | 'long-qt';
+  | 'long-qt'
+  /** fluid on the lungs (e.g. hypertensive acute pulmonary edema): a fluid bolus or raised legs add to it */
+  | 'pulmonary-edema'
+  /** acute intoxication with cocaine, methamphetamine or another sympathomimetic: no beta-blocker (unopposed alpha) */
+  | 'sympathomimetic-toxicity'
+  /** an acute aortic dissection: antithrombotic and fibrinolytic drugs make the tear bleed */
+  | 'aortic-dissection'
+  /** major bleeding (e.g. a retroperitoneal bleed): what a transfusion of packed red cells treats */
+  | 'bleeding';
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'
   | 'labs' | 'echo' | 'ownNitro' | 'allergies'
   /** what the poison center advises (field: the 'poison-control' call) */
   | 'poisonControl'
+  /** the blood pressure in each arm ('bp-both-arms'; default: the same pressure in both) */
+  | 'bpArms'
+  /** the LVAD check: pump hum, controller display and alarms, power and driveline ('lvad-check') */
+  | 'lvad'
+  /** what the VAD team says on the phone ('call-vad') */
+  | 'vadTeam'
+  /** the urgent CT ('ct-urgent') */
+  | 'ct'
   | 'angio' | 'lvgram' | 'lvedp' | 'rhc' | 'ivus' | 'oct' | 'ffr' | 'final';
 
 export interface Timing {
@@ -238,7 +266,17 @@ export interface Scenario {
   conditionId?: string;
   /** opening lines, per role (falls back to `default`) */
   briefing: { default: Line[] } & Partial<Record<LearningLevel, Line[]>>;
-  initial: { rhythm: { profile: string; hr: number }; vitals: Vitals; pulse?: boolean; phase?: string };
+  initial: {
+    rhythm: { profile: string; hr: number }; vitals: Vitals; pulse?: boolean; phase?: string;
+    /**
+     * the patient lives on a continuous-flow LVAD (SimState.lvad): give `vitals` a narrow pulse pressure around the MAP the
+     * Doppler should read (e.g. 84/72 → Doppler MAP 76; a pulse pressure down to 2 mmHg is kept as written, e.g. 80/76 → 77);
+     * `pulse` stays true while the pump runs. The safety rules judge low pressure by the MAP (under 60) and, for CPR and the
+     * AED, perfusion by GCS 9 or more or a MAP over 50; a case that wants skin, capillary refill or EtCO₂ to decide says so in
+     * its own respond handlers
+     */
+    lvad?: boolean;
+  };
   /** answers to history and test questions */
   facts: Partial<Record<FactKey, string | ((s: SimState) => string)>>;
   /** real angiogram / fluoroscopy images for this patient: cine view id → key of CATH_IMAGES (added as they become available) */

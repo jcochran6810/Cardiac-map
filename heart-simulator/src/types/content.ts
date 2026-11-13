@@ -323,6 +323,7 @@ export const ECG_PROFILE_IDS = [
   'pericarditis', 'tamponade', 'asd', 'vsd', 'pfo',
   'pulmonary-embolism', 'aortic-dissection', 'hyperkalemia', 'paced', 'pea', 'pvt', 'tcp',
   'inferior-stemi-chb', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused', 'aivr',
+  'af-wpw', 'posterior-stemi', 'long-qt',
 ] as const;
 
 export type StructureId = (typeof STRUCTURE_IDS)[number];

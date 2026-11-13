@@ -178,7 +178,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'sedation', role: 4, when: (s) => has(s, 'timeout'),
     ask: 'He\'s anxious. Something to settle him for the procedure, please.',
-    accept: ['sedation', 'fentanyl'],
+    accept: ['sedation', 'fentanyl', 'midazolam'],
     thanks: 'Thanks.', fallback: 'Never mind — we\'ll manage.', gives: 'settled',
     label: 'Moderate sedation and analgesia',
     why: 'Light sedation (e.g. midazolam 1 mg with fentanyl 25 mcg) eases anxiety and cuts radial spasm; monitor the breathing and SpO₂ while it works.',
@@ -376,7 +376,7 @@ export const cathlabFfr: Scenario = {
     { id: 'iv', label: 'IV access', why: 'For sedation, heparin and adenosine.', done: ['iv', 'io'], roles: RN, points: 5 },
     { id: 'access', label: 'Radial arterial access', why: 'Radial first: fewer bleeding complications.', done: ['access', 'access-femoral'], roles: MD, points: 5 },
     { id: 'angio', label: 'Diagnostic angiography', why: 'Find the narrowing and judge it — then measure it if it is borderline.', done: ['angio'], roles: MD, points: 5 },
-    { id: 'md-spasm', label: 'Treat the radial spasm (vasodilator through the sheath)', why: 'Verapamil and nitroglycerin through the sheath, analgesia or more sedation, and patience: forcing a catheter through a spasm tears the artery.', done: ['radial-cocktail', 'sedation', 'fentanyl'], after: 'spasm', roles: MD, points: 10, target: { within: { flag: 'spasm', minutes: 2 } }, applies: (s) => has(s, 'spasm') },
+    { id: 'md-spasm', label: 'Treat the radial spasm (vasodilator through the sheath)', why: 'Verapamil and nitroglycerin through the sheath, analgesia or more sedation, and patience: forcing a catheter through a spasm tears the artery.', done: ['radial-cocktail', 'sedation', 'fentanyl', 'midazolam'], after: 'spasm', roles: MD, points: 10, target: { within: { flag: 'spasm', minutes: 2 } }, applies: (s) => has(s, 'spasm') },
     { id: 'heparin', label: 'Anticoagulate before the pressure wire', why: 'A pressure wire is a coronary wire: heparin 70–100 U/kg before it goes in.', done: ['heparin', 'bivalirudin'], roles: MD, points: 10 },
     { id: 'guide', label: 'A left guide for the LAD (EBU)', why: 'The LAD comes off the left main.', done: LEFT_GUIDES, roles: MD, points: 5 },
     { id: 'equalize', label: 'Equalize the pressure wire at the guide tip', why: 'Pd/Pa must read 1.00 at the guide tip before crossing, or every reading after it is off.', done: ['ffr-equalize'], roles: MD, points: 10 },
@@ -416,7 +416,7 @@ export const cathlabFfr: Scenario = {
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
   ],
   timings: [
-    { label: 'Spasm treated', actions: ['radial-cocktail', 'sedation', 'fentanyl'], target: 2, from: 'spasm' },
+    { label: 'Spasm treated', actions: ['radial-cocktail', 'sedation', 'fentanyl', 'midazolam'], target: 2, from: 'spasm' },
   ],
   deathAfter: 15,
   completeWhen: (s) => has(s, 'pci') && has(s, 'final-angio'),

@@ -53,8 +53,23 @@ export function arrestEtco2(s: Pick<SimState, 'flags'>): number {
   return 'cpr' in s.flags ? ARREST_ETCO2.cpr : ARREST_ETCO2.noFlow;
 }
 
+/**
+ * A pulse can be felt, and a cuff (manual or NIBP) can read a pressure: a perfusing circulation that is not a
+ * continuous-flow LVAD's. With an LVAD the patient can be awake and well perfused with neither.
+ */
+export const palpable = (s: Pick<SimState, 'pulse' | 'lvad'>) => s.pulse && !s.lvad;
+
+/** Mean arterial pressure (mmHg) from a systolic and diastolic pressure: what a Doppler reads over a continuous-flow LVAD */
+export const mapOf = (v: { sbp: number; dbp: number }) => Math.round((v.sbp + 2 * v.dbp) / 3);
+
 /** The lowest pressure a patient with a pulse shows: below it the circulation would have stopped */
 export const PERFUSING_FLOOR = { sbp: 50, dbp: 25 };
+
+/**
+ * mmHg: the narrowest pulse pressure kept over a continuous-flow LVAD (10 without one). The pump flows through systole and
+ * diastole alike, so a case may author 80/76 for a Doppler MAP of 77 and it stays that way after the first action.
+ */
+export const LVAD_MIN_PULSE_PRESSURE = 2;
 
 /**
  * The blood pressure after a drug or a bolus moves it, kept to what a living circulation can show: a fall stops at
@@ -67,7 +82,7 @@ export function bpAfter(s: SimState, dSbp: number, dDbp: number, ceiling = { sbp
   // a fall never raises a pressure that is already low, and a rise never lowers one that is already high
   const move = (v: number, d: number, floor: number, top: number) => (d < 0 ? Math.min(v, Math.max(floor, v + d)) : Math.max(v, Math.min(top, v + d)));
   const nSbp = move(sbp, dSbp, PERFUSING_FLOOR.sbp, ceiling.sbp);
-  const nDbp = Math.min(move(dbp, dDbp, PERFUSING_FLOOR.dbp, ceiling.dbp), nSbp - 10);
+  const nDbp = Math.min(move(dbp, dDbp, PERFUSING_FLOOR.dbp, ceiling.dbp), nSbp - (s.lvad ? LVAD_MIN_PULSE_PRESSURE : 10));
   return { sbp: nSbp, dbp: Math.max(PERFUSING_FLOOR.dbp, nDbp) };
 }
 

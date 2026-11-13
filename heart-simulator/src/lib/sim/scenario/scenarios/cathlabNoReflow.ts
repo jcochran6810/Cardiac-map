@@ -22,8 +22,8 @@ const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion-thrombus
 /** Every intracoronary drug that acts on the microvessels: the three vasodilators and epinephrine */
 const MICRO = [...NO_REFLOW_VASODILATORS, 'ic-epinephrine'];
 
-/** What holds the pressure up while the flow is stalled: epinephrine (intracoronary or IV), norepinephrine, a pump */
-const SUPPORT = ['ic-epinephrine', 'pressor', 'push-epi', 'iabp', 'impella'];
+/** What holds the pressure up while the flow is stalled: epinephrine (intracoronary or IV), norepinephrine, a phenylephrine bolus, a pump */
+const SUPPORT = ['ic-epinephrine', 'pressor', 'push-epi', 'phenylephrine', 'iabp', 'impella'];
 
 /** The earliest of several minutes (null if none) */
 const earliest = (...mins: (number | null | undefined)[]) => {
@@ -405,6 +405,13 @@ export const cathlabNoReflow: Scenario = {
       const bp = bpAfter(s, 16, 10);
       return { say: [['you', 'Push-dose epinephrine 20 mcg IV.'], ['monitor', `BP ${bp.sbp}/${bp.dbp} for a few minutes.`]], vitals: bp, flags: ['push-epi', 'supported', 'pressure-up'] };
     },
+    // a phenylephrine bolus raises the aortic (so the coronary perfusion) pressure as push-dose epinephrine does, without its
+    // rate: it holds the pressure up for a few minutes (the flow still needs the intracoronary drugs)
+    phenylephrine: (s) => {
+      if (!s.pulse || !has(s, 'no-reflow')) return null;
+      const bp = bpAfter(s, 16, 10);
+      return { say: [['you', 'Phenylephrine 100 mcg IV, flushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp} for a few minutes.`]], vitals: bp, flags: ['phenylephrine', 'supported', 'pressure-up'] };
+    },
     // a pump holds the pressure up once it is in (it takes minutes), so the pressure does not keep falling under it;
     // it does nothing for the plugged microvessels. Both need a femoral artery: the case runs from the radial.
     iabp: (s) => {
@@ -544,7 +551,7 @@ export const cathlabNoReflow: Scenario = {
       why: 'Flow through the damaged bed depends on the aortic pressure, and a systolic of 86 makes no-reflow worse. Intracoronary epinephrine lifts it and opens the microvessels; norepinephrine if more is needed.',
       done: (s) => {
         const back = has(s, 'reflow') && s.flags.reflow <= s.flags['no-reflow'] + 3 ? startedAt(s, 'reflow', MICRO) : null;
-        return earliest(startedAt(s, 'supported', ['ic-epinephrine', 'pressor', 'push-epi']), back);
+        return earliest(startedAt(s, 'supported', ['ic-epinephrine', 'pressor', 'push-epi', 'phenylephrine']), back);
       },
       uses: SUPPORT,
     },
@@ -573,7 +580,7 @@ export const cathlabNoReflow: Scenario = {
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'The no-reflow, every drug and dose and when, the final flow, the ACT and the heparin, the access site — and that the infarct is likely bigger than it looked: watch for heart failure and arrhythmias.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
-    { id: 'nitro-low-pressure', actions: ['nitro', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
+    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
     { id: 'verapamil-low-pressure', actions: ['ic-verapamil'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'Intracoronary verapamil with a systolic pressure under 90 mmHg. It relaxes the vessels and weakens the squeeze, so the pressure falls further — and a lower perfusion pressure makes no-reflow worse. Support the pressure first, or use intracoronary epinephrine.' },
     { id: 'stent-for-no-reflow', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'no-reflow'), points: 10, severity: 'major', text: 'Another stent for slow flow in an artery that is already open. Unless imaging shows a dissection or clot at the stent, the obstruction is in the small vessels beyond it: more metal pushes more debris downstream and fixes nothing.' },
     { id: 'balloon-for-no-reflow', actions: ['balloon-predil', 'balloon-nc'], roles: MD, when: (s) => has(s, 'no-reflow'), points: 5, severity: 'minor', text: 'More balloon inflations for slow flow in a well-expanded stent. The obstruction is beyond the stent; every inflation squeezes more debris downstream.' },

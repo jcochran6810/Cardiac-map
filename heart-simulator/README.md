@@ -158,16 +158,20 @@ library section or tool also resets the speed to real time and closes the electr
 
 `src/lib/sim/scenario/` (engine, interventions, scenarios) · `src/store/useSimStore.ts` · `src/components/simulator/`
 
-- **Every action in your scope is offered — right or wrong** (`interventions.ts`: ~130 actions tagged by role
+- **Every action in your scope is offered — right or wrong** (`interventions.ts`: ~150 actions tagged by role
   and setting, including the cath lab's views, catheters, guides, wires, balloons, stents, support devices,
   physiology and imaging, and lab drugs). Each one takes case time and changes the patient: the rhythm on the monitor and the live
   12-lead, the vitals, and the story (patient, partner, team, monitor, hospital).
 - **The monitor starts unplugged**: the ECG, SpO₂ and capnography appear only once you attach them; the
   NIBP box shows the last blood pressure you took. Nothing reads the tracings for you: the monitor reports
-  numbers, and rhythm changes come as a "monitor alarm".
+  numbers, and rhythm changes come as a "monitor alarm". A case can put the patient on a continuous-flow **LVAD**
+  (`initial.lvad`): perfusing and awake with no pulse to feel, no cuff or NIBP pressure (the NIBP box shows a failed
+  reading), a nearly flat pleth, and a **Doppler MAP** as the only pressure. As in the 2025 AHA durable-LVAD
+  algorithm, perfusion decides: awake, or a MAP over 50, means no compressions and no AED; unresponsive with a MAP
+  of 50 or less means CPR and the AED. The pressure rules read the MAP (under 60 is low), not the systolic.
 - **You read every 12-lead, and the app checks it at once** (`reads.ts`): the app is self-paced — no
   instructor or preceptor is needed. After a paramedic, tech, nurse or cardiologist records a 12-lead, the
-  case waits for their read, chosen from every interpretation the app can show (43, in four groups). The
+  case waits for their read, chosen from every interpretation the app can show (45, in four groups). The
   **Feedback** line in the case story answers at once: correct, partly right or not quite, with the
   explanation of the tracing. A misread costs 5 points (2 if partly right) and the review lists every read.
   EMTs acquire and transmit without reading.
@@ -246,14 +250,14 @@ library section or tool also resets the speed to real time and closes the electr
 
 `src/data/content/cathlab*.ts` (content) · `src/lib/cathlab/views.ts` (view angles) · main menu → **Cath lab catalog**
 
-78 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
+79 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
 balloons and stents, physiology and intravascular imaging, mechanical support and pacing, pressures and
 hemodynamics, lab drugs, complications, team and safety. Each item says what it is, the numbers to know,
 pearls and pitfalls, and **what the tech, the nurse and the cardiologist each do with it** (your own role is
 highlighted). A view shows the C-arm position, turns the 3D heart to that angle and lights up the arteries it
 shows best. Each item links to the simulator cases that use it ("Practice it"). The simulator's case list
-points lab roles to the catalog first. **Every item shows real images** (one to three) — angiograms in
-labeled C-arm views, catheters, wires, balloons and stents on fluoroscopy, pressure tracings and consoles,
+points lab roles to the catalog first. **Every item but one shows real images** (one to three; the newest,
+periprocedural stroke, still lists the head CT it wants) — angiograms in labeled C-arm views, catheters, wires, balloons and stents on fluoroscopy, pressure tracings and consoles,
 IVUS and OCT, echo and X-rays, complications, devices, the lab team and safety gear, drug vials (or what the
 drug does on an angiogram or ECG) — each with what it shows, tap to enlarge, and its credit and license
 linked; captions say when an image comes from outside the cath lab. A test checks every link, every

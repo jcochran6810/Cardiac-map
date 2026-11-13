@@ -203,6 +203,10 @@ export const stableVtField: Scenario = {
     sedation: (s) => (inVt(s)
       ? { say: [['you', 'Small dose of procedural sedation and analgesia: drowsy but rousable, breathing well, capnography on.']], vitals: bpAfter(s, -4, -2), flags: ['sedation'] }
       : null),
+    // midazolam is the procedural sedation before his shock, as 'sedation' is
+    midazolam: (s) => (inVt(s)
+      ? { say: [['you', 'Midazolam 1 mg IV, small and titrated: drowsy but rousable, breathing well, capnography on.']], vitals: bpAfter(s, -4, -2), flags: ['sedation', 'benzodiazepine'] }
+      : null),
     cardiovert: (s) => {
       if (!inVt(s)) return null;
       const awake = s.vitals.gcs >= 14 && !comfortable(s);
@@ -351,7 +355,7 @@ export const stableVtField: Scenario = {
         const at = Math.min(s.flags.sedation ?? Infinity, s.flags.analgesia ?? Infinity);
         return at <= (s.flags.cardioverted ?? Infinity) && at < Infinity ? at : null;
       },
-      uses: ['sedation', 'fentanyl'], points: 5, applies: (s) => has(s, 'cardioverted'),
+      uses: ['sedation', 'fentanyl', 'midazolam'], points: 5, applies: (s) => has(s, 'cardioverted'),
     },
     {
       id: 'arrest-shock', label: 'No pulse: defibrillate within 2 minutes', why: 'Witnessed VF or pulseless VT with pads on: shock it at once — every minute without a shock lowers survival.',
@@ -392,7 +396,7 @@ export const stableVtField: Scenario = {
     { id: 'adenosine-unstable', actions: ['adenosine6', 'adenosine12'], when: (s) => inVt(s) && unstable(s), points: 5, severity: 'major', text: 'Adenosine for a wide-complex tachycardia that had become unstable (2025 AHA: 3 — Harm). Unstable means synchronized cardioversion now; adenosine only delays it, and in a wide-complex tachycardia it can set off VF.' },
     // with a low pressure a pressor is a bridge (the shock is still what he needs), so only a normal pressure makes it a mistake
     { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => inVt(s) && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs drive a ventricular circuit faster and can turn it into VF.' },
-    { id: 'nitro-no-pain', actions: ['nitro'], when: (s) => inVt(s) && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; in a fast tachycardia it only lowers the pressure the heart is struggling to keep up.' },
+    { id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => inVt(s) && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; in a fast tachycardia it only lowers the pressure the heart is struggling to keep up.' },
     { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. His 12-lead shows none: the heart center needs a radio report for its cardiologist and electrophysiology team, not a cath lab activation.' },
     { id: 'cpap-hypotension', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 5, severity: 'major', text: 'CPAP with a systolic pressure under 90. Positive pressure cuts the blood returning to the heart and drops the pressure further: an unstable tachycardia needs synchronized cardioversion.' },
     // after the shock that brought him back, oxygen titrated to 90–98 % is post-arrest care, not a mistake

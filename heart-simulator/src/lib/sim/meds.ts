@@ -114,11 +114,11 @@ export type Category =
   | 'arrest' | 'torsades' | 'svt' | 'af' | 'flutter' | 'vt' | 'brady' | 'junctional' | 'avb1' | 'wenckebach'
   | 'mobitz2' | 'chb' | 'paced' | 'aivr' | 'sinus-tach' | 'pvcs' | 'hyperk' | 'stemi' | 'sinus';
 
-const STEMI = new Set(['anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'inferior-stemi-chb']);
+const STEMI = new Set(['anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'inferior-stemi-chb', 'posterior-stemi']);
 /** sinus tachycardia that is a response to something else (shock, PE, tamponade, pericarditis…) */
 const COMPENSATORY = new Set(['sinus-tachycardia', 'cardiogenic-shock', 'pulmonary-embolism', 'tamponade', 'pericarditis']);
 /** acute coronary syndromes, whatever the rhythm (antiplatelets and anticoagulation belong here) */
-const ACS = new Set(['anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'inferior-stemi-chb', 'cardiogenic-shock', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused', 'nstemi', 'wellens']);
+const ACS = new Set(['anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'inferior-stemi-chb', 'posterior-stemi', 'cardiogenic-shock', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused', 'nstemi', 'wellens']);
 const isAcs = (p: ECGProfile) => ACS.has(p.id);
 const DISSECTION = 'aortic-dissection';
 /** anti-impulse therapy in acute aortic syndrome (2022 ACC/AHA aortic disease guideline) */
@@ -1621,10 +1621,66 @@ export function describeDose(def: MedDef, p: Patient, dose: number, cls = classi
   return `${fmtDose(dose)} ${def.unit}${PER_KG[def.id] ? ` = ${perKg}` : ''}${total} — ${what}`;
 }
 
+/** Drugs that block or slow the AV node: in pre-excited AF they send every impulse down the accessory pathway (sotalol is a β-blocker too) */
+const NODAL_BLOCKERS: MedId[] = ['adenosine', 'diltiazem', 'metoprolol', 'esmolol', 'sotalol', 'digoxin', 'amiodarone'];
+/** Drugs that lengthen the QT further */
+const QT_PROLONGING: MedId[] = ['amiodarone', 'procainamide', 'sotalol'];
+
+/**
+ * What a drug's own plan, which reads the rhythm by its category, does not see: atrial fibrillation down an accessory
+ * pathway (pre-excited AF, the 'af-wpw' profile — 2023 ACC/AHA/ACCP/HRS AF and 2015 ACC/AHA/HRS SVT guidelines) and a
+ * long QT outside torsades (QTc 500 ms or more, the 'long-qt' profile — 2017 AHA/ACC/HRS ventricular arrhythmia guideline)
+ */
+function rhythmCaveats(id: MedId, p: Patient, plan: { verdict: Verdict; steps: EffectStep[] }): { verdict: Verdict; steps: EffectStep[] } {
+  const prof = resolveProfile(p.profileId);
+  if (prof.hemo === 'no-output') return plan;
+  if (prof.pathway) {
+    if (NODAL_BLOCKERS.includes(id)) {
+      return {
+        verdict: bad(`Harmful in pre-excited AF: blocking the AV node sends every impulse down the accessory pathway — the rate climbs and it can degenerate into VF (2023 AF guideline: adenosine, diltiazem, verapamil, digoxin and IV amiodarone are harmful; beta-blockers too${id === 'sotalol' ? ', and sotalol is a β-blocker' : ''}). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.`),
+        steps: [{ at: id === 'adenosine' ? 20 * S : 2 * MIN, hr: rate(p.hr, 1.12, 30, 250), note: 'With the AV node blocked, more impulses race down the pathway: the rate climbs and the complexes widen.', tone: 'warn', mark: 'faster' }],
+      };
+    }
+    if (id === 'procainamide' && plan.verdict.tone !== 'bad') {
+      return {
+        verdict: good('Stable pre-excited AF: IV procainamide (or ibutilide) slows conduction down the accessory pathway and can convert it (2023 AF guideline); synchronized cardioversion if the patient is unstable or it fails.'),
+        // once converted, the sinus beats still come down the pathway: the WPW pattern returns
+        steps: plan.steps.map((st) => (st.profile === 'normal-sinus' ? { ...st, profile: 'wpw', note: 'Converted to sinus rhythm — with the delta waves of the pathway (WPW pattern).' } : st)),
+      };
+    }
+    // magnesium slows the AV node a little, which does nothing for impulses that go down the pathway
+    if (id === 'magnesium-sulfate' && plan.verdict.tone !== 'bad') {
+      return {
+        verdict: caution('Not a treatment for pre-excited AF: magnesium acts on the AV node, not the accessory pathway, so it does not slow the ventricles here (it can replace a low level). Unstable: synchronized cardioversion; stable: IV procainamide or ibutilide.'),
+        steps: plan.steps.map((st) => (st.hr !== undefined && st.profile === undefined && st.hr < p.hr
+          ? { at: st.at, note: 'No change in the ventricular rate: the accessory pathway, not the AV node, sets it.', tone: 'effect' as const }
+          : st)),
+      };
+    }
+  }
+  if (prof.qtc >= 500 && prof.rhythm !== 'torsades') {
+    // a drug that suppresses the PVCs (lidocaine) does not shorten the QT: the tracing keeps its long QT (and the risk)
+    const longQtStays = `The QT stays long (QTc about ${prof.qtc} ms): this drug does not shorten it. Magnesium, potassium to 4.0 or more and stopping every QT-prolonging drug are the treatment.`;
+    if (plan.steps.some((st) => st.profile !== undefined && st.profile !== prof.id)) {
+      return {
+        verdict: { ...plan.verdict, text: `${plan.verdict.text} ${longQtStays}` },
+        steps: plan.steps.map((st) => (st.profile !== undefined && st.profile !== prof.id ? { ...st, profile: prof.id, note: longQtStays, mark: undefined } : st)),
+      };
+    }
+    if (QT_PROLONGING.includes(id) && plan.verdict.tone !== 'bad') {
+      return { verdict: bad(`Not with a long QT (QTc about ${prof.qtc} ms): it lengthens the QT further and can set off torsades de pointes. Magnesium, potassium to 4.0 or more, and stop every QT-prolonging drug.`), steps: plan.steps };
+    }
+    if (id === 'magnesium-sulfate' && plan.verdict.tone !== 'bad') {
+      return { verdict: good(`A long QT (QTc about ${prof.qtc} ms) with PVCs: magnesium 2 g IV suppresses the afterdepolarizations that start torsades (it does not shorten the QT). Correct potassium to 4.0 or more and stop the QT-prolonging drugs.`), steps: plan.steps };
+    }
+  }
+  return plan;
+}
+
 /** Everything that happens when this dose is given to this patient now */
 export function planDose(id: MedId, p: Patient, dose: number): DosePlan {
   const def = MED_BY_ID[id];
   const doseClass = classifyDose(def, p, dose);
-  const { verdict, steps } = def.plan(p, dose, doseClass);
+  const { verdict, steps } = rhythmCaveats(id, p, def.plan(p, dose, doseClass));
   return { doseClass, doseText: describeDose(def, p, dose, doseClass), verdict, steps: [...steps].sort((a, b) => a.at - b.at) };
 }
