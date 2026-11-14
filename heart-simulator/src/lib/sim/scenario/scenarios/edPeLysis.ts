@@ -973,7 +973,7 @@ export const edPeLysis: Scenario = {
     },
     {
       // heparin follows a tenecteplase bolus or an arrest push; it is the 2-hour alteplase infusion it must not run with
-      id: 'heparin-extra', actions: ['heparin'], roles: ED_TEAM, when: (s) => has(s, 'heparin') || has(s, 'alteplase-infusion'), points: 3, severity: 'minor',
+      id: 'heparin-extra', actions: ['heparin'], roles: ED_TEAM, when: (s) => has(s, 'heparin') || has(s, 'alteplase-infusion'), points: 3, severity: 'minor', replaces: ['heparin-repeat-unguided'],
       text: 'Heparin on top of a dose already in, or while the alteplase runs. The heparin goes in first, at once; the drip is paused during the 2-hour alteplase infusion and restarted when it ends (once the aPTT is under twice normal) — heparin during the lytic only adds bleeding.',
     },
     {

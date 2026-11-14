@@ -674,7 +674,7 @@ export const cathlabTempWire: Scenario = {
     // the built-in midazolam rule lets a paced patient be sedated (for the pads); once the wire paces, nothing hurts that
     // needs it, so a falling pressure (the tamponade) makes it a mistake again
     { id: 'sedation-low-pressure', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && s.rhythm.profile === 'paced' && s.vitals.sbp < 90, points: 5, severity: 'major', text: 'Sedation with a falling pressure once the wire is pacing. The wire needs no sedation (only the pads pacing hurts), and a benzodiazepine drops the pressure and the breathing further: support the pressure and find out why it is falling.' },
-    { id: 'anticoagulant-perforation', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: (s) => has(s, 'perforated'), points: 8, severity: 'major', text: 'An anticoagulant or antiplatelet drug after the wire has come through the RV wall. It keeps the hole bleeding into the pericardium.' },
+    { id: 'anticoagulant-perforation', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: (s) => has(s, 'perforated'), replaces: ['heparin-repeat-unguided'], points: 8, severity: 'major', text: 'An anticoagulant or antiplatelet drug after the wire has come through the RV wall. It keeps the hole bleeding into the pericardium.' },
     askHarm(RN_ASKS[0], 'Atropine when the operator asked you to get the rate up. It already failed in the ED, and a wide escape means the block is below the AV node, where atropine rarely works: pace her through the pads (or start an epinephrine drip).'),
   ],
   timings: [

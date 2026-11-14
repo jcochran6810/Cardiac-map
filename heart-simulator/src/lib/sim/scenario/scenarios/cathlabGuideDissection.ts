@@ -469,7 +469,8 @@ export const cathlabGuideDissection: Scenario = {
       const reply = s.role === 4 ? 'I see it — thanks. Treat her rate and her pressure for me.' : 'I see it — thanks. Nobody injects.';
       return { say: [['you', said], ['operator', reply]], flags: ['callout', 'dissection-called'] };
     },
-    // the heparin from the start of the case, unless it was reversed (protamine) or topped up on top of a good ACT
+    // the heparin from the start of the case, unless it was reversed (protamine) or topped up on top of a good ACT. A low ACT
+    // is what guides the next heparin bolus (the built-in heparin-repeat-unguided reads the timer)
     act: (s) => ({
       say: [['team', reversed(s)
         ? 'ACT 158 s: the heparin is largely reversed — too low for a wire and a stent in a coronary.'
@@ -477,6 +478,7 @@ export const cathlabGuideDissection: Scenario = {
           ? 'ACT 356 s: above the PCI range.'
           : 'ACT 272 s: in range for PCI.']],
       flags: ['act'],
+      ...(reversed(s) ? { timers: { actLowAt: s.minute } } : {}),
     }),
     // nobody answers questions in cardiac arrest (the case's own answers would otherwise be spoken by her)
     opqrst: (s) => (s.pulse ? null : { blocked: true, say: [['system', 'Not in cardiac arrest: she cannot answer. Shock first.']] }),
@@ -811,7 +813,7 @@ export const cathlabGuideDissection: Scenario = {
     { id: 'beta-blocker-after', actions: ['metoprolol'], when: (s) => !stillSlowOrLow(s), points: 3, severity: 'minor', text: 'An IV beta-blocker with nothing to treat. Minutes ago the closing RCA gave her a rate of 48 and a pressure of 84: an IV beta-blocker is not routine after a myocardial infarction and is avoided in anyone at risk of a low output (2025 ACC/AHA ACS). An oral one can start on the unit once she is stable.' },
     // the heparin from the start of the case still holds the ACT in range (272 s): more only adds bleeding. After protamine
     // has reversed it, a new bolus is right
-    { id: 'heparin-extra', actions: ['heparin'], when: (s) => !reversed(s), points: 3, severity: 'minor', text: 'Another heparin bolus with the ACT already in range. More heparin adds bleeding — into the wall of the torn artery among other places — and treats nothing: check the ACT and redose only when it falls below the PCI target (250–300 s).' },
+    { id: 'heparin-extra', actions: ['heparin'], when: (s) => !reversed(s), points: 3, severity: 'minor', replaces: ['heparin-repeat-unguided'], text: 'Another heparin bolus with the ACT already in range. More heparin adds bleeding — into the wall of the torn artery among other places — and treats nothing: check the ACT and redose only when it falls below the PCI target (250–300 s).' },
     // no tachycardia anywhere in this case: drugs that slow the node or treat an arrhythmia only slow a heart the RCA has
     // slowed and drop its pressure. While the nurse's rate request is open, a wrong answer to it is that request's own
     // penalty ('wrong-rn-rate'): one mistake, one penalty

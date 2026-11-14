@@ -142,7 +142,8 @@ function act(s: SimState, who: Speaker): Effect {
   if (has(s, 'heparin-topup')) return { say: [[who, 'ACT 268 s.']], flags: ['act'] };
   if (has(s, 'bivalirudin')) return { say: [[who, 'ACT 334 s, with bivalirudin running.']], flags: ['act'] };
   if (has(s, 'gp2b3a')) return { say: [[who, 'ACT 212 s, with eptifibatide running.']], flags: ['act'] };
-  return { say: [[who, 'ACT 212 s.']], flags: ['act', 'act-low'] };
+  // below the PCI range: what guides the heparin top-up (the built-in heparin-repeat-unguided reads the timer)
+  return { say: [[who, 'ACT 212 s.']], flags: ['act', 'act-low'], timers: { actLowAt: s.minute } };
 }
 
 /** A balloon or a stent once the flow has stalled: the artery is open, so more metal and more pressure only push more debris downstream */

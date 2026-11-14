@@ -225,8 +225,9 @@ describe('stent thrombosis in the cath lab: what each step does', () => {
     // the latest top-up after the latest protamine: back in range
     expect(lastSaid(s)).toBe('ACT 276 s.');
     expect(penalties(s)).not.toContain('heparin-repeat-unguided');
-    // a top-up with the ACT already in range is unguided
-    expect(penalties(run(sc, 5, ['act', 'heparin', 'act', 'heparin']))).toContain('heparin-repeat-unguided');
+    // a top-up with the ACT already in range is charged once: the case's own rule (a second anticoagulant dose on one in range)
+    // stands in for the built-in unguided-bolus rule
+    expect(penalties(run(sc, 5, ['act', 'heparin', 'act', 'heparin']))).toEqual(['double-anticoagulant']);
   });
 
   it('aspiration with the drugs on board brings the flow back for good, with the ST elevation coming down', () => {

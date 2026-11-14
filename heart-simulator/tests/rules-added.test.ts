@@ -3,7 +3,8 @@
  * case rule with the same id replaces it; and one dose earns one penalty (the gate order within a drug's rules).
  */
 import { describe, expect, it } from 'vitest';
-import { perform, start } from '@/lib/sim/scenario/engine';
+import { perform, review, start, stop } from '@/lib/sim/scenario/engine';
+import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import type { Harm, Setting } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
@@ -448,5 +449,40 @@ describe('the field\'s new actions: temperature and cooling, spinal motion restr
     const vf = field(VF_ARREST);
     for (const id of ['calm', 'restrain', 'restrain-prone']) expect(perform(vf, start(vf, 2), id).counts[id], id).toBeUndefined();
     for (const id of ['calm', 'restrain', 'restrain-prone', 'smr']) expect(INTERVENTION_BY_ID[id], id).toMatchObject({ roles: [1, 2], settings: ['field'] });
+  });
+});
+
+describe('heparin-repeat-unguided in the cases: a case rule that charges the repeat stands in for it (one dose, one penalty)', () => {
+  const ids = (id: string, role: LearningLevel, steps: string[]) => run(SCENARIO_BY_ID[id], role, steps).penalties.map((p) => p.id);
+  const unguided = (id: string, role: LearningLevel, steps: string[]) => ids(id, role, steps).filter((p) => p === 'heparin-repeat-unguided');
+
+  it('the second dose earns the case\'s rule alone', () => {
+    expect(ids('pulmonary-embolism-lysis-ed', 7, ['ems-handoff', 'pocus', 'heparin', 'heparin'])).toEqual(['heparin-extra']);
+    expect(ids('stent-thrombosis-cathlab', 5, ['act', 'heparin', 'cangrelor', 'heparin'])).toEqual(['double-anticoagulant']);
+    expect(ids('scad-cathlab', 5, ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'heparin'])).toEqual(['antithrombotic-after-scad']);
+    expect(unguided('guide-dissection-cathlab', 5, ['stop-contrast', 'protamine', 'heparin', 'heparin'])).toEqual([]);
+    const wire = ['pads', 'pace', 'fentanyl', 'midazolam', 'pulse-check', 'sample', 'consent', 'timeout', 'access-venous', 'heparin', 'temp-wire', 'ecg12-repeat', 'reassess', 'reposition', 'echo', 'heparin'];
+    expect(ids('heart-block-temp-wire-cathlab', 5, wire).filter((p) => ['heparin-repeat-unguided', 'anticoagulant-perforation'].includes(p))).toEqual(['anticoagulant-perforation']);
+  });
+
+  it('re-heparinizing after protamine once the ACT reads low is guided; the no-reflow ACT under range guides the top-up', () => {
+    for (const role of [4, 5] as const) {
+      const s = run(SCENARIO_BY_ID['guide-dissection-cathlab'], role, ['heparin', 'protamine', 'act', 'heparin']);
+      expect(s.log.some((l) => /^ACT 158 s/.test(l.text)), String(role)).toBe(true);
+      expect(s.penalties.map((p) => p.id), String(role)).not.toContain('heparin-repeat-unguided');
+    }
+    // without the ACT first, the same re-dose is unguided
+    expect(unguided('guide-dissection-cathlab', 5, ['heparin', 'protamine', 'heparin'])).toEqual(['heparin-repeat-unguided']);
+    expect(run(SCENARIO_BY_ID['no-reflow-cathlab'], 5, ['act', 'heparin']).penalties).toEqual([]);
+    expect(run(SCENARIO_BY_ID['no-reflow-cathlab'], 5, ['act']).timers.actLowAt).toBeDefined();
+  });
+
+  it('SCAD: with no heparin given there is nothing to stop, and no item to miss for it', () => {
+    const md = ['consent', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial'];
+    const sc = SCENARIO_BY_ID['scad-cathlab'];
+    const missedItems = review(sc, stop(run(sc, 5, md))).toFix.filter((t) => t.kind === 'missed').map((t) => t.label);
+    expect(missedItems).not.toContain('Once the SCAD is seen: stop the heparin — no top-up, no drip');
+    const given = review(sc, stop(run(sc, 5, ['consent', 'heparin', ...md.slice(1)]))).toFix.filter((t) => t.kind === 'missed').map((t) => t.label);
+    expect(given).toContain('Once the SCAD is seen: stop the heparin — no top-up, no drip');
   });
 });
