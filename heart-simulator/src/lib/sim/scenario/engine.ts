@@ -836,10 +836,10 @@ function historyAnswer(s: SimState, own: string | null, text: string, flag: stri
 const noEcgInArrest: Effect = { blocked: true, say: [['system', 'No 12-lead in cardiac arrest: treat the rhythm on the monitor.']] };
 
 /**
- * The sinus node sets the rate, with a pulse. Not in PEA (organized complexes, no output), and not with a high potassium:
- * its slow rate comes from the potassium, which neither the vagus nor an adrenergic drug undoes — the case says what helps.
+ * The sinus node sets the rate, with a pulse. Not in PEA (organized complexes, no output), and not with a high potassium
+ * at any stage ('hyperkalemia', '-moderate', '-severe'): its slow rate comes from the potassium, which neither the vagus nor an adrenergic drug undoes — the case says what helps.
  */
-const sinusNode = (s: SimState) => s.pulse && rhythmKind(s) === 'sinus' && s.rhythm.profile !== 'hyperkalemia';
+const sinusNode = (s: SimState) => s.pulse && rhythmKind(s) === 'sinus' && !s.rhythm.profile.startsWith('hyperkalemia');
 
 /**
  * The heart rate after an adrenergic or vagolytic drug speeds the sinus node (up to `cap`), or null: other rhythms are left

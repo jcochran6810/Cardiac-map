@@ -34,6 +34,15 @@ describe('paced rhythms', () => {
 });
 
 describe('hyperkalemia: the tracing moves with the potassium', () => {
+  it('at every stage the potassium, not the sinus node, sets the rate: atropine and adrenergic drugs leave it to the case', () => {
+    const sc = SCENARIO_BY_ID['stemi-anterior-field'];
+    const s0 = { ...start(sc, 2), flags: { ...start(sc, 2).flags, iv: 0 } };
+    for (const profile of ['hyperkalemia', 'hyperkalemia-moderate', 'hyperkalemia-severe']) {
+      const s = { ...s0, pulse: true, rhythm: { profile, hr: 40 } };
+      for (const id of ['atropine', 'push-epi']) expect(perform(sc, s, id).rhythm, `${profile} ${id}`).toEqual({ profile, hr: 40 });
+    }
+  });
+
   it('in the ED: untreated it becomes a sine wave, which calcium opens out again (still wide); the shift shrinks it', () => {
     const sc = SCENARIO_BY_ID['hyperkalemia-ed'];
     let s = runScenario(sc, 7, ['primary', 'iv']);
