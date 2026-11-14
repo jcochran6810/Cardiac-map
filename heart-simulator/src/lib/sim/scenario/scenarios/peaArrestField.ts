@@ -106,6 +106,9 @@ export const peaArrestField: Scenario = {
     // compressions only so far: no one has given her a breath, so there is nothing for a capnograph to measure
     vitals: { sbp: 0, dbp: 0, spo2: 60, rr: 0, etco2: 3, pain: 0, gcs: 3, glucose: 146, temp: 36.4 },
   },
+  // what the built-in safety rules read (types.ts Problem): her COPD, wheezing after the ROSC — albuterol and a steroid
+  // treat it, and it rules out the drugs that tighten the airways
+  problems: ['asthma', 'bronchospasm'],
   facts: {
     opqrst: 'She cannot answer. Her husband: "Three days of getting more and more short of breath, coughing up thick green phlegm. Today she couldn\'t finish a sentence or lie flat, and she was using her inhaler every hour. Then she started gasping, her lips went blue, and she went quiet."',
     sample: 'Her husband: "She has bad COPD — emphysema — and she\'s on 2 liters of oxygen at home. Albuterol and ipratropium inhalers, tiotropium, and prednisone her doctor started on Monday for a chest cold. No allergies. She smoked for 40 years. No heart trouble that we know of, no kidney problems. There\'s no DNR — she would want you to try."',

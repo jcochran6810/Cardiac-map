@@ -1119,31 +1119,67 @@ describe('the problems a case declares agree with what the patient says and show
   const declares = (sc: Scenario, p: Problem) => !!sc.problems?.includes(p);
   const casesWith = (p: Problem) => SCENARIOS.filter((sc) => declares(sc, p)).map((sc) => sc.id);
 
+  const PDE5 = /sildenafil|tadalafil|vardenafil|avanafil|riociguat|viagra|cialis|levitra|stendra|revatio|adcirca|adempas/i;
+  /** The sentences of a text (a question, a dash-joined aside and a period all end one) */
+  const sentences = (text: string) => text.split(/[.;!?]+/).map((x) => x.trim()).filter(Boolean);
+  /** A sentence that says the patient does not have it: "No allergies", "Never had contrast", "no Viagra, Cialis…" */
+  const negated = (sentence: string, drug: RegExp) => {
+    const at = sentence.search(drug);
+    return /^\W*(no|none|never|denies|not)\b/i.test(sentence) || /\b(no|never|not|denies)\b/i.test(sentence.slice(0, Math.max(at, 0)));
+  };
+  /** A real allergy to the drug: a sentence that names it with allergy wording, and does not deny it */
+  const allergicTo = (text: string, drug: RegExp) => sentences(text).some((x) => drug.test(x)
+    && /allerg|reaction|anaphyla|hives|angioedema|urticaria|swell|wheez/i.test(x) && !negated(x, drug));
+
   it('the checks below run on real cases', () => {
     expect(casesWith('pde5-inhibitor')).toEqual(expect.arrayContaining(['stemi-walk-in-ed', 'lvad-field']));
     expect(casesWith('rv-infarction')).toEqual(expect.arrayContaining(['stemi-inferior-rv-field', 'stemi-inferior-cathlab']));
     expect(casesWith('oral-anticoagulant')).toContain('lvad-field');
     expect(casesWith('dialysis')).toContain('hyperkalemia-dialysis-field');
+    expect(casesWith('implanted-device')).toContain('lvad-field');
   });
+
+  it('the allergy checks need allergy words next to the drug, not the drug alone', () => {
+    const aspirin = /aspirin|NSAID|ibuprofen|naproxen/i;
+    expect(allergicTo('No allergies. Aspirin 81 mg daily.', aspirin)).toBe(false);
+    expect(allergicTo('Allergic to penicillin. Takes a baby aspirin every morning.', aspirin)).toBe(false);
+    expect(allergicTo('Aspirin gives him hives and his lips swell.', aspirin)).toBe(true);
+    expect(allergicTo('"I\'m allergic to aspirin."', aspirin)).toBe(true);
+    const contrast = /contrast|dye/i;
+    // the shellfish trap: a shellfish allergy is no contrast allergy (ACR)
+    expect(allergicTo(`${factText(SCENARIO_BY_ID['contrast-cathlab'], 'allergies')} ${factText(SCENARIO_BY_ID['contrast-cathlab'], 'sample')}`, contrast)).toBe(false);
+    expect(allergicTo('Hives and wheezing after the dye for a CT two years ago.', contrast)).toBe(true);
+    expect(SCENARIO_BY_ID['contrast-cathlab'].problems).not.toContain('contrast-allergy');
+  });
+
+  /**
+   * Cases whose V4R shows ST elevation without an RV infarct to declare: a lab complication that closes the RCA for
+   * minutes (air in it, a guide that tore its ostium), fixed in the room — not a patient whose right ventricle is infarcted
+   */
+  const TRANSIENT_RV_ISCHEMIA = ['guide-dissection-cathlab', 'air-embolism-cathlab'];
 
   for (const sc of SCENARIOS) {
     it(sc.id, () => {
-      if (declares(sc, 'pde5-inhibitor')) {
-        expect(factText(sc, 'pde5')).toMatch(/sildenafil|tadalafil|vardenafil|avanafil|riociguat|viagra|cialis|levitra|stendra|revatio|adcirca|adempas/i);
-      }
+      const pde5 = factText(sc, 'pde5');
+      if (declares(sc, 'pde5-inhibitor')) expect(pde5).toMatch(PDE5);
+      // and the other way: a patient who says he takes one is declared (unless he names it only to deny it)
+      if (sentences(pde5).some((x) => PDE5.test(x) && !negated(x, PDE5))) expect(sc.problems, 'takes a PDE-5 inhibitor').toContain('pde5-inhibitor');
+      const v4r = factText(sc, 'ecgRight');
       if (declares(sc, 'rv-infarction')) {
-        const v4r = factText(sc, 'ecgRight');
         expect(v4r).toMatch(/ST elevation/);
         expect(v4r).not.toMatch(/no ST elevation/i);
       }
+      if (/\d(\.\d)? mm (of )?ST elevation/.test(v4r) && !TRANSIENT_RV_ISCHEMIA.includes(sc.id)) expect(sc.problems, 'ST elevation in V4R').toContain('rv-infarction');
       if (declares(sc, 'oral-anticoagulant')) {
         expect(history(sc)).toMatch(/warfarin|coumadin|apixaban|eliquis|rivaroxaban|xarelto|dabigatran|pradaxa|edoxaban|savaysa/i);
       }
-      if (declares(sc, 'dialysis')) expect(history(sc)).toMatch(/dialysis/i);
+      // dialysis, and not "not on dialysis"; a patient on dialysis is not also in kidney failure without it
+      if (declares(sc, 'dialysis')) expect(history(sc)).toMatch(/(?<!not on )dialysis/i);
+      expect(declares(sc, 'dialysis') && declares(sc, 'renal-failure'), 'dialysis and renal-failure').toBe(false);
       const allergies = `${factText(sc, 'allergies')} ${factText(sc, 'sample')}`;
-      if (declares(sc, 'aspirin-allergy')) expect(allergies).toMatch(/aspirin|NSAID|ibuprofen|naproxen/i);
-      if (declares(sc, 'contrast-allergy')) expect(allergies).toMatch(/contrast|dye/i);
-      if (declares(sc, 'protamine-allergy')) expect(allergies).toMatch(/protamine/i);
+      if (declares(sc, 'aspirin-allergy')) expect(allergicTo(allergies, /aspirin|NSAID|ibuprofen|naproxen/i), 'an aspirin allergy in the history').toBe(true);
+      if (declares(sc, 'contrast-allergy')) expect(allergicTo(allergies, /contrast|dye/i), 'a contrast allergy in the history').toBe(true);
+      if (declares(sc, 'protamine-allergy')) expect(allergicTo(allergies, /protamine/i), 'a protamine allergy in the history').toBe(true);
     });
   }
 });

@@ -201,8 +201,9 @@ export const peField: Scenario = {
     // a low EtCO₂ for her fast breathing: the clot leaves part of the lung ventilated but not perfused (dead space)
     vitals: { sbp: 84, dbp: 52, spo2: 86, rr: 30, etco2: 24, pain: 5, gcs: 15, glucose: 104, temp: 37.4 },
   },
-  // what the built-in safety rules read (types.ts Problem)
-  problems: ['pulmonary-embolism', 'recent-surgery'],
+  // what the built-in safety rules read (types.ts Problem): a high-risk PE (category E1) ten days after surgery — no lytic
+  // in the field, and its bleeding risk is why the heart center takes the clot out instead
+  problems: ['pulmonary-embolism', 'pe-high-risk', 'recent-surgery'],
   facts: {
     // after the arrest she cannot give a history: her husband does, from what she told him
     opqrst: (s) => (cannotTalk(s)

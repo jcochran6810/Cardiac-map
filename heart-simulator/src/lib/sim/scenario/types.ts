@@ -235,7 +235,10 @@ export interface Harm {
  * stops procainamide in a failing heart — so a case where one of these is right must list the problem behind it.
  */
 export type Problem =
-  /** a high potassium: what calcium, insulin with dextrose, high-dose albuterol and bicarbonate treat */
+  /**
+   * a high potassium: what calcium, insulin with dextrose and high-dose albuterol treat (bicarbonate only with a metabolic
+   * acidosis — KDIGO 2020 — or in the arrest)
+   */
   | 'hyperkalemia'
   /** a metabolic acidosis: one of bicarbonate's indications */
   | 'metabolic-acidosis'
@@ -252,7 +255,7 @@ export type Problem =
    * harmful (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm) and procainamide is to be avoided
    */
   | 'heart-failure'
-  /** a long QT (congenital or from a drug): no QT-prolonging drug */
+  /** a long QT, congenital or acquired (a QT-prolonging drug, a low potassium or magnesium, Takotsubo, a slow rate): no QT-prolonging drug */
   | 'long-qt'
   /** fluid on the lungs (e.g. hypertensive acute pulmonary edema): a fluid bolus or raised legs add to it */
   | 'pulmonary-edema'
@@ -280,20 +283,25 @@ export type Problem =
    */
   | 'cardiogenic-shock'
   /**
-   * an inferior MI with right-ventricular involvement (ST elevation in V4R): preload-dependent — no nitrates, positive
-   * pressure or diuretic; fluid helps
+   * an inferior MI with right-ventricular involvement (ST elevation in V4R): preload-dependent — no nitrates or diuretics,
+   * positive pressure only when it is needed (intubate when the patient needs it); fluid helps
    */
   | 'rv-infarction'
-  /** fixed outflow obstruction: no nitrates or vasodilators, no Impella, and care with anything that drops the preload */
+  /**
+   * severe aortic stenosis, a fixed outflow obstruction: no nitrates or vasodilators outside invasive monitoring (2014
+   * AHA/ACC valve guideline: 2b with it), no Impella, and care with anything that drops the preload
+   */
   | 'severe-aortic-stenosis'
   /**
-   * dynamic LV outflow obstruction (obstructive HCM, Takotsubo with SAM, a small hypertrophied ventricle after TAVR): no
-   * catecholamines, inotropes, nitrates or diuretics; fluid and phenylephrine (2024 AHA/ACC HCM)
+   * dynamic LV outflow obstruction (obstructive HCM, Takotsubo with SAM, a small hypertrophied ventricle after TAVR): in
+   * hypotension no catecholamines, inotropes, nitrates or diuretics — fluid and phenylephrine (2024 AHA/ACC HCM; a cautious
+   * low-dose diuretic for volume overload without hypotension may be considered, 2b)
    */
   | 'lvot-obstruction'
   /**
-   * a PE with cardiopulmonary failure or incipient failure (AHA/ACC 2026 categories D–E: hypotension, a pressor or arrest):
-   * the indication for systemic lysis
+   * a PE with incipient cardiopulmonary failure (2026 AHA/ACC category D: transient hypotension, or normotensive
+   * hypoperfusion — lactate, oliguria) or established failure (E: persistent hypotension or shock, refractory shock or
+   * arrest): systemic lysis is reasonable in E (2a) and may be considered in D (2b) when the bleeding risk is acceptable
    */
   | 'pe-high-risk'
   /**
@@ -309,9 +317,15 @@ export type Problem =
   | 'thrombocytopenia'
   /** any intracranial hemorrhage, now or ever */
   | 'intracranial-hemorrhage'
-  /** an ischemic stroke or TIA within 3 months */
+  /**
+   * an ischemic stroke within 3 months: an absolute contraindication to a lytic for a STEMI (2013 ACCF/AHA, kept in 2025
+   * ACC/AHA ACS). A stroke under way now is 'stroke'; a TIA is not this one (see prior-stroke)
+   */
   | 'recent-stroke'
-  /** an ischemic stroke or TIA more than 3 months ago */
+  /**
+   * an ischemic stroke more than 3 months ago, or a TIA within 6 months (2017 ESC STEMI): a relative contraindication to a
+   * lytic, never an absolute one
+   */
   | 'prior-stroke'
   /** an intracranial lesion (AVM, aneurysm, tumor); significant head or face trauma within 3 months; or brain or spinal surgery within 2 months */
   | 'intracranial-risk'
@@ -329,8 +343,8 @@ export type Problem =
    */
   | 'dialysis'
   /**
-   * severe kidney disease not on dialysis (stage 4–5 or AKI): magnesium accumulates, eptifibatide runs at half the
-   * infusion, insulin is 5 units
+   * severe kidney disease not on dialysis: CKD stage 4–5, or an AKI with the creatinine at least twice baseline (KDIGO
+   * stage 2–3). Magnesium accumulates, eptifibatide runs at half the infusion (CrCl under 50), insulin is 5 units
    */
   | 'renal-failure'
   /** unfractionated heparin given before the case opens: protamine has something to reverse */
@@ -349,8 +363,9 @@ export type Problem =
   /** dipyridamole or carbamazepine on board: adenosine starts at 3 mg */
   | 'adenosine-potentiator'
   /**
-   * asthma or another bronchospastic lung disease (history): adenosine (newer labels), labetalol and sotalol are
-   * contraindicated; β1-selective blockers only with caution
+   * asthma or another bronchospastic lung disease (history, e.g. COPD with wheezing): adenosine is to be avoided (label
+   * warning); labetalol (with any obstructive airway disease) and sotalol are contraindicated; β1-selective blockers only
+   * with caution
    */
   | 'asthma'
   /**
@@ -358,7 +373,10 @@ export type Problem =
    * like 'asthma'
    */
   | 'bronchospasm'
-  /** anaphylaxis or an anaphylactoid (e.g. contrast) reaction: IM epinephrine first, then the adjuncts */
+  /**
+   * anaphylaxis or an anaphylactoid (e.g. contrast) reaction: epinephrine first — IM, or small IV boluses where the patient
+   * is monitored (ACR) — then fluid, oxygen and the adjuncts
+   */
   | 'anaphylaxis'
   /**
    * AF or flutter for 48 h or more (or of unknown onset) without 3 weeks of anticoagulation or a TEE: no elective

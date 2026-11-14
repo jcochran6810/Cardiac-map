@@ -929,9 +929,16 @@ export const edPeLysis: Scenario = {
       text: 'A drug to slow or convert her rhythm, with no order. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest — and none of them is on a standing order. Tell the physician what you see instead.',
     },
     {
-      id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal'], roles: ED_TEAM, when: (s) => s.pulse, points: 3, severity: 'minor',
-      replaces: noOrder(['adenosine6', 'adenosine12', 'lidocaine']),
+      // the doctor's, and the nurse's vagal maneuver (it needs no order); her drugs are the rule below
+      id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal'], roles: ED_TEAM,
+      when: (s, _sc, id) => s.pulse && (s.role !== 6 || id === 'vagal'), points: 3, severity: 'minor',
       text: 'A vagal maneuver, adenosine or lidocaine for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down or a pause cuts the output she has left.',
+    },
+    {
+      // the nurse's version also stands for the missing order, at the order's weight, and says so
+      id: 'no-arrhythmia-pe-rn', actions: ['adenosine6', 'adenosine12', 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
+      replaces: noOrder(['adenosine6', 'adenosine12', 'lidocaine']),
+      text: 'Adenosine or lidocaine with no order, for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break — and with a pulse neither drug is on a standing order. Tell the physician what you see instead.',
     },
     {
       id: 'sedation-pe', actions: ['midazolam', 'procedural-sedation'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['midazolam-unsafe', 'sedation-no-procedure'],

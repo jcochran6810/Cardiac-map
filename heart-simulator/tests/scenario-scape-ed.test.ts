@@ -329,6 +329,8 @@ describe('SCAPE in the ED: the ER nurse', () => {
     expect(ids(rn(['cpap', 'iv', 'diltiazem']))).toEqual(['rn-negative-inotrope']);
     expect(ids(rn(['cpap', 'midazolam']))).toEqual(['rn-sedative-no-order']);
     expect(ids(rn(['cpap', 'iv', 'adenosine6']))).toEqual(['rn-antiarrhythmic-no-arrhythmia']);
+    // it stands for the missing order too: at the order's weight
+    expect(rn(['cpap', 'iv', 'adenosine6']).penalties[0]).toMatchObject({ points: 5, severity: 'major' });
   });
 
   it('when he stops protecting his airway: the nurse bags him, and the physician intubates', () => {

@@ -570,15 +570,18 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'access-femoral': return { say: [['you', 'Common femoral artery over the femoral head, ultrasound-guided: 6 Fr sheath in.']], flags: ['access', 'femoral'] };
     case 'access-venous': return { say: [['you', 'Femoral venous sheath in.']], flags: ['venous'] };
     case 'balloon-tamponade': return { say: [['you', 'Balloon inflated at low pressure over the site.']], flags: ['balloon-tamponade'] };
-    case 'pericardiocentesis':
+    case 'pericardiocentesis': {
+      // a tamponade (the case's Problem, or one that began mid-case) is drained: the rules that read preload know it
+      const drainFlags = hasProblem(sc, ['tamponade']) || has(s, 'tamponade') ? ['pericardiocentesis', 'drained'] : ['pericardiocentesis'];
       if (s.role === 3) return { say: [['you', 'Pericardiocentesis tray open: needle, wire, drain and a drainage bag; echo probe in a sterile sleeve.']], flags: ['pericardiocentesis-ready'] };
       // in the emergency department the physician's own ultrasound finds the effusion and the window first; only in an
       // arrest, with no time for it, does the needle go in blind
       if (sc.setting === 'ed' && !has(s, 'pocus')) {
         if (s.pulse) return { blocked: true, say: [['system', 'The needle goes in under ultrasound: scan the heart first (point-of-care ultrasound) — is there an effusion, is it squeezing the heart, and where is the safest window?']] };
-        return { say: [['you', 'Emergency pericardiocentesis during the arrest, without imaging: a long needle below the xiphoid, aimed at the left shoulder and aspirating as it goes; a drain left in.']], flags: ['pericardiocentesis'] };
+        return { say: [['you', 'Emergency pericardiocentesis during the arrest, without imaging: a long needle below the xiphoid, aimed at the left shoulder and aspirating as it goes; a drain left in.']], flags: drainFlags };
       }
-      return { say: [['you', 'Pericardial drain in under echo guidance.']], flags: ['pericardiocentesis'] };
+      return { say: [['you', 'Pericardial drain in under echo guidance.']], flags: drainFlags };
+    }
     case 'closure-device': return { say: [['you', 'Femoral closure device deployed; hemostasis.']], flags: ['closure', 'hemostasis'] };
     case 'angio': return angioGate(s) ?? { say: [['you', 'Angiography complete.']], image: { id, view: 'Diagnostic angiography', image: sc.images?.angio }, flags: ['angio'] };
     case 'reposition': return { say: [['operator', 'Catheter disengaged and repositioned.']], flags: ['repositioned'] };

@@ -286,7 +286,11 @@ describe('the ER nurse', () => {
   it('a rate drug, a sedative or adenosine with no order: the clinical harm, which covers the missing order too', () => {
     expect(ids(rn(['ems-handoff', 'iv', 'metoprolol']))).toEqual(['rate-control-pe-rn']);
     expect(ids(rn(['ems-handoff', 'iv', 'midazolam']))).toEqual(['sedation-pe-rn']);
-    expect(ids(rn(['ems-handoff', 'iv', 'adenosine6']))).toEqual(['no-arrhythmia-pe']);
+    // adenosine or lidocaine: the nurse's version, at the missing order's weight; a vagal maneuver needs no order
+    expect(ids(rn(['ems-handoff', 'iv', 'adenosine6']))).toEqual(['no-arrhythmia-pe-rn']);
+    expect(rn(['ems-handoff', 'iv', 'lidocaine']).penalties).toMatchObject([{ id: 'no-arrhythmia-pe-rn', points: 5, severity: 'major', text: expect.stringMatching(/no order/) }]);
+    expect(ids(rn(['ems-handoff', 'vagal']))).toEqual(['no-arrhythmia-pe']);
+    expect(ids(md(['ems-handoff', 'iv', 'adenosine6']))).toEqual(['no-arrhythmia-pe']);
     // a drug that is not a trap here still needs the order
     expect(ids(rn(['ems-handoff', 'iv', 'fentanyl']))).toEqual(['rn-without-order-fentanyl']);
   });

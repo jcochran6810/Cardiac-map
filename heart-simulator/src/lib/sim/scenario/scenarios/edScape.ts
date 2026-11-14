@@ -246,9 +246,11 @@ const RN_ORDERS = [NITRO_ORDER];
 
 /** A role's version of a harm that the ER nurse also commits without an order: one mistake, one penalty for each */
 function bothRoles(base: Harm, nurseText: string, rnReplaces: string[]): Harm[] {
+  // the nurse's twin stands for the missing order too: at least the order's weight (5, major)
+  const weight = base.points >= 5 ? { points: base.points, severity: base.severity } : { points: 5, severity: 'major' as const };
   return [
     { ...base, roles: ED_MD },
-    { ...base, id: `rn-${base.id}`, roles: ED_RN, text: `${base.text} ${nurseText}`, replaces: [...(base.replaces ?? []), ...rnReplaces] },
+    { ...base, ...weight, id: `rn-${base.id}`, roles: ED_RN, text: `${base.text} ${nurseText}`, replaces: [...(base.replaces ?? []), ...rnReplaces] },
   ];
 }
 const NO_ORDER = 'And the ER nurse gives it only on the physician\'s order — this one was never ordered: tell the physician what you see and what you think he needs.';

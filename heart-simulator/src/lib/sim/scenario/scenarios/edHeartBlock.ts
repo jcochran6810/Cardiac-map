@@ -303,7 +303,8 @@ export const edHeartBlock: Scenario = {
     rhythm: { profile: 'third-degree-avb', hr: 34 },
     vitals: { sbp: 82, dbp: 46, spo2: 94, rr: 18, etco2: 34, pain: 0, gcs: 14, glucose: 118, temp: 36.6 },
   },
-  problems: ['hyperkalemia'],
+  // BRASH: the potassium, and kidneys failing on top of stage 3 disease (creatinine 2.6, 1.2 last spring: KDIGO stage 2)
+  problems: ['hyperkalemia', 'renal-failure'],
   facts: {
     ems: 'EMS: "78-year-old woman, fainted twice this morning — her daughter found her on the kitchen floor the second time; both times she came round within a minute. Pulse 32 to 36 on our oximeter the whole way, BP 80 over 48, confused about the date and where she is. No chest pain, no trouble breathing. Three days of vomiting and diarrhea, the daughter says. Two liters of oxygen; no IV — we are a basic unit, and the paramedics were 20 minutes out, so we came straight here: 8 minutes. Her pill bottles are in this bag."',
     opqrst: '"No pain. I just went dizzy and gray, and then I was on the floor — twice. I\'ve felt so weak since this stomach bug."',

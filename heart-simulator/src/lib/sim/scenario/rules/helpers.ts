@@ -67,12 +67,14 @@ export const CALCIUM_FOR: Problem[] = ['hyperkalemia', 'hypocalcemia', 'ccb-over
 export const BICARBONATE_FOR: Problem[] = ['hyperkalemia', 'metabolic-acidosis', 'sodium-channel-blocker-overdose'];
 
 /**
- * The heart lives on its preload: a tamponade not yet drained (the flag 'drained' or 'pericardiocentesis'), a pulmonary
- * embolism or an RV infarction. Nitrates, diuretics, positive pressure and anything else that drops the preload drop the
- * pressure with it; fluid helps
+ * The heart lives on its preload: a tamponade not yet drained — the case's Problem, or the flag 'tamponade' a case sets
+ * when one begins mid-case (a perforation, a torn aorta bleeding into the sac) — a pulmonary embolism or an RV infarction.
+ * Drained is the flag 'drained' (the engine's default pericardiocentesis sets it for a tamponade; a needle that does not
+ * relieve one, e.g. a sac that fills again as fast as it drains, sets only 'pericardiocentesis'). Nitrates, diuretics,
+ * positive pressure and anything else that drops the preload drop the pressure with it; fluid helps
  */
 export const preloadDependent = (s: SimState, sc: Scenario) =>
-  (hasProblem(sc, ['tamponade']) && !has(s, 'drained') && !has(s, 'pericardiocentesis')) || hasProblem(sc, ['pulmonary-embolism', 'rv-infarction']);
+  ((hasProblem(sc, ['tamponade']) || has(s, 'tamponade')) && !has(s, 'drained')) || hasProblem(sc, ['pulmonary-embolism', 'rv-infarction']);
 
 /** An outflow obstruction, fixed (severe aortic stenosis) or dynamic (LVOT obstruction) */
 export const outflowObstruction = (sc: Scenario) => hasProblem(sc, ['severe-aortic-stenosis', 'lvot-obstruction']);

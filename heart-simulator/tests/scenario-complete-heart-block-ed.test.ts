@@ -76,7 +76,8 @@ describe('complete heart block in the ED: the case itself', () => {
     expect(sc.roles).toEqual([6, 7]);
     expect(CONDITIONS[sc.conditionId!]).toBeDefined();
     expect(resolveProfile(sc.initial.rhythm.profile).id).toBe(sc.initial.rhythm.profile);
-    expect(sc.problems).toEqual(['hyperkalemia']);
+    // BRASH: the potassium and an AKI on her chronic kidney disease (creatinine 2.6, 1.2 last spring)
+    expect(sc.problems).toEqual(['hyperkalemia', 'renal-failure']);
     for (const id of Object.keys(sc.respond)) expect(INTERVENTION_BY_ID[id], `respond ${id}`).toBeDefined();
     for (const h of sc.harms) for (const id of h.actions) expect(INTERVENTION_BY_ID[id], `harm ${h.id}: ${id}`).toBeDefined();
     for (const t of sc.timings ?? []) for (const id of t.actions) expect(INTERVENTION_BY_ID[id], `timing ${id}`).toBeDefined();

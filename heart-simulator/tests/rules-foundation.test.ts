@@ -234,7 +234,17 @@ describe('the rule helpers', () => {
     const tamponade = fixture({ setting: 'ed', role: 7, rhythm: SINUS, problems: ['tamponade'] });
     expect(preloadDependent(state('normal-sinus', 80), tamponade)).toBe(true);
     expect(preloadDependent(state('normal-sinus', 80, { drained: 5 }), tamponade)).toBe(false);
-    expect(preloadDependent(state('normal-sinus', 80, { pericardiocentesis: 5 }), tamponade)).toBe(false);
+    // a needle that did not relieve it (the sac filling again as fast as it drains) leaves the heart preload-dependent
+    expect(preloadDependent(state('normal-sinus', 80, { pericardiocentesis: 5 }), tamponade)).toBe(true);
+    // a tamponade that began mid-case (the flag), and once drained
+    const plain = fixture({ setting: 'ed', role: 7, rhythm: SINUS });
+    expect(preloadDependent(state('normal-sinus', 80, { tamponade: 3 }), plain)).toBe(true);
+    expect(preloadDependent(state('normal-sinus', 80, { tamponade: 3, drained: 6 }), plain)).toBe(false);
+    // the engine's default drain sets 'drained' for a tamponade, and only 'pericardiocentesis' without one
+    const drainedNow = runScenario(fixture({ setting: 'ed', role: 7, rhythm: SINUS, problems: ['tamponade'] }), 7, ['pocus', 'pericardiocentesis']);
+    expect(drainedNow.flags.drained).toBeDefined();
+    expect(preloadDependent(drainedNow, tamponade)).toBe(false);
+    expect('drained' in runScenario(plain, 7, ['pocus', 'pericardiocentesis']).flags).toBe(false);
     expect(preloadDependent(state('normal-sinus', 80), fixture({ setting: 'ed', role: 7, rhythm: SINUS, problems: ['rv-infarction'] }))).toBe(true);
     expect(preloadDependent(state('normal-sinus', 80), fixture({ setting: 'ed', role: 7, rhythm: SINUS }))).toBe(false);
     expect(outflowObstruction(fixture({ setting: 'cathlab', role: 5, rhythm: SINUS, problems: ['lvot-obstruction'] }))).toBe(true);
