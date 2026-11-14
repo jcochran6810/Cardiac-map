@@ -641,7 +641,7 @@ export const wpwAfField: Scenario = {
       text: 'Aspirin with no suspected acute coronary syndrome. It is for chest pain that may be a heart attack; he is 24, with palpitations and no chest pain — it treats nothing he has.',
     },
     {
-      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with no breathing problem to treat. His lungs are clear and his oxygen normal; positive pressure cuts the blood returning to the heart and drops a pressure the fast rate is already straining.',
     },
     {

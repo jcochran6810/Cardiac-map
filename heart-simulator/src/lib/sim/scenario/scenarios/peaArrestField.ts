@@ -526,7 +526,7 @@ export const peaArrestField: Scenario = {
       text: 'Sodium bicarbonate in an arrest from a breathing problem. Routine bicarbonate in cardiac arrest brings no benefit (2025 AHA), and her acid is mostly the CO₂ she could not breathe off: bicarbonate turns into more CO₂, which only ventilation removes. Ventilate her.',
     },
     {
-      id: 'cpap-not-breathing', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension'], points: 5, severity: 'major',
+      id: 'cpap-not-breathing', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 5, severity: 'major',
       text: 'CPAP for a patient who is not breathing on her own. CPAP supports breaths a patient takes and needs someone awake enough to protect the airway; it gives no breaths. In the arrest, and unresponsive after ROSC, she needs ventilation with a bag-mask or an advanced airway.',
     },
     {
@@ -554,7 +554,7 @@ export const peaArrestField: Scenario = {
       text: 'Fentanyl or sedation for a patient who is unresponsive. With a GCS of 3 she shows no pain or agitation to treat: an opioid or a sedative slows the breathing she has left and lowers her pressure.',
     },
     {
-      id: 'glucagon-no-indication', actions: ['glucagon'], points: 3, severity: 'minor',
+      id: 'glucagon-no-indication', actions: ['glucagon'], replaces: ['glucagon-unprotected-airway'], points: 3, severity: 'minor',
       text: 'Glucagon without a beta- or calcium-channel-blocker overdose. It treats nothing she has, and the vomiting it brings is dangerous in a patient who cannot protect her airway.',
     },
     {

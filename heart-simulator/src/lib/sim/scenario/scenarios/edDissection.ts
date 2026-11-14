@@ -806,7 +806,7 @@ export const edDissection: Scenario = {
       text: 'Sending him to the CT scanner in shock. With a torn aorta a falling pressure means tamponade or rupture: he goes straight to the operating room, where an echo through the esophagus confirms the tear, not to a scanner where nobody can treat him.',
     },
     {
-      id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication'], points: 3, severity: 'minor',
+      id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication', 'cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
     // the nurse's answer to an order that is not the order: a medication error, scored once (not also as a drug with no order)

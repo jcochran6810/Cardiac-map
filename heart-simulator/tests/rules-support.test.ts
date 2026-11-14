@@ -303,6 +303,8 @@ describe('electrolytes, insulin and the antidotes', () => {
     expect(ids(4, hyperk, ['iv', 'labs', 'insulin-dextrose'])).toEqual([]);
     // the ER nurse too (on the physician's order); the physician orders it, the nurse checks
     expect(ids(6, { ...hyperk, extra: { events: [standingOrders(['insulin-dextrose'])] } }, ['iv', 'insulin-dextrose'])).toEqual(['insulin-glucose-unchecked']);
+    // with no order at all, the missing order is the one penalty
+    expect(ids(6, hyperk, ['iv', 'insulin-dextrose'])).toEqual(['rn-without-order-insulin-dextrose']);
     expect(ids(5, hyperk, ['iv', 'insulin-dextrose'])).toEqual([]);
     expect(ids(4, { ...hyperk, harms: [exempt('insulin-glucose-unchecked', ['insulin-dextrose'])] }, ['iv', 'insulin-dextrose'])).toEqual([]);
     // the gate: no high potassium, or a low glucose, is the one penalty
@@ -384,5 +386,21 @@ describe('anaphylaxis: IM epinephrine first, then the adjuncts', () => {
     expect(ids(5, withProblems('contrast-allergy'), ['iv', 'steroid', 'diphenhydramine'])).toEqual([]);
     // the ER nurse with no order: the missing order covers the indication — one penalty
     expect(ids(6, {}, ['iv', 'steroid'])).toEqual(['rn-without-order-steroid']);
+  });
+});
+
+describe('one dose, one penalty: a case rule that scores the same dose stands in for the built-ins', () => {
+  const caseIds = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+  it('CPAP for an unresponsive patient after ROSC: the case\'s rule, not the indication rule as well', () => {
+    expect(caseIds('commotio-cordis-field', 2, ['defib', 'cpr', 'bvm', 'capno', 'cpap'])).toEqual(['cpap-unresponsive']);
+  });
+  it('glucagon for a patient with no airway reflexes and no overdose: one penalty', () => {
+    expect(caseIds('pea-arrest-field', 2, ['cpr', 'pads', 'pulse-check', 'bvm', 'capno', 'hs-ts', 'iv', 'epinephrine', 'cpr', 'cpr', 'glucagon'])).toEqual(['glucagon-no-indication']);
+  });
+  it('the wrong syringe for the operator\'s order is the order\'s mistake, not the epinephrine rule\'s as well', () => {
+    expect(caseIds('scad-cathlab', 4, ['consent', 'heparin', 'timeout', 'ecg12', 'callout', 'ic-epinephrine'])).toEqual(['wrong-rn-nitro']);
+  });
+  it('the tech who lets go of the groin to bag: the case\'s rule', () => {
+    expect(caseIds('vasovagal-sheath-cathlab', 3, ['bvm'])).toEqual(['let-go']);
   });
 });

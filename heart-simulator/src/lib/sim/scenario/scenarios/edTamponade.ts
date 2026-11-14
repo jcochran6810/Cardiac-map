@@ -951,7 +951,7 @@ export const edTamponade: Scenario = {
       text: 'Nitroglycerin with nothing to treat. Her chest heaviness was the effusion, now drained: nitroglycerin is for coronary ischemia (and 0.8 mg, which no standing order covers, for hypertensive pulmonary edema), and here it only takes preload from a heart that has just started to fill again.',
     },
     {
-      id: 'cpap-tamponade', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), replaces: ['cpap-hypotension', 'cpap-preload-dependent'], points: 8, severity: 'major',
+      id: 'cpap-tamponade', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), replaces: ['cpap-hypotension', 'cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 8, severity: 'major',
       text: 'CPAP for a patient in tamponade. Positive pressure in the chest pushes back against the blood returning to her already squeezed right heart: the output falls, and it can bring on PEA. Her breathlessness comes from a heart that cannot fill, not wet lungs (they are clear): oxygen by cannula or mask, sitting up.',
     },
     {
@@ -1059,7 +1059,7 @@ export const edTamponade: Scenario = {
     },
     {
       // the main mistake has to cost something real: sending her on undrained, wherever to
-      id: 'dispo-undrained', actions: ['admit', 'transfer'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 10, severity: 'major',
+      id: 'dispo-undrained', actions: ['admit', 'transfer'], roles: ED_MD, when: (s) => s.pulse && !drained(s), replaces: ['transfer-unstable'], points: 10, severity: 'major',
       text: 'Sending her out of the department with the fluid still on. Tamponade with shock is drained where she is, now: she can arrest in the elevator, in the CCU before anyone is ready, or in an ambulance far from a needle — and the cardiologist is tied up for the next 45 minutes.',
     },
     {

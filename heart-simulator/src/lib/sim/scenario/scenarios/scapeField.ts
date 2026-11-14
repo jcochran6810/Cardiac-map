@@ -673,7 +673,7 @@ export const scapeField: Scenario = {
       text: 'An IV before CPAP. The line treats nothing: with an SpO₂ in the low 80s she needs CPAP first, and the nitroglycerin goes under her tongue without a line. Start the IV once she is on CPAP.',
     },
     {
-      id: 'cpap-unable', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
+      id: 'cpap-unable', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 5, severity: 'major',
       text: 'CPAP for a patient who can no longer protect her airway or breathe for herself. CPAP supports breaths a patient takes; it gives none. Unresponsive, with a shallow breath every 8 seconds, she needs breaths given with a bag-mask and a PEEP valve — or an advanced airway.',
     },
     {

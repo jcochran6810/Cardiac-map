@@ -909,11 +909,11 @@ export const edPeLysis: Scenario = {
     },
     {
       // a systolic under 90 is where most CPAP protocols stop; above it the mask is still not what she needs
-      id: 'cpap-pe', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['cpap-hypotension', 'cpap-preload-dependent'], points: 8, severity: 'major',
+      id: 'cpap-pe', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['cpap-hypotension', 'cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 8, severity: 'major',
       text: 'CPAP with clear lungs and a low pressure. Positive pressure cuts the blood returning to the heart and raises the resistance the right ventricle pumps against: her pressure falls, and her saturation does not improve, because her lungs are not wet — the clot is the problem. A non-rebreather (high-flow nasal oxygen if that is not enough), and let her breathe on her own.',
     },
     {
-      id: 'cpap-pe-held', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['cpap-preload-dependent'], points: 3, severity: 'minor',
+      id: 'cpap-pe-held', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['cpap-preload-dependent', 'cpap-hypotension', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 3, severity: 'minor',
       text: 'CPAP for a patient whose saturation a non-rebreather already holds at 90 % or more. Her lungs are clear: positive pressure does nothing for a clot, and it cuts the blood returning to a right ventricle that lives on it — her pressure falls. If she needs more oxygen, high-flow nasal oxygen first.',
     },
     {
@@ -976,7 +976,7 @@ export const edPeLysis: Scenario = {
       text: 'A second fibrinolytic on top of the first. One full dose is the treatment; a second only adds bleeding — in the head above all. A patient who does not respond to the lytic goes to the PE response team for catheter-directed therapy, surgery or ECMO.',
     },
     {
-      id: 'transfer-pe', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'transfer-pe', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse, replaces: ['transfer-unstable'], points: 3, severity: 'minor',
       text: 'Transferring her out of a hospital that has everything she needs — an ICU, a PE response team, catheter-directed therapy, cardiac surgery and ECMO. A transport of a patient in shock, on a lytic and a vasopressor, only adds risk: admit her to your ICU.',
     },
     {

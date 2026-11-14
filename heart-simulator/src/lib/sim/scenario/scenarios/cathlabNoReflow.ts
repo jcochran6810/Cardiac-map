@@ -598,7 +598,8 @@ export const cathlabNoReflow: Scenario = {
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     { ...askHarm(TECH_ASKS[2], 'Adenosine when the operator asked for epinephrine with a pressure of 86. Adenosine lowers the pressure, it does not hold it up. Read the order back and check the syringe label before you hand it up.'), actions: ['ic-adenosine'] },
-    askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'),
+    // the wrong answer is the order's own mistake: one penalty, not the epinephrine rule's as well
+    { ...askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'), replaces: ['ic-epi-no-indication'] },
     { ...askHarm(RN_ASKS[2], 'Adenosine when the operator asked for an intracoronary drug that brings a pressure of 86 up. Adenosine is a vasodilator: of the intracoronary drugs only epinephrine raises the pressure.'), actions: ['ic-adenosine'] },
     askHarm(RN_ASKS[3], 'An IV dose of adenosine when the operator asked for 200 micrograms into the coronary. The 6–12 mg rapid push is the SVT dose and the IV infusion is for FFR — neither is what was ordered for the microvessels.'),
   ],

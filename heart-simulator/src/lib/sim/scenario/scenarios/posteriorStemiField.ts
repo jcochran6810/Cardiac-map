@@ -458,7 +458,7 @@ export const posteriorStemiField: Scenario = {
       text: 'A drug for an arrhythmia with a regular sinus rate. Her rhythm needs no treatment: adenosine, diltiazem and the antiarrhythmics have nothing to treat and bring only their side effects — a pause, a falling pressure, slower conduction (prophylactic lidocaine in MI was abandoned decades ago). The treatment of her heart is opening the artery.',
     },
     {
-      id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication'], points: 3, severity: 'minor',
+      id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication', 'cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; hers are clear, and the pressure in the chest lowers the blood returning to the heart.',
     },
   ],

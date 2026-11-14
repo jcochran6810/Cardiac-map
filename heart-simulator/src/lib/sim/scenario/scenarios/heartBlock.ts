@@ -130,7 +130,7 @@ export const heartBlock: Scenario = {
     { id: 'lidocaine-escape', actions: ['lidocaine', 'amio-infusion'], points: 20, severity: 'critical', text: 'Never give lidocaine or amiodarone for a wide ventricular escape rhythm: it is the only thing keeping him alive, and suppressing it can cause asystole.' },
     { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], points: 15, severity: 'critical', text: 'Beta-blockers and calcium-channel blockers slow AV conduction further: they worsen complete heart block.' },
     { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
-    { id: 'cpap-shock', actions: ['cpap'], replaces: ['cpap-hypotension', 'cpap-no-indication'], points: 6, severity: 'major', text: 'CPAP reduces venous return; with SBP in the 70s it can deepen shock.' },
+    { id: 'cpap-shock', actions: ['cpap'], replaces: ['cpap-hypotension', 'cpap-no-indication', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 6, severity: 'major', text: 'CPAP reduces venous return; with SBP in the 70s it can deepen shock.' },
     { id: 'big-fluid', actions: ['fluid'], when: (s) => (s.counts.fluid ?? 0) >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses with crackles at both bases: the problem is the rate, not the volume.' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 3, severity: 'minor', text: 'The nearest ED cannot place a transvenous pacing wire; the regional heart center can.' },
   ],

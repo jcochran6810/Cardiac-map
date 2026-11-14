@@ -235,7 +235,7 @@ export const cathlabContrast: Scenario = {
     { id: 'handoff', label: 'Hand-off and documentation', why: 'Record the reaction as a contrast allergy, the drugs given, and the premedication plan for any future contrast; observe for a biphasic reaction.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
-    { id: 'contrast-during-reaction', actions: CONTRAST, when: (s) => has(s, 'reaction') && !has(s, 'recovered'), points: 10, severity: 'major', text: 'More contrast during the reaction. Every injection adds to it: stop the contrast until she is stable.' },
+    { id: 'contrast-during-reaction', actions: CONTRAST, when: (s) => has(s, 'reaction') && !has(s, 'recovered'), replaces: ['lv-gram-in-shock'], points: 10, severity: 'major', text: 'More contrast during the reaction. Every injection adds to it: stop the contrast until she is stable.' },
     { id: 'premed-for-shellfish', actions: ['steroid', 'diphenhydramine'], roles: [4, 5], when: (s) => !has(s, 'reaction'), points: 2, severity: 'minor', text: 'Premedication for a shellfish allergy. Shellfish allergy is not a contrast allergy: premedication is for a previous reaction to contrast.' },
     { id: 'antihistamine-first', actions: ['diphenhydramine', 'steroid'], roles: [4, 5], when: (s) => has(s, 'reaction') && !has(s, 'epi-given'), points: 5, severity: 'major', text: 'An antihistamine or steroid before epinephrine. They are second-line and slow: epinephrine first, then the rest.' },
     { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'A beta-blocker in anaphylaxis. It blocks the response to epinephrine.' },

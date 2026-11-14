@@ -666,7 +666,7 @@ export const cathlabVasovagal: Scenario = {
   harms: [
     {
       // the tech's main lesson: it weighs as much as a missed call-out
-      id: 'let-go', actions: Object.keys(HANDS_OFF), roles: TECH, when: (s) => holding(s), points: 10, severity: 'major',
+      id: 'let-go', actions: Object.keys(HANDS_OFF), roles: TECH, when: (s) => holding(s), replaces: ['bvm-breathing', 'oxygen-not-breathing', 'oxygen-normoxic'], points: 10, severity: 'major',
       text: 'You let go of the groin while the artery was still open. A femoral puncture bleeds the moment the pressure comes off — a hematoma now, and more risk of a pseudoaneurysm — and the 15-minute hold starts again. Whoever holds the groin stays on it: call it out, and let the nurse and the cardiologist treat him.',
     },
     {

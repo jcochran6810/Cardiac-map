@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FixtureSpec } from './ruleFixture';
 import { fixture, penaltyIds } from './ruleFixture';
+import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 
@@ -196,5 +197,15 @@ describe('the scanner, the central line and the transfer (the emergency departme
     expect(ids(7, { ...dissection, harms: [exempt('cath-lab-dissection', ['cath-lab-activate'])] }, ['ecg12', 'cath-lab-activate'])).toEqual([]);
     // the gate: a 12-lead with no STEMI is the no-STEMI rule's — one penalty
     expect(ids(7, withProblems('aortic-dissection'), ['ecg12', 'cath-lab-activate'])).toEqual(['cath-lab-no-ste']);
+  });
+});
+
+describe('one action, one penalty: a case rule that scores the same action stands in for the built-ins', () => {
+  const caseIds = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+  it('transferring a PE in shock out of a hospital that can treat her: the case\'s rule', () => {
+    expect(caseIds('pulmonary-embolism-lysis-ed', 7, ['ems-handoff', 'pocus', 'transfer'])).toEqual(['transfer-pe']);
+  });
+  it('an LV gram during the contrast reaction: the case\'s rule', () => {
+    expect(caseIds('contrast-cathlab', 5, ['consent', 'timeout', 'access', 'cath-tiger', 'angio', 'lv-gram'])).toEqual(['contrast-during-reaction']);
   });
 });

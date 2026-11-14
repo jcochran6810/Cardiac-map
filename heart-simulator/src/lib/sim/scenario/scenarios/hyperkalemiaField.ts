@@ -463,7 +463,7 @@ export const hyperkalemiaField: Scenario = {
       text: 'Magnesium for a dialysis patient. Nothing here calls for it, and failed kidneys cannot clear it: a high magnesium adds weakness, slows the heart and lowers the pressure.',
     },
     { id: 'fluid-overload', actions: ['fluid'], when: (s) => count(s, 'fluid') >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses for a dialysis patient who missed two sessions. He cannot pass the fluid, his lungs are already wet, and the low pressure comes from the slow rate, not from too little volume.' },
-    { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['cpap-hypotension'], points: 6, severity: 'major', text: 'CPAP with a systolic pressure under 90 mmHg. It cuts the blood returning to the heart and can deepen the shock: fix the rate and the pressure first (calcium).' },
+    { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 6, severity: 'major', text: 'CPAP with a systolic pressure under 90 mmHg. It cuts the blood returning to the heart and can deepen the shock: fix the rate and the pressure first (calcium).' },
     // the built-in rule, same id (a deliberate exemption): with this potassium the wheezing dose is too small a dose, not a drug
     // with nothing to treat — it moves a little potassium, not enough: the case marks the shift as missed instead
     { id: 'albuterol-no-bronchospasm', actions: ['albuterol'], when: () => false, points: 3, severity: 'minor', text: 'Albuterol 2.5–5 mg with no wheeze: for this potassium it is too small a dose — 10–20 mg moves it.' },

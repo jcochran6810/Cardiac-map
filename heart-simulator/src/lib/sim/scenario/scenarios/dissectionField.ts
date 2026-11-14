@@ -485,7 +485,7 @@ export const dissectionField: Scenario = {
       text: 'Still on scene when he went into shock. More than 20 minutes on scene with a suspected tear in the ascending aorta: it bled into the sac around his heart while he waited. Nothing in the field relieves it — find it, treat the pain and go; the rest can be done on the way.',
     },
     {
-      id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication'], points: 3, severity: 'minor',
+      id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication', 'cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; his lungs are clear, and positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
   ],

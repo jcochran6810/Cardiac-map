@@ -1029,7 +1029,7 @@ export const edHyperkalemia: Scenario = {
       text: 'Magnesium for a patient whose kidneys are failing. Nothing here calls for it (his magnesium is already 2.5), and he cannot clear it: a high magnesium adds weakness, slows the heart and lowers the pressure.',
     },
     { id: 'fluid-repeat', actions: ['fluid'], when: (s) => count(s, 'fluid') >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses for a pressure that comes from a slow rate, in a man with failing kidneys, swollen ankles and crackles. The fluid barely moves the pressure and floods the lungs: fix the rate (calcium).' },
-    { id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension'], points: 5, severity: 'major', text: 'CPAP without breathing trouble. His oxygen is fine; the positive pressure cuts the blood returning to the heart, and with a systolic in the 80s it deepens the shock.' },
+    { id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 5, severity: 'major', text: 'CPAP without breathing trouble. His oxygen is fine; the positive pressure cuts the blood returning to the heart, and with a systolic in the 80s it deepens the shock.' },
     {
       // the same id as the built-in rule: here the low pressure is the slow rate's, and the tube does not treat it
       id: 'rsi-no-indication', actions: ['rsi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.gcs >= 9, points: 10, severity: 'major',

@@ -776,7 +776,8 @@ export const cathlabScad: Scenario = {
     askHarm(TECH_ASKS[1], 'A right-coronary view when the operator asked to repeat the LAD. Cranial views lay out the mid and distal LAD.'),
     askHarm(TECH_ASKS[2], 'The wrong catheter when the operator asked for a JR4 for the right coronary.', 2),
     askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,800 units. Read the order back before you give it.'),
-    askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'),
+    // the wrong answer is the order's own mistake: one penalty, not the epinephrine rule's as well
+    { ...askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'), replaces: ['ic-epi-no-indication'] },
     askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'),
     askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain.', 2),
   ],

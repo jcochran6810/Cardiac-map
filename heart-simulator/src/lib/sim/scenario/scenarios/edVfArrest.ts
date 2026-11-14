@@ -936,7 +936,7 @@ export const edVfArrest: Scenario = {
       text: 'Admitting a resuscitated patient without the cath lab. His arrest came from a coronary occlusion: ST elevation after ROSC means emergent coronary angiography, comatose or not (2025 AHA: Class 1). A 12-lead first, then the lab — the ICU comes after.',
     },
     {
-      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), points: 10, severity: 'major',
+      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), replaces: ['transfer-unstable'], points: 10, severity: 'major',
       text: 'Transferring a post-arrest STEMI out of a hospital with its own cath lab. A transfer adds an hour or more to opening the artery: activate your own lab.',
     },
   ],

@@ -614,7 +614,7 @@ export const peField: Scenario = {
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic, and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {
-      id: 'cpap-pe', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-preload-dependent'], points: 8, severity: 'major',
+      id: 'cpap-pe', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 8, severity: 'major',
       text: 'CPAP with clear lungs and a low pressure. Positive pressure cuts the blood returning to the heart and raises the resistance the right ventricle pumps against: her pressure falls, and her saturation does not improve, because her lungs are not wet — the clot is the problem. High-flow oxygen, and keep her breathing on her own.',
     },
     {

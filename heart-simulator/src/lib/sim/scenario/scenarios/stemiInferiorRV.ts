@@ -135,7 +135,7 @@ export const stemiInferiorRV: Scenario = {
     { id: 'beta-blocker', actions: ['metoprolol'], points: 10, severity: 'major', text: 'An IV beta-blocker with bradycardia and borderline blood pressure worsens both — and can push AV block to asystole.' },
     { id: 'opioid-hypotension', actions: ['fentanyl'], when: (s) => s.vitals.sbp < 90, points: 4, severity: 'minor', text: 'Opioids venodilate: avoid them while she is hypotensive with RV infarction.' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable center; the nearest ED has no cath lab.' },
-    { id: 'cpap-hypotension', actions: ['cpap'], replaces: ['cpap-preload-dependent'], points: 6, severity: 'major', text: 'CPAP lowers venous return — dangerous in a hypotensive, preload-dependent patient with clear lungs.' },
+    { id: 'cpap-hypotension', actions: ['cpap'], replaces: ['cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 6, severity: 'major', text: 'CPAP lowers venous return — dangerous in a hypotensive, preload-dependent patient with clear lungs.' },
   ],
   timings: [
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },

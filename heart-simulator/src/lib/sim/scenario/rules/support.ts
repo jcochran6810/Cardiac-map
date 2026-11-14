@@ -5,7 +5,7 @@
  * One dose, one penalty: where several rules here judge the same action, each lower one is written to stay silent while
  * a higher one applies (the gate order is noted above each group).
  */
-import { LOW_GLUCOSE, canSwallow, count, has, mapOf, paced, ventilated } from '../kit';
+import { LOW_GLUCOSE, canSwallow, count, has, mapOf, orderedFlag, paced, ventilated } from '../kit';
 import type { Harm, Problem, Scenario, SimState } from '../types';
 import {
   BICARBONATE_FOR, CALCIUMS, CALCIUM_FOR, did, hasProblem, lowPressure, lvadPerfusing, preloadDependent, procedureComing, shockable,
@@ -101,8 +101,9 @@ export const SUPPORT_RULES: Harm[] = [
   { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s) => s.vitals.glucose < LOW_GLUCOSE, points: 10, severity: 'major', text: 'Insulin with a blood glucose under 70 mg/dL. Treat the low glucose first: insulin drives it lower, and the worst lows come 1–3 hours later.' },
   // 10 units is the potassium dose; a beta- or calcium-channel-blocker overdose needs far more, so it is too little there, not a mistake
   { id: 'insulin-no-indication', actions: ['insulin-dextrose'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 5, severity: 'minor', text: 'Insulin and dextrose without hyperkalemia. They shift potassium into the cells; with no high potassium they only risk a low glucose.' },
-  // the nurses who push it (the lab nurse, the ER nurse) check the glucose first: a fingerstick, or the labs drawn
-  { id: 'insulin-glucose-unchecked', actions: ['insulin-dextrose'], roles: [4, 6], when: (s, sc) => !did(s, 'glucose') && !has(s, 'labs') && s.vitals.glucose >= LOW_GLUCOSE && hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 2, severity: 'minor', text: 'Insulin with no glucose checked first. A fingerstick (or the labs) before the dose: a low or low-normal glucose needs more dextrose with it, and the hourly checks that follow need a starting value — the lows come 1–3 hours later.' },
+  // the nurses who push it (the lab nurse, the ER nurse) check the glucose first: a fingerstick, or the labs drawn. The ER
+  // nurse's dose with no order is the order rule's (rn-without-order-insulin-dextrose): one act, one penalty
+  { id: 'insulin-glucose-unchecked', actions: ['insulin-dextrose'], roles: [4, 6], when: (s, sc) => !did(s, 'glucose') && !has(s, 'labs') && s.vitals.glucose >= LOW_GLUCOSE && hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']) && (s.role !== 6 || has(s, orderedFlag('insulin-dextrose'))), points: 2, severity: 'minor', text: 'Insulin with no glucose checked first. A fingerstick (or the labs) before the dose: a low or low-normal glucose needs more dextrose with it, and the hourly checks that follow need a starting value — the lows come 1–3 hours later.' },
   // the wheezing dose: wheeze from asthma, COPD or anaphylaxis is what it opens (crackles are fluid, not bronchospasm)
   { id: 'albuterol-no-bronchospasm', actions: ['albuterol'], when: (_s, sc) => !hasProblem(sc, ['bronchospasm', 'anaphylaxis']), points: 3, severity: 'minor', text: 'Albuterol (2.5–5 mg) with no wheeze. It opens airways narrowed by bronchospasm — asthma, COPD, anaphylaxis; with none it only speeds the heart and can bring on an arrhythmia. Crackles are fluid in the lungs, not bronchospasm.' },
   // Anaphylaxis: IM epinephrine first, then the adjuncts. Gate orders: epi-im-in-arrest > epi-im-no-anaphylaxis;

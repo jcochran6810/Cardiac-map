@@ -571,7 +571,7 @@ export const edStemiWalkIn: Scenario = {
       text: 'Admitting a STEMI without reperfusion. An occluded LAD needs the cath lab now — every 30 minutes of delay costs heart muscle and lives; a bed upstairs opens nothing.',
     },
     {
-      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), points: 10, severity: 'major',
+      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), replaces: ['transfer-unstable'], points: 10, severity: 'major',
       text: 'Transferring a STEMI out of a hospital with its own cath lab. A transfer adds an hour or more to the time to the device: activate your own lab.',
     },
     {

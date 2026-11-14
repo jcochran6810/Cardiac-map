@@ -605,7 +605,7 @@ export const tamponadeField: Scenario = {
       text: 'Nitroglycerin for a man whose heart cannot fill. A vasodilator pools the blood in the veins, and a heart squeezed by fluid lives on the blood coming back to it: the pressure crashes. Vasodilators and diuretics are contraindicated in tamponade (2015 ESC pericardial guideline). His chest heaviness is the effusion, not a blocked artery — and even after fluid his pressure has nothing in reserve.',
     },
     {
-      id: 'cpap-tamponade', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-preload-dependent'], points: 8, severity: 'major',
+      id: 'cpap-tamponade', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 8, severity: 'major',
       text: 'CPAP for a man in tamponade. Positive pressure in the chest pushes back against the blood returning to his already squeezed right heart: the output falls and it can bring on PEA. His breathlessness is from a heart that cannot fill, not wet lungs (they are dry): oxygen by cannula or mask, sitting up.',
     },
     {

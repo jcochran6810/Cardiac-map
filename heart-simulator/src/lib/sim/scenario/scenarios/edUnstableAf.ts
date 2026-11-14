@@ -881,7 +881,7 @@ export const edUnstableAf: Scenario = {
       text: 'Rapid sequence intubation for a low pressure that comes from a fast rate. She protects her airway and oxygenates; the induction drug and positive pressure drop the pressure further and can arrest a heart that cannot fill. Fix the rate (a sedated synchronized shock) first.',
     },
     {
-      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension'], points: 5, severity: 'major',
+      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 5, severity: 'major',
       text: 'CPAP without breathing trouble. Her lungs are clear and her oxygen is fine; the positive pressure cuts the blood returning to a heart that already cannot fill, and with a systolic of 78 it deepens the shock.',
     },
     {

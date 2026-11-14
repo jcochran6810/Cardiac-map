@@ -591,7 +591,7 @@ export const commotioField: Scenario = {
       text: 'Loading him for transport while he is in cardiac arrest. It looks like a trauma arrest, but the blow set off VF, and what treats VF — the shock and high-quality CPR — works right here, better than on a moving stretcher. Work the arrest on scene and transport after ROSC.',
     },
     {
-      id: 'cpap-unresponsive', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension'], points: 5, severity: 'major',
+      id: 'cpap-unresponsive', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 5, severity: 'major',
       text: 'CPAP for a patient who is not breathing adequately on his own. CPAP supports breaths a patient takes and needs someone awake enough to protect the airway; it gives no breaths. In the arrest, and unresponsive after ROSC, he needs a bag-mask or an advanced airway.',
     },
     {
@@ -619,7 +619,7 @@ export const commotioField: Scenario = {
       text: 'IM epinephrine without anaphylaxis. In the arrest a muscle barely absorbs it, and 0.3–0.5 mg is the anaphylaxis dose: epinephrine for an arrest is 1 mg IV/IO, from ALS. After ROSC he has no allergic reaction for it to treat.',
     },
     {
-      id: 'no-indication', actions: ['glucagon', 'diphenhydramine', 'albuterol'], roles: [2], replaces: ['albuterol-no-bronchospasm', 'glucagon-no-indication', 'antihistamine-no-indication'], points: 3, severity: 'minor',
+      id: 'no-indication', actions: ['glucagon', 'diphenhydramine', 'albuterol'], roles: [2], replaces: ['albuterol-no-bronchospasm', 'glucagon-no-indication', 'antihistamine-no-indication', 'glucagon-unprotected-airway'], points: 3, severity: 'minor',
       text: 'A drug with nothing to treat. Glucagon is for a beta- or calcium-channel-blocker overdose, diphenhydramine for an allergic reaction, albuterol for wheezing: he has none of them, and each brings its own side effects.',
     },
   ],
