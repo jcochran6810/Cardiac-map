@@ -286,6 +286,13 @@ describe('new cards for the drugs the simulator gives', () => {
     expect(ask('insulin dextrose dose').title).toMatch(/^Insulin/);
   });
 
+  it('calcium gluconate: the tutor answers from the calcium card, which now gives the gluconate dose', () => {
+    expect(ask('contraindications to calcium gluconate').title).toBe('Calcium Chloride — contraindications');
+    const dose = ask('dose of calcium gluconate');
+    expect(dose.title).toBe('Calcium Chloride — dosing');
+    expect(dose.bullets.join(' ')).toMatch(/Calcium gluconate 10%: 3 g \(30 mL\)/);
+  });
+
   it('fibrinolytic questions still go to tenecteplase, the STEMI lytic', () => {
     expect(ask('who is not a candidate for fibrinolysis').title).toBe('Tenecteplase — contraindications');
   });

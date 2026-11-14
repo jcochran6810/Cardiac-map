@@ -1335,7 +1335,18 @@ const albuterol: MedDef = {
         steps: [tachy, { at: 45 * MIN, mods: { tScale: cls === 'low' ? 0.92 : 0.8 }, note: 'K⁺ falling: the peaked T waves shrink.', tone: 'good', mark: 'K⁺ ↓' }],
       };
     }
-    if (['svt', 'vt', 'sinus-tach'].includes(c) || ((c === 'af' || c === 'flutter') && p.hr >= 100)) {
+    const fast = ['svt', 'vt', 'sinus-tach'].includes(c) || ((c === 'af' || c === 'flutter') && p.hr >= 100);
+    // wheezing now (the history the learner set): albuterol is the treatment, with care where the heart objects
+    if (hasProblem(p, 'bronchospasm')) {
+      const care = fast ? 'the rate is already fast and it speeds the heart' : prof.qtc >= 500 ? `with a long QT (QTc about ${prof.qtc} ms) it lowers the potassium` : isAcs(prof) ? 'a faster rate raises the oxygen demand of an ischemic heart' : null;
+      return {
+        verdict: care
+          ? caution(`Wheezing: albuterol 2.5–5 mg nebulized treats it — but ${care}. The smallest dose that works, and watch the monitor.`)
+          : good('Wheezing: albuterol 2.5–5 mg nebulized relaxes the airways within minutes (the heart rate rises a little).'),
+        steps: [tachy],
+      };
+    }
+    if (fast) {
       return { verdict: bad('Avoid: it speeds the heart and can provoke arrhythmias — the rate is already fast.'), steps: [tachy] };
     }
     if (isAcs(prof)) return { verdict: caution('Only for real bronchospasm: the faster rate raises the oxygen demand of an ischemic heart.'), steps: [tachy] };

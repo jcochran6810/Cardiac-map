@@ -1692,6 +1692,17 @@ describe('GM42: the patient\'s history and age', () => {
     expect(classifyDose(MED_BY_ID.fentanyl, h('anterior-stemi', 92, [], { age: 60 }), 80)).toBe('usual');
   });
 
+  it('wheezing now: albuterol is the treatment, with care when the rate is fast, the QT long or the heart ischemic', () => {
+    expect(tone('albuterol', h('normal-sinus', 80, []), 2.5)).toBe('caution');
+    expect(planDose('albuterol', h('normal-sinus', 80, ['bronchospasm']), 2.5).verdict).toMatchObject({ tone: 'good', text: expect.stringMatching(/^Wheezing: albuterol 2\.5–5 mg nebulized/) });
+    expect(planDose('albuterol', h('atrial-fibrillation', 150, ['bronchospasm']), 2.5).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/the rate is already fast/) });
+    expect(planDose('albuterol', h('long-qt', 72, ['bronchospasm']), 2.5).verdict.text).toMatch(/with a long QT/);
+    expect(tone('albuterol', h('nstemi', 84, ['bronchospasm']), 2.5)).toBe('caution');
+    // not in an arrest, and the hyperkalemia dose is still its own
+    expect(tone('albuterol', h('vf', 0, ['bronchospasm']), 2.5)).toBe('bad');
+    expect(planDose('albuterol', h('hyperkalemia', 64, ['bronchospasm']), 10).verdict.text).toMatch(/^Hyperkalemia/);
+  });
+
   it('every history item the page offers changes some verdict or usual dose', () => {
     const rhythms: [string, number][] = [['avnrt', 180], ['atrial-fibrillation', 150], ['vt', 160], ['sinus-bradycardia', 40], ['anterior-stemi', 92], ['nstemi', 84], ['hyperkalemia', 64], ['torsades', 230]];
     const read = (p: Patient) => MEDS.flatMap((m) => {
