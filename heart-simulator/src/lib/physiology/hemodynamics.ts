@@ -68,6 +68,9 @@ export const HEMO_PROFILES: Record<HemoProfile, HemoParams> = {
   hfref: { ...BASE, label: 'HFrEF (LVEF ~25%)', edv: 220, esv: 165, sbp: 102, dbp: 66, lvedp: 24, laMean: 24, mr: 0.15, tauRelax: 60, s3: true, murmur: 'mr', kick: 0.15, refHR: 95 },
   hfpef: { ...BASE, label: 'HFpEF (stiff LV)', edv: 108, esv: 44, sbp: 152, dbp: 86, lvedp: 22, laMean: 20, tauRelax: 70, s4: true, kick: 0.3, refHR: 80 },
   hcm: { ...BASE, label: 'Obstructive HCM', edv: 100, esv: 28, sbp: 118, dbp: 74, lvedp: 18, laMean: 16, gradient: 55, gradientType: 'dynamic', mr: 0.08, tauRelax: 70, s4: true, murmur: 'hcm', kick: 0.3, refHR: 66 },
+  // Takotsubo whose hyperkinetic base closes the outflow tract (with SAM and some mitral regurgitation): a stunned apex
+  // (a reduced EF), a dynamic gradient inside the LV and the harsh murmur of obstructive HCM
+  'takotsubo-lvoto': { ...BASE, label: 'Takotsubo with dynamic LV outflow obstruction', edv: 105, esv: 62, sbp: 88, dbp: 56, lvedp: 18, laMean: 18, gradient: 60, gradientType: 'dynamic', mr: 0.12, tauRelax: 60, murmur: 'hcm', kick: 0.2, refHR: 110 },
   // Low-output states: the stroke volumes give a cardiac index well under 2.2 L/min/m² at their usual rates
   // (shock ~28 mL × 118/min ≈ 3.3 L/min; tamponade and PE ~30 mL from a small, underfilled but vigorous LV).
   // Tamponade's values are those at end-expiration: every inspiration halves LV filling, so the systolic

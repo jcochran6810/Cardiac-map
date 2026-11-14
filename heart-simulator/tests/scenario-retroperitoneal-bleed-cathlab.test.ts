@@ -217,7 +217,7 @@ describe('retroperitoneal bleed in the cath lab: what works', () => {
     }
     expect(seen.slice(0, 7)).toEqual([[84, 118, 15], [74, 124, 14], [74, 124, 14], [74, 124, 14], [64, 130, 12], [64, 130, 12], [64, 130, 12]]);
     expect(s.pulse).toBe(false);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     expect(s.minute).toBe(16.5);
     for (const l of s.log) if (l.who === 'monitor') expect(l.text).not.toMatch(giveaway);
     // no CPR and no volume: she dies 10 minutes later, and the story says no CPR was given

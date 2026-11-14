@@ -343,7 +343,7 @@ export const dissectionField: Scenario = {
       when: (s) => s.pulse && onScene(s) && has(s, 'tamponade') && s.minute >= s.flags.tamponade + ARREST_AFTER,
       effect: (s) => ({
         say: [['partner', 'He\'s gone limp — not responding, not breathing normally!', 'bad'], ...(has(s, 'monitor') ? [line('monitor', 'Monitor alarm.', 'bad')] : [])],
-        rhythm: { profile: 'pea', hr: 112 }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['tamponade-arrest'],
+        rhythm: { profile: 'pea-narrow', hr: 112 }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['tamponade-arrest'],
       }),
     },
     {

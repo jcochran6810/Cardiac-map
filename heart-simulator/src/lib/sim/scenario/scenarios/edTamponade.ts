@@ -173,7 +173,7 @@ function drainEffect(s: SimState, how: Line[]): Effect {
 function arrestEffect(s: SimState, why: string): Effect {
   return {
     say: [[helper(s), why, 'bad'], ['monitor', 'Monitor alarm.', 'bad']],
-    rhythm: { profile: 'pea', hr: 112 }, pulse: false, phase: 'arrest',
+    rhythm: { profile: 'pea-narrow', hr: 112 }, pulse: false, phase: 'arrest',
     vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['tamponade-arrest'],
   };
 }

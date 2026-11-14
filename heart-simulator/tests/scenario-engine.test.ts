@@ -205,7 +205,7 @@ describe('built-in safety rules judge what the action really did', () => {
   it('cardioverting PEA is a shock to a non-shockable rhythm, not a sync problem; in VF it is', () => {
     const per = SCENARIO_BY_ID['perforation-cathlab'];
     let s = run(per, 5, ['balloon-tamponade', 'reassess', 'reassess', 'reassess', 'reassess']);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     s = perform(per, s, 'cardiovert');
     expect(s.penalties.map((p) => p.id)).toContain('shock-nonshockable');
     expect(s.penalties.map((p) => p.id)).not.toContain('sync-in-arrest');
@@ -408,7 +408,8 @@ describe('12-lead reads, checked at once', () => {
     expect(new Set(READ_OPTIONS.map((o) => o.id)).size).toBe(READ_OPTIONS.length);
     for (const o of READ_OPTIONS) for (const p of o.profiles ?? []) expect(ECG_PROFILES[p], `${o.id}: ${p}`).toBeDefined();
     for (const p of Object.values(ECG_PROFILES)) {
-      if (p.id === 'pea') continue;
+      // PEA is diagnosed at the pulse check: no 12-lead is read in an arrest
+      if (p.id === 'pea' || p.id === 'pea-narrow') continue;
       expect(READ_OPTIONS.filter((o) => (o.profiles ?? []).includes(p.id)), p.id).toHaveLength(1);
       expect(judgeRead(p.id, answerFor(p.id).id)).toBe('correct');
     }

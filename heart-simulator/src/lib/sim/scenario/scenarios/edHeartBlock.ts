@@ -31,6 +31,9 @@ const teammate = (s: SimState): Speaker => (s.role === 7 ? 'nurse' : 'team');
 /** The transcutaneous pacer is driving the heart now (not the wire, and not only firing) */
 const tcpActive = (s: SimState) => s.rhythm.profile === 'tcp';
 
+/** The transvenous wire's rhythm: a single RV wire paces the ventricles at 70 while her P waves march on (VVI) */
+const WIRE = 'paced-vvi';
+
 /** Something has been given for the potassium: calcium (minutes), insulin with dextrose or high-dose albuterol (a shift) */
 const kTreated = (s: SimState) => has(s, 'calcium') || has(s, 'insulin') || has(s, 'albuterol-hyperk');
 
@@ -105,7 +108,7 @@ function paceOn(s: SimState, on: number, lead: Line[] = []): Effect {
     // the potassium has pushed the threshold beyond what the pads can reach: spikes, and only now and then a beat
     return {
       say: [...lead, ['monitor', 'Pacer on: rate 70, output turned all the way up to 140 mA.'], line(edNurse(s), `Spikes march across the screen at 70, but only an occasional one brings a beat: femoral pulse ${s.rhythm.hr}.`, 'bad')],
-      flags: ['pads', 'monitor', 'tcp', 'lost-capture'],
+      flags: ['pads', 'monitor', 'tcp', 'lost-capture', 'pacer-no-capture'],
     };
   }
   const premedicated = pacingDose(s, on) !== undefined;
@@ -124,7 +127,7 @@ function wireIn(s: SimState, who: Speaker): Effect {
   if (thresholdHigh(s)) {
     return {
       say: [[who, 'Balloon-tipped pacing wire floated through the introducer sheath to the right ventricle — but even at the full 20 mA only an occasional spike brings a beat: the threshold is far too high.', 'bad']],
-      flags: [...flags, 'lost-capture'],
+      flags: [...flags, 'lost-capture', 'pacer-no-capture'],
     };
   }
   const bp = atLeast(s, 100, 62);
@@ -136,7 +139,7 @@ function wireIn(s: SimState, who: Speaker): Effect {
       ...(who === 'you' ? [line('you', 'Femoral pulse 70 with every paced beat.', 'good')] : []),
       ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`],
     ],
-    rhythm: { profile: 'paced', hr: 70 }, vitals: { ...bp, gcs: 15, pain: Math.min(s.vitals.pain, 1) }, flags: [...flags, 'paced'],
+    rhythm: { profile: WIRE, hr: 70 }, vitals: { ...bp, gcs: 15, pain: Math.min(s.vitals.pain, 1) }, flags: [...flags, 'paced'],
   };
 }
 
@@ -148,7 +151,7 @@ function calcium(s: SimState, who: Speaker): Effect {
     const bp = atLeast(s, 96, 58);
     return {
       say: [given, line(edNurse(s), 'Within a minute every spike brings a beat again: femoral pulse 70.', 'good'), ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`]],
-      rhythm: { profile: has(s, 'wire-in') ? 'paced' : 'tcp', hr: 70 }, vitals: { ...bp, gcs: 14 }, flags: ['calcium', 'paced'], clear: ['lost-capture'],
+      rhythm: { profile: has(s, 'wire-in') ? WIRE : 'tcp', hr: 70 }, vitals: { ...bp, gcs: 14 }, flags: ['calcium', 'paced'], clear: ['lost-capture', 'pacer-no-capture'],
     };
   }
   // her own slow beats come a little faster once the potassium's hold on the conduction eases; a pacer keeps its rate. With
@@ -318,7 +321,7 @@ export const edHeartBlock: Scenario = {
       : 'Confused about the date and the place, but follows commands; moves everything; no facial droop or slurred speech.'),
     ecg12: (s) => {
       if (s.rhythm.profile === 'tcp') return 'Transcutaneous pacing at 70: every spike is followed by a wide QRS and a T wave — electrical capture. Mechanical capture is checked at the femoral pulse and with a pressure.';
-      if (s.rhythm.profile === 'paced') return 'Ventricular pacing at 70 from the transvenous wire: a spike before every wide QRS.';
+      if (s.rhythm.profile === WIRE) return 'Ventricular pacing at 70 from the transvenous wire: a spike before every wide QRS, while her own P waves march on at their own rate.';
       return `Complete heart block: P waves at about 75/min march through at their own rate; a regular, wide escape at ${s.rhythm.hr}/min has no relationship to them. A wide escape comes from below the AV node — slow, unreliable, and unlikely to answer to atropine. No ST elevation in II, III or aVF: no inferior STEMI behind the block. A normal-looking T wave does not rule out a high potassium: measure it.`;
     },
     cxr: (s) => (has(s, 'wire-in')
@@ -344,7 +347,7 @@ export const edHeartBlock: Scenario = {
   },
   status: (s) => {
     if (has(s, 'lost-capture')) return 'Gray and barely answering.';
-    if (s.rhythm.profile === 'paced') return '"I feel much better — and that thumping has stopped."';
+    if (s.rhythm.profile === WIRE) return '"I feel much better — and that thumping has stopped."';
     if (tcpActive(s)) return has(s, 'analgesia') ? '"That\'s better. I can think again."' : '"Ow — every thump goes right through me! Make it stop!"';
     if (s.vitals.gcs < 13) return 'Barely responding.';
     if (has(s, 'pressor')) return '"A bit less dizzy…"';
@@ -379,7 +382,7 @@ export const edHeartBlock: Scenario = {
     'pulse-check': (s) => {
       if (has(s, 'lost-capture')) return { say: [['you', `Femoral pulse ${s.rhythm.hr} — the pacer fires at 70, but most spikes bring no beat.`, 'bad']] };
       if (tcpActive(s)) return { say: [['you', 'On the screen a wide complex follows every spike; in the groin, a femoral pulse at 70 with each one — mechanical capture. (The groin, not the neck: the pacer\'s muscle twitch can feel like a carotid pulse.)', 'good']] };
-      if (s.rhythm.profile === 'paced') return { say: [['you', 'Femoral pulse 70 with every paced beat.', 'good']] };
+      if (s.rhythm.profile === WIRE) return { say: [['you', 'Femoral pulse 70 with every paced beat.', 'good']] };
       return null;
     },
     fentanyl: (s) => {
@@ -532,7 +535,7 @@ export const edHeartBlock: Scenario = {
           ],
           rhythm: { profile: 'third-degree-avb', hr },
           vitals: { sbp: Math.min(s.vitals.sbp, 66), dbp: Math.min(s.vitals.dbp, 36), gcs: Math.min(s.vitals.gcs, 11) },
-          flags: ['k-rising', ...(pacing ? ['lost-capture'] : [])],
+          flags: ['k-rising', ...(pacing ? ['lost-capture', 'pacer-no-capture'] : [])],
         };
       },
     },

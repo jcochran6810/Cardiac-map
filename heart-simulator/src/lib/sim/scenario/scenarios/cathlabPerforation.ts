@@ -184,7 +184,7 @@ export const cathlabPerforation: Scenario = {
     },
     {
       id: 'arrest', when: (s) => has(s, 'tamponade') && !has(s, 'drained') && s.pulse && s.minute >= s.flags.tamponade + 5,
-      effect: () => ({ say: [['monitor', 'No pressure on the arterial line; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.']], rhythm: { profile: 'pea', hr: 110 }, pulse: false, flags: ['pea'] }),
+      effect: () => ({ say: [['monitor', 'No pressure on the arterial line; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.']], rhythm: { profile: 'pea-narrow', hr: 110 }, pulse: false, flags: ['pea'] }),
     },
     {
       id: 'md-cover', when: (s) => s.role !== 5 && has(s, 'drained') && (s.role === 4 ? has(s, 'act-known') : has(s, 'covered-in-hand')),

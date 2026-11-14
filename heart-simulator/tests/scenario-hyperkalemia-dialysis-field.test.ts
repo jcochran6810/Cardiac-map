@@ -227,7 +227,7 @@ describe('hyperkalemia in a dialysis patient — delay matters', () => {
     let s = run(['monitor', 'pads', 'iv']);
     while (!s.fired.includes('worse')) s = perform(sc, s, 'reassess');
     expect(s.minute).toBeGreaterThanOrEqual(8);
-    expect(s.rhythm).toEqual({ profile: 'hyperkalemia', hr: 30 });
+    expect(s.rhythm).toEqual({ profile: 'hyperkalemia-severe', hr: 30 });
     // the shallow breathing the partner reports shows in the saturation
     expect([s.vitals.sbp, s.vitals.dbp, s.vitals.spo2]).toEqual([64, 36, 90]);
     expect(s.log.some((l) => l.who === 'monitor' && l.text === 'Heart rate 30. BP 64/36. SpO₂ 90%.')).toBe(true);

@@ -609,7 +609,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         const bp = { sbp: Math.max(v.sbp, 100), dbp: Math.max(v.dbp, 62) };
         return {
           say: [['you', `${wire}: threshold 0.6 mA; pacing at 70, output 3 mA.`], ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`, 'good']],
-          rhythm: { profile: 'paced', hr: 70 }, vitals: bp, flags: ['temp-wire', 'paced'],
+          rhythm: { profile: 'paced-vvi', hr: 70 }, vitals: bp, flags: ['temp-wire', 'paced'],
         };
       }
       const faster = paced(s) ? `The heart is already paced at ${s.rhythm.hr}` : `The heart's own rate of ${s.rhythm.hr} is faster`;

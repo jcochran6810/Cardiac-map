@@ -308,7 +308,7 @@ describe('Pulmonary embolism in the field — the traps', () => {
     expect(s.pulse).toBe(true);
     s = perform(sc, s, 'fluid');
     expect(s.pulse).toBe(false);
-    expect(s.rhythm).toEqual({ profile: 'pea', hr: 120 });
+    expect(s.rhythm).toEqual({ profile: 'pea-narrow', hr: 120 });
     expect(s.flags['pe-arrest']).toBeDefined();
     // one mistake, one penalty
     expect(penalties(s)).toEqual(['fluid-loading-pe']);

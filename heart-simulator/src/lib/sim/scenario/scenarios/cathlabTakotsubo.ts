@@ -126,7 +126,9 @@ function withGradient(s: SimState, next: number, c: Change = {}): Effect {
   return {
     say,
     vitals: { ...bp, ...c.vitals, ...(pain !== undefined ? { pain } : {}) },
-    rhythm: { profile: s.rhythm.profile, hr },
+    // once the base has closed the outflow tract, the heart behind the pressures and the murmur is the obstructed one
+    // (the 12-lead does not change)
+    rhythm: { profile: s.rhythm.profile === 'takotsubo' && (has(s, 'obstructed') || flags.includes('obstructed')) ? 'takotsubo-lvoto' : s.rhythm.profile, hr },
     timers: {
       gradient: g, hrShift: shift, peak: Math.max(s.timers.peak ?? before, g),
       ...(has(s, 'obstructed') && g < before ? { lastHelp: s.minute } : {}), ...c.timers,

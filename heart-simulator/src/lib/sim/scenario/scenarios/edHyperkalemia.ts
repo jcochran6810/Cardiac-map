@@ -20,12 +20,27 @@ import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edNurse, physicianDispo, physicianO
  * the cause, the bicarbonate only for the acidosis, nephrology for emergency dialysis and an ICU bed, the repeat 12-lead.
  *
  * Left untreated, the QRS widens, the rate falls and the complexes run together; he arrests in a slow PEA at 18 minutes.
- * The tracing keeps the 'hyperkalemia' profile throughout (only its rate changes): the words of the reads and the team
- * describe what that tracing shows, never a narrower QRS it does not draw.
+ * The tracing moves with the potassium: the sine wave of the untreated rise ('hyperkalemia-severe', which calcium opens
+ * out again), and the smaller T waves and narrower QRS once insulin or albuterol has shifted some of it into the cells
+ * ('hyperkalemia-moderate'). The words of the reads and the team describe the tracing that is drawn.
  */
 
 /** His rhythm while the potassium is high: the case keeps it until he arrests or a pacer takes over */
 const HYPERK = 'hyperkalemia';
+/** The same patient untreated as the potassium climbs (a sine wave), and once some of it has been shifted into the cells */
+const HYPERK_SINE = 'hyperkalemia-severe';
+const HYPERK_LOWER = 'hyperkalemia-moderate';
+/** A high potassium drives his rhythm, at whichever stage */
+const hyperK = (s: SimState) => s.rhythm.profile === HYPERK || s.rhythm.profile === HYPERK_SINE || s.rhythm.profile === HYPERK_LOWER;
+/** The stage his tracing is at: kept when only the rate changes */
+const stage = (s: SimState) => (hyperK(s) ? s.rhythm.profile : HYPERK);
+
+/** What each stage of his tracing shows, in words */
+const PATTERN: Record<string, string> = {
+  [HYPERK]: 'P waves flattened almost to nothing, a long PR, a QRS about 140 ms wide, and tall, narrow, peaked T waves, tallest in V2–V4; no ST elevation',
+  [HYPERK_SINE]: 'no P waves at all, and a QRS over 200 ms wide that runs straight into its T wave — a sine wave; no ST elevation',
+  [HYPERK_LOWER]: 'small P waves back, a PR at the upper limit, a QRS about 110 ms wide, and peaked T waves, smaller than before, tallest in V2–V4; no ST elevation',
+};
 
 /** The potassium on the first lab, and the minutes from drawing the labs to the result (a STAT chemistry and gas from the main lab) */
 const K_FIRST = 7.8;
@@ -112,17 +127,23 @@ function calcium(s: SimState, who: Speaker): Effect {
   // in an arrest it is pushed and flushed while the compressions go on
   if (!s.pulse) return { say: [line(who, 'Calcium chloride 1 g pushed and flushed; compressions go on.')], flags: ['calcium'], clear };
   const timers = { calciumUntil: s.minute + CALCIUM_RUNS, calciumLast: s.minute };
-  if (s.rhythm.profile !== HYPERK) return { say: [given], flags: ['calcium'], timers, clear };
+  if (!hyperK(s)) return { say: [given], flags: ['calcium'], timers, clear };
   // the first dose (or one after it has worn off) does most; a repeat lifts the rate a little more
   const first = !has(s, 'calcium') || s.rhythm.hr < 50;
   const hr = first ? Math.max(s.rhythm.hr, 52) : Math.max(s.rhythm.hr, Math.min(s.rhythm.hr + 8, has(s, 'calcium-2') ? 66 : 62));
   const bp = first ? atLeast(s, 100, 60) : bpAfter(s, 6, 4);
   const eyes: Speaker = s.role === 7 ? 'nurse' : 'you';
-  const qrs = first ? 'On the monitor the rate is up — but the complexes are still wide, the T waves still tall.' : 'On the monitor the rate comes up a little more; the complexes are still wide.';
+  // calcium opens the sine wave out again into separate complexes (it lowers no potassium: they stay wide)
+  const sine = s.rhythm.profile === HYPERK_SINE;
+  const qrs = sine
+    ? 'On the monitor the rate is up, and the waves have opened out into separate complexes again — still wide, the T waves still tall.'
+    : first ? 'On the monitor the rate is up — but the complexes are still wide, the T waves still tall.' : 'On the monitor the rate comes up a little more; the complexes are still wide.';
+  // a wire that fired on without capturing goes to standby once his own rate holds the pressure (it stays in as a backup)
+  const standby: Line[] = has(s, 'pacer-no-capture') ? [line(eyes, 'The pacing box goes to standby: his own rate holds the pressure now, and the wire stays in as a backup.')] : [];
   return {
-    say: [given, ...ifAwake(s, '"That burns going up my arm."'), ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'good'], [eyes, qrs]],
-    rhythm: { profile: HYPERK, hr }, vitals: { ...bp, ...(first && comesRound(s) ? { gcs: 15 } : {}) },
-    flags: first ? ['calcium'] : ['calcium', 'calcium-2'], timers, clear,
+    say: [given, ...ifAwake(s, '"That burns going up my arm."'), ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'good'], [eyes, qrs], ...standby],
+    rhythm: { profile: sine ? HYPERK : stage(s), hr }, vitals: { ...bp, ...(first && comesRound(s) ? { gcs: 15 } : {}) },
+    flags: first ? ['calcium'] : ['calcium', 'calcium-2'], timers, clear: [...clear, ...(standby.length ? ['pacer-no-capture'] : [])],
   };
 }
 
@@ -142,7 +163,7 @@ function insulin(s: SimState, who: Speaker): Effect {
 /** High-dose albuterol: it moves potassium into the cells over 30–60 minutes; for now only the tremor and a few beats */
 function albuterol(s: SimState, who: Speaker): Effect | null {
   if (!s.pulse) return null; // a nebulizer needs a breathing patient: the default blocks it
-  const hr = s.rhythm.profile === HYPERK ? s.rhythm.hr + 4 : s.rhythm.hr;
+  const hr = hyperK(s) ? s.rhythm.hr + 4 : s.rhythm.hr;
   return {
     say: [[who, 'Albuterol 10 mg (the concentrated solution) by nebulizer and mask, running over about 10 minutes.'], ...ifAwake(s, '"I feel shaky."'), ['monitor', `Heart rate ${hr}.`]],
     rhythm: { ...s.rhythm, hr }, flags: ['albuterol-hyperk'],
@@ -167,7 +188,7 @@ function setupStillNeeded(s: SimState): string {
  * they depress the same conduction further. Before calcium he falls to 30 and arrests within minutes; after it, he sags
  */
 function suppress(s: SimState, drug: string): Effect | null {
-  if (!s.pulse || s.rhythm.profile !== HYPERK) return null;
+  if (!s.pulse || !hyperK(s)) return null;
   const v = s.vitals;
   const given = line(edNurse(s), `${drug} in.`);
   if (!has(s, 'calcium')) {
@@ -175,20 +196,20 @@ function suppress(s: SimState, drug: string): Effect | null {
     const dbp = Math.min(v.dbp, 32);
     return {
       say: [given, ['monitor', `Heart rate 30. BP ${sbp}/${dbp}.`, 'bad'], ['patient', 'His eyes roll back and he barely responds.', 'bad']],
-      rhythm: { profile: HYPERK, hr: 30 }, vitals: { sbp, dbp, gcs: Math.min(v.gcs, 10) }, flags: ['suppressed'],
+      rhythm: { profile: stage(s), hr: 30 }, vitals: { sbp, dbp, gcs: Math.min(v.gcs, 10) }, flags: ['suppressed'],
     };
   }
   const hr = Math.max(30, s.rhythm.hr - 14);
   const bp = bpAfter(s, -16, -10);
   return {
     say: [given, ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ...ifAwake(s, '"I feel faint again…"')],
-    rhythm: { profile: HYPERK, hr }, vitals: { ...bp, gcs: Math.min(v.gcs, 13) }, flags: ['suppressed'],
+    rhythm: { profile: stage(s), hr }, vitals: { ...bp, gcs: Math.min(v.gcs, 13) }, flags: ['suppressed'],
   };
 }
 
 /** Adenosine blocks the AV node for several seconds: at this rate, a pause with no output */
 function adenosinePause(s: SimState, seconds: number): Effect | null {
-  if (!s.pulse || s.rhythm.profile !== HYPERK) return null;
+  if (!s.pulse || !hyperK(s)) return null;
   return {
     say: [['monitor', `${seconds} seconds with no complexes at all… then the slow beats return at ${s.rhythm.hr}.`, 'bad'], ...ifAwake(s, '"Everything went gray…"')],
     flags: ['adenosine'],
@@ -203,7 +224,8 @@ function noCapture(s: SimState, how: 'pads' | 'wire'): Effect {
   if (how === 'wire') {
     return {
       say: [['you', `Balloon-tipped pacing wire floated through the introducer sheath to the right ventricle — but even at the full 20 mA only an occasional spike brings a beat: his own wide complexes go on at ${s.rhythm.hr}. The threshold is far too high.`, 'bad']],
-      flags: ['temp-wire', 'pace-failed'],
+      // the box fires on at 70 over his own beats (the monitor shows the spikes) until calcium lowers the threshold
+      flags: ['temp-wire', 'pace-failed', 'pacer-no-capture'],
     };
   }
   return {
@@ -358,10 +380,10 @@ export const edHyperkalemia: Scenario = {
     ecg12: (s) => {
       const hr = s.rhythm.hr;
       if (s.rhythm.profile === 'tcp') return `Transcutaneous pacing at ${hr}: a spike before every wide QRS. Underneath it the potassium is still high: calcium again, and shift it.`;
-      // the tracing keeps the same pattern at every rate: the words say what it shows
-      const pattern = 'P waves flattened almost to nothing, a long PR, a QRS about 140 ms wide, and tall, narrow, peaked T waves, tallest in V2–V4; no ST elevation';
+      // the words say what the tracing at this stage shows
+      const pattern = PATTERN[stage(s)];
       if (has(s, 'shifted')) {
-        return `Rate ${hr}: still ${pattern} — the changes of a high potassium, now at a rate that holds his pressure. Insulin and albuterol have moved some of it into the cells, but none has left his body, and the tracing will not be normal until the potassium is: calcium, insulin and albuterol buy hours; dialysis takes it out.`;
+        return `Rate ${hr}: ${pattern} — still the changes of a high potassium, smaller now and at a rate that holds his pressure. Insulin and albuterol have moved some of it into the cells, but none has left his body, and the tracing will not be normal until the potassium is: calcium, insulin and albuterol buy hours; dialysis takes it out.`;
       }
       const tracing = `${hr < 60 ? `Slow at ${hr}` : `Rate ${hr}`}: ${pattern}`;
       return has(s, 'calcium')
@@ -476,13 +498,13 @@ export const edHyperkalemia: Scenario = {
     'temp-wire': (s) => (s.pulse && has(s, 'venous') && !has(s, 'calcium') ? noCapture(s, 'wire') : null),
     // an epinephrine infusion supports a slow heart and shifts a little potassium too; it does not replace calcium
     pressor: (s) => {
-      if (!s.pulse || s.rhythm.profile !== HYPERK) return null;
+      if (!s.pulse || !hyperK(s)) return null;
       const before = !has(s, 'calcium');
       const hr = before ? Math.max(s.rhythm.hr, 46) : Math.max(s.rhythm.hr, Math.min(s.rhythm.hr + 6, 70));
       const bp = before ? atLeast(s, 92, 54) : bpAfter(s, 10, 6);
       return {
         say: [[edNurse(s), 'Epinephrine infusion started at 2 micrograms a minute, titrating.'], ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]],
-        rhythm: { profile: HYPERK, hr }, vitals: bp, flags: ['pressor'],
+        rhythm: { profile: stage(s), hr }, vitals: bp, flags: ['pressor'],
       };
     },
     lidocaine: (s) => suppress(s, 'Lidocaine'),
@@ -494,7 +516,7 @@ export const edHyperkalemia: Scenario = {
     adenosine6: (s) => adenosinePause(s, 6),
     adenosine12: (s) => adenosinePause(s, 8),
     // bearing down raises the vagal tone: a few seconds slower still
-    vagal: (s) => (s.pulse && s.rhythm.profile === HYPERK
+    vagal: (s) => (s.pulse && hyperK(s)
       ? { say: [['monitor', `Heart rate ${Math.max(24, s.rhythm.hr - 8)} for a few seconds, then back to ${s.rhythm.hr}.`, 'bad']], flags: ['vagal'] }
       : null),
     // the low pressure comes from the slow rate: a bolus barely moves it, and his kidneys pass little of it
@@ -507,7 +529,7 @@ export const edHyperkalemia: Scenario = {
     // induction and positive pressure on a heart the potassium has slowed, before calcium: it nearly stops — never better
     // than it was — and, like a drug that depresses it further, it arrests within minutes unless an infusion holds it up
     rsi: (s) => {
-      if (!s.pulse || has(s, 'calcium') || s.rhythm.profile !== HYPERK) return null;
+      if (!s.pulse || has(s, 'calcium') || !hyperK(s)) return null;
       const hr = Math.min(s.rhythm.hr, 28);
       const sbp = Math.min(s.vitals.sbp, 60);
       const dbp = Math.min(s.vitals.dbp, 34);
@@ -516,7 +538,7 @@ export const edHyperkalemia: Scenario = {
           ['you', 'Preoxygenated; etomidate and rocuronium pushed; tube through the cords, confirmed with waveform capnography; on the ventilator.'],
           ['monitor', `Heart rate ${hr}. BP ${sbp}/${dbp}.`, 'bad'],
         ],
-        rhythm: { profile: HYPERK, hr }, vitals: { sbp, dbp, spo2: 98, rr: 16, gcs: 3 }, flags: ['airway', 'ventilated', 'sedation', 'rsi', 'suppressed'],
+        rhythm: { profile: stage(s), hr }, vitals: { sbp, dbp, spo2: 98, rr: 16, gcs: 3 }, flags: ['airway', 'ventilated', 'sedation', 'rsi', 'suppressed'],
       };
     },
     // PEA from the potassium: compressions and epinephrine keep him going, but the circulation comes back only once the
@@ -590,7 +612,7 @@ export const edHyperkalemia: Scenario = {
     {
       // the QRS widens and the rate and the pressure fall — never back up, if a drug has already pushed them lower
       id: 'worse',
-      when: (s) => s.pulse && s.rhythm.profile === HYPERK && !has(s, 'calcium') && !has(s, 'pressor') && !has(s, 'suppressed') && s.minute >= 10,
+      when: (s) => s.pulse && hyperK(s) && !has(s, 'calcium') && !has(s, 'pressor') && !has(s, 'suppressed') && s.minute >= 10,
       effect: (s) => {
         const hr = Math.min(s.rhythm.hr, 30);
         const sbp = Math.min(s.vitals.sbp, 72);
@@ -600,27 +622,27 @@ export const edHyperkalemia: Scenario = {
             [teammate(s), 'He is harder to rouse — and the complexes on the monitor are getting wider.', 'bad'],
             ...(has(s, 'monitor') ? [['monitor', `Heart rate ${hr}. BP ${sbp}/${dbp}.`, 'bad'] as Line] : []),
           ],
-          rhythm: { profile: HYPERK, hr }, vitals: { sbp, dbp, spo2: Math.min(s.vitals.spo2, 93), gcs: Math.min(s.vitals.gcs, 13) }, flags: ['worse'],
+          rhythm: { profile: HYPERK_SINE, hr }, vitals: { sbp, dbp, spo2: Math.min(s.vitals.spo2, 93), gcs: Math.min(s.vitals.gcs, 13) }, flags: ['worse'],
         };
       },
     },
     {
       // the complexes so wide they run into one another: minutes from standstill
       id: 'pre-arrest',
-      when: (s) => s.pulse && s.rhythm.profile === HYPERK && !has(s, 'calcium') && !has(s, 'pressor') && !has(s, 'suppressed') && s.minute >= 15,
+      when: (s) => s.pulse && hyperK(s) && !has(s, 'calcium') && !has(s, 'pressor') && !has(s, 'suppressed') && s.minute >= 15,
       effect: (s) => ({
         say: [
           [teammate(s), 'Barely rousable now — and the complexes on the monitor are so wide they roll into one another.', 'bad'],
           ['monitor', 'Heart rate 24. BP 58/30.', 'bad'],
         ],
-        rhythm: { profile: HYPERK, hr: 24 }, vitals: { sbp: Math.min(s.vitals.sbp, 58), dbp: Math.min(s.vitals.dbp, 30), gcs: Math.min(s.vitals.gcs, 9) }, flags: ['pre-arrest'],
+        rhythm: { profile: HYPERK_SINE, hr: 24 }, vitals: { sbp: Math.min(s.vitals.sbp, 58), dbp: Math.min(s.vitals.dbp, 30), gcs: Math.min(s.vitals.gcs, 9) }, flags: ['pre-arrest'],
       }),
     },
     {
       // untreated, the slow wide rhythm stops pumping (PEA); a drug that suppresses it brings that on within minutes —
       // unless an infusion started after it has brought the rate back up
       id: 'arrest',
-      when: (s) => s.pulse && s.rhythm.profile === HYPERK && !has(s, 'calcium')
+      when: (s) => s.pulse && hyperK(s) && !has(s, 'calcium')
         && (s.minute >= (has(s, 'pressor') ? 24 : 18)
           || (has(s, 'suppressed') && !(has(s, 'pressor') && s.flags.pressor >= s.flags.suppressed) && s.minute >= s.flags.suppressed + 2)),
       effect: (s) => ({
@@ -628,6 +650,8 @@ export const edHyperkalemia: Scenario = {
         // no EtCO₂ of its own: the capnograph follows the shared arrest rule (breaths, then compressions)
         rhythm: { profile: 'pea', hr: 24 }, pulse: false, phase: 'arrest',
         vitals: { sbp: 0, dbp: 0, rr: 0, spo2: 80, gcs: 3, pain: 0 },
+        // no pacing in a cardiac arrest: a wire box that was firing without capture is switched off
+        clear: ['pacer-no-capture'],
       }),
     },
     {
@@ -668,7 +692,7 @@ export const edHyperkalemia: Scenario = {
     {
       // insulin (or albuterol) has had its time: potassium has moved into the cells, and his strength comes back
       id: 'shift-works',
-      when: (s) => s.pulse && s.rhythm.profile === HYPERK && has(s, 'calcium')
+      when: (s) => s.pulse && hyperK(s) && has(s, 'calcium')
         && ((has(s, 'insulin') && s.minute >= s.flags.insulin + 20) || (has(s, 'albuterol-hyperk') && s.minute >= s.flags['albuterol-hyperk'] + 30)),
       effect: (s) => {
         const hr = Math.max(s.rhythm.hr, 72);
@@ -680,14 +704,14 @@ export const edHyperkalemia: Scenario = {
               : [teammate(s), 'His rate and pressure are coming up — still no response to voice.', 'good'],
             ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'good'],
           ],
-          rhythm: { profile: HYPERK, hr }, vitals: { ...bp, ...(comesRound(s) ? { gcs: 15, spo2: Math.max(s.vitals.spo2, 95) } : {}) }, flags: ['shifted'],
+          rhythm: { profile: HYPERK_LOWER, hr }, vitals: { ...bp, ...(comesRound(s) ? { gcs: 15, spo2: Math.max(s.vitals.spo2, 95) } : {}) }, flags: ['shifted'],
         };
       },
     },
     {
       // calcium only bought time: 30 minutes on, with nothing to shift the potassium, the rate and the pressure sag again
       id: 'calcium-fades',
-      when: (s) => s.pulse && s.rhythm.profile === HYPERK && has(s, 'calcium') && !has(s, 'insulin') && !has(s, 'albuterol-hyperk') && !has(s, 'pressor')
+      when: (s) => s.pulse && hyperK(s) && has(s, 'calcium') && !has(s, 'insulin') && !has(s, 'albuterol-hyperk') && !has(s, 'pressor')
         && s.timers.calciumLast !== undefined && s.minute >= s.timers.calciumLast + 30,
       effect: (s) => {
         const hr = Math.min(s.rhythm.hr, 44);
@@ -695,7 +719,7 @@ export const edHyperkalemia: Scenario = {
         const dbp = Math.min(s.vitals.dbp, 50);
         return {
           say: [[teammate(s), 'He is getting weaker again, and the complexes are widening.', 'warn'], ['monitor', `Heart rate ${hr}. BP ${sbp}/${dbp}.`, 'warn']],
-          rhythm: { profile: HYPERK, hr }, vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 14) }, flags: ['calcium-faded'],
+          rhythm: { profile: stage(s), hr }, vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 14) }, flags: ['calcium-faded'],
         };
       },
     },

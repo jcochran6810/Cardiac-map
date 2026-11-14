@@ -775,7 +775,7 @@ describe('inferior STEMI in the cath lab', () => {
     let s = run(sc, 5, [...MD_TO_BALLOON, 'temp-wire']);
     expect(s.counts['temp-wire']).toBeUndefined();
     s = run(sc, 5, [...MD_TO_BALLOON, 'access-venous', 'temp-wire']);
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
   });
 
   it('nitroglycerin in the reflex drops the pressure further — never back up to 72/42', () => {
@@ -789,7 +789,7 @@ describe('inferior STEMI in the cath lab', () => {
   it('a wire that only catches the reflex at 50 is still too slow: pacing at 70 takes over, and is no mistake', () => {
     const at = MD_TO_BALLOON.indexOf('access-femoral') + 1;
     let s = run(sc, 5, [...MD_TO_BALLOON.slice(0, at), 'access-venous', 'temp-wire', ...MD_TO_BALLOON.slice(at)]);
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 50 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 50 });
     s = perform(sc, s, 'pace');
     expect(s.rhythm).toEqual({ profile: 'tcp', hr: 70 });
     expect(s.penalties.map((p) => p.id)).not.toContain('pace-not-slow');
@@ -940,7 +940,7 @@ describe('coronary perforation', () => {
     expect(s.counts.pericardiocentesis).toBeUndefined();
     s = run(sc, 5, ['balloon-tamponade', ...R(4)]);
     expect(s.pulse).toBe(false);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     s = perform(sc, perform(sc, s, 'echo'), 'pericardiocentesis');
     expect(s.pulse).toBe(true);
   });

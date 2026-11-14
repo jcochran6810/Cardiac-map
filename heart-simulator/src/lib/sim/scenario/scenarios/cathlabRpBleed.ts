@@ -218,7 +218,7 @@ function bleedingDrop(s: SimState): Effect {
 /** The pressure falls far enough that the heart has nothing left to pump: organized complexes, no pulse */
 const arrest = (): Effect => ({
   say: [['monitor', 'Complexes at 132 on the monitor — but no pulse with them and no pressure.', 'bad'], ['team', 'She is unresponsive!', 'bad']],
-  rhythm: { profile: 'pea', hr: 132 }, pulse: false,
+  rhythm: { profile: 'pea-narrow', hr: 132 }, pulse: false,
 });
 
 // ─── The team: the operator's requests ─────────────────────────────────────

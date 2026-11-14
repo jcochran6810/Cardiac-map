@@ -281,6 +281,7 @@ export type HemoProfile =
   | 'hfref'
   | 'hfpef'
   | 'hcm'
+  | 'takotsubo-lvoto'
   | 'shock'
   | 'tamponade'
   | 'pe'
@@ -620,6 +621,16 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favor takotsubo', 'Evolves to deep, widespread T inversion with QT prolongation', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
     keyLeads: ['V2', 'V3', 'V4', 'V5', 'aVR'],
   },
+  // the same tracing once the hyperkinetic base closes the outflow tract: only the heart behind the pressures changes
+  // (a dynamic gradient and its murmur over a stunned apex), the ECG does not
+  'takotsubo-lvoto': {
+    id: 'takotsubo-lvoto', name: 'Takotsubo with LV Outflow Obstruction', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 110, ...STD,
+    pr: 150, p: 'normal', qrs: 'normal', qtc: 480, hemo: 'takotsubo-lvoto',
+    injury: scale(norm([0.8, -0.5, -0.3]), 0.18),
+    headline: 'Anterior ST elevation without reciprocal change; outflow obstruction',
+    findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favor takotsubo', 'Outflow obstruction does not show on the ECG: the falling pressure, a harsh systolic murmur, the pullback gradient and the echo show it', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
+    keyLeads: ['V2', 'V3', 'V4', 'V5', 'aVR'],
+  },
   hfref: {
     id: 'hfref', name: 'HFrEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 92, ...STD,
     pr: 200, p: 'mitrale', qrs: 'ivcd', qtc: 460, hemo: 'hfref',
@@ -630,6 +641,8 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'hfpef', name: 'HFpEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 78, ...STD,
     pr: 180, p: 'mitrale', qrs: 'lvh', qtc: 440, hemo: 'hfpef',
     t: { dir: [-0.6, -0.35, 0.5], mag: 0.22 },
+    // the strain's lateral ST depression (about half a millimeter in I, V5 and V6) that its findings and read name
+    injury: scale(norm([-0.6, -0.3, 0.3]), 0.07),
     headline: 'LVH with strain and left atrial enlargement',
     findings: ['LVH voltage (Sokolow-Lyon S V1 + R V5/V6 ≥ 35 mm)', 'Lateral ST depression / T inversion ("strain")', 'P mitrale from a stiff LV and high filling pressure; AF is common'],
     keyLeads: ['V1', 'V5', 'V6'],
@@ -725,11 +738,42 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: ['Tall, narrow, symmetric "tented" T waves (earliest sign)', 'PR prolongation and P-wave flattening/loss', 'QRS widening → sine-wave pattern → VF/asystole', 'ECG is insensitive: severe hyperkalemia can have a near-normal ECG'],
     keyLeads: ['V2', 'V3', 'V4', 'II'],
   },
+  // the same patient at a lower potassium (after a shift into the cells): the T waves smaller, the QRS only just wide
+  'hyperkalemia-moderate': {
+    id: 'hyperkalemia-moderate', name: 'Hyperkalemia (moderate)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 72, ...STD,
+    pr: 200, p: 'normal', qrs: 'normal', qrsWiden: 1.2, qtc: 400, hemo: 'normal',
+    t: { dir: [0.5, -0.55, -0.65], mag: 0.7, rise: 0.06, fall: 0.055 },
+    headline: 'Peaked T waves, a slightly wide QRS',
+    findings: ['Tall, narrow, symmetric "tented" T waves — smaller than at a higher potassium', 'P waves still seen; the PR at the upper limit of normal', 'The QRS just beginning to widen (about 110 ms)', 'Still treated: calcium for any ECG change, then the potassium shifted and removed'],
+    keyLeads: ['V2', 'V3', 'V4', 'II'],
+  },
+  // the last stage before the heart stops: no P waves, and a QRS so wide it runs into the T wave
+  'hyperkalemia-severe': {
+    id: 'hyperkalemia-severe', name: 'Hyperkalemia (severe: sine wave)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 40, minHR: 20, maxHR: 120,
+    pr: 260, p: 'flat', qrs: 'normal', qrsWiden: 2.5, qtc: 400, hemo: 'normal',
+    t: { dir: [0.5, -0.55, -0.65], mag: 0.8, rise: 0.2, fall: 0.1 },
+    headline: 'Sine-wave pattern: a very wide QRS merging into the T wave',
+    findings: ['No P waves to be seen', 'The QRS widened to over 200 ms and running straight into the T wave: a sine wave', 'Minutes from VF, asystole or PEA: IV calcium at once, then the potassium shifted and removed', 'Never wait for the lab when the tracing looks like this'],
+    keyLeads: ['II', 'V2', 'V3'],
+  },
   paced: {
     id: 'paced', name: 'Ventricular Paced (DDD)', rhythm: 'paced', rateControl: 'sinus', defaultHR: 72, minHR: 50, maxHR: 130,
     pr: 160, p: 'normal', qrs: 'paced', qtc: 460, hemo: 'normal',
     headline: 'Atrial-sensed, ventricular-paced rhythm',
     findings: ['Sinus P waves tracked; pacing spike after a programmed AV delay', 'RV apical pacing: wide QRS with LBBB-like morphology and left axis deviation', 'Discordant ST-T is expected; use Smith-modified Sgarbossa for ischemia', 'Check capture: every spike should be followed by a QRS'],
+    keyLeads: ['II', 'V1'],
+  },
+  // a temporary transvenous wire in the right ventricle paces the ventricles only (VVI): it cannot follow the P waves
+  'paced-vvi': {
+    id: 'paced-vvi', name: 'Ventricular Paced (VVI, temporary wire)', rhythm: 'vpaced', rateControl: 'ventricular', defaultHR: 70, minHR: 30, maxHR: 180,
+    pr: 0, p: 'normal', qrs: 'paced', qtc: 460, hemo: 'normal',
+    headline: 'Ventricular pacing from a temporary wire (VVI)',
+    findings: [
+      'A small pacing spike before every wide QRS, at the rate set on the pacing box',
+      'The P waves march on at their own rate, unrelated to the paced beats: a single wire in the right ventricle paces the ventricles and does not track the atria',
+      'RV apical pacing: LBBB-like QRS with a left (superior) axis; a right bundle pattern suggests the tip is elsewhere (coronary sinus, or through the septum or the wall)',
+      'Check capture: every spike followed by a QRS and a pulse; spikes with nothing after them are loss of capture',
+    ],
     keyLeads: ['II', 'V1'],
   },
   pea: {
@@ -741,6 +785,20 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
       'Any organized rhythm can be PEA — the diagnosis is made by the pulse check, not the ECG',
       'Non-shockable: high-quality CPR, epinephrine as soon as possible, and search for reversible causes (Hs & Ts)',
       'Slow and wide favors metabolic causes (hyperkalemia, acidosis, hypoxia); narrow and fast favors mechanical causes (tamponade, PE, hypovolemia, tension pneumothorax)',
+    ],
+    keyLeads: ['II'],
+  },
+  // the mechanical causes: a heart that still conducts normally and fast, but cannot fill (tamponade, a massive PE,
+  // bleeding, a tension pneumothorax)
+  'pea-narrow': {
+    id: 'pea-narrow', name: 'Pulseless Electrical Activity (narrow, fast)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 110, minHR: 60, maxHR: 150,
+    pr: 150, p: 'normal', qrs: 'normal', qtc: 420, hemo: 'no-output',
+    headline: 'Pulseless electrical activity: a narrow, fast rhythm with no pulse',
+    findings: [
+      'Organized electrical activity on the monitor but no palpable pulse',
+      'Any organized rhythm can be PEA — the diagnosis is made by the pulse check, not the ECG',
+      'Non-shockable: high-quality CPR, epinephrine as soon as possible, and search for reversible causes (Hs & Ts)',
+      'Narrow and fast: think of a mechanical cause — tamponade, tension pneumothorax, a massive PE or blood loss — and treat it',
     ],
     keyLeads: ['II'],
   },

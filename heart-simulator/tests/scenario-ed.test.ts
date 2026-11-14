@@ -223,7 +223,7 @@ describe('emergency department defaults', () => {
     expect(s.log.some((l) => /from every port/.test(l.text))).toBe(false);
     expect(s.log.some((l) => /^Balloon-tipped pacing wire floated through the introducer sheath/.test(l.text))).toBe(true);
     expect(s.counts.atropine).toBe(1);
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     expect(s.minute).toBeCloseTo(8 + 0.5 + 3, 5);
     expect(ids(s)).toEqual([]);
     expect(INTERVENTION_BY_ID['central-line'].detail).toMatch(/introducer sheath \(6 Fr, with a side port for drugs\)/);

@@ -18,8 +18,14 @@ export const orderedFlag = (id: string) => `ordered:${id}`;
 /** Every action that puts defibrillation pads on the chest: a "pads on" item counts any of them */
 export const PADS = ['pads', 'aed', 'defib', 'cardiovert', 'pace'];
 
+/** The rhythms a pacer draws: transcutaneous pads ('tcp'), a dual-chamber pacemaker ('paced') and a temporary RV wire ('paced-vvi') */
+export const PACED_PROFILES = ['tcp', 'paced', 'paced-vvi'];
+
 /** The rhythm is driven by a pacer (transcutaneous pads or a transvenous wire), not by the heart's own rate */
-export const paced = (s: SimState) => s.rhythm.profile === 'tcp' || s.rhythm.profile === 'paced';
+export const paced = (s: SimState) => PACED_PROFILES.includes(s.rhythm.profile);
+
+/** A transvenous wire (or a pacemaker) is pacing the ventricles: every paced rhythm but the pads' */
+export const wirePaced = (s: SimState) => s.rhythm.profile === 'paced' || s.rhythm.profile === 'paced-vvi';
 
 /** The plain sinus rhythms, which are named by their rate */
 const PLAIN_SINUS = ['sinus-bradycardia', 'normal-sinus', 'sinus-tachycardia'];

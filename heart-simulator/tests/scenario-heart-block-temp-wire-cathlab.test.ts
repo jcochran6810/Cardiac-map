@@ -103,7 +103,7 @@ describe('temporary wire for complete heart block: ideal runs end by themselves 
     it(`role ${role}`, () => {
       const s = run(sc, role, IDEAL[role]);
       expectFullMarks(s);
-      expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+      expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
       expect(s.flags).toEqual(expect.objectContaining({ 'wire-paced': expect.any(Number), perforated: expect.any(Number), tamponade: expect.any(Number), drained: expect.any(Number) }));
       expect(s.reads.map((r) => `${r.answer}:${r.verdict}`)).toEqual(['chb:correct', 'paced:correct', 'clin-tamponade:correct']);
       expect(s.fired.some((id) => id.endsWith('-fallback'))).toBe(false);
@@ -227,7 +227,7 @@ describe('temporary wire: the wire', () => {
     expect(blocked.counts['temp-wire']).toBeUndefined();
     expect(blocked.log.at(-1)!.text).toMatch(/femoral venous access first/);
     const s = run(sc, 5, MD_TO_WIRE);
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     expect(said(s)).toMatch(/Threshold 0\.8 mA\. Output set to 3 mA/);
     expect(said(s)).toMatch(/pads pacer goes to standby, the pads stay on/);
   });
@@ -276,7 +276,7 @@ describe('temporary wire: the wire moves', () => {
 
   it('the cardiologist pulls it back and it paces again; the nurse restarts the pads if he waits', () => {
     const s = perform(sc, run(sc, 5, MD_TO_PERFORATION), 'reposition');
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     expect(said(s)).toMatch(/through the wall/);
     const waits = run(sc, 5, [...MD_TO_PERFORATION, 'echo']);
     expect(waits.rhythm).toEqual({ profile: 'tcp', hr: 70 });
@@ -290,7 +290,7 @@ describe('temporary wire: the wire moves', () => {
       const upTo = steps.indexOf('callout', role === 3 ? steps.indexOf('ecg12-repeat') : 0);
       const s = run(sc, role, [...steps.slice(0, upTo), ...R(2)]);
       expect(s.fired, `role ${role}`).toEqual(expect.arrayContaining(['team-repaces', 'md-rewire']));
-      expect(s.rhythm, `role ${role}`).toEqual({ profile: 'paced', hr: 70 });
+      expect(s.rhythm, `role ${role}`).toEqual({ profile: 'paced-vvi', hr: 70 });
       expect(missed(s), `role ${role}`).toContain('Call out the loss of capture at once');
     }
   });
@@ -333,7 +333,7 @@ describe('temporary wire: the effusion', () => {
     const steps = MD.slice(0, MD.indexOf('pericardiocentesis'));
     const s = run(sc, 5, ['read:chb', ...readAfter(steps, 'ecg12-repeat', 'paced')], undefined, 'manual');
     expect(s.pendingRead).toMatchObject({ kind: 'clinical', answer: 'clin-tamponade' });
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     expect(s.vitals.sbp).toBeLessThanOrEqual(74);
     expect(s.log.some((l) => l.who === 'monitor' && l.text === `BP ${s.vitals.sbp}/${s.vitals.dbp}; the heart rate stays at 70; respirations 26.`)).toBe(true);
     for (const l of s.log) expect(l.text).not.toMatch(/tamponade/i);

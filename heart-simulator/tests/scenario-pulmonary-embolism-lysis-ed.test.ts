@@ -354,7 +354,7 @@ describe('the ER doctor', () => {
     expect(has(two, 'rv-failing')).toBe(true);
     const three = md(MD_FLUID_ARREST);
     expect(three.pulse).toBe(false);
-    expect(three.rhythm.profile).toBe('pea');
+    expect(three.rhythm.profile).toBe('pea-narrow');
     expect(ids(three)).toEqual(['fluid-loading-pe']);
   });
 

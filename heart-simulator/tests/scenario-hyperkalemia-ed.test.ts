@@ -183,10 +183,10 @@ describe('the potassium, untreated: delay matters', () => {
     let s = md(['primary']);
     s = until(s, (x) => has(x, 'worse'));
     expect(s.minute).toBeGreaterThanOrEqual(10);
-    expect(s.rhythm).toEqual({ profile: 'hyperkalemia', hr: 30 });
+    expect(s.rhythm).toEqual({ profile: 'hyperkalemia-severe', hr: 30 });
     expect(s.vitals).toMatchObject({ sbp: 72, dbp: 40 });
     s = until(s, (x) => has(x, 'pre-arrest'));
-    expect(s.rhythm.hr).toBe(24);
+    expect(s.rhythm).toEqual({ profile: 'hyperkalemia-severe', hr: 24 });
     expect(said(s)).toMatch(/roll into one another/);
     s = until(s, (x) => !x.pulse);
     expect(s.minute).toBeGreaterThanOrEqual(18);
@@ -533,11 +533,12 @@ describe('review fixes: the story, the orders and the rechecks', () => {
     expect(r.percent).toBe(100);
   });
 
-  it('the repeat 12-lead is read as the tracing shows it: the same pattern at a safer rate, never a narrower QRS it does not draw', () => {
+  it('the repeat 12-lead is read as the tracing shows it: once the potassium has shifted, smaller changes at a safer rate — still a high potassium', () => {
     for (const role of [6, 7] as const) {
       const s = runScenario(sc, role, IDEAL[role]);
+      expect(s.rhythm.profile).toBe('hyperkalemia-moderate');
       expect(said(s)).not.toMatch(/narrower|complexes look a little narrow|narrow a little more/);
-      expect(said(s)).toMatch(/Rate 72: still P waves flattened almost to nothing.*a QRS about 140 ms wide/);
+      expect(said(s)).toMatch(/Rate 72: small P waves back.*a QRS about 110 ms wide.*still the changes of a high potassium/);
     }
   });
 
