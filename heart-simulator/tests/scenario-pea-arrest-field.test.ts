@@ -3,6 +3,7 @@ import { resolveProfile } from '@/lib/ecg/profiles';
 import { BUILT_IN_HARMS, clockText, criticalsFor, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { peaArrestField as sc } from '@/lib/sim/scenario/scenarios/peaArrestField';
+import { BICARBONATE_IN_ARREST_FOR, CALCIUM_FOR } from '@/lib/sim/scenario/rules/helpers';
 import type { SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 import { UNTIL_ARRIVED, readAfter, runScenario } from './helpers';
@@ -48,8 +49,10 @@ describe('PEA arrest in the field — the case itself', () => {
         expect(ids.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // nothing she has makes calcium or bicarbonate right: the built-in rules judge them as given with no indication
-    expect(sc.problems ?? []).toEqual([]);
+    // nothing she has makes calcium or bicarbonate right: the built-in rules judge them as given with no indication. Her COPD,
+    // wheezing after the ROSC, is all she has
+    expect(sc.problems ?? []).toEqual(['asthma', 'bronchospasm']);
+    for (const p of [...CALCIUM_FOR, ...BICARBONATE_IN_ARREST_FOR]) expect(sc.problems, p).not.toContain(p);
   });
 
   it('nothing the learner sees before the arrest is worked names the rhythm or the cause', () => {
@@ -466,10 +469,11 @@ describe('PEA arrest in the field — the traps', () => {
     expect(bicarb.penalties[0].text).toMatch(/CO₂ she could not breathe off/);
   });
 
-  it('a mask, a cannula or CPAP do not ventilate a patient in arrest; CPAP costs points, and none counts as the breaths', () => {
+  it('a mask, a cannula or CPAP do not ventilate a patient in arrest; each costs points, and none counts as the breaths', () => {
     const mask = medic(['cpr', 'o2-nrb', 'o2-nc']);
     expect(mask.flags.ventilated).toBeUndefined();
-    expect(mask.penalties).toEqual([]);
+    // a minor penalty, once for the case
+    expect(penalties(mask)).toEqual(['oxygen-not-breathing']);
     expect(said(mask)).toMatch(/a mask only offers oxygen to someone who is/);
     const c = emt(['cpr', 'cpap']);
     expect(penalties(c)).toEqual(['cpap-not-breathing']);
@@ -479,7 +483,8 @@ describe('PEA arrest in the field — the traps', () => {
 
   it('IM epinephrine from the EMT in the arrest does nothing and costs points; it is not the arrest epinephrine', () => {
     const s = emt(['cpr', 'epi-im']);
-    expect(penalties(s)).toEqual(['epi-im-no-anaphylaxis']);
+    // in the arrest the built-in rule, at its weight (5, major); the case's own words after ROSC
+    expect(penalties(s)).toEqual(['epi-im-in-arrest']);
     expect(s.flags.epi).toBeUndefined();
     expect(s.log.at(-1)!.text).toMatch(/a muscle barely absorbs it during CPR, and it is not the arrest dose/);
     // after ROSC it is absorbed, but she has no anaphylaxis: it still costs, and it is not the treatment for her pressure
@@ -526,7 +531,7 @@ describe('PEA arrest in the field — the traps', () => {
     expect(penalties(perform(sc, perform(sc, medic(TO_ROSC), 'bvm'), 'procainamide'))).toEqual(['rate-control-post-rosc']);
   });
 
-  it('after ROSC, amiodarone drops her pressure and costs; adenosine and lidocaine treat nothing and cost a little', () => {
+  it('after ROSC, amiodarone drops her pressure and costs; adenosine and lidocaine treat nothing and cost a little — adenosine in her wheezing lungs, more', () => {
     const rosc = perform(sc, medic(TO_ROSC), 'bvm');
     const amio = perform(sc, rosc, 'amio-infusion');
     expect(penalties(amio)).toEqual(['rate-control-post-rosc']);
@@ -534,11 +539,13 @@ describe('PEA arrest in the field — the traps', () => {
     const push = perform(sc, rosc, 'amio-arrest');
     expect(penalties(push)).toEqual(['arrest-amio-with-pulse']);
     expect(push.vitals.sbp).toBeLessThan(rosc.vitals.sbp);
-    for (const id of ['adenosine6', 'lidocaine']) {
-      const s = perform(sc, rosc, id);
-      expect(penalties(s), id).toEqual(['antiarrhythmic-post-rosc']);
-      expect(s.penalties[0].points, id).toBe(3);
-    }
+    const lido = perform(sc, rosc, 'lidocaine');
+    expect(penalties(lido)).toEqual(['antiarrhythmic-post-rosc']);
+    expect(lido.penalties[0].points).toBe(3);
+    // her COPD with wheeze: adenosine's bronchospasm warning (major) outranks the case's minor rule
+    const aden = perform(sc, rosc, 'adenosine6');
+    expect(penalties(aden)).toEqual(['adenosine-asthma']);
+    expect(aden.penalties[0]).toMatchObject({ points: 8, severity: 'major' });
   });
 
   it('fentanyl and sedation: impossible in the arrest (no time, no cost); after ROSC, for a GCS of 3, they cost and lower the pressure', () => {
@@ -586,9 +593,9 @@ describe('PEA arrest in the field — the traps', () => {
     }
   });
 
-  it('push-dose epinephrine in the arrest is not the arrest dose: no cost, but it does not count, and the crew is told the dose', () => {
+  it('push-dose epinephrine in the arrest is not the arrest dose: a minor penalty, it does not count, and the crew is told the dose', () => {
     const s = medic(['cpr', 'iv', 'push-epi']);
-    expect(s.penalties).toEqual([]);
+    expect(s.penalties.map((p) => [p.id, p.points])).toEqual([['push-epi-in-arrest', 3]]);
     expect(s.flags.epi).toBeUndefined();
     expect(s.log.at(-1)!.text).toMatch(/In cardiac arrest the dose is 1 mg/);
     expect(missed(s, /^Epinephrine 1 mg/)).toBe(true);

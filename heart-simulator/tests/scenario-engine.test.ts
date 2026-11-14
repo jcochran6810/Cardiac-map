@@ -6,7 +6,8 @@ import { READ_OPTIONS, answerFor, judgeRead } from '@/lib/sim/scenario/reads';
 import { SCENARIOS, SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { stemiAnterior } from '@/lib/sim/scenario/scenarios/stemiAnterior';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
-import type { Problem, Scenario, SimState } from '@/lib/sim/scenario/types';
+import type { Problem, Scenario, Setting, SimState } from '@/lib/sim/scenario/types';
+import type { LearningLevel } from '@/store/useAppStore';
 import { UNTIL_ARRIVED, runScenario as run } from './helpers';
 
 const MEDIC_IDEAL = [
@@ -114,9 +115,11 @@ describe('anterior STEMI in the field', () => {
   it('penalises unsafe choices and explains them in the review', () => {
     const s = run(stemiAnterior, 2, ['nitro', 'o2-nrb', 'transport-near']);
     const ids = s.penalties.map((p) => p.id);
-    expect(ids).toEqual(expect.arrayContaining(['nitro-no-bp', 'nitro-no-pde5', 'oxygen-normoxic', 'nearest-ed']));
+    // the nitroglycerin's checks are one gate: no pressure is the one charged (one dose, one penalty)
+    expect(ids).toEqual(expect.arrayContaining(['nitro-no-bp', 'oxygen-normoxic', 'nearest-ed']));
+    expect(ids).not.toContain('nitro-no-pde5');
     const r = review(stemiAnterior, stop(s));
-    expect(r.toFix.filter((t) => t.kind === 'harm').length).toBe(4);
+    expect(r.toFix.filter((t) => t.kind === 'harm').length).toBe(3);
     expect(r.toFix.some((t) => t.kind === 'missed' && /12-lead/.test(t.label))).toBe(true);
     expect(r.grade).toBe('Unsafe');
   });
@@ -204,7 +207,7 @@ describe('built-in safety rules judge what the action really did', () => {
   it('cardioverting PEA is a shock to a non-shockable rhythm, not a sync problem; in VF it is', () => {
     const per = SCENARIO_BY_ID['perforation-cathlab'];
     let s = run(per, 5, ['balloon-tamponade', 'reassess', 'reassess', 'reassess', 'reassess']);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     s = perform(per, s, 'cardiovert');
     expect(s.penalties.map((p) => p.id)).toContain('shock-nonshockable');
     expect(s.penalties.map((p) => p.id)).not.toContain('sync-in-arrest');
@@ -407,7 +410,8 @@ describe('12-lead reads, checked at once', () => {
     expect(new Set(READ_OPTIONS.map((o) => o.id)).size).toBe(READ_OPTIONS.length);
     for (const o of READ_OPTIONS) for (const p of o.profiles ?? []) expect(ECG_PROFILES[p], `${o.id}: ${p}`).toBeDefined();
     for (const p of Object.values(ECG_PROFILES)) {
-      if (p.id === 'pea') continue;
+      // PEA is diagnosed at the pulse check: no 12-lead is read in an arrest
+      if (p.id === 'pea' || p.id === 'pea-narrow') continue;
       expect(READ_OPTIONS.filter((o) => (o.profiles ?? []).includes(p.id)), p.id).toHaveLength(1);
       expect(judgeRead(p.id, answerFor(p.id).id)).toBe('correct');
     }
@@ -419,7 +423,7 @@ describe('12-lead reads, checked at once', () => {
 describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
   /** The same case, with the patient given problems the built-in drug rules read */
   const withProblems = (sc: Scenario, ...problems: Problem[]): Scenario => ({ ...sc, problems });
-  const ids = (role: 1 | 2 | 3 | 4 | 5, setting: 'field' | 'cathlab') => interventionsFor(role, setting).map((i) => i.id);
+  const ids = (role: LearningLevel, setting: Setting) => interventionsFor(role, setting).map((i) => i.id);
   const penalties = (s: SimState) => s.penalties.map((p) => p.id);
   const vf = SCENARIO_BY_ID['vf-arrest-field'];
   const block = SCENARIO_BY_ID['complete-heart-block-field'];
@@ -444,6 +448,12 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
       for (const id of [...ALS, 'insulin-dextrose', ...NO_REFLOW]) expect(rnMd, `role ${role} ${id}`).toContain(id);
       expect(rnMd).not.toContain('oral-glucose');
     }
+    // the emergency department: the ER nurse (on order) and the ER doctor; no oral glucose, nothing through a catheter
+    for (const role of [6, 7] as const) {
+      const ed = ids(role, 'ed');
+      for (const id of [...ALS, 'insulin-dextrose']) expect(ed, `role ${role} ${id}`).toContain(id);
+      for (const id of ['oral-glucose', ...NO_REFLOW]) expect(ed, `role ${role} ${id}`).not.toContain(id);
+    }
     expect(unavailableReason(stemiAnterior, start(stemiAnterior, 2), 'insulin-dextrose')).toMatch(/scope/);
   });
 
@@ -451,7 +461,7 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
     const label = (id: string) => INTERVENTION_BY_ID[id].label;
     expect(label('calcium-chloride')).toBe('Calcium chloride 1 g IV/IO');
     expect(label('sodium-bicarbonate')).toBe('Sodium bicarbonate 50 mEq IV/IO');
-    expect(label('insulin-dextrose')).toBe('Insulin 10 units IV with dextrose 25 g');
+    expect(label('insulin-dextrose')).toBe('Insulin 5–10 units IV with dextrose 25 g');
     expect(label('magnesium-sulfate')).toBe('Magnesium sulfate 2 g IV/IO');
     expect(label('procainamide')).toBe('Procainamide 20–50 mg/min IV');
     expect(INTERVENTION_BY_ID.procainamide.detail).toMatch(/hypotension.*50 %.*17 mg\/kg.*heart failure.*long QT/);
@@ -511,7 +521,9 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
   it('calcium, bicarbonate, insulin and high-dose albuterol without the problem they treat cost points; with it they do not', () => {
     const steps = ['iv', 'calcium-chloride', 'sodium-bicarbonate', 'albuterol-hyperk'];
     expect(penalties(run(stemiAnterior, 2, steps))).toEqual(['calcium-no-indication', 'bicarbonate-no-indication', 'albuterol-hyperk-no-indication']);
-    expect(penalties(run(withProblems(stemiAnterior, 'hyperkalemia'), 2, steps))).toEqual([]);
+    // bicarbonate for a high potassium only with a metabolic acidosis (KDIGO 2020)
+    expect(penalties(run(withProblems(stemiAnterior, 'hyperkalemia', 'metabolic-acidosis'), 2, steps))).toEqual([]);
+    expect(penalties(run(withProblems(stemiAnterior, 'hyperkalemia'), 2, steps))).toEqual(['bicarbonate-no-indication']);
     // calcium is also for a calcium- or beta-blocker overdose; bicarbonate for acidosis or a tricyclic overdose
     for (const p of ['beta-blocker-overdose', 'ccb-overdose', 'hypocalcemia'] as const) {
       expect(penalties(run(withProblems(stemiAnterior, p), 2, ['iv', 'calcium-chloride'])), p).toEqual([]);
@@ -520,16 +532,18 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
       expect(penalties(run(withProblems(stemiAnterior, p), 2, ['iv', 'sodium-bicarbonate'])), p).toEqual([]);
     }
     const review_ = review(stemiAnterior, stop(run(stemiAnterior, 2, steps)));
-    expect(review_.toFix.find((t) => t.kind === 'harm' && t.actions?.includes('calcium-chloride'))?.label).toBe('Calcium chloride without an indication.');
+    expect(review_.toFix.find((t) => t.kind === 'harm' && t.actions?.includes('calcium-chloride'))?.label).toBe('Calcium without an indication.');
   });
 
   it('in a hyperkalemic arrest calcium and bicarbonate go in without pausing CPR at no cost; in any other arrest they do not help', () => {
-    const steps = ['cpr', 'io', 'calcium-chloride', 'sodium-bicarbonate'];
+    const steps = ['cpr', 'bvm', 'io', 'calcium-chloride', 'sodium-bicarbonate'];
     const hyperK = run(withProblems(vf, 'hyperkalemia'), 2, steps);
     expect(penalties(hyperK)).toEqual([]);
     expect(hyperK.rhythm).toEqual({ profile: 'vf', hr: 0 });
     expect([hyperK.vitals.sbp, hyperK.vitals.dbp]).toEqual([0, 0]);
     expect(hyperK.log.filter((l) => /compressions go on/.test(l.text))).toHaveLength(2);
+    // with nobody breathing for him, the CO₂ the bicarbonate makes has nowhere to go
+    expect(penalties(run(withProblems(vf, 'hyperkalemia'), 2, steps.filter((id) => id !== 'bvm')))).toEqual(['bicarbonate-unventilated']);
     expect(penalties(run(vf, 2, steps))).toEqual(['calcium-no-indication', 'bicarbonate-no-indication']);
   });
 
@@ -562,16 +576,17 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
   });
 
   it('procainamide: its stop rules and contraindications are built in', () => {
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide']))).toEqual([]);
-    // 74/42 with complete heart block at 34
-    expect(penalties(run(block, 2, ['iv', 'procainamide']))).toEqual(['procainamide-hypotension', 'procainamide-slow']);
+    // a sinus rhythm: no arrhythmia for it to treat (the indication rule)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide']))).toEqual(['antiarrhythmic-no-arrhythmia']);
+    // 74/42 with complete heart block at 34: one dose, one penalty — the block outranks the low pressure
+    expect(penalties(run(block, 2, ['iv', 'procainamide']))).toEqual(['procainamide-slow']);
     // a pacer protects against the block it would deepen
     expect(penalties(run(block, 2, ['pads', 'iv', 'pace', 'procainamide']))).not.toContain('procainamide-slow');
     expect(penalties(run(withProblems(stemiAnterior, 'heart-failure'), 2, ['iv', 'procainamide']))).toEqual(['procainamide-heart-failure']);
     expect(penalties(run(withProblems(stemiAnterior, 'long-qt'), 2, ['iv', 'procainamide']))).toEqual(['procainamide-long-qt']);
-    // one antiarrhythmic on top of another, either way round
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'amio-infusion', 'procainamide']))).toEqual(['procainamide-after-amiodarone']);
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide', 'amio-infusion']))).toEqual(['amiodarone-after-procainamide']);
+    // one antiarrhythmic on top of another, either way round (the first, on a sinus rhythm, is the indication rule's)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'amio-infusion', 'procainamide']))).toEqual(['antiarrhythmic-no-arrhythmia', 'procainamide-after-amiodarone']);
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide', 'amio-infusion']))).toEqual(['antiarrhythmic-no-arrhythmia', 'amiodarone-after-procainamide']);
   });
 
   it('glucose: oral gel for a patient who can swallow, IV dextrose for the paramedic, and only for a low glucose', () => {
@@ -747,7 +762,7 @@ describe('default responses follow the patient in front of them', () => {
     // the anterior STEMI at 96: a faster rate only adds to the oxygen demand of the ischemic heart
     const stemi = perform(stemiAnterior, medic(), 'atropine');
     expect(penalties(stemi)).toEqual(['atropine-fast']);
-    expect(stemi.penalties[0].text).toMatch(/^Atropine with no slow pulse to treat\./);
+    expect(stemi.penalties[0].text).toMatch(/^Atropine with no slow heart rate to treat\./);
     // VT does not speed up with it, and the rule does not say it does
     const vt = perform(stemiAnterior, medic({ profile: 'vt', hr: 170 }), 'atropine');
     expect(vt.log.at(-1)!.text).toBe('No change in heart rate.');
@@ -770,9 +785,12 @@ describe('default responses follow the patient in front of them', () => {
   it('10: calcium for the low pressure diltiazem caused is not "without an indication" — once the pressure is back, or in an arrest, it is', () => {
     const low = perform(stemiAnterior, medic(undefined, { sbp: 84, dbp: 52 }), 'diltiazem');
     expect(low.vitals.sbp).toBeLessThan(90);
-    expect(penalties(perform(stemiAnterior, low, 'calcium-chloride'))).toEqual([]);
+    // (diltiazem at 84 is its own mistake; the calcium after it adds none)
+    expect(penalties(low)).toEqual(['nodal-blocker-hypotension']);
+    expect(penalties(perform(stemiAnterior, low, 'calcium-chloride'))).toEqual(['nodal-blocker-hypotension']);
     // one therapeutic dose that left a normal pressure is no overdose
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem', 'calcium-chloride']))).toEqual(['calcium-no-indication']);
+    // (the diltiazem, on a sinus rhythm, is the indication rule's)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem', 'calcium-chloride']))).toEqual(['antiarrhythmic-no-arrhythmia', 'calcium-no-indication']);
     expect(penalties(run(stemiAnterior, 2, ['iv', 'calcium-chloride']))).toEqual(['calcium-no-indication']);
     // diltiazem, then the VF an unsynchronized shock causes: routine calcium in the arrest has no benefit (2025 AHA)
     const svt = SCENARIO_BY_ID['svt-unstable-field'];
@@ -790,7 +808,7 @@ describe('default responses follow the patient in front of them', () => {
     expect(energy('atrial-flutter', 150)).toMatch(/200 J/);
     expect(energy('avnrt', 190)).toMatch(/100 J/);
     expect(energy('vt', 170)).toMatch(/100 J/);
-    expect(INTERVENTION_BY_ID.cardiovert.detail).toBe('100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J)');
+    expect(INTERVENTION_BY_ID.cardiovert.detail).toBe('100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J); sedate an awake patient; AF over 48 h without anticoagulation only if unstable; not in digoxin toxicity');
   });
 
   it('12: the cath lab is activated only for a 12-lead that shows a STEMI; a false alert is stood down and costs points', () => {
@@ -899,6 +917,8 @@ describe('default responses follow the patient in front of them', () => {
     for (const role of [1, 2] as const) expect(interventionsFor(role, 'field').map((i) => i.id), `role ${role}`).toContain('poison-control');
     for (const role of [3, 4, 5] as const) expect(interventionsFor(role, 'cathlab').map((i) => i.id), `role ${role}`).not.toContain('poison-control');
     for (const role of [2, 4, 5] as const) expect(interventionsFor(role, role === 2 ? 'field' : 'cathlab').map((i) => i.id), `role ${role}`).toContain('ondansetron');
+    // the emergency department calls the poison center too, and gives ondansetron
+    for (const role of [6, 7] as const) expect(interventionsFor(role, 'ed').map((i) => i.id), `role ${role}`).toEqual(expect.arrayContaining(['poison-control', 'ondansetron']));
     for (const role of [1, 3] as const) expect(interventionsFor(role, role === 1 ? 'field' : 'cathlab').map((i) => i.id), `role ${role}`).not.toContain('ondansetron');
     expect(INTERVENTION_BY_ID.ondansetron.needsAccess).toBe(true);
     const call = run(stemiAnterior, 2, ['poison-control']);
@@ -990,7 +1010,8 @@ describe('default responses follow the patient in front of them', () => {
   it('27: diltiazem with heart failure or in VT is a critical error; a case rule for it stands in for the built-in one', () => {
     expect(penalties(run({ ...stemiAnterior, problems: ['heart-failure'] }, 2, ['iv', 'diltiazem']))).toEqual(['diltiazem-heart-failure']);
     expect(penalties(perform(stemiAnterior, medic({ profile: 'vt', hr: 170 }), 'diltiazem'))).toEqual(['diltiazem-vt']);
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem']))).toEqual([]);
+    // a sinus rhythm: no tachyarrhythmia for it (the indication rule only)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem']))).toEqual(['antiarrhythmic-no-arrhythmia']);
     const af = SCENARIO_BY_ID['af-rvr-field'];
     expect(penalties(run(af, 2, ['iv', 'diltiazem']))).toEqual(['diltiazem-hfref']);
     const vt = SCENARIO_BY_ID['stable-vt-field'];
@@ -1000,6 +1021,9 @@ describe('default responses follow the patient in front of them', () => {
 
 describe('rechecks and call-backs, the far destination, and a repeat 12-lead after a change of rate', () => {
   const lastText = (s: SimState) => s.log.at(-1)!.text;
+  /** What the hospital says on arrival after the crew chose this destination (the flag 'dest-pci' or 'dest-near') */
+  const arrivalFor = (sc: Scenario, dest: string) =>
+    (typeof sc.arrival === 'function' ? sc.arrival({ ...start(sc, sc.roles[0]), flags: { arrived: 1, [dest]: 0 } }) : sc.arrival ?? '');
 
   it('the glucose can be rechecked after dextrose or glucagon, and the case reads the new value', () => {
     const bb = SCENARIO_BY_ID['beta-blocker-overdose-field'];
@@ -1041,7 +1065,9 @@ describe('rechecks and call-backs, the far destination, and a repeat 12-lead aft
       // the unstable SVT names only the nearest emergency department
       if (sc.id !== 'svt-unstable-field') expect(briefings.join(' '), sc.id).toMatch(/heart center/i);
       // the briefing, the arrival, the critical steps (the hint quotes their labels) and the harms all name it the same way
-      const texts = [JSON.stringify(sc.briefing), sc.arrival ?? '', ...sc.critical.flatMap((c) => [c.label, c.why]), ...sc.harms.map((h) => h.text)];
+      // an arrival that names the destination chosen is read for both: the heart center and the nearest department
+      const arrivals = ['dest-pci', 'dest-near'].map((dest) => arrivalFor(sc, dest));
+      const texts = [JSON.stringify(sc.briefing), ...arrivals, ...sc.critical.flatMap((c) => [c.label, c.why]), ...sc.harms.map((h) => h.text)];
       for (const t of texts) expect(t, sc.id).not.toMatch(/cardiac center/i);
       // a critical step names no button that does not exist, and the action search finds the button by what it calls the hospital
       for (const c of sc.critical) {
@@ -1049,7 +1075,15 @@ describe('rechecks and call-backs, the far destination, and a repeat 12-lead aft
         for (const name of ['PCI-capable', 'regional heart center']) if (c.label.includes(name)) expect(searchable, `${sc.id}: ${c.label}`).toContain(name.toLowerCase());
       }
     }
-    expect(SCENARIO_BY_ID['complete-heart-block-field'].arrival).toBe('You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.');
+    // the arrival names the destination the crew chose: the heart center, or the nearest department that has to transfer
+    const block = SCENARIO_BY_ID['complete-heart-block-field'];
+    const arrived = (steps: string[]) => run(block, 2, [...steps, UNTIL_ARRIVED]).log.find((l) => l.who === 'hospital' && /^You arrive/.test(l.text))!.text;
+    expect(arrived(['primary', 'transport-pci'])).toBe('You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.');
+    expect(arrived(['primary', 'transport-near'])).toMatch(/^You arrive at the nearest emergency department: it cannot place a transvenous pacing wire/);
+    for (const id of ['complete-heart-block-field', 'vf-arrest-field', 'stemi-anterior-field', 'stable-vt-field']) {
+      expect(arrivalFor(SCENARIO_BY_ID[id], 'dest-near'), id).toMatch(/^You arrive at the nearest emergency department/);
+      expect(arrivalFor(SCENARIO_BY_ID[id], 'dest-pci'), id).toMatch(/^You arrive at the (regional )?heart center/);
+    }
   });
 
   it('the bag-mask in cardiac arrest is 30:2; 1 breath every 6 seconds only through an advanced airway, or with a pulse', () => {

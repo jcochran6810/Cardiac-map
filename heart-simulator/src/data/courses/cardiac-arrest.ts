@@ -13,7 +13,7 @@ export const CARDIAC_ARREST: Course = {
   id: 'cardiac-arrest',
   title: 'Cardiac arrest and the defibrillator',
   summary: 'Recognize a cardiac arrest, give CPR that works, know which rhythms a shock can fix, run the two-minute cycle, find the cause and protect the patient once the pulse is back. With a working monitor-defibrillator to practice on.',
-  roles: [1, 2, 4],
+  roles: [1, 2, 4, 6, 7],
   level: 'core',
   lessons: [
     // ─── 1 ───────────────────────────────────────────────────────────────

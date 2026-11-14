@@ -12,7 +12,7 @@ export const RHYTHM_RECOGNITION: Course = {
   id: 'rhythm-recognition',
   title: 'Recognizing rhythms',
   summary: 'Read a rhythm strip the same way every time: the sinus rhythms, atrial fibrillation, flutter and SVT, the AV blocks, wide beats and the rhythms of cardiac arrest, each one on the tracing and on the beating heart.',
-  roles: [2, 3, 4, 5],
+  roles: [2, 3, 4, 5, 6, 7],
   level: 'core',
   lessons: [
     // ─── 1 ───────────────────────────────────────────────────────────────

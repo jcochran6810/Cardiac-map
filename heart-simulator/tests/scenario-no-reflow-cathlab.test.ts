@@ -141,16 +141,19 @@ describe('no-reflow in the cath lab: recognizing it', () => {
     s = answerRead(sc, s, 'clin-dissection');
     expect(s.reads.at(-1)).toMatchObject({ answer: 'clin-no-reflow', verdict: 'wrong' });
     expect(s.penalties.at(-1)).toMatchObject({ points: 5 });
-    expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is No-reflow\./);
+    // the feedback comes first; what waited on the read follows it at once
+    expect(s.log.filter((l) => l.who === 'feedback').at(-1)!.text).toMatch(/^Not quite — this is No-reflow\./);
   });
 
   it('the real post-stent runs (labeled with the finding) reach the Imaging screen only after the read', () => {
     let s = run(sc, 5, MANUAL_TO_STENT[5], undefined, 'manual');
     expect(s.images.map((r) => r.id)).toEqual(['angio']);
     s = answerRead(sc, s, 'clin-no-reflow');
-    expect(s.images.map((r) => r.id)).toEqual(['angio']);
-    s = perform(sc, s, 'ic-epinephrine');
+    // they wait for the read, then come with it (no case time passes), not after the next action
+    expect(s.images.map((r) => r.id)).toEqual(['angio', 'no-reflow']);
     expect(s.images.at(-1)).toMatchObject({ id: 'no-reflow', image: 'lad-no-reflow-pci' });
+    s = perform(sc, s, 'ic-epinephrine');
+    expect(s.images.map((r) => r.id)).toEqual(['angio', 'no-reflow']);
     // nothing waits on that run, so its caption shows at once
     expect(s.pendingRead).toBeNull();
   });
@@ -276,6 +279,17 @@ describe('no-reflow in the cath lab: the traps', () => {
     expect(penalties(s)).toEqual(['protamine-in-thrombus']);
   });
 
+  it('intracoronary adenosine is fair at the no-reflow pressure; below 85 — the pressure falling, or after the VF — it is the low-pressure mistake', () => {
+    let s = run(sc, 5, MD_TO_STENT);
+    expect(penalties(perform(sc, s, 'ic-adenosine'))).toEqual([]);
+    while (!s.fired.includes('pressure-falls')) s = perform(sc, s, 'reassess');
+    expect(penalties(perform(sc, s, 'ic-adenosine'))).toEqual(['ic-vasodilator-hypotension']);
+    while (s.pulse) s = perform(sc, s, 'reassess');
+    s = perform(sc, s, 'defib');
+    expect([s.vitals.sbp, s.vitals.dbp]).toEqual([82, 50]);
+    expect(penalties(perform(sc, s, 'ic-adenosine'))).toEqual(['ic-vasodilator-hypotension']);
+  });
+
   it('left untreated the pressure falls, then VF; a shock brings him back to the same stalled flow — no shock and he dies', () => {
     let s = run(sc, 5, MD_TO_STENT);
     while (!s.fired.includes('pressure-falls')) s = perform(sc, s, 'reassess');
@@ -296,6 +310,15 @@ describe('no-reflow in the cath lab: the traps', () => {
 describe('no-reflow in the cath lab: the tech and the nurse', () => {
   const TECH = IDEAL[3];
   const RN = IDEAL[4];
+
+  it('adenosine handed up for the epinephrine asked for: the wrong answer at 86; with the pressure fallen under 85, the low-pressure mistake alone', () => {
+    const asked = run(sc, 4, RN.slice(0, RN.indexOf('ic-epinephrine')));
+    expect(penalties(perform(sc, asked, 'ic-adenosine'))).toEqual(['wrong-rn-epi']);
+    // procainamide dropped him to 76 with the request still open: the heavier mistake speaks for the dose, once
+    const low = perform(sc, asked, 'procainamide');
+    expect(low.vitals.sbp).toBeLessThan(85);
+    expect(penalties(perform(sc, low, 'ic-adenosine'))).toEqual(['procainamide-hypotension', 'ic-vasodilator-hypotension']);
+  });
 
   it('the nurse who reaches for nitroglycerin gets a word from the operator and one penalty, not two', () => {
     const s = run(sc, 4, [...RN.slice(0, RN.indexOf('ic-epinephrine')), 'ic-nitro']);
@@ -341,7 +364,8 @@ describe('no-reflow in the cath lab: the tech and the nurse', () => {
 
   it('the tech who opens the wrong device for the stent costs points', () => {
     const s = run(sc, 3, ['act', 'stent-covered']);
-    expect(penalties(s)).toEqual(expect.arrayContaining(['wrong-stent', 'covered-no-perforation']));
+    // one device, one penalty: a covered stent with no perforation (4) outweighs the wrong answer to the ask (3)
+    expect(penalties(s)).toEqual(['covered-no-perforation']);
   });
 
   it('a tech who never calls out the change loses those points', () => {

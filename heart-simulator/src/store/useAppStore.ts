@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 
-export type LearningLevel = 1 | 2 | 3 | 4 | 5;
+/**
+ * The learner's role. The numbers are ids, not a ladder: 1 EMT, 2 paramedic, 3 cath lab tech, 4 cath lab RN,
+ * 5 cardiologist, 6 ER nurse, 7 ER doctor. Never compare them with < or > — use ROLE_SETTING or name the roles.
+ */
+export type LearningLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 /**
  * 3D view modes:
@@ -33,7 +37,22 @@ export const LEVEL_LABELS: Record<LearningLevel, { short: string; long: string }
   3: { short: 'Cath Lab Tech', long: 'Cath Lab Tech (RCIS)' },
   4: { short: 'Cath Lab RN', long: 'Cath Lab Nurse (RN)' },
   5: { short: 'Cardiologist', long: 'Cardiologist (incl. interventional / EP)' },
+  6: { short: 'ER Nurse', long: 'Emergency Nurse (RN · ED)' },
+  7: { short: 'ER Doctor', long: 'Emergency Physician (MD/DO)' },
 };
+
+/** The roles in the order every role picker lists them: the patient's path from the ambulance to the emergency department to the cath lab */
+export const ROLES: readonly LearningLevel[] = [1, 2, 6, 7, 3, 4, 5];
+
+/** Where each role works (the same names as the case simulator's settings) */
+export type RoleSetting = 'field' | 'ed' | 'cathlab';
+export const ROLE_SETTING: Record<LearningLevel, RoleSetting> = { 1: 'field', 2: 'field', 3: 'cathlab', 4: 'cathlab', 5: 'cathlab', 6: 'ed', 7: 'ed' };
+
+/** A role id from anywhere outside the type system (storage, a URL): one of ROLES, or null */
+export function asLearningLevel(v: unknown): LearningLevel | null {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  return typeof n === 'number' && (ROLES as readonly number[]).includes(n) ? (n as LearningLevel) : null;
+}
 
 interface AppState {
   mode: AppMode;
@@ -90,8 +109,7 @@ interface AppState {
 function loadLevel(): LearningLevel {
   if (typeof window === 'undefined') return 2;
   try {
-    const v = Number(window.localStorage.getItem('cardiosim.level'));
-    return v >= 1 && v <= 5 ? (v as LearningLevel) : 2;
+    return asLearningLevel(window.localStorage.getItem('cardiosim.level')) ?? 2;
   } catch {
     return 2;
   }

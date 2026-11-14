@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
+import { useAppStore, LEVEL_LABELS, ROLES, type LearningLevel } from '@/store/useAppStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useLearningStore } from '@/store/useLearningStore';
 import { useTutorStore } from '@/store/useTutorStore';
 import { answeredSoFar, useQuizStore } from '@/store/useQuizStore';
-import { useContent } from '@/lib/content';
+import { quizForRole, useContent } from '@/lib/content';
 import { endQuizStrips, kindOf, nameOf, openById, showEcg, showQuizStrip } from '@/lib/actions';
 import type { QuizTopic } from '@/types/content';
 import { IconClose, IconQuiz } from '@/components/ui/icons';
@@ -51,14 +51,15 @@ export default function QuizPanel() {
   const { deck, idx, choice, score } = round;
 
   const [topic, setTopic] = useState<QuizTopic | 'all'>('all');
-  const [maxLevel, setMaxLevel] = useState<LearningLevel>(level);
+  // the role whose questions are asked: the learner's own, or another one picked here
+  const [quizRole, setQuizRole] = useState<LearningLevel>(level);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   /** what a keyboard or screen-reader user should land on: the question, or the results */
   const readRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => { setMaxLevel(level); }, [level]);
+  useEffect(() => { setQuizRole(level); }, [level]);
 
   // The quiz only borrows the monitor for its strips: closing it hands the monitor back if a strip took it, and
   // leaves it alone if none did (drugs given in Give meds keep acting). The round itself is kept (useQuizStore):
@@ -79,8 +80,8 @@ export default function QuizPanel() {
 
   const pool = useMemo(() => {
     if (!lib) return [];
-    return lib.quiz.filter((q) => forRole(q.level, q.topic, maxLevel) && (topic === 'all' || q.topic === topic));
-  }, [lib, maxLevel, topic]);
+    return lib.quiz.filter((q) => quizForRole(q, quizRole) && (topic === 'all' || q.topic === topic));
+  }, [lib, quizRole, topic]);
 
   const q = deck?.[idx] ?? null;
 
@@ -161,8 +162,8 @@ export default function QuizPanel() {
             <div>
               <div className="text-xs uppercase tracking-wider text-slate-400 mb-1">Questions for</div>
               <div className="flex flex-wrap gap-1.5">
-                {([1, 2, 3, 4, 5] as LearningLevel[]).map((l) => (
-                  <button key={l} onClick={() => setMaxLevel(l)} aria-pressed={maxLevel === l} className={chip(maxLevel === l)}>
+                {ROLES.map((l) => (
+                  <button key={l} onClick={() => setQuizRole(l)} aria-pressed={quizRole === l} className={chip(quizRole === l)}>
                     {LEVEL_LABELS[l].short}
                   </button>
                 ))}
@@ -280,16 +281,4 @@ export default function QuizPanel() {
       </div>
     </div>
   );
-}
-
-/**
- * Which questions suit a role. EMT and paramedic sets are cumulative (BLS ⊂ ALS). Cath lab staff
- * get BLS plus the ACLS / rhythm questions they are certified in, but not prehospital-protocol
- * questions; the cardiologist sees everything.
- */
-function forRole(qLevel: number, topic: string, role: LearningLevel): boolean {
-  if (role === 5) return true;
-  if (role <= 2) return qLevel <= role;
-  if (qLevel === 1 || (qLevel >= 3 && qLevel <= role)) return true;
-  return qLevel === 2 && ['acls', 'rhythm-id', 'ecg', 'pharmacology'].includes(topic);
 }

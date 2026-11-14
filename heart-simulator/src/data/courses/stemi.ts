@@ -12,7 +12,7 @@ export const STEMI: Course = {
   id: 'stemi',
   title: 'Finding a heart attack on the 12-lead',
   summary: 'How a blocked coronary artery shows on the 12-lead: what ST elevation means, which leads point to which wall and artery, the patterns that imitate or hide a STEMI, and what the tracing shows once the artery is open.',
-  roles: [2, 3, 4, 5],
+  roles: [2, 3, 4, 5, 6, 7],
   level: 'core',
   lessons: [
     // ─── 1 ───────────────────────────────────────────────────────────────

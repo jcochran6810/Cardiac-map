@@ -347,7 +347,7 @@ describe('stable VT in the field: fair scoring and physiology (review fixes)', (
 
   it('a drug that breaks it during the hand-off does not count the 12-lead after conversion as missed', () => {
     // amiodarone at 10:00 breaks it at 24:00, while the hand-off (23:30–24:30) is being given
-    const s = run(sc, 2, ['scene', 'primary', 'vitals', 'monitor', 'opqrst', 'sample', 'iv', 'pads', 'ecg12', 'amio-infusion', 'med-control', 'transport-near', UNTIL_ARRIVED, 'ecg12-repeat', 'handoff']);
+    const s = run(sc, 2, ['primary', 'lungs', 'vitals', 'monitor', 'opqrst', 'sample', 'iv', 'pads', 'ecg12', 'amio-infusion', 'med-control', 'transport-near', UNTIL_ARRIVED, 'ecg12-repeat', 'handoff']);
     expect(s.fired).toContain('drug-breaks');
     expect(s.flags.converted).toBeGreaterThan(s.performed.find((p) => p.id === 'handoff')!.minute);
     expect(missed(s)).not.toContain('12-lead after conversion');
@@ -380,7 +380,7 @@ describe('stable VT in the field: fair scoring and physiology (review fixes)', (
     expect(review(sc, stop(shocked)).wentWell.map((t) => t.label)).toContain('Unstable: synchronized cardioversion at 100 J within 3 minutes');
   });
 
-  it('a pressor with a normal pressure costs points and drives the rate faster; with a low one it is not a penalty', () => {
+  it('a pressor with a normal pressure costs points and drives the rate faster; with a low one before any shock the shock is owed', () => {
     for (const id of ['push-epi', 'pressor']) {
       const s = run(sc, 2, [...WORKED_UP, id]);
       expect(penalties(s), id).toEqual(['pressor-not-low']);
@@ -388,14 +388,16 @@ describe('stable VT in the field: fair scoring and physiology (review fixes)', (
       expect(s.vitals.sbp, id).toBeGreaterThan(118);
       expect(s.vitals.sbp, id).toBeLessThanOrEqual(150);
     }
+    // with a low one and no shock tried yet, the pressure comes from the rate: the shock is owed, not a pressor
     const low = run(sc, 2, [...WORKED_UP, 'diltiazem', 'push-epi']);
-    expect(penalties(low)).toEqual(['ccb-wide-complex']);
+    expect(penalties(low)).toEqual(['ccb-wide-complex', 'pressor-unstable-tachyarrhythmia']);
   });
 
-  it('other care that only lowers the pressure or wastes resources costs points: nitroglycerin with no pain, a STEMI alert, CPAP while hypotensive, adenosine once unstable', () => {
+  it('other care that only lowers the pressure or wastes resources costs points: nitroglycerin with no pain, a STEMI alert, CPAP with no breathing trouble or while hypotensive, adenosine once unstable', () => {
     expect(penalties(run(sc, 2, [...WORKED_UP, 'nitro']))).toEqual(['nitro-no-pain']);
     expect(penalties(run(sc, 2, [...WORKED_UP, 'stemi-alert']))).toEqual(['stemi-alert-no-ste']);
-    expect(penalties(run(sc, 2, [...WORKED_UP, 'cpap']))).toEqual([]);
+    // his breathing is unlabored and his lungs clear: CPAP has nothing to treat
+    expect(penalties(run(sc, 2, [...WORKED_UP, 'cpap']))).toEqual(['cpap-no-indication']);
     expect(penalties(run(sc, 2, [...WORKED_UP, 'diltiazem', 'cpap']))).toEqual(['ccb-wide-complex', 'cpap-hypotension']);
     expect(penalties(run(sc, 2, [...WORKED_UP, ...R(5), 'adenosine6']))).toEqual(['adenosine-unstable']);
     // while he is stable, adenosine is a fair diagnostic try (regular and monomorphic: COR 2b)

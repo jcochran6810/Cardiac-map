@@ -719,11 +719,11 @@ export const CHEST_PAIN_CALL: Course = {
           },
         },
         {
-          title: 'Check two: erectile-dysfunction drugs',
+          title: 'Check two: PDE-5 inhibitors and riociguat',
           text: [
-            'Drugs for erectile dysfunction, the PDE-5 inhibitors, also widen blood vessels. Taken with nitroglycerin they can drop the blood pressure dangerously, and for hours.',
-            'Hold nitroglycerin if the patient took avanafil (Stendra) within the last 12 hours, sildenafil (Viagra) or vardenafil (Levitra) within the last 24 hours, or tadalafil (Cialis) within the last 48 hours.',
-            'Ask every patient, plainly and out of earshot of family. Ask women too: sildenafil and tadalafil are also prescribed, under other brand names, for high blood pressure in the lungs.',
+            'The PDE-5 inhibitors (sildenafil, vardenafil, tadalafil, avanafil), taken for erections, for high blood pressure in the lungs or for an enlarged prostate, also widen blood vessels, and so does riociguat, a lung blood pressure drug. Taken with nitroglycerin they can drop the blood pressure dangerously, and for hours.',
+            'Hold nitroglycerin if the patient took avanafil (Stendra) within the last 12 hours, sildenafil (Viagra) or vardenafil (Levitra) within the last 24 hours, or tadalafil (Cialis) within the last 48 hours. Hold it for anyone who takes riociguat (Adempas): there is no safe window.',
+            'Ask every patient, plainly and out of earshot of family, and name the drugs. Ask women too: sildenafil and tadalafil are also prescribed, under other brand names, for high blood pressure in the lungs, and men take tadalafil every day for the prostate.',
           ],
           check: {
             kind: 'choice',
@@ -810,7 +810,7 @@ export const CHEST_PAIN_CALL: Course = {
         {
           title: 'Three checks, every time',
           text: [
-            'Before any nitroglycerin: a systolic pressure of at least 90 mmHg and no more than 30 below the patient\'s usual. No erectile-dysfunction drug inside its window of 12, 24 or 48 hours. No sign that the right ventricle is involved.',
+            'Before any nitroglycerin: a systolic pressure of at least 90 mmHg and no more than 30 below the patient\'s usual. No PDE-5 inhibitor inside its window of 12, 24 or 48 hours, and no riociguat. No sign that the right ventricle is involved.',
             'If any one of them fails, the answer is no, and little is lost. Nitroglycerin was never the treatment. Aspirin, the 12-lead and a fast trip to the right hospital are.',
           ],
           look: 'The inferior heart attack is back on the 12-lead, for one last case.',
@@ -944,7 +944,7 @@ export const CHEST_PAIN_CALL: Course = {
           title: 'The hand-off',
           text: [
             'At the hospital the team has seconds to take in what you know, and the patient may go straight to the cath lab. Give the hand-off once, clearly, to the whole team, and hand over the paper as well.',
-            'They need: the patient\'s name and age. When the symptoms started, to the minute if you can. Every 12-lead, with its time. Every drug, with dose and time, including aspirin taken before you arrived. The vital signs and what changed on the way. Allergies, blood thinners and erectile-dysfunction drugs.',
+            'They need: the patient\'s name and age. When the symptoms started, to the minute if you can. Every 12-lead, with its time. Every drug, with dose and time, including aspirin taken before you arrived. The vital signs and what changed on the way. Allergies, blood thinners and PDE-5 inhibitors or riociguat.',
           ],
           look: 'A printout like this is part of what you hand over. On the real one, check that the patient\'s identity and the recording time are printed before it leaves your hands.',
           show: { rhythm: 'anterior-stemi', layout: 'standard' },

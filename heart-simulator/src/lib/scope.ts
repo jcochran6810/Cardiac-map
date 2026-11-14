@@ -1,5 +1,5 @@
 /**
- * Scope-of-practice definitions for the five learner roles.
+ * Scope-of-practice definitions for the seven learner roles.
  *
  * Every piece of role-specific guidance in CardioSim (level notes, case-decision ownership,
  * monitor/defibrillator permissions, quiz levels) must stay inside these boundaries.
@@ -17,6 +17,17 @@
  *    available), plus facility policy and competency validation.
  *  - Cardiologist: physician licensure plus hospital credentialing and privileges (interventional,
  *    electrophysiology and structural procedures require specific privileges).
+ *  - ER nurse (RN in the emergency department): the state Nurse Practice Act and Board of Nursing rulings, the ENA
+ *    Scope and Standards of Emergency Nursing Practice, and facility policy, standing orders and competency
+ *    validation. Medications on a provider's order or a standing order / protocol (ACLS); manual defibrillation per
+ *    ACLS; synchronized cardioversion and transcutaneous pacing per ACLS and policy; procedural sedation drugs only on
+ *    the physician's order with the physician at the bedside. No diagnosis or prescribing, and no physician procedures
+ *    (intubation, central lines, pericardiocentesis, transvenous pacing). The cath lab is activated by the physician.
+ *  - ER doctor (emergency physician, MD/DO): medical licensure, board certification in emergency medicine (ABEM or
+ *    AOBEM), hospital credentialing and privileges, ACEP policy statements (e.g. procedural sedation, emergency
+ *    ultrasound). Diagnoses and treats, intubates, places central lines, sedates, cardioverts, paces (transcutaneous
+ *    and transvenous), performs emergent pericardiocentesis, decides on fibrinolysis, activates the cath lab and
+ *    consults cardiology. Cath lab procedures (angiography, PCI, mechanical support) belong to the cardiologist.
  */
 import type { LearningLevel } from '@/store/useAppStore';
 
@@ -136,6 +147,51 @@ export const SCOPES: Record<LearningLevel, ScopeDef> = {
     ],
     escalateTo: 'Heart team, cardiac surgery, anesthesia, critical care as needed',
   },
+  6: {
+    level: 6,
+    role: 'ER Nurse',
+    credential: 'Registered Nurse in the emergency department (often CEN; ACLS, TNCC, PALS or ENPC)',
+    framework: 'State Nurse Practice Act · Board of Nursing rulings · ENA Scope and Standards of Emergency Nursing Practice · facility policy, standing orders and competency validation',
+    can: [
+      'Triage (Emergency Severity Index) and nursing assessment; recognize the time-critical patient and bring the physician to the bedside',
+      'A 12-lead ECG within 10 minutes of arrival for chest pain or its equivalents, shown to the physician at once; cardiac monitoring and rhythm recognition',
+      'IV access (and IO per policy and competency), blood draws and point-of-care tests',
+      "Medications on a provider's order or a standing order / ED protocol (e.g. aspirin and nitroglycerin for chest pain, the ACLS drugs during a code): know the dose, the rate and what to monitor",
+      'Manual defibrillation per ACLS; synchronized cardioversion and transcutaneous pacing per ACLS and facility policy, with the physician directing',
+      'Oxygen, bag-mask ventilation, and CPAP or BiPAP on order or by respiratory protocol; assist the physician with intubation and bedside procedures',
+      "For procedural sedation: give the sedation drugs on the physician's order with the physician at the bedside, and monitor the patient throughout (capnography, airway, vital signs)",
+      'Take the EMS hand-off, prepare the patient for the cath lab, CT or transfer, and hand off to the next team',
+    ],
+    mustNot: [
+      'Make a medical diagnosis or prescribe; give a medication without an order or an approved standing order / protocol',
+      'Physician procedures: intubation, central lines, pericardiocentesis, transvenous pacing (assist and monitor instead)',
+      'Decide on fibrinolysis, cath lab activation or admission — the physician decides',
+      'Choose or direct deep sedation or anesthesia (a credentialed physician or anesthesia professional only)',
+    ],
+    escalateTo: 'The ED physician (and the charge nurse); in a code, the ED resuscitation team led by the ED physician',
+  },
+  7: {
+    level: 7,
+    role: 'ER Physician',
+    credential: 'Emergency physician (MD/DO), board certified or eligible in emergency medicine (ABEM or AOBEM)',
+    framework: 'Medical licensure · board certification (ABEM / AOBEM) · hospital credentialing and privileges · ACEP policy statements',
+    can: [
+      'Diagnosis, risk stratification and disposition: admit, transfer, discharge, or send the patient to the cath lab',
+      'Read the 12-lead and act on it: activate the cath lab for STEMI or occlusion MI, or give a fibrinolytic when PCI cannot happen in time',
+      'Order and dose every ED medication: ACLS drugs, antiplatelets, anticoagulants, fibrinolytics, vasoactive infusions',
+      'Airway management including rapid sequence intubation; procedural sedation (ACEP policy)',
+      'Central venous and arterial lines, point-of-care ultrasound (bedside echo), emergent pericardiocentesis',
+      'Defibrillation, synchronized cardioversion, and transcutaneous and transvenous pacing',
+      'Order imaging (chest X-ray, CT and CT angiography) and labs; consult cardiology, cardiothoracic surgery and critical care',
+      'Lead the resuscitation team',
+    ],
+    mustNot: [
+      'Cath lab procedures: coronary angiography, PCI, mechanical circulatory support (interventional cardiology)',
+      'Permanent pacemakers, ICDs and other electrophysiology or structural procedures',
+      'Anything outside the hospital privileges granted',
+    ],
+    escalateTo: 'Cardiology and interventional cardiology, cardiothoracic surgery, critical care, anesthesia as needed',
+  },
 };
 
 export function roleOf(level: LearningLevel): string {
@@ -146,7 +202,8 @@ export function roleOf(level: LearningLevel): string {
 
 /**
  * May this role use the defibrillator's manual functions — manual defibrillation, synchronized cardioversion and
- * transcutaneous pacing? The EMT uses the AED (and does CPR); the rest are ALS skills.
+ * transcutaneous pacing? The EMT uses the AED (and does CPR); the rest are ALS skills (the ER nurse per ACLS and
+ * facility policy, the physician directing cardioversion and pacing).
  */
 export function canUseManualDefib(level: LearningLevel): boolean {
   return level !== 1;
@@ -163,5 +220,7 @@ export function drugAuthority(level: LearningLevel): string | null {
     case 3: return "on the physician's order (where state law and facility policy permit)";
     case 4: return "on the physician's order / ACLS protocol";
     case 5: return '';
+    case 6: return "on a provider's order, a standing order or the ED's ACLS protocol";
+    case 7: return '';
   }
 }

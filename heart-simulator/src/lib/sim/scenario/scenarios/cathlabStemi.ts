@@ -4,6 +4,7 @@ import {
   LAD_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, nextStep,
   operator, type LabAsk,
 } from '../labKit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion-thrombus', 'final-angio': 'lad-open-after-aspiration' };
@@ -168,6 +169,8 @@ export const cathlabStemi: Scenario = {
     rhythm: { profile: 'anterior-stemi', hr: 94 },
     vitals: { sbp: 138, dbp: 86, spo2: 95, rr: 20, etco2: 35, pain: 7, gcs: 15, glucose: 140, temp: 36.7 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     allergies: 'No allergies — I had contrast for a CT last year without any problem. No blood thinners. Yes, go ahead.',
     sample: 'No allergies. Lisinopril. High blood pressure; ex-smoker.',
@@ -242,8 +245,11 @@ export const cathlabStemi: Scenario = {
           ['monitor', 'Aortic pressure 82/64 — and the arterial trace has changed shape.', 'bad'],
           ...(s.role === 5 ? [line('team', 'Tech: "Doctor — the pressure\'s damped!"', 'warn')] : []),
         ],
-        // the arterial line reads the pressure at the wedged tip
-        vitals: { sbp: 82, dbp: 64 },
+        // the arterial line reads the pressure at the wedged tip: an artifact, so the patient's own pressure (what the
+        // safety rules read) is unchanged; the monitor prints the damped reading while the guide stays wedged
+        // (useSimStore monitorVitals: the timers dampedSbp and dampedDbp). Treating that number is the mistake this
+        // event teaches against: call it out and back the guide out
+        timers: { dampedSbp: 82, dampedDbp: 64 },
         flags: ['damped'],
         ...(s.role !== 5 ? {
           read: {
@@ -320,7 +326,11 @@ export const cathlabStemi: Scenario = {
     { id: 'heparin', label: 'Anticoagulation before PCI (heparin 70–100 U/kg)', why: 'Primary PCI needs full anticoagulation to prevent catheter, wire and stent thrombosis (bivalirudin is the alternative).', done: ['heparin', 'bivalirudin'], roles: [4, 5], points: 10, target: { by: 10 } },
     { id: 'p2y12', label: 'P2Y12 loading dose', why: 'Ticagrelor 180 mg or prasugrel 60 mg as early as possible for primary PCI (cangrelor IV if he cannot swallow).', done: ['p2y12', 'cangrelor'], roles: [4, 5], points: 5 },
     { id: 'analgesia', label: 'Treat the pain', why: 'Ischemic pain drives catecholamines and heart rate: fentanyl 25–50 mcg IV, titrated.', done: ['fentanyl', 'sedation'], roles: [4, 5], points: 5, target: { by: 8 } },
-    { id: 'act', label: 'Check the ACT', why: 'ACT about 250–300 s with heparin alone before the wire crosses.', done: ['act'], after: 'heparin', roles: [3, 4], points: 5 },
+    // after either anticoagulant the anticoagulation item accepts: heparin, or bivalirudin (which sets 'anticoagulated')
+    {
+      id: 'act', label: 'Check the ACT', why: 'ACT about 250–300 s on heparin alone (over 300 s on bivalirudin) before the wire crosses.', roles: [3, 4], points: 5, uses: ['act'],
+      done: (s) => doneAfter(s, ['act'], 'heparin') ?? doneAfter(s, ['act'], 'anticoagulated'),
+    },
     { id: 'access', label: 'Radial arterial access', why: 'Radial access cuts bleeding and mortality in STEMI (RIVAL, MATRIX).', done: ['access', 'access-femoral'], roles: MD, points: 5, target: { by: 12 } },
     { id: 'angio', label: 'Diagnostic angiography: find the culprit', why: 'Identify the occluded artery before choosing a guide.', done: ['angio'], roles: MD, points: 5 },
     { id: 'guide', label: 'A left guide with back-up for the LAD (EBU / XB)', why: 'The guide must sit in the left main and give support down the LAD; right-coronary shapes (JR4, AL1) will not.', done: ['guide-ebu'], roles: MD, points: 10 },
@@ -339,10 +349,10 @@ export const cathlabStemi: Scenario = {
     { id: 'hemostasis', label: 'Access-site hemostasis', why: 'Radial band with distal pulse and perfusion checks.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the drugs, the VF and the access site.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
-    { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
-    { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
+    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), replaces: ['access-no-consent'], points: 5, severity: 'major', text: 'Access before the time-out.' },
+    { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent') && has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for an LAD culprit. The LAD comes off the left main: use a left guide with back-up (EBU / XB 3.5).' },
     { id: 'hydrophilic-first', actions: ['wire-hydrophilic'], roles: MD, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A hydrophilic wire as the first wire for a fresh occlusion. Start with a workhorse wire: polymer-jacketed wires track under plaque and perforate more easily.' },
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
@@ -357,14 +367,14 @@ export const cathlabStemi: Scenario = {
     askHarm(RN_ASKS[0], 'An intracoronary drug when the operator asked for the radial cocktail.'),
     askHarm(RN_ASKS[2], 'The wrong intracoronary drug when the operator asked for nitroglycerin.'),
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'Fibrinolysis has no place when primary PCI is happening: it only adds bleeding risk.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 6, severity: 'major', text: 'An IV beta-blocker in the acute phase of a large anterior STEMI. It risks cardiogenic shock (COMMIT).' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 6, severity: 'major', text: 'A beta-blocker (IV, or a tablet) in the acute phase of a large anterior STEMI. It risks cardiogenic shock (COMMIT).' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
-  ],
+  ]),
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     { label: 'Artery open (arrival to device)', actions: ['stent-des'], flag: 'pci', target: 30 },
     { label: 'Damped waveform dealt with', actions: ['callout', 'reposition'], target: 1, from: 'damped' },
-    { label: 'Shock after VF began', actions: ['defib', 'aed'], target: 1, from: 'arrest' },
+    { label: 'Shock after VF began', actions: ['defib', 'aed'], target: 1, from: 'arrest', shocksOnly: true },
   ],
   deathAfter: 8,
   completeWhen: (s) => has(s, 'pci') && has(s, 'final-angio'),

@@ -4,6 +4,8 @@ import {
   LAD_VIEWS, LEFT_GUIDES, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine,
   doneAfter, nextStep, type LabAsk,
 } from '../labKit';
+import { NITRATE_RULES } from '../rules/acs';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'rca-occlusion', 'final-angio': 'rca-open-timi3' };
@@ -48,9 +50,11 @@ const fluid = (s: SimState): Effect | null => {
 };
 /**
  * Pacing in the reflex: the rate comes back to 70, but her vessels stay dilated, so the pressure only partly recovers
- * (fluid does the rest). Outside the reflex, the default response applies.
+ * (fluid does the rest). A single RV wire (VVI) also paces without the atria, and her infarcted RV loses its atrial kick
+ * (2013 ACCF/AHA STEMI: keep AV synchrony in an RV infarct; AV sequential pacing if the pressure stays low). Outside the
+ * reflex, the default response applies.
  */
-function paceReflex(s: SimState, how: Line[], profile: 'tcp' | 'paced', flags: string[]): Effect | null {
+function paceReflex(s: SimState, how: Line[], profile: 'tcp' | 'paced-vvi', flags: string[]): Effect | null {
   // a wire already pacing on demand at 50 is still too slow for her: pacing at 70 takes over from it
   if (!has(s, 'bezold') || has(s, 'recovered') || !s.pulse || s.rhythm.hr >= (paced(s) ? 70 : 50)) return null;
   const bp = bpAfter(s, 12, 8);
@@ -144,7 +148,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'atropine', role: 4, when: (s) => has(s, 'bezold'), within: 1.5,
     ask: 'Heart rate 38 — give her something for the rate, please!',
-    accept: ['atropine'], wrong: ['adenosine6', 'diltiazem'],
+    accept: ['atropine'], wrong: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem'],
     wrongSay: 'No! Atropine, 1 milligram — her rate is 38.',
     thanks: 'Thanks — rate is coming up.', fallback: 'Tech, give me the atropine — I\'ll push it.', gives: 'atropine-given',
     fallbackEffect: (s) => atropine(s) ?? {},
@@ -199,6 +203,8 @@ export const cathlabInferior: Scenario = {
     rhythm: { profile: 'inferior-stemi', hr: 58 },
     vitals: { sbp: 102, dbp: 64, spo2: 96, rr: 18, etco2: 34, pain: 6, gcs: 15, glucose: 150, temp: 36.6 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs', 'rv-infarction'],
   facts: {
     allergies: 'No allergies, no blood thinners. I\'ve never had dye before. Yes, please go ahead.',
     sample: 'No allergies. Metformin and amlodipine. Diabetes and high blood pressure.',
@@ -208,9 +214,15 @@ export const cathlabInferior: Scenario = {
       ? 'Sinus rhythm: ST elevation in II, III and aVF settling, early Q waves — the inferior infarct after reperfusion.'
       : s.rhythm.profile === 'tcp'
         ? 'Transcutaneous pacing at 70: a wide QRS after every pacing spike (electrical capture). The paced beats hide the inferior ST elevation.'
-        : s.rhythm.profile === 'paced'
-          ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS. The paced beats hide the inferior ST elevation.`
+        : s.rhythm.profile === 'paced-vvi'
+          ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS, her own P waves marching through unrelated to it. A single RV wire paces without the atria, and an infarcted RV needs its atrial kick: fluid, and AV sequential pacing if the pressure stays low. The paced beats hide the inferior ST elevation.`
           : `Sinus rhythm ${s.rhythm.hr}: ST elevation in II, III and aVF (III more than II), reciprocal depression in I and aVL — an inferior STEMI from the right coronary.`,
+    // her RV infarct, as the field ECG showed it (without this the right-sided leads would say "no ST elevation")
+    ecgRight: (s) => (s.rhythm.profile === 'inferior-stemi-reperfused'
+      ? 'V4R: the ST elevation (1.5 mm on the field ECG) is settling after reperfusion.'
+      : paced(s)
+        ? 'V4R: paced beats — the ST segments cannot be read.'
+        : 'V4R: 1.5 mm ST elevation — the right ventricle is involved.'),
     echo: 'Inferior hypokinesis, LVEF about 50 %; the RV is dilated and hypokinetic. No effusion.',
     rhc: 'RA 16 · RV 32/16 · PA 30/14 (mean 20) · PCWP 11 · CO 3.4 L/min, CI 1.9.',
   },
@@ -227,9 +239,11 @@ export const cathlabInferior: Scenario = {
     fluid,
     pace: (s) => paceReflex(s, [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.'], ['patient', '"Ow — what is that thumping?"']], 'tcp', ['pads', 'monitor']),
     'temp-wire': (s) => (s.role === 5 && has(s, 'venous')
-      ? paceReflex(s, [['you', 'Temporary wire in the RV apex: threshold 0.6 mA; pacing at 70, output 3 mA.']], 'paced', ['temp-wire'])
+      ? paceReflex(s, [['you', 'Temporary wire in the RV apex: threshold 0.6 mA; pacing at 70, output 3 mA.']], 'paced-vvi', ['temp-wire'])
       : null),
     nitro: nitroCrash,
+    'nitro-high': nitroCrash,
+    'nitro-iv': nitroCrash,
     'ic-nitro': nitroCrash,
     rhc: (s) => !has(s, 'venous') ? null : {
       say: [['monitor', 'RA 16 · RV 32/16 · PA 30/14 (mean 20) · PCWP 11 · CO 3.4 L/min, CI 1.9.']], flags: ['rhc'],
@@ -292,7 +306,7 @@ export const cathlabInferior: Scenario = {
             ['patient', '"I feel sick… and so dizzy." She yawns and goes gray.'],
             ...(s.role === 5 ? [line('team', `Nurse: "Doctor — her rate's ${hr} and the pressure is ${bp.sbp}!"`, 'warn')] : []),
           ],
-          rhythm: wire ? { profile: 'paced', hr } : { ...s.rhythm, hr }, vitals: bp, flags: ['bezold', ...(wire ? ['paced'] : [])], read: reflexRead,
+          rhythm: wire ? { profile: 'paced-vvi', hr } : { ...s.rhythm, hr }, vitals: bp, flags: ['bezold', ...(wire ? ['paced'] : [])], read: reflexRead,
         };
       },
     },
@@ -351,7 +365,11 @@ export const cathlabInferior: Scenario = {
     { id: 'iv', label: 'IV access', why: 'For heparin, fluid and atropine.', done: ['iv', 'io'], roles: RN, points: 5 },
     { id: 'heparin', label: 'Anticoagulation before PCI (heparin 70–100 U/kg)', why: 'Primary PCI needs full anticoagulation (bivalirudin is the alternative).', done: ['heparin', 'bivalirudin'], roles: [4, 5], points: 10, target: { by: 10 } },
     { id: 'p2y12', label: 'P2Y12 loading dose', why: 'Ticagrelor 180 mg or prasugrel 60 mg as early as possible (cangrelor IV if she cannot swallow).', done: ['p2y12', 'cangrelor'], roles: [4, 5], points: 5 },
-    { id: 'act', label: 'Check the ACT', why: 'ACT about 250–300 s with heparin alone before the wire crosses.', done: ['act'], after: 'heparin', roles: [3, 4], points: 5 },
+    // after either anticoagulant the anticoagulation item accepts: heparin, or bivalirudin (which sets 'anticoagulated')
+    {
+      id: 'act', label: 'Check the ACT', why: 'ACT about 250–300 s on heparin alone (over 300 s on bivalirudin) before the wire crosses.', roles: [3, 4], points: 5, uses: ['act'],
+      done: (s) => doneAfter(s, ['act'], 'heparin') ?? doneAfter(s, ['act'], 'anticoagulated'),
+    },
     { id: 'access', label: 'Arterial access', why: 'Radial or ultrasound-guided femoral; femoral access sits over the femoral head, below the inguinal ligament.', done: ['access', 'access-femoral'], roles: MD, points: 5, target: { by: 12 } },
     { id: 'angio', label: 'Diagnostic angiography: find the culprit', why: 'Identify the occluded artery before choosing a guide.', done: ['angio'], roles: MD, points: 5 },
     { id: 'guide', label: 'A guide for the right coronary (JR4 or AL1)', why: 'The RCA needs a right-coronary shape; an EBU will not sit in it.', done: RIGHT_GUIDES, roles: MD, points: 10 },
@@ -369,11 +387,11 @@ export const cathlabInferior: Scenario = {
     { id: 'hemostasis', label: 'Femoral hemostasis', why: 'Sheath out with firm pressure (or a closure device); check the groin and distal pulses, and watch for back pain and hypotension (retroperitoneal bleed).', done: ['hemostasis', 'closure-device'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the reflex and its treatment, the RV infarct (no nitrates) and the groin.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
-    { id: 'nitro-rv', actions: ['nitro', 'ic-nitro'], replaces: ['nitro-hypotension'], points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
+  harms: yieldToHeavier([
+    { id: 'nitro-rv', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], replaces: NITRATE_RULES, points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
-    { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
-    { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in a patient who can give them.' },
+    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), replaces: ['access-no-consent'], points: 5, severity: 'major', text: 'Access before the time-out.' },
+    { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent') && has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in a patient who can give them.' },
     { id: 'left-guide-for-rca', actions: LEFT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A left-system guide for an RCA culprit. An EBU will not sit in the right coronary: JR4 or AL1.' },
     { id: 'hydrophilic-first', actions: ['wire-hydrophilic'], roles: MD, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A hydrophilic wire as the first wire for a fresh occlusion. Start with a workhorse wire.' },
     { id: 'stent-in-reflex', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'bezold') && !has(s, 'recovered'), points: 4, severity: 'minor', text: 'Stenting while she is bradycardic and hypotensive. Treat the reflex first (atropine, fluid); then finish the job.' },
@@ -387,9 +405,9 @@ export const cathlabInferior: Scenario = {
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a compliant pre-dilation balloon.'),
     askHarm(TECH_ASKS[7], 'The wrong device when the operator asked for a drug-eluting stent.'),
     askHarm(RN_ASKS[0], 'The wrong drug for a reflex bradycardia of 38. Atropine 1 mg IV.', 5),
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'An IV beta-blocker with bradycardia, hypotension and an RV infarct.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker with bradycardia, hypotension and an RV infarct.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
-  ],
+  ]),
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     { label: 'Artery open (arrival to device)', actions: ['stent-des'], flag: 'pci', target: 30 },

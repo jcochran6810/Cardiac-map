@@ -1,5 +1,6 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has } from '../kit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 const SINUS = { profile: 'normal-sinus', hr: 94 };
 
@@ -67,6 +68,11 @@ export const svtUnstable: Scenario = {
     vagal: (s) => s.rhythm.profile === 'avnrt'
       ? { say: [['monitor', 'She strains, legs raised… no change: still 190.']], flags: ['vagal'] }
       : null,
+    // 3 mg (the dose through a central line, or with a transplanted heart, dipyridamole or carbamazepine) is too little
+    // through her forearm IV: a flicker, no break in the circuit
+    adenosine3: (s) => s.rhythm.profile === 'avnrt'
+      ? { say: [['monitor', 'Barely a flicker… the same fast rhythm at 190.']], flags: ['adenosine'] }
+      : null,
     adenosine6: (s) => s.rhythm.profile === 'avnrt'
       ? { say: [['monitor', 'A brief pause… then the same fast rhythm resumes at 190.']], flags: ['adenosine'] }
       : null,
@@ -103,6 +109,10 @@ export const svtUnstable: Scenario = {
     sedation: (s) => s.rhythm.profile === 'avnrt'
       ? { say: [['you', 'Small dose of sedation/analgesia: drowsy but rousable, airway fine.']], vitals: bpAfter(s, -4, -2), flags: ['sedation'] }
       : null,
+    // midazolam is the sedation before her shock: the same small, titrated dose with her low pressure
+    midazolam: (s) => s.rhythm.profile === 'avnrt'
+      ? { say: [['you', 'Midazolam 1 mg IV, a small titrated dose for her pressure: drowsy but rousable, airway fine.']], vitals: bpAfter(s, -4, -2), flags: ['sedation', 'benzodiazepine'] }
+      : null,
   },
   events: [
     {
@@ -138,14 +148,14 @@ export const svtUnstable: Scenario = {
     { id: 'transport', label: 'Transport', why: 'She needs ED observation and cardiology follow-up (ablation is curative).', done: ['transport-near', 'transport-pci'], points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report the rhythm strip, what converted it and the post-conversion 12-lead.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     // a manual shock only: with her pulse the AED is not applied, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock on a perfusing rhythm can land on the T wave and cause VF — which is what happened. Use SYNC for every tachycardia with a pulse.' },
-    { id: 'av-blocker-shock', actions: ['diltiazem', 'metoprolol'], when: (s) => s.vitals.sbp < 90, points: 12, severity: 'critical', text: 'Calcium-channel and beta-blockers lower the blood pressure further; in an unstable (hypotensive) SVT the treatment is electrical.' },
+    { id: 'av-blocker-shock', actions: ['diltiazem', 'metoprolol'], when: (s) => s.vitals.sbp < 90, replaces: RATE_RULES, points: 12, severity: 'critical', text: 'Calcium-channel and beta-blockers lower the blood pressure further; in an unstable (hypotensive) SVT the treatment is electrical.' },
     { id: 'no-sedation', actions: ['cardiovert'], when: (s) => s.pulse && s.vitals.gcs >= 14 && !has(s, 'sedation'), points: 3, severity: 'minor', text: 'Cardioversion of an awake patient without sedation or analgesia.' },
-    { id: 'amiodarone-svt', actions: ['amio-infusion'], points: 3, severity: 'minor', text: 'Amiodarone is not a first-line drug for re-entrant SVT; it is slow and can drop the blood pressure.' },
+    { id: 'amiodarone-svt', actions: ['amio-infusion'], replaces: RATE_RULES, points: 3, severity: 'minor', text: 'Amiodarone is not a first-line drug for re-entrant SVT; it is slow and can drop the blood pressure.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen is for SpO₂ below 90 %.' },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 4 },
     { label: 'Synchronized cardioversion', actions: ['cardiovert'], target: 8 },

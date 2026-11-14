@@ -83,7 +83,7 @@ export default function DefibPanel({ onProjector }: { onProjector?: () => void }
           EMT scope: CPR and AED. Manual defibrillation, cardioversion, pacing, rhythm interpretation and ACLS drugs are paramedic (ALS) skills.
         </p>
       )}
-      {(role === 3 || role === 4) && (
+      {(role === 3 || role === 4 || role === 6) && (
         <p className="text-[10px] text-slate-400 leading-snug">
           {LEVEL_LABELS[role].short}: device use per ACLS certification, facility policy and physician direction; medications {authority}.
         </p>

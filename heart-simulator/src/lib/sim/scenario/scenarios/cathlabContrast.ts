@@ -1,6 +1,8 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import { MD, RN, TECH, angioGate, askCritical, askEvents, askHarm, operator, type LabAsk } from '../labKit';
+import { lowPressure, slowOrBlocked } from '../rules/helpers';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES */
 const IMAGES: Partial<Record<string, string>> = { angio: 'normal-left-rao-caudal' };
@@ -71,6 +73,10 @@ export const cathlabContrast: Scenario = {
     rhythm: { profile: 'normal-sinus', hr: 76 },
     vitals: { sbp: 136, dbp: 84, spo2: 98, rr: 16, etco2: 36, pain: 0, gcs: 15, glucose: 98, temp: 36.7 },
   },
+  // what the built-in safety rules read (types.ts Problem). The list is for the whole case, but it describes her after the
+  // first contrast injection: before the reaction her lungs are clear and nothing is wrong (rules that would charge
+  // epinephrine or albuterol given before it must say so in this case's own words)
+  problems: ['anaphylaxis', 'bronchospasm'],
   facts: {
     allergies: '"I\'m allergic to shellfish — I get hives. Is that a problem with the dye?" Never had contrast. No blood thinners. She agrees to the study.',
     sample: 'Shellfish allergy (hives). Atorvastatin. High cholesterol, mild asthma as a child.',
@@ -225,18 +231,38 @@ export const cathlabContrast: Scenario = {
     { id: 'oxygen', label: 'Oxygen for an SpO₂ below 90 %', why: 'Bronchospasm and airway swelling drop the oxygen: high-flow oxygen.', done: ['o2-nrb', 'o2-nc'], after: 'reaction', points: 5, target: { within: { flag: 'reaction', minutes: 3 } }, applies: (s) => has(s, 'reaction') },
     { id: 'albuterol', label: 'Albuterol for the wheeze', why: 'A nebulized bronchodilator for bronchospasm that remains after epinephrine.', done: ['albuterol'], after: 'reaction', roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
     { id: 'antihistamine', label: 'An antihistamine (diphenhydramine)', why: 'Second-line: it eases the hives and itching, not the airway or the pressure.', done: ['diphenhydramine'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
-    { id: 'steroid', label: 'A steroid (methylprednisolone)', why: 'Second-line: it may reduce a later (biphasic) reaction.', done: ['steroid'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
+    { id: 'steroid', label: 'A steroid (methylprednisolone)', why: 'An adjunct after epinephrine: it does not treat the airway or the pressure, and does not reliably prevent a second (biphasic) reaction: observation catches it (Shaker 2020 practice parameter).', done: ['steroid'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
     ...TECH_ASKS.map(askCritical),
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always.', done: ['hemostasis'], after: 'recovered', roles: [3, 4], points: 5, applies: (s) => has(s, 'recovered') },
     { id: 'handoff', label: 'Hand-off and documentation', why: 'Record the reaction as a contrast allergy, the drugs given, and the premedication plan for any future contrast; observe for a biphasic reaction.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
-    { id: 'contrast-during-reaction', actions: CONTRAST, when: (s) => has(s, 'reaction') && !has(s, 'recovered'), points: 10, severity: 'major', text: 'More contrast during the reaction. Every injection adds to it: stop the contrast until she is stable.' },
+  harms: yieldToHeavier([
+    { id: 'contrast-during-reaction', actions: CONTRAST, when: (s) => has(s, 'reaction') && !has(s, 'recovered'), replaces: ['lv-gram-in-shock'], points: 10, severity: 'major', text: 'More contrast during the reaction. Every injection adds to it: stop the contrast until she is stable.' },
     { id: 'premed-for-shellfish', actions: ['steroid', 'diphenhydramine'], roles: [4, 5], when: (s) => !has(s, 'reaction'), points: 2, severity: 'minor', text: 'Premedication for a shellfish allergy. Shellfish allergy is not a contrast allergy: premedication is for a previous reaction to contrast.' },
     { id: 'antihistamine-first', actions: ['diphenhydramine', 'steroid'], roles: [4, 5], when: (s) => has(s, 'reaction') && !has(s, 'epi-given'), points: 5, severity: 'major', text: 'An antihistamine or steroid before epinephrine. They are second-line and slow: epinephrine first, then the rest.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'A beta-blocker in anaphylaxis. It blocks the response to epinephrine.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in anaphylaxis. It blocks the response to epinephrine.' },
+    // The case declares the anaphylaxis and the bronchospasm she has once the contrast goes in: before the reaction the
+    // built-in rules, same ids, still charge (a prophylactic dose is no treatment); after it, these drugs are right
+    { id: 'albuterol-no-bronchospasm', actions: ['albuterol'], when: (s) => !has(s, 'reaction'), points: 3, severity: 'minor', text: 'Albuterol with no wheeze. Her lungs are clear: a bronchodilator before any reaction treats nothing and only speeds the heart. It is for the wheeze of a reaction, after epinephrine.' },
+    { id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], when: (s) => s.pulse && !has(s, 'reaction'), points: 3, severity: 'minor', text: 'IM epinephrine before any reaction. Epinephrine treats anaphylaxis, it does not prevent it: before the contrast it only speeds the heart and raises the pressure. Have it drawn up and ready instead.' },
+    // the problems list describes her once the reaction has begun: before it her lungs are clear. So the built-in rules that
+    // read her bronchospasm are said here, timed to the reaction (the same ids: they replace the built-ins), each leaving
+    // to the built-in ranking what outranks it (a slow rate, an arrest)
+    {
+      id: 'adenosine-asthma', actions: ['adenosine3', 'adenosine6', 'adenosine12'], when: (s) => s.pulse && has(s, 'reaction') && !slowOrBlocked(s), points: 8, severity: 'major',
+      text: 'Adenosine during an anaphylactic reaction with bronchospasm. It can tighten the airways further (adenosine labels: avoid it in bronchoconstrictive or bronchospastic lung disease), and her fast rate is the reaction\'s, not a rhythm through the AV node: epinephrine, fluid and oxygen treat it.',
+    },
+    {
+      id: 'ffr-adenosine-unsafe', actions: ['adenosine-iv-ffr'], when: (s) => s.pulse && (slowOrBlocked(s) || lowPressure(s) || has(s, 'reaction')), points: 8, severity: 'major',
+      text: 'IV adenosine for hyperemia with AV block, a slow rate, a low pressure, or the bronchospasm of the reaction. Its label rules the infusion out in second- or third-degree AV block and sinus node disease without a pacemaker and in bronchospastic lung disease, and it drops the pressure: there is no FFR to measure during a reaction — treat her first.',
+    },
+    {
+      // once the reaction has begun, magnesium for its bronchospasm is a fair second-line try — when the pressure allows
+      id: 'magnesium-no-indication', actions: ['magnesium-sulfate'], when: (s) => s.pulse && (!has(s, 'reaction') || lowPressure(s)), points: 3, severity: 'minor',
+      text: 'IV magnesium with nothing it is right for now. Magnesium is for torsades, a low magnesium, or a severe bronchospasm once the pressure allows: before the reaction her lungs are clear and her rhythm normal, and during it, with the pressure low, it relaxes the vessels and drops the pressure further — epinephrine and fluid first, albuterol for the wheeze.',
+    },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
-  ],
+  ]),
   timings: [
     { label: 'Contrast stopped', actions: ['stop-contrast', 'callout'], target: 1, from: 'reaction' },
     { label: 'Epinephrine given', actions: EPI, flag: 'epi-given', target: 2, from: 'reaction' },

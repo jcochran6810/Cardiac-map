@@ -1,5 +1,6 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, paced } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** While the pacer drives the ventricles, a drug that slows the escape rhythm or the AV node cannot drop the rate */
 const PACER_HOLDS = 'No change: the pacer keeps the heart rate at 70.';
@@ -82,6 +83,7 @@ export const heartBlock: Scenario = {
     metoprolol: (s) => blocker(s, 'Rate 22 after the beta-blocker!'),
     diltiazem: (s) => blocker(s, 'Rate 22 after the calcium-channel blocker!'),
     // adenosine blocks the AV node, not the pacer's capture of the ventricles
+    adenosine3: (s) => (paced(s) ? { say: [['monitor', PACER_HOLDS]] } : { say: [['monitor', 'Four seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     adenosine6: (s) => (paced(s) ? { say: [['monitor', PACER_HOLDS]] } : { say: [['monitor', 'Six seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     adenosine12: (s) => (paced(s) ? { say: [['monitor', PACER_HOLDS]] } : { say: [['monitor', 'Eight seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     'pulse-check': (s) => s.rhythm.profile === 'tcp'
@@ -92,6 +94,10 @@ export const heartBlock: Scenario = {
       : null,
     sedation: (s) => has(s, 'paced')
       ? { say: [['you', 'Small dose of sedation/analgesia: comfortable, still talking, airway fine.', 'good']], vitals: { pain: 1 }, flags: ['sedation', 'analgesia'] }
+      : null,
+    // midazolam for the pacer: calmer and less distressed by the thumping (it is no painkiller — fentanyl is)
+    midazolam: (s) => has(s, 'paced')
+      ? { say: [['you', 'Midazolam 1 mg IV: calmer, still talking, airway fine.', 'good']], vitals: { pain: Math.min(s.vitals.pain, 3) }, flags: ['sedation', 'benzodiazepine'] }
       : null,
   },
   events: [
@@ -115,28 +121,33 @@ export const heartBlock: Scenario = {
     { id: 'ecg', label: '12-lead ECG', why: 'Confirms complete heart block (and rules out an inferior STEMI as the cause).', done: ['ecg12'], points: 5, target: { by: 12 } },
     { id: 'meds', label: 'Medication history (SAMPLE)', why: 'Beta-blockers, calcium-channel blockers and digoxin cause or worsen AV block — he takes metoprolol.', done: ['sample'], points: 5 },
     { id: 'iv', label: 'IV access', why: 'For atropine, a pressor and analgesia.', done: ['iv', 'io'], points: 5 },
-    { id: 'atropine', label: 'Atropine 1 mg first, without delaying pacing', why: 'Atropine is first-line for symptomatic bradycardia — but expect it to fail in a wide-escape (infranodal) block.', done: ['atropine'], points: 5 },
+    // pacing at once for this wide escape is right too: an infranodal block is unlikely to answer atropine (2018 ACC/AHA/HRS
+    // bradycardia; 2025 AHA: do not delay pacing)
+    { id: 'atropine', label: 'Atropine 1 mg first, without delaying pacing (or pace at once)', why: 'Atropine is first-line for symptomatic bradycardia — but expect it to fail in a wide-escape (infranodal) block, where going straight to pacing is just as right.', done: ['atropine', 'pace'], points: 5 },
     { id: 'rate', label: 'Raise the rate: transcutaneous pacing or a pressor infusion', why: 'Atropine-resistant unstable bradycardia needs pacing or an epinephrine/dopamine infusion now.', done: (s) => [s.flags.paced, s.flags.pressor].filter((m): m is number => m !== undefined).sort((a, b) => a - b)[0] ?? null, points: 20, target: { by: 10 } },
     { id: 'capture', label: 'Confirm mechanical capture with a pulse', why: 'Electrical capture on the screen is not enough: feel a femoral pulse at the paced rate (or check the BP).', done: ['pulse-check', 'nibp', 'vitals'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
-    { id: 'analgesia', label: 'Analgesia or sedation for pacing', why: 'Transcutaneous pacing is painful: give analgesia (and sedation if needed) once the patient is perfusing.', done: ['fentanyl', 'sedation'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
+    { id: 'analgesia', label: 'Analgesia or sedation for pacing', why: 'Transcutaneous pacing is painful: give analgesia (and sedation if needed) once the patient is perfusing.', done: ['fentanyl', 'sedation', 'midazolam'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
     { id: 'destination', label: 'Transport to the regional heart center', why: 'He needs a transvenous pacing wire and probably a permanent pacemaker.', done: (s) => s.flags['dest-pci'] ?? null, points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report the rhythm, capture threshold, drugs and the beta-blocker.', done: ['handoff'], points: 5 },
   ],
-  harms: [
-    { id: 'lidocaine-escape', actions: ['lidocaine', 'amio-infusion'], points: 20, severity: 'critical', text: 'Never give lidocaine or amiodarone for a wide ventricular escape rhythm: it is the only thing keeping him alive, and suppressing it can cause asystole.' },
-    { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], points: 15, severity: 'critical', text: 'Beta-blockers and calcium-channel blockers slow AV conduction further: they worsen complete heart block.' },
-    { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
-    { id: 'cpap-shock', actions: ['cpap'], points: 6, severity: 'major', text: 'CPAP reduces venous return; with SBP in the 70s it can deepen shock.' },
+  harms: yieldToHeavier([
+    { id: 'lidocaine-escape', actions: ['lidocaine', 'amio-infusion'], replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 20, severity: 'critical', text: 'Never give lidocaine or amiodarone for a wide ventricular escape rhythm: it is the only thing keeping him alive, and suppressing it can cause asystole.' },
+    { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 15, severity: 'critical', text: 'Beta-blockers and calcium-channel blockers slow AV conduction further: they worsen complete heart block.' },
+    { id: 'adenosine-block', actions: ['adenosine3', 'adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
+    { id: 'cpap-shock', actions: ['cpap'], replaces: ['cpap-hypotension', 'cpap-no-indication', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 6, severity: 'major', text: 'CPAP reduces venous return; with SBP in the 70s it can deepen shock.' },
     { id: 'big-fluid', actions: ['fluid'], when: (s) => (s.counts.fluid ?? 0) >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses with crackles at both bases: the problem is the rate, not the volume.' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 3, severity: 'minor', text: 'The nearest ED cannot place a transvenous pacing wire; the regional heart center can.' },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 5 },
     { label: 'Pacing started', actions: ['pace'], target: 10 },
   ],
   transportMinutes: 14,
   nearestMinutes: 7,
-  arrival: 'You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it cannot place a transvenous pacing wire — the emergency physician takes over and arranges a transfer to the regional heart center.'
+    : 'You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.'),
   teaching: [
     'Unstable bradycardia (hypotension, altered mental status, shock, ischemic chest pain, acute heart failure) needs treatment now.',
     'Atropine 1 mg IV every 3–5 minutes (max 3 mg) is first-line, but it is unlikely to work in infranodal (wide-escape) block. After a heart transplant do not use it: it may cause paradoxical high-grade block.',

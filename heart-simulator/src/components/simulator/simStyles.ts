@@ -1,7 +1,7 @@
 import type { Speaker, Setting, Tone } from '@/lib/sim/scenario/types';
-import type { LearningLevel } from '@/store/useAppStore';
+import { ROLE_SETTING, type LearningLevel } from '@/store/useAppStore';
 
-export const SETTING_LABEL: Record<Setting, string> = { field: 'Ambulance call', cathlab: 'Cath lab' };
+export const SETTING_LABEL: Record<Setting, string> = { field: 'Ambulance call', ed: 'Emergency department', cathlab: 'Cath lab' };
 
 export const DIFFICULTY_STYLE: Record<string, string> = {
   beginner: 'text-emerald-300 border-emerald-500/40',
@@ -16,14 +16,23 @@ export function gradeStyle(percent: number) {
   return { text: 'text-red-300', ring: '#f87171', box: 'border-red-500/40 bg-red-500/10' };
 }
 
+/**
+ * The name over a line in the case story. 'operator' is the cath lab's cardiologist at the table; the emergency
+ * department speaks with its own voices (the ED physician, the nurse, the cardiology consultant, the EMS crew)
+ */
 export function speakerName(who: Speaker, role: LearningLevel): string {
   switch (who) {
     case 'dispatch': return 'Dispatch';
     case 'scene': return 'On scene';
     case 'patient': return 'Patient';
-    case 'partner': return role >= 3 ? 'Team' : 'Partner';
+    // the crew partner in the ambulance; anywhere else the people beside you are the team
+    case 'partner': return ROLE_SETTING[role] === 'field' ? 'Partner' : 'Team';
     case 'team': return 'Team';
     case 'operator': return 'Cardiologist';
+    case 'physician': return 'ED physician';
+    case 'nurse': return 'Nurse';
+    case 'consultant': return 'Cardiology';
+    case 'ems': return 'EMS crew';
     case 'monitor': return 'Monitor';
     case 'you': return 'You';
     case 'hospital': return 'Hospital';
@@ -39,6 +48,10 @@ export const SPEAKER_STYLE: Record<Speaker, string> = {
   partner: 'text-violet-300',
   team: 'text-violet-300',
   operator: 'text-fuchsia-300',
+  physician: 'text-fuchsia-300',
+  nurse: 'text-violet-300',
+  consultant: 'text-indigo-300',
+  ems: 'text-sky-300',
   monitor: 'text-emerald-300',
   you: 'text-cyan-300',
   hospital: 'text-sky-300',

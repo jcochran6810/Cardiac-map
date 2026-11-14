@@ -4,9 +4,10 @@
  * best-matching item, and composes a level-appropriate answer with links.
  */
 import type { ContentLibrary, SearchExtra, SearchHit } from '@/lib/content';
-import { searchLibrary, withAliases } from '@/lib/content';
+import type { MedicationContent } from '@/types/content';
+import { levelNote, searchLibrary, withAliases } from '@/lib/content';
 import type { AppMode, LearningLevel } from '@/store/useAppStore';
-import { LEVEL_LABELS } from '@/store/useAppStore';
+import { LEVEL_LABELS, ROLE_SETTING } from '@/store/useAppStore';
 import { resolveProfile, CONDITION_TO_PROFILE } from '@/lib/ecg/profiles';
 import { CASE_DATA } from '@/data/caseData';
 import { GLOSSARY, GLOSSARY_BY_ID, type GlossaryTerm } from '@/data/glossary';
@@ -219,12 +220,31 @@ const INTENTS: { key: string; re: RegExp }[] = [
 ];
 
 /**
+ * "Is it safe to give adenosine in asthma?", "is nitroglycerin safe after sildenafil?", "is it okay to give aspirin if …":
+ * a question about safety is a question about the contraindications, whatever the word before the situation
+ */
+const SAFE_TO_GIVE = /\b(?:is\s+(?:it\s+)?(?:\w+\s+){0,2}safe|safe\s+to\s+(?:give|use)|ok(?:ay)?\s+to\s+(?:give|use))\b[^?]*\b(?:after|with|on|while|if|in|to|for)\b/i;
+/**
+ * "Can I give nitroglycerin after Viagra?", "can I give metoprolol with a low pressure?", "…to a cocaine patient?", "…if he is
+ * allergic?": may it be given in this situation — the contraindications. "With a pulse" (or "with no pulse") names the
+ * arrhythmia, not a situation that could forbid the drug: "can I give amiodarone for VT with a pulse?" asks what it is for.
+ * "Can I give amiodarone for VT?" or "…in VT?" may ask what it is for (CAN_GIVE_FOR): the situation decides (givenIn).
+ */
+const CAN_GIVE = String.raw`(?:can|could|may|should)\s+(?:i|we|you)\s+(?:still\s+)?(?:give|use|push|start)\b`;
+const CAN_GIVE_IN = new RegExp(String.raw`\b${CAN_GIVE}[^?]*\b(?:after|with(?!\s+(?:a|no)\s+pulse\b)|on|while|if|to\s+(?:a|an|the|this|that|my|our|your|someone|anyone|patients?|him|her|them|people))\b`, 'i');
+const CAN_GIVE_FOR = new RegExp(String.raw`\b${CAN_GIVE}[^?]*\b(?:for|in)\b`, 'i');
+/** "Can I give X in Y?", "…for Y?", "…during Y?": the word before the situation, and the situation */
+const CAN_GIVE_SITUATION = new RegExp(String.raw`\b${CAN_GIVE}[^?]*?\b(in|for|during)\s+([^?]+)`, 'i');
+
+/**
  * What kind of answer a question wants. "When should I NOT give nitro?" comes first: it says "give" (a treatment
  * question) and "when" (which picks the indications), and read any other way it gets the opposite of what was asked.
  * But a question that asks for a dose or a risk before its "not" or "never" ("what is the max dose you should never
- * exceed?", "what are the risks of not giving aspirin?") still wants the dose or the risk.
+ * exceed?", "what are the risks of not giving aspirin?") still wants the dose or the risk. A question whether a drug is
+ * safe, or may be given, in a situation ("…after Viagra?", "…if she is allergic?") asks for the contraindications too.
  */
 function intentOf(q: string): string {
+  if (SAFE_TO_GIVE.test(q) || CAN_GIVE_IN.test(q)) return 'contra';
   const main = mainClause(q);
   const contra = CONTRA.exec(main);
   if (contra && ![DOSE, COMPLICATIONS].some((re) => { const m = re.exec(main); return m !== null && m.index < contra.index; })) return 'contra';
@@ -234,7 +254,7 @@ function intentOf(q: string): string {
 
 /** "when to give …?", "who gets …?": the indications — or, asked with a "not", the contraindications */
 const whenField = (q: string): 'indications' | 'contraindications' | null => (
-  /\b(indicat\w*|used for|when|who|which patients)\b/i.test(q) ? (NEGATED.test(mainClause(q)) ? 'contraindications' : 'indications') : null
+  /\b(indicat\w*|used for|when|who|which patients)\b/i.test(q) || CAN_GIVE_FOR.test(q) ? (NEGATED.test(mainClause(q)) ? 'contraindications' : 'indications') : null
 );
 
 /** "What is …?", "define …", "what does … mean?": the learner wants to know what a word means */
@@ -259,7 +279,7 @@ function definesTerm(q: string, term: GlossaryTerm): boolean {
  * come first, so that "can't" goes whole rather than leaving a stray "'t" behind "can". "Push" goes only as a verb
  * ("push adenosine"): "push-dose pressors" and "IV push" keep it.
  */
-const STOP = /\b((don|doesn|didn|shouldn|mustn|can|couldn|wouldn|won|isn|aren|wasn|weren)['’]?t|not|never|cannot|avoid\w*|given|giving|use|used|using|get|gets|getting|got|receive|receives|received|receiving|have|has|had|take|takes|taken|taking|took|push(?![\s\-–]*dos)(?=\s+\w)|pushed|pushing|administer\w*|start|started|starting|safe|safely|ok|okay|appropriate|recommended|indicated|allowed|advis\w*|candidates?|suitable|eligible|must|after|much|would|will|may|might|held|holding|withheld|who|what|whats|is|are|was|be|the|a|an|of|in|on|at|for|to|how|do|does|i|we|you|me|my|our|explain|tell|about|and|or|with|why|when|where|which|should|can|could|please|give|treat|treated|treatment|manage|management|dose|dosing|ecg|ekg|signs?|symptoms?|causes?|look|like|this|that|it|steps?|work|works|done|performed|walk|through|hold|withhold|contraindications?|contraindicated|complications?|indications?|define|definition|meaning|mean|means|patients?|go|goes|put|need|needs)\b/gi;
+const STOP = /\b((don|doesn|didn|shouldn|mustn|can|couldn|wouldn|won|isn|aren|wasn|weren)['’]?t|not|never|cannot|avoid\w*|given|giving|use|used|using|get|gets|getting|got|receive|receives|received|receiving|have|has|had|take|takes|taken|taking|took|push(?![\s\-–]*dos)(?=\s+\w)|pushed|pushing|administer\w*|start|started|starting|safe|safely|ok|okay|appropriate|recommended|indicated|allowed|advis\w*|candidates?|suitable|eligible|must|after|much|would|will|may|might|held|holding|withheld|who|what|whats|is|are|was|be|the|a|an|of|in|on|at|for|to|how|do|does|i|we|you|me|my|our|explain|tell|about|and|or|with|why|when|where|which|should|can|could|please|give|treat|treated|treatment|manage|management|dose|dosing|ecg|ekg|signs?|symptoms?|causes?|look|like|this|that|it|steps?|work|works|done|performed|walk|through|hold|withhold|contraindications?|contraindicated|complications?|indications?|define|definition|meaning|mean|means|patients?|go|goes|put|need|needs|drugs|medications|medicines)\b/gi;
 
 /** Glossary terms answer "what is …?" in a sentence or two */
 const GLOSSARY_EXTRAS: SearchExtra[] = GLOSSARY.map((g) => ({ kind: 'term', id: `term:${g.id}`, name: g.term, sub: g.def, keys: g.aka ?? [] }));
@@ -517,9 +537,91 @@ export function findTopic(question: string, lib: ContentLibrary): TopicMatch | n
   return null;
 }
 
+/** A safety list is never cut short: the seventh contraindication can be the one that matters. Other lists show six */
+const shownOf = (field: string, bullets: string[]) => (field === 'contraindications' || field === 'interactions' ? bullets : bullets.slice(0, 6));
+
+/**
+ * The short names people use for a card whose full name they rarely say: "magnesium" (magnesium sulfate), "calcium" and
+ * "calcium gluconate" (the calcium card covers both salts — not a calcium-channel blocker), "bicarbonate", "insulin"
+ */
+const SHORT_NAMES: [RegExp, string][] = [
+  [/\b(?:magnesium|mag)\b/i, 'magnesium-sulfate'],
+  [/\bcalcium\b(?![\s\-–]*channel)/i, 'calcium-chloride'],
+  [/\b(?:sodium\s+)?bicarbonate\b/i, 'sodium-bicarbonate'],
+  [/\binsulin\b/i, 'insulin-dextrose'],
+];
+
+/** The drug card the question names (by its id, name, a brand name or a short name), the first named if it names several */
+function drugCardNamed(q: string, lib: ContentLibrary): string | null {
+  const text = withAliases(q.toLowerCase()) ?? q.toLowerCase();
+  let best: { id: string; at: number } | null = null;
+  const consider = (id: string, hit: RegExpExecArray | null) => { if (hit && (!best || hit.index < best.at)) best = { id, at: hit.index }; };
+  for (const m of Object.values(lib.medications)) {
+    for (const name of [m.id, m.name, ...m.brandNames]) consider(m.id, new RegExp(String.raw`\b${namePattern(name).source}\b`, 'i').exec(text));
+  }
+  for (const [re, id] of SHORT_NAMES) if (lib.medications[id]) consider(id, re.exec(text));
+  return (best as { id: string } | null)?.id ?? null;
+}
+
+/**
+ * The lines of a drug card's interactions that name what the question names besides the drug ("digoxin with amiodarone":
+ * the amiodarone line) — a "can I give X with Y?" is answered with Y's line too
+ */
+function interactionsNamed(q: string, m: MedicationContent): string[] {
+  const own = new Set(situationWords([m.id, m.name, ...m.brandNames].join(' ')).flatMap(forms));
+  const said = new Set(situationWords(withAliases(q) ?? q).filter((w) => !own.has(w) && !NOT_A_SITUATION.test(w) && w.length > 2).flatMap(forms));
+  return (m.interactions ?? []).filter((l) => situationWords(l).some((w) => forms(w).some((f) => said.has(f))));
+}
+
+/** "Avoid", "never", "not with": the lines of a condition's medications that say what not to give */
+const AVOID_LINE = /\b(?:avoid\w*|never|contraindicat\w*|not\s+(?:with|in|for|routine\w*|recommended|given)|harm\w*|hold|withh[oe]ld\w*|stop\w*)\b/i;
+
+/**
+ * One spelling for the situations a question and a drug card name in different words: "Wolff-Parkinson-White" and
+ * "pre-excited" are WPW, "pregnant" is pregnancy, "wheezing" and "bronchospasm" are asthma, a "high potassium" is
+ * hyperkalemia, a "transplanted" or "denervated" heart a transplant
+ */
+const situationWords = (text: string): string[] => tokens(text.toLowerCase()
+  .replace(/wolff[\s\-–]*parkinson[\s\-–]*white/g, ' wpw ')
+  .replace(/pre[\s\-–]?excit\w*/g, ' preexcited wpw ')
+  .replace(/ventricular tachycardia/g, ' vt ')
+  .replace(/supraventricular tachycardia/g, ' svt ')
+  .replace(/atrial fibrillation/g, ' af ')
+  .replace(/\bpregnan\w*/g, ' pregnancy ')
+  .replace(/\bhyperkal\w*|\bhigh\s+potassium/g, ' hyperkalemia ')
+  .replace(/\basthma\w*|\bbronchospas\w*|\bwheez\w*|\breactive\s+airway\w*/g, ' asthma ')
+  .replace(/\btransplant\w*|\bdenervat\w*/g, ' transplant ')
+  .replace(/\bhypotensi\w*|\blow\s+(?:blood\s+)?pressure/g, ' hypotension '));
+/** Question words and words that say nothing about the situation ("a patient", "the heart", "someone") */
+const NOT_A_SITUATION = new RegExp(String.raw`^(?:${STOP.source}|heart|cardiac|someone|anyone|person|people|man|woman|his|her|their|known|history|acute|setting|cases?|presence|possible|suspected|pulse|still|already)$`, 'i');
+
+/**
+ * "Can I give X in Y?": a question about safety unless Y is what the drug is for. The contraindications when Y names
+ * something only the card's contraindications or interactions name ("amiodarone in pre-excited AF", "adenosine in
+ * asthma", "lisinopril in pregnancy") or nothing on the card at all ("nitro in tamponade", "lidocaine in hyperkalemia");
+ * the indications when Y is among them and nothing in it is a contraindication ("amiodarone in VT"). Asked with "for" it
+ * stays an indications question unless Y names a contraindication ("metoprolol for AF in WPW"). Null: not such a question.
+ */
+function givenIn(q: string, m: MedicationContent): 'contra' | 'indications' | null {
+  const hit = CAN_GIVE_SITUATION.exec(q);
+  if (!hit) return null;
+  const own = new Set(situationWords([m.id, m.name, ...m.brandNames].join(' ')));
+  const said = Array.from(new Set(situationWords(withAliases(hit[2]) ?? hit[2]))).filter((w) => !own.has(w) && !NOT_A_SITUATION.test(w));
+  const known = (lines: readonly string[]) => new Set(situationWords(lines.join(' ')).flatMap(forms));
+  const contra = known([...m.contraindications, ...(m.interactions ?? [])]);
+  const ind = known(m.indications);
+  const named = (set: Set<string>) => said.filter((w) => forms(w).some((f) => set.has(f)));
+  const [inContra, inInd] = [named(contra), named(ind)];
+  if (inContra.some((w) => !inInd.includes(w))) return 'contra';
+  if (hit[1].toLowerCase() === 'for') return 'indications';
+  return inInd.length ? 'indications' : 'contra';
+}
+
 function careField(level: LearningLevel): 'fieldCare' | 'hospitalCare' | 'cardiologyCare' {
-  // EMS roles → field care; cath lab tech / nurse → in-hospital care (carried out on orders); cardiologist → specialist care
-  return level <= 2 ? 'fieldCare' : level <= 4 ? 'hospitalCare' : 'cardiologyCare';
+  // EMS roles → field care; the ER nurse and doctor, and the cath lab tech and nurse → in-hospital (ED / ICU) care;
+  // cardiologist → specialist care
+  if (ROLE_SETTING[level] === 'field') return 'fieldCare';
+  return level === 5 ? 'cardiologyCare' : 'hospitalCare';
 }
 
 export function answerQuestion(question: string, lib: ContentLibrary, ctx: TutorContext): TutorAnswer {
@@ -546,11 +648,37 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
   if (/\b(this|it|that|selected)\b/i.test(q)) {
     targetId = ctx.selectedConditionId ?? ctx.selectedStructureId ?? ctx.selectedProcedureId ?? ctx.selectedMedicationId;
   }
+  const fromSelection = targetId !== null;
   if (!targetId) {
     const match = findTopic(q, lib);
     targetId = match?.id ?? null;
     also = match?.also ?? [];
     missed.push(...(match?.missed ?? []));
+  }
+  let intent = intentOf(q);
+  // "can I give adenosine in asthma?", "…lisinopril in pregnancy?", "…amiodarone in pre-excited AF?": unless the situation is
+  // what the drug is for, the question is whether it is safe there — never answered with the list of what it is for. When it
+  // is what the drug is for ("can I give atropine for bradycardia with a pulse?"), the drug's own card says so
+  if (intent !== 'contra' && intent !== 'dose') {
+    const card = targetId && lib.medications[targetId] ? targetId : drugCardNamed(q, lib);
+    const verdict = card ? givenIn(q, lib.medications[card]) : null;
+    if (verdict === 'contra') intent = 'contra';
+    else if (verdict === 'indications' && card !== targetId) {
+      targetId = card;
+      also = [];
+      missed.length = 0;
+    }
+  }
+  // a question about a drug's contraindications or dose is answered from the drug's own card, whatever page the search (or
+  // the selection) put first: "contraindications to heparin" is not the cath lab's heparin overview, "can I give metoprolol
+  // with a low blood pressure?" is not the blood pressure page, and "can I give nitro to someone on Adempas?" names the drug
+  if ((intent === 'contra' || intent === 'dose') && !(fromSelection && targetId && lib.medications[targetId])) {
+    const card = drugCardNamed(q, lib);
+    if (card && card !== targetId) {
+      targetId = card;
+      also = [];
+      missed.length = 0;
+    }
   }
   if (!targetId) {
     return {
@@ -565,8 +693,12 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
   }
   if (targetId.startsWith('term:')) return termAnswer(targetId.slice(5), lib, also);
 
-  const intent = intentOf(q);
   const lv = `Focus for ${LEVEL_LABELS[level].long}`;
+  // the role's own note, or (an ER role before the item's ER notes are written) the stand-in, labelled
+  const focus = (notes: readonly string[]): string[] => {
+    const n = levelNote(notes, level);
+    return n ? [n.standIn ? `${lv} — ${n.standIn}: ${n.text}` : `${lv}: ${n.text}`] : [];
+  };
   const s = lib.structures[targetId];
   if (s) {
     const field = intent === 'ecg' ? 'ecg' : intent === 'imaging' ? 'imaging' : intent === 'steps' ? 'procedures'
@@ -575,7 +707,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     return {
       title: `${s.name}${field !== 'overview' ? ` — ${field}` : ''}`,
       text: `${s.summary}${s.bloodSupply && field === 'anatomy' ? ` Blood supply: ${s.bloodSupply}.` : ''}`,
-      bullets: [...bullets.slice(0, 6), `${lv}: ${s.levelNotes[level - 1]}`],
+      bullets: [...bullets.slice(0, 6), ...focus(s.levelNotes)],
       links: [s.id, ...s.relatedConditions.slice(0, 3)],
       followUps: [`What does ${s.name.toLowerCase()} pathology look like on ECG?`, `Which procedures involve the ${s.name.toLowerCase()}?`],
     };
@@ -586,6 +718,10 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
       : intent === 'mechanism' ? 'pathophysiology' : intent === 'complications' ? 'complications' : intent === 'imaging' ? 'imaging'
         : intent === 'steps' ? 'procedure' : intent === 'anatomy' ? 'anatomy' : intent === 'contra' ? 'medications' : 'overview';
     const bullets = (c as unknown as Record<string, string[]>)[field] ?? c.overview;
+    // what to avoid is a safety list: its lines first, and never cut
+    const shownBullets = intent === 'contra' && field === 'medications'
+      ? [...bullets.filter((l) => AVOID_LINE.test(l)), ...bullets.filter((l) => !AVOID_LINE.test(l))]
+      : bullets.slice(0, 6);
     const extra = field === 'overview' && c.redFlags.length ? [`Red flag: ${c.redFlags[0]}`] : [];
     const labels: Record<string, string> = { fieldCare: 'field care', hospitalCare: 'ED / ICU care', cardiologyCare: 'cardiology care', pathophysiology: 'pathophysiology' };
     // offer what has not just been answered
@@ -593,7 +729,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     return {
       title: `${c.name}${field !== 'overview' ? ` — ${labels[field] ?? field}` : ''}`,
       text: c.summary,
-      bullets: [...bullets.slice(0, 6), ...extra, `${lv}: ${c.levelNotes[level - 1]}`],
+      bullets: [...shownBullets, ...extra, ...focus(c.levelNotes)],
       links: [c.id, ...c.relatedMedications.slice(0, 3), ...c.relatedProcedures.slice(0, 2)],
       followUps: next.filter(([k]) => k !== (intent === 'dose' ? 'treat' : intent)).map(([, f]) => f),
     };
@@ -615,7 +751,7 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     return {
       title: `${p.name}${field !== 'overview' ? ` — ${field}` : ''}`,
       text: p.summary,
-      bullets: [...bullets.slice(0, 6), `${lv}: ${p.levelNotes[level - 1]}`],
+      bullets: [...shownOf(field, bullets), ...focus(p.levelNotes)],
       links: [p.id, ...p.relatedConditions.slice(0, 3)],
       followUps: [`Walk me through ${p.name}`, `What are the complications of ${p.name}?`],
     };
@@ -628,17 +764,30 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
       : intent === 'ecg' ? 'ecgEffects' : intent === 'mechanism' ? 'mechanism' : whenField(q) ?? 'mechanism';
     const bullets = (m as unknown as Record<string, string[]>)[field] ?? m.mechanism;
     const note = field === 'dosing' ? ['Typical adult dosing for education — always follow current guidelines and local protocol'] : [];
+    const together = field === 'contraindications' ? interactionsNamed(q, m).map((l) => `Interaction: ${l}`) : [];
     return {
       title: `${m.name} — ${field === 'adverseEffects' ? 'adverse effects' : field === 'ecgEffects' ? 'ECG effects' : field}`,
       text: `${m.drugClass}. ${m.summary}`,
-      bullets: [...bullets.slice(0, 6), ...note, `${lv}: ${m.levelNotes[level - 1]}`],
+      bullets: [...shownOf(field, bullets), ...together, ...note, ...focus(m.levelNotes)],
       links: [m.id, ...m.relatedConditions.slice(0, 3)],
       followUps: [`What is the dose of ${m.name}?`, `What are the contraindications to ${m.name}?`],
     };
   }
   const cl = lib.cathlab[targetId];
+  // "contraindications to transvenous pacing": the catalog item explains the device; the procedure page lists them
+  const clProcedure = cl && intent === 'contra' ? (cl.related ?? []).map((id) => lib.procedures[id]).find(Boolean) : undefined;
+  if (clProcedure) {
+    return {
+      title: `${clProcedure.name} — contraindications`,
+      text: clProcedure.summary,
+      bullets: [...clProcedure.contraindications, ...focus(clProcedure.levelNotes)],
+      links: [clProcedure.id, cl.id, ...clProcedure.relatedConditions.slice(0, 2)],
+      followUps: [`Walk me through ${clProcedure.name}`, `What are the complications of ${clProcedure.name}?`],
+    };
+  }
   if (cl) {
     const numbers = (intent === 'dose' || /normal|value|size|how much|target|range/i.test(q)) && cl.numbers?.length;
+    // the catalog is written for the three lab roles; the others (the EMS and ER roles) get no lab-role line
     const role = level === 3 ? cl.roles.tech : level === 4 ? cl.roles.rn : level === 5 ? cl.roles.md : null;
     return {
       title: `${cl.name}${numbers ? ' — numbers to know' : ''}`,

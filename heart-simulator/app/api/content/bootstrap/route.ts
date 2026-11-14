@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { STRUCTURES, CONDITIONS, PROCEDURES, MEDICATIONS, QUIZ_QUESTIONS } from '@/data/content';
 import { CASE_DATA } from '@/data/caseData';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
+import { LEVEL_LABELS, ROLES } from '@/store/useAppStore';
+import { SCOPES } from '@/lib/scope';
 
 /** Describes the teaching library so other clients (or a future backend) can discover what is available. */
 export async function GET() {
@@ -16,13 +18,8 @@ export async function GET() {
       quizQuestions: QUIZ_QUESTIONS.length,
       ecgProfiles: Object.keys(ECG_PROFILES).length,
     },
-    learningLevels: [
-      { level: 1, label: 'EMT (NREMT · BLS)', scope: 'National EMS Scope of Practice Model 2019' },
-      { level: 2, label: 'Paramedic (NREMT · ALS)', scope: 'National EMS Scope of Practice Model 2019' },
-      { level: 3, label: 'Cath Lab Tech (RCIS)', scope: 'RCIS · SCAI best practices · facility policy' },
-      { level: 4, label: 'Cath Lab Nurse (RN)', scope: 'State Nurse Practice Act · facility policy' },
-      { level: 5, label: 'Cardiologist', scope: 'Licensure · hospital privileges' },
-    ],
+    // every role, in the order the app offers them (field, emergency department, cath lab)
+    learningLevels: ROLES.map((level) => ({ level, label: LEVEL_LABELS[level].long, scope: SCOPES[level].framework })),
     viewModes: ['external', 'sectioned', 'xray', 'conduction', 'territories', 'activation'],
     tools: ['12-lead ECG', 'electrode lab', 'Wiggers / PV loop', 'monitor-defibrillator trainer', 'projector monitor (/monitor)'],
   });

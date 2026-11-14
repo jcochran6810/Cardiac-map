@@ -32,7 +32,7 @@ const PATHS: string[][] = [
   [...READY, 'nitro', 'atropine', 'albuterol', 'epi-im', 'stemi-alert', 'epinephrine', 'lungs', 'perfusion', 'reassess'],
   [...READY, 'diltiazem', ...R(5), 'lungs', 'perfusion', 'neuro'],
   [...READY, 'fluid', 'fluid', 'lungs', 'fentanyl', 'cardiovert', 'reassess'],
-  ['primary', 'med-control', 'scene', 'vitals', 'monitor', 'pads', 'ecg12', 'sample', 'opqrst', 'lungs', 'iv', 'amio-infusion', 'transport-near', UNTIL_ARRIVED, 'handoff'],
+  ['primary', 'med-control', 'vitals', 'monitor', 'pads', 'ecg12', 'sample', 'opqrst', 'lungs', 'iv', 'amio-infusion', 'transport-near', UNTIL_ARRIVED, 'handoff'],
 ];
 
 /** The lead's view of a play-through: the patient never leaves what a living circulation can show */
@@ -66,8 +66,8 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
       const ways = typeof c.done === 'function' ? c.uses ?? [] : c.done;
       expect(ways.some((id) => scope.has(id)), c.id).toBe(true);
     }
-    // the case says what the built-in drug rules need to know
-    expect(sc.problems).toEqual(['heart-failure']);
+    // the case says what the built-in drug rules need to know: a weak heart, and fluid backing up into the lungs
+    expect(sc.problems).toEqual(['heart-failure', 'pulmonary-edema']);
   });
 
   it('the ideal run ends by itself with full marks', () => {
@@ -189,10 +189,11 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(sc.status!(s)).toMatch(/better/);
   });
 
-  it('IV metoprolol on top of his carvedilol is a minor error: the pressure falls, the rate barely moves, and he still decompensates', () => {
+  it('IV metoprolol on top of his carvedilol: the pressure falls, the rate barely moves, and he still decompensates — with fluid on his lungs it is ruled out', () => {
     let s = run(sc, 2, [...READY, 'metoprolol']);
+    // decompensated heart failure is a label contraindication (major): the case says it in its own words, at that weight
     expect(ids(s)).toEqual(['metoprolol-decompensated']);
-    expect(s.penalties[0].severity).toBe('minor');
+    expect(s.penalties[0]).toMatchObject({ points: 8, severity: 'major' });
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([98, 66]);
     expect(s.rhythm.hr).toBe(136);
     s = run(sc, 2, [...READY, 'metoprolol', ...R(3)]);
@@ -208,13 +209,20 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(ids(s)).toEqual(['metoprolol-decompensated', 'procainamide-heart-failure']);
   });
 
-  it('procainamide in heart failure is a major error; given once he is unstable it costs once for the low pressure, not twice', () => {
+  it('procainamide in heart failure is a major error; given once he is unstable it costs once, in the case\'s words, not twice', () => {
     const s = run(sc, 2, [...READY, 'procainamide']);
     expect(ids(s)).toEqual(['procainamide-heart-failure']);
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([94, 64]);
     const unstable = run(sc, 2, [...READY, 'diltiazem', 'procainamide']);
-    expect(ids(unstable)).toEqual(['diltiazem-hfref', 'procainamide-heart-failure', 'antiarrhythmic-unstable']);
+    // one dose, one penalty: the low pressure outranks the failing heart, and the case's rule speaks for that
+    expect(ids(unstable)).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable']);
     expect(ids(unstable)).not.toContain('procainamide-hypotension');
+    // metoprolol once he is unstable: the case's unstable-patient rule alone, not also its decompensation rule
+    expect(ids(run(sc, 2, [...READY, 'diltiazem', 'metoprolol']))).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable']);
+    // …and metoprolol after procainamide is a second drug for an unstable patient: the same rule charges it again, in the
+    // same words (a case rule standing in for a drug contraindication charges once for each drug, rules/charge.ts) — never
+    // free, never twice
+    expect(ids(run(sc, 2, [...READY, 'diltiazem', 'procainamide', 'metoprolol']))).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable', 'antiarrhythmic-unstable']);
   });
 
   it('adenosine does not convert it: the same rhythm comes straight back, and it costs once', () => {
@@ -248,9 +256,12 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
   });
 
   it('fentanyl before the shock counts as analgesia: no "without sedation or analgesia" penalty, and no talk of pain he does not have', () => {
-    const s = run(sc, 2, [...READY, 'fentanyl', 'cardiovert']);
+    // the pads on first, as for any cardioversion: the opioid is then the premedication for the shock
+    const s = run(sc, 2, [...READY, 'pads', 'fentanyl', 'cardiovert']);
     expect(ids(s)).toEqual(['cardiovert-stable']);
     expect(s.log.some((l) => /takes the edge off/.test(l.text))).toBe(false);
+    // with no pads on, no low pressure and no pain, nothing says a shock is coming: the opioid has nothing to treat
+    expect(ids(run(sc, 2, [...READY, 'fentanyl', 'cardiovert']))).toEqual(['opioid-no-pain', 'cardiovert-stable']);
   });
 
   it('an unsynchronized shock with a pulse causes VF; the next shock brings him back, but it does not count as rate control', () => {
@@ -348,7 +359,7 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
   });
 
   it('nitroglycerin unloads his lungs a little and lowers the pressure; he never talks of chest pressure he does not have', () => {
-    const s = run(sc, 2, [...READY, 'nitro']);
+    const s = run(sc, 2, [...READY, 'ask-pde5', 'nitro']);
     expect(ids(s)).toEqual([]);
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([102, 68]);
     expect(s.log.some((l) => /pressure is easing/.test(l.text))).toBe(false);
@@ -433,5 +444,15 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     // anticoagulation comes before an elective cardioversion even under 48 hours with his stroke risk
     expect(text).toMatch(/under 48 hours, with his stroke risk, anticoagulation is still started before it/);
     expect(text).not.toMatch(/unknown duration/);
+  });
+});
+
+describe('af-rvr field: atropine after the conversion', () => {
+  it('atropine for the sinus rhythm the shock restored still has nothing to treat', () => {
+    const converted = run(sc, 2, ['primary', 'vitals', 'monitor', 'ecg12', 'iv', 'pads', 'sedation', 'cardiovert']);
+    expect(converted.rhythm.hr).toBeGreaterThanOrEqual(60);
+    expect(resolveProfile(converted.rhythm.profile).rhythm).toBe('sinus');
+    const s = perform(sc, converted, 'atropine');
+    expect(s.penalties.map((p) => p.id).slice(converted.penalties.length)).toEqual(['atropine-fast']);
   });
 });

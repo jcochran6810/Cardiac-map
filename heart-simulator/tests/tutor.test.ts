@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { answerQuestion, canReadMonitor, findTopic, type TutorContext } from '@/lib/tutor';
 import { loadContent, useContentStore, type ContentLibrary } from '@/lib/content';
 import { resolveProfile } from '@/lib/ecg/profiles';
+import { PROCEDURE_IDS } from '@/types/content';
 
 let lib: ContentLibrary;
 beforeAll(async () => {
@@ -229,6 +230,10 @@ describe('what kind of answer a question wants', () => {
     const af = lib.conditions['atrial-fibrillation'].name;
     expect(ask('How is atrial fibrillation treated?').title).toBe(`${af} — field care`);
     expect(ask('How is atrial fibrillation treated?', { level: 4 }).title).toBe(`${af} — ED / ICU care`);
+    // the ER nurse and the ER doctor get the ED care, not the field's or the cardiologist's
+    expect(ask('How is atrial fibrillation treated?', { level: 6 }).title).toBe(`${af} — ED / ICU care`);
+    expect(ask('How is atrial fibrillation treated?', { level: 7 }).title).toBe(`${af} — ED / ICU care`);
+    expect(ask('How is atrial fibrillation treated?', { level: 5 }).title).toBe(`${af} — cardiology care`);
     expect(ask('What are the complications of atrial fibrillation?').title).toBe(`${af} — complications`);
     expect(ask('What are the signs of cardiac tamponade?').title).toMatch(/ — symptoms$/);
     expect(ask('What are the contraindications to nitroglycerin?').title).toBe('Nitroglycerin — contraindications');
@@ -330,5 +335,222 @@ describe('what kind of answer a question wants', () => {
     const a = ask('How is atrial fibrillation treated?');
     expect(a.followUps).not.toContain(`How is ${lib.conditions['atrial-fibrillation'].name} treated?`);
     expect(a.followUps.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the role focus line', () => {
+  const focusOf = (q: string, level: TutorContext['level']) => ask(q, { level }).bullets.filter((b) => b.startsWith('Focus for '));
+
+  it.each([
+    ['What is amiodarone?', 'amiodarone'], ['What is atrial fibrillation?', 'atrial-fibrillation'],
+    ['What is the mitral valve?', 'mitral-valve'], ['What is pericardiocentesis?', 'pericardiocentesis'],
+  ])('"%s": every role gets one focus line, never "undefined"', (q) => {
+    for (const level of [1, 2, 3, 4, 5, 6, 7] as const) {
+      const lines = focusOf(q, level);
+      expect(lines, `level ${level}`).toHaveLength(1);
+      expect(lines[0], `level ${level}`).not.toMatch(/undefined/);
+    }
+  });
+
+  it('labels a stand-in note as another role\'s until the ER notes are written', () => {
+    const notes = lib.medications.amiodarone.levelNotes;
+    const [nurse] = focusOf('What is amiodarone?', 6);
+    const [doctor] = focusOf('What is amiodarone?', 7);
+    if (notes.length === 7) {
+      expect(nurse).toBe(`Focus for Emergency Nurse (RN · ED): ${notes[5]}`);
+      expect(doctor).toBe(`Focus for Emergency Physician (MD/DO): ${notes[6]}`);
+    } else {
+      expect(nurse).toMatch(/^Focus for Emergency Nurse \(RN · ED\) — Not written for the ER Nurse yet — this is the Cath Lab RN note/);
+      expect(nurse.endsWith(notes[3])).toBe(true);
+      expect(doctor).toMatch(/^Focus for Emergency Physician \(MD\/DO\) — Not written for the ER Doctor yet — this is the Cardiologist note/);
+      expect(doctor.endsWith(notes[4])).toBe(true);
+    }
+  });
+});
+
+describe('drug safety questions get the drug card\'s whole list of contraindications (cards audit A1–A3)', () => {
+  const contraOf = (id: string) => `${lib.medications[id].name} — contraindications`;
+
+  it('never cuts a contraindication list short: tenecteplase\'s seventh is severe uncontrolled hypertension', () => {
+    const a = ask('contraindications to tenecteplase');
+    expect(a.title).toBe(contraOf('tenecteplase'));
+    const card = lib.medications.tenecteplase.contraindications;
+    expect(card.length).toBeGreaterThan(6);
+    expect(a.bullets.slice(0, card.length)).toEqual(card);
+    expect(a.bullets.join(' ')).toMatch(/Severe uncontrolled hypertension/);
+    // other lists still show six, then the role's note
+    const mech = ask('how does tenecteplase work');
+    expect(mech.bullets.length).toBeLessThanOrEqual(7);
+  });
+
+  it('a contraindication or dose question about heparin comes from the heparin card, not the cath lab overview', () => {
+    expect(ask('contraindications to heparin').title).toBe(contraOf('heparin'));
+    expect(ask('what is the dose of heparin').title).toBe(`${lib.medications.heparin.name} — dosing`);
+  });
+
+  it.each([
+    ['Can I give nitroglycerin after Viagra?', 'nitroglycerin'],
+    ['Can I give nitroglycerin to a patient who took Cialis?', 'nitroglycerin'],
+    ['Is nitroglycerin safe after sildenafil?', 'nitroglycerin'],
+    ['can I give nitro to someone on Adempas?', 'nitroglycerin'],
+    ['Can I give metoprolol with a low blood pressure?', 'metoprolol'],
+    ['Can I give metoprolol to a cocaine patient?', 'metoprolol'],
+    ['Is it safe to give adenosine in asthma?', 'adenosine'],
+    ['Can I give aspirin if the patient is allergic?', 'aspirin'],
+  ])('"%s" gets the contraindications to %s', (q, id) => {
+    const a = ask(q);
+    expect(a.title).toBe(contraOf(id));
+    expect(a.bullets.slice(0, lib.medications[id].contraindications.length)).toEqual(lib.medications[id].contraindications);
+    // a brand name is understood ("Viagra" is sildenafil, which the card names): no "nothing here mentions Viagra". A word
+    // the card itself never uses ("cocaine" before the card names it) may still be pointed out
+    if (/viagra|cialis|adempas|sildenafil/i.test(q)) expect(a.text ?? '').not.toMatch(/Closest match/);
+  });
+
+  // the drugs the contraindication audit gave cards (alteplase, ondansetron, glucagon, nitroprusside), and calcium gluconate,
+  // which the calcium card covers (its gluconate dose, and the labels' lines that hold for both salts)
+  it.each([
+    ['contraindications to alteplase', 'alteplase', /Suspected aortic dissection[\s\S]*Pulmonary embolism without cardiopulmonary failure/],
+    ['contraindications to ondansetron', 'ondansetron', /^Apomorphine[\s\S]*Congenital long QT syndrome/],
+    ['contraindications to glucagon', 'glucagon', /^Pheochromocytoma[\s\S]*Insulinoma/],
+    ['Can I give nitroprusside after sildenafil?', 'nitroprusside', /^A PDE-5 inhibitor \(sildenafil, tadalafil, vardenafil\) or riociguat/],
+    ['contraindications to calcium gluconate', 'calcium-chloride', /^Hypercalcemia[\s\S]*sodium bicarbonate[\s\S]*ceftriaxone/],
+  ])('"%s" gets the whole list of contraindications from the %s card', (q, id, lines) => {
+    const a = ask(q);
+    const card = lib.medications[id].contraindications;
+    expect(a.title).toBe(contraOf(id));
+    expect(a.bullets.slice(0, card.length)).toEqual(card);
+    expect(a.bullets.slice(0, card.length).join('\n')).toMatch(lines);
+    expect(a.text ?? '').not.toMatch(/Closest match/);
+  });
+
+  it('calcium gluconate: the calcium card says which salt it answers for', () => {
+    expect(ask('contraindications to calcium gluconate').text).toMatch(/calcium gluconate/);
+  });
+
+  it('the drug named wins over the page that is open ("is it safe…" names the drug, not "it")', () => {
+    expect(ask('Is it safe to give adenosine in asthma?', { selectedConditionId: 'atrial-fibrillation' }).title).toBe(contraOf('adenosine'));
+  });
+
+  it.each([
+    ['can I give amiodarone for VT?', 'amiodarone'],
+    ['can I use amiodarone in VT?', 'amiodarone'],
+    ['Can I give amiodarone in VT?', 'amiodarone'],
+    ['can I give adenosine for SVT?', 'adenosine'],
+    ['when do I give aspirin', 'aspirin'],
+    // "with a pulse" names the arrhythmia, not a reason to withhold the drug
+    ['Can I give amiodarone for VT with a pulse?', 'amiodarone'],
+    ['can I give atropine for bradycardia with a pulse?', 'atropine'],
+  ])('an indication question stays one: "%s" gets the indications for %s', (q, id) => {
+    expect(ask(q).title).toBe(`${lib.medications[id].name} — indications`);
+  });
+
+  // "Can I give X in Y?" asks whether it is safe there unless Y is what it is for: never the indications list, which reads like
+  // permission (2023 AF guideline: IV amiodarone in pre-excited AF 3 — Harm; ACE inhibitors' boxed fetal-toxicity warning;
+  // pregnancy a relative contraindication to lysis; atropine after a heart transplant 3 — Harm)
+  it.each([
+    ['Can I give adenosine in asthma?', 'adenosine'],
+    ['Can I give amiodarone in pre-excited AF?', 'amiodarone'],
+    ['Can I give nitro in tamponade?', 'nitroglycerin'],
+    ['Can I give lisinopril in pregnancy?', 'lisinopril'],
+    ['Can I give tenecteplase in pregnancy?', 'tenecteplase'],
+    ['Can I give diltiazem in WPW?', 'diltiazem'],
+    ['Can I give lidocaine in hyperkalemia?', 'lidocaine'],
+    ['Can I give atropine in a heart transplant patient?', 'atropine'],
+    ['Can I give metoprolol in cocaine chest pain?', 'metoprolol'],
+    ['Can I give metoprolol for AF in WPW?', 'metoprolol'],
+  ])('"%s" gets the contraindications to %s, not its indications', (q, id) => {
+    const a = ask(q);
+    expect(a.title).toBe(contraOf(id));
+    expect(a.bullets.slice(0, lib.medications[id].contraindications.length)).toEqual(lib.medications[id].contraindications);
+  });
+});
+
+describe('review round: safety questions land on the page that answers them', () => {
+  it('a condition\'s "what should I avoid" shows its avoid lines first, and never cuts them', () => {
+    const a = ask('What drugs should I avoid in HFrEF?');
+    expect(a.title).toBe('Heart Failure with Reduced EF (HFrEF) — medications');
+    expect(a.bullets[0]).toMatch(/non-dihydropyridine/);
+    expect(shown('What drugs should I avoid in Takotsubo?')).toMatch(/— medications/);
+  });
+
+  it('"can I give X with Y?" adds the interaction line that names Y', () => {
+    expect(ask('Can I give digoxin with amiodarone?').bullets.join('\n')).toMatch(/Interaction: Amiodarone/);
+    expect(ask('Can I give clopidogrel with omeprazole?').bullets.join('\n')).toMatch(/Interaction: Omeprazole/);
+    const ca = ask('Can I give calcium gluconate with digoxin?');
+    expect(ca.title).toBe('Calcium Chloride — contraindications');
+    expect(ca.bullets.join('\n')).toMatch(/Interaction: Digoxin/);
+  });
+
+  it.each([
+    ['Can I give magnesium in heart block?', 'Magnesium Sulfate — contraindications'],
+    ['Can I give tPA in a dissection?', 'Alteplase — contraindications'],
+    ['Contraindications to thrombolytics in STEMI?', 'Tenecteplase — contraindications'],
+    ['Can I give magnesium with myasthenia gravis?', 'Magnesium Sulfate — contraindications'],
+    ['Can I give calcium with bicarbonate?', 'Calcium Chloride — contraindications'],
+    ['Can I give bicarb in alkalosis?', 'Sodium Bicarbonate — contraindications'],
+    ['Can I give amio in WPW?', 'Amiodarone — contraindications'],
+    ['Can I give dilt in WPW?', 'Diltiazem — contraindications'],
+    ['Can I give TNK after a stroke?', 'Tenecteplase — contraindications'],
+    ['When should I not cardiovert a patient?', 'Synchronized Cardioversion — contraindications'],
+    ['contraindications to transvenous pacing', 'Temporary Pacing (Transcutaneous / Transvenous) — contraindications'],
+    ['What are the contraindications to CPAP?', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['When should I not use CPAP?', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['contraindications to noninvasive ventilation', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['contraindications to BiPAP', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['When should I not use CPAP in pulmonary edema?', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+  ])('%s → %s', (q, title) => {
+    expect(ask(q).title).toBe(title);
+  });
+
+  it('a calcium-channel blocker is not the calcium card; pacing in asystole is answered', () => {
+    expect(ask('Can I give a calcium channel blocker in WPW?').title).not.toMatch(/Calcium Chloride/);
+    expect(shown('Is it safe to pace a patient in asystole?')).toMatch(/pacing is not recommended/);
+  });
+
+  it('the CPAP page lists the contraindications the simulator scores', () => {
+    const c = ask('What are the contraindications to CPAP?').bullets.join('\n');
+    for (const re of [/protect the airway/, /systolic under 90/, /pneumothorax/, /Facial trauma or burns/, /tamponade, a massive PE, an RV infarction/]) expect(c).toMatch(re);
+  });
+});
+
+describe('review round: procedure pages name the contraindications the reviewers found missing', () => {
+  it.each([
+    ['impella-placement', /Combined cardiorespiratory failure/],
+    ['impella-placement', /Heparin intolerance or HIT/],
+    ['cardioversion', /Left atrial or appendage thrombus on TEE/],
+    ['pericardiocentesis', /No effusion, or no tamponade physiology on echo/],
+  ])('%s', (id, re) => {
+    expect(lib.procedures[id].contraindications.join('\n')).toMatch(re);
+  });
+});
+
+describe('the rapid sequence intubation page', () => {
+  it.each([
+    'What are the contraindications to RSI?',
+    'contraindications to rapid sequence intubation',
+    'When should I not intubate?',
+    'contraindications to intubation',
+  ])('%s → its contraindications', (q) => {
+    expect(ask(q).title).toBe('Rapid Sequence Intubation (RSI) — contraindications');
+  });
+
+  it('lists each drug\'s contraindications, resuscitation first, the preload-dependent heart and the difficult airway — each with its source', () => {
+    const page = lib.procedures['rapid-sequence-intubation'];
+    expect(PROCEDURE_IDS).toContain('rapid-sequence-intubation');
+    expect(page.category).toBe('Emergency & Bedside');
+    const c = page.contraindications;
+    const line = (re: RegExp) => c.find((l) => re.test(l)) ?? '';
+    expect(line(/^Succinylcholine: hyperkalemia/)).toMatch(/burns.*24–72 hours.*denervation.*neuromuscular disease.*label.*immobility/);
+    expect(line(/^Succinylcholine: a personal or family history of malignant hyperthermia/)).toMatch(/label/);
+    expect(line(/^Etomidate/)).toMatch(/adrenal suppression.*single induction dose is generally accepted/);
+    expect(line(/^Succinylcholine in a child/)).toMatch(/boxed warning.*hyperkalemia.*cardiac arrest.*undiagnosed myopathy.*emergency intubation.*label/);
+    expect(line(/^Ketamine/)).toMatch(/uncontrolled hypertension.*acute coronary syndrome with a high pressure.*Ketalar label.*intracranial pressure is not a reason to avoid it.*systematic review of intubated, critically ill patients.*did not lower the cerebral perfusion pressure or worsen outcomes.*Cohen et al\., Ann Emerg Med 2015/);
+    expect(line(/^Propofol/)).toMatch(/hypotension or shock.*label.*half the dose/);
+    expect(line(/^Rocuronium/)).toMatch(/allergy.*label.*sugammadex.*Bridion label/);
+    expect(line(/^Resuscitate before you intubate/)).toMatch(/hypotension, hypoxia and a severe metabolic acidosis.*INTUBE.*2022 ASA/);
+    expect(line(/^Preload-dependent states/)).toMatch(/tamponade.*PE.*RV infarction.*Avoid positive pressure where you can.*pressor running/);
+    expect(line(/^The predicted difficult airway/)).toMatch(/2022 ASA difficult airway guideline.*video laryngoscope.*front-of-neck access/);
+    // the tube is confirmed with waveform capnography (2025 AHA)
+    expect(page.overview.join('\n')).toMatch(/waveform capnography \(2025 AHA ALS\)/);
   });
 });

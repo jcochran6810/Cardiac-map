@@ -6,7 +6,7 @@
  * interval (Fridericia correction) and, slightly, the PR interval change with
  * rate, as they do in real life.
  */
-import { DipolePulse, Vec3, pulse, scale, norm, rotateFrontal } from './vector';
+import { AnyLead, DipolePulse, LEAD_VECTORS, Vec3, dot, pulse, scale, norm, rotateFrontal } from './vector';
 
 // ─── Rhythm kinds ──────────────────────────────────────────────────────────
 
@@ -65,6 +65,9 @@ export const P_TEMPLATES: Record<string, PTemplate> = {
     duration: 110,
     pulses: [pulse(34, 15, [0.15, -0.45, -0.9], 0.04), pulse(70, 15, [0.8, 0.55, -0.3], 0.03)],
   },
+  // no atrial wave at all: the sine wave of severe hyperkalemia, where the sinus node still sets the rate but the atria no
+  // longer depolarize visibly
+  absent: { duration: 100, pulses: [] },
 };
 
 // ─── QRS templates (anchor = QRS onset) ────────────────────────────────────
@@ -190,6 +193,26 @@ export const QRS_TEMPLATES: Record<string, QRSTemplate> = {
     conduction: 'preexcited',
   },
 
+  // Atrial fibrillation down a left lateral accessory pathway: the ventricles are activated wholly from the pathway
+  // (full pre-excitation). A broad slurred delta, then slow muscle-to-muscle spread rightward, anterior and inferior:
+  // wide QRS, negative in I and aVL, positive in V1–V4 and the inferior leads, with a discordant secondary T wave.
+  // The beats the AV node also reaches are fusions with the normal QRS (ECGEngine: fusedTemplate)
+  'wpw-af': {
+    duration: 160,
+    pulses: [pulse(28, 20, [-0.5, -0.65, -0.45], 0.55), pulse(80, 22, [-0.4, -0.6, -0.7], 1.35), pulse(128, 16, [0.3, -0.1, -0.5], 0.35)],
+    t: { dir: [0.45, 0.6, 0.6], mag: 0.4 },
+    conduction: 'preexcited',
+  },
+
+  // Posterior MI: the dead posterolateral wall no longer pulls the activation backward, so the anterior forces win —
+  // tall, broad R waves in V1–V2 (the mirror image of posterior Q waves), the rest of the QRS normal
+  'posterior-mi': {
+    duration: 92,
+    pulses: [SEPTAL, pulse(30, 9, [0.2, -0.75, -0.6], 1.0), pulse(48, 10, [0.85, 0.05, -0.55], 1.2), pulse(70, 9, [-0.2, 0.75, 0.55], 0.15)],
+    t: NORMAL_T,
+    conduction: 'normal',
+  },
+
   // DCM / HFrEF: LBBB-type intraventricular conduction delay
   ivcd: {
     duration: 150,
@@ -261,6 +284,7 @@ export type HemoProfile =
   | 'hfref'
   | 'hfpef'
   | 'hcm'
+  | 'takotsubo-lvoto'
   | 'shock'
   | 'tamponade'
   | 'pe'
@@ -303,6 +327,19 @@ export interface ECGProfile {
   keyLeads?: string[];
   /** Every P wave blocked at the AV node (set by a drug effect, e.g. adenosine — see ecg/mods.ts) */
   avBlock?: boolean;
+  /**
+   * Atrial fibrillation conducted down an accessory pathway (pre-excited AF): the pathway, not the AV node, sets the
+   * shortest RR interval (ms), and each beat is a fusion of the fully pre-excited QRS (`qrs`) with a normally conducted
+   * one — the shorter the cycle before it, the more of it the pathway activates (wider, with more delta wave)
+   */
+  pathway?: { shortestRR: number };
+  /**
+   * This profile draws exactly the 12-lead of another and differs only in the heart behind the pressures (Takotsubo with
+   * outflow obstruction is the Takotsubo tracing): a repeat 12-lead after a switch between them shows no change (sameTracing)
+   */
+  sameTracingAs?: string;
+  /** Rhythm 'pvc': one PVC in every this many beats (default 4, quadrigeminy) */
+  pvcEvery?: number;
 }
 
 const STD = { minHR: 30, maxHR: 180 };
@@ -353,6 +390,20 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     headline: 'Ventricular pre-excitation (Wolff-Parkinson-White)',
     findings: ['Short PR < 120 ms', 'Delta wave: slurred initial QRS upstroke', 'Wide QRS (> 110–120 ms) with secondary ST-T changes', 'Left lateral pathway shown: positive delta in V1, negative in I/aVL (pseudo-infarct)', 'Never give AV-nodal blockers for pre-excited AF'],
     keyLeads: ['V1', 'I', 'aVL'],
+  },
+  // Pre-excited AF: the WPW pathway above, with atrial fibrillation racing down it
+  'af-wpw': {
+    id: 'af-wpw', name: 'Pre-excited Atrial Fibrillation (WPW)', rhythm: 'af', rateControl: 'ventricular', defaultHR: 214, minHR: 150, maxHR: 250,
+    pr: 0, p: 'none', qrs: 'wpw-af', qtc: 400, hemo: 'normal', pathway: { shortestRR: 245 },
+    headline: 'Pre-excited atrial fibrillation — fast, broad and irregular',
+    findings: [
+      'Irregularly irregular and very fast (often 200–300/min), with wide QRS complexes that change in width and shape from beat to beat',
+      'Delta waves: slurred upstrokes as the impulses race down the accessory pathway; the narrower beats are fusions with impulses the AV node also conducted',
+      'Shortest RR intervals of 250 ms or less mark a pathway that can drive the ventricles into VF',
+      'No AV-nodal blockers (adenosine, diltiazem, verapamil, beta-blockers, digoxin, IV amiodarone): blocking the node sends every impulse down the pathway (2023 ACC/AHA/ACCP/HRS AF guideline: harm)',
+      'Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide (2023 AF guideline)',
+    ],
+    keyLeads: ['V1', 'II', 'I', 'aVL'],
   },
   junctional: {
     id: 'junctional', name: 'Junctional Rhythm', rhythm: 'junctional', rateControl: 'ventricular', defaultHR: 48, minHR: 35, maxHR: 120,
@@ -436,6 +487,21 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     headline: 'Torsades de pointes (polymorphic VT with long QT)',
     findings: ['Polymorphic VT: QRS axis "twists" around the baseline', 'Amplitude waxes and wanes over 5–20 beats', 'Arises on a prolonged QTc (often after a pause: short-long-short)', 'Sustained torsades: unsynchronized defibrillation at once (2025 AHA), then IV magnesium; stop QT-prolonging drugs, correct K⁺; short runs that stop by themselves: magnesium'],
   },
+  // The rhythm between runs of torsades: sinus with a long QT and the odd PVC landing late on the T wave
+  'long-qt': {
+    id: 'long-qt', name: 'Long QT Interval', rhythm: 'pvc', rateControl: 'sinus', defaultHR: 58, minHR: 40, maxHR: 100, pvcEvery: 7,
+    pr: 170, p: 'normal', qrs: 'normal', qtc: 580, hemo: 'normal',
+    t: { dir: [0.5, -0.5, -0.7], mag: 0.3, rise: 0.17, fall: 0.075 },
+    headline: 'Sinus rhythm with a long QT (QTc about 580 ms) and PVCs',
+    findings: [
+      'QTc about 580 ms: over 500 ms carries a high risk of torsades de pointes',
+      'Broad, slow T waves; measure the QT in II or V5 to the end of the T wave and correct it for the rate',
+      'PVCs landing on the T wave can start torsades, often after a pause (short-long-short)',
+      'Causes: QT-prolonging drugs (antiarrhythmics, antipsychotics, methadone, ondansetron, macrolides), low potassium or magnesium, a slow heart rate, congenital long QT syndrome',
+      'Treat: IV magnesium, potassium to 4.0 or more, stop every QT-prolonging drug; for pause-dependent torsades, speed the heart (isoproterenol or pacing)',
+    ],
+    keyLeads: ['II', 'V5'],
+  },
   // Accelerated idioventricular rhythm: a ventricular focus a little faster than the sinus node (classically just after
   // a blocked artery reopens). Not VT: the beats are drawn as escape beats, so nothing treats it as shockable
   aivr: {
@@ -505,6 +571,23 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: ['ST elevation in I, aVL, V5–V6', 'Reciprocal ST depression in III and aVF', 'High lateral (I, aVL ± V2) pattern suggests first diagonal', 'LCx occlusions are often electrically "silent" — get posterior leads V7–V9'],
     keyLeads: ['I', 'aVL', 'V5', 'V6', 'III'],
   },
+  // Isolated posterior STEMI: the injury current points backward, so V1–V3 show the mirror image (ST depression, upright
+  // T waves, tall R) and the posterior leads V7–V9 show the ST elevation itself
+  'posterior-stemi': {
+    id: 'posterior-stemi', name: 'Posterior STEMI', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 78, ...STD,
+    pr: 160, p: 'normal', qrs: 'posterior-mi', qtc: 420, hemo: 'stemi',
+    injury: scale(norm([0.2, 0.97, -0.1]), 0.15),
+    t: { dir: [0.35, -0.8, -0.45], mag: 0.5, rise: 0.12, fall: 0.09 },
+    headline: 'Posterior STEMI — circumflex (or dominant RCA) occlusion',
+    findings: [
+      'Horizontal ST depression in V1–V3 (often V4) with upright T waves: the mirror image of posterior ST elevation',
+      'Tall, broad R waves in V1–V2 (R/S over 1 in V2): the mirror image of posterior Q waves',
+      'Posterior leads V7–V9: ST elevation of 0.5 mm or more (1 mm in men under 40) confirms it — a STEMI equivalent that needs emergent reperfusion',
+      'Usually the circumflex or a dominant RCA; it often comes with inferior or lateral ST elevation',
+      'Easily taken for anterior ischemia: record V7–V9 whenever the ST depression is deepest in V1–V3',
+    ],
+    keyLeads: ['V1', 'V2', 'V3', 'V4'],
+  },
   nstemi: {
     id: 'nstemi', name: 'NSTEMI / Subendocardial Ischemia', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 88, ...STD,
     pr: 160, p: 'normal', qrs: 'normal', qtc: 430, hemo: 'normal',
@@ -546,6 +629,16 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favor takotsubo', 'Evolves to deep, widespread T inversion with QT prolongation', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
     keyLeads: ['V2', 'V3', 'V4', 'V5', 'aVR'],
   },
+  // the same tracing once the hyperkinetic base closes the outflow tract: only the heart behind the pressures changes
+  // (a dynamic gradient and its murmur over a stunned apex), the ECG does not
+  'takotsubo-lvoto': {
+    id: 'takotsubo-lvoto', name: 'Takotsubo with LV Outflow Obstruction', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 110, ...STD,
+    pr: 150, p: 'normal', qrs: 'normal', qtc: 480, hemo: 'takotsubo-lvoto', sameTracingAs: 'takotsubo',
+    injury: scale(norm([0.8, -0.5, -0.3]), 0.18),
+    headline: 'Anterior ST elevation without reciprocal change; outflow obstruction',
+    findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favor takotsubo', 'Outflow obstruction does not show on the ECG: the falling pressure, a harsh systolic murmur, the pullback gradient and the echo show it', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
+    keyLeads: ['V2', 'V3', 'V4', 'V5', 'aVR'],
+  },
   hfref: {
     id: 'hfref', name: 'HFrEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 92, ...STD,
     pr: 200, p: 'mitrale', qrs: 'ivcd', qtc: 460, hemo: 'hfref',
@@ -556,6 +649,8 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     id: 'hfpef', name: 'HFpEF', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 78, ...STD,
     pr: 180, p: 'mitrale', qrs: 'lvh', qtc: 440, hemo: 'hfpef',
     t: { dir: [-0.6, -0.35, 0.5], mag: 0.22 },
+    // the strain's lateral ST depression (about half a millimeter in I, V5 and V6) that its findings and read name
+    injury: scale(norm([-0.6, -0.3, 0.3]), 0.07),
     headline: 'LVH with strain and left atrial enlargement',
     findings: ['LVH voltage (Sokolow-Lyon S V1 + R V5/V6 ≥ 35 mm)', 'Lateral ST depression / T inversion ("strain")', 'P mitrale from a stiff LV and high filling pressure; AF is common'],
     keyLeads: ['V1', 'V5', 'V6'],
@@ -651,11 +746,42 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
     findings: ['Tall, narrow, symmetric "tented" T waves (earliest sign)', 'PR prolongation and P-wave flattening/loss', 'QRS widening → sine-wave pattern → VF/asystole', 'ECG is insensitive: severe hyperkalemia can have a near-normal ECG'],
     keyLeads: ['V2', 'V3', 'V4', 'II'],
   },
+  // the same patient at a lower potassium (after a shift into the cells): the T waves smaller, the QRS only just wide
+  'hyperkalemia-moderate': {
+    id: 'hyperkalemia-moderate', name: 'Hyperkalemia (moderate)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 72, ...STD,
+    pr: 200, p: 'normal', qrs: 'normal', qrsWiden: 1.2, qtc: 400, hemo: 'normal',
+    t: { dir: [0.5, -0.55, -0.65], mag: 0.7, rise: 0.06, fall: 0.055 },
+    headline: 'Peaked T waves, a slightly wide QRS',
+    findings: ['Tall, narrow, symmetric "tented" T waves — smaller than at a higher potassium', 'P waves still seen; the PR at the upper limit of normal', 'The QRS just beginning to widen (about 110 ms)', 'Still treated: calcium for any ECG change, then the potassium shifted and removed'],
+    keyLeads: ['V2', 'V3', 'V4', 'II'],
+  },
+  // the last stage before the heart stops: no P waves, and a QRS so wide it runs into the T wave
+  'hyperkalemia-severe': {
+    id: 'hyperkalemia-severe', name: 'Hyperkalemia (severe: sine wave)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 40, minHR: 20, maxHR: 120,
+    pr: 260, p: 'absent', qrs: 'normal', qrsWiden: 2.5, qtc: 400, hemo: 'normal',
+    t: { dir: [0.5, -0.55, -0.65], mag: 0.8, rise: 0.2, fall: 0.1 },
+    headline: 'Sine-wave pattern: a very wide QRS merging into the T wave',
+    findings: ['No P waves to be seen', 'The QRS widened to over 200 ms and running straight into the T wave: a sine wave', 'Minutes from VF, asystole or PEA: IV calcium at once, then the potassium shifted and removed', 'Never wait for the lab when the tracing looks like this'],
+    keyLeads: ['II', 'V2', 'V3'],
+  },
   paced: {
     id: 'paced', name: 'Ventricular Paced (DDD)', rhythm: 'paced', rateControl: 'sinus', defaultHR: 72, minHR: 50, maxHR: 130,
     pr: 160, p: 'normal', qrs: 'paced', qtc: 460, hemo: 'normal',
     headline: 'Atrial-sensed, ventricular-paced rhythm',
     findings: ['Sinus P waves tracked; pacing spike after a programmed AV delay', 'RV apical pacing: wide QRS with LBBB-like morphology and left axis deviation', 'Discordant ST-T is expected; use Smith-modified Sgarbossa for ischemia', 'Check capture: every spike should be followed by a QRS'],
+    keyLeads: ['II', 'V1'],
+  },
+  // a temporary transvenous wire in the right ventricle paces the ventricles only (VVI): it cannot follow the P waves
+  'paced-vvi': {
+    id: 'paced-vvi', name: 'Ventricular Paced (VVI, temporary wire)', rhythm: 'vpaced', rateControl: 'ventricular', defaultHR: 70, minHR: 30, maxHR: 180,
+    pr: 0, p: 'normal', qrs: 'paced', qtc: 460, hemo: 'normal',
+    headline: 'Ventricular pacing from a temporary wire (VVI)',
+    findings: [
+      'A small pacing spike before every wide QRS, at the rate set on the pacing box',
+      'The P waves march on at their own rate, unrelated to the paced beats: a single wire in the right ventricle paces the ventricles and does not track the atria',
+      'RV apical pacing: LBBB-like QRS with a left (superior) axis; a right bundle pattern suggests the tip is elsewhere (coronary sinus, or through the septum or the wall)',
+      'Check capture: every spike followed by a QRS and a pulse; spikes with nothing after them are loss of capture',
+    ],
     keyLeads: ['II', 'V1'],
   },
   pea: {
@@ -667,6 +793,20 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
       'Any organized rhythm can be PEA — the diagnosis is made by the pulse check, not the ECG',
       'Non-shockable: high-quality CPR, epinephrine as soon as possible, and search for reversible causes (Hs & Ts)',
       'Slow and wide favors metabolic causes (hyperkalemia, acidosis, hypoxia); narrow and fast favors mechanical causes (tamponade, PE, hypovolemia, tension pneumothorax)',
+    ],
+    keyLeads: ['II'],
+  },
+  // the mechanical causes: a heart that still conducts normally and fast, but cannot fill (tamponade, a massive PE,
+  // bleeding, a tension pneumothorax)
+  'pea-narrow': {
+    id: 'pea-narrow', name: 'Pulseless Electrical Activity (narrow, fast)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 110, minHR: 60, maxHR: 150,
+    pr: 150, p: 'normal', qrs: 'normal', qtc: 420, hemo: 'no-output',
+    headline: 'Pulseless electrical activity: a narrow, fast rhythm with no pulse',
+    findings: [
+      'Organized electrical activity on the monitor but no palpable pulse',
+      'Any organized rhythm can be PEA — the diagnosis is made by the pulse check, not the ECG',
+      'Non-shockable: high-quality CPR, epinephrine as soon as possible, and search for reversible causes (Hs & Ts)',
+      'Narrow and fast: think of a mechanical cause — tamponade, tension pneumothorax, a massive PE or blood loss — and treat it',
     ],
     keyLeads: ['II'],
   },
@@ -715,6 +855,15 @@ export const PROFILE_ALIASES: Record<string, string> = {
   'paced-rhythm-ddd': 'paced',
   lvh: 'hfpef',
 };
+
+/**
+ * Two profiles draw the same 12-lead: the same id, or one declared the other's tracing (sameTracingAs). A repeat 12-lead
+ * across such a switch is the tracing already read, not a new one to read again
+ */
+export function sameTracing(a: string, b: string): boolean {
+  const tracing = (id: string) => ECG_PROFILES[id]?.sameTracingAs ?? id;
+  return tracing(a) === tracing(b);
+}
 
 export function resolveProfile(id: string | null | undefined): ECGProfile {
   if (!id) return ECG_PROFILES['normal-sinus'];
@@ -766,7 +915,18 @@ export const CONDITION_TO_PROFILE: Record<string, string> = {
   'aortic-dissection': 'aortic-dissection',
   hyperkalemia: 'hyperkalemia',
   'paced-rhythm': 'paced',
+  // the tracing of another page: SCAD most often presents as an anterior STEMI (the Give meds tool judges a lytic on the
+  // SCAD page as harmful: no clot to lyse). PAGE_OF_PROFILE keeps the anterior STEMI's own page for that tracing
+  scad: 'anterior-stemi',
 };
+
+/**
+ * The library page each tracing belongs to (the reverse of CONDITION_TO_PROFILE): the first condition that maps to it, so
+ * a page that borrows another's tracing (SCAD's anterior STEMI) never takes that tracing's own page over
+ */
+export const PAGE_OF_PROFILE: Record<string, string> = Object.entries(CONDITION_TO_PROFILE).reduce<Record<string, string>>(
+  (pages, [condition, profile]) => (profile in pages ? pages : { ...pages, [profile]: condition }), {},
+);
 
 /** Fridericia-corrected QT for a given RR (ms) */
 export function qtForRR(qtc: number, rrMs: number): number {
@@ -778,4 +938,17 @@ export function qtForRR(qtc: number, rrMs: number): number {
 export function prForRate(basePr: number, hr: number): number {
   if (basePr <= 0) return 0;
   return Math.max(100, basePr - Math.max(0, hr - 75) * 0.25);
+}
+
+/**
+ * The ST deviation in a lead (mm at 10 mm/mV; positive = elevation) that a profile's injury current and its QRS
+ * template's own ST shift (bundle branch block discordance) project onto that lead: the same vector model the 12-lead
+ * is drawn from, so a lead that is not drawn (V4R, V7–V9) can still be read in words
+ */
+export function stLevel(profile: ECGProfile, lead: AnyLead): number {
+  const tpl = QRS_TEMPLATES[profile.qrs];
+  let mv = 0;
+  if (profile.injury) mv += dot(profile.injury, LEAD_VECTORS[lead]);
+  if (tpl?.st) mv += dot(tpl.st, LEAD_VECTORS[lead]);
+  return mv * 10;
 }

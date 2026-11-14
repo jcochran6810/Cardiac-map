@@ -3,6 +3,8 @@ import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion', 'final-angio': 'lad-open-impella' };
@@ -21,6 +23,8 @@ const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogr
   explain: 'TIMI 3 flow down the LAD, with the Impella still in place to support the ventricle; the non-culprit RCA is left alone.',
 });
 
+/** Both groins: the catheters in the right, and the left made ready for the pump's 14 French sheath (closure sutures first) */
+const BOTH_GROINS = 'Right common femoral artery under ultrasound, over the femoral head: a 6 French sheath for the catheters. The left common femoral artery under ultrasound too, with two closure sutures placed for the 14 French sheath the pump will need.';
 const RHC_LINE = 'RA 15 · PA 46/28 (mean 34) · PCWP 28 · CO 3.0 L/min, CI 1.5 · SVR 1700 · PA saturation 48 %.';
 const rhcRead: Omit<PendingRead, 'minute'> = {
   kind: 'hemo', answer: 'hemo-cardiogenic', partial: ['hemo-lvedp-high'], prompt: 'What do these numbers show?',
@@ -71,8 +75,8 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'pressor', role: 4, when: () => true, within: 3,
     ask: 'His pressure is 78 over 50 and his lungs are wet. Get his pressure up, please.',
-    accept: ['pressor', 'push-epi'], wrong: ['fluid'],
-    wrongSay: 'Not fluid — his lungs are already full. A pressor: norepinephrine.',
+    accept: ['pressor', 'push-epi'], wrong: ['fluid', 'legs-up', 'transfuse', 'phenylephrine'],
+    wrongSay: 'Not that — his lungs are already full and his heart is failing. A pressor: norepinephrine.',
     thanks: 'Thanks — titrate to a mean of 65.', fallback: 'I\'ll start the norepinephrine myself.', gives: 'pressor-given',
     fallbackEffect: (s) => norepinephrine(s, 'monitor'),
     label: 'A vasopressor for the cardiogenic shock (norepinephrine)',
@@ -149,17 +153,24 @@ export const cathlabShock: Scenario = {
     rhythm: { profile: 'cardiogenic-shock', hr: 116 },
     vitals: { sbp: 78, dbp: 50, spo2: 88, rr: 28, etco2: 28, pain: 5, gcs: 14, glucose: 210, temp: 36.0 },
   },
+  // wet lungs and a high wedge: no legs up, no bolus (the built-in rules know it). A failing LV in shock: no IV diltiazem or
+  // verapamil, no procainamide
+  problems: ['pulmonary-edema', 'acs', 'heart-failure', 'cardiogenic-shock'],
   facts: {
     allergies: 'His wife, on the phone: "No allergies. He takes metformin, that\'s all. Yes — do whatever you need to."',
     sample: 'No allergies. Metformin. Diabetes; smoker.',
     opqrst: '"Since this morning… crushing… I can\'t breathe lying flat."',
     lungs: 'Crackles to the mid-zones on both sides.',
     perfusion: 'Cold, mottled knees; thready pulses; capillary refill 5 seconds; neck veins full.',
-    labs: 'Lactate 5.2, creatinine 1.6, potassium 4.8, hemoglobin 13.8, INR 1.1, platelets 210. Troponin very high.',
+    labs: 'Lactate 5.2, creatinine 1.6, potassium 4.8, hemoglobin 13.8, INR 1.1, platelets 210. Troponin very high. He takes metformin and his kidneys are struggling: hold it from today (the shock and a lactate of 5 alone rule it out), recheck the creatinine at 48 hours before it restarts, and keep the contrast to the minimum — no LV gram.',
     ecg12: (s) => s.rhythm.profile === 'anterior-stemi-reperfused'
       ? 'Sinus rhythm: ST elevation in V1–V5 coming down, Q waves forming — the anterior infarct after reperfusion.'
       : `Sinus tachycardia ${s.rhythm.hr} with ST elevation in V1–V5, I and aVL: an extensive anterior STEMI.`,
     echo: 'Akinetic anterior wall, septum and apex; LVEF about 20 %. No ventricular septal rupture, no severe mitral regurgitation, no effusion.',
+    // the same failing ventricle the echo and the right heart run show (PCWP 28), not the engine's normal one
+    lvgram: 'LV gram: the anterior wall, the septum and the apex do not move, and only the base squeezes; EF about 20 %, no significant mitral regurgitation. The LVEDP is over 30 after the injection.',
+    // the LV systolic is the aortic one (no aortic stenosis): whatever the monitor shows now
+    lvedp: (s) => (has(s, 'impella') ? `LV ${s.vitals.sbp}/16: LVEDP 16 mmHg, with the pump unloading the ventricle.` : `LV ${s.vitals.sbp}/30: LVEDP 30 mmHg.`),
     rhc: RHC_LINE,
   },
   status: (s) => (has(s, 'pci') ? '"I can breathe a bit better."' : has(s, 'impella') ? 'Drowsy, but answers questions.' : '"Can\'t… breathe…"'),
@@ -168,13 +179,14 @@ export const cathlabShock: Scenario = {
     'final-angio': (s) => (s.role === 5 && has(s, 'access') ? { ...finalRun('you'), flags: ['final-angio'] } : null),
     rhc: (s) => (has(s, 'venous') ? { say: [['monitor', RHC_LINE]], flags: ['rhc'], read: rhcRead } : null),
     pressor: (s) => norepinephrine(s, 'you'),
+    'access-femoral': (s) => (s.role === 5 ? { say: [['you', BOTH_GROINS]], flags: ['access', 'femoral'] } : null),
     impella: (s) => {
       if (s.role === 3) return { say: [['you', 'Impella console primed, purge running with heparinized fluid; large-bore sheath, wire and closure sutures open.']], flags: ['impella-ready'] };
       if (!has(s, 'access')) return { blocked: true, say: [['system', 'No arterial access yet.']] };
       // the pump adds output: the pressure rises to 102/70, never down from a higher one
       const sbp = Math.max(s.vitals.sbp, 102);
       const dbp = Math.max(s.vitals.dbp, 70);
-      return { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm into the LV: flow 3.2 L/min.'], ['monitor', `BP ${sbp}/${dbp}.`]], vitals: { sbp, dbp, spo2: Math.max(s.vitals.spo2, 92) }, flags: ['impella', 'mcs'] };
+      return { say: [['you', 'Impella CP through the 14 French sheath in the left common femoral artery, across the aortic valve, inlet 3.5 cm into the LV: flow 3.2 L/min.'], ['monitor', `BP ${sbp}/${dbp}.`]], vitals: { sbp, dbp, spo2: Math.max(s.vitals.spo2, 92) }, flags: ['impella', 'mcs'] };
     },
     fluid: (s) => {
       const spo2 = Math.max(70, s.vitals.spo2 - 3);
@@ -182,9 +194,28 @@ export const cathlabShock: Scenario = {
       return worse(s, 2, 1, (bp) => `Bolus in. BP ${bp}; SpO₂ ${spo2} %, breathing faster.`, ['fluid'], { spo2, rr });
     },
     nitro: (s) => worse(s, -14, -10, (bp) => `BP ${bp}.`, ['nitro']),
+    'nitro-high': (s) => worse(s, -24, -14, (bp) => `BP ${bp}.`, ['nitro', 'nitro-high']),
+    'nitro-iv': (s) => worse(s, -24, -14, (bp) => `BP ${bp}.`, ['nitro', 'nitro-iv']),
     'ic-nitro': (s) => worse(s, -14, -10, (bp) => `BP ${bp}.`, ['ic-nitro']),
     metoprolol: (s) => worse(s, -18, -12, (bp) => `BP ${bp}.`, ['beta-blocker']),
+    esmolol: (s) => worse(s, -18, -12, (bp) => `BP ${bp}.`, ['beta-blocker']),
+    labetalol: (s) => worse(s, -22, -14, (bp) => `BP ${bp}.`, ['beta-blocker']),
     sedation: (s) => worse(s, -10, -8, (bp) => `Sedated. BP ${bp}, breathing slower.`, ['sedation'], { rr: Math.max(10, s.vitals.rr - 8) }),
+    midazolam: (s) => worse(s, -10, -8, (bp) => `Midazolam in. BP ${bp}, breathing slower.`, ['sedation', 'benzodiazepine'], { rr: Math.max(10, s.vitals.rr - 8) }),
+    // more volume for an overfilled LV, from the legs or a bag of blood: it goes to the lungs, as a fluid bolus does
+    'legs-up': (s) => {
+      const spo2 = Math.max(70, s.vitals.spo2 - 3);
+      return worse(s, 2, 1, (bp) => `Legs raised. BP ${bp}; SpO₂ ${spo2} %, more breathless lying flat.`, ['legs-up'], { spo2, rr: Math.min(44, s.vitals.rr + 4) });
+    },
+    transfuse: (s) => {
+      const spo2 = Math.max(70, s.vitals.spo2 - 3);
+      return worse(s, 2, 1, (bp) => `A unit of red cells running. BP ${bp}; SpO₂ ${spo2} %, breathing faster.`, ['transfused'], { spo2, rr: Math.min(44, s.vitals.rr + 4) });
+    },
+    // a pure vasoconstrictor squeezes the vessels the failing LV must empty into: a little pressure, less output
+    phenylephrine: (s) => {
+      const spo2 = Math.max(70, s.vitals.spo2 - 2);
+      return worse(s, 6, 4, (bp) => `Phenylephrine in. BP ${bp} — but his hands are colder and SpO₂ ${spo2} %.`, ['phenylephrine'], { spo2 });
+    },
   },
   events: [
     {
@@ -201,7 +232,7 @@ export const cathlabShock: Scenario = {
     },
     {
       id: 'md-access', when: (s) => s.role !== 5 && has(s, 'timeout') && !has(s, 'access'),
-      effect: () => ({ say: [['operator', 'Right femoral artery and vein, ultrasound-guided. PA catheter going in.']], flags: ['access', 'femoral', 'venous'] }),
+      effect: () => ({ say: [['operator', `${BOTH_GROINS} And the right femoral vein. PA catheter going in.`]], flags: ['access', 'femoral', 'venous'] }),
     },
     {
       id: 'md-rhc', when: (s) => s.role === 4 && has(s, 'access') && s.minute >= s.flags.access + 1,
@@ -274,7 +305,7 @@ export const cathlabShock: Scenario = {
       },
       uses: ['o2-nc', 'o2-nrb', 'airway'],
     },
-    { id: 'md-pressor', label: 'A vasopressor early (norepinephrine)', why: 'Norepinephrine first in cardiogenic shock; MAP 65 or more while you get support in.', done: ['pressor', 'push-epi'], roles: MD, points: 10, target: { by: 6 } },
+    { id: 'md-pressor', label: 'A vasopressor early (norepinephrine)', why: 'Norepinephrine first in cardiogenic shock; MAP 65 or more while you get support in.', done: ['pressor'], roles: MD, points: 10, target: { by: 6 } },
     { id: 'access', label: 'Femoral arterial access (large-bore ready)', why: 'The pump needs a large-bore femoral sheath; ultrasound-guided, over the femoral head.', done: ['access-femoral', 'access'], roles: MD, points: 5 },
     { id: 'venous', label: 'Femoral venous access for the right heart catheter', why: 'The PA catheter measures the shock and guides the support.', done: ['access-venous'], roles: MD, points: 5 },
     { id: 'md-rhc', label: 'Right heart catheterization: measure the shock', why: 'Filling pressures, cardiac output and index, SVR and PA saturation define the shock and its severity (SCAI stages).', done: ['rhc'], roles: MD, points: 10 },
@@ -301,14 +332,15 @@ export const cathlabShock: Scenario = {
     { id: 'post-ecg', label: '12-lead after the procedure', why: 'ST resolution, and a baseline for the CCU.', done: ['ecg12', 'ecg12-repeat'], after: 'pci', points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac ICU', why: 'The shock numbers, the pump settings and purge, the pressor, the culprit and the stent, the RCA left for later, the leg checks.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
-    { id: 'fluid-in-shock', actions: ['fluid'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
-    { id: 'nitro-in-shock', actions: ['nitro', 'ic-nitro'], replaces: ['nitro-hypotension'], points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
-    { id: 'sedation-in-shock', actions: ['sedation'], points: 3, severity: 'minor', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },
+  harms: yieldToHeavier([
+    { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
+    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], replaces: NITRATE_RULES, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
+    { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow', 'phenylephrine-heart-failure'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing LV must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock (with an inotrope if the output stays low).' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 12, severity: 'critical', text: 'A beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
+    { id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], replaces: SEDATIVE_RULES, points: 5, severity: 'major', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'impella'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A pump or a coronary wire without anticoagulation. Both clot without heparin.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for an LAD culprit. Use a left guide with back-up (EBU).' },
-    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },
+    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), replaces: ['access-no-consent'], points: 5, severity: 'major', text: 'Access before the time-out.' },
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[1], 'A balloon pump when the operator asked for the Impella. In STEMI shock an IABP does not improve survival (IABP-SHOCK II).'),
@@ -316,9 +348,9 @@ export const cathlabShock: Scenario = {
     askHarm(TECH_ASKS[3], 'The wrong device when the operator asked for a drug-eluting stent.'),
     askHarm(RN_ASKS[1], 'Protamine when the operator asked for heparin.', 5),
     askHarm(RN_ASKS[2], 'Oral P2Y12 tablets for a drowsy, shocked patient when the operator asked for the IV drug.'),
-  ],
+  ]),
   timings: [
-    { label: 'Pressor running', actions: ['pressor', 'push-epi'], flag: 'pressor', target: 6 },
+    { label: 'Pressor running', actions: ['pressor'], flag: 'pressor', target: 6 },
     { label: 'Mechanical support in', actions: ['impella'], flag: 'impella', target: 25 },
     { label: 'Artery open', actions: ['stent-des'], flag: 'pci', target: 45 },
   ],

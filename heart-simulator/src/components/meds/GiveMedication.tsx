@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MEDS, MED_BY_ID, MED_GROUPS, PER_KG, fmtDose, type MedId } from '@/lib/sim/meds';
+import { HISTORY, MEDS, MED_BY_ID, MED_GROUPS, PER_KG, fmtDose, type MedId } from '@/lib/sim/meds';
 import { applyVtHeart, presentsEitherWay, untreatedRhythm, useMedStore, type MedLogEntry, type VtPresentation } from '@/store/useMedStore';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
@@ -19,6 +19,7 @@ const SCOPE_NOTE: Partial<Record<LearningLevel, string>> = {
   2: 'Paramedic: per your protocols and medical direction.',
   3: 'Cath lab techs give medications only on a physician’s order, where facility policy allows.',
   4: 'Nurse: on a prescriber’s order or a standing protocol (e.g. ACLS).',
+  6: 'ER nurse: on a provider’s order, a standing order or an ED protocol (e.g. ACLS) — know the dose, the rate and what to watch on the monitor.',
 };
 
 export const fmtClock = (ms: number) => {
@@ -82,6 +83,12 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
   const reset = useMedStore((s) => s.reset);
   const vt = useMedStore((s) => s.vt);
   const setVt = useMedStore((s) => s.setVt);
+  const problems = useMedStore((s) => s.problems);
+  const toggleProblem = useMedStore((s) => s.toggleProblem);
+  const age = useMedStore((s) => s.age);
+  const setAge = useMedStore((s) => s.setAge);
+  const [ageText, setAgeText] = useState(age === null ? '' : String(age));
+  const [history, setHistory] = useState(false);
   // a defibrillator scenario's patient: its story says how its VT presents, and its heart stays (applyVtHeart)
   const scenario = useDefibStore((s) => s.scenario);
   const profileId = useECGStore((s) => s.activeProfileId);
@@ -114,6 +121,15 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
   useEffect(() => {
     if (useMedStore.getState().conditionId !== conditionId) reset(conditionId);
   }, [conditionId, reset]);
+  // the age box shows the age the store holds (another patient clears it)
+  useEffect(() => setAgeText(age === null ? '' : String(age)), [age]);
+  // an age is taken once it is a whole adult age; anything else waits for the learner to finish typing
+  const typeAge = (text: string) => {
+    setAgeText(text);
+    const n = Number(text);
+    if (text.trim() === '') setAge(null);
+    else if (Number.isInteger(n) && n >= 18 && n <= 110) setAge(n);
+  };
 
   // A VT that can present either way gets the heart of the chosen presentation — now, and again whenever another
   // patient has been put on the monitor meanwhile (showing a rhythm starts a patient with the rhythm's own heart)
@@ -192,6 +208,44 @@ export default function GiveMedication({ conditionId, conditionName, level }: { 
             <button onClick={() => setKg(kg + 5)} className="px-2 py-1 touch:py-2 text-slate-300 hover:bg-white/10" aria-label="5 kg more">+</button>
           </div>
           <span className="text-[11px] text-slate-400">kg ({lb} lb) · adult</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-300">Age</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={18}
+            max={110}
+            value={ageText}
+            onChange={(e) => typeAge(e.target.value)}
+            onBlur={() => setAgeText(age === null ? '' : String(age))}
+            placeholder="not set"
+            className="w-16 px-1 py-1 touch:py-2 rounded-md bg-transparent border border-slate-600 text-center text-xs text-white outline-none"
+            aria-label="Patient age in years"
+          />
+          <span className="text-[11px] text-slate-400">years{age === null ? ' (doses for an adult under 75)' : ''}</span>
+        </div>
+        <div>
+          <button onClick={() => setHistory((v) => !v)} aria-expanded={history} className="text-[11px] touch:py-1 text-sky-300 hover:underline">
+            Patient history{problems.length ? ` (${problems.length})` : ''} {history ? '▾' : '▸'}
+          </button>
+          {!history && problems.length > 0 && (
+            <p className="text-[11px] text-slate-300">{HISTORY.filter((h) => problems.includes(h.id)).map((h) => h.label).join(' · ')}</p>
+          )}
+          {history && (
+            <div className="mt-1 flex flex-wrap gap-1" role="group" aria-label="Patient history">
+              {HISTORY.map((h) => (
+                <button
+                  key={h.id}
+                  onClick={() => toggleProblem(h.id)}
+                  aria-pressed={problems.includes(h.id)}
+                  className={`px-2 py-1 touch:py-2 rounded-md border text-[11px] ${problems.includes(h.id) ? 'border-cardiac-accent bg-cardiac-accent/20 text-cardiac-accent' : 'border-slate-600 text-slate-300 hover:bg-white/10'}`}
+                >
+                  {h.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {eitherWay && (
           <div className="flex items-center gap-2" role="group" aria-label="How the VT presents">

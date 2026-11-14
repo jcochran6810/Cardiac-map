@@ -165,6 +165,32 @@ describe('delayed responses belong to the rhythm they were aimed at', () => {
   });
 });
 
+describe('pre-excited AF: an AV-nodal blocker speeds it, never slows it', () => {
+  // 2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem and IV amiodarone are 3: Harm when AF runs down a pathway
+  it.each([['diltiazem', 61_000], ['amiodarone', 61_000], ['adenosine', 5_000]] as const)('%s: a warning, and the rate climbs (to 250 at most)', (drug, wait) => {
+    patient('af-wpw', 200);
+    D.giveDrug(drug);
+    expect(logged().some((t) => /pre-excited AF is harmful/.test(t))).toBe(true);
+    run(wait);
+    expect(useECGStore.getState().activeProfileId).toBe('af-wpw');
+    expect(rate()).toBe(224);
+    expect(logged().some((t) => /confirms AF|slowing after|can slow the rate/.test(t))).toBe(false);
+    run(30_000);
+    expect(rate()).toBe(224);
+    patient('af-wpw', 240);
+    D.giveDrug(drug === 'adenosine' ? 'diltiazem' : drug);
+    run(61_000);
+    expect(rate()).toBe(250);
+  });
+
+  it('a successful cardioversion leaves sinus rhythm that still comes down the pathway', () => {
+    patient('af-wpw', 214);
+    lucky();
+    cardiovert();
+    expect(monitor()).toBe('wpw@88');
+  });
+});
+
 describe('rate-control drugs slow the heart, whatever rate it starts from', () => {
   it('diltiazem in fast AF brings the rate down to about 90', () => {
     patient('atrial-fibrillation', 150);
@@ -326,6 +352,20 @@ describe('atropine is judged by the heart rate, not by the name of the rhythm', 
     expect(monitor()).toBe('hyperkalemia@45');
     expect(logged().at(-1)).toMatch(/Little response.*potassium.*calcium/);
   });
+
+  it.each([['hyperkalemia-moderate', 50], ['hyperkalemia-severe', 40]] as const)(
+    'every stage of hyperkalemia is the potassium\'s slow heart: %s hardly responds to atropine, and calcium stabilizes it',
+    (id, hr) => {
+      patient(id, hr);
+      lucky();
+      D.giveDrug('atropine');
+      run(21_000);
+      expect(monitor()).toBe(`${id}@${hr}`);
+      expect(logged().at(-1)).toMatch(/Little response.*potassium.*calcium/);
+      D.giveDrug('calcium');
+      expect(logged().at(-1)).toMatch(/stabilizes/);
+    },
+  );
 
   it('a response does not land on a patient whose bradycardia was meanwhile paced', () => {
     patient('sinus-bradycardia', 38);
@@ -610,6 +650,23 @@ describe('what the trainer says follows the current guidelines', () => {
     expect(cycle(true, 0.2)).toBe(true);
     expect(cycle(true, 0.4)).toBe(false);
     expect(cycle(false, 0.2)).toBe(false);
+  });
+
+  it('the narrow, fast PEA of a mechanical cause can regain a pulse after CPR and epinephrine, like any PEA', () => {
+    const cycle = (luck: number) => {
+      vi.restoreAllMocks();
+      D.resetCode();
+      pressures({ sbp: 20, dbp: 20, sv: 0, noOutput: true });
+      patient('pea-narrow');
+      D.toggleCPR();
+      D.giveDrug('epinephrine');
+      run(115_000, 500);
+      vi.spyOn(Math, 'random').mockReturnValue(luck);
+      D.toggleCPR();
+      return defib().log.some((l) => l.kind === 'rosc');
+    };
+    expect(cycle(0.2)).toBe(true);
+    expect(cycle(0.3)).toBe(false);
   });
 
   it('the trainer is written in US English', async () => {

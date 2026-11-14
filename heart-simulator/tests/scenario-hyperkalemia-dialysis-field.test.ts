@@ -227,7 +227,7 @@ describe('hyperkalemia in a dialysis patient — delay matters', () => {
     let s = run(['monitor', 'pads', 'iv']);
     while (!s.fired.includes('worse')) s = perform(sc, s, 'reassess');
     expect(s.minute).toBeGreaterThanOrEqual(8);
-    expect(s.rhythm).toEqual({ profile: 'hyperkalemia', hr: 30 });
+    expect(s.rhythm).toEqual({ profile: 'hyperkalemia-severe', hr: 30 });
     // the shallow breathing the partner reports shows in the saturation
     expect([s.vitals.sbp, s.vitals.dbp, s.vitals.spo2]).toEqual([64, 36, 90]);
     expect(s.log.some((l) => l.who === 'monitor' && l.text === 'Heart rate 30. BP 64/36. SpO₂ 90%.')).toBe(true);
@@ -342,7 +342,8 @@ describe('hyperkalemia in a dialysis patient — delay matters', () => {
     const said = s.log.at(-1)!.text;
     expect(said).toMatch(/^Medical control: no pulse in a dialysis patient — treat it as a high potassium\. CPR, epinephrine 1 mg every 3–5 minutes, calcium chloride 1 g IV\/IO push and sodium bicarbonate 50 mEq, flushed between them\. Work it there: no transport until ROSC/);
     expect(said).not.toMatch(/12-lead|albuterol|Take him/);
-    for (const id of ['cpr', 'epinephrine', 'calcium-chloride', 'sodium-bicarbonate', 'cpr']) s = perform(sc, s, id);
+    // (breaths with the compressions: the bicarbonate's CO₂ needs them)
+    for (const id of ['cpr', 'bvm', 'epinephrine', 'calcium-chloride', 'sodium-bicarbonate', 'cpr']) s = perform(sc, s, id);
     expect(s.pulse).toBe(true);
     expect(s.penalties).toEqual([]);
     // with no 12-lead yet it does not ask for one (none can be recorded in the arrest)
@@ -468,7 +469,8 @@ describe('hyperkalemia in a dialysis patient — the traps', () => {
 
   it('fentanyl or sedation for a man with no pain costs 3; for a pacer that has captured and hurts, it is right', () => {
     expect(run(['monitor', 'iv', 'fentanyl']).penalties).toEqual([expect.objectContaining({ id: 'sedation-no-pain', points: 3, severity: 'minor' })]);
-    expect(penalties(run(['monitor', 'iv', 'sedation']))).toEqual(['sedation-no-pain']);
+    // sedation (or midazolam) into his low pressure and slow rate is the built-in rule's heavier reason, at its weight (5)
+    expect(penalties(run(['monitor', 'iv', 'sedation']))).toEqual(['sedation-unsafe']);
     let s = run(['monitor', 'iv', 'calcium-chloride']);
     while (!s.fired.includes('calcium-fades')) s = perform(sc, s, 'reassess');
     s = perform(sc, perform(sc, s, 'pace'), 'fentanyl');

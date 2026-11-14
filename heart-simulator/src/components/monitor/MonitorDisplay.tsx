@@ -228,8 +228,13 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
 
   const nibp = d.nibp.last;
   const layout = channels.art ? ROWS4 : ROWS3;
-  const big = large ? 'text-6xl' : 'text-2xl sm:text-3xl';
-  const mid = large ? 'text-3xl' : 'text-lg sm:text-xl';
+  const big = large ? 'text-6xl' : 'text-2xl sm:text-3xl short:!text-[18px] short:!leading-none';
+  const mid = large ? 'text-3xl' : 'text-lg sm:text-xl short:!text-[14px] short:!leading-none';
+  // A phone on its side leaves the small monitor about 100–150 px of height: each number then sits on one line beside
+  // its label (HR, SpO₂, EtCO₂, RR, NIBP), so the blood pressure the learner just took is still on the screen
+  const row = large ? '' : 'short:flex short:flex-wrap short:items-baseline short:justify-between short:gap-x-1 short:leading-none';
+  const unit = large ? '' : 'short:hidden';
+  const small = large ? '' : 'short:!text-[14px]';
   const shockFlash = sim.time - d.lastShock < 900;
   const elapsed = d.codeStart !== null ? sim.time - d.codeStart : null;
   const cprFor = d.cpr.on ? sim.time - d.cpr.cycleStart : 0;
@@ -268,43 +273,49 @@ export default function MonitorDisplay({ large = false, channels = ALL_CHANNELS,
 
       {/* numerics */}
       <div className={`shrink-0 flex flex-col justify-between border-l border-slate-800 font-mono ${large ? 'w-72 p-4' : 'w-28 sm:w-36 p-1.5 sm:p-2'}`}>
-        <div style={{ color: COLORS.ecg }}>
-          <div className="text-[10px] flex justify-between"><span>HR</span><span>bpm</span></div>
+        <div style={{ color: COLORS.ecg }} className={row}>
+          <div className="text-[10px] flex justify-between"><span>HR</span><span className={unit}>bpm</span></div>
           <div className={`${big} font-bold leading-none tabular-nums`}>{rateHidden ? '··' : vit.hr > 0 && (channels.ecg || (channels.pleth && vit.pulse)) ? vit.hr : '---'}</div>
           {d.pacer.on && (
-            <div className="text-[10px] text-orange-300 mt-0.5">
+            <div className="text-[10px] text-orange-300 mt-0.5 short:mt-0 short:w-full short:text-[9px] short:leading-tight">
               PACER {d.pacer.rate} ppm · {d.pacer.mA} mA{d.pacer.inhibited ? ' · inhibited' : d.pacer.captured ? '' : ' · no capture'}
             </div>
           )}
         </div>
-        <div style={{ color: COLORS.pleth }}>
-          <div className="text-[10px] flex justify-between"><span>SpO₂</span><span>%</span></div>
+        <div style={{ color: COLORS.pleth }} className={row}>
+          <div className="text-[10px] flex justify-between"><span>SpO₂</span><span className={unit}>%</span></div>
           <div className={`${mid} font-bold leading-none tabular-nums`}>{channels.pleth ? vit.spo2 ?? '---' : '---'}</div>
         </div>
-        <div style={{ color: COLORS.co2 }}>
-          <div className="text-[10px] flex justify-between"><span>EtCO₂</span><span>RR</span></div>
+        <div style={{ color: COLORS.co2 }} className={row}>
+          <div className="text-[10px] flex justify-between"><span>EtCO₂</span><span className={unit}>RR</span></div>
           <div className="flex items-baseline justify-between">
             <span className={`${mid} font-bold leading-none tabular-nums`}>{channels.co2 ? vit.etco2 : '--'}</span>
-            <span className={`${large ? 'text-2xl' : 'text-base'} tabular-nums`}>{channels.co2 || channels.ecg ? vit.rr : '--'}</span>
+            <span className={`${large ? 'text-2xl' : 'text-base'} tabular-nums ${unit}`}>{channels.co2 || channels.ecg ? vit.rr : '--'}</span>
           </div>
         </div>
+        {!large && (
+          <div style={{ color: COLORS.co2 }} className="hidden short:flex items-baseline justify-between gap-x-1">
+            <span className="text-[10px] leading-none">RR</span>
+            <span className="text-[14px] leading-none tabular-nums">{channels.co2 || channels.ecg ? vit.rr : '--'}</span>
+          </div>
+        )}
         {channels.art ? (
-          <div className="text-rose-300">
-            <div className="text-[10px] flex justify-between"><span>ART</span><span>mmHg</span></div>
-            <div className={`${large ? 'text-3xl' : 'text-base'} font-bold leading-none tabular-nums`}>{vit.pulse ? `${vit.sbp}/${vit.dbp}` : '0/0'}</div>
-            {vit.pulse && <div className="text-[10px] text-rose-200/70">({Math.round((vit.sbp + 2 * vit.dbp) / 3)})</div>}
+          <div className={`text-rose-300 ${row}`}>
+            <div className="text-[10px] flex justify-between"><span>ART</span><span className={unit}>mmHg</span></div>
+            <div className={`${large ? 'text-3xl' : 'text-base'} ${small} font-bold leading-none tabular-nums`}>{vit.pulse ? `${vit.sbp}/${vit.dbp}` : '0/0'}</div>
+            {vit.pulse && <div className={`text-[10px] text-rose-200/70 ${unit}`}>({Math.round((vit.sbp + 2 * vit.dbp) / 3)})</div>}
           </div>
         ) : (
-          <div className="text-slate-200">
-            <div className="text-[10px] flex justify-between"><span>NIBP</span><span>mmHg</span></div>
-            <div className={`${large ? 'text-3xl' : 'text-base'} font-bold leading-none tabular-nums`}>
+          <div className={`text-slate-200 ${row}`}>
+            <div className="text-[10px] flex justify-between"><span>NIBP</span><span className={unit}>mmHg</span></div>
+            <div className={`${large ? 'text-3xl' : 'text-base'} ${small} font-bold leading-none tabular-nums`}>
               {d.nibp.measuring ? <span className="text-slate-400 text-xs">measuring…</span> : nibp === 'fail' ? '---/---' : nibp ? `${nibp.sbp}/${nibp.dbp}` : '--/--'}
             </div>
-            {nibp && nibp !== 'fail' && !d.nibp.measuring && <div className="text-[10px] text-slate-400">({nibp.map})</div>}
+            {nibp && nibp !== 'fail' && !d.nibp.measuring && <div className={`text-[10px] text-slate-400 ${unit}`}>({nibp.map})</div>}
           </div>
         )}
         <div className="text-[10px] text-slate-400 space-y-0.5">
-          <div className={d.charge === 'charging' ? 'text-amber-300' : d.charge === 'charged' ? 'text-amber-300 font-bold' : ''}>
+          <div className={d.charge === 'charging' ? 'text-amber-300' : d.charge === 'charged' ? 'text-amber-300 font-bold' : unit}>
             {d.energy} J {d.charge === 'charging' ? 'charging…' : d.charge === 'charged' ? 'READY' : ''}
           </div>
           {elapsed !== null && <div>Code {fmt(elapsed)} · shocks {d.shocks}</div>}

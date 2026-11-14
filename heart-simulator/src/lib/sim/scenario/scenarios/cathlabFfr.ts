@@ -4,6 +4,9 @@ import {
   LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
+import { NITRATE_CHECKS } from '../rules/acs';
+import { radialSheath } from '../rules/helpers';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-ffr-positive', ffr: 'ffr-significant', 'final-angio': 'lad-stented-after-ffr' };
@@ -178,7 +181,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'sedation', role: 4, when: (s) => has(s, 'timeout'),
     ask: 'He\'s anxious. Something to settle him for the procedure, please.',
-    accept: ['sedation', 'fentanyl'],
+    accept: ['sedation', 'fentanyl', 'midazolam'],
     thanks: 'Thanks.', fallback: 'Never mind — we\'ll manage.', gives: 'settled',
     label: 'Moderate sedation and analgesia',
     why: 'Light sedation (e.g. midazolam 1 mg with fentanyl 25 mcg) eases anxiety and cuts radial spasm; monitor the breathing and SpO₂ while it works.',
@@ -205,7 +208,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'nitro', role: 4, when: (s) => has(s, 'equalized'),
     ask: 'Before the measurement: two hundred of intracoronary nitro, please.',
-    accept: ['ic-nitro'], wrong: ['nitro', 'ic-verapamil'],
+    accept: ['ic-nitro'], wrong: ['nitro', 'nitro-iv', 'ic-verapamil'],
     wrongSay: 'Intracoronary nitroglycerin, please — through the guide.',
     thanks: 'Thanks.', fallback: 'I\'ll give the nitro myself.', gives: 'nitro-given',
     label: 'Intracoronary nitroglycerin before the FFR',
@@ -214,7 +217,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'hyperemia', role: 4, when: (s) => has(s, 'nitro-given'),
     ask: 'Now the hyperemia, please.',
-    accept: ['adenosine-iv-ffr', 'ic-adenosine'], wrong: ['adenosine6', 'adenosine12'],
+    accept: ['adenosine-iv-ffr', 'ic-adenosine'], wrong: ['adenosine3', 'adenosine6', 'adenosine12'],
     wrongSay: 'Not the SVT dose! A steady infusion: adenosine 140 micrograms per kilo per minute.',
     thanks: 'Thanks — he\'ll feel flushed in a minute.', fallback: 'I\'ll start the adenosine myself.', gives: 'hyperemia-given',
     fallbackEffect: () => ({ say: [['patient', '"I feel flushed… a bit short of breath."']], flags: ['hyperemia'] }),
@@ -319,7 +322,8 @@ export const cathlabFfr: Scenario = {
       effect: () => ({ say: [['team', 'Nurse: heparin 70 units per kilo in, on the cardiologist\'s order.']], flags: ['heparin'] }),
     },
     {
-      id: 'spasm', when: (s) => has(s, 'angio'),
+      // a complication of the radial sheath: femoral access has no radial artery to spasm
+      id: 'spasm', when: (s) => has(s, 'angio') && radialSheath(s),
       effect: (s) => ({
         say: [
           [operator(s), 'Pulling the Tiger out… it is gripping.'],
@@ -376,7 +380,7 @@ export const cathlabFfr: Scenario = {
     { id: 'iv', label: 'IV access', why: 'For sedation, heparin and adenosine.', done: ['iv', 'io'], roles: RN, points: 5 },
     { id: 'access', label: 'Radial arterial access', why: 'Radial first: fewer bleeding complications.', done: ['access', 'access-femoral'], roles: MD, points: 5 },
     { id: 'angio', label: 'Diagnostic angiography', why: 'Find the narrowing and judge it — then measure it if it is borderline.', done: ['angio'], roles: MD, points: 5 },
-    { id: 'md-spasm', label: 'Treat the radial spasm (vasodilator through the sheath)', why: 'Verapamil and nitroglycerin through the sheath, analgesia or more sedation, and patience: forcing a catheter through a spasm tears the artery.', done: ['radial-cocktail', 'sedation', 'fentanyl'], after: 'spasm', roles: MD, points: 10, target: { within: { flag: 'spasm', minutes: 2 } }, applies: (s) => has(s, 'spasm') },
+    { id: 'md-spasm', label: 'Treat the radial spasm (vasodilator through the sheath)', why: 'Verapamil and nitroglycerin through the sheath, analgesia or more sedation, and patience: forcing a catheter through a spasm tears the artery.', done: ['radial-cocktail', 'sedation', 'fentanyl', 'midazolam'], after: 'spasm', roles: MD, points: 10, target: { within: { flag: 'spasm', minutes: 2 } }, applies: (s) => has(s, 'spasm') },
     { id: 'heparin', label: 'Anticoagulate before the pressure wire', why: 'A pressure wire is a coronary wire: heparin 70–100 U/kg before it goes in.', done: ['heparin', 'bivalirudin'], roles: MD, points: 10 },
     { id: 'guide', label: 'A left guide for the LAD (EBU)', why: 'The LAD comes off the left main.', done: LEFT_GUIDES, roles: MD, points: 5 },
     { id: 'equalize', label: 'Equalize the pressure wire at the guide tip', why: 'Pd/Pa must read 1.00 at the guide tip before crossing, or every reading after it is off.', done: ['ffr-equalize'], roles: MD, points: 10 },
@@ -394,12 +398,12 @@ export const cathlabFfr: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis: just enough pressure to stop the bleeding while the artery stays open.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to recovery', why: 'Report the FFR, the stent, the spasm, the drugs given and the band.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
-    { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
+  harms: yieldToHeavier([
+    { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), replaces: ['pci-no-heparin'], points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
     { id: 'stent-before-ffr', actions: ['stent-des', 'balloon-predil'], roles: MD, when: (s) => !has(s, 'ffr-done'), points: 10, severity: 'major', text: 'Treating a borderline narrowing without showing it is significant. Intermediate lesions need physiology first: about two-thirds of them do not limit flow (FAME).' },
-    { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
-    { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
-    { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies.' },
+    { id: 'svt-adenosine', actions: ['adenosine3', 'adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
+    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), replaces: ['access-no-consent'], points: 5, severity: 'major', text: 'Access before the time-out.' },
+    { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent') && has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for the LAD. Use a left guide with back-up (EBU / XB).' },
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
@@ -411,12 +415,16 @@ export const cathlabFfr: Scenario = {
     askHarm(TECH_ASKS[11], 'A compliant balloon when the operator asked for a non-compliant one.'),
     askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5),
     askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'),
-    askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'),
+    // a wrong answer is weighed against a nitrate rule on the same dose (engine harmsFor), but a check before a nitrate
+    // (the interval) is not: it would charge beside it. So it still stands in for the checks (NITRATE_CHECKS) and
+    // nothing else: one dose, one penalty
+    { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: NITRATE_CHECKS },
     askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'),
-    { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
-  ],
+    // (no oxygen rule: an elective study with no ACS, and a sedated patient — supplemental oxygen during moderate sedation is
+    // standard, ASA 2018)
+  ]),
   timings: [
-    { label: 'Spasm treated', actions: ['radial-cocktail', 'sedation', 'fentanyl'], target: 2, from: 'spasm' },
+    { label: 'Spasm treated', actions: ['radial-cocktail', 'sedation', 'fentanyl', 'midazolam'], target: 2, from: 'spasm' },
   ],
   deathAfter: 15,
   completeWhen: (s) => has(s, 'pci') && has(s, 'final-angio'),

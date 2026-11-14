@@ -582,4 +582,19 @@ describe('a pulse to feel (the defibrillator reads the summary)', () => {
     for (let t = 5_000; t < 180_000; t += 100) if (!palpable(model.summary(t))) lost.push(t);
     expect(lost).toEqual([]);
   });
+
+  it('pre-excited AF at its default rate keeps a palpable pulse minute after minute; driven faster, it loses it', () => {
+    // the awake patient racing down an accessory pathway: a pulse check, the cuff and the oximeter must not flicker
+    const at = (hr: number) => {
+      const engine = new ECGEngine('af-wpw', hr);
+      engine.ensure(184_000);
+      const model = new HemoModel(engine);
+      let lost = 0;
+      for (let t = 5_000; t < 180_000; t += 100) if (!palpable(model.summary(t))) lost++;
+      return lost;
+    };
+    expect(at(ECG_PROFILES['af-wpw'].defaultHR)).toBe(0);
+    // an AV-nodal blocker speeds it further (×1.12 and on): the pulse comes and goes, then is gone
+    expect(at(250)).toBeGreaterThan(500);
+  });
 });

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sim } from '@/lib/sim/simulation';
 import { resetCode, vitalsAt } from '@/lib/sim/defib';
 import { answerRead, perform, start, unavailableReason } from '@/lib/sim/scenario/engine';
+import { INTERVENTION_BY_ID } from '@/lib/sim/scenario/interventions';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
@@ -130,13 +131,27 @@ describe('the monitor and the capnography line give the same EtCO₂ in every ar
     ['no-reflow-cathlab', 5, ['act', 'heparin', 'stent-des', UNTIL_ARREST]],
     ['perforation-cathlab', 5, [UNTIL_ARREST]],
     ['contrast-cathlab', 5, ['consent', 'timeout', 'access', 'cath-tiger', 'angio', UNTIL_ARREST]],
+    // the right ventricle that fails on scene (the case gives the arrest no EtCO₂ of its own)
+    ['pulmonary-embolism-field', 2, ['primary', UNTIL_ARREST]],
+    // the emergency department: the doctor's runs, and the nurse's where the arrest is hers to run
+    ['stemi-walk-in-ed', 7, ['primary', UNTIL_ARREST]],
+    ['stemi-walk-in-ed', 6, ['triage', 'ecg12', 'notify-physician', UNTIL_ARREST]],
+    ['pulmonary-embolism-lysis-ed', 7, ['ems-handoff', UNTIL_ARREST]],
+    ['aortic-dissection-ed', 7, [UNTIL_ARREST]],
+    ['tamponade-ed', 7, ['perfusion', 'lungs', 'rsi']],
+    ['hyperkalemia-ed', 7, ['primary', UNTIL_ARREST]],
+    ['vf-arrest-ed', 7, []],
+    ['vf-arrest-ed', 6, ['call-help']],
+    ['scape-ed', 7, [UNTIL_ARREST]],
+    ['unstable-af-cardioversion-ed', 7, ['ems-handoff', 'defib']],
   ];
   /** Then capnography: before anything else, after compressions, breaths, both (either order), an advanced airway */
   const THEN = [['capno'], ['cpr', 'capno'], ['bvm', 'capno'], ['bvm', 'cpr', 'capno'], ['cpr', 'bvm', 'capno'], ['cpr', 'airway', 'capno']];
 
   it('each case, each order of compressions, breaths and capnography', () => {
     for (const [id, role, path] of ARRESTS) {
-      for (const then of THEN) {
+      // only the orders the role can play (the ER nurse places no advanced airway)
+      for (const then of THEN.filter((t) => t.every((step) => INTERVENTION_BY_ID[step].roles.includes(role)))) {
         const steps = `${id}: ${[...path, ...then].join(', ')}`;
         const x = monitored(id, role, [...path, ...then]).at(-1)!;
         expect(x.s.pulse, steps).toBe(false);

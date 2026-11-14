@@ -41,7 +41,8 @@ bar's **←** is the same button.
 
 ## First visit, search and the glossary
 
-- **First visit:** a welcome card asks what you do (EMT, paramedic, cath lab tech, cath lab nurse, cardiologist) and
+- **First visit:** a welcome card asks what you do (EMT, paramedic, ER nurse, ER doctor, cath lab tech, cath lab nurse,
+  cardiologist) and
   offers the first lesson; the choice sets the role everywhere and is remembered (`src/components/home/Welcome.tsx`).
 - **Search** (main menu, and the icon in the top bar) covers the library, the lessons, the tools, the simulator cases
   and the glossary, and understands everyday words ("ekg", "heart attack", "afib"): `searchLibrary` in
@@ -49,6 +50,15 @@ bar's **←** is the same button.
 - **Glossary** (main menu → More, or type a word in search): 199 terms in one or two plain sentences each, with their
   other names and a link to the library page that teaches them. Data in `src/data/glossary.ts`, overlay in
   `src/components/layout/Glossary.tsx`. Esc and the phone's Back close it.
+- **Drug cards** (main menu → Drugs): 62 cards in eight groups (`src/data/medicationGroups.ts`: every card in exactly
+  one group, so "medications reviewed" counts what the list offers). Contraindications follow the current US labels and
+  guidelines; a line that is not absolute says so — "(relative)", "(label warning)" or "not recommended". Content in
+  `src/data/content/medications.ts`; `tests/medication-cards.test.ts` checks that no contraindication line was lost.
+- **Tutor** (main menu, `T`; `src/lib/tutor.ts`): a safety question — "contraindications to alteplase", "is it safe to
+  give adenosine in asthma?", "can I give nitroprusside after sildenafil?" — is answered from that drug's own card,
+  whatever page is open, with the **whole** contraindication list (other lists show six). "Can I give X in Y?" is a
+  safety question unless Y is what X is for. It knows the brand names patients say (Viagra, Cialis, Levitra, Stendra,
+  Revatio, Adcirca, Adempas) and "coke" or "crack"; calcium gluconate is on the calcium card.
 - **Your progress** (main menu): lessons finished, rhythms mastered, cases completed and library pages studied
   (`src/lib/progress.ts`). Everything is kept on the device; Help → **Reset progress** clears it.
 
@@ -128,8 +138,8 @@ and the opening snap. Sound starts only after a tap (browsers require it) and st
 
 Every condition page has a **Give meds** section (also **Give a medication** under its title, and in the main
 menu's Tools and Try this): set the
-patient's weight, choose one of 24 drugs (antiarrhythmics and rate control, bradycardia and arrest drugs,
-electrolytes and the hyperkalemia shifters, coronary care including the P2Y12 loads), choose or type a dose — weight-based doses show their mg/kg — and **Push**. The
+patient's weight, choose one of 26 drugs (antiarrhythmics and rate control, bradycardia and arrest drugs,
+electrolytes and the hyperkalemia shifters, dextrose for a low glucose, coronary care including the P2Y12 loads), choose or type a dose — weight-based doses show their mg/kg — and **Push**. The
 12-lead slides up (if it is not showing) and the drug acts on the shared clock: adenosine in AVNRT reaches the heart in
 ~12 s, blocks the AV node (P waves, no QRS) and the SVT gives way to sinus rhythm; diltiazem slows AF over
 minutes; procainamide widens the QRS and lengthens the QT as it loads; magnesium stops torsades but leaves the
@@ -145,6 +155,17 @@ and the dose (low, usual, high, overdose) with the reason. **Details** on the ba
 meds section back into view. The model is deterministic and shows the classic response (notes say where real patients differ);
 doses follow the drug cards and current guidelines, adult only.
 
+**The patient's history and age** (`Patient.problems`, `Patient.age`): an age box and a **Patient history** row of 35
+chips (`HISTORY` in `meds.ts` — asthma or wheezing now, HFrEF, kidney failure or dialysis, a low potassium, a low glucose,
+a long QT, a heart transplant, a PDE-5 inhibitor, cocaine, the bleeding and stroke history, pregnancy, HIT, low
+platelets, a brain bleed now or ever, RV infarction, aortic stenosis, outflow obstruction, digoxin toxicity, lupus …) in the case simulator's
+`Problem` words. A low glucose makes insulin + dextrose a label contraindication (dextrose first, then recheck) and
+dextrose the treatment; without it, dextrose says to check the glucose first.
+Each dose's verdict is built in this order — the drug's plan, `rhythmCaveats` (pre-excited AF, long QT), `repeatCaveats`
+(regimens, totals and intervals in drug time), `comboCaveats` (drugs already given; skipped in an arrest),
+`historyCaveats` (history and age) — and each step can only make it worse; the reason that sets the tone comes first.
+Without a history or an age nothing changes. A new condition clears them; **Reset patient** keeps them.
+
 **A new patient starts clean** (`newPatient()` / `onNewPatient()` in `src/lib/rhythm.ts`): opening another condition,
 a case study, a quiz strip, a lesson step with a different rhythm, a defibrillator scenario or a simulator case ends the
 Give-meds session (doses, pending effects, interval changes), clears the defibrillator's code record, CPR, pacing,
@@ -158,19 +179,41 @@ library section or tool also resets the speed to real time and closes the electr
 
 `src/lib/sim/scenario/` (engine, interventions, scenarios) · `src/store/useSimStore.ts` · `src/components/simulator/`
 
-- **Every action in your scope is offered — right or wrong** (`interventions.ts`: ~130 actions tagged by role
+- **Every action in your scope is offered — right or wrong** (`interventions.ts`: ~190 actions tagged by role
   and setting, including the cath lab's views, catheters, guides, wires, balloons, stents, support devices,
   physiology and imaging, and lab drugs). Each one takes case time and changes the patient: the rhythm on the monitor and the live
-  12-lead, the vitals, and the story (patient, partner, team, monitor, hospital).
+  12-lead, the vitals, and the story (patient, partner, team, monitor, hospital). Each drug and procedure line names
+  who must not get it, next to the dose (nitroglycerin's PDE-5 and riociguat windows, adenosine's asthma and AV block,
+  protamine's reaction risks …). Added with the contraindication audit: in the cath lab and the ED adenosine 3 mg,
+  esmolol, labetalol, oral metoprolol, nicardipine, an inotrope (dobutamine or milrinone), IV furosemide, IV
+  nitroglycerin, calcium gluconate 3 g, stopping the heparin / bivalirudin / GP IIb/IIIa / cangrelor drip and
+  temperature control after ROSC; in the ED a radial arterial line, discharge, observing on the monitor (up to 15 min,
+  stopping at the first change) and the ER nurse's set-up for a procedure; everywhere temperature, active cooling and
+  sitting up with the legs down; in the field spinal motion restriction, verbal de-escalation, soft restraints face up
+  and holding the patient face down. The ER nurse gives the new drugs only on an order.
+- **Monitor keys** (`monitorKeys.ts`): **12-lead** (then **Repeat 12-lead**) and **NIBP** (**Manual BP** until the monitor
+  is on) under the monitor, beside it on a phone on its side, run the menu's own action in one tap — same time and scoring
+  (a double tap counts once); the 12-lead tab names the key while there is no tracing.
 - **The monitor starts unplugged**: the ECG, SpO₂ and capnography appear only once you attach them; the
   NIBP box shows the last blood pressure you took. Nothing reads the tracings for you: the monitor reports
-  numbers, and rhythm changes come as a "monitor alarm".
+  numbers, and rhythm changes come as a "monitor alarm". A case can put the patient on a continuous-flow **LVAD**
+  (`initial.lvad`): perfusing and awake with no pulse to feel, no cuff or NIBP pressure (the NIBP box shows a failed
+  reading), a nearly flat pleth, and a **Doppler MAP** as the only pressure. As in the 2025 AHA durable-LVAD
+  algorithm, perfusion decides: awake, or a MAP over 50, means no compressions and no AED; unresponsive with a MAP
+  of 50 or less means CPR and the AED. The pressure rules read the MAP (under 60 is low), not the systolic.
 - **You read every 12-lead, and the app checks it at once** (`reads.ts`): the app is self-paced — no
   instructor or preceptor is needed. After a paramedic, tech, nurse or cardiologist records a 12-lead, the
-  case waits for their read, chosen from every interpretation the app can show (43, in four groups). The
+  case waits for their read, chosen from every interpretation the app can show (45, in four groups). The
   **Feedback** line in the case story answers at once: correct, partly right or not quite, with the
-  explanation of the tracing. A misread costs 5 points (2 if partly right) and the review lists every read.
-  EMTs acquire and transmit without reading.
+  explanation of the tracing. A misread costs 5 points (2 if partly right: e.g. the right rhythm under a dissection,
+  aortic stenosis, HFpEF, PE or tamponade, or "anterior STEMI" on a Takotsubo tracing) and the review lists every read.
+  EMTs acquire and transmit without reading. A 12-lead whose recording ends in an arrest is read on the tracing it
+  printed, and an event that waits on a read fires as the read is given.
+- **The case monitor draws what the patient has** (`src/lib/ecg/profiles.ts`): narrow-complex PEA for the
+  mechanical-cause arrests (`pea-narrow`), a temporary transvenous wire (`paced-vvi`), Takotsubo with a dynamic outflow
+  gradient and the HCM murmur (`takotsubo-lvoto`), and hyperkalemia in stages that follow the potassium
+  (`hyperkalemia-moderate`, then `hyperkalemia-severe`: the sine wave). A case that sets the flag `pacer-no-capture`
+  shows pacer spikes at the set rate over the patient's own rhythm (`NO_CAPTURE_FLAG` in `src/store/useSimStore.ts`).
 - **In the cath lab you read more than the 12-lead:** pressures (a damped guide, LVEDP, right heart numbers
   in shock or RV infarction), FFR, stent sizing from QCA / IVUS, sudden changes (reperfusion reflex, radial
   spasm, perforation, tamponade, contrast reaction) and **real images**: every lab case shows its culprit
@@ -187,6 +230,19 @@ library section or tool also resets the speed to real time and closes the electr
   **Imaging** tab lists every cine run
   with a C-arm diagram, its angles, what the view shows best and, where the app has one, the real image (tap to
   enlarge).
+- **The emergency department works as a team too** (`edKit.ts`, setting `ed`): as the **ER nurse** you triage,
+  record the 12-lead within 10 minutes of arrival, start lines, draw labs and report (SBAR); the (computer) ED
+  physician examines and gives the orders, and a drug given with no order or standing order costs points — the chest
+  pain standing order, the ACLS drugs in an arrest and the shocks need none. As the **ER doctor**, a computer nurse
+  does the nursing and every medical decision is yours: the read, bedside ultrasound, the cath lab activation or the
+  fibrinolytic, intubation, a central line, pacing, a pericardiocentesis, the cardiology consult and where the patient
+  goes. The review times door-to-ECG, ECG-to-activation and door-to-needle.
+- **Team requests and orders** (`LabAsk` in `labKit.ts`, `edOrder` in `edKit.ts`): an answer given after a teammate
+  has done it is a second dose, not the answer. An ED physician's order is held through an arrest (`holdInArrest`, the
+  default for `edOrder`); one still open at ROSC is judged again by its own `when` — it goes on, or the physician
+  cancels it (`cancelled:<id>`, one team line with `cancelWhy`, its critical item dropped). `doses` uses an order up
+  after that many doses, so another needs another order. A wrong answer to a request (`askHarm`) and a drug rule on the
+  same act charge once (see the safety rules below).
 - **Events happen on time or because of what you did** (VF en route, heart block, a wedged catheter,
   reperfusion VF), built-in safety rules catch dangerous choices (a manual shock with a pulse, arrest-dose
   epinephrine with a pulse, nitroglycerin with a systolic pressure under 90, cardioversion without a
@@ -195,7 +251,10 @@ library section or tool also resets the speed to real time and closes the electr
   breathing normally and pulseless: with a pulse it is refused (it reads the rhythm alone and would shock a fast VT),
   with no time lost and no penalty; in an arrest, one that advises no shock costs nothing. Vital signs stay
   inside what a living patient can show (repeated drugs move the pressure toward a floor or a ceiling, never past
-  it), and drugs given in cardiac arrest do not invent a pressure.
+  it), and drugs given in cardiac arrest do not invent a pressure. Oxygen by mask or cannula raises no SpO₂ in an
+  arrest, push-dose epinephrine given in one is no pressor bridge (flag `push-epi-arrest`), reassess and observe count
+  as a blood pressure only when they show one, first-shock timings count delivered shocks only (`Timing.shocksOnly`),
+  and a case can charge a preventable deterioration once (`Effect.penalty`).
 - **The case ends by itself** once every critical step for your role is done (or the patient dies, or you end
   it). Handing the patient over also ends it — in the field on arrival, in the cath lab once the procedure is over —
   and then the review says which critical steps were still missing. A hand-over with the patient still in cardiac
@@ -206,15 +265,115 @@ library section or tool also resets the speed to real time and closes the electr
 - **Cases:** field — anterior STEMI (EMT, paramedic) · inferior STEMI with RV infarction and heart block (EMT,
   paramedic) · complete heart block · beta-blocker (metoprolol) overdose · unstable SVT · AF with a rapid response
   and a weak heart · stable VT after an old infarct · hyperkalemia in a dialysis patient · VF cardiac arrest (EMT,
-  paramedic) · PEA cardiac arrest from hypoxia (EMT, paramedic). Cath lab (tech, nurse, cardiologist) — anterior STEMI
+  paramedic) · PEA cardiac arrest from hypoxia (EMT, paramedic) · posterior STEMI (posterior leads) · cocaine chest
+  pain · aortic dissection · massive pulmonary embolism · cardiac tamponade · flash pulmonary edema (SCAPE: CPAP and
+  high-dose nitroglycerin) · pre-excited AF (WPW: no AV-node blockers) · torsades de pointes (magnesium) · commotio
+  cordis at a ballgame · a patient on an LVAD (no pulse, still talking: Doppler MAP, the VAD team) — each for the
+  EMT and the paramedic. Cath lab (tech, nurse, cardiologist) — anterior STEMI
   (damped guide, reperfusion VF) · inferior STEMI from the groin (Bezold–Jarisch reflex) · FFR- and IVUS-guided PCI
   (radial spasm) · cardiogenic shock (right heart numbers, Impella) · no-reflow after the stent (heavy clot burden) ·
-  coronary perforation and tamponade · contrast reaction. Each new case was written to the 2025 AHA and ACC/AHA
+  coronary perforation and tamponade · contrast reaction · left main occlusion with cardiogenic shock · acute stent
+  thrombosis · spontaneous coronary artery dissection after childbirth · takotsubo with LV outflow obstruction (no
+  inotropes) · complete heart block and a temporary wire · guide-catheter dissection of the right coronary · coronary
+  air embolism · a stroke on the table · a vasovagal reaction at the sheath pull · retroperitoneal bleeding after a
+  femoral PCI. Emergency department (ER nurse, ER doctor) — a STEMI that walks in (no nitrate after tadalafil) ·
+  NSTEMI on the serial troponin · complete heart block from hyperkalemia (pads, calcium) · severe hyperkalemia ·
+  unstable AF and synchronized cardioversion · hypertensive flash pulmonary edema (SCAPE) · massive pulmonary
+  embolism and alteplase · type A aortic dissection (no lytic, the surgeon) · cardiac tamponade and the
+  pericardiocentesis · VF arrest in an ED bed (the code). Each new case was written to the 2025 AHA and ACC/AHA
   guidelines and checked by an independent clinical reviewer, with its own test file (`tests/scenario-*.test.ts`)
   covering the ideal runs, the traps and every in-scope action. Tests play every case's ideal run for each role
   and its main traps (`tests/scenarios.test.ts`).
 - The engine is pure and deterministic (`engine.ts`: `start`, `perform`, `takeHint`, `stop`, `review`), so a new
   case is one file in `scenarios/` plus a line in `scenarios/index.ts` and an ideal run in the tests.
+
+## Case simulator: safety rules
+
+`src/lib/sim/scenario/rules/` (the built-in rules) · `types.ts` (`Harm`, `Problem`) · `engine.ts` (`harmsFor`) ·
+`tests/rules-*.test.ts`, with `fixture()` and `penaltyIds()` from `tests/ruleFixture.ts`
+
+Every action is judged on the state just before it takes effect, by the case's own rules (`Scenario.harms`) and by the
+256 built-in rules every case shares (`BUILT_IN_HARMS` in `rules/index.ts`). Each rule charges once a case, except a
+drug contraindication, which charges once for each drug given into it (`rules/charge.ts`) — a major or critical built-in
+one, and a case rule that stands in for one alike (`caseChargesPerDrug`: major or critical, no indication rule and no
+check before a nitrate, with the id of a built-in drug contraindication on one of its drugs or one in its `replaces` — or
+marked `Harm.perDrug`, a drug contraindication of the case's own on several drugs, such as a pressor into a stimulant's
+high pressure). Whether a rule charges per drug is decided for the rule, not the action, so the order of the drugs never
+changes the count. A second, different drug into the same contraindication is a mistake of its own, in the case's words
+if the case speaks for it, while the same drug again — at another dose or by another route (`DRUGS_OF`: sublingual and
+IV nitroglycerin, adenosine 6 and 12 mg …) — costs nothing more from that rule. An act is a repeat for a rule when it
+brings no drug the rule judges that the rule has charged already (`judgedDrugs`: the procedure's sedation after fentanyl
+brings midazolam, and after midazolam its fentanyl — every rule on the sedation judges both; the radial cocktail after
+intracoronary verapamil brings no new drug for a rate rule other than `cocktail-low-pressure`, which judges the cocktail
+whole, since under 90 its nitroglycerin is that rule's too — as does a case rule standing in for the nitrate and the
+rate-drug rules alike: `WHOLE_ACTION`; such a whole action is a repeat too when every drug in it was already charged,
+by that rule or on its own act for a reason that still holds — the cocktail after intracoronary nitroglycerin and
+verapamil, the sedation after fentanyl and midazolam: `wholeActionRepeat`). Minor case rules,
+indication rules and rules on anything that is not a drug keep charging once a case. `charge.ts` throws if the built-in
+rules were never registered (the engine imports `rules/index.ts`).
+**One dose, one penalty:** where several rules judge one action they are ranked, and only the highest-ranked rule that
+holds charges — the most serious reason first. **One repeat policy for every gate** (the rhythm ladders, the ACS gates,
+the added gates, a case's nitrate rules; `passedOver` in `rules/charge.ts`): a later dose of a different drug is judged
+anew. Each penalty records the reasons that held for its act (`Penalty.held`: the built-ins whose own condition held,
+and the rank a case rule stood at). A repeat of the same drug is not charged again by the rule already charged on it,
+nor for a reason that held when it was charged (`coveredBefore`) — that was the mistake already charged, so a built-in
+never re-charges a case stand-in's reason in its own words. It is charged for what is new: a reason that did not hold
+then (the pressure the first nitrate crashed, epinephrine again within 3 minutes, a repeat atropine the block does not
+answer) and the checks every dose owes (a pressure, the interval, the PDE-5 question), which are never covered. The ER
+nurse's missing order speaks only for its own act: a second unordered dose meets the indication rule.
+
+| File | What it holds |
+| --- | --- |
+| `rhythm.ts` | Shocks and cardioversion, pacing and the transvenous wire, atropine, magnesium, the arrest drugs, lidocaine, procainamide and the rate and AV-nodal drugs (adenosine 3, 6 and 12 mg, the beta-blockers, diltiazem, the amiodarone infusion; in the lab the radial cocktail, intracoronary adenosine and verapamil, the FFR adenosine infusion). `LADDERS` ranks each drug's rules and `topRhythmRule` picks the one that charges. Rate drugs: pre-excited AF → diltiazem in VT or HFrEF → an arrest → a slow or blocked rhythm → hyperkalemia → … → asthma → the full adenosine dose after a transplant → … → no arrhythmia; a beta-blocker with a stimulant or a pheochromocytoma (`beta-blocker-pheochromocytoma`) is ranked just above the low-pressure reasons. A vagal maneuver: a slow pulse → nothing it can treat (it ends only a re-entry through the AV node: `vagal-no-indication`). Procainamide: an arrest → slow → long QT → low pressure → heart failure → lupus → after amiodarone → … Lidocaine: slow or blocked → pre-excited AF (`lidocaine-preexcited-af`, its label's WPW contraindication) → hyperkalemia → a rhythm that cannot be shocked → no ventricular arrhythmia. The second antiarrhythmic on top of the first (`SECOND_ANTIARRHYTHMIC`) and any case rule on the same dose: the heavier charges alone, the case's words on a tie (engine `harmsFor`: one act, one penalty). |
+| `acs.ts` | Gates (`*_GATE`, each rule asking whether it is the top one). Nitrates and nitroprusside: a PDE-5 inhibitor or riociguat → a bleed in the head now (`nitro-intracranial`, the labels' raised intracranial pressure) → a preload-dependent heart (RV infarct, PE, an undrained tamponade) or outflow obstruction → low pressure → bleeding → a dissection before rate control → HR under 50 → a fall of 30 → an inferior STEMI before V4R → no pressure taken → 0.8 mg below 160 → HR over 100 → no pain → under 3 min since the last → the PDE-5 question not asked. Fibrinolytics: a dissection → absolute contraindications (platelets under 100,000 among them: a bleeding diathesis) → a pressure still over 180/110 after treatment → a second dose → in the cath lab → PCI in time (`Scenario.noTimelyPci` for a department that cannot) → no indication (a PE needs cardiopulmonary failure) → over 180/110 → relative contraindications. Antithrombotics: HIT → a bleed in the head now (`acute-intracranial-hemorrhage`; an old, healed one only rules out the lytic, eptifibatide, ticagrelor and prasugrel) or a stroke not yet scanned (`antithrombotic-intracranial`) → bleeding → a dissection → aspirin allergy → tamponade → platelets under 100,000 → eptifibatide's label, after a lytic, over 200/110 → heparin on bivalirudin or after enoxaparin → no indication outside the lab (`antithrombotic-no-indication`: no ACS, PE or AF, unless the case declares `anticoagulation-indicated`). Protamine: allergy → mid-PCI → no heparin → sensitized. Fentanyl: breathing → pressure → no pain; then midazolam and sedation (acute narrow-angle glaucoma for midazolam, `midazolam-glaucoma`; low pressure, slow breathing or drowsy with no procedure coming). Ondansetron off the monitor; drugs with no role in an arrest. A case's own nitrate rule takes a rank in the nitrate gate (`nitrateCaseRule`; a check, `nitrateCheckRule`): it gives way to a reason ranked above it that holds — the built-in, or another of the case's nitrate rules — so one dose earns one nitrate penalty. |
+| `support.ts` | Vasopressors and push-dose epinephrine (not for the low pressure of an unstable tachyarrhythmia, which needs the shock: `pressor-unstable-tachyarrhythmia`), intracoronary epinephrine, phenylephrine; oxygen, CPAP (a pneumothorax or facial trauma first: `cpap-pneumothorax-or-facial`), the bag-mask, the airway and RSI; fluids, raised legs and blood; bicarbonate (with a pulse only for a metabolic acidosis or a sodium-channel-blocker overdose — `BICARBONATE_WITH_A_PULSE_FOR` and `BICARBONATE_IN_ARREST_FOR` in `helpers.ts`), calcium, insulin, albuterol, glucagon; IM epinephrine, antihistamine and steroid for anaphylaxis only, epinephrine first. Each group's gate order is written above it. |
+| `procedures.ts` | Transport in an arrest, the pericardiocentesis, the STEMI alert and cath lab activation, the scanner, the central line, the transfer; in the lab consent, heparin, the pumps (IABP, Impella: `rv-failure`, `lv-rupture`, a dissection, aortic regurgitation …), the sheath, crossing the aortic valve, the LV gram in shock, routine aspiration, the covered stent, contrast after a reaction. |
+| `added.ts` | The audit's new actions, in gate order: the heparin top-up, nicardipine (an outflow obstruction, fixed or dynamic, first: `nicardipine-outflow-obstruction`), the inotrope, furosemide, sitting up, temperature control and cooling with no fever (`cool-no-hyperthermia`), discharge (`Scenario.dischargeOk`), restraint (face down is critical) and spinal motion restriction in an arrest. |
+| `scope.ts` | The ER nurse's scope (below). |
+| `helpers.ts` | What the rules read (`rhythmKind`, `lowPressure`, `preloadDependent`, `hasProblem` …) and the shared drug groups (`BETA_BLOCKERS`, `ADENOSINE_PUSH`, `NITRATES_ALL`, `LYTICS`, `ANTITHROMBOTICS`, `CALCIUMS` …). It never imports `engine.ts`. |
+
+- **Problems** (`Problem` in `types.ts`, `Scenario.problems`): what the patient has that a rule cannot read from the
+  monitor or the vitals — 71 words, each explained in a doc comment: overdoses and electrolytes (hyperkalemia,
+  `metabolic-acidosis`, `hypoglycemia` (insulin's label contraindication, until glucose is given), `ccb-overdose` …), heart and vessels (`heart-failure`, `long-qt`, `rv-infarction`,
+  `lvot-obstruction`, `aortic-dissection`, `tamponade`, `heart-transplant` …), bleeding and lysis (`bleeding`, `hit`,
+  `intracranial-hemorrhage` (ever) and `acute-intracranial-hemorrhage` (now: every antithrombotic and every nitrate is out),
+  `thrombocytopenia`, `recent-stroke` and `prior-stroke`, `intracranial-risk`, `recent-surgery`,
+  `surgery-within-6-weeks`, `pregnancy` …), drugs on board (`pde5-inhibitor`, `heparin-on-board`, `oral-anticoagulant`
+  …), allergies (`aspirin-allergy`, `contrast-allergy`, `protamine-allergy`), the kidneys (`renal-failure`, `dialysis`)
+  label-only contraindications (`lupus`, `pheochromocytoma`, `insulinoma`, `seizure`, `rv-failure`, `lv-rupture`,
+  `glaucoma` for midazolam), what rules CPAP out (`pneumothorax`, `facial-trauma`) and another reason for heparin
+  (`anticoagulation-indicated`).
+  The same words are Give meds' patient history. `tests/scenarios.test.ts` checks a case's problems against its words.
+- **A case rule stands in for built-ins only while it applies** (`Harm.replaces`): for the same action, a role it is
+  written for, with its `when` true now. In any other state the built-ins judge. A case rule that speaks for a whole
+  family lists `RATE_RULES`, `LIDOCAINE_RULES`, `PROCAINAMIDE_RULES`, `NITRATE_RULES`, `LYTIC_RULES`,
+  `ANTITHROMBOTIC_RULES`, `PROTAMINE_RULES` or `SEDATIVE_RULES`. Standing in for a drug contraindication, it charges once
+  for each drug, like the built-in (above); once charged against a dose it is passed over as the gates pass a charged
+  rank over, and a repeat of that drug is not charged for the reasons it spoke for (`Penalty.held`).
+- **A case rule with a built-in's id** is a deliberate exemption, or the case's own words: it hides that built-in only
+  for the actions and roles the case rule lists. Inside a gate it decides that rank: while it applies the gate stops
+  there; while it does not, the dose goes on to the next rank (the case has said that one reason does not hold here).
+- **Yielding to a heavier rule:** a minor case rule steps aside when the rhythm rule the gate picks is major or
+  critical and heavier (`yieldToHeavier` in `rhythm.ts`); a major case rule keeps speaking in its own words. On the radial
+  cocktail a nitrate reason charges before a rule that speaks only for rhythm rules. A wrong answer to a team request
+  (`askHarm`, `Harm.wrongAnswer`; also a drug drawn up or given in the lab without the operator's order) and a drug rule
+  on the same act: the heavier charges alone, on a tie the wrong answer. So **a wrong answer never hides a heavier
+  contraindication**: wrong answers carry no family `replaces`. The one `replaces` left on a wrong answer is
+  `NITRATE_CHECKS`, on the four that judge a sublingual nitrate (`edDissection`'s 0.8 mg for the ordered 0.4,
+  `cathlabFfr`'s and `cathlabScad`'s sublingual nitroglycerin for the ordered intracoronary dose, `cathlabTakotsubo`'s
+  `rn-no-order-nitro`): the arbitration does not weigh the checks before a nitrate, which would otherwise charge beside
+  the wrong answer.
+  `tests/case-rule-reach.test.ts` checks every case rule that can yield still charges somewhere.
+- **The ER nurse** (`scope.ts`): a drug in `RN_ORDER_ONLY` given with no order (`ordered:<id>`) costs 5 points
+  (`rn-without-order-<id>`; alteplase 15, critical) — once for a drug: another dose, salt or route of it is not charged
+  again (`DRUGS_OF`). One order covers the doses of one drug by one route (adenosine 3, 6 and 12 mg) and either IV
+  calcium salt; another route (IV or oral metoprolol, sublingual or IV nitroglycerin) needs its own. Calcium,
+  bicarbonate, magnesium, atropine and lidocaine need one with a pulse, not in an arrest. While the missing order is charged, the indication rules (`INDICATION_RULES`: no
+  arrhythmia, no hypotension, no role in an arrest, PCI available …) stand aside — the indication is the physician's
+  to decide — but every contraindication still charges, and so do the checks she owes with or without an order
+  (`NITRATE_CHECKS`: a pressure, the PDE-5 question and the interval before nitroglycerin).
+- **No stale ids:** `tests/rule-ids.test.ts` fails when a rule list or a case's `replaces` names a rule that does not
+  exist, or a built-in that never judges the case rule's actions.
 
 ## Feedback and the admin dashboard
 
@@ -246,14 +405,14 @@ library section or tool also resets the speed to real time and closes the electr
 
 `src/data/content/cathlab*.ts` (content) · `src/lib/cathlab/views.ts` (view angles) · main menu → **Cath lab catalog**
 
-78 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
+79 items in eleven groups — angiographic views, access and closure, catheters and guides, wires,
 balloons and stents, physiology and intravascular imaging, mechanical support and pacing, pressures and
 hemodynamics, lab drugs, complications, team and safety. Each item says what it is, the numbers to know,
 pearls and pitfalls, and **what the tech, the nurse and the cardiologist each do with it** (your own role is
 highlighted). A view shows the C-arm position, turns the 3D heart to that angle and lights up the arteries it
 shows best. Each item links to the simulator cases that use it ("Practice it"). The simulator's case list
-points lab roles to the catalog first. **Every item shows real images** (one to three) — angiograms in
-labeled C-arm views, catheters, wires, balloons and stents on fluoroscopy, pressure tracings and consoles,
+points lab roles to the catalog first. **Every item but one shows real images** (one to three; the newest,
+periprocedural stroke, still lists the head CT it wants) — angiograms in labeled C-arm views, catheters, wires, balloons and stents on fluoroscopy, pressure tracings and consoles,
 IVUS and OCT, echo and X-rays, complications, devices, the lab team and safety gear, drug vials (or what the
 drug does on an angiogram or ECG) — each with what it shows, tap to enlarge, and its credit and license
 linked; captions say when an image comes from outside the cath lab. A test checks every link, every
@@ -275,6 +434,8 @@ monitor/defibrillator permissions stay inside that role's scope (`src/lib/scope.
 | --- | --- |
 | EMT (NREMT, BLS) | National EMS Scope of Practice Model 2019 (NHTSA) + state/local protocols and medical direction |
 | Paramedic (NREMT, ALS) | National EMS Scope of Practice Model 2019 (NHTSA) + state/local protocols and medical direction |
+| ER Nurse (RN, emergency department) | State Nurse Practice Act, Board of Nursing rulings, ENA Scope and Standards of Emergency Nursing Practice, facility policy, standing orders and competency validation |
+| ER Doctor (emergency physician, MD/DO) | Medical licensure, board certification (ABEM / AOBEM), hospital credentialing and privileges, ACEP policy statements |
 | Cath Lab Tech (RCIS) | RCIS credential, SCAI best-practices consensus (2021), state law and facility policy |
 | Cath Lab Nurse (RN) | State Nurse Practice Act, Board of Nursing rulings and facility policy |
 | Cardiologist | Licensure and hospital privileges — full technical depth |
@@ -306,12 +467,12 @@ the lead), `AGENTS.md` (Codex, the UI / graphics agent), `fix_list.md` (open ite
 
 | Area | Where | Notes |
 | --- | --- | --- |
-| ECG engine | `src/lib/ecg/` | Vector (dipole) model projected onto all 12 leads + right-sided/posterior leads, so axis, reciprocal ST change and R-wave progression come out of the physics rather than being drawn per lead. 49 rhythm/condition profiles (incl. PEA, pulseless VT, transcutaneous pacing, inferior STEMI with heart block and reperfused STEMI), Fridericia QTc. |
+| ECG engine | `src/lib/ecg/` | Vector (dipole) model projected onto all 12 leads + right-sided/posterior leads, so axis, reciprocal ST change and R-wave progression come out of the physics rather than being drawn per lead. 58 rhythm/condition profiles (incl. PEA and narrow-complex PEA, pulseless VT, transcutaneous and temporary-wire pacing, staged hyperkalemia to the sine wave, Takotsubo with outflow obstruction, inferior STEMI with heart block and reperfused STEMI), Fridericia QTc. |
 | Hemodynamics | `src/lib/physiology/hemodynamics.ts` | Beat-by-beat LV/aortic/LA pressure, LV volume and heart sounds (Frank–Starling filling, atrial kick, Windkessel aorta). Drives the Wiggers chart and PV loop. |
 | Simulation clock | `src/lib/sim/simulation.ts`, `src/components/sim/SimulationDriver.tsx` | Single animation loop; pause, scrub and 0.1–1× speed. |
 | 3D heart | `src/components/scene/`, `src/lib/scene/orbit.ts` | Standard gestures: one finger (left mouse button) turns it, pinch (wheel) zooms, two fingers (right button) pan; the same turn per pixel on every screen, smoothing per second, a tap picks a part without moving the camera (BVH hit-tests keep dragging smooth), the whole heart fits a tall phone view. Exterior, four-chamber section with blood flow, x-ray, conduction system and coronary territories. Contraction, depolarization wave and ischemia are shaded on the GPU from the live ECG. Selecting a lead (12-lead or electrode lab) draws its view line: from the (+) side, into the wall it faces and through the heart. |
 | Anatomy map | `src/lib/anatomy/landmarks.ts` | Landmarks snapped to the model surface; clicking the heart opens the matching structure. |
-| Teaching content | `src/data/content/`, `src/data/caseData.ts` | 62 structures, 42 conditions, 42 procedures, 40 medications, 9 branching cases, 66 quiz questions. Loaded on demand. |
+| Teaching content | `src/data/content/`, `src/data/caseData.ts` | 62 structures, 43 conditions (SCAD the newest), 44 procedures (rapid sequence intubation the newest, after CPAP and BiPAP), 62 drug cards, 9 branching cases, 66 quiz questions. Loaded on demand. |
 | UI | `src/components/home/`, `src/components/layout/`, `src/components/ecg/`, `src/components/physiology/` | Main menu, top bar, library list and reading, the heart / ECG drawers, ECG (live 12-lead, printout, monitor, paper, inspect, calipers), Wiggers/PV loop, tutor, quiz. |
 | Electrode lab | `src/lib/ecg/electrodes.ts`, `src/lib/ecg/leadViews.ts`, `src/lib/anatomy/humanBody.ts`, `src/components/ecg/ElectrodeLab.tsx`, `src/components/ecg/TorsoModel.tsx` | 10 electrodes on a 3D patient (an adult male body built from the CC0 MakeHuman mesh by `scripts/build-human-model.py`; limb electrodes on the shoulders and lower abdomen, Mason–Likar; the heart beats behind a window in the chest) → 12 leads (Einthoven / Goldberger / Wilson). Tap a lead or an electrode to see where that lead looks from; swap cables or try a "mystery reversal" and watch the live 12-lead change. |
 | Activation map | `src/lib/anatomy/activation.ts` | Epicardial isochronal map of each beat (normal per Durrer 1970, LBBB, RBBB, WPW, pacing, PVC/VT), like an EP mapping system. The 3D wavefront follows it in every view. |

@@ -22,6 +22,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'With baseline RBBB, trauma to the left bundle (LV catheter, wire or TAVR valve) can cause complete heart block. Note the baseline QRS, have temporary pacing equipment prepared, and alert the operator immediately to new AV block or bradycardia.',
       'Document baseline rhythm and QRS before the procedure; RBBB raises heart-block risk during left-heart work and TAVR. Monitor for bradycardia, AV block and hypotension, keep transcutaneous pacing pads available, and escalate new conduction changes to the physician.',
       'Separate complete vs incomplete RBBB and mimics (Brugada type 1, ASD, WPW, lead misplacement); evaluate new RBBB with echo for PE, RV strain or ischemia. Alternating BBB is a Class I pacing indication; baseline RBBB strongly predicts pacemaker need after TAVR.',
+      'For chest pain, dyspnea or syncope, record the 12-lead within 10 min of arrival and give it to the physician with any old ECG for comparison. Report a new RBBB with tachycardia or a low SpO2 at once (possible PE), and keep a patient who fainted on the monitor with pacing pads ready.',
+      'Apply the usual STEMI criteria through RBBB, compare with old tracings and activate the cath lab for ST elevation. New RBBB with hypoxia or tachycardia calls for bedside echo (RV dilation) and CT pulmonary angiography; admit syncope with RBBB plus axis deviation to telemetry, and do not miss a Brugada type 1 pattern.',
     ],
     overview: [
       'Defined by QRS ≥ 120 ms with late rightward, anterior forces from delayed RV activation',
@@ -135,6 +137,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'In pre-existing LBBB, a right heart catheter bumping the right bundle can cause complete heart block; prepare temporary pacing equipment before right heart work and alert the operator immediately to bradycardia. During TAVR, report new QRS widening or AV block.',
       'Confirm baseline rhythm and QRS, and place pacing-capable pads when ordered for right heart catheterization or TAVR. For suspected ACS, administer aspirin, anticoagulant and P2Y12 inhibitor as ordered; monitor for bradycardia, heart block and hypotension and escalate immediately.',
       'Use Smith-modified Sgarbossa plus clinical context: positive criteria, shock or refractory ischemia warrant emergent angiography regardless of LBBB age. CRT is Class I for LVEF ≤ 35%, LBBB, QRS ≥ 150 ms, NYHA II–IV on GDMT; conduction system pacing is an emerging alternative.',
+      'Record the 12-lead within 10 min of arrival and give it to the physician with a prior ECG. Chest pain with LBBB and low blood pressure, crackles or pain that will not settle is an emergency: bring the physician to the bedside, place pads, give aspirin per standing order and repeat the ECG when the pain changes.',
+      'New LBBB alone is not a STEMI: apply Smith-modified Sgarbossa and activate the cath lab for a positive criterion, or for shock, acute heart failure or refractory ischemic pain, whether the LBBB is new or old. With negative criteria but high suspicion, use serial ECGs and hs-troponin and involve cardiology early.',
     ],
     overview: [
       'Defined by QRS ≥ 120 ms with delayed, right-to-left septal activation and slow LV activation',
@@ -249,6 +253,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Bifascicular block leaves one fascicle conducting, so catheter contact with the remaining bundle can cause complete heart block. Have a temporary pacing wire and generator ready, report dropped beats to the operator immediately, and record HV intervals accurately in the EP lab.',
       'Ask about syncope and flag AV-nodal or conduction-slowing drugs for physician review. Keep pacing pads on per order, monitor continuously for bradycardia or AV block and escalate immediately; give atropine or chronotropic infusions only as ordered, expecting a poor atropine response.',
       'Asymptomatic bifascicular block with 1:1 conduction needs no pacing. Syncope warrants EP study or prolonged monitoring; pace for alternating BBB, Mobitz II, high-grade AV block, or HV ≥ 70 ms/infranodal block on EP study (2018 ACC/AHA/HRS). Baseline RBBB predicts pacemaker need after TAVR.',
+      'After syncope, keep the patient on the monitor with pacing pads on, including trips to CT or the bathroom, and watch for dropped beats, a slow wide escape rhythm or a lengthening PR. Report bradycardia at once and have the transcutaneous pacer ready; atropine often fails here.',
+      'Treat syncope with bifascicular block as intermittent complete heart block: admit to telemetry, stop AV-nodal drugs, check potassium and look for anterior MI if the block is new. Atropine often fails here, so move quickly to transcutaneous pacing or an epinephrine or dopamine infusion, and place a transvenous pacer if high-grade block recurs.',
     ],
     overview: [
       'Most commonly RBBB + left anterior fascicular block; RBBB + left posterior fascicular block is less common',
@@ -359,6 +365,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'PVCs are common during catheter or wire manipulation in the ventricle and usually stop when the catheter is repositioned. Mark them on the record, exclude ectopic and post-ectopic beats from routine pressure measurements, and alert the operator to couplets, runs or VT.',
       'Check potassium and magnesium, stimulant use and QT-prolonging drugs, and replace electrolytes as ordered. Report increasing frequency, couplets, runs or R-on-T PVCs promptly, especially with chest pain or after reperfusion, and keep the defibrillator ready.',
       'Quantify burden by Holter or patch; > 10–15% warrants surveillance for PVC-induced cardiomyopathy, and MRI excludes scar. LBBB/inferior-axis morphology suggests outflow tract origin; ablation is first-line for symptomatic idiopathic RVOT PVCs (ESC 2022); avoid class IC drugs after MI (CAST).',
+      'Put the patient on the monitor, record a 12-lead, draw potassium and magnesium, and ask about stimulants, cocaine and new medications. Report couplets, runs, R-on-T beats or PVCs with chest pain, syncope or low blood pressure to the physician at once, and keep the defibrillator at the bedside.',
+      'Treat the cause, not the beats: check potassium, magnesium, troponin, QTc and drug or stimulant exposure, and give no antiarrhythmic for isolated PVCs. Admit for syncope, NSVT, ischemia or heart failure; a well patient with an otherwise normal ECG and no family history of sudden death can go home with Holter and echo arranged.',
     ],
     overview: [
       'Premature ventricular depolarizations arising from ventricular myocardium or Purkinje fibers',
@@ -470,6 +478,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'VT can occur during ventriculography, wire or catheter manipulation and reperfusion. Call it out to the operator immediately, check the arterial waveform for perfusion, have the defibrillator and pads ready, and in the EP lab record 12-lead morphology and intracardiac signals.',
       'Assess pulse, perfusion and level of consciousness immediately; if pulseless, start CPR and ACLS. For stable VT keep pads on, administer amiodarone or procainamide as ordered, assist with synchronized cardioversion (sedation only on the practitioner’s order), and correct potassium and magnesium as ordered.',
       'Diagnose with AV dissociation, fusion/capture beats, concordance and Brugada or Vereckei criteria; procainamide outperformed amiodarone for stable WCT (PROCAMIO). Define substrate with echo, MRI and ischemia evaluation; ICD for secondary prevention; ablation reduces recurrent VT (VANISH, VANISH2).',
+      'With a pulse: pads on, a 12-lead before any drug, IV access and potassium and magnesium; give amiodarone or procainamide on order and report hypotension or QRS widening. For cardioversion, monitor capnography through sedation and re-select sync before each shock; pulseless VT means CPR and defibrillation per ACLS.',
+      'Unstable: synchronized cardioversion at 100 J, with procedural sedation if time allows. Stable: 12-lead first, then procainamide (not with long QT or heart failure) or amiodarone, no verapamil or diltiazem; correct potassium and magnesium, look for ischemia, and call cardiology or EP for recurrent VT, storm or ICD shocks.',
     ],
     overview: [
       'Three or more consecutive ventricular beats > 100 bpm with uniform QRS morphology',
@@ -588,6 +598,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'VF in the lab often follows coronary injection, ischemia or reperfusion. Call it out immediately, have the defibrillator ready (pads pre-placed in high-risk cases), participate in CPR and defibrillation per ACLS certification and facility policy, and keep recording shock times.',
       'Lead or support ACLS: immediate defibrillation, high-quality CPR, epinephrine and amiodarone per ACLS protocol, with timed documentation. After ROSC, monitor MAP (≥ 65 mmHg), SpO2 (90–98%) and temperature, and prepare for emergent angiography or temperature control as ordered.',
       'Post-arrest STEMI needs emergent angiography; routine immediate angiography does not benefit comatose survivors without STE or shock. ICD for VF not due to a reversible cause; evaluate channelopathies; consider ECPR or MCS for refractory VF and Purkinje-trigger ablation for storm.',
+      'Defibrillate VF as soon as it is seen, per ACLS, and keep pauses short with a new compressor every 2 min. Give epinephrine and amiodarone or lidocaine per the ED’s ACLS protocol (IV first, IO if it fails), log shock and drug times, watch waveform ETCO2, and record a 12-lead for the physician right after ROSC.',
+      'Lead the code: early shocks, short pauses, an airway that does not cost compression time, and POCUS for Hs and Ts only within pulse checks; consider ECPR for refractory VF where available. After ROSC, activate the cath lab for ST elevation, keep MAP ≥ 65 mmHg and start temperature control (32–37.5 °C) if not following commands.',
     ],
     overview: [
       'Chaotic, disorganized ventricular electrical activity with no effective cardiac output',
@@ -704,6 +716,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Recognize polymorphic VT on the monitor and alert the operator immediately; have the defibrillator ready and prepare temporary pacing equipment if overdrive pacing is planned. Torsades is pause-dependent, so report long pauses and frequent PVCs.',
       'Administer magnesium sulfate as ordered or per ACLS protocol, replace potassium as ordered (target often ~4.5–5.0 mmol/L), and flag QT-prolonging drugs for physician review. Monitor QTc and telemetry for pauses and R-on-T PVCs, keep pads on, and escalate any recurrence.',
       'Separate acquired (drugs, electrolytes, bradycardia) from congenital LQTS. Magnesium, potassium repletion, stopping culprit drugs and isoproterenol or overdrive pacing (~90–110 bpm) suppress pause-dependent torsades; congenital LQTS needs nonselective beta-blockers, genetic testing, ICD after arrest and LCSD if refractory.',
+      'Shock sustained polymorphic VT at once, unsynchronized, per ACLS; then draw potassium and magnesium, give magnesium on order or per the ACLS protocol, and leave the pads on because it recurs. Check the QTc before an ordered ondansetron, haloperidol or other QT-prolonging drug, and hold it and ask the physician if the QTc is long.',
+      'Give magnesium sulfate 1–2 g IV even with a normal level, replace potassium to high-normal, stop every QT-prolonging drug and avoid amiodarone and procainamide. For recurrent pause-dependent torsades, raise the rate with isoproterenol or a transvenous pacer (no isoproterenol in congenital long QT), and admit to a monitored bed.',
     ],
     overview: [
       'Polymorphic VT with QRS complexes twisting around the isoelectric line, in the setting of QT prolongation',
@@ -818,6 +832,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Anticipate an LAD culprit (best seen in cranial views): prepare left-system guides, workhorse wires, balloons and stents, with MCS consoles ready in shock. Watch for VF, reperfusion arrhythmias, no-reflow and hypotension, and alert the operator immediately.',
       'Verify allergies, renal function and anticoagulants; administer aspirin, P2Y12 loading, heparin or bivalirudin and analgesia as ordered, monitoring ACT to the ordered target (often ~250–350 s with UFH alone). Watch for VF, new heart block, shock and bleeding, and escalate immediately.',
       'Proximal LAD clues: STE in I/aVL/aVR or new RBBB with inferior reciprocal depression. Radial primary PCI; complete revascularization if stable (COMPLETE), culprit-only in shock (CULPRIT-SHOCK), microaxial flow pump in selected shock (DanGer Shock); screen for LV thrombus and reassess LVEF before ICD.',
+      'Record the 12-lead within 10 min of arrival and put it in the physician’s hands; meet a field cath lab activation at the door. Give aspirin per standing order unless EMS gave it, place pads (VF risk is highest early), start IV access, draw labs, give heparin on order and have the patient ready to leave for the cath lab.',
+      'Read the ECG within 10 min, de Winter and hyperacute T waves included, and activate the cath lab. If PCI cannot happen within 120 min, give a fibrinolytic within 30 min of arrival unless contraindicated, then transfer. Give aspirin and heparin, agree P2Y12 loading with the interventionalist, and call the shock team early for hypotension.',
     ],
     overview: [
       'STEMI caused by acute LAD occlusion, usually from plaque rupture or erosion with thrombus',
@@ -939,6 +955,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Anticipate an RCA culprit (right-system guide) or, in left-dominant hearts, an LCx culprit. Bradycardia, AV block and hypotension are common on RCA engagement and reperfusion: watch the ECG and pressure damping, have temporary pacing ready, and alert the operator immediately.',
       'Confirm RV involvement has been assessed and BP is adequate before giving ordered nitrates; report hypotension with clear lungs. Give fluid boluses, atropine or inotropes only as ordered, monitor for bradycardia, heart block and vagal reactions, keep pacing pads on, and escalate promptly.',
       'STE III > II with ST depression in I/aVL favors RCA; STE ≥ 0.5 mm in V4R defines RV infarction. Manage RV shock with preload, inotropes, AV-synchronous pacing and early reperfusion (percutaneous RV support if refractory); watch for papillary muscle and septal rupture.',
+      'Record the 12-lead within 10 min, and V4R when ordered or per protocol. Before any nitroglycerin, check BP, ask about sildenafil or tadalafil and confirm the physician has seen V4R; hold it if SBP < 90 mmHg. Hypotension with clear lungs or bradycardia: pads on, fluids and atropine only on order, physician to the bedside at once.',
+      'Activate the cath lab and get V4R on every inferior STEMI: STE ≥ 0.5 mm means RV infarction, so no nitrates, small fluid boluses with reassessment and an inotrope if hypotension persists. Treat symptomatic bradycardia with atropine, then pacing, and use bedside echo for RV dilation or acute mitral regurgitation.',
     ],
     overview: [
       'STEMI from acute occlusion of the vessel supplying the inferior LV wall',
@@ -1048,7 +1066,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     id: 'lateral-stemi',
     name: 'Lateral STEMI',
     category: 'Ischemia / MI',
-    synonyms: ['Lateral wall MI', 'High lateral STEMI (I, aVL)', 'Low lateral STEMI (V5–V6)', 'Circumflex occlusion MI', 'Posterolateral MI (with posterior extension)'],
+    synonyms: ['Lateral wall MI', 'High lateral STEMI (I, aVL)', 'Low lateral STEMI (V5–V6)', 'Circumflex occlusion MI', 'Posterolateral MI (with posterior extension)', 'Posterior STEMI', 'Isolated posterior MI (anterior ST depression)'],
     summary:
       'A lateral STEMI is a heart attack affecting the side wall of the left ventricle, usually from blockage of the circumflex artery, an obtuse marginal branch or the first diagonal branch of the LAD. ECG changes can be subtle, so it is easily missed.',
     levelNotes: [
@@ -1057,6 +1075,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Anticipate an LCx, OM or diagonal culprit; the LCx is best seen in caudal views and may be tortuous. Prepare left-system guides, supportive wires and bifurcation equipment (extra wire, IVUS/OCT), and report ST, rhythm or pressure changes to the operator.',
       'Patients may arrive with a nondiagnostic ECG but ongoing pain: document pain scores, obtain serial ECGs per order and report persistent pain promptly. Administer antiplatelets and anticoagulants as ordered with ACT monitoring, and watch for arrhythmias, new murmur and hypotension.',
       'LCx occlusion is often electrically silent; treat refractory ischemia, instability or posterior STE (≥ 0.5 mm in V7–V9) as occlusion MI needing emergent angiography. Localize D1 vs OM vs LCx (South African flag = D1) and use intravascular imaging for LM/LCx or LCx/OM bifurcations.',
+      'A near-normal first ECG does not make ongoing chest pain low risk: repeat the 12-lead every 15–30 min or when the pain changes, add V7–V9 when ordered, and show each tracing to the physician. Give aspirin per standing order and report pain that will not settle.',
+      'Look for subtle STE in aVL with reciprocal ST depression in III and aVF, and get V7–V9 for ST depression in V1–V3; bedside echo can show a lateral wall motion abnormality. Refractory ischemic pain, instability or arrhythmia with a nondiagnostic ECG needs emergent angiography: call interventional cardiology.',
     ],
     overview: [
       'STEMI from acute occlusion of a vessel supplying the lateral LV wall',
@@ -1165,6 +1185,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'NSTE-ACS patients often have multivessel, left main or LCx disease: prepare FFR/iFR and IVUS/OCT equipment, equalize the pressure wire before measurements, and alert the operator to pressure damping or ventricularization on engagement, ST changes or arrhythmias.',
       'Verify allergies, renal function, anticoagulant timing (e.g., last enoxaparin dose) and bleeding risk; administer antiplatelets and anticoagulants as ordered. Report recurrent pain or ECG changes immediately, and after the procedure monitor the access site, bleeding and kidney function.',
       'Use hs-troponin 0/1-h or 0/2-h algorithms; separate type 1 MI, type 2 MI and nonischemic injury. Time the invasive strategy by risk: immediate (< 2 h) if very high risk, early (< 24 h) if high risk; ~25% have an occluded culprit, often LCx.',
+      'Record the 12-lead within 10 min, repeat it with new or returning pain, and draw the repeat hs-troponin on time (at 1 or 2 h, per the ED pathway). Give aspirin per standing order, ask about home anticoagulants before giving ordered heparin or enoxaparin, and report recurrent pain, ECG changes or hypotension at once.',
+      'Run the 0/1-h or 0/2-h hs-troponin pathway with HEART to rule out, observe or admit, and treat the cause of a type 2 MI (anemia, sepsis, tachyarrhythmia). For NSTE-ACS give aspirin and an anticoagulant, agree P2Y12 timing with cardiology, give no fibrinolytic, and call for immediate angiography for refractory pain or instability.',
     ],
     overview: [
       'NSTEMI: ischemic symptoms with a troponin rise and/or fall above the 99th percentile URL, without persistent STE',
@@ -1279,6 +1301,8 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
       'Expect a critical proximal LAD lesion that can occlude during engagement or wiring: prepare PCI equipment and IVUS/OCT for the LAD and left main ostium, and alert the operator immediately to chest pain, ST elevation, arrhythmias or pressure damping.',
       'A pain-free appearance should not lower vigilance: maintain continuous ECG monitoring, give antiplatelets, anticoagulants and nitroglycerin as ordered, and report recurrent pain or ST changes immediately as possible LAD reocclusion. Stress testing is contraindicated, so query any such order.',
       'Confirm criteria (pain-free, biphasic or deep symmetric V2–V3 T inversion, preserved R waves, no Q waves, ST < 1 mm, normal or mildly raised troponin) and exclude mimics. Avoid stress testing; perform urgent angiography, with intravascular imaging and Heart Team input for LM or multivessel disease.',
+      'Triage recent chest pain as high risk (ESI 2) even when it has stopped: record the 12-lead within 10 min, keep the patient on a monitor rather than in the waiting room, and show the ECG to the physician. Give aspirin per standing order and repeat the ECG at once if the pain returns.',
+      'Biphasic or deep symmetric V2–V3 T waves after chest pain that has stopped suggest critical proximal LAD stenosis: no stress test, no discharge. Treat as high-risk NSTE-ACS (aspirin, heparin), consider mimics such as PE or cocaine, and admit for angiography within 24 h; recurrent pain or new ST elevation means cath lab activation.',
     ],
     overview: [
       'ECG pattern of critical proximal LAD stenosis described by Wellens and de Zwaan in the 1980s',
@@ -1369,5 +1393,122 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     affectedStructures: ['lad-proximal', 'lad-mid', 'septal-perforators', 'd1', 'interventricular-septum', 'left-ventricle', 'apex'],
     relatedProcedures: ['coronary-angiography', 'pci-stent', 'ivus-oct', 'cabg'],
     relatedMedications: ['aspirin', 'heparin', 'enoxaparin', 'ticagrelor', 'nitroglycerin', 'metoprolol', 'atorvastatin'],
+  },
+
+  // Sources: AHA scientific statement on SCAD (Hayes et al., Circulation 2018;137:e523–e557, doi 10.1161/CIR.0000000000000564)
+  // for the conservative care, the heparin, the GP IIb/IIIa line, the beta-blocker, the 3–5 days of monitoring and the
+  // pregnancy warnings (renin-angiotensin blockers are teratogenic; atenolol and statins are avoided in pregnancy); the ESC
+  // position paper on SCAD (Adlam et al., Eur Heart J 2018;39:3353–3368, doi 10.1093/eurheartj/ehy080) for avoiding
+  // fibrinolysis — the AHA statement does not address lysis
+  scad: {
+    id: 'scad',
+    name: 'Spontaneous Coronary Artery Dissection (SCAD)',
+    category: 'Ischemia / MI',
+    synonyms: ['SCAD', 'Spontaneous coronary dissection', 'Intramural hematoma of a coronary artery', 'Pregnancy-associated MI', 'Postpartum heart attack'],
+    summary:
+      'A tear or a bleed inside the wall of a coronary artery, with no atherosclerosis, trauma or catheter to cause it. The blood in the wall squeezes the channel shut and causes a heart attack, usually in a woman under 60 with few risk factors, often after childbirth or a great physical or emotional stress. Most heal on their own, so it is treated differently from an ordinary heart attack: no clot-busting drug, no stent unless the artery is closing, and the heparin stopped once it is seen.',
+    levelNotes: [
+      'A young, healthy woman with chest pain — after a delivery, hard exercise or bad news — can be having a heart attack: treat it as one. Acquire and transmit the 12-lead, give aspirin per protocol, and take her to a PCI-capable center; tell the team about a recent pregnancy.',
+      'Treat SCAD as any ACS: 12-lead, aspirin, a STEMI alert for ST elevation, and transport to a PCI-capable center (the diagnosis needs an angiogram). Do not let her age or sex lower your suspicion, and report a pregnancy in the last months, breastfeeding, or a trigger.',
+      'Expect a long smooth narrowing of a mid or distal artery, not a plaque: keep the views and the catheter gentle (catheter dissection is more common in these arteries), avoid forceful injections and deep engagement, and have IVUS or OCT ready if the operator wants to confirm it.',
+      'Give heparin and antiplatelets as ordered before the angiogram, then be ready for the operator to stop the heparin once SCAD is seen. Watch her on telemetry: chest pain that comes back needs a 12-lead at once, because a dissection can extend in the first days.',
+      'Diagnose SCAD on the angiogram (intracoronary imaging only when it is unclear, gently). With flow preserved and a stable patient, manage it conservatively: no stent, heparin stopped, aspirin and a beta-blocker, 3–5 days of monitoring. Stent or bypass only for ongoing ischemia, instability or a left main dissection; screen for fibromuscular dysplasia.',
+      'Chest pain in a young woman — especially in the months after a delivery — gets the same triage as anyone else: a 12-lead within 10 minutes shown to the physician, aspirin on order or standing order, and the pads on. Record a recent pregnancy, breastfeeding and any trigger, and report recurring pain or a new rhythm at once.',
+      'A STEMI in a young woman with few risk factors may be SCAD, which only the angiogram shows: activate the cath lab rather than giving a fibrinolytic, which can extend the bleed in the wall. Give aspirin and heparin as for any STEMI and tell the lab about a recent pregnancy.',
+    ],
+    overview: [
+      'A dissection of an epicardial coronary artery that is not caused by atherosclerosis, trauma or a catheter',
+      'Up to 1–4 % of all acute coronary syndromes, and up to a third of heart attacks in women aged 50 or younger',
+      'Most patients are women in their 40s and 50s with few conventional risk factors; the most common cause of a heart attack around pregnancy (most in the first weeks after delivery)',
+      'Often follows a trigger: intense emotional stress, or intense physical effort (heavy lifting, isometric exercise), more often in men',
+      'Associated with fibromuscular dysplasia of other arteries (17–86 % of patients, depending on how they are screened), and rarely with connective tissue disorders',
+      'Recurrence is common over the following years, so it is a long-term condition, not a one-off event',
+    ],
+    anatomy: [
+      'The LAD and its branches are affected most often (about half of cases); the circumflex and the right coronary less often; several arteries in some',
+      'Usually the mid and distal segments, where the artery is smaller and smoother',
+      'The dissection plane is in the outer media: the blood in the wall (an intramural hematoma) bulges inward and narrows the true lumen',
+    ],
+    pathophysiology: [
+      'Either a tear in the inner lining lets blood into the wall, or a small vessel bleeds into the wall first; most cases show no tear at all',
+      'The hematoma compresses the true lumen from outside — there is little or no clot inside the artery to dissolve',
+      'Sex hormones, pregnancy, arteriopathies such as fibromuscular dysplasia and a sudden surge of catecholamines are thought to weaken the wall',
+      'Most dissections heal on their own over weeks to months (the artery looks normal again in 70–97 % of those restudied)',
+    ],
+    symptoms: [
+      'Chest pain like any heart attack, sometimes with arm, neck or back pain, nausea and sweating',
+      'Shortness of breath, palpitations, or fainting',
+      'Sudden cardiac arrest from VF in some',
+      'Often in a young, fit woman with no history of heart disease, after childbirth or a great stress',
+    ],
+    ecg: [
+      'The ECG of any acute coronary syndrome: STEMI, NSTEMI or no ST change',
+      'The territory of the dissected artery — most often anterior (the LAD)',
+      'Repeat the 12-lead with any new chest pain in the first days: an extending dissection causes new ischemia',
+    ],
+    imaging: [
+      'Coronary angiography is the first test: a long, smooth narrowing in a mid or distal segment (type 2, the most common), a double lumen with contrast in the wall (type 1), or a short narrowing that looks like a plaque (type 3)',
+      'Intravascular ultrasound or OCT shows the intramural hematoma when the angiogram is unclear; it carries a small risk of extending the tear, so it is used only when it changes management',
+      'CT or MR angiography from the head to the pelvis looks for fibromuscular dysplasia and aneurysms elsewhere',
+      'Echo for the left ventricle\'s function; cardiac MRI can show the infarct when the diagnosis is uncertain',
+    ],
+    medications: [
+      'Aspirin, as in any acute coronary syndrome, usually continued long term',
+      'Heparin is often started before the angiogram; once SCAD is diagnosed and no stent is placed, stopping it is appropriate (it may feed the bleed in the wall)',
+      'Avoid fibrinolysis (ESC position paper 2018): there is no clot to dissolve, and lysis can extend the hematoma — a young woman with a STEMI goes to the cath lab',
+      'GP IIb/IIIa inhibitors: no evidence of benefit and a theoretical risk of extending the dissection',
+      'A beta-blocker is reasonable: it was linked to fewer recurrences in a large Vancouver series',
+      'Dual antiplatelet therapy after a stent as usual; without a stent its role is uncertain',
+      'Nitrates or calcium-channel blockers for the chest pain many patients have afterward',
+      'ACE inhibitors and ARBs only with LV dysfunction or hypertension, never in pregnancy (fetal toxicity); atenolol and statins are avoided in pregnancy (AHA 2018)',
+    ],
+    fieldCare: [
+      'Treat as ACS: 12-lead and transmission, aspirin per protocol, and a STEMI alert for ST elevation',
+      'Transport to a PCI-capable center; a fibrinolytic is not the answer when SCAD is possible',
+      'Ask about a recent pregnancy or delivery, breastfeeding, a recent stress or heavy effort, and hormones',
+      'Be ready for VF: pads on and the defibrillator ready',
+    ],
+    hospitalCare: [
+      'Early angiography for every acute coronary syndrome, as usual: SCAD is diagnosed on the angiogram',
+      'Stable with preserved flow: conservative care, without a stent',
+      'Stop the heparin once SCAD is diagnosed, unless a stent or another indication needs it',
+      'Telemetry for 3–5 days: an extending dissection (5–10 % in the first week) causes new pain and ST change and may need emergency revascularization',
+      'Iodinated contrast is no reason to stop breastfeeding',
+    ],
+    cardiologyCare: [
+      'Revascularization only for ongoing ischemia, hemodynamic instability, a left main dissection or a closing artery — PCI in SCAD fails or extends the tear more often than in plaque',
+      'When a stent is needed: long stents well beyond both ends of the hematoma, direct stenting or a small balloon, and minimal injections',
+      'Aspirin, a beta-blocker, and medicines for the chest pain; an ACE inhibitor or ARB with a reduced ejection fraction — never in pregnancy (fetal toxicity: stop it before a planned pregnancy); while breastfeeding, enalapril or captopril',
+      'Screen for fibromuscular dysplasia once, head to pelvis',
+      'Cardiac rehabilitation, with heavy lifting and extreme effort avoided',
+      'Counseling about future pregnancy and hormone therapy, and attention to anxiety and depression, which are common afterward',
+    ],
+    procedure: [
+      'Coronary angiography with gentle catheter technique and careful views',
+      'Intravascular imaging (IVUS or OCT) only when the angiogram leaves the diagnosis unclear',
+      'PCI or bypass surgery reserved for the high-risk patient; most heal without them',
+    ],
+    complications: [
+      'Extension of the dissection in the first week, with new infarction',
+      'Recurrent SCAD in another segment or artery over the years',
+      'VF and sudden death in the acute phase',
+      'Heart failure after a large infarct',
+      'Iatrogenic dissection during angiography, more likely in these fragile arteries',
+    ],
+    teaching: [
+      'A heart attack in a young woman after childbirth is SCAD until the angiogram says otherwise',
+      'There is no clot to bust: fibrinolysis can make it worse',
+      'Most SCAD heals by itself — the best stent is often no stent',
+      'Chest pain after SCAD is common and often not new ischemia, but a new 12-lead is how you tell',
+    ],
+    redFlags: [
+      'Chest pain returning with new ST changes in the first days',
+      'VF or ventricular tachycardia',
+      'A left main or multivessel dissection',
+      'Hypotension or heart failure',
+    ],
+    affectedStructures: ['lad-mid', 'lad-distal', 'd1', 'om1', 'rca-distal', 'myocardium', 'left-ventricle'],
+    relatedProcedures: ['coronary-angiography', 'ivus-oct', 'pci-stent', 'cabg'],
+    relatedMedications: ['aspirin', 'heparin', 'metoprolol', 'nitroglycerin', 'clopidogrel', 'lisinopril'],
   },
 };

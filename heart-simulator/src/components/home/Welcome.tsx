@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
-import { useAppStore, LEVEL_LABELS, type LearningLevel } from '@/store/useAppStore';
+import { useAppStore, LEVEL_LABELS, ROLES, type LearningLevel } from '@/store/useAppStore';
 import { SCOPES } from '@/lib/scope';
 import { closeWelcome, useWelcomeStore, welcomeSeen } from '@/lib/welcome';
 import { onOverlayOpen, useBackNavStore } from '@/lib/backNav';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 
-const ROLES: LearningLevel[] = [1, 2, 3, 4, 5];
 /** how long "You're set up as …" stays after the card is put off */
 const NOTICE_MS = 7000;
 

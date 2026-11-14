@@ -1,5 +1,7 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
-import { bpAfter, has } from '../kit';
+import { bpAfter, has, paced } from '../kit';
+import { sameDrug } from '../rules/charge';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * The version this case teaches: atrial fibrillation with a rapid ventricular response in a man whose heart pumps at
@@ -16,6 +18,11 @@ const inAf = (s: SimState) => s.pulse && s.rhythm.profile === AF;
 
 /** Unstable and still fibrillating: the shock is overdue */
 const unstableAf = (s: SimState) => inAf(s) && has(s, 'unstable');
+/**
+ * The rule charged an earlier dose of this drug (at another dose or by another route too: rules/charge.ts). The act being
+ * judged has not yet moved the clock: its own penalties carry this minute
+ */
+const chargedEarlierOn = (s: SimState, ruleId: string, id: string) => s.penalties.some((p) => p.id === ruleId && p.minute < s.minute && sameDrug(p.action, id));
 
 /** Only a patient awake enough to talk says how it feels */
 const awake = (s: SimState, text: string, tone?: Line[2]): Line[] => (s.pulse && s.vitals.gcs >= 13 ? [tone ? ['patient', text, tone] : ['patient', text]] : []);
@@ -45,12 +52,35 @@ function adenosine(s: SimState): Effect | null {
   };
 }
 
+/**
+ * Calcium reverses part of what diltiazem did to the vessels and the squeeze; the fast rate is still the problem. Calcium
+ * chloride 1 g or calcium gluconate 3 g carry about the same calcium; only the chloride burns in a small vein
+ */
+function calciumAfterDiltiazem(s: SimState, salt: 'chloride' | 'gluconate'): Effect | null {
+  if (!inAf(s) || !has(s, 'diltiazem')) return null;
+  const bp = { sbp: Math.max(s.vitals.sbp, 92), dbp: Math.max(s.vitals.dbp, 56) };
+  return {
+    say: [
+      ['you', salt === 'chloride' ? 'Calcium chloride 1 g in slowly over a few minutes; line flushed.' : 'Calcium gluconate 3 g IV over 5–10 minutes; line flushed.'],
+      ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'good'], ...(salt === 'chloride' ? awake(s, '"That burns going up my arm."') : []),
+    ],
+    vitals: bp, flags: ['calcium'],
+  };
+}
+
 /** Adrenergic drugs raise the pressure and speed AV conduction: in atrial fibrillation the rate goes up */
 function adrenergic(s: SimState, dSbp: number, dDbp: number, flag: string): Effect | null {
   if (!inAf(s)) return null;
   const bp = bpAfter(s, dSbp, dDbp);
   const hr = Math.min(180, s.rhythm.hr + 8);
   return { say: [['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]], rhythm: { ...s.rhythm, hr }, vitals: bp, flags: [flag] };
+}
+
+/** Nitroglycerin for his congested lungs (no chest pain): 0.4 mg, or the 0.8 mg high dose */
+function nitroAf(s: SimState, high: boolean): Effect | null {
+  if (!inAf(s)) return null;
+  const bp = high ? bpAfter(s, -20, -10) : bpAfter(s, -10, -6);
+  return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`], ...awake(s, '"Maybe a little easier to breathe."')], vitals: bp, flags: high ? ['nitro', 'nitro-high'] : ['nitro'] };
 }
 
 export const afRvrField: Scenario = {
@@ -73,8 +103,9 @@ export const afRvrField: Scenario = {
     rhythm: { profile: AF, hr: 148 },
     vitals: { sbp: 112, dbp: 74, spo2: 93, rr: 24, etco2: 33, pain: 0, gcs: 15, glucose: 132, temp: 36.8 },
   },
-  // what the built-in drug rules need to know: a weak heart (procainamide is to be avoided in heart failure)
-  problems: ['heart-failure'],
+  // what the built-in drug rules need to know: a weak heart (procainamide is to be avoided in heart failure), and the fluid
+  // backing up into his lungs (crackles at both bases: no legs up, no bolus)
+  problems: ['heart-failure', 'pulmonary-edema'],
   facts: {
     // the onset time is what the hospital needs to decide on cardioversion and anticoagulation
     opqrst: 'It started suddenly at breakfast, about 7 o\'clock — three hours ago: a fluttering, racing heartbeat. Now I get breathless walking to the bathroom. No chest pain, no fainting. I\'ve never felt this before.',
@@ -133,6 +164,7 @@ export const afRvrField: Scenario = {
       }
       return { say: [['hospital', advice]], flags: ['med-control'] };
     },
+    adenosine3: adenosine,
     adenosine6: adenosine,
     adenosine12: adenosine,
     diltiazem: (s) => {
@@ -190,14 +222,8 @@ export const afRvrField: Scenario = {
       };
     },
     // calcium reverses part of what diltiazem did to the vessels and the squeeze; the fast rate is still the problem
-    'calcium-chloride': (s) => {
-      if (!inAf(s) || !has(s, 'diltiazem')) return null;
-      const bp = { sbp: Math.max(s.vitals.sbp, 92), dbp: Math.max(s.vitals.dbp, 56) };
-      return {
-        say: [['you', 'Calcium chloride 1 g in slowly over a few minutes; line flushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'good'], ...awake(s, '"That burns going up my arm."')],
-        vitals: bp, flags: ['calcium'],
-      };
-    },
+    'calcium-chloride': (s) => calciumAfterDiltiazem(s, 'chloride'),
+    'calcium-gluconate': (s) => calciumAfterDiltiazem(s, 'gluconate'),
     sedation: (s) => {
       if (!inAf(s)) return null;
       // a heart pumping at 30 % tolerates sedatives badly: the pressure falls more than in a normal heart
@@ -205,6 +231,15 @@ export const afRvrField: Scenario = {
       return {
         say: [['you', 'Small, titrated dose of sedation/analgesia: drowsy but rousable, airway fine, capnography on.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
         vitals: bp, flags: ['sedation'],
+      };
+    },
+    // midazolam is his sedation before a shock: the same small, titrated dose, and the weak heart drops the pressure the same way
+    midazolam: (s) => {
+      if (!inAf(s)) return null;
+      const bp = has(s, 'unstable') ? bpAfter(s, -4, -2) : bpAfter(s, -8, -4);
+      return {
+        say: [['you', 'Midazolam 1 mg IV, small and titrated: drowsy but rousable, airway fine, capnography on.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]],
+        vitals: bp, flags: ['sedation', 'benzodiazepine'],
       };
     },
     cardiovert: (s) => {
@@ -288,12 +323,10 @@ export const afRvrField: Scenario = {
       const hr = Math.min(180, s.rhythm.hr + 10);
       return { say: [['monitor', `Heart rate ${hr}.`]], rhythm: { ...s.rhythm, hr }, flags: ['atropine'] };
     },
-    // he has no chest pain: nitroglycerin only unloads his congested lungs a little, and lowers the pressure
-    nitro: (s) => {
-      if (!inAf(s)) return null;
-      const bp = bpAfter(s, -10, -6);
-      return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`], ...awake(s, '"Maybe a little easier to breathe."')], vitals: bp, flags: ['nitro'] };
-    },
+    // he has no chest pain: nitroglycerin only unloads his congested lungs a little, and lowers the pressure (the high
+    // dose twice as much)
+    nitro: (s) => nitroAf(s, false),
+    'nitro-high': (s) => nitroAf(s, true),
     // no pain to treat: fentanyl only takes the edge off a shock to come (it counts as analgesia for one)
     fentanyl: (s) => {
       if (!inAf(s)) return null;
@@ -391,11 +424,15 @@ export const afRvrField: Scenario = {
     { id: 'transport', label: 'Transport', why: 'He needs the hospital to decide on rhythm control and anticoagulation, and his heart failure treated.', done: ['transport-near', 'transport-pci'], points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report the onset time (about 3 hours: under 48), the ejection fraction of 30 %, his medicines (no anticoagulant), what you gave and when, and how he responded.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     // the case's central trap: rescued perfectly, it still leaves the run below "Competent"
     { id: 'diltiazem-hfref', actions: ['diltiazem'], when: (s) => s.pulse, points: 25, severity: 'critical', replaces: ['diltiazem-heart-failure'], text: 'Diltiazem in a heart that pumps at 30 %. Calcium-channel blockers weaken the squeeze and dilate the vessels: with a reduced ejection fraction IV diltiazem and verapamil must not be given, with or without decompensated heart failure (2023 ACC/AHA AF guideline: 3 — Harm), and his failing heart could not hold its pressure. Take the history before the drug; with a weak, congested heart, amiodarone (or a synchronized shock if he is unstable).' },
-    { id: 'metoprolol-decompensated', actions: ['metoprolol'], when: (s) => inAf(s), points: 4, severity: 'minor', text: 'IV metoprolol in a weak heart that is backing up into the lungs. A beta-blocker is a fair choice for a weak heart that is not congested (2023 AF guideline), but his crackles, low SpO₂ and new breathlessness are decompensated heart failure, where IV beta-blockers are to be avoided (2025 AHA) — and he already takes carvedilol: the extra dose weakened the squeeze more than it slowed the rate. Amiodarone is the drug here.' },
-    { id: 'adenosine-af', actions: ['adenosine6', 'adenosine12'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'Adenosine does not convert atrial fibrillation. The atria fibrillate on their own, with no circuit through the AV node to break: adenosine slows the rate for seconds and the same rhythm comes back. It is for a regular narrow-complex tachycardia — and in pre-excited AF it can be dangerous.' },
+    // at the weight of the label contraindication it stands for (beta-blocker-pulmonary-edema): decompensated heart failure
+    // rules beta-blockade out, and the case says why in his own findings. Once he is unstable, antiarrhythmic-unstable
+    // speaks for the dose (one dose, one penalty; it charges once for each drug, rules/charge.ts) — unless it was charged on
+    // an earlier dose of metoprolol: then this dose is judged on its own, and never goes free
+    { id: 'metoprolol-decompensated', actions: ['metoprolol'], when: (s, _sc, id) => inAf(s) && (!unstableAf(s) || chargedEarlierOn(s, 'antiarrhythmic-unstable', id)), replaces: RATE_RULES, points: 8, severity: 'major', text: 'IV metoprolol in a weak heart that is backing up into the lungs. A beta-blocker is a fair choice for a weak heart that is not congested (2023 AF guideline), but his crackles, low SpO₂ and new breathlessness are decompensated heart failure, where IV beta-blockers are to be avoided (2025 AHA) — and he already takes carvedilol: the extra dose weakened the squeeze more than it slowed the rate. Amiodarone is the drug here.' },
+    { id: 'adenosine-af', actions: ['adenosine3', 'adenosine6', 'adenosine12'], when: (s) => inAf(s), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'Adenosine does not convert atrial fibrillation. The atria fibrillate on their own, with no circuit through the AV node to break: adenosine slows the rate for seconds and the same rhythm comes back. It is for a regular narrow-complex tachycardia — and in pre-excited AF it can be dangerous.' },
     // he takes aspirin 81 mg for his old infarct, so the point is "aspirin is not anticoagulation", not "aspirin is never right"
     { id: 'aspirin-anticoagulation', actions: ['aspirin'], points: 3, severity: 'minor', text: 'A loading dose of aspirin with no indication. Aspirin is not stroke prevention in atrial fibrillation (2023 ACC/AHA AF guideline: aspirin as an alternative to anticoagulation is not recommended), he already takes 81 mg a day for his old infarct, and with no ischemic chest pain and no ST elevation a 324 mg dose treats nothing. Whether and how he is anticoagulated — and when sinus rhythm can safely be restored — is decided at the hospital, from the onset time you report.' },
     // a judgment call: his early congestion is the gray zone of "acute heart failure", so a sedated shock costs a little and
@@ -403,21 +440,24 @@ export const afRvrField: Scenario = {
     { id: 'cardiovert-stable', actions: ['cardiovert'], when: (s) => inAf(s) && !has(s, 'unstable'), points: 5, severity: 'minor', text: 'Synchronized cardioversion while he was hemodynamically stable. His pressure was normal and he was alert and talking in full sentences: the basal crackles were early congestion, not the shock or pulmonary edema that makes a shock urgent, so rate control comes first. An elective shock in a man with his stroke risk (CHA₂DS₂-VASc 3: heart failure, age 70, old infarct) needs anticoagulation started before it (2023 ACC/AHA AF guideline), and its sedation is hard on a heart pumping at 30 %: restoring sinus rhythm is the hospital\'s decision.' },
     { id: 'no-sedation', actions: ['cardiovert'], when: (s) => inAf(s) && s.vitals.gcs >= 14 && !has(s, 'sedation') && !has(s, 'analgesia'), points: 3, severity: 'minor', text: 'Cardioversion of an awake patient without sedation or analgesia.' },
     {
-      id: 'antiarrhythmic-unstable', actions: ['amio-infusion', 'procainamide', 'diltiazem', 'metoprolol'], when: (s) => unstableAf(s), points: 8, severity: 'major',
-      // the same mistake as the built-in "procainamide with a pressure under 90": one mistake, one penalty
-      replaces: ['procainamide-hypotension'],
+      // (diltiazem is diltiazem-hfref's, at any pressure: one dose, one penalty, the heavier)
+      id: 'antiarrhythmic-unstable', actions: ['amio-infusion', 'procainamide', 'metoprolol'], when: (s) => unstableAf(s), points: 8, severity: 'major',
+      // the same mistake as the built-in "procainamide with a pressure under 90" (and, here, in a failing heart): one
+      // mistake, one penalty
+      replaces: ['procainamide-hypotension', 'procainamide-heart-failure', ...RATE_RULES],
       text: 'A drug for an unstable patient. Once he had become unstable, the treatment was an immediate synchronized shock (200 J or more), not an infusion that takes minutes to work and drops the pressure further.',
     },
     // atropine is for a slow rate; in a fast one it only lets more impulses through the AV node
-    { id: 'atropine-fast', actions: ['atropine'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'Atropine for a fast heart rate. It is for symptomatic bradycardia; it speeds AV conduction, so with fibrillating atria the ventricular rate went up.' },
-    { id: 'beta-agonist-no-indication', actions: ['epi-im', 'albuterol'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'A beta-agonist with no anaphylaxis and no wheeze. His breathlessness is fluid from a weak heart (crackles, not wheezing): IM epinephrine or albuterol treats nothing here, and speeds AV conduction, so the rate went up.' },
+    // the built-in rule's id: in AF, and after the conversion to sinus rhythm (a rate of 60 or more) as the built-in judges it
+    { id: 'atropine-fast', actions: ['atropine'], when: (s) => s.pulse && !paced(s) && (inAf(s) || s.rhythm.hr >= 60), points: 3, severity: 'minor', text: 'Atropine for a heart rate that is not slow. It is for symptomatic bradycardia: it speeds AV conduction, so with fibrillating atria the ventricular rate goes up — and in sinus rhythm at 60 or more it has nothing to treat, and any speeding adds to the oxygen demand of a failing heart.' },
+    { id: 'beta-agonist-no-indication', actions: ['epi-im', 'albuterol'], when: (s) => inAf(s), replaces: ['albuterol-no-bronchospasm', 'epi-im-no-anaphylaxis'], points: 3, severity: 'minor', text: 'A beta-agonist with no anaphylaxis and no wheeze. His breathlessness is fluid from a weak heart (crackles, not wheezing): IM epinephrine or albuterol treats nothing here, and speeds AV conduction, so the rate went up.' },
     { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. His 12-lead shows none: a fast rate in a weak heart can cause chest tightness and a troponin rise, but that is the emergency department\'s to sort out, not the cath lab team\'s to be called in for.' },
-    { id: 'fluid-hf', actions: ['fluid'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A fluid bolus for a failing heart with crackles at both bases. It goes to the lungs: his pressure falls because of the fast rate (and any drug), not for want of volume.' },
-    { id: 'cpap-hypotension', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 5, severity: 'major', text: 'CPAP with a systolic pressure under 90. Positive pressure cuts the blood returning to the heart and drops the pressure further.' },
+    { id: 'fluid-hf', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A fluid bolus for a failing heart with crackles at both bases. It goes to the lungs: his pressure falls because of the fast rate (and any drug), not for want of volume.' },
+    { id: 'cpap-hypotension', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 5, severity: 'major', text: 'CPAP with a systolic pressure under 90. Positive pressure cuts the blood returning to the heart and drops the pressure further.' },
     // calcium for the low pressure diltiazem caused: the built-in rule 'calcium-no-indication' spares it (a pulse and a
     // systolic under 90), and still charges it once the pressure is back or in the arrest an unsynchronized shock can cause
-    { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs speed AV conduction: in atrial fibrillation the rate goes up.' },
-  ],
+    { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs speed AV conduction: in atrial fibrillation the rate goes up.' },
+  ]),
   timings: [
     { label: '12-lead', actions: ['ecg12'], target: 8 },
     { label: 'Rate control started (amiodarone or a synchronized shock)', actions: ['amio-infusion', 'cardiovert'], target: 12 },

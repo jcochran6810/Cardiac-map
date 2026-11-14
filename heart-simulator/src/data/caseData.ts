@@ -6,7 +6,7 @@
  * Educational content only — typical adult doses; always verify against local protocol.
  */
 
-import type { CaseDecision } from '../types/content';
+import type { CaseDecision, LevelNotes } from '../types/content';
 
 export interface CaseVitals {
   hr: number;
@@ -35,8 +35,11 @@ export interface CaseData {
   disposition: string;          // Expected outcome / disposition
   teaching: string[];           // Educational pearls
   decisions: CaseDecision[];    // Ordered decision points with feedback
-  /** What each role does in this case, within its scope: [EMT, Paramedic, Cath lab tech, Cath lab RN, Cardiologist] */
-  roleBriefs?: [string, string, string, string, string];
+  /**
+   * What each role does in this case, within its scope, by position: [EMT, Paramedic, Cath lab tech, Cath lab RN,
+   * Cardiologist, ER nurse, ER doctor] — five, or all seven once the ER briefs are written. Read through levelNote().
+   */
+  roleBriefs?: LevelNotes;
 }
 
 export const CASE_DATA: Record<string, CaseData> = {
@@ -95,12 +98,15 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Involved once the cardiologist books angiography (here immediate, after refractory pain): prepare the room, sterile field and radial/femoral access setup with diagnostic and PCI equipment. Record pressures and ECG throughout and alert the operator at once to arrhythmias, ST change or pressure damping.',
       'Before angiography verify consent, contrast allergy, renal function and anticoagulant/P2Y12 timing; give ordered heparin, antiplatelets and moderate sedation on the practitioner’s order with capnography. Monitor ACT, rhythm and hemodynamics, then manage the access site and post-procedure monitoring.',
       'Diagnose NSTEMI from symptoms, dynamic ST depression and a rising hs-troponin, prescribe antiplatelet, anticoagulant and anti-ischemic therapy, and time angiography by risk. Refractory angina makes this very-high-risk NSTE-ACS: immediate (< 2 h) angiography and culprit revascularization.',
+      'Triage him ESI 2, record the 12-lead within 10 minutes and show it to the physician at once, start the monitor and an IV, and give chewed aspirin and SL nitroglycerin per the standing order (no oxygen at SpO2 96%). Draw the hs-troponins on time; if the pain persists or worsens, repeat the ECG and call the physician.',
+      'Read the ECG within 10 minutes: lateral ST depression, no STEMI or occlusion-MI equivalent, so no activation or fibrinolytic; a rising 0/1-hour hs-troponin makes it NSTEMI. Order aspirin, heparin and a statin, time the P2Y12 with cardiology, and call them back at once for angiography within 2 hours when the pain turns refractory.',
     ],
     decisions: [
       {
         id: 'chest-pain-acs-1',
         stage: 'Initial assessment (arrival)',
         owner: 4,
+        alsoOwner: [6],
         prompt: 'He arrives by private car with ongoing 8/10 chest pressure. SpO2 96% on room air. As the nurse receiving him under the chest-pain protocol, what is your first priority?',
         options: [
           {
@@ -129,6 +135,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'chest-pain-acs-2',
         stage: 'Key diagnostic step (15 minutes)',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'How should this presentation be classified?',
         update: 'ECG: sinus rhythm 88, 1.5 mm horizontal ST depression in V4–V6, I and aVL; no ST elevation. hs-troponin I: 48 ng/L at 0 h → 112 ng/L at 1 h (99th-percentile URL 26 ng/L).',
         options: [
@@ -158,6 +165,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'chest-pain-acs-3',
         stage: 'Treatment (20 minutes)',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Pain is now 6/10. BP 146/90, HR 86, no crackles. Which initial treatment bundle is most appropriate?',
         options: [
           {
@@ -267,6 +275,8 @@ export const CASE_DATA: Record<string, CaseData> = {
       'On activation, open the room and prepare the sterile field, access kit, guide catheters, wires, balloons and stents. On arrival connect the ECG and pressure transducers, apply radiation-safety practice, and alert the team immediately to VF, ST change or pressure damping.',
       'Receive the patient, verify allergies and antithrombotic status, and give heparin and the P2Y12 load on order, checking ACT against the ordered target. If VF occurs, defibrillate per ACLS and resume CPR; after PCI, monitor the access site, rhythm and hemodynamics.',
       'Confirm the anterior STEMI and perform primary PCI of the proximal LAD within the FMC-to-device goal, choosing the antithrombotic regimen and managing peri-procedural VF. Set secondary prevention (DAPT duration, statin, beta-blocker, ACEi/ARB/ARNI, MRA) and reassess LVEF ≥ 40 days before any ICD decision.',
+      'If he stops in the ED on the way to the lab, keep it to minutes: take the EMS handoff (aspirin and its time), keep the pads on and the monitor running, and give heparin and the P2Y12 load on order. Travel to the lab with the defibrillator; VF gets an immediate shock per ACLS, then CPR.',
+      'Confirm the transmitted anterior STEMI and send him straight to the cath lab without a repeat ECG or troponin, ordering heparin and the P2Y12 load per protocol and leading any VF arrest. Had he reached a non-PCI ED: transfer if PCI can happen within 120 minutes of first contact, otherwise a fibrinolytic (no contraindication), then transfer.',
     ],
     decisions: [
       {
@@ -496,6 +506,8 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Outside the usual cath-lab setting acutely. If she is booked for an EP study and ablation, help prepare the room and equipment, record the ECG and intracardiac signals as directed, and alert the operator at once to AV block during slow-pathway ablation.',
       'In the ED or EP lab, give adenosine (rapid push with flush) on order and moderate sedation only on the practitioner’s order with the practitioner present, with capnography and pads on; monitor rhythm and BP after conversion. Before ablation verify consent, fasting and medication holds, and teach the modified Valsalva maneuver at discharge.',
       'Confirm instability and direct synchronized cardioversion, then review the post-conversion ECG for pre-excitation. Recommend catheter ablation (slow-pathway modification for AVNRT, > 95% success) as first-line long-term therapy, with a beta-blocker or calcium-channel blocker as bridge or alternative.',
+      'Move her to a resuscitation bed with pads on and an antecubital IV, and give adenosine on order as a rapid push and flush with a strip running. For cardioversion select SYNC and check a marker on each R wave, give sedation only on the physician’s order with the physician present, and reselect SYNC before any repeat shock.',
+      'Hypotension with new confusion makes her unstable: synchronized cardioversion at 100 J biphasic, escalating, with brief sedation only if it causes no delay, and adenosine 6 then 12 mg only while the pads go on. Read the post-conversion 12-lead for a delta wave, observe her on the monitor, and refer to EP for ablation.',
     ],
     decisions: [
       {
@@ -668,6 +680,8 @@ export const CASE_DATA: Record<string, CaseData> = {
       'If he comes to the lab for transvenous pacing, prepare the sterile field, pacing catheter and pacing generator, record capture thresholds as directed, and alert the operator to loss of capture or ectopy. A permanent pacemaker implant may follow once reversible causes are corrected.',
       'Keep pads on and pacing running, monitor capture, BP and mentation, and give analgesia/sedation, calcium, insulin–dextrose, digoxin-specific Fab and infusions only on physician order. Hold metoprolol, digoxin and lisinopril as ordered and monitor the transvenous pacer site and rhythm.',
       'Recognize a BRASH-type picture (AV nodal blockers, digoxin toxicity, AKI, hyperkalemia), order correction of hyperkalemia and digoxin-specific Fab, and place a transvenous pacer as a bridge. Decide on a permanent pacemaker only if block persists after reversible causes are corrected.',
+      'Pads on, oxygen for SpO2 88%, an IV (IO if it fails) and atropine 1 mg on order, never letting it delay pacing; pace per ACLS as the physician directs and confirm capture by a femoral pulse. Draw potassium, creatinine and a digoxin level, give analgesia on order, and report his metoprolol and digoxin.',
+      'Complete heart block with a wide escape rarely answers atropine: pace transcutaneously or start epinephrine 2–10 mcg/min now, and place a transvenous wire if capture is unreliable. Treat the drivers (correct the hyperkalemia, digoxin-specific Fab for the toxic level, stop the AV nodal blockers) and admit to the ICU with cardiology.',
     ],
     decisions: [
       {
@@ -759,6 +773,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'bradycardia-with-shock-4',
         stage: 'One hour later',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the best next plan?',
         update: 'Mechanical capture at 90 mA; BP 104/62. Labs: K+ 6.2 mmol/L, creatinine 2.4 mg/dL (baseline 1.1), digoxin 2.6 ng/mL (toxic range).',
         options: [
@@ -840,6 +855,8 @@ export const CASE_DATA: Record<string, CaseData> = {
       'If he comes to the lab for urgent VT ablation or VA-ECMO cannulation, prepare the room, sterile field and catheters or cannulation supplies as directed. Record hemodynamics and rhythm and alert the operator immediately to recurrent VT or pressure loss.',
       'Give amiodarone, lidocaine and K+/Mg2+ replacement on order, keep external defibrillation ready, and monitor rhythm, BP, lactate and urine output, escalating deterioration early. Deep sedation for sympatholysis is managed by anesthesia/critical care; during ablation or MCS, monitor ACT, access sites and limb perfusion.',
       'Direct cardioversion, antiarrhythmic and electrolyte therapy, interrogate and reprogram the ICD, and escalate sympatholysis (lidocaine, sedation, nonselective beta-blocker, stellate ganglion block). Decide on urgent catheter ablation and VA-ECMO as a bridge, with the advanced HF team.',
+      'Place pads anterior–posterior away from the ICD generator, cardiovert per ACLS as the physician directs with sedation on order, and run the amiodarone bolus and infusion on a pump. Send potassium and magnesium, replace them on order, log each VT episode and ICD shock with its time, and set up for intubation in case deep sedation is ordered.',
+      'Cardiovert unstable monomorphic VT synchronized (about 100 J biphasic, sedation if time allows), load amiodarone, replace K+ and Mg2+, and add lidocaine if it recurs. Have the ICD interrogated, look for ischemia and other triggers, deepen sedation for sympatholysis (intubating if needed), and admit to the ICU with EP for urgent ablation.',
     ],
     decisions: [
       {
@@ -874,6 +891,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'vt-storm-2',
         stage: '20 minutes later',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the most important next step?',
         update: 'Sinus rhythm at 92 after one 100 J synchronized shock, then two further VT episodes terminated by ICD shocks. Labs: K+ 3.1 mmol/L, Mg 1.4 mg/dL, hs-troponin mildly elevated and flat. ECG between episodes: old anterior Q waves, no new ST elevation.',
         options: [
@@ -1012,12 +1030,15 @@ export const CASE_DATA: Record<string, CaseData> = {
       'If pericardiocentesis is done in the cath lab, prepare the pericardiocentesis kit, pigtail drain and pressure transducer, record intrapericardial and right-heart pressures as directed, and label fluid samples. Alert the operator to bradycardia, ectopy or a falling BP during needle entry.',
       'Monitor BP, pulsus paradoxus, rhythm and mentation, give fluids and medications only on order, and prepare for emergency drainage and ACLS. After drainage, manage the pericardial drain (output, dressing, patency) and report signs of re-accumulation.',
       'Confirm tamponade physiology on echo, perform urgent echo-guided pericardiocentesis with a pigtail drain, and avoid intubation and diuretics before drainage. Direct the etiologic workup (malignancy, TB, autoimmune) and decide on a surgical window if the effusion recurs or is loculated.',
+      'Keep her sitting up, measure the pulsus paradoxus with a manual cuff, and give a small fluid bolus on order, questioning any diuretic or nitrate order before it is given. Set up for bedside pericardiocentesis (ultrasound, kit, pads, atropine), watch rhythm and BP during needle entry, then record the drain output and report a falling BP.',
+      'Confirm tamponade on bedside echo (effusion, RA and RV collapse, plethoric IVC), give a small bolus, and avoid intubation, diuretics and vasodilators. Hypotension means drainage now: do the echo-guided pericardiocentesis yourself if cardiology cannot come at once, leave a drain, send fluid for cytology and TB testing, and admit to the ICU.',
     ],
     decisions: [
       {
         id: 'tamponade-1',
         stage: 'Initial assessment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Hypotensive, tachycardic, distended neck veins, clear lungs, pulsus paradoxus 18 mmHg. What is the most useful immediate test?',
         options: [
           {
@@ -1046,6 +1067,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'tamponade-2',
         stage: 'Key diagnostic step',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'How do you interpret these findings?',
         update: 'Echo: large circumferential effusion (~2.5 cm), RA systolic collapse, RV early-diastolic collapse, IVC 2.4 cm without respiratory variation, mitral inflow variation 35%. ECG: sinus tachycardia 118, low voltage, electrical alternans.',
         options: [
@@ -1075,6 +1097,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'tamponade-3',
         stage: 'Preparing for drainage',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the best interim management?',
         update: 'BP 82/66 and falling, RR 30, SpO2 91%. The pericardiocentesis kit will be ready in 10 minutes. A colleague proposes intubation for work of breathing.',
         options: [
@@ -1184,12 +1207,15 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Involved only if catheter-directed therapy is chosen: prepare venous access supplies and the thrombectomy or infusion catheters requested, record right-heart and pulmonary artery pressures, and alert the operator to arrhythmias or hemodynamic deterioration.',
       'Give anticoagulation on order (weight-based LMWH, or a UFH bolus and infusion titrated per the anti-Xa/aPTT protocol) and any lytic as ordered, monitoring for bleeding, worsening hypoxemia and hypotension and escalating early. For catheter-directed therapy, give moderate sedation on order with capnography and care for the access site.',
       'As part of the PE response team, confirm the diagnosis on CTPA, risk-stratify (RV dysfunction plus troponin with normal BP = AHA/ACC category C3, formerly intermediate-high risk) and choose anticoagulation and monitoring. Decide on rescue reperfusion (systemic lysis, catheter-directed therapy or embolectomy) when she decompensates.',
+      'Triage her ESI 2, record a 12-lead within 10 minutes, give oxygen for SpO2 below 90%, and place a large antecubital IV for the CT contrast, sending a pregnancy test on order. Give enoxaparin on order against a measured weight, go to CT with the monitor, and report a rising heart rate, falling BP or growing oxygen need at once.',
+      'With a high Wells score, skip the D-dimer, start LMWH before imaging and order CTPA; risk-stratify with RV size on CT or bedside echo, troponin and BNP, and involve the PE response team. With sustained hypotension, give systemic alteplase unless contraindicated, with norepinephrine and cautious fluids, and avoid intubation if possible.',
     ],
     decisions: [
       {
         id: 'pe-presentation-1',
         stage: 'Initial assessment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'HR 112, SpO2 89%, unilateral calf swelling, BP 108/72; PE is the most likely diagnosis. What is the best diagnostic approach?',
         options: [
           {
@@ -1218,6 +1244,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'pe-presentation-2',
         stage: 'Key diagnostic step',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'How do you risk-stratify this PE?',
         update: 'CTPA: bilateral main and lobar pulmonary emboli; RV/LV ratio 1.3. hs-troponin and NT-proBNP elevated. BP 106/70, HR 110, SpO2 94% on 2 L.',
         options: [
@@ -1247,6 +1274,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'pe-presentation-3',
         stage: 'Treatment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Which management is most appropriate now?',
         options: [
           {
@@ -1356,12 +1384,15 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Usually not involved: coronary angiography is avoided because catheter manipulation can extend the dissection. If a suspected dissection reaches the lab (e.g., as a STEMI mimic), alert the operator and prepare for emergency transfer to surgery.',
       'Hold aspirin and heparin until dissection is excluded, give analgesia, the beta-blocker and then the vasodilator on order to the ordered HR and SBP targets, and monitor bilateral arm pressures, perfusion and neurologic status. Escalate immediately for hypotension, new JVD or muffled heart sounds.',
       'Recognize high-risk dissection, withhold antithrombotics, and order CTA with immediate cardiac surgery consultation. Direct anti-impulse therapy (beta-blocker before vasodilator; HR 60–80, SBP < 120) and coordinate emergency surgery for type A, avoiding aggressive needle drainage of hemopericardium.',
+      'At triage, check BP in both arms, hold the protocol aspirin and report the 36 mmHg difference and tearing pain to the physician at once. Titrate esmolol on order to the HR target before any vasodilator, follow pressures, pulses and neuro checks, and report hypotension, new JVD or muffled heart sounds immediately.',
+      'ADD-RS 3 means no D-dimer and no antithrombotics: bedside echo, CTA of the chest, abdomen and pelvis, and cardiac surgery called as soon as the flap is seen. Give an IV opioid, then esmolol to HR 60–80 before nicardipine to SBP < 120; type A goes to the OR, with only small-volume pericardial drainage if arrest is imminent.',
     ],
     decisions: [
       {
         id: 'aortic-dissection-1',
         stage: 'Triage',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Triage started the chest pain protocol and asks whether to give aspirin 324 mg and heparin. As the treating physician, what do you do?',
         options: [
           {
@@ -1390,6 +1421,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'aortic-dissection-2',
         stage: 'Key diagnostic step',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the best next step for diagnosis and planning?',
         update: 'ECG: sinus tachycardia 102 with LVH, no ST elevation. Bedside TTE: aortic root 5.0 cm with a mobile intimal flap, moderate AR, no pericardial effusion. Creatinine 1.0 mg/dL.',
         options: [
@@ -1419,6 +1451,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'aortic-dissection-3',
         stage: 'Treatment',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'BP 198/112, HR 102, pain 9/10. Which anti-impulse regimen is best?',
         options: [
           {
@@ -1447,6 +1480,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'aortic-dissection-4',
         stage: 'Complication',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'What is the most appropriate action?',
         update: 'CTA: Stanford type A dissection from the aortic root to the iliac arteries. While awaiting the OR, BP suddenly falls to 76/40 with JVD, muffled heart sounds and new pericardial fluid on echo.',
         options: [
@@ -1529,12 +1563,15 @@ export const CASE_DATA: Record<string, CaseData> = {
       'Prepare for emergency PCI with possible mechanical support: room, large-bore access supplies and the microaxial pump or IABP console as directed. Record hemodynamics, including PA-catheter values (CI, PCWP, RAP, PAPi), and alert the operator to arrhythmias and pressure changes.',
       'Titrate norepinephrine and dobutamine within ordered parameters, give heparin and antiplatelets on order with ACT monitoring, and track oxygenation, mentation, urine output and lactate. After MCS insertion, check limb perfusion, access-site bleeding and signs of hemolysis, escalating promptly.',
       'Activate the shock team, perform emergency culprit-only PCI of the LAD (CULPRIT-SHOCK) and exclude mechanical complications on echo. Use PA-catheter hemodynamics to choose vasopressor/inotrope therapy and mechanical support (e.g., a microaxial pump for LV-predominant failure, per DanGer Shock).',
+      'In the rural ED, start two IVs and norepinephrine on order, titrated to the ordered MAP with the site checked for extravasation, and track mentation, SpO2, lactate and urine output. Prepare for intubation with the pressor already running, then package him for air transfer with infusions on pumps, a copy of the ECG and an SBAR handoff.',
+      'STEMI with shock needs emergency PCI however late he presents: transfer now with aspirin, heparin, norepinephrine to MAP ≥ 65 and airway support, intubating with a pressor running if needed. Use bedside echo to look for a mechanical complication behind the new murmur, avoid fluid boluses, and use lysis only if PCI is truly unavailable.',
     ],
     decisions: [
       {
         id: 'cardiogenic-shock-1',
         stage: 'Rural ED',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'Anterior STEMI ~6 h old, BP 76/52, cold and wet, lactate 5.8 mmol/L. The nearest PCI center is 70 minutes away by air. What is the priority?',
         options: [
           {
@@ -1563,6 +1600,7 @@ export const CASE_DATA: Record<string, CaseData> = {
         id: 'cardiogenic-shock-2',
         stage: 'Before transfer',
         owner: 5,
+        alsoOwner: [7],
         prompt: 'He has a new soft apical systolic murmur. Why does this matter, and what do you do?',
         options: [
           {

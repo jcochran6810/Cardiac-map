@@ -193,7 +193,7 @@ export const CATH_IMAGES: Partial<Record<string, CathImage>> = {
   'stent-thrombosis': {
     src: '/cath-images/stent-thrombosis.jpg', width: 750, height: 823,
     alt: 'Left coronary angiogram, RAO caudal view',
-    caption: 'Stent thrombosis: the LAD is occluded at the stent (arrow). In this patient an allergic reaction to contrast set it off (Kounis syndrome).',
+    caption: 'Stent thrombosis: the LAD is occluded at the stent (arrow). In the published case this image comes from, a stent placed years earlier clotted about 30 minutes after an allergic reaction to CT contrast (Kounis syndrome type III); whatever sets it off, a stent that has clotted looks the same.',
     credit: 'Okuda R, Utsumi S, Tanaka H, et al. Cureus 2024;16:e55514, fig. 2', ...CC_BY_4, source: pmc('PMC10915903'),
   },
   'lm-lao-caudal': {
@@ -229,7 +229,7 @@ export const CATH_IMAGES: Partial<Record<string, CathImage>> = {
   'tamponade-echo': {
     src: '/cath-images/tamponade-echo.jpg', width: 354, height: 265,
     alt: 'Echocardiogram, apical four-chamber view',
-    caption: 'A large pericardial effusion all around the heart, squeezing the right atrium and right ventricle: tamponade. (In this patient a chest wound caused it.)',
+    caption: 'A large pericardial effusion all around the heart, squeezing the right atrium and right ventricle: tamponade. (In the patient this image comes from, a chest wound caused it.)',
     credit: 'Almehmadi F, Chandy M, Connelly KA, Edwards J. Case Rep Cardiol 2016;2016:2154748, fig. 2a (cropped)', ...CC_BY_4, source: pmc('PMC5019924'),
   },
   'impella-position': {

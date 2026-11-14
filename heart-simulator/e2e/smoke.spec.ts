@@ -53,6 +53,18 @@ test('first visit: the welcome card asks for a role', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Learn step by step/ })).toBeVisible();
 });
 
+test('first visit: the welcome card offers the ER roles too', async ({ page }) => {
+  await page.goto('/#welcome', { waitUntil: 'domcontentloaded' });
+  const welcome = page.getByRole('dialog');
+  await expect(welcome).toBeVisible();
+  await welcome.getByRole('button', { name: /^ER Doctor/ }).click();
+  await expect(welcome.getByText('You are set up as ER Doctor.')).toBeVisible();
+  await noSidewaysScroll(page, 'welcome card, ER doctor chosen');
+  await welcome.getByRole('button', { name: /Choose a different role/ }).click();
+  await welcome.getByRole('button', { name: /^ER Nurse/ }).click();
+  await expect(welcome.getByText('You are set up as ER Nurse.')).toBeVisible();
+});
+
 test('a condition with its 12-lead', async ({ page }) => {
   await openMenu(page);
   const search = page.getByRole('combobox').first();

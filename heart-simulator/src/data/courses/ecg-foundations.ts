@@ -20,7 +20,7 @@ export const ECG_FOUNDATIONS: Course = {
   id: 'ecg-foundations',
   title: 'Reading an ECG from scratch',
   summary: 'Start from zero and finish able to read a 12-lead: what the tracing measures, the waves and intervals, rate and rhythm, the twelve leads, where the electrodes go, the axis, and one fixed order for every ECG.',
-  roles: [2, 3, 4, 5],
+  roles: [2, 3, 4, 5, 6, 7],
   level: 'beginner',
   lessons: [
     // ─── 1 ───────────────────────────────────────────────────────────────

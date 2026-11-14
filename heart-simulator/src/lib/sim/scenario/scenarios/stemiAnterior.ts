@@ -1,14 +1,20 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { PADS, has, interpret, line, shocks } from '../kit';
+import { nitrateCheckRule } from '../rules/acs';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { cpapHarmful } from '../rules/support';
 
 const ROSC_VITALS = { sbp: 104, dbp: 66, spo2: 94, rr: 16, gcs: 14, pain: 6 };
+
+/** What a shock puts on the chest: the EMT's AED is pads only (no rhythm or numbers to read); a defibrillator is a monitor too */
+const padFlags = (s: SimState) => (s.role === 1 ? ['pads'] : ['pads', 'monitor']);
 
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;
   // brief, witnessed VF with early CPR / defibrillation: the first or second shock converts
   const early = has(s, 'cpr') || (s.timers.arrestAt !== undefined && s.minute - s.timers.arrestAt <= 1);
   if (!early && shocks(s) === 0) {
-    return { say: [['monitor', 'Shock delivered. No change on the monitor — resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
+    return { say: [['monitor', 'Shock delivered. No change on the monitor — resume CPR.']], flags: [...padFlags(s), 'shocked'] };
   }
   return {
     say: [
@@ -17,7 +23,7 @@ function shockOutcome(s: SimState): Effect | null {
       ['patient', 'Groans and opens his eyes: "What happened?"'],
     ],
     rhythm: { profile: 'anterior-stemi', hr: 112 }, pulse: true, phase: 'rosc', vitals: ROSC_VITALS,
-    flags: ['pads', 'monitor', 'shocked'],
+    flags: [...padFlags(s), 'shocked'],
   };
 }
 
@@ -45,6 +51,8 @@ export const stemiAnterior: Scenario = {
     rhythm: { profile: 'anterior-stemi', hr: 96 },
     vitals: { sbp: 148, dbp: 92, spo2: 95, rr: 20, etco2: 36, pain: 8, gcs: 15, glucose: 132, temp: 36.8 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     opqrst: 'It came on 40 minutes ago while I was shoveling. Like an elephant on my chest — it goes into my left arm and jaw. 8 out of 10. Nothing makes it better.',
     sample: 'No allergies. I take lisinopril and atorvastatin. High blood pressure and cholesterol; I smoke a pack a day. Lunch was 2 hours ago.',
@@ -103,22 +111,26 @@ export const stemiAnterior: Scenario = {
     { id: 'post-ecg', label: 'Repeat 12-lead after ROSC', why: 'The post-arrest ECG confirms the STEMI and goes to the cath lab team.', done: ['ecg12-repeat', 'ecg12'], after: 'rosc', points: 5, applies: (s) => has(s, 'rosc') },
     { id: 'handoff', label: 'Hand-off at the heart center', why: 'A structured hand-off (SBAR) carries times, drugs and the ECG to the cath lab team.', done: ['handoff'], points: 5 },
   ],
-  harms: [
-    { id: 'nitro-no-bp', actions: ['nitro', 'nitro-assist'], when: (s) => !has(s, 'bp'), points: 5, severity: 'major', text: 'Nitroglycerin without a blood pressure. Check BP first: SBP must be at least 90–100 mmHg (per protocol).' },
-    { id: 'nitro-no-pde5', actions: ['nitro', 'nitro-assist'], when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor', text: 'Nitroglycerin without asking about erectile-dysfunction drugs: no nitrate within 12 h (avanafil), 24 h (sildenafil, vardenafil) or 48 h (tadalafil) of a PDE-5 inhibitor. Together they can cause profound hypotension.' },
+  harms: yieldToHeavier([
+    nitrateCheckRule({ id: 'nitro-no-bp', actions: ['nitro', 'nitro-assist', 'nitro-high'], when: (s) => !has(s, 'bp'), points: 5, severity: 'major', text: 'Nitroglycerin without a blood pressure. Check BP first: SBP must be at least 90–100 mmHg (per protocol).' }),
+    nitrateCheckRule({ id: 'nitro-no-pde5', actions: ['nitro', 'nitro-assist', 'nitro-high'], when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor', text: 'Nitroglycerin without asking about PDE-5 inhibitors and riociguat (taken for erections, pulmonary hypertension or the prostate): no nitrate within 12 h (avanafil), 24 h (sildenafil, vardenafil) or 48 h (tadalafil) of a PDE-5 inhibitor, and none with riociguat (nitroglycerin label). Together they can cause profound hypotension.' }),
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 3, severity: 'minor', text: 'Oxygen is for SpO₂ below 90 %. Routine oxygen in a normoxic STEMI gives no benefit, and high-flow oxygen may increase infarct size (AVOID).' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'IV beta-blockers are not a prehospital STEMI treatment; in anterior STEMI they raise the risk of cardiogenic shock (COMMIT).' },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'IV beta-blockers are not a prehospital STEMI treatment; in anterior STEMI they raise the risk of cardiogenic shock (COMMIT).' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable center (first medical contact to device within 90 minutes). The nearest ED has no cath lab and adds a transfer.' },
-    { id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, points: 4, severity: 'minor', text: 'CPAP is for respiratory distress from pulmonary edema; his lungs were clear.' },
-  ],
+    // a lighter mistake than CPAP on a low pressure: there (cpapHarmful) the built-in rules speak, at their own weight
+    { id: 'cpap-clear', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 4, severity: 'minor', text: 'CPAP is for respiratory distress from pulmonary edema; his lungs were clear.' },
+  ]),
   timings: [
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     { label: 'Aspirin', actions: ['aspirin'], target: 15 },
     { label: 'Cath lab activated', actions: ['stemi-alert', 'ecg-transmit'], target: 15 },
-    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   ],
   transportMinutes: 15,
-  arrival: 'You arrive at the heart center; the cath lab team meets you at the door.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it has no cath lab — the emergency physician calls the heart center to transfer him for PCI.'
+    : 'You arrive at the heart center; the cath lab team meets you at the door.'),
   teaching: [
     'Anterior STEMI is a proximal LAD occlusion: a large territory with a high risk of VF and cardiogenic shock in the first hours. Pads on early.',
     '12-lead within 10 minutes of first contact; transmit it and activate the cath lab from the field.',

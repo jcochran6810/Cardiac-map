@@ -11,6 +11,12 @@ Add new items at the top of their group. Use the format:
 
 ### Owner actions (dashboard steps — code can't do these)
 
+- [ ] 2026-11-14 — **Try the new simulator work on your phone** (tested only in emulated phone, tablet and desktop
+  browsers): Simulator → pick **ER Nurse** or **ER Doctor** and play an ED case; pick a field role and a cath lab role
+  and play one of the new cases each; in a case open **What do you do next?** (now a menu), tap the monitor's
+  **12-lead** and **BP** keys, and turn the phone on its side. Then **Give a medication** → open **Patient history**,
+  pick a few chips (e.g. Active bleeding, then nitroglycerin) and check the warnings read well.
+
 - [ ] 2026-11-12 — **Try the new teaching features on your phone** (all tested only in emulated phone, tablet and
   desktop browsers): Menu → **Learn step by step** → take a lesson, leave it with the ✕ and come back (your answers
   are kept); **Practice rhythms** → a set (Back goes set → sets → menu); **Quiz yourself** → Rhythm ID (a live strip
@@ -82,6 +88,38 @@ Add new items at the top of their group. Use the format:
 
 ### For Codex (UI / graphics — set by Claude)
 
+- [ ] 2026-11-14 — **Polish the case simulator's new screens (keep their behaviour):** the "What do you do next?"
+  menu (`heart-simulator/src/components/simulator/actionGroups.ts`, `ScenarioRunner.tsx`): its groups grew (Chest pain &
+  clots 13 items, Heart rhythm 12, Pressure & shock 6), Temperature and Active cooling appear for nearly every role,
+  "Observe on the monitor (up to 15 min)" has minutes 0, and several details are long now (IV nitroglycerin,
+  insulin, protamine, CPAP, alteplase, Impella, adenosine for FFR, the ED P2Y12 line) — check wrapping and truncation
+  in the list and the hold-to-read sheet on small phones. The monitor's **12-lead** and **BP** keys
+  (`monitorKeys.ts`, `MonitorDisplay.tsx`). The case picker's seven roles and the emergency-department setting
+  (`ScenarioPicker.tsx`, `caseList.ts`, `simStyles.ts` speakers physician / nurse / consultant / EMS) and the welcome
+  card's seven role buttons (`Welcome.tsx`). The team line shown when an ED order is cancelled after an arrest uses the
+  existing "team" speaker style. Check 320–1920 px.
+- [ ] 2026-11-14 — **Give meds patient box** (`heart-simulator/src/components/meds/GiveMedication.tsx`): style the age
+  box ("not set" placeholder, the "doses for an adult under 75" hint) and the collapsible **Patient history** row (a
+  toggle with the count, a one-line summary when collapsed, 35 aria-pressed chips from `HISTORY` in
+  `src/lib/sim/meds.ts`, among them Low glucose, Brain bleed now, Pheochromocytoma, Lupus). It needs groups (airway; heart; bleeding and
+  stroke; kidneys and electrolytes; drugs on board) and a compact phone layout.
+- [ ] 2026-11-14 — **Library lists:** the medication list now has 62 cards in eight groups
+  (`src/data/medicationGroups.ts`, shown by `LeftPanel.tsx`), with two new groups "Blood pressure & vasodilators" and
+  "Sedation, airway & analgesia"; two new procedure pages, **CPAP and non-invasive ventilation** and **Rapid sequence
+  intubation** (no 3D or illustration mapping beyond their target structures); the tutor's "what should I avoid"
+  answers can be longer than six bullets. Check the lists and answers on a phone.
+- [ ] 2026-11-14 — **New ECG pictures and overlays:** check how the new profiles look on the case monitor and in the
+  defibrillator trainer — `pea-narrow`, `paced-vvi`, `hyperkalemia-moderate`, `hyperkalemia-severe` (sine wave),
+  `takotsubo-lvoto` (check the Wiggers / pressure panel and the heart-sound legend in the Takotsubo case once the
+  pressure falls), `af-wpw`, the posterior STEMI and long QT. The non-capturing pacer's spikes (`pacer-no-capture`) use
+  the defibrillator's artefact shape for pads and wire alike: consider a smaller spike for a transvenous wire and
+  explicit spike sampling (MonitorDisplay samples about every 15 ms, so mostly the tail shows). Optional:
+  `ECGRenderer.tsx` should skip the P and PR marks when a template has no P wave (`hyperkalemia-severe`).
+- [ ] 2026-11-14 — **Case imaging flow:** the Imaging tab now opens only for a read with a recorded run; a word-only
+  angiogram read (the SCAD case) opens the Story tab (`ScenarioRunner.tsx`, `ImagingPanel.tsx`). In the cath lab STEMI
+  case the arterial (ART) number shows the damped 82/64 while the guide is wedged. Check both on phone, tablet and
+  desktop; the SCAD library page's "Show the ECG" now shows an anterior STEMI tracing.
+
 - [ ] 2026-10-26 — **Polish the feedback and admin screens (keep their behaviour):** the form
   (`heart-simulator/src/components/feedback/FeedbackForm.tsx`), the admin sign-in and dashboard
   (`src/components/admin/AdminPanel.tsx`), the top-bar bell and the menu's bottom block (`AdminEntry.tsx`), the new-report
@@ -148,14 +186,23 @@ Add new items at the top of their group. Use the format:
 
 ### Code
 
+- [ ] 2026-11-14 — Check the new drug-card and Give-meds label wordings on DailyMed (this environment could not reach
+  dailymed.nlm.nih.gov): the injectable fentanyl label's current contraindications, nitroglycerin's severe anemia and
+  uncorrected hypovolemia lines, amiodarone's fetal-toxicity line (`heart-simulator/src/data/content/medications.ts`,
+  `src/lib/sim/meds.ts`).
+- [ ] 2026-11-14 — Case authors' choices left open by the contraindication work (each is two distinct mistakes on one
+  act, kept on purpose): consent and time-out before access; a stable cardioversion without sedation; LVAD no-equipment
+  with the transport rules; temp-wire escape suppressant with the procainamide rules; torsades pacing before magnesium
+  with pacing without analgesia; after the radial cocktail under 90, IC nitroglycerin charged again for the low
+  pressure. The cocaine case's "sedation" is midazolam alone (handled in `cocaineField.ts`); a new case that redefines
+  "sedation" needs the same care, or a per-case drug list in `rules/charge.ts` `DRUGS_OF`.
+
 - [ ] 2026-11-12 — A frozen 12-lead per recording in the case simulator (today the 12-lead tab is live, with a "the
   patient has changed — repeat it" note): needs a renderer that draws a fixed 10 s window for a profile and rate,
   not tied to the shared clock (`heart-simulator/src/components/ecg/ECGRenderer.tsx` is tied to it).
 - [ ] 2026-11-12 — The VT condition page outside Give meds (Overview, Hemodynamics) still shows the VT profile's
   cardiogenic-shock heart until Give meds is opened (`src/components/panels/RightPanel.tsx`, `src/lib/actions.ts`);
   Give meds now offers stable / unstable.
-- [ ] 2026-11-12 — Stacking two antiarrhythmics in Give meds (e.g. sotalol then procainamide) is not judged; a
-  second P2Y12 load now is.
 - [ ] 2026-10-22 — The start hook lists only `claude/*` and `codex/*` branches, but web sessions now get `ccr-*`
   branches, so unmerged work there goes unreported (it missed `ccr-fcd6b419-beq5mr`). Add `ccr-*` to the fetch
   refspec and listing (`.claude/hooks/session-start.sh:275`) and a case to `session-start.test.sh`.
@@ -170,10 +217,10 @@ Add new items at the top of their group. Use the format:
   article said NonCommercial), credit and link it, mark crops. Wikimedia: ask for standard thumbnail widths
   (960 / 1280 px), not original files — originals were throttled (HTTP 429, 10-minute waits).
 - [ ] 2026-11-12 — More simulator cases (one file each in `heart-simulator/src/lib/sim/scenario/scenarios/`, its own
-  `tests/scenario-*.test.ts` and an ideal run in `tests/scenarios.test.ts`; see how the six of 2026-11-12 were written
-  and independently checked): a left main case and an EP / pacing case in the lab; asystole; a calcium-channel-blocker
-  overdose. A 'terminate resuscitation' action needs case-level design (each arrest case decides when stopping is
-  right) — the engine deliberately has none.
+  `tests/scenario-*.test.ts` and an ideal run in `tests/idealRuns.ts`; declare the patient's Problems, see the 30 of
+  2026-11-14): an EP-lab case; asystole; a calcium-channel-blocker overdose; a second LVAD case. (The left main and a
+  temporary-wire pacing case shipped on 2026-11-14.) A 'terminate resuscitation' action needs case-level design (each
+  arrest case decides when stopping is right) — the engine deliberately has none.
 - [ ] 2026-10-18 — Simulator 12-lead is live (always the current rhythm, with a "the patient has
   changed — repeat it" note); a frozen tracing per recording would be more realistic.
 
@@ -186,6 +233,14 @@ Add new items at the top of their group. Use the format:
 
 ## Done
 
+- [x] 2026-11-14 — **30 new cases, ER roles and every contraindication** (session `claude/vigilant-goodall-e7bs4b`,
+  continued, see SESSION_LOG.md): ER Nurse and ER Doctor roles with an emergency-department setting and notes on every
+  library page; 30 new independently checked cases (10 field, 10 cath lab, 10 ED; 47 in all); "What do you do next?" as
+  a menu; 12-lead and BP keys on the case monitor; the scene-safety step removed; every treatment and drug judged on its
+  label and guideline contraindications in the simulator, Give meds (history, age, drug clock), the drug cards (21 new),
+  the action menu and the tutor, with new SCAD, CPAP and rapid sequence intubation pages; stacking two QT-prolonging
+  antiarrhythmics in Give meds is now judged (`e6cbacd` … `497e358`, 134 commits; merged by this session's
+  end-session merge).
 - [x] 2026-11-12 — The 2026-11-12 work is live: Vercel's free plan had hit its 100-deployments-a-day limit, so the
   merge `f989e95` did not build; after the owner upgraded to Pro, a production deployment of `main` at `d82ec9a`
   (`dpl_9VTodVvH6BSX83Kpg7QYutWkbA4h`) was READY on https://cardiacmap.stationinsight.com.

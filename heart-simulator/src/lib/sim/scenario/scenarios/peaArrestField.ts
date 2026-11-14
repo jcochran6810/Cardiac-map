@@ -1,5 +1,7 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, firstDone, has, interpret, line } from '../kit';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Minutes from the EMT's call until the paramedic intercept is at her side */
 const ALS_MINUTES = 6;
@@ -106,6 +108,9 @@ export const peaArrestField: Scenario = {
     // compressions only so far: no one has given her a breath, so there is nothing for a capnograph to measure
     vitals: { sbp: 0, dbp: 0, spo2: 60, rr: 0, etco2: 3, pain: 0, gcs: 3, glucose: 146, temp: 36.4 },
   },
+  // what the built-in safety rules read (types.ts Problem): her COPD, wheezing after the ROSC — albuterol and a steroid
+  // treat it, and it rules out the drugs that tighten the airways
+  problems: ['asthma', 'bronchospasm'],
   facts: {
     opqrst: 'She cannot answer. Her husband: "Three days of getting more and more short of breath, coughing up thick green phlegm. Today she couldn\'t finish a sentence or lie flat, and she was using her inhaler every hour. Then she started gasping, her lips went blue, and she went quiet."',
     sample: 'Her husband: "She has bad COPD — emphysema — and she\'s on 2 liters of oxygen at home. Albuterol and ipratropium inhalers, tiotropium, and prednisone her doctor started on Monday for a chest cold. No allergies. She smoked for 40 years. No heart trouble that we know of, no kidney problems. There\'s no DNR — she would want you to try."',
@@ -226,6 +231,7 @@ export const peaArrestField: Scenario = {
       const hr = Math.min(150, s.rhythm.hr + 10);
       return { say: [['monitor', `Heart rate ${hr}.`]], rhythm: { ...s.rhythm, hr }, flags: ['atropine'] };
     },
+    adenosine3: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
     adenosine6: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
     adenosine12: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
     // with a pulse it is absorbed: the rate and the pressure rise a little — and it is still the wrong drug for her
@@ -256,6 +262,11 @@ export const peaArrestField: Scenario = {
       if (!s.pulse) return null;
       const bp = bpAfter(s, -10, -6);
       return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad']], vitals: bp, flags: ['nitro'] };
+    },
+    'nitro-high': (s) => {
+      if (!s.pulse) return null;
+      const bp = bpAfter(s, -20, -10);
+      return { say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad']], vitals: bp, flags: ['nitro', 'nitro-high'] };
     },
     // no pain or agitation to treat in someone with a GCS of 3: they only slow her breathing and lower her pressure
     fentanyl: (s) => {
@@ -477,7 +488,7 @@ export const peaArrestField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'Report the downtime and bystander CPR, the first rhythm, what brought her back (breaths with oxygen), each epinephrine dose and its time, the time of ROSC, and the vitals and 12-lead after it.', done: ['handoff'], points: 5, applies: (s) => has(s, 'rosc') },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // she never has a shockable rhythm: organized complexes, or a flat line
       id: 'shock-pea', actions: ['defib', 'cardiovert'], when: (s) => !s.pulse, points: 10, severity: 'major', replaces: ['shock-nonshockable'],
@@ -508,8 +519,8 @@ export const peaArrestField: Scenario = {
     },
     {
       // one rule for all of them, in its own words; it stands in for the built-in procainamide-in-arrest rule
-      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
-      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine3', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
+      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest', ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt'],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; adenosine, procainamide, beta-blockers and diltiazem are for tachycardias with a pulse: in PEA they treat nothing. CPR, epinephrine and the cause.',
     },
     {
@@ -518,42 +529,43 @@ export const peaArrestField: Scenario = {
       text: 'Sodium bicarbonate in an arrest from a breathing problem. Routine bicarbonate in cardiac arrest brings no benefit (2025 AHA), and her acid is mostly the CO₂ she could not breathe off: bicarbonate turns into more CO₂, which only ventilation removes. Ventilate her.',
     },
     {
-      id: 'cpap-not-breathing', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
+      id: 'cpap-not-breathing', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 5, severity: 'major',
       text: 'CPAP for a patient who is not breathing on her own. CPAP supports breaths a patient takes and needs someone awake enough to protect the airway; it gives no breaths. In the arrest, and unresponsive after ROSC, she needs ventilation with a bag-mask or an advanced airway.',
     },
     {
       // in the arrest and after it: she never has anaphylaxis
-      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], points: 3, severity: 'minor',
+      // with a pulse (after ROSC); in the arrest the built-in epi-im-in-arrest speaks, at its weight
+      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'IM epinephrine without anaphylaxis. In the arrest nothing carries it out of the muscle, and 0.3–0.5 mg is the anaphylaxis dose: epinephrine for an arrest is 1 mg IV/IO, from ALS. After ROSC her low pressure is the after-effect of the arrest, not anaphylaxis: it is treated with fluid and a vasopressor.',
     },
     {
       // procainamide included: its built-in rule only fires while the systolic is under 90, and after a bolus it may not be
       id: 'rate-control-post-rosc', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['procainamide-hypotension'],
+      replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert her rhythm after ROSC. Her fast rate is the body\'s answer to the arrest, the epinephrine and a low pressure — there is no arrhythmia to treat: beta-blockers, diltiazem, amiodarone and procainamide drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {
-      id: 'antiarrhythmic-post-rosc', actions: ['adenosine6', 'adenosine12', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-post-rosc', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'Adenosine or lidocaine after ROSC. Her fast rate is the body\'s answer to the arrest, not an arrhythmia: adenosine only stops a rhythm whose circuit runs through the AV node, and hers does not; lidocaine treats nothing after an arrest that was never VF.',
     },
     {
       // the default nitroglycerin rule only fires under a systolic of 90: after a bolus she has no reason for it either
-      id: 'nitro-post-rosc', actions: ['nitro'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: ['nitro-hypotension'],
+      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin after ROSC. She has no chest pain and no ST elevation, and her pressure is low or only just held up by treatment: nitrates drop it further.',
     },
     {
-      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation'], when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: SEDATIVE_RULES, when: (s) => s.pulse, points: 5, severity: 'major',
       text: 'Fentanyl or sedation for a patient who is unresponsive. With a GCS of 3 she shows no pain or agitation to treat: an opioid or a sedative slows the breathing she has left and lowers her pressure.',
     },
     {
-      id: 'glucagon-no-indication', actions: ['glucagon'], points: 3, severity: 'minor',
+      id: 'glucagon-no-indication', actions: ['glucagon'], replaces: ['glucagon-unprotected-airway'], points: 3, severity: 'minor',
       text: 'Glucagon without a beta- or calcium-channel-blocker overdose. It treats nothing she has, and the vomiting it brings is dangerous in a patient who cannot protect her airway.',
     },
     {
       id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'A STEMI alert without ST elevation. Her 12-lead after ROSC shows none, and her arrest began with her breathing: it calls in the cath lab team for an artery that is not blocked.',
     },
-  ],
+  ]),
   timings: [
     { label: 'CPR taken over', actions: ['cpr'], target: 1.5 },
     { label: 'Rhythm analyzed (AED or monitor)', actions: ['aed', 'pads', 'monitor'], target: 3 },

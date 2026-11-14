@@ -8,13 +8,16 @@ import { ARREST_ETCO2, arrestEtco2, bpAfter, cprCycles, firstDone, has, interpre
  */
 const etco2With = (s: SimState, ...flags: string[]) => arrestEtco2({ flags: { ...s.flags, ...Object.fromEntries(flags.map((f) => [f, s.minute])) } });
 
+/** What a shock puts on the chest: the EMT's AED is pads only (no rhythm or numbers to read); a defibrillator is a monitor too */
+const padFlags = (s: SimState) => (s.role === 1 ? ['pads'] : ['pads', 'monitor']);
+
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;
   const n = shocks(s) + 1;
   const rosc = s.role === 1
     ? n >= 2 && cprCycles(s) >= 2
     : n >= 3 && has(s, 'epi') && cprCycles(s) >= 2 && (has(s, 'amiodarone') || has(s, 'lidocaine') || n >= 4);
-  if (!rosc) return { say: [['monitor', `Shock ${n} delivered. No change on the monitor — resume CPR immediately.`]], flags: ['pads', 'monitor', 'shocked'] };
+  if (!rosc) return { say: [['monitor', `Shock ${n} delivered. No change on the monitor — resume CPR immediately.`]], flags: [...padFlags(s), 'shocked'] };
   // with an advanced airway in, the crew goes on bagging through it after ROSC: 10 breaths a minute, not his own 8
   const tubed = has(s, 'airway');
   return {
@@ -25,7 +28,7 @@ function shockOutcome(s: SimState): Effect | null {
     ],
     rhythm: { profile: 'anterior-stemi', hr: 104 }, pulse: true, phase: 'rosc',
     vitals: { sbp: 84, dbp: 50, spo2: tubed ? 95 : 91, rr: tubed ? 10 : 8, etco2: 38, gcs: 5, pain: 0 },
-    flags: ['pads', 'monitor', 'shocked'],
+    flags: [...padFlags(s), 'shocked'],
   };
 }
 
@@ -49,6 +52,8 @@ export const vfArrest: Scenario = {
     // bystander compressions only so far: no one has given him a breath, so there is nothing for a capnograph to measure
     vitals: { sbp: 0, dbp: 0, spo2: 85, rr: 0, etco2: ARREST_ETCO2.noBreaths, pain: 0, gcs: 3, glucose: 104, temp: 36.6 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     sample: 'Staff member: "He\'s a member here. He mentioned chest tightness on the treadmill last week."',
     opqrst: 'He cannot answer.',
@@ -182,18 +187,21 @@ export const vfArrest: Scenario = {
   ],
   harms: [
     { id: 'epi-before-shock', actions: ['epinephrine'], when: (s) => !s.pulse && shocks(s) === 0, points: 3, severity: 'minor', text: 'In VF, shock first: epinephrine comes after the second shock.' },
-    { id: 'airway-too-early', actions: ['airway'], when: (s) => !s.pulse && cprCycles(s) < 1, points: 3, severity: 'minor', text: 'Don\'t interrupt the first minutes of compressions and the first shock for an advanced airway; a BVM is fine at first.' },
+    { id: 'airway-too-early', actions: ['airway'], when: (s) => !s.pulse && cprCycles(s) < 1, replaces: ['airway-before-shock'], points: 3, severity: 'minor', text: 'Don\'t interrupt the first minutes of compressions and the first shock for an advanced airway; a BVM is fine at first.' },
     { id: 'nearest-ed', actions: ['transport-near'], when: (s) => s.pulse, points: 6, severity: 'major', text: 'A resuscitated STEMI needs a PCI-capable heart center.' },
   ],
   timings: [
     { label: 'CPR taken over', actions: ['cpr'], target: 1.5 },
-    { label: 'First shock', actions: ['defib', 'aed'], target: 3 },
+    { label: 'First shock', actions: ['defib', 'aed'], target: 3, shocksOnly: true },
     { label: 'First epinephrine', actions: ['epinephrine'] },
     { label: '12-lead after ROSC', actions: ['ecg12', 'ecg12-repeat'], from: 'rosc' },
   ],
   transportMinutes: 11,
   nearestMinutes: 5,
-  arrival: 'You arrive at the heart center; the cath lab team takes him straight in.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it has no cath lab — the emergency physician takes over and calls the heart center to transfer him.'
+    : 'You arrive at the heart center; the cath lab team takes him straight in.'),
   deathAfter: 22,
   completeWhen: (s) => has(s, 'rosc'),
   teaching: [
