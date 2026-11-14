@@ -260,6 +260,19 @@ export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: stri
 export const nitrateCheckRule = (harm: Harm, rank: string = harm.id) =>
   nitrateCaseRule(harm, rank, [...NITRATE_CHECKS, 'nitro-hypotension', 'nitro-high-not-hypertensive']);
 
+/**
+ * The nitrate gate charges this dose: its top rule, or a case rule standing in for that rule (its id, or listing it in
+ * `replaces`) that has not charged an earlier dose. For a rule elsewhere that must not add a second penalty to the same
+ * dose — the rhythm rules on the radial cocktail, which carries nitroglycerin with its verapamil (rules/rhythm.ts)
+ */
+export function nitrateCharges(s: SimState, sc: Scenario, id: string): boolean {
+  const top = NITRATE_GATE.top(s, sc, id);
+  if (!top) return false;
+  const standIns = sc.harms.filter((h) => (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id)
+    && (h.id === top || !!h.replaces?.includes(top)) && (!h.when || h.when(s, sc, id)));
+  return !standIns.length || standIns.some((h) => !chargedBefore(s, h.id));
+}
+
 // ─── Fibrinolytics ─────────────────────────────────────────────────────────
 
 /** The minutes of compressions in one CPR cycle: more than 10 minutes of CPR is a relative contraindication to a lytic for a STEMI */

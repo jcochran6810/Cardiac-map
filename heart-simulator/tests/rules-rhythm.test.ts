@@ -674,6 +674,21 @@ describe('the cath lab\'s verapamil and intracoronary adenosine', () => {
     expect(pen(lab({ vitals: { sbp: 84, dbp: 50 }, harms: [exempt('cocktail-low-pressure', ['radial-cocktail'])] }), ['consent', 'access', 'radial-cocktail'])).toEqual([]);
   });
 
+  it('the radial cocktail carries nitroglycerin too: a nitrate reason charges it alone (one dose, one penalty)', () => {
+    const LOW = { sbp: 84, dbp: 50 };
+    const cocktail = ['consent', 'access', 'radial-cocktail'];
+    // a heart that lives on its preload with a low pressure, or with a slow rate: the nitrate rule, not also the verapamil's
+    expect(pen(lab({ problems: ['rv-infarction'], vitals: LOW }), cocktail)).toEqual(['nitro-preload-dependent']);
+    expect(pen(lab({ problems: ['rv-infarction'], rhythm: CHB }), cocktail)).toEqual(['nitro-preload-dependent']);
+    expect(pen(lab({ problems: ['pde5-inhibitor'], vitals: LOW }), cocktail)).toEqual(['nitro-pde5']);
+    // intracoronary verapamil carries no nitrate: the verapamil's rules
+    expect(pen(lab({ problems: ['rv-infarction'], vitals: LOW }), ['ic-verapamil'])).toEqual(['cocktail-low-pressure']);
+    // a case rule standing in for the verapamil's rules steps aside for the nitrate too, whatever its weight
+    const caseLow: Harm = { id: 'cocktail-low-pressure', actions: ['radial-cocktail'], when: (st) => st.pulse && st.vitals.sbp < 90, replaces: RATE_RULES, points: 6, severity: 'major', text: 'The case\'s words.' };
+    expect(pen(lab({ problems: ['rv-infarction'], vitals: LOW, harms: yieldToHeavier([caseLow]) }), cocktail)).toEqual(['nitro-preload-dependent']);
+    expect(pen(lab({ vitals: LOW, harms: yieldToHeavier([caseLow]) }), cocktail)).toEqual(['cocktail-low-pressure']);
+  });
+
   it('verapamil-cardiogenic-shock: verapamil in cardiogenic shock, even with the pressure held over 90', () => {
     expect(pen(lab({ problems: ['cardiogenic-shock'], vitals: { sbp: 96, dbp: 60 } }), ['consent', 'access', 'radial-cocktail'])).toEqual(['verapamil-cardiogenic-shock']);
     expect(pen(lab({ vitals: { sbp: 96, dbp: 60 } }), ['consent', 'access', 'radial-cocktail'])).toEqual([]);

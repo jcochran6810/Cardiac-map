@@ -191,9 +191,9 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
 
   it('IV metoprolol on top of his carvedilol: the pressure falls, the rate barely moves, and he still decompensates — with fluid on his lungs it is ruled out', () => {
     let s = run(sc, 2, [...READY, 'metoprolol']);
-    // decompensated heart failure is a label contraindication (major): it outranks the case's minor rule
-    expect(ids(s)).toEqual(['beta-blocker-pulmonary-edema']);
-    expect(s.penalties[0].severity).toBe('major');
+    // decompensated heart failure is a label contraindication (major): the case says it in its own words, at that weight
+    expect(ids(s)).toEqual(['metoprolol-decompensated']);
+    expect(s.penalties[0]).toMatchObject({ points: 8, severity: 'major' });
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([98, 66]);
     expect(s.rhythm.hr).toBe(136);
     s = run(sc, 2, [...READY, 'metoprolol', ...R(3)]);
@@ -206,7 +206,7 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(s.vitals.sbp).toBeLessThan(90);
     expect(s.fired).toContain('hypotensive');
     expect(s.flags.unstable).toBeDefined();
-    expect(ids(s)).toEqual(['beta-blocker-pulmonary-edema', 'procainamide-heart-failure']);
+    expect(ids(s)).toEqual(['metoprolol-decompensated', 'procainamide-heart-failure']);
   });
 
   it('procainamide in heart failure is a major error; given once he is unstable it costs once, in the case\'s words, not twice', () => {

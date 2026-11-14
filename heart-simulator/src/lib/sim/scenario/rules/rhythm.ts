@@ -17,6 +17,7 @@ import {
   ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, did, hasProblem, lastDoneAt, longQt, lowPressure,
   lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
+import { NITRATE_RULES, nitrateCharges } from './acs';
 import { indicationCovered } from './scope';
 import { pressorBridging } from './support';
 
@@ -301,11 +302,19 @@ function caseVoice(s: SimState, sc: Scenario, id: string, ruleId: string): 'spea
 }
 
 /**
+ * The radial cocktail carries nitroglycerin with its verapamil: when the nitrate gate charges the dose (a PDE-5 inhibitor, a
+ * heart that lives on its preload or an outflow obstruction — 10 points, at least what any reason of this file weighs on
+ * the cocktail), the rhythm rules stand aside, and so do the case rules that stand in for them only (one dose, one penalty)
+ */
+const cocktailNitrateCharges = (s: SimState, sc: Scenario, id: string) => id === 'radial-cocktail' && nitrateCharges(s, sc, id);
+
+/**
  * The one rule of this file that charges this dose (or that a case rule charges for): the highest-ranked rule in the
  * action's ladder that applies and that the case has not passed over, or null. A rule charged already (or the case's
  * rule with its id) stays on top: a repeat of a mistake costs nothing more, and the rules below it do not charge it.
  */
 export function topRhythmRule(s: SimState, sc: Scenario, id: string): string | null {
+  if (cocktailNitrateCharges(s, sc, id)) return null;
   for (const ruleId of LADDERS[id] ?? []) {
     const r = BY_ID.get(ruleId);
     if (!r || !applies(r, s, sc, id)) continue;
@@ -328,6 +337,9 @@ export function topRhythmRule(s: SimState, sc: Scenario, id: string): string | n
  * keeps speaking for the dose in its own words.
  */
 export function yieldsTo(s: SimState, sc: Scenario, id: string, h: Harm): boolean {
+  // the cocktail's nitrate reason charges it: a case rule that speaks for rhythm rules only steps aside, whatever its weight
+  // (a rule that also stands in for nitrate rules speaks for both, and is not asked: no circle through the nitrate gate)
+  if (!h.replaces?.some((r) => NITRATE_RULES.includes(r)) && cocktailNitrateCharges(s, sc, id)) return true;
   if (h.severity !== 'minor') return false;
   const top = firstHolding(s, sc, id);
   if (!top || !h.replaces?.includes(top)) return false;
