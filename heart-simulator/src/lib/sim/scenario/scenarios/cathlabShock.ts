@@ -3,7 +3,7 @@ import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
-import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
@@ -346,8 +346,8 @@ export const cathlabShock: Scenario = {
     askHarm(TECH_ASKS[1], 'A balloon pump when the operator asked for the Impella. In STEMI shock an IABP does not improve survival (IABP-SHOCK II).'),
     askHarm(TECH_ASKS[2], 'A right-coronary guide when the operator asked for a left guide.'),
     askHarm(TECH_ASKS[3], 'The wrong device when the operator asked for a drug-eluting stent.'),
-    { ...askHarm(RN_ASKS[1], 'Protamine when the operator asked for heparin.', 5), replaces: PROTAMINE_RULES },
-    { ...askHarm(RN_ASKS[2], 'Oral P2Y12 tablets for a drowsy, shocked patient when the operator asked for the IV drug.'), replaces: ANTITHROMBOTIC_RULES },
+    askHarm(RN_ASKS[1], 'Protamine when the operator asked for heparin.', 5),
+    askHarm(RN_ASKS[2], 'Oral P2Y12 tablets for a drowsy, shocked patient when the operator asked for the IV drug.'),
   ]),
   timings: [
     { label: 'Pressor running', actions: ['pressor'], flag: 'pressor', target: 6 },

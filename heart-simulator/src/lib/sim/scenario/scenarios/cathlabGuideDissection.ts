@@ -836,7 +836,7 @@ export const cathlabGuideDissection: Scenario = {
     askHarm(TECH_ASKS[1], 'OCT when the operator asked for IVUS. Its forceful contrast flush is another injection into the torn ostium, and it cannot clear the blood there.'),
     askHarm(TECH_ASKS[2], 'The wrong device when the operator asked for a drug-eluting stent to seal the ostium. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[3], 'A compliant balloon when the operator asked for a non-compliant one. Taken to high pressure, it grows past its size and can tear the vessel at the stent edges.'),
-    { ...askHarm(RN_ASKS[0], 'A drug that slows the rate further when the operator asked for something for a rate of 48. Atropine 1 mg IV.', 5), actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem'], replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[0], 'A drug that slows the rate further when the operator asked for something for a rate of 48. Atropine 1 mg IV.', 5), actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem'] },
   ]),
   timings: [
     { label: 'Contrast stopped', actions: ['stop-contrast'], flag: 'contrast-stopped', target: 1, from: 'dissection' },

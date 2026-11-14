@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Vitals } from '../type
 import { atRate, bpAfter, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder } from '../edKit';
-import { ANTITHROMBOTIC_RULES, NITRATE_RULES, nitrateCaseRule, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, NITRATE_CHECKS, NITRATE_RULES, nitrateCaseRule } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 import { cpapHarmful } from '../rules/support';
 
@@ -833,8 +833,11 @@ export const edDissection: Scenario = {
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
     // the nurse's answer to an order that is not the order: a medication error, scored once (not also as a drug with no order)
-    { ...askHarm(RN_BETA, 'Diltiazem in place of the metoprolol the physician ordered. He has no reason not to take a beta-blocker, the drug the guideline puts first (2022 ACC/AHA); diltiazem is for a patient who cannot. Give the drug, the dose and the route that were ordered — read the order back, and ask if it seems wrong.', 5), replaces: RATE_RULES },
-    { ...askHarm(RN_VASODILATOR, 'Nitroglycerin 0.8 mg when 0.4 mg was ordered. Twice the ordered dose of a vasodilator in a patient whose pressure is coming down to a goal of 100–120 is a medication error: give the dose that was ordered, read it back, and recheck the pressure in the higher arm.'), replaces: nitrateRulesExcept('nitro-hypotension') },
+    askHarm(RN_BETA, 'Diltiazem in place of the metoprolol the physician ordered. He has no reason not to take a beta-blocker, the drug the guideline puts first (2022 ACC/AHA); diltiazem is for a patient who cannot. Give the drug, the dose and the route that were ordered — read the order back, and ask if it seems wrong.', 5),
+    // the wrong dose is weighed against a nitrate rule on the same dose (engine harmsFor), but the checks before a nitrate
+    // (a pressure, the PDE-5 question, the interval) are not: they would charge beside it. The order was read back with
+    // them: one dose, one penalty — so it still stands in for the checks (NITRATE_CHECKS) and nothing else
+    { ...askHarm(RN_VASODILATOR, 'Nitroglycerin 0.8 mg when 0.4 mg was ordered. Twice the ordered dose of a vasodilator in a patient whose pressure is coming down to a goal of 100–120 is a medication error: give the dose that was ordered, read it back, and recheck the pressure in the higher arm.'), replaces: NITRATE_CHECKS },
   ]),
   timings: [
     DOOR_TO_ECG,

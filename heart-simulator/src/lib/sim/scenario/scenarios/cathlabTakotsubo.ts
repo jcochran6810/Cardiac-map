@@ -5,7 +5,7 @@ import {
   LEFT_VIEWS, MD, RCA_VIEWS, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateRulesExcept } from '../rules/acs';
+import { LYTIC_RULES, NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -880,7 +880,9 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail', 'ic-nitroprusside'], roles: MD, when: (s) => s.pulse && has(s, 'obstructed'), replaces: [...NITRATE_RULES, ...RATE_RULES], points: 10, severity: 'major', text: NITRATE_TEXT },
     // the built-in rule, kept for the time before the fall (afterwards nitrate-lvoto covers it): one mistake, one penalty
     nitrateCaseRule({ id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !has(s, 'obstructed') && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' }),
-    { id: 'unasked-ic-drug', actions: ['ic-nitro', 'ic-epinephrine', 'radial-cocktail'], roles: [3, 4], when: (s) => has(s, 'obstructed'), replaces: [...NITRATE_RULES, ...RATE_RULES, 'ic-epi-no-indication'], points: 3, severity: 'minor', text: 'A vasodilator or a catecholamine drawn up for the catheter without an order, while her pressure was down. The operator gives what the operator asks for — and a nitrate or epinephrine would make the outflow obstruction worse.' },
+    // drawn up unasked: a wrong answer to the team (Harm.wrongAnswer) — the nitrate, rate-drug or epinephrine rule that judges
+    // the same dose charges alone when it is heavier (engine harmsFor)
+    { id: 'unasked-ic-drug', actions: ['ic-nitro', 'ic-epinephrine', 'radial-cocktail'], roles: [3, 4], when: (s) => has(s, 'obstructed'), wrongAnswer: true, points: 3, severity: 'minor', text: 'A vasodilator or a catecholamine drawn up for the catheter without an order, while her pressure was down. The operator gives what the operator asks for — and a nitrate or epinephrine would make the outflow obstruction worse.' },
     { id: 'iabp-lvoto', actions: ['iabp'], roles: MD, replaces: ['iabp-contraindicated'], points: 15, severity: 'critical', text: 'An intra-aortic balloon pump in Takotsubo with outflow obstruction. Its deflation drops the afterload just as the ventricle ejects: the base empties the ventricle faster, the outflow tract narrows, and the gradient and the pressure get worse. Avoid it whenever there is an outflow gradient; if fluid and phenylephrine fail, the support is an Impella (it carries blood past the obstruction) or VA-ECMO.' },
     { id: 'tech-iabp', actions: ['iabp'], roles: TECH, when: (s) => has(s, 'lvoto-known'), points: 3, severity: 'minor', text: 'The balloon pump readied once the gradient was on the screen. A balloon pump lowers the afterload and makes outflow obstruction worse: open devices when the operator asks for them.' },
     // the built-in rule for a pump with no cardiogenic shock, same id (a deliberate exemption): her shock is the outflow
@@ -903,15 +905,18 @@ export const cathlabTakotsubo: Scenario = {
     rnNoOrder('phenylephrine', ['phenylephrine'], 'Phenylephrine', (s) => has(s, 'obstructed') && !phenylephrineOrdered(s)),
     // before the gradient is known, or in shock, the beta-blocker rules above score it
     rnNoOrder('metoprolol', ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], 'A beta-blocker', (s) => has(s, 'lvoto-known') && has(s, 'relieved')),
-    // after the fall nitrate-lvoto scores it; 0.8 mg is scored by nitro-high-not-hypertensive
-    { ...rnNoOrder('nitro', ['nitro'], 'Sublingual nitroglycerin', (s) => !has(s, 'obstructed')), replaces: nitrateRulesExcept('nitro-hypotension') },
+    // after the fall nitrate-lvoto scores it; 0.8 mg is scored by nitro-high-not-hypertensive. A drug given without the
+    // operator's order is a wrong answer to the team (Harm.wrongAnswer): a heavier nitrate contraindication on the same dose
+    // charges alone (engine harmsFor). A check before a nitrate (the interval) is not weighed against it and would charge
+    // beside it: it still stands in for the checks (NITRATE_CHECKS) and nothing else — one dose, one penalty
+    { ...rnNoOrder('nitro', ['nitro'], 'Sublingual nitroglycerin', (s) => !has(s, 'obstructed')), wrongAnswer: true, replaces: NITRATE_CHECKS },
     // after the clean pictures antiplatelet-no-acs scores it
     rnNoOrder('antiplatelet', ['p2y12', 'cangrelor', 'gp2b3a'], 'An antiplatelet loading dose', (s) => !has(s, 'normal-coronaries')),
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 % (2025 ACC/AHA ACS).' },
     askHarm(TECH_ASKS[0], 'The wrong catheter when the operator asked for one that does both coronaries from the radial (a Tiger). A JL4 or a JR4 does one side; a guide is for an intervention.'),
     // a guide has its own penalty once the arteries are known to be clean (tech-unasked-device): the ask's harm is the diagnostic catheters
     { ...askHarm(TECH_ASKS[1], 'A coronary catheter when the operator asked for a pigtail. The coronaries are clean: the answer is in the ventricle.'), actions: ['cath-jl4', 'cath-jr4'] },
-    { ...askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,300 units. Read the order back before you give it.'), replaces: [...ANTITHROMBOTIC_RULES, ...PROTAMINE_RULES] },
+    askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,300 units. Read the order back before you give it.'),
     { ...askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain — and it drops the pressure.', 2), actions: ['midazolam'] },
   ]),
   timings: [

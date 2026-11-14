@@ -2,7 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
 import { BETA_BLOCKERS, lowPressure } from '../rules/helpers';
 import { LIDOCAINE_RULES, PROCAINAMIDE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
@@ -1025,7 +1025,7 @@ export const edScape: Scenario = {
       id: 'transfer-unneeded', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse, replaces: ['transfer-unstable'], points: 5, severity: 'major',
       text: 'Transferring a patient this hospital can care for. He needs an ICU bed, BiPAP and a nitroglycerin infusion — all here; a transfer moves a patient in respiratory failure for nothing another hospital can add. Admit him.',
     },
-    ...RN_ORDERS.map((a) => ({ ...askHarm(a, 'The wrong dose after the physician\'s order: 0.4 mg instead of 0.8 mg. Read the order back (closed loop) and give what was ordered — the chest pain dose barely touches a pressure like his.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') })),
+    ...RN_ORDERS.map((a) => askHarm(a, 'The wrong dose after the physician\'s order: 0.4 mg instead of 0.8 mg. Read the order back (closed loop) and give what was ordered — the chest pain dose barely touches a pressure like his.')),
   ]),
   timings: [
     DOOR_TO_ECG,

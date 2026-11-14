@@ -3,7 +3,7 @@ import { PADS, bpAfter, firstDone, has, line, mapOf } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
-import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { slowOrBlocked } from '../rules/helpers';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
@@ -891,7 +891,7 @@ export const cathlabLeftMain: Scenario = {
     askHarm(TECH_ASKS[4], 'OCT when the operator asked for IVUS. The OCT flush cannot clear an ostial left main with the guide sitting in it, and it costs contrast a shocked patient\'s kidneys cannot spare.', 2),
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[6], 'The wrong balloon when the operator asked for a non-compliant one. A compliant balloon at high pressure over-stretches the vessel at the stent edges instead of expanding the stent.'),
-    { ...askHarm(RN_ASKS[4], 'Oral P2Y12 tablets when the operator asked for the IV drug. In shock they are absorbed poorly and a drowsy patient may aspirate them; if the surgeon has to take him, a ticagrelor load means days of bleeding risk.'), replaces: ANTITHROMBOTIC_RULES },
+    askHarm(RN_ASKS[4], 'Oral P2Y12 tablets when the operator asked for the IV drug. In shock they are absorbed poorly and a drowsy patient may aspirate them; if the surgeon has to take him, a ticagrelor load means days of bleeding risk.'),
   ]),
   timings: [
     { label: 'Pressor running', actions: ['pressor'], flag: 'pressor', target: 6 },

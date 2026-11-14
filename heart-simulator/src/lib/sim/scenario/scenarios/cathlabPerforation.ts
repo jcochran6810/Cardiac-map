@@ -219,7 +219,7 @@ export const cathlabPerforation: Scenario = {
     { id: 'nitro-in-tamponade', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro', 'ic-nitroprusside', 'radial-cocktail'], when: (s) => has(s, 'perforation'), replaces: NITRATE_RULES, points: 6, severity: 'major', text: 'Nitroglycerin (or nitroprusside, or the radial cocktail) with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
     { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], when: (s) => has(s, 'perforation'), replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a covered stent to seal the perforation.'),
-    { ...askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5), replaces: RATE_RULES },
+    askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5),
     // The built-in pressor rules, same ids (deliberate exemptions). The hole bleeds into the pericardium: the pressure falls
     // because the heart is squeezed, not because the circulation is empty, so a vasopressor is a bridge until the drain
     // (the support ask) with or without fluid first — and while the hole is open the pressure is about to fall, so no

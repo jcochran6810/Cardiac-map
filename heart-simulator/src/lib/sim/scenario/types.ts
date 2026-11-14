@@ -229,9 +229,11 @@ export interface Harm {
    */
   replaces?: string[];
   /**
-   * A wrong answer to a team request (labKit askHarm): when it charges an act together with another rule that judges the
-   * same drug or device, only the heavier of them charges — on a tie, the wrong answer (the case's words). The checks
-   * before a nitrate are mistakes of their own and charge beside it (engine harmsFor)
+   * A wrong answer to a team request (labKit askHarm), or a drug drawn up or given in the lab without the operator's order:
+   * when it charges an act together with another rule that judges the same drug or device, only the heavier of them
+   * charges — on a tie, the wrong answer (the case's words). So it never hides a heavier contraindication, and needs no
+   * `replaces` for a drug family. The checks before a nitrate are mistakes of their own and charge beside it (engine
+   * harmsFor)
    */
   wrongAnswer?: true;
 }

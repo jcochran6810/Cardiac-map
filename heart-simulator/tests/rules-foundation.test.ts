@@ -5,14 +5,14 @@
  */
 import { describe, expect, it } from 'vitest';
 import { DRUGS_OF, caseChargesPerDrug, chargesPerDrug, drugsOf, sameDrug } from '@/lib/sim/scenario/rules/charge';
-import { nitrateCheckRule } from '@/lib/sim/scenario/rules/acs';
+import { NITRATE_CHECKS, nitrateCheckRule } from '@/lib/sim/scenario/rules/acs';
 import { RATE_RULES } from '@/lib/sim/scenario/rules/rhythm';
 import { BUILT_IN_HARMS, RN_ORDER_ONLY, perform, review, start } from '@/lib/sim/scenario/engine';
 import { askCritical, askEvents, askHarm, type LabAsk } from '@/lib/sim/scenario/labKit';
 import { edOrder, standingOrders } from '@/lib/sim/scenario/edKit';
 import { INDICATION_RULES, RN_ORDER_CRITICAL, SCOPE_RULES } from '@/lib/sim/scenario/rules/scope';
 import { lastDoneAt, outflowObstruction, preloadDependent, slowOrBlocked } from '@/lib/sim/scenario/rules/helpers';
-import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
+import { SCENARIO_BY_ID, SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import type { Effect, Harm, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { fixture, penaltyIds } from './ruleFixture';
 import { INTERVENTION_BY_ID } from '@/lib/sim/scenario/interventions';
@@ -358,6 +358,25 @@ describe('team requests (labKit and edKit)', () => {
     });
     const ed = fixture({ setting: 'ed', role: 6, rhythm: SINUS, vitals: { pain: 7 }, harms: [askHarm(pain, 'Not the drug ordered.')], extra: { events: askEvents(pain) } });
     expect(penaltyIds(ed, 6, ['nitro'])).toEqual(['nitro-no-bp', 'wrong-fentanyl']);
+  });
+
+  it('in the cases: a wrong answer never hides a heavier label contraindication; one that is only a wrong answer still charges', () => {
+    const ids = (id: string, role: 4, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+    // protamine handed for the heparin the operator asked for: protamine with no heparin to reverse (5, major) outweighs the
+    // wrong answer (minor)
+    expect(ids('shock-cathlab', 4, ['iv', 'pressor', 'o2-nrb', 'consent', 'timeout', 'reassess', 'protamine'])).toEqual(['protamine-no-heparin']);
+    expect(ids('scad-cathlab', 4, ['consent', 'protamine'])).toEqual(['protamine-no-heparin']);
+    expect(ids('ffr-cathlab', 4, ['consent', 'iv', 'timeout', 'sedation', 'reassess', 'radial-cocktail', 'protamine'])).toEqual(['protamine-no-heparin']);
+    // the wrong drug with nothing heavier against it: the wrong answer, in the case's words
+    expect(ids('shock-cathlab', 4, ['iv', 'pressor', 'o2-nrb', 'consent', 'timeout', 'reassess', 'heparin', 'act', 'p2y12'])).toEqual(['wrong-p2y12']);
+    expect(ids('scad-cathlab', 4, ['consent', 'bivalirudin'])).toEqual(['wrong-rn-heparin']);
+    expect(ids('ffr-cathlab', 4, ['consent', 'iv', 'timeout', 'sedation', 'reassess', 'radial-cocktail', 'heparin', 'act', 'nitro'])).toEqual(['wrong-nitro']);
+  });
+
+  it('no wrong answer stands in for a drug family: at most for the checks before a nitrate, which the arbitration does not weigh', () => {
+    const offenders = SCENARIOS.flatMap((sc) => sc.harms.filter((h) => h.wrongAnswer && h.replaces?.some((id) => !NITRATE_CHECKS.includes(id)))
+      .map((h) => `${sc.id}: ${h.id}`));
+    expect(offenders).toEqual([]);
   });
 
   /** An ED patient who arrests at minute 1 and comes back at minute 5 */

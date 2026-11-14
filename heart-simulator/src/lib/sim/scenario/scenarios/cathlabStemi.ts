@@ -4,7 +4,6 @@ import {
   LAD_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, nextStep,
   operator, type LabAsk,
 } from '../labKit';
-import { nitrateRulesExcept } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
@@ -365,8 +364,8 @@ export const cathlabStemi: Scenario = {
     askHarm(TECH_ASKS[4], 'The wrong device when the operator asked for a compliant pre-dilation balloon.'),
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[6], 'A compliant balloon when the operator asked for a non-compliant one. At high pressure a compliant balloon over-stretches the vessel at the stent edges.'),
-    { ...askHarm(RN_ASKS[0], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), ...RATE_RULES] },
-    { ...askHarm(RN_ASKS[2], 'The wrong intracoronary drug when the operator asked for nitroglycerin.'), replaces: RATE_RULES },
+    askHarm(RN_ASKS[0], 'An intracoronary drug when the operator asked for the radial cocktail.'),
+    askHarm(RN_ASKS[2], 'The wrong intracoronary drug when the operator asked for nitroglycerin.'),
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'Fibrinolysis has no place when primary PCI is happening: it only adds bleeding risk.' },
     { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 6, severity: 'major', text: 'A beta-blocker (IV, or a tablet) in the acute phase of a large anterior STEMI. It risks cardiogenic shock (COMMIT).' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },

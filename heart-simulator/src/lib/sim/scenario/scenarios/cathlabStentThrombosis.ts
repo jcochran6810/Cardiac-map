@@ -3,7 +3,7 @@ import { bpAfter, canSwallow, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { lastDoneAt } from '../rules/helpers';
 import { LEFT_VIEWS, MD, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
-import { ANTITHROMBOTIC_RULES, PROTAMINE_RULES } from '../rules/acs';
+import { PROTAMINE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -703,7 +703,7 @@ export const cathlabStentThrombosis: Scenario = {
     { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Intracoronary epinephrine for a stent thrombosis. It is a drug for no-reflow with a low pressure; it does nothing for clot in the stent, and it speeds the heart and raises the oxygen need of an infarcting heart.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[3], 'A compliant balloon when the operator asked for a non-compliant one. Taken to high pressure, a compliant balloon grows past its size and can tear the vessel at the stent edges. Check the order and the box before you open it.'),
-    { ...askHarm(RN_ASKS[0], 'Bivalirudin when the operator asked for a drug that blocks the platelets. Bivalirudin is an anticoagulant, like the heparin: cangrelor or eptifibatide blocks the platelets within minutes.'), replaces: ANTITHROMBOTIC_RULES },
+    askHarm(RN_ASKS[0], 'Bivalirudin when the operator asked for a drug that blocks the platelets. Bivalirudin is an anticoagulant, like the heparin: cangrelor or eptifibatide blocks the platelets within minutes.'),
     // the nurse's bivalirudin for the heparin order (respond.bivalirudin closes it): the platelet order's own wrong answer covers it when that one is open too
     { id: 'wrong-rn-heparin', actions: ['bivalirudin'], roles: [4], when: (s) => openOrder(s, 'rn-heparin', 'heparin-given') && !openOrder(s, 'rn-platelets', 'platelets-given'), points: 3, severity: 'minor', text: 'Bivalirudin when the operator asked for a heparin top-up. Switching the anticoagulant is the operator\'s decision, with its own dosing: give what was ordered, or ask first.' },
     askHarm(RN_ASKS[3], 'Midazolam when the operator asked for something for the pain. A sedative does not relieve ischemic pain, and it lowers the pressure and the breathing: fentanyl 25–50 mcg IV.'),

@@ -494,11 +494,15 @@ describe('the nurse', () => {
     expect(penalties(midaz)).toEqual(['wrong-rn-pain']);
   });
 
-  it('an intracoronary drug drawn up unasked during the fall is refused, at a small cost', () => {
+  it('an intracoronary drug drawn up unasked during the fall is refused: a nitrate at this pressure costs its contraindication, epinephrine the small cost', () => {
     const s = run(sc, 4, [...RN_TO_DROP, 'callout', 'ic-nitro']);
     expect(s.log.some((l) => l.who === 'operator' && /I didn't ask for that/.test(l.text))).toBe(true);
-    expect(penalties(s)).toEqual(['unasked-ic-drug']);
+    // the unasked drug is a wrong answer to the team: the heavier label contraindication on the same dose — nitroglycerin
+    // under 90 — charges alone (engine harmsFor), never hidden behind the 3-point rule
+    expect(penalties(s)).toEqual(['nitro-hypotension']);
     expect(s.vitals.sbp).toBe(79);
+    // epinephrine down the catheter has no heavier rule here: the wrong answer alone
+    expect(penalties(run(sc, 4, [...RN_TO_DROP, 'callout', 'ic-epinephrine']))).toEqual(['unasked-ic-drug']);
   });
 
   it('the heparin order: another anticoagulant gets a word and costs points', () => {

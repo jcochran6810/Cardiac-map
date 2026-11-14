@@ -4,7 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
-import { ANTITHROMBOTIC_RULES, PROTAMINE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_CHECKS } from '../rules/acs';
 import { radialSheath } from '../rules/helpers';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
@@ -409,14 +409,17 @@ export const cathlabFfr: Scenario = {
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
     ...TECH_ASKS.slice(1, 5).map((a) => askHarm(a, `The wrong view when the operator asked for this one. ${a.why}`, 2)),
-    { ...askHarm(TECH_ASKS[5], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), ...RATE_RULES] },
+    askHarm(TECH_ASKS[5], 'An intracoronary drug when the operator asked for the radial cocktail.'),
     askHarm(TECH_ASKS[6], 'A right-coronary guide when the operator asked for a left guide.'),
     askHarm(TECH_ASKS[10], 'The wrong device when the operator asked for a drug-eluting stent.'),
     askHarm(TECH_ASKS[11], 'A compliant balloon when the operator asked for a non-compliant one.'),
-    { ...askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5), replaces: [...ANTITHROMBOTIC_RULES, ...PROTAMINE_RULES] },
-    { ...askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), ...RATE_RULES] },
-    { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), ...RATE_RULES] },
-    { ...askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'), replaces: RATE_RULES },
+    askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5),
+    askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'),
+    // a wrong answer is weighed against a nitrate rule on the same dose (engine harmsFor), but a check before a nitrate
+    // (the interval) is not: it would charge beside it. So it still stands in for the checks (NITRATE_CHECKS) and
+    // nothing else: one dose, one penalty
+    { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: NITRATE_CHECKS },
+    askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'),
     // (no oxygen rule: an elective study with no ACS, and a sedated patient — supplemental oxygen during moderate sedation is
     // standard, ASA 2018)
   ]),

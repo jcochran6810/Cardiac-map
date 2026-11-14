@@ -5,7 +5,7 @@ import {
   LAD_VIEWS, LEFT_VIEWS, MD, RCA_VIEWS, TECH, WIRES, angioGate, anticoagulated, askCritical, askDone, askEvents, askHarm, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { ANTITHROMBOTIC_RULES, LYTIC_RULES, PROTAMINE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_CHECKS } from '../rules/acs';
 import { BETA_BLOCKERS } from '../rules/helpers';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
@@ -793,10 +793,13 @@ export const cathlabScad: Scenario = {
     askHarm(TECH_ASKS[0], 'The wrong catheter when the operator asked for a JL4. A JL4 engages the left coronary; a JR4 the right; a guide is for an intervention.'),
     askHarm(TECH_ASKS[1], 'A right-coronary view when the operator asked to repeat the LAD. Cranial views lay out the mid and distal LAD.'),
     askHarm(TECH_ASKS[2], 'The wrong catheter when the operator asked for a JR4 for the right coronary.', 2),
-    { ...askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,800 units. Read the order back before you give it.'), replaces: [...ANTITHROMBOTIC_RULES, ...PROTAMINE_RULES] },
+    askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,800 units. Read the order back before you give it.'),
     // the wrong answer is the order's own mistake: one penalty, not the epinephrine rule's as well
-    { ...askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive', 'nitroprusside-hypotension'), ...RATE_RULES, 'ic-epi-no-indication'] },
-    { ...askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'), replaces: RATE_RULES },
+    // a wrong answer is weighed against a nitrate rule on the same dose (engine harmsFor), but a check before a nitrate
+    // (the interval) is not: it would charge beside it. So it still stands in for the checks (NITRATE_CHECKS) and
+    // nothing else: one dose, one penalty
+    { ...askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'), replaces: NITRATE_CHECKS },
+    askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'),
     askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain.', 2),
   ]),
   timings: [
