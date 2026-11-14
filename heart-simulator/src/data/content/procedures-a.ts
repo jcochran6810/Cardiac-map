@@ -1256,6 +1256,8 @@ export const PROCEDURES_A: Record<string, ProcedureContent> = {
       'Severe peripheral arterial disease precluding large-bore access (consider axillary or IVL-facilitated access)',
       'Ventricular septal rupture or atrial/ventricular septal defect, LV free-wall rupture; cardiac tamponade',
       'Significant aortic disease (dissection, aneurysm); significant RV failure without RV support; inability to tolerate anticoagulation (relative)',
+      'Combined cardiorespiratory failure — an LV pump does not oxygenate (consider VA-ECMO)',
+      'Heparin intolerance or HIT — the purge runs heparin (a bicarbonate-based purge where available; IFU)',
     ],
     anatomy: [
       'Pump crosses the aortic valve: inlet in the LV cavity, outlet above the valve in the ascending aorta',

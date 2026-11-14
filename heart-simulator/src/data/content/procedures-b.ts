@@ -2151,6 +2151,76 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
     relatedConditions: ['ventricular-fibrillation', 'monomorphic-vt', 'torsades-de-pointes'],
   },
 
+  'cpap-niv': {
+    id: 'cpap-niv',
+    name: 'CPAP and Non-invasive Ventilation (BiPAP)',
+    category: 'Emergency & Bedside',
+    summary:
+      'Positive airway pressure through a sealed mask — continuous (CPAP) or with a higher pressure on each breath (BiPAP) — reopens flooded alveoli and lowers the work of breathing and the left ventricle\'s afterload. It is the first treatment for the respiratory distress of cardiogenic pulmonary edema, given with nitroglycerin, and it can keep a tiring patient off the ventilator.',
+    levelNotes: [
+      'Sit the patient up, give oxygen and call ALS early for severe breathlessness with crackles; where your protocol lets EMTs apply CPAP, check first that the patient is awake, can keep the mask on, and has a systolic of 90 or more',
+      'Apply CPAP at 5–10 cmH₂O for respiratory distress from pulmonary edema (or COPD) in an awake patient who can protect the airway; not with a systolic under 90, vomiting, a pneumothorax, facial trauma, or a heart that lives on its filling (tamponade, a large PE, an RV infarct); give nitroglycerin alongside for a high pressure, and stay at the head watching the pressure, the SpO₂ and the mental status',
+      'Have the ventilator or BiPAP circuit, masks in several sizes, suction and the intubation kit ready when a patient in the lab is put on non-invasive ventilation; record the settings and watch the pressure as it starts',
+      'Watch the pressure, SpO₂, respiratory rate, mental status and the mask fit every few minutes after starting; a falling pressure, vomiting, drowsiness or a patient fighting the mask is a reason to call the physician — never sedate to make a patient tolerate it without an order',
+      'Non-invasive ventilation reduces intubation in cardiogenic pulmonary edema; start CPAP 5–10 cmH₂O or BiPAP (IPAP 10–16 / EPAP 5–10) and titrate, and do not use it in cardiogenic shock, an undrained tamponade or with an altered mind; reassess within 1–2 hours and intubate early if it fails',
+      'Set up CPAP or BiPAP with respiratory therapy on the physician\'s order, check the mask seal, and watch the pressure, SpO₂, respiratory rate and alertness closely; tell the physician at once about a falling pressure, vomiting, rising CO₂ (drowsiness) or a patient who cannot tolerate the mask',
+      'Use NIV for cardiogenic pulmonary edema and hypercapnic COPD with nitroglycerin for a high pressure; contraindications: apnea or an unprotected airway, a systolic under 90 or shock, an untreated pneumothorax, facial trauma, burns or recent upper-airway or upper-GI surgery, vomiting, an uncooperative patient — and caution in preload-dependent states; reassess within an hour and intubate if it fails',
+    ],
+    overview: [
+      'CPAP holds one pressure through the breath; BiPAP adds a higher inspiratory pressure (IPAP) above the expiratory one (EPAP), helping ventilation and CO₂ clearance',
+      'Positive pressure reopens fluid-filled alveoli, raises functional residual capacity and improves oxygenation',
+      'It lowers venous return (preload) and LV afterload — which helps a congested heart and harms one that depends on its filling',
+      'In cardiogenic pulmonary edema it reduces the need for intubation (Cochrane; 2017 ERS/ATS NIV guideline)',
+    ],
+    indications: [
+      'Respiratory distress from cardiogenic pulmonary edema, with nitroglycerin for a high pressure',
+      'Hypercapnic respiratory failure from a COPD exacerbation (BiPAP)',
+      'A tiring patient who is awake and cooperative, as a bridge while the cause is treated',
+    ],
+    contraindications: [
+      'Apnea or respiratory arrest, or a patient who cannot breathe on their own or protect the airway (GCS 8 or less, vomiting) — bag-mask and an advanced airway',
+      'A systolic under 90 or shock — positive pressure cuts the venous return and drops the pressure further',
+      'An untreated pneumothorax — positive pressure can turn it into a tension pneumothorax',
+      'Facial trauma or burns, or recent facial, upper-airway or upper-GI surgery — the mask cannot seal, or forces air where it should not go',
+      'Inability to fit the mask, or an uncooperative or very agitated patient',
+      'Relative: a heart that lives on its preload — an undrained tamponade, a massive PE, an RV infarction (positive pressure drops the filling)',
+      'Relative: copious secretions, or a high aspiration risk',
+    ],
+    anatomy: [
+      'The alveoli and small airways flood in pulmonary edema: positive pressure holds them open',
+      'Intrathoracic pressure rises: venous return to the right heart falls, and the LV transmural pressure (afterload) falls',
+    ],
+    accessSite: 'A sealed full-face or oronasal mask (or a nasal mask), with the patient sitting up',
+    steps: [
+      { title: 'Select', description: 'An awake, cooperative patient in respiratory distress who can protect the airway, with a systolic of 90 or more and none of the contraindications' },
+      { title: 'Position', description: 'Sit the patient upright; explain the mask and coach the breathing' },
+      { title: 'Fit the mask', description: 'Choose the size, hold it in place first, then secure the straps with a good seal' },
+      { title: 'Set the pressure', description: 'CPAP 5 cmH₂O, rising to 10; or BiPAP IPAP 10–16 / EPAP 5–10, titrated to the work of breathing and the SpO₂' },
+      { title: 'Treat the cause', description: 'Nitroglycerin for a high pressure in pulmonary edema; bronchodilators for COPD' },
+      { title: 'Reassess', description: 'The pressure, SpO₂, respiratory rate, mental status and comfort every few minutes; intubate early if it fails' },
+    ],
+    ecg: [
+      'Sinus tachycardia from hypoxia and work of breathing usually slows as it works',
+      'A falling pressure with a rising rate after starting suggests a preload-dependent heart',
+    ],
+    equipment: ['CPAP device or ventilator with an NIV mode', 'Masks in several sizes', 'Oxygen supply', 'Suction', 'Intubation kit at hand', 'Waveform capnography where available'],
+    complications: [
+      'Hypotension (less venous return)',
+      'Aspiration of vomit under a sealed mask',
+      'Pneumothorax (barotrauma)',
+      'Gastric distension, mask pressure injury to the nose, eye irritation',
+      'Delayed intubation when it is failing',
+    ],
+    postCare: ['Wean the pressure as the breathing and oxygenation improve', 'Watch for a recurrence of the edema once it comes off'],
+    teaching: [
+      'CPAP for pulmonary edema works fast: within minutes the work of breathing and the SpO₂ improve',
+      'Before you seal a mask, check the pressure, the airway reflexes, the stomach and the chest (a pneumothorax)',
+      'A preload-dependent heart (tamponade, a large PE, an RV infarct) can collapse under positive pressure',
+    ],
+    targetStructures: ['left-ventricle', 'right-ventricle', 'pulmonary-veins'],
+    relatedConditions: ['hfref', 'hfpef', 'cardiogenic-shock', 'cardiac-tamponade'],
+  },
+
   cardioversion: {
     id: 'cardioversion',
     name: 'Synchronized Cardioversion',
@@ -2183,6 +2253,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Pulseless or polymorphic VT — defibrillate (unsynchronized) instead',
       'Elective AF/flutter ≥ 48 h without adequate anticoagulation or TEE',
       'Digoxin toxicity or hypokalemia (relative — correct first when elective)',
+      'Left atrial or appendage thrombus on TEE — anticoagulate and re-image first (2023 ACC/AHA/ACCP/HRS AF)',
     ],
     anatomy: [
       'Re-entry circuits: flutter around the tricuspid annulus, AVNRT in the AV node region, AVRT via an accessory pathway, VT around scar',
@@ -2415,6 +2486,7 @@ export const PROCEDURES_B: Record<string, ProcedureContent> = {
       'Traumatic hemopericardium — surgical management (needle only as a bridge if surgery is unavailable)',
       'Free wall rupture after MI — surgery',
       'Relative: coagulopathy, thrombocytopenia, small, posterior or loculated effusion',
+      'No effusion, or no tamponade physiology on echo — no indication (never a blind needle without an arrest)',
     ],
     anatomy: [
       'The pericardial space normally holds ~15–50 mL of fluid',

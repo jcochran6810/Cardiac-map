@@ -463,3 +463,62 @@ describe('drug safety questions get the drug card\'s whole list of contraindicat
     expect(a.bullets.slice(0, lib.medications[id].contraindications.length)).toEqual(lib.medications[id].contraindications);
   });
 });
+
+describe('review round: safety questions land on the page that answers them', () => {
+  it('a condition\'s "what should I avoid" shows its avoid lines first, and never cuts them', () => {
+    const a = ask('What drugs should I avoid in HFrEF?');
+    expect(a.title).toBe('Heart Failure with Reduced EF (HFrEF) — medications');
+    expect(a.bullets[0]).toMatch(/non-dihydropyridine/);
+    expect(shown('What drugs should I avoid in Takotsubo?')).toMatch(/— medications/);
+  });
+
+  it('"can I give X with Y?" adds the interaction line that names Y', () => {
+    expect(ask('Can I give digoxin with amiodarone?').bullets.join('\n')).toMatch(/Interaction: Amiodarone/);
+    expect(ask('Can I give clopidogrel with omeprazole?').bullets.join('\n')).toMatch(/Interaction: Omeprazole/);
+    const ca = ask('Can I give calcium gluconate with digoxin?');
+    expect(ca.title).toBe('Calcium Chloride — contraindications');
+    expect(ca.bullets.join('\n')).toMatch(/Interaction: Digoxin/);
+  });
+
+  it.each([
+    ['Can I give magnesium in heart block?', 'Magnesium Sulfate — contraindications'],
+    ['Can I give tPA in a dissection?', 'Alteplase — contraindications'],
+    ['Contraindications to thrombolytics in STEMI?', 'Tenecteplase — contraindications'],
+    ['Can I give magnesium with myasthenia gravis?', 'Magnesium Sulfate — contraindications'],
+    ['Can I give calcium with bicarbonate?', 'Calcium Chloride — contraindications'],
+    ['Can I give bicarb in alkalosis?', 'Sodium Bicarbonate — contraindications'],
+    ['Can I give amio in WPW?', 'Amiodarone — contraindications'],
+    ['Can I give dilt in WPW?', 'Diltiazem — contraindications'],
+    ['Can I give TNK after a stroke?', 'Tenecteplase — contraindications'],
+    ['When should I not cardiovert a patient?', 'Synchronized Cardioversion — contraindications'],
+    ['contraindications to transvenous pacing', 'Temporary Pacing (Transcutaneous / Transvenous) — contraindications'],
+    ['What are the contraindications to CPAP?', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['When should I not use CPAP?', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['contraindications to noninvasive ventilation', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['contraindications to BiPAP', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+    ['When should I not use CPAP in pulmonary edema?', 'CPAP and Non-invasive Ventilation (BiPAP) — contraindications'],
+  ])('%s → %s', (q, title) => {
+    expect(ask(q).title).toBe(title);
+  });
+
+  it('a calcium-channel blocker is not the calcium card; pacing in asystole is answered', () => {
+    expect(ask('Can I give a calcium channel blocker in WPW?').title).not.toMatch(/Calcium Chloride/);
+    expect(shown('Is it safe to pace a patient in asystole?')).toMatch(/pacing is not recommended/);
+  });
+
+  it('the CPAP page lists the contraindications the simulator scores', () => {
+    const c = ask('What are the contraindications to CPAP?').bullets.join('\n');
+    for (const re of [/protect the airway/, /systolic under 90/, /pneumothorax/, /Facial trauma or burns/, /tamponade, a massive PE, an RV infarction/]) expect(c).toMatch(re);
+  });
+});
+
+describe('review round: procedure pages name the contraindications the reviewers found missing', () => {
+  it.each([
+    ['impella-placement', /Combined cardiorespiratory failure/],
+    ['impella-placement', /Heparin intolerance or HIT/],
+    ['cardioversion', /Left atrial or appendage thrombus on TEE/],
+    ['pericardiocentesis', /No effusion, or no tamponade physiology on echo/],
+  ])('%s', (id, re) => {
+    expect(lib.procedures[id].contraindications.join('\n')).toMatch(re);
+  });
+});

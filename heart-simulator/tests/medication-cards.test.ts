@@ -203,7 +203,7 @@ describe('antithrombotic, lytic and nitrate cards', () => {
 
 describe('support and chronic cards', () => {
   it('calcium: the gluconate dose, by a peripheral line', () => {
-    expect(card('calcium-chloride').dosing.join(' ')).toMatch(/Calcium gluconate 10%: 3 g \(30 mL\) IV over 2–5 min through a peripheral line/);
+    expect(card('calcium-chloride').dosing.join(' ')).toMatch(/Calcium gluconate 10%: 3 g \(30 mL\) IV over 5–10 min through a peripheral line \(over 2–5 min with severe ECG changes, AHA; a push in arrest\)/);
   });
 
   it('calcium and digoxin: what the label still says, next to the evidence', () => {
@@ -365,5 +365,27 @@ describe('new cards for the drugs the simulator gives', () => {
 
   it('fibrinolytic questions still go to tenecteplase, the STEMI lytic', () => {
     expect(ask('who is not a candidate for fibrinolysis').title).toBe('Tenecteplase — contraindications');
+  });
+});
+
+describe('review round: card lines for label contraindications and dangerous interactions', () => {
+  const card = (id: string) => MEDICATIONS[id as keyof typeof MEDICATIONS];
+  it.each([
+    ['verapamil', 'contraindications', /Obstructive HCM with hypotension, dyspnea at rest or a very high gradient.*3 — Harm/],
+    ['verapamil', 'interactions', /IV dantrolene/],
+    ['diltiazem', 'contraindications', /Obstructive HCM with hypotension or severe dyspnea at rest/],
+    ['amiodarone', 'interactions', /β-blockers, diltiazem or verapamil, digoxin, fentanyl: additive bradycardia/],
+    ['digoxin', 'interactions', /IV calcium \(chloride or gluconate\): give it slowly/],
+    ['tenecteplase', 'contraindications', /chronic, severe, poorly controlled hypertension \(relative/],
+    ['dextrose', 'contraindications', /intracranial or intraspinal hemorrhage, or delirium tremens with dehydration \(label\)/],
+    ['esmolol', 'contraindications', /Untreated pheochromocytoma/],
+    ['labetalol', 'contraindications', /Untreated pheochromocytoma/],
+    ['midazolam', 'contraindications', /Shock, a low pressure, coma or acute alcohol intoxication.*\(label warning\)/],
+    ['insulin-dextrose', 'dosing', /5 units with kidney failure or a low weight/],
+    ['protamine', 'dosing', /A bolus: 1 mg per 100 units of heparin given in the last 30 min/],
+    ['aspirin', 'dosing', /650–1000 mg every 8 h for 1–2 weeks, then taper \(2025 ACC; 750–1000 mg in ESC guidance\)/],
+    ['glucagon', 'dosing', /3–5 min to limit vomiting/],
+  ])('%s %s', (id, field, re) => {
+    expect((card(id) as unknown as Record<string, string[]>)[field].join('\n')).toMatch(re);
   });
 });

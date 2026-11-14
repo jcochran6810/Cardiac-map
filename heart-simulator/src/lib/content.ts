@@ -204,6 +204,14 @@ const ALIASES: [RegExp, string][] = [
   [/\bstendra\b/g, 'avanafil'],
   [/\badempas?\b/g, 'riociguat'],
   [/\b(?:coke|crack)\b/g, 'cocaine'],
+  // short drug names, the lytics as a class, and the procedures by the verb or another name
+  [/\bamio\b/g, 'amiodarone'],
+  [/\bdilt\b/g, 'diltiazem'],
+  [/\bbicarb\b/g, 'sodium bicarbonate'],
+  [/\br?t-?pa\b/g, 'alteplase'],
+  [/\b(?:thrombolytics?|fibrinolytics?|lytics?)\b/g, 'tenecteplase'],
+  [/\bcardiovert\w*\b/g, 'cardioversion'],
+  [/\b(?:bi-?pap|niv|non-?invasive\s+(?:positive[\s-]+pressure\s+)?ventilation)\b/g, 'cpap'],
 ];
 
 /** The query with everyday words swapped for the library's own (null when nothing changes) */

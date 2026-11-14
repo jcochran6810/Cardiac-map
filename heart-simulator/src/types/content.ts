@@ -308,7 +308,7 @@ export const PROCEDURE_IDS = [
   // surgical
   'cabg', 'valve-surgery', 'lvad-implantation', 'heart-transplant',
   // emergency & bedside
-  'defibrillation', 'cardioversion', 'temporary-pacing', 'pericardiocentesis', 'ecmo-cannulation', 'endomyocardial-biopsy',
+  'defibrillation', 'cardioversion', 'temporary-pacing', 'pericardiocentesis', 'ecmo-cannulation', 'endomyocardial-biopsy', 'cpap-niv',
 ] as const;
 
 export const MEDICATION_IDS = [

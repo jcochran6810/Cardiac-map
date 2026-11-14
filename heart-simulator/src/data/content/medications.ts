@@ -42,7 +42,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Maintenance: 75–100 mg once daily (81 mg in the US)',
       'With ticagrelor: maintenance aspirin must be ≤ 100 mg/day',
       'Unable to swallow: rectal suppository (~300–600 mg) per local protocol',
-      'Acute pericarditis: ~750–1000 mg every 8 h for 1–2 weeks, then taper (ESC)',
+      'Acute pericarditis: 650–1000 mg every 8 h for 1–2 weeks, then taper (2025 ACC; 750–1000 mg in ESC guidance)',
     ],
     contraindications: [
       'True aspirin/NSAID allergy (anaphylaxis, angioedema, urticaria) — absolute; give a P2Y12 inhibitor alone (2025 ACC/AHA ACS)',
@@ -722,6 +722,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Internal bleeding within 2–4 weeks, or an active peptic ulcer (relative)',
       'Non-compressible vascular punctures (relative)',
       'Pregnancy (relative)',
+      'A history of chronic, severe, poorly controlled hypertension (relative — 2013 ACCF/AHA STEMI table, kept in 2025)',
     ],
     adverseEffects: [
       'Intracranial hemorrhage (~0.5–1%; higher in elderly, women and low body weight)',
@@ -1049,6 +1050,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Pulmonary hypertension (label)',
       'IV calcium-channel blockers (verapamil, diltiazem) while their effect lasts — fatal cardiac arrests reported (label)',
       'Acute cocaine or methamphetamine intoxication — unopposed α (2014 AHA/ACC NSTE-ACS: 3 — Harm)',
+      'Untreated pheochromocytoma — not before α-blockade (label warning)',
     ],
     adverseEffects: [
       'Hypotension (most common, dose-related)',
@@ -1205,6 +1207,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'An IV β-blocker given together or within a few hours (label) — profound bradycardia, AV block, asystole',
       'Compensatory sinus tachycardia (tamponade, PE, bleeding, sepsis) — treat the cause, never slow it (relative)',
       'Hypersensitivity to diltiazem',
+      'Obstructive HCM with hypotension or severe dyspnea at rest (relative — as for verapamil; 2024 AHA/ACC HCM)',
     ],
     adverseEffects: [
       'Hypotension',
@@ -1317,6 +1320,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Simvastatin (limit 20 mg/day) and lovastatin: myopathy risk',
       'Other QT-prolonging drugs: additive torsades risk',
       'Sofosbuvir: severe symptomatic bradycardia — avoid',
+      'β-blockers, diltiazem or verapamil, digoxin, fentanyl: additive bradycardia, AV block and hypotension (label)',
     ],
     teaching: [
       'ALPS: amiodarone and lidocaine improved survival to admission, not overall survival to discharge',
@@ -1553,6 +1557,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Loop and thiazide diuretics → hypokalemia and hypomagnesemia → toxicity',
       'Beta-blockers and CCBs → additive AV block',
       'Spironolactone may interfere with some digoxin assays',
+      'IV calcium (chloride or gluconate): give it slowly (label); the hyperkalemia of digoxin toxicity is treated with digoxin Fab (2023 AHA) — calcium is no longer considered contraindicated (Levine 2011)',
     ],
     teaching: [
       'Digoxin effect (scooped ST) is not the same as digoxin toxicity',
@@ -2744,7 +2749,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Arrest with suspected hyperkalemia: 1 g IV/IO push',
       'Equivalent: ~3 g calcium gluconate ≈ 1 g calcium chloride',
       'CCB toxicity: repeated boluses or infusion per toxicology guidance',
-      'Calcium gluconate 10%: 3 g (30 mL) IV over 2–5 min through a peripheral line — about the same calcium as 1 g of chloride, gentler on the vein',
+      'Calcium gluconate 10%: 3 g (30 mL) IV over 5–10 min through a peripheral line (over 2–5 min with severe ECG changes, AHA; a push in arrest) — about the same calcium as 1 g of chloride, gentler on the vein',
     ],
     contraindications: [
       'Hypercalcemia',
@@ -2814,7 +2819,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Hyperkalemic cardiac arrest, alongside CPR and defibrillation (benefit not well established, 2025 AHA)',
     ],
     dosing: [
-      'Regular insulin 10 units IV push',
+      'Regular insulin 10 units IV push (5 units with kidney failure or a low weight: fewer lows)',
       'With dextrose 25 g IV (50 mL of D50) if the glucose is below about 250 mg/dL (14 mmol/L)',
       'Some protocols: 5 units, or dextrose infusion after the bolus, when the hypoglycemia risk is high',
       'May be repeated after a few hours if potassium stays high, guided by glucose and potassium; a repeat dose raises the hypoglycemia risk',
@@ -3260,6 +3265,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'AF or flutter with an accessory pathway (pre-excited AF, WPW)',
       'Ventricular tachycardia, or a wide-complex tachycardia of uncertain origin',
       'Hypersensitivity to verapamil',
+      'Obstructive HCM with hypotension, dyspnea at rest or a very high gradient (> 100 mmHg) — potentially harmful (2024 AHA/ACC HCM: 3 — Harm); deaths from pulmonary edema reported (label warning)',
     ],
     adverseEffects: [
       'Hypotension and bradycardia',
@@ -3286,6 +3292,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Digoxin: its level rises and the AV block adds up',
       'Raises the levels of statins, colchicine, DOACs and others (a CYP3A4 and P-gp inhibitor)',
       'IV calcium (chloride or gluconate) reverses it',
+      'IV dantrolene — cardiovascular collapse and hyperkalemia reported with IV verapamil (label): avoid the combination',
     ],
     teaching: [
       'A wide tachycardia is VT until proven otherwise: verapamil in VT can be fatal',
@@ -3452,7 +3459,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Partial reversal of enoxaparin given within 8 h',
     ],
     dosing: [
-      '1 mg per 100 units of heparin given in the last 2–3 h (less for heparin given earlier); no more than 50 mg in one dose',
+      'A bolus: 1 mg per 100 units of heparin given in the last 30 min, less as time passes (0.25–0.375 mg per 100 units after 2 h); an infusion: 1 mg per 100 units given over the last 2–3 h; no more than 50 mg in one dose',
       'Slowly: no more than 50 mg over 10 min (label)',
       'Enoxaparin within 8 h: 1 mg per 1 mg of enoxaparin (only partial reversal)',
     ],
@@ -3527,7 +3534,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Acute narrow-angle glaucoma (label)',
       'Boxed warning: respiratory depression — only where the airway, oxygen, monitoring and a reversal agent are at hand',
       'Boxed warning: with opioids — profound sedation, respiratory depression and death; reduce both doses',
-      'Shock, a low pressure or an unprotected airway without monitoring (practice)',
+      'Shock, a low pressure, coma or acute alcohol intoxication — an unprotected airway without monitoring (label warning)',
     ],
     adverseEffects: [
       'Respiratory depression and apnea (more with opioids)',
@@ -3699,9 +3706,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Glucagon (IM or intranasal) is given for severe hypoglycemia when the patient cannot swallow, per protocol. Turn the patient on the side: vomiting is common.',
       'Hypoglycemia without IV access: 1 mg IM. A β-blocker or calcium-channel-blocker overdose: 3–10 mg IV per protocol or medical direction, then an infusion — protect the airway, vomiting is common.',
       'Not used in the cath lab routinely. If given for a β-blocker overdose, record the dose and time and have suction ready.',
-      'For a β-blocker overdose: 3–10 mg IV over 1–2 min, then an infusion of the dose that worked, per hour. Check the glucose and the potassium, protect the airway and give an antiemetic.',
+      'For a β-blocker overdose: 3–10 mg IV over 1–2 min (or 3–5 min to limit vomiting), then an infusion of the dose that worked, per hour. Check the glucose and the potassium, protect the airway and give an antiemetic.',
       'β-blocker (and calcium-channel-blocker) overdose: a bridge — calcium, high-dose insulin with glucose, pressors and pacing are the core. Not with a pheochromocytoma or an insulinoma.',
-      'On order for a β-blocker overdose: 3–10 mg IV over 1–2 min, then the infusion. Vomiting is likely: suction ready, the head of the bed up. Check the glucose.',
+      'On order for a β-blocker overdose: 3–10 mg IV over 1–2 min (or 3–5 min to limit vomiting), then the infusion. Vomiting is likely: suction ready, the head of the bed up. Check the glucose.',
       'β-blocker overdose with bradycardia and shock: glucagon 3–10 mg IV, then an infusion; high-dose insulin and pressors as well. Avoid in a pheochromocytoma (catecholamine release) and an insulinoma.',
     ],
     mechanism: [
@@ -3715,7 +3722,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     dosing: [
       'Hypoglycemia: 1 mg IM/SC, or 3 mg intranasal',
-      'β-blocker overdose: 3–10 mg IV over 1–2 min (about 0.05–0.15 mg/kg), then an infusion of the dose that worked, per hour',
+      'β-blocker overdose: 3–10 mg IV over 1–2 min (about 0.05–0.15 mg/kg; or over 3–5 min to limit vomiting), then an infusion of the dose that worked, per hour',
     ],
     contraindications: [
       'Pheochromocytoma — it releases catecholamines (severe hypertension) (label)',
@@ -3788,6 +3795,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Other conditions with severe, prolonged hypotension (label)',
       'Acute cocaine or methamphetamine intoxication — a β-blocker (2014 AHA/ACC NSTE-ACS: no β-blocker in acute intoxication, 3 — Harm)',
       'Hypersensitivity',
+      'Untreated pheochromocytoma — not before α-blockade: paradoxical hypertension reported (label warning)',
     ],
     adverseEffects: [
       'Hypotension, especially on standing',
@@ -3914,6 +3922,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Check the glucose first: no dextrose for a normal or high glucose (except with insulin for hyperkalemia)',
       'Oral glucose: no gag reflex, or unable to swallow and protect the airway',
       'D50 through a small or insecure vein: it injures the tissue if it leaks — D10 is preferred (relative)',
+      'Concentrated dextrose (D50): not with an intracranial or intraspinal hemorrhage, or delirium tremens with dehydration (label)',
     ],
     adverseEffects: [
       'Hyperglycemia',
