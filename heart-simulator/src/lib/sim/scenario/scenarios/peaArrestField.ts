@@ -531,7 +531,7 @@ export const peaArrestField: Scenario = {
     },
     {
       // in the arrest and after it: she never has anaphylaxis
-      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], points: 3, severity: 'minor',
+      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], replaces: ['epi-im-in-arrest'], points: 3, severity: 'minor',
       text: 'IM epinephrine without anaphylaxis. In the arrest nothing carries it out of the muscle, and 0.3–0.5 mg is the anaphylaxis dose: epinephrine for an arrest is 1 mg IV/IO, from ALS. After ROSC her low pressure is the after-effect of the arrest, not anaphylaxis: it is treated with fluid and a vasopressor.',
     },
     {

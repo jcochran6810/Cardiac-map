@@ -674,7 +674,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'Epinephrine or a pressor before the basics. Legs up, a fluid bolus and atropine bring this back within minutes; push-dose epinephrine or an infusion comes only when they fail (2025 AHA bradycardia algorithm), and adds a racing heart, a pressure spike and extra beats in a heart that was just studied for chest pain.',
     },
     {
-      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], roles: RN_MD, points: 3, severity: 'minor',
+      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], roles: RN_MD, replaces: ['epi-im-in-arrest'], points: 3, severity: 'minor',
       text: 'Epinephrine for anaphylaxis with no anaphylaxis. A contrast reaction drops the pressure too, but with a fast pulse, flushing, hives, wheeze or swelling; here the pulse is slow, the skin pale and wet, and he yawned and felt sick first — a vagal picture. Unneeded epinephrine races the heart and spikes the pressure in a man just studied for chest pain: legs up, fluid and atropine.',
     },
     {

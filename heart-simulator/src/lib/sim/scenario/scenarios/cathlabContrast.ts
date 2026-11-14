@@ -229,7 +229,7 @@ export const cathlabContrast: Scenario = {
     { id: 'oxygen', label: 'Oxygen for an SpO₂ below 90 %', why: 'Bronchospasm and airway swelling drop the oxygen: high-flow oxygen.', done: ['o2-nrb', 'o2-nc'], after: 'reaction', points: 5, target: { within: { flag: 'reaction', minutes: 3 } }, applies: (s) => has(s, 'reaction') },
     { id: 'albuterol', label: 'Albuterol for the wheeze', why: 'A nebulized bronchodilator for bronchospasm that remains after epinephrine.', done: ['albuterol'], after: 'reaction', roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
     { id: 'antihistamine', label: 'An antihistamine (diphenhydramine)', why: 'Second-line: it eases the hives and itching, not the airway or the pressure.', done: ['diphenhydramine'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
-    { id: 'steroid', label: 'A steroid (methylprednisolone)', why: 'Second-line: it may reduce a later (biphasic) reaction.', done: ['steroid'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
+    { id: 'steroid', label: 'A steroid (methylprednisolone)', why: 'An adjunct after epinephrine: it does not treat the airway or the pressure, and does not reliably prevent a second (biphasic) reaction — observation does (Shaker 2020 practice parameter).', done: ['steroid'], roles: [4, 5], points: 5, applies: (s) => has(s, 'reaction') },
     ...TECH_ASKS.map(askCritical),
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always.', done: ['hemostasis'], after: 'recovered', roles: [3, 4], points: 5, applies: (s) => has(s, 'recovered') },
     { id: 'handoff', label: 'Hand-off and documentation', why: 'Record the reaction as a contrast allergy, the drugs given, and the premedication plan for any future contrast; observe for a biphasic reaction.', done: ['handoff'], roles: [4, 5], points: 5 },
@@ -242,6 +242,7 @@ export const cathlabContrast: Scenario = {
     // The case declares the anaphylaxis and the bronchospasm she has once the contrast goes in: before the reaction the
     // built-in rules, same ids, still charge (a prophylactic dose is no treatment); after it, these drugs are right
     { id: 'albuterol-no-bronchospasm', actions: ['albuterol'], when: (s) => !has(s, 'reaction'), points: 3, severity: 'minor', text: 'Albuterol with no wheeze. Her lungs are clear: a bronchodilator before any reaction treats nothing and only speeds the heart. It is for the wheeze of a reaction, after epinephrine.' },
+    { id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], when: (s) => s.pulse && !has(s, 'reaction'), points: 3, severity: 'minor', text: 'IM epinephrine before any reaction. Epinephrine treats anaphylaxis, it does not prevent it: before the contrast it only speeds the heart and raises the pressure. Have it drawn up and ready instead.' },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
   ],
   timings: [

@@ -541,7 +541,7 @@ export const torsadesField: Scenario = {
       text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. Her pressure needs no raising, and a surge of catecholamine in a long QT can set off a run.',
     },
     {
-      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], points: 5, severity: 'major',
+      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], replaces: ['epi-im-in-arrest'], points: 5, severity: 'major',
       text: 'IM epinephrine without anaphylaxis. Nothing she has calls for it, and a surge of adrenaline in a long QT can set off torsades.',
     },
     {

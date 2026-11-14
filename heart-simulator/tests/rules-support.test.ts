@@ -346,3 +346,41 @@ describe('electrolytes, insulin and the antidotes', () => {
     expect(ids(2, { vitals: { gcs: 7 } }, ['iv', 'glucagon'])).toEqual(['glucagon-unprotected-airway']);
   });
 });
+
+describe('anaphylaxis: IM epinephrine first, then the adjuncts', () => {
+  const anaphylaxis = { ...withProblems('anaphylaxis'), vitals: LOW };
+  it('epi-im-in-arrest and epi-im-no-anaphylaxis', () => {
+    expect(ids(2, { pulse: false, rhythm: VF }, ['epi-im'])).toEqual(['epi-im-in-arrest']);
+    expect(ids(2, { pulse: false, rhythm: VF, harms: [exempt('epi-im-in-arrest', ['epi-im'])] }, ['epi-im'])).toEqual([]);
+    expect(ids(2, {}, ['epi-im'])).toEqual(['epi-im-no-anaphylaxis']);
+    expect(ids(2, anaphylaxis, ['epi-im'])).toEqual([]);
+    expect(ids(2, { harms: [exempt('epi-im-no-anaphylaxis', ['epi-im'])] }, ['epi-im'])).toEqual([]);
+    // the gate: in the arrest, whatever else, one penalty
+    expect(ids(2, { ...anaphylaxis, pulse: false, rhythm: VF }, ['epi-im'])).toEqual(['epi-im-in-arrest']);
+    // the contrast reaction case: before the reaction epinephrine prevents nothing; after it, it is the treatment
+    const contrast = SCENARIO_BY_ID['contrast-cathlab'];
+    expect(penaltyIds(contrast, 4, ['consent', 'epi-im'])).toEqual(['epi-im-no-anaphylaxis']);
+    expect(penaltyIds(contrast, 4, ['consent', 'iv', 'timeout', 'reassess', 'callout', 'epi-im'])).toEqual([]);
+  });
+
+  it('antihistamine-first: the adjuncts only after epinephrine', () => {
+    for (const drug of ['diphenhydramine', 'steroid']) {
+      expect(ids(7, anaphylaxis, ['iv', drug]), drug).toEqual(['antihistamine-first']);
+      expect(ids(7, anaphylaxis, ['iv', 'epi-im', drug]), drug).toEqual([]);
+      expect(ids(7, anaphylaxis, ['iv', 'push-epi', drug]), drug).toEqual([]);
+      expect(ids(7, { ...anaphylaxis, harms: [exempt('antihistamine-first', ['diphenhydramine', 'steroid'])] }, ['iv', drug]), drug).toEqual([]);
+    }
+  });
+
+  it('antihistamine-no-indication and steroid-no-indication', () => {
+    expect(ids(7, {}, ['iv', 'diphenhydramine'])).toEqual(['antihistamine-no-indication']);
+    expect(ids(7, { harms: [exempt('antihistamine-no-indication', ['diphenhydramine'])] }, ['iv', 'diphenhydramine'])).toEqual([]);
+    expect(ids(7, {}, ['iv', 'steroid'])).toEqual(['steroid-no-indication']);
+    // a wheeze is an indication for the steroid, not for the antihistamine
+    expect(ids(7, withProblems('bronchospasm'), ['iv', 'steroid'])).toEqual([]);
+    expect(ids(7, withProblems('bronchospasm'), ['iv', 'diphenhydramine'])).toEqual(['antihistamine-no-indication']);
+    expect(ids(7, { harms: [exempt('steroid-no-indication', ['steroid'])] }, ['iv', 'steroid'])).toEqual([]);
+    // the ER nurse with no order: the missing order covers the indication — one penalty
+    expect(ids(6, {}, ['iv', 'steroid'])).toEqual(['rn-without-order-steroid']);
+  });
+});

@@ -637,7 +637,7 @@ export const peField: Scenario = {
       text: 'Fentanyl with a systolic under 90. An opioid blunts the drive that is holding her pressure up: support the pressure first, then a small dose for the pleuritic pain if she needs it.',
     },
     {
-      id: 'epi-im-pe', actions: ['epi-im'], points: 3, severity: 'minor',
+      id: 'epi-im-pe', actions: ['epi-im'], replaces: ['epi-im-no-anaphylaxis', 'epi-im-in-arrest'], points: 3, severity: 'minor',
       text: 'IM epinephrine without anaphylaxis. 0.3–0.5 mg IM is the anaphylaxis dose: it lifts the pressure for a few minutes and treats nothing she has. In the arrest the dose is 1 mg IV/IO, from ALS.',
     },
     {
