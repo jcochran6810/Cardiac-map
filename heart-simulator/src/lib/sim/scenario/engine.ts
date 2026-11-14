@@ -25,10 +25,10 @@ import { READ_KIND_NAME, READ_OPTION_BY_ID, answerFor, partialFor } from './read
 import { angioGate } from './labKit';
 import { LVAD_MIN_PULSE_PRESSURE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, mapOf, paced, ventilated } from './kit';
 import type {
-  Critical, Effect, FactKey, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
+  Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
 import { BUILT_IN_HARMS } from './rules';
-import { RN_ORDER_ONLY } from './rules/scope';
+import { INDICATION_RULES, RN_ORDER_ONLY, rnWithoutOrderId } from './rules/scope';
 import {
   did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, preexcitedAf, profileShowsStemi, rhythmKind, shockable, tachyarrhythmia,
 } from './rules/helpers';
@@ -987,14 +987,27 @@ function askRead(s: SimState, r: PendingRead) {
   else s.pendingRead = r;
 }
 
+/**
+ * The rules that charge this action (`id`), judged on the state just before it takes effect. Each rule charges at most
+ * once per case. One mistake, one penalty:
+ * - a case rule with the same id as a built-in replaces it always, for the roles the case rule is written for (a
+ *   deliberate exemption);
+ * - a case rule's `replaces` hides those built-ins only while the case rule applies to this action — same action, a role
+ *   it is written for, its `when` true now (whether or not it was charged before). In any other state the built-ins apply;
+ * - the ER nurse giving a drug without the order it needs: when 'rn-without-order-<id>' charges this act, the built-in
+ *   indication rules (INDICATION_RULES) are skipped for it — the missing order covers the indication. The
+ *   contraindication rules still apply.
+ */
 function harmsFor(sc: Scenario, s: SimState, id: string) {
-  // a scenario harm with the same id, or one that says it covers a built-in one, replaces it (more specific wording)
-  const own = new Set(sc.harms.flatMap((h) => [h.id, ...(h.replaces ?? [])]));
-  for (const h of [...BUILT_IN_HARMS.filter((b) => !own.has(b.id)), ...sc.harms]) {
-    if (!h.actions.includes(id)) continue;
-    if (h.roles && !h.roles.includes(s.role)) continue;
-    if (s.penalties.some((p) => p.id === h.id)) continue;
-    if (h.when && !h.when(s, sc, id)) continue;
+  const roleOk = (h: Harm) => !h.roles || h.roles.includes(s.role);
+  const applies = (h: Harm) => h.actions.includes(id) && roleOk(h) && (!h.when || h.when(s, sc, id));
+  const charged = (h: Harm) => s.penalties.some((p) => p.id === h.id);
+  const own = new Set([...sc.harms.filter(roleOk).map((h) => h.id), ...sc.harms.filter(applies).flatMap((h) => h.replaces ?? [])]);
+  const builtIn = BUILT_IN_HARMS.filter((b) => !own.has(b.id));
+  const noOrder = builtIn.find((b) => b.id === rnWithoutOrderId(id));
+  const orderCovers = !!noOrder && !charged(noOrder) && applies(noOrder);
+  for (const h of [...builtIn.filter((b) => !(orderCovers && INDICATION_RULES.includes(b.id))), ...sc.harms]) {
+    if (!applies(h) || charged(h)) continue;
     s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text });
   }
 }

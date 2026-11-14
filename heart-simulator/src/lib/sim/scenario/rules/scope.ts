@@ -26,8 +26,28 @@ export const RN_ORDER_ONLY: Record<string, string> = {
 /** …of these, only with a pulse: in an arrest the code leader directs them, and the drug rules score the choice */
 export const RN_ORDER_WITH_A_PULSE = ['calcium-chloride', 'sodium-bicarbonate', 'magnesium-sulfate', 'atropine'];
 
+/** …and these, given without an order, are a critical mistake (15 points): a fibrinolytic is the physician's decision alone */
+export const RN_ORDER_CRITICAL = ['alteplase'];
+
+/**
+ * The built-in rules that judge whether a drug is indicated. When the ER nurse gives a drug without the order it needs and
+ * 'rn-without-order-<id>' charges that act, the engine (harmsFor) skips these for it: the missing order covers the
+ * indication — asking the physician is where the indication is decided (one act, one penalty). The contraindication rules
+ * still apply. Some ids are rules still to come.
+ */
+export const INDICATION_RULES = [
+  'atropine-fast', 'calcium-no-indication', 'bicarbonate-no-indication', 'insulin-no-indication', 'albuterol-hyperk-no-indication',
+  'nitro-high-not-hypertensive', 'transfuse-no-bleeding', 'lytic-no-indication', 'magnesium-no-indication', 'antiarrhythmic-no-arrhythmia',
+  'lidocaine-no-arrhythmia', 'glucagon-no-indication', 'steroid-no-indication', 'pressor-no-hypotension', 'furosemide-no-indication',
+  'nicardipine-no-hypertension', 'opioid-no-pain',
+];
+
+/** The id of the rule that scores the ER nurse giving this drug without an order */
+export const rnWithoutOrderId = (id: string) => `rn-without-order-${id}`;
+
 export const rnWithoutOrder = ([id, name]: [string, string]): Harm => ({
-  id: `rn-without-order-${id}`, actions: [id], roles: [6], points: 5, severity: 'major',
+  id: rnWithoutOrderId(id), actions: [id], roles: [6],
+  ...(RN_ORDER_CRITICAL.includes(id) ? { points: 15, severity: 'critical' as const } : { points: 5, severity: 'major' as const }),
   // a wrong answer to an open order is the order's own harm (labKit askHarm): one mistake, one penalty
   when: (s, sc) => sc.setting === 'ed' && !has(s, orderedFlag(id)) && !answeringWrong(s, id) && (s.pulse || !RN_ORDER_WITH_A_PULSE.includes(id)),
   text: `${name} without an order. The ER nurse gives a medication on a provider's order or an approved standing order or protocol (the state Nurse Practice Act, ENA scope and standards, facility policy), and this one is on neither: the chest pain standing order covers aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs and the chest film, and the ACLS protocol the arrest drugs. Tell the ED physician what you see and what you think it needs (SBAR, closed loop), and give it once it is ordered.`,

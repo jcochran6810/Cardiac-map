@@ -583,6 +583,9 @@ export const cathlabStroke: Scenario = {
     { id: 'nothing-by-mouth', actions: ['aspirin', 'p2y12'], when: deficit, points: 5, severity: 'major', text: 'Something by mouth with a new deficit and slurred speech. His swallow may not be safe — nothing by mouth until a swallow screen — and no new antiplatelet drug before the CT has excluded a bleed and the stroke team has decided on thrombolysis (no aspirin within 24 hours of it); he had his aspirin this morning.' },
     { id: 'protamine-no-bleed', actions: ['protamine'], when: deficit, points: 3, severity: 'minor', text: 'Protamine for a stroke with no bleed on the scan. Reversing the heparin is for a bleed the CT shows, or on the stroke team\'s advice: most strokes in the lab are embolic, protamine does nothing for a blocked artery, and it can let clot form on the sheath and the catheter.' },
     // one rule for every vasopressor, at the same line as the 'bp-low' item: under 140 bringing it back up is right
+    // (the built-in phenylephrine rule, same id: a deliberate exemption — once the deficit is there, 120–139 is a pressure
+    // to bring back up, not a normal one; only before it does the built-in's line hold)
+    { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 120, points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension; with a normal pressure it only adds afterload and slows the heart.' },
     { id: 'pressor-high-bp', actions: PRESSORS, when: (s) => s.pulse && deficit(s) && s.vitals.sbp >= LOW_FOR_STROKE, replaces: ['phenylephrine-no-hypotension'], points: 3, severity: 'minor', text: 'A vasopressor with a systolic of 140 or more. Raising the pressure with drugs has no established benefit in acute ischemic stroke and adds their risks: keep it where it is, and support it only if it falls well below his usual.' },
   ],
   timings: [

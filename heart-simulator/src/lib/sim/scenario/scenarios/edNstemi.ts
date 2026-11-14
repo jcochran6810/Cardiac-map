@@ -604,6 +604,7 @@ export const edNstemi: Scenario = {
     },
     {
       id: 'rn-lytic-st-depression', actions: ['alteplase'], roles: ED_RN, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',
+      replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],
       text: 'A fibrinolytic with no order, for ST depression. The ER nurse gives a fibrinolytic only on the physician\'s order, and none is indicated here. In an acute coronary syndrome without ST elevation the clot does not close the artery: a fibrinolytic opens nothing, and it adds bleeding — in the brain too — and more infarcts (TIMI IIIB). It is harmful in NSTE-ACS; the only ST depression it treats is the mirror image of a posterior STEMI, confirmed on V7–V9. Aspirin, heparin and angiography are the treatment.',
     },
     {

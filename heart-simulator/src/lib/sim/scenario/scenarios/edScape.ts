@@ -953,6 +953,12 @@ export const edScape: Scenario = {
       text: 'Procedural sedation for a man breathing on his own. Etomidate or propofol at a sedation dose takes away the airway protection and the breathing drive that BiPAP (or any mask) depends on: he stops breathing for himself and now needs a bag and a tube. Positive pressure and nitroglycerin settle the air hunger in most of these patients; if he truly cannot tolerate the mask, a small anxiolytic dose, titrated, while he stays awake and breathing.',
     },
     {
+      // the built-in rule, same id: a deliberate exemption. Every state is this case's own to judge — off the tube deep
+      // sedation is 'deep-sedation-niv' (above), and on the ventilator it is ordinary care — so it never charges here
+      id: 'sedation-no-procedure', actions: ['procedural-sedation'], roles: ED_MD, when: () => false, points: 3, severity: 'minor',
+      text: 'Procedural sedation with no procedure that needs it.',
+    },
+    {
       id: 'ct-unneeded', actions: ['ct-urgent'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major',
       text: 'A CT for a patient in respiratory failure on BiPAP. The story, the crackles, the ultrasound and the film already explain him, and a trip to the scanner takes him away from respiratory therapy and the resuscitation bay: a CT is for a story that does not fit — a dissection, a pulmonary embolism.',
     },

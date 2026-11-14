@@ -936,7 +936,7 @@ export const edPeLysis: Scenario = {
       text: 'Sedation for a patient in obstructive shock. Her fear and fast breathing come from the shock and the low oxygen: a sedative takes away the adrenaline that is holding her pressure up and slows her breathing (2026 AHA/ACC: no deep sedation unless clinically indicated — 3: Harm). Oxygen, a vasopressor and calm reassurance.',
     },
     {
-      id: 'sedation-pe-rn', actions: ['midazolam'], roles: ED_RN, points: 5, severity: 'major', replaces: noOrder(['midazolam']),
+      id: 'sedation-pe-rn', actions: ['midazolam'], roles: ED_RN, points: 5, severity: 'major', replaces: [...noOrder(['midazolam']), 'midazolam-unsafe'],
       text: 'Midazolam with no order, for a patient in obstructive shock. Her fear and fast breathing come from the shock and the low oxygen: a sedative takes away the adrenaline that is holding her pressure up and slows her breathing. Oxygen, reassurance — and the physician, if you think she needs more.',
     },
     {
