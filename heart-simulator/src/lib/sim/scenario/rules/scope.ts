@@ -10,8 +10,8 @@ import type { Harm } from '../types';
  * The drugs the ER nurse gives in the emergency department only on the ED physician's order (state Nurse Practice Act,
  * ENA scope and standards, facility policy), with the name the review gives each. None is on the chest pain standing
  * order (aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs, the chest film) or the ACLS arrest protocol
- * (epinephrine, amiodarone, lidocaine, the shocks); the glucose, antiemetic, anaphylaxis and bronchospasm drugs are left
- * to the department's protocols. Given with no order — the flag `ordered:<id>` (kit's orderedFlag, set by edKit's
+ * (epinephrine, amiodarone, lidocaine in an arrest, the shocks); the glucose, antiemetic, anaphylaxis and bronchospasm
+ * drugs are left to the department's protocols. Some ids are actions still to come. Given with no order — the flag `ordered:<id>` (kit's orderedFlag, set by edKit's
  * edOrder, physicianOrder, physicianDispo or standingOrders) — each costs points once ('rn-without-order-<id>')
  */
 export const RN_ORDER_ONLY: Record<string, string> = {
@@ -22,9 +22,12 @@ export const RN_ORDER_ONLY: Record<string, string> = {
   atropine: 'Atropine', adenosine6: 'Adenosine', adenosine12: 'Adenosine',
   'calcium-chloride': 'Calcium chloride', 'sodium-bicarbonate': 'Sodium bicarbonate', 'magnesium-sulfate': 'Magnesium sulfate',
   alteplase: 'Alteplase',
+  lidocaine: 'Lidocaine', esmolol: 'IV esmolol', labetalol: 'IV labetalol', 'metoprolol-po': 'Oral metoprolol',
+  nicardipine: 'A nicardipine infusion', inotrope: 'An inotrope infusion', 'nitro-iv': 'IV nitroglycerin', furosemide: 'IV furosemide',
+  'calcium-gluconate': 'Calcium gluconate', adenosine3: 'Adenosine',
 };
 /** …of these, only with a pulse: in an arrest the code leader directs them, and the drug rules score the choice */
-export const RN_ORDER_WITH_A_PULSE = ['calcium-chloride', 'sodium-bicarbonate', 'magnesium-sulfate', 'atropine'];
+export const RN_ORDER_WITH_A_PULSE = ['calcium-chloride', 'sodium-bicarbonate', 'magnesium-sulfate', 'atropine', 'lidocaine', 'calcium-gluconate'];
 
 /** …and these, given without an order, are a critical mistake (15 points): a fibrinolytic is the physician's decision alone */
 export const RN_ORDER_CRITICAL = ['alteplase'];

@@ -921,7 +921,7 @@ export const edScape: Scenario = {
     ...bothRoles({
       id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
-    }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide']),
+    }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {
       id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
       text: 'A sedative off the mask, or for a patient who is tiring. His panic is air hunger, which positive pressure and nitroglycerin treat; a benzodiazepine without that support blunts the breathing he has left. A small dose is for a patient on the mask who is awake and fighting it.',

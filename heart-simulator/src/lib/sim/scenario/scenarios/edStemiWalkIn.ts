@@ -583,6 +583,7 @@ export const edStemiWalkIn: Scenario = {
       // the nurse's amiodarone or procainamide is already scored as given without an order (the built-in rule, which keeps
       // working after ROSC); lidocaine is an arrest drug on her protocol, so with a pulse the case says it
       id: 'rn-lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
+      replaces: ['rn-without-order-lidocaine'],
       text: 'Lidocaine with a pulse, and no order. With his own rhythm there is no arrhythmia to treat — prophylactic lidocaine in an acute MI prevents some VF without saving lives — and outside a code the ER nurse gives an antiarrhythmic only on the physician\'s order. The protection against VF is the monitor and the pads, and a shock the moment it comes.',
     },
     {

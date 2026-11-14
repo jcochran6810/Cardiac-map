@@ -928,7 +928,7 @@ export const edTamponade: Scenario = {
     },
     {
       id: 'antiarrhythmic-tamponade-rn', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: [...noOrder(['amio-infusion', 'procainamide']), 'procainamide-hypotension'],
+      replaces: [...noOrder(['amio-infusion', 'procainamide', 'lidocaine']), 'procainamide-hypotension'],
       text: 'An antiarrhythmic with no order, for a sinus tachycardia or the extra beats a needle sets off. The fast rate is her compensation; extra beats with the needle in mean the physician pulls back — call them out. Amiodarone and procainamide drop a pressure that has little in reserve, lidocaine treats nothing she has, and with a pulse none of them is on a standing order.',
     },
     {

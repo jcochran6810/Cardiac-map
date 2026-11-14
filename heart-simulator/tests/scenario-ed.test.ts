@@ -515,7 +515,10 @@ describe('the ER nurse gives a medication on an order', () => {
   });
 
   it('every order-only drug is one the ER nurse is offered, scored once per drug', () => {
-    for (const id of Object.keys(RN_ORDER_ONLY)) expect(scope(6).has(id), id).toBe(true);
+    // the list also names actions still to come (no case offers them yet): every one that exists is the nurse's to give
+    const existing = Object.keys(RN_ORDER_ONLY).filter((id) => INTERVENTION_BY_ID[id]);
+    expect(existing).toEqual(expect.arrayContaining(['heparin', 'alteplase', 'lidocaine']));
+    for (const id of existing) expect(scope(6).has(id), id).toBe(true);
     const twice = run(edPatient({ vitals: { pain: 8 } }), 6, ['iv', 'fentanyl', 'fentanyl']);
     expect(ids(twice).filter((p) => p === 'rn-without-order-fentanyl')).toHaveLength(1);
   });

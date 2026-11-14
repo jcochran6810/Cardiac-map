@@ -928,7 +928,7 @@ export const edPeLysis: Scenario = {
     },
     {
       id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal'], roles: ED_TEAM, when: (s) => s.pulse, points: 3, severity: 'minor',
-      replaces: noOrder(['adenosine6', 'adenosine12']),
+      replaces: noOrder(['adenosine6', 'adenosine12', 'lidocaine']),
       text: 'A vagal maneuver, adenosine or lidocaine for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down or a pause cuts the output she has left.',
     },
     {
