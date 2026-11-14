@@ -540,7 +540,7 @@ const OPIOID_GATE = gate([
  * drug with no role in an arrest: a case rule that says a sedative or an opioid is wrong for its patient lists them in
  * `replaces`
  */
-export const SEDATIVE_RULES = [...OPIOID_GATE.harms.map((h) => h.id), 'midazolam-unsafe', 'sedation-unsafe', 'no-role-in-arrest'];
+export const SEDATIVE_RULES = [...OPIOID_GATE.harms.map((h) => h.id), 'midazolam-glaucoma', 'midazolam-unsafe', 'sedation-unsafe', 'no-role-in-arrest'];
 
 // ─── The antiemetic ────────────────────────────────────────────────────────
 
@@ -578,7 +578,8 @@ export const ACS_RULES: Harm[] = [
   ...OPIOID_GATE.harms,
   // sedation before a cardioversion or for the pacer is needed even with a low pressure (a smaller dose, titrated): a case
   // with its own sedation rule says so in its own words
-  { id: 'midazolam-unsafe', actions: ['midazolam'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Midazolam with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further (label boxed warning: respiratory depression): it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
+  { id: 'midazolam-glaucoma', actions: ['midazolam'], when: (s, sc) => s.pulse && hasProblem(sc, ['glaucoma']), points: 5, severity: 'major', text: 'Midazolam with acute narrow-angle glaucoma. Its label rules it out there (a benzodiazepine can raise the pressure in the eye): for an agitated patient choose another sedative, and for a procedure ask anesthesia.' },
+  { id: 'midazolam-unsafe', actions: ['midazolam'], when: (s, sc, id) => unsafeToSedate(s, sc, id) && !hasProblem(sc, ['glaucoma']), points: 5, severity: 'major', text: 'Midazolam with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further (label boxed warning: respiratory depression): it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
   { id: 'sedation-unsafe', actions: ['sedation'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Sedation with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A sedative drops the pressure and the breathing further (midazolam label boxed warning: respiratory depression, continuous monitoring): sedation is for a procedure in a patient awake enough to feel it — here support the pressure and the airway instead.' },
   ...ANTITHROMBOTIC_GATE.harms,
   ...PROTAMINE_GATE.harms,

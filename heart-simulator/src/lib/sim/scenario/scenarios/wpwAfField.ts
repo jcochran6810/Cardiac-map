@@ -640,8 +640,9 @@ export const wpwAfField: Scenario = {
     },
     {
       // at any pressure: catecholamines shorten the pathway's refractory period (the EP lab uses isoproterenol to unmask a
-      // dangerous pathway), and a low pressure here comes from the rate, which only the shock fixes
-      id: 'adrenergic-preexcited-af', actions: ['push-epi', 'pressor'], when: (s) => inAf(s), replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
+      // dangerous pathway), and a low pressure here comes from the rate, which only the shock fixes — the built-in rule for a
+      // pressor in an unstable tachyarrhythmia in the case's words, at its weight
+      id: 'adrenergic-preexcited-af', actions: ['push-epi', 'pressor'], when: (s) => inAf(s), replaces: ['pressor-no-hypotension', 'pressor-unstable-tachyarrhythmia'], points: 5, severity: 'major',
       text: 'A pressor or push-dose epinephrine in pre-excited atrial fibrillation. Adrenergic drugs make the pathway conduct faster still, and the low pressure of an unstable patient comes from the rate: synchronized cardioversion fixes it, a pressor does not.',
     },
     {

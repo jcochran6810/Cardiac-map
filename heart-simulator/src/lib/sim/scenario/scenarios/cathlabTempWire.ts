@@ -601,7 +601,8 @@ export const cathlabTempWire: Scenario = {
     {
       // left undrained, the squeezed heart stops filling: electrical activity, no output
       id: 'pea', when: (s) => s.pulse && squeezed(s) && s.minute >= s.flags.tamponade + 5,
-      effect: () => ({ say: [['monitor', 'No pressure on the cuff and no pleth; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.', 'bad']], pulse: false, flags: ['pea'], penalty: TAMPONADE_ARREST }),
+      // a pump put in instead of the needle was charged already for leaving the tamponade (mcs-tamponade): one penalty
+      effect: (s) => ({ say: [['monitor', 'No pressure on the cuff and no pleth; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.', 'bad']], pulse: false, flags: ['pea'], ...(s.penalties.some((p) => p.id === 'mcs-tamponade') ? {} : { penalty: TAMPONADE_ARREST }) }),
     },
   ],
   critical: [

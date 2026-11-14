@@ -807,7 +807,8 @@ export const edDissection: Scenario = {
     },
     {
       // the engine's rule, in this case's words: after the bleed, blood is a fair bridge to the operating room
-      id: 'transfuse-no-bleeding', actions: ['transfuse'], when: (s) => s.pulse && !bled(s), points: 3, severity: 'minor',
+      // the physician's: the nurse's transfusion with no order is the missing order's alone (it covers the indication)
+      id: 'transfuse-no-bleeding', actions: ['transfuse'], roles: ED_MD, when: (s) => s.pulse && !bled(s), points: 3, severity: 'minor',
       text: 'Packed red cells before any bleeding. His hemoglobin is normal and his pressure high: the units are crossmatched and held for the operating room, where the repair can bleed.',
     },
     {

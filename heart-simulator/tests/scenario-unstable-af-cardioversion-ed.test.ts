@@ -313,8 +313,9 @@ describe('the traps around the shock', () => {
     expect(fluid.penalties).toEqual([]);
     expect(fluid.rhythm.hr).toBe(170);
     expect(fluid.vitals.sbp).toBe(82);
+    // a pressor before the shock: her low pressure comes from the rate — cardioversion is owed (2025 AHA)
     const pressor = run(sc, 7, [...MD_LINE, 'pressor']);
-    expect(pressor.penalties).toEqual([]);
+    expect(ids(pressor)).toEqual(['pressor-unstable-tachyarrhythmia']);
     expect(pressor.rhythm.hr).toBe(176);
     const atropine = run(sc, 7, [...MD_LINE, 'atropine']);
     expect(ids(atropine)).toEqual(['atropine-fast']);

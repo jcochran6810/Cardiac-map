@@ -634,7 +634,8 @@ export const lvadField: Scenario = {
       text: 'A vasopressor for a pump that is running dry. A continuous-flow LVAD is sensitive to afterload: squeezing the vessels raises the MAP a little and cuts the pump\'s flow further. A low-flow alarm from vomiting and diarrhea needs volume — a fluid bolus, then recheck — and a vasopressor only if the MAP stays low after it, with the VAD team.',
     },
     {
-      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: [2], when: (s) => s.pulse, points: 8, severity: 'major',
+      // at the built-in PDE-5 rule's weight: his sildenafil makes any nitrate a label contraindication (decision 6)
+      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: [2], when: (s) => s.pulse, points: 10, severity: 'major',
       replaces: NITRATE_RULES,
       text: 'Nitroglycerin for a man with no chest pain and a pump short of blood. It pools blood in the veins and cuts what comes back to the pump, his MAP is already low, and he takes sildenafil, which no nitrate may follow within 24 hours.',
     },

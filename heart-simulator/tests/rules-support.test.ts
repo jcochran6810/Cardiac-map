@@ -530,3 +530,85 @@ describe('one dose, one penalty: a case rule that scores the same dose stands in
     expect(caseIds('vasovagal-sheath-cathlab', 3, ['bvm'])).toEqual(['let-go']);
   });
 });
+
+describe('review round: supportive-care contraindications and doubles', () => {
+  const at = (setting: 'field' | 'ed' | 'cathlab', role: LearningLevel, over: Partial<FixtureSpec> = {}) => fixture({ setting, role, rhythm: SINUS, ...over });
+  const ids = (sc: Scenario, steps: string[]) => penaltyIds(sc, sc.roles[0], steps);
+
+  it('cool-no-hyperthermia: active cooling is for a temperature of 38 °C or more', () => {
+    expect(ids(at('field', 2), ['cool'])).toEqual(['cool-no-hyperthermia']);
+    expect(ids(at('field', 2, { vitals: { temp: 39.4 } }), ['cool'])).toEqual([]);
+    expect(ids(at('field', 2, { harms: [exempt('cool-no-hyperthermia', ['cool'])] }), ['cool'])).toEqual([]);
+    // after ROSC in the field, and a normothermic STEMI in the ED; the stimulant's hyperthermia is what it treats
+    expect(runSteps(SCENARIO_BY_ID['stemi-walk-in-ed'], 7, ['cool']).penalties.map((p) => p.id)).toEqual(['cool-no-hyperthermia']);
+    expect(runSteps(SCENARIO_BY_ID['cocaine-chest-pain-field'], 2, ['primary', 'calm', 'vitals', 'perfusion', 'temp', 'sample', 'midazolam', 'cool']).penalties).toEqual([]);
+  });
+
+  it('cpap-pneumothorax-or-facial: no positive pressure on a pneumothorax or a broken or burned face (one penalty, ranked first)', () => {
+    const edema = { vitals: { sbp: 180, dbp: 100, spo2: 86, rr: 30 }, problems: ['pulmonary-edema'] as Problem[] };
+    expect(ids(at('field', 2, edema), ['cpap'])).toEqual([]);
+    for (const p of ['pneumothorax', 'facial-trauma'] as Problem[]) {
+      expect(ids(at('field', 2, { ...edema, problems: ['pulmonary-edema', p] }), ['cpap']), p).toEqual(['cpap-pneumothorax-or-facial']);
+      expect(ids(at('field', 2, { ...edema, vitals: { ...edema.vitals, ...LOW }, problems: ['pulmonary-edema', p] }), ['cpap']), p).toEqual(['cpap-pneumothorax-or-facial']);
+    }
+  });
+
+  it('midazolam-glaucoma: its label rules it out in acute narrow-angle glaucoma (one penalty with the unsafe-sedation rule)', () => {
+    expect(ids(at('ed', 7, { problems: ['glaucoma'] }), ['iv', 'midazolam'])).toEqual(['midazolam-glaucoma']);
+    expect(ids(at('ed', 7, { problems: ['glaucoma'], vitals: LOW }), ['iv', 'midazolam'])).toEqual(['midazolam-glaucoma']);
+    expect(ids(at('ed', 7), ['iv', 'midazolam'])).toEqual([]);
+  });
+
+  it('inotrope-lvot-obstruction reads a severe aortic stenosis too (milrinone label)', () => {
+    expect(ids(at('cathlab', 5, { problems: ['severe-aortic-stenosis', 'cardiogenic-shock'], vitals: { sbp: 96, dbp: 60 } }), ['iv', 'inotrope'])).toEqual(['inotrope-lvot-obstruction']);
+  });
+
+  it('pressor-unstable-tachyarrhythmia: the low pressure of a tachyarrhythmia is the rate\'s — cardioversion, not a pressor, until a shock has failed', () => {
+    const af = { rhythm: { profile: 'atrial-fibrillation', hr: 170 }, vitals: { sbp: 78, dbp: 48 } };
+    for (const id of ['pressor', 'push-epi']) expect(ids(at('ed', 7, af), ['iv', id]), id).toEqual(['pressor-unstable-tachyarrhythmia']);
+    // after a shock it is a fair bridge; a sinus tachycardia's low pressure is not this rule's
+    expect(ids(at('ed', 7, af), ['iv', 'procedural-sedation', 'pads', 'cardiovert', 'push-epi'])).not.toContain('pressor-unstable-tachyarrhythmia');
+    expect(ids(at('ed', 7, { rhythm: { profile: 'sinus-tachycardia', hr: 120 }, vitals: { sbp: 78, dbp: 48 } }), ['iv', 'push-epi'])).toEqual([]);
+    // the cases: the unstable SVT and the unstable AF in the ED
+    expect(runSteps(SCENARIO_BY_ID['svt-unstable-field'], 2, ['primary', 'pads', 'nibp', 'iv', 'push-epi']).penalties.map((p) => p.id)).toEqual(['pressor-unstable-tachyarrhythmia']);
+  });
+
+  it('the ER nurse\'s transfusion or glucagon with no order is the missing order alone; the physician\'s is the case\'s indication rule', () => {
+    expect(runSteps(SCENARIO_BY_ID['aortic-dissection-ed'], 6, ['iv', 'transfuse']).penalties.map((p) => p.id)).toEqual(['rn-without-order-transfuse']);
+    expect(runSteps(SCENARIO_BY_ID['aortic-dissection-ed'], 7, ['iv', 'transfuse']).penalties.map((p) => p.id)).toEqual(['transfuse-no-bleeding']);
+    expect(runSteps(SCENARIO_BY_ID['hyperkalemia-ed'], 6, ['iv', 'glucagon']).penalties.map((p) => p.id)).toEqual(['rn-without-order-glucagon']);
+    expect(runSteps(SCENARIO_BY_ID['hyperkalemia-ed'], 7, ['iv', 'glucagon']).penalties.map((p) => p.id)).toEqual(['glucagon-no-overdose']);
+  });
+
+  it('beta-blocker overdose: oral glucose into a patient who cannot swallow is the swallow rule alone', () => {
+    const s = runSteps(SCENARIO_BY_ID['beta-blocker-overdose-field'], 2, ['aed', 'fentanyl', 'primary', 'ecg-transmit', 'amio-infusion', 'magnesium-sulfate', 'vagal', 'capno',
+      'albuterol-hyperk', 'transport-pci', 'restrain', 'oral-glucose', 'atropine', 'magnesium-sulfate', 'pulse-check', 'fentanyl', 'cool', 'calm', 'lidocaine',
+      'amio-arrest', 'pace', 'nitro-high', 'oral-glucose']);
+    const last = s.penalties.filter((p) => p.minute === s.performed.at(-1)!.minute).map((p) => p.id);
+    expect(last).toEqual(['oral-glucose-cannot-swallow']);
+  });
+
+  it('the cath lab: access with no time-out and no consent is one penalty (the time-out confirms consent); after the time-out, consent is its own', () => {
+    for (const id of ['stemi-cathlab', 'shock-cathlab']) {
+      const sc = SCENARIO_BY_ID[id];
+      const access = id === 'stemi-cathlab' ? 'access' : 'access-femoral';
+      expect(runSteps(sc, 5, [access]).penalties.map((p) => p.id), id).toEqual(['access-no-timeout']);
+      expect(runSteps(sc, 5, ['timeout', access]).penalties.map((p) => p.id), id).toEqual(['access-no-consent']);
+      expect(runSteps(sc, 5, ['consent', 'timeout', access]).penalties.map((p) => p.id), id).toEqual([]);
+    }
+    expect(runSteps(SCENARIO_BY_ID['stemi-cathlab'], 5, ['access-venous']).penalties.map((p) => p.id)).toEqual(['access-no-timeout']);
+  });
+
+  it('the temporary wire\'s tamponade: a pump put in instead of the needle is one penalty, not the preventable arrest on top', () => {
+    const steps = ['consent', 'pads', 'timeout', 'access-femoral', 'access-venous', 'temp-wire', 'reassess', 'reassess', 'reassess', 'reassess', 'reassess'];
+    for (const id of ['iabp', 'impella']) {
+      const s = runSteps(SCENARIO_BY_ID['heart-block-temp-wire-cathlab'], 5, [...steps, id]);
+      expect(s.penalties.map((p) => p.id), id).toEqual(['mcs-tamponade']);
+    }
+  });
+
+  it('lighter case rules at the built-in weight: the LVAD case\'s nitrate after sildenafil; IM epinephrine in the commotio arrest', () => {
+    expect(runSteps(SCENARIO_BY_ID['lvad-field'], 2, ['nitro']).penalties).toEqual([expect.objectContaining({ id: 'nitro-no-indication', points: 10, severity: 'major' })]);
+    expect(runSteps(SCENARIO_BY_ID['commotio-cordis-field'], 2, ['epi-im']).penalties.map((p) => p.id)).toEqual(['epi-im-in-arrest']);
+  });
+});

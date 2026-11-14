@@ -483,7 +483,8 @@ describe('PEA arrest in the field — the traps', () => {
 
   it('IM epinephrine from the EMT in the arrest does nothing and costs points; it is not the arrest epinephrine', () => {
     const s = emt(['cpr', 'epi-im']);
-    expect(penalties(s)).toEqual(['epi-im-no-anaphylaxis']);
+    // in the arrest the built-in rule, at its weight (5, major); the case's own words after ROSC
+    expect(penalties(s)).toEqual(['epi-im-in-arrest']);
     expect(s.flags.epi).toBeUndefined();
     expect(s.log.at(-1)!.text).toMatch(/a muscle barely absorbs it during CPR, and it is not the arrest dose/);
     // after ROSC it is absorbed, but she has no anaphylaxis: it still costs, and it is not the treatment for her pressure

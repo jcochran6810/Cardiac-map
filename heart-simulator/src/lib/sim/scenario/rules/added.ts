@@ -50,7 +50,7 @@ function nicardipineRule(s: SimState, sc: Scenario): string | null {
 
 /** The inotrope rules, in their gate order */
 const INOTROPE: [string, Check][] = [
-  ['inotrope-lvot-obstruction', (_s, sc) => hasProblem(sc, ['lvot-obstruction'])],
+  ['inotrope-lvot-obstruction', (_s, sc) => hasProblem(sc, ['lvot-obstruction', 'severe-aortic-stenosis'])],
   ['inotrope-dissection', (_s, sc) => hasProblem(sc, ['aortic-dissection'])],
   ['inotrope-unsupported-hypotension', (s) => lowPressure(s) && !has(s, 'pressor')],
   ['inotrope-tachyarrhythmia', (s) => tachyarrhythmia(s)],
@@ -139,7 +139,7 @@ export const ADDED_RULES: Harm[] = [
   // An inotrope (dobutamine or milrinone): for low output with an adequate pressure
   {
     id: 'inotrope-lvot-obstruction', actions: ['inotrope'], when: (s, sc) => inotropeRule(s, sc) === 'inotrope-lvot-obstruction', points: 10, severity: 'major',
-    text: 'An inotrope with LV outflow obstruction. A harder squeeze narrows the outflow tract further and the gradient climbs: the pressure falls more (dobutamine label: idiopathic hypertrophic subaortic stenosis; milrinone label: obstructive aortic or subaortic disease; 2024 AHA/ACC HCM guideline). Fluid and phenylephrine instead.',
+    text: 'An inotrope with an LV outflow obstruction — dynamic (obstructive HCM, Takotsubo) or fixed (severe aortic stenosis). A harder squeeze narrows a dynamic outflow tract further and the gradient climbs, and against a fixed valve it only adds demand and arrhythmias: the pressure falls more (dobutamine label: idiopathic hypertrophic subaortic stenosis; milrinone label: severe obstructive aortic or pulmonic valvular disease, or hypertrophic subaortic stenosis; 2024 AHA/ACC HCM guideline). Fluid and phenylephrine instead.',
   },
   {
     id: 'inotrope-dissection', actions: ['inotrope'], when: (s, sc) => inotropeRule(s, sc) === 'inotrope-dissection', points: 8, severity: 'major',
@@ -220,6 +220,13 @@ export const ADDED_RULES: Harm[] = [
     id: 'oral-beta-blocker-shock-risk', actions: ['metoprolol-po'], when: (s, sc, id) => oralBetaBlockerShockRisk(s, sc) && !caseSpeaksForBetaBlocker(s, sc, id),
     points: 5, severity: 'major',
     text: 'Oral metoprolol in an acute coronary syndrome with a risk of cardiogenic shock — a systolic under 120, a heart rate over 110 or under 60, heart failure, or a heart just back from a cardiac arrest. The oral beta-blocker starts in the first 24 hours only without signs of heart failure, a low output or an increased risk of shock (2013 ACCF/AHA STEMI guideline; COMMIT, where early beta-blockade in these patients brought on cardiogenic shock; 2025 ACC/AHA ACS): hold it until the patient is stable.',
+  },
+
+  // Active cooling (undress, cold packs, mist and fan) with no hyperthermia. A stimulant's or heat illness's temperature of
+  // 38 °C or more is what it treats (cocaine-chest-pain-field)
+  {
+    id: 'cool-no-hyperthermia', actions: ['cool'], when: (s) => s.pulse && s.vitals.temp < 38, points: 3, severity: 'minor',
+    text: 'Active cooling with no hyperthermia. Undressing, cold packs and a fan are for heat illness or a stimulant\'s hyperthermia; at a normal temperature they bring shivering, which raises the heart\'s oxygen demand. After a return of circulation, temperature control (32–37.5 °C, fever prevented) is a monitored hospital treatment with a feedback device — routine prehospital cooling is not recommended (2025 AHA).',
   },
 
   // Stopping the anticoagulant halfway through a PCI, with nothing bleeding

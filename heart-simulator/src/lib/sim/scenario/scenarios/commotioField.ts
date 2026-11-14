@@ -618,7 +618,8 @@ export const commotioField: Scenario = {
       text: 'An opioid or a sedative for a patient who is unresponsive. With a GCS of 6 he shows no pain or agitation to treat: it slows the breathing he has left and lowers his pressure.',
     },
     {
-      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], replaces: ['epi-im-in-arrest'], points: 3, severity: 'minor',
+      // with a pulse (after ROSC); in the arrest the built-in epi-im-in-arrest speaks, at its weight
+      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'IM epinephrine without anaphylaxis. In the arrest a muscle barely absorbs it, and 0.3–0.5 mg is the anaphylaxis dose: epinephrine for an arrest is 1 mg IV/IO, from ALS. After ROSC he has no allergic reaction for it to treat.',
     },
     {

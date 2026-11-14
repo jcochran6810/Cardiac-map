@@ -348,8 +348,8 @@ export const cathlabStemi: Scenario = {
   ],
   harms: yieldToHeavier([
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
-    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },
-    { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
+    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), replaces: ['access-no-consent'], points: 5, severity: 'major', text: 'Access before the time-out.' },
+    { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent') && has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for an LAD culprit. The LAD comes off the left main: use a left guide with back-up (EBU / XB 3.5).' },
     { id: 'hydrophilic-first', actions: ['wire-hydrophilic'], roles: MD, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A hydrophilic wire as the first wire for a fresh occlusion. Start with a workhorse wire: polymer-jacketed wires track under plaque and perforate more easily.' },
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },

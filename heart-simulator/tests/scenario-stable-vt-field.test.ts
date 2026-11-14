@@ -380,7 +380,7 @@ describe('stable VT in the field: fair scoring and physiology (review fixes)', (
     expect(review(sc, stop(shocked)).wentWell.map((t) => t.label)).toContain('Unstable: synchronized cardioversion at 100 J within 3 minutes');
   });
 
-  it('a pressor with a normal pressure costs points and drives the rate faster; with a low one it is not a penalty', () => {
+  it('a pressor with a normal pressure costs points and drives the rate faster; with a low one before any shock the shock is owed', () => {
     for (const id of ['push-epi', 'pressor']) {
       const s = run(sc, 2, [...WORKED_UP, id]);
       expect(penalties(s), id).toEqual(['pressor-not-low']);
@@ -388,8 +388,9 @@ describe('stable VT in the field: fair scoring and physiology (review fixes)', (
       expect(s.vitals.sbp, id).toBeGreaterThan(118);
       expect(s.vitals.sbp, id).toBeLessThanOrEqual(150);
     }
+    // with a low one and no shock tried yet, the pressure comes from the rate: the shock is owed, not a pressor
     const low = run(sc, 2, [...WORKED_UP, 'diltiazem', 'push-epi']);
-    expect(penalties(low)).toEqual(['ccb-wide-complex']);
+    expect(penalties(low)).toEqual(['ccb-wide-complex', 'pressor-unstable-tachyarrhythmia']);
   });
 
   it('other care that only lowers the pressure or wastes resources costs points: nitroglycerin with no pain, a STEMI alert, CPAP with no breathing trouble or while hypotensive, adenosine once unstable', () => {

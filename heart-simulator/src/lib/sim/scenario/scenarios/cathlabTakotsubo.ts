@@ -861,8 +861,8 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'What was found and done, what never to give her (inotropes, nitrates, diuretics, a balloon pump), the QTc and the electrolytes, the echo tomorrow — and that she has just lost her husband.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: yieldToHeavier([
-    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },
-    { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
+    { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), replaces: ['access-no-consent'], points: 5, severity: 'major', text: 'Access before the time-out.' },
+    { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent') && has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi'], roles: [4, 5], when: (s) => s.pulse, replaces: ['pressor-no-hypotension'], points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
     { id: 'catecholamine-lvoto-ic', actions: ['ic-epinephrine'], roles: MD, when: (s) => s.pulse, replaces: ['ic-epi-no-indication'], points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
     // the case's own obstruction (a flag, not a Problem: it begins on the table): it stands in for every built-in inotrope rule
