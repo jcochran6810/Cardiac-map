@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { answerQuestion, canReadMonitor, findTopic, type TutorContext } from '@/lib/tutor';
 import { loadContent, useContentStore, type ContentLibrary } from '@/lib/content';
 import { resolveProfile } from '@/lib/ecg/profiles';
+import { PROCEDURE_IDS } from '@/types/content';
 
 let lib: ContentLibrary;
 beforeAll(async () => {
@@ -520,5 +521,35 @@ describe('review round: procedure pages name the contraindications the reviewers
     ['pericardiocentesis', /No effusion, or no tamponade physiology on echo/],
   ])('%s', (id, re) => {
     expect(lib.procedures[id].contraindications.join('\n')).toMatch(re);
+  });
+});
+
+describe('the rapid sequence intubation page', () => {
+  it.each([
+    'What are the contraindications to RSI?',
+    'contraindications to rapid sequence intubation',
+    'When should I not intubate?',
+    'contraindications to intubation',
+  ])('%s → its contraindications', (q) => {
+    expect(ask(q).title).toBe('Rapid Sequence Intubation (RSI) — contraindications');
+  });
+
+  it('lists each drug\'s contraindications, resuscitation first, the preload-dependent heart and the difficult airway — each with its source', () => {
+    const page = lib.procedures['rapid-sequence-intubation'];
+    expect(PROCEDURE_IDS).toContain('rapid-sequence-intubation');
+    expect(page.category).toBe('Emergency & Bedside');
+    const c = page.contraindications;
+    const line = (re: RegExp) => c.find((l) => re.test(l)) ?? '';
+    expect(line(/^Succinylcholine: hyperkalemia/)).toMatch(/burns.*24–72 hours.*denervation.*neuromuscular disease.*label.*immobility/);
+    expect(line(/^Succinylcholine: a personal or family history of malignant hyperthermia/)).toMatch(/label/);
+    expect(line(/^Etomidate/)).toMatch(/adrenal suppression.*single induction dose is generally accepted/);
+    expect(line(/^Ketamine/)).toMatch(/uncontrolled hypertension.*acute coronary syndrome with a high pressure.*Ketalar label.*intracranial pressure is no longer/);
+    expect(line(/^Propofol/)).toMatch(/hypotension or shock.*label.*half the dose/);
+    expect(line(/^Rocuronium/)).toMatch(/allergy.*label.*sugammadex.*Bridion label/);
+    expect(line(/^Resuscitate before you intubate/)).toMatch(/hypotension, hypoxia and a severe metabolic acidosis.*INTUBE.*2022 ASA/);
+    expect(line(/^Preload-dependent states/)).toMatch(/tamponade.*PE.*RV infarction.*Avoid positive pressure where you can.*pressor running/);
+    expect(line(/^The predicted difficult airway/)).toMatch(/2022 ASA difficult airway guideline.*video laryngoscope.*front-of-neck access/);
+    // the tube is confirmed with waveform capnography (2025 AHA)
+    expect(page.overview.join('\n')).toMatch(/waveform capnography \(2025 AHA ALS\)/);
   });
 });

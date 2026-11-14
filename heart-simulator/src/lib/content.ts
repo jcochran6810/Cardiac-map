@@ -212,6 +212,8 @@ const ALIASES: [RegExp, string][] = [
   [/\b(?:thrombolytics?|fibrinolytics?|lytics?)\b/g, 'tenecteplase'],
   [/\bcardiovert\w*\b/g, 'cardioversion'],
   [/\b(?:bi-?pap|niv|non-?invasive\s+(?:positive[\s-]+pressure\s+)?ventilation)\b/g, 'cpap'],
+  // the verb for the rapid sequence intubation page ("when should I not intubate?")
+  [/\bintubat(?:e|es|ed|ing)\b/g, 'intubation'],
 ];
 
 /** The query with everyday words swapped for the library's own (null when nothing changes) */
