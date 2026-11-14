@@ -482,7 +482,8 @@ export const hyperkalemiaField: Scenario = {
       text: 'A beta-blocker or calcium-channel blocker for a slow heart with a high potassium. Both slow the AV node and weaken the squeeze; with the potassium they spiral toward standstill (BRASH: bradycardia, renal failure, AV-nodal blockade, shock, hyperkalemia).',
     },
     { id: 'adenosine-slow', actions: ['adenosine3', 'adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
-    { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
+    // the built-in no-indication rule too: at any rate this case's words judge the maneuver (one act, one penalty)
+    { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-no-indication'], points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
     // a pacer that has captured (after the calcium wore off) hurts: then analgesia and sedation are right
     {
       // midazolam is the same mistake as 'sedation' here, so it replaces the built-in midazolam rule (one penalty, not two)

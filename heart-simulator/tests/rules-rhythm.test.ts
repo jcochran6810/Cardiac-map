@@ -1058,6 +1058,23 @@ describe('review round: contraindications that went free', () => {
     expect(caseRun('svt-unstable-field', 2, ['primary', 'pads', 'nibp', 'iv', 'vagal'])).toEqual([]);
   });
 
+  it('the hyperkalemia cases judge a vagal maneuver in their own words at any rate: one act, one penalty', () => {
+    for (const id of ['hyperkalemia-ed', 'hyperkalemia-dialysis-field']) {
+      expect(SCENARIO_BY_ID[id].harms.find((h) => h.id === 'vagal-slow')!.replaces, id).toContain('vagal-no-indication');
+    }
+    // treated up to a rate over 60 (the sweep's sequence): the case's vagal-slow alone, not the built-in no-indication beside it
+    const steps = ['iv', 'sample', 'p2y12', 'transfuse', 'adenosine12', 'calcium-gluconate', 'cool', 'perfusion', 'vitals', 'calcium-chloride', 'push-epi',
+      'epinephrine', 'albuterol', 'read:nsr', 'atropine', 'sodium-bicarbonate', 'nibp', 'glucagon', 'albuterol-hyperk', 'amio-infusion'];
+    const sc = SCENARIO_BY_ID['hyperkalemia-ed'];
+    const before = runScenario(sc, 6, steps, undefined, 'manual');
+    expect(before.pulse).toBe(true);
+    expect(before.rhythm.hr).toBeGreaterThanOrEqual(60);
+    const after = runScenario(sc, 6, [...steps, 'vagal'], undefined, 'manual');
+    expect(after.penalties.slice(before.penalties.length).map((p) => p.id)).toEqual(['vagal-slow']);
+    // and at the slow rate it opens with
+    expect(caseRun('hyperkalemia-dialysis-field', 2, ['vagal'])).toEqual(['vagal-slow']);
+  });
+
   it('procainamide-heart-failure: acute pulmonary edema and cardiogenic shock are heart failure too', () => {
     const vt = { rhythm: { profile: 'vt', hr: 160 }, vitals: { sbp: 150 } };
     expect(pen(field({ ...vt, problems: ['pulmonary-edema'] }), ['iv', 'procainamide'])).toEqual(['procainamide-heart-failure']);
