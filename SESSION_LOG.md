@@ -6,6 +6,80 @@ the next session.
 
 <!-- newest first: add each new entry directly below this line -->
 
+### 2026-11-14 — claude/vigilant-goodall-e7bs4b (continued: 30 new cases, ER nurse and ER doctor roles, monitor keys, every treatment and drug checked against its contraindications)
+
+**Agent:** Claude
+
+**Asked:** "Add 10 more cases for each role in the case simulator"; "the 'what do you do next?' options need to be better
+laid out under a menu instead of one long scroll list"; "Need to add the roles of ER nurse and ER doctor and each have
+cases in the simulator"; "Add the 12-lead button and the BP button on the monitor screen … Also remove the Scene safety
+and PPE selection/requirement in the assessment menu"; "Make those fixes and dont miss any contraindications for
+treatments or medications" (the case reviewers' follow-ups plus a full contraindication audit); "Eta until last task is
+completed"; "end session when it's done".
+
+**Branch:** started level with production `main` at `eaf6885` (the record of the 2026-11-12 Vercel retry); production
+did not move during the session (0 behind at step 2). All 134 commits were made in this session, including package and
+integration merges made in scratch worktrees and fast-forwarded onto the branch.
+
+**Shipped:**
+
+- Case simulator menu: "What do you do next?" is a grouped menu, not one long list (`e6cbacd`).
+- A case kit for the new cases: af-wpw, posterior STEMI and long-QT tracings and reads, LVAD patients (MAP-based
+  perfusion, CPR and AED rules), 13 new actions (`0cb5de8`).
+- Two new roles, **ER Nurse** and **ER Doctor**, with an emergency-department setting (physician orders, nurse scope,
+  held orders re-judged at ROSC), the library API listing all seven roles, and ER notes on every anatomy, procedure,
+  condition, drug card and case-study page (`ee736b8`, `9dcf257`, `7ccc989`, `7e2a2ad`, `fcb23fe`).
+- 30 new cases, each written to current guidelines and independently checked (now 47): 10 field cases for the EMT and
+  paramedic (posterior STEMI, cocaine chest pain, aortic dissection, PE, tamponade, SCAPE, WPW with AF, torsades,
+  commotio cordis, an LVAD patient), 10 cath lab cases for the tech, nurse and cardiologist (left main shock, stent
+  thrombosis, SCAD, Takotsubo with outflow obstruction, heart block with a temporary wire, guide dissection, air
+  embolism, a stroke on the table, vasovagal at sheath removal, retroperitoneal bleed) and 10 ED cases for the ER nurse
+  and doctor (STEMI walk-in, NSTEMI on the troponin, heart block with hyperkalemia, severe hyperkalemia, unstable AF,
+  SCAPE, PE for lysis, type A dissection, tamponade, VF in the ED bed) (`ba5aa79`, `d2e505f`, `271ec7f`, `e1e88a8`,
+  `a0ddb57`, `e1aced7`, `35a4d5b`, `cd95ee8`, `c24b545`).
+- The "Scene safety and PPE" step removed (`208ed1d`, `004e8fb`); **12-lead** and **BP** keys on the case monitor, with
+  every number kept on screen on a phone on its side (`567e8eb`, `a3f3e8a`, `c16a8d9`).
+- Contraindications, everywhere a treatment or drug is given or taught. A foundation (`3de67e1` … `53bc4f9`): the
+  built-in rules moved to `src/lib/sim/scenario/rules/`, a vocabulary of 70 patient Problems each case declares, and one
+  dose, one penalty. Six packages built in parallel, each reviewed and repaired (`f3956a7` … `de4f48c`). Integration
+  with a four-way review (54 findings, fixed in two rounds; `437d724` … `32ff1e6`). A follow-up round with two more
+  reviews (21 findings) and two repair rounds (`ad0f517` … `497e358`). Results:
+  - every drug and procedure in the simulator is judged on its label and guideline contraindications, absolute and
+    relative, in every case: nitrates (one ranked gate with the pressure, PDE-5, interval, RV infarct, outflow
+    obstruction and brain-bleed checks), fibrinolytics, antithrombotics and protamine, rate and rhythm drugs (lidocaine in
+    pre-excited AF, a second antiarrhythmic), pressors, sedatives, opioids and the RSI drugs, fluids, oxygen and CPAP,
+    insulin into a low glucose, the pumps, the needle and the scanner;
+  - a second, different contraindicated drug is a mistake of its own; a repeat of the same drug is not charged again
+    for a reason that already held (lead ruling: new reasons and per-dose checks still charge); a wrong answer to a
+    team request never hides a heavier contraindication; the ER nurse's missing order is one per drug;
+  - Give meds judges each dose on the patient's history (35 chips, among them Low glucose and Brain bleed now), age and
+    drug clock, with 26 drugs; 21 new drug cards and every card's contraindications brought to the current labels; the
+    action menu names who must not get each drug; new library pages for SCAD, CPAP / non-invasive ventilation and rapid
+    sequence intubation; the tutor answers "Can I give X in Y?" from the card's whole list;
+  - new ECG pictures for the cases: narrow-complex PEA, a VVI pacemaker, staged hyperkalemia up to a sine wave, a pacer
+    without capture, Takotsubo with a dynamic outflow gradient.
+- All 105 ideal case runs score 100 %; differential sweeps of thousands of random action sequences, base against tip,
+  were classified at every repair round.
+
+**Verified:** typecheck ✅ · lint ✅ · tests ✅ (5490 in 94 files) · build ✅ · e2e ✅ (84 passed, 21 skipped by design, on
+five screen sizes), all on the branch tip `497e358` after `npm ci`. The preview and the production deploy are reported in
+the step-9 reply. **Not verified:** a real phone or tablet (emulated browsers only); the new drug-label wordings were
+checked against the labels' text as quoted in the literature and guidelines, not on DailyMed, which this environment
+cannot reach (the injectable fentanyl label's newest contraindication list in particular).
+
+**Files:** A: 99 files, among them 30 case files in `heart-simulator/src/lib/sim/scenario/scenarios/`, `edKit.ts`,
+`rules/*.ts` (9 files), `src/data/medicationGroups.ts`, `src/components/simulator/actionGroups.ts`, `caseList.ts`,
+`monitorKeys.ts` and 55 test files and helpers · M: 93 files across the engine, the kits, the older cases, `meds.ts`, the library
+content, the stores, the simulator and monitor components, `README.md` · D: none.
+
+**Follow-up:** in `fix_list.md` — try the 30 new cases, the ER roles, the monitor keys and Give meds' history chips on a
+real phone; five "For Codex" polish items (the simulator's new menu and keys, the Give meds patient box, the library
+lists, the new ECG pictures, the case imaging flow). Kept by design, for a case author's later choice: a few pairs of
+distinct mistakes still charged together on one act (consent and time-out before access; cardioversion of a stable
+patient without sedation; and others listed in the integration notes); the cocaine case's sedation is midazolam alone
+(handled locally — a new case that redefines "sedation" needs the same care); after the radial cocktail under 90, IC
+nitroglycerin is charged again for the low pressure.
+
 ### 2026-11-12 — claude/vigilant-goodall-e7bs4b (a teaching app to be proud of: courses, rhythm trainer, heart sounds, glossary, 2025 guidelines, six new cases and six new drugs, three reviews fixed)
 
 **Agent:** Claude
