@@ -261,13 +261,18 @@ describe('emergency department defaults', () => {
   it('a fibrinolytic needs a STEMI on the 12-lead or a pulmonary embolism', () => {
     const none = run(edPatient(), 7, ['iv', 'tnk']);
     expect(none.penalties).toMatchObject([{ id: 'lytic-no-indication', severity: 'critical' }]);
-    expect(ids(run(stemi(), 7, ['ecg12', 'iv', 'tnk']))).toEqual([]);
-    expect(ids(run(edPatient({ problems: ['pulmonary-embolism'] }), 7, ['iv', 'tnk']))).toEqual([]);
+    // a STEMI in a department that cannot get the patient to PCI within 120 minutes of first medical contact
+    expect(ids(run(stemi({ noTimelyPci: true }), 7, ['ecg12', 'iv', 'tnk']))).toEqual([]);
+    // with PCI in time, primary PCI is the reperfusion
+    expect(ids(run(stemi(), 7, ['ecg12', 'iv', 'tnk']))).toEqual(['lytic-pci-available']);
+    // a pulmonary embolism with cardiopulmonary failure; without it, only the bleeding (AHA/ACC 2026: 3 — Harm)
+    expect(ids(run(edPatient({ problems: ['pulmonary-embolism', 'pe-high-risk'] }), 7, ['iv', 'tnk']))).toEqual([]);
+    expect(ids(run(edPatient({ problems: ['pulmonary-embolism'] }), 7, ['iv', 'tnk']))).toEqual(['lytic-no-indication']);
     // a dissection: one mistake, one penalty — the dissection's own rule
     expect(ids(run(edPatient({ problems: ['aortic-dissection'] }), 7, ['iv', 'tnk']))).toEqual(['lytic-dissection']);
-    // the lab's own cases score a lytic in the lab in their own words
+    // in the lab the artery is opened mechanically: the built-in lab rule (the lab's cases say it in their own words)
     const lab = { ...edPatient(), id: 'lab-test', setting: 'cathlab' as const, roles: [3, 4, 5] as LearningLevel[] };
-    expect(ids(run(lab, 5, ['iv', 'tnk']))).toEqual([]);
+    expect(ids(run(lab, 5, ['iv', 'tnk']))).toEqual(['lytic-in-lab']);
   });
 
   it('serial troponins: a repeat after the first set of labs, in the case\'s words', () => {
@@ -612,7 +617,8 @@ describe('the 12-lead in the ER doctor\'s run', () => {
   const nurseEcg = (minute: number) => ({ id: 'nurse-ecg', when: (s: SimState) => s.minute >= minute, effect: () => ({ say: [['nurse', '12-lead done — it is on the screen.']] as [Speaker, string][], flags: ['ecg12', 'monitor'] }) });
 
   it('a computer nurse\'s 12-lead counts: the doctor reads it, a STEMI on it opens the lab and the lytic, and the door-to-ECG time is the team\'s', () => {
-    const sc = stemi({ events: [nurseEcg(3)], timings: [DOOR_TO_ECG] });
+    // (a department that cannot get the patient to PCI in time, so the lytic is right once the STEMI is read)
+    const sc = stemi({ events: [nurseEcg(3)], timings: [DOOR_TO_ECG], noTimelyPci: true });
     const s = start(sc, 7);
     expect(s.pendingRead).toBeNull();
     const after = run(sc, 7, ['iv', 'monitor'], undefined, 'manual');

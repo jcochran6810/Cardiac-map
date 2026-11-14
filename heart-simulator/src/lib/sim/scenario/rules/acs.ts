@@ -10,8 +10,8 @@ import { READ_OPTIONS } from '../reads';
 import { has, mapOf, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
 import {
-  ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, hasProblem, lastDoneAt, longQt,
-  lowPressure, outflowObstruction, preloadDependent, rhythmKind, tachyarrhythmia,
+  ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, ecgShowsStemi, hasProblem, lastDoneAt,
+  longQt, lowPressure, outflowObstruction, preloadDependent, rhythmKind, tachyarrhythmia,
 } from './helpers';
 
 type Check = (s: SimState, sc: Scenario, id: string) => boolean;
@@ -154,6 +154,61 @@ export const nitrateRulesExcept = (...kept: string[]) => NITRATE_RULES.filter((i
  */
 export const topNitrate = NITRATE_GATE.top;
 
+// ─── Fibrinolytics ─────────────────────────────────────────────────────────
+
+/** The minutes of compressions in one CPR cycle: more than 10 minutes of CPR is a relative contraindication to a lytic for a STEMI */
+const CPR_MINUTES_PER_CYCLE = 2;
+
+/**
+ * The fibrinolytics (tenecteplase, alteplase), ranked: the dissection, the absolute contraindications, a second dose, the
+ * lab, a STEMI that PCI can reach in time, no indication, then the relative contraindications (2013 ACCF/AHA STEMI table,
+ * kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels)
+ */
+const LYTIC_GATE = gate([
+  {
+    id: 'lytic-dissection', actions: LYTICS, applies: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 15, severity: 'critical',
+    text: 'A fibrinolytic in an aortic dissection. It can turn the tear into a fatal hemorrhage: a dissection that blocks a coronary ostium can mimic a STEMI — think of it before any lytic.',
+  },
+  {
+    id: 'lytic-absolute', actions: LYTICS, applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'intracranial-risk', 'bleeding']),
+    points: 15, severity: 'critical',
+    text: 'A fibrinolytic with an absolute contraindication: an intracranial hemorrhage ever, an ischemic stroke within 3 months, an intracranial lesion (an AVM, an aneurysm, a tumor), significant head or face trauma within 3 months, brain or spinal surgery within 2 months, or active bleeding or a bleeding disorder (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels). The bleeding risk is prohibitive: primary PCI for a STEMI; for a pulmonary embolism, catheter-directed therapy or surgery.',
+  },
+  {
+    id: 'second-lytic', actions: LYTICS, applies: (s) => has(s, 'lytic'), points: 15, severity: 'critical',
+    text: 'A second fibrinolytic. One full dose has been given: another adds the bleeding — in the brain too — and opens nothing the first could not. A STEMI that does not reperfuse goes for rescue PCI (2025 ACC/AHA ACS); a pulmonary embolism that does not respond, for catheter-directed therapy or surgery.',
+  },
+  {
+    id: 'lytic-in-lab', actions: LYTICS, applies: (_s, sc) => sc.setting === 'cathlab', points: 15, severity: 'critical',
+    text: 'A fibrinolytic in the cath lab. The artery is opened here mechanically: on top of heparin, the antiplatelet drugs and an arterial sheath, a lytic only adds bleeding — at the access site and in the brain (2025 ACC/AHA ACS: primary PCI, not fibrinolysis, where PCI is available).',
+  },
+  {
+    id: 'lytic-pci-available', actions: LYTICS,
+    applies: (s, sc) => sc.setting === 'ed' && ecgShowsStemi(s) && !hasProblem(sc, ['pulmonary-embolism']) && !sc.noTimelyPci, points: 15, severity: 'critical',
+    text: 'A fibrinolytic for a STEMI that primary PCI can reach in time. With a cath lab within 120 minutes of first medical contact, primary PCI is the reperfusion (2025 ACC/AHA ACS, 1): it opens more arteries with less bleeding — a lytic adds an intracranial bleed in about 1 in 100. Activate the cath lab.',
+  },
+  {
+    id: 'lytic-no-indication', actions: LYTICS,
+    applies: (s, sc) => sc.setting === 'ed' && !has(s, 'ecg-stemi') && !hasProblem(sc, ['pe-high-risk', 'aortic-dissection']) && !(hasProblem(sc, ['pulmonary-embolism']) && !s.pulse),
+    points: 15, severity: 'critical',
+    text: 'A fibrinolytic without an indication. In the emergency department it is for a STEMI on the 12-lead when PCI cannot happen within 120 minutes of first medical contact (then within 30 minutes of arrival), or a pulmonary embolism with cardiopulmonary failure (shock, or an arrest); a PE without it gets only the bleeding (AHA/ACC 2026: systemic lysis 3 — Harm in categories A–C), and so does any other patient — intracranial in about 1 in 100.',
+  },
+  {
+    id: 'lytic-hypertension', actions: LYTICS, applies: (s) => s.pulse && (s.vitals.sbp > 180 || s.vitals.dbp > 110), points: 5, severity: 'major',
+    text: 'A fibrinolytic with a systolic over 180 or a diastolic over 110. A severe, uncontrolled pressure is a relative contraindication (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline): the intracranial bleeding risk climbs steeply. Bring the pressure down first, or choose PCI.',
+  },
+  {
+    id: 'lytic-relative', actions: LYTICS,
+    applies: (s, sc) => hasProblem(sc, ['oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy', 'prior-stroke'])
+      || (ecgShowsStemi(s) && !hasProblem(sc, ['pulmonary-embolism']) && (s.counts.cpr ?? 0) * CPR_MINUTES_PER_CYCLE > 10),
+    points: 5, severity: 'major',
+    text: 'A fibrinolytic with a relative contraindication: an oral anticoagulant, major surgery within 3 weeks, internal bleeding within 2–4 weeks or an active ulcer, pregnancy, a stroke more than 3 months ago or a TIA, or more than 10 minutes of CPR (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline). For a STEMI, PCI is the safer reperfusion; for a pulmonary embolism in shock or arrest the lysis may still be right — weigh the bleeding against catheter-directed therapy or surgery, it is not forbidden.',
+  },
+]);
+
+/** Every built-in fibrinolytic rule: a case rule that says a lytic is wrong for its patient lists them in `replaces` */
+export const LYTIC_RULES = LYTIC_GATE.harms.map((h) => h.id);
+
 // ─── Analgesia and sedation ────────────────────────────────────────────────
 
 /**
@@ -206,7 +261,7 @@ export const ACS_RULES: Harm[] = [
   // the emergency department's procedural sedation (ACEP clinical policy: monitoring and capnography)
   { id: 'sedation-unmonitored', actions: ['procedural-sedation'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Procedural sedation without the cardiac monitor on. Sedation can stop the breathing and drop the pressure: the ECG, pulse oximetry, the blood pressure and capnography run from before the first dose until the patient is awake again.' },
   { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s) => s.pulse && !sedationForProcedure(s), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
-  { id: 'lytic-no-indication', actions: LYTICS, when: (s, sc) => sc.setting === 'ed' && !has(s, 'ecg-stemi') && !hasProblem(sc, ['pulmonary-embolism', 'aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic without an indication. In the emergency department it is for a STEMI on the 12-lead when PCI cannot happen within 120 minutes of first medical contact (then within 30 minutes of arrival), or a high-risk pulmonary embolism; any other patient gets only its bleeding — intracranial in about 1 in 100.' },
+  ...LYTIC_GATE.harms,
   ...NITRATE_GATE.harms,
   { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => longQt(s, sc), points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
   // the long-QT rule above speaks for a pulseless torsades
@@ -227,5 +282,4 @@ export const ACS_RULES: Harm[] = [
   { id: 'midazolam-unsafe', actions: ['midazolam'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Midazolam with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further (label boxed warning: respiratory depression): it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
   { id: 'sedation-unsafe', actions: ['sedation'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Sedation with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A sedative drops the pressure and the breathing further (midazolam label boxed warning: respiratory depression, continuous monitoring): sedation is for a procedure in a patient awake enough to feel it — here support the pressure and the airway instead.' },
   { id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major', text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.' },
-  { id: 'lytic-dissection', actions: LYTICS, when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic in an aortic dissection. It can turn the tear into a fatal hemorrhage: a dissection that blocks a coronary ostium can mimic a STEMI — think of it before any lytic.' },
 ];

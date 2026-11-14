@@ -5,7 +5,7 @@ import {
   LEFT_VIEWS, MD, RCA_VIEWS, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Takotsubo syndrome with dynamic LV outflow tract obstruction. A 70-year-old woman comes to the lab as a STEMI alert an hour
@@ -849,7 +849,7 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'no-culprit-pci', actions: TECH_PCI, roles: MD, when: (s) => has(s, 'normal-coronaries'), points: 8, severity: 'major', text: 'A guide, wire, balloon or stent with no culprit lesion. The coronaries are clean: there is nothing to open, and every device in a normal artery risks a dissection. The ST elevation comes from the muscle, not an artery — look at the ventricle.' },
     { id: 'tech-unasked-device', actions: TECH_PCI, roles: TECH, when: (s) => has(s, 'normal-coronaries'), points: 3, severity: 'minor', text: 'A guide, wire, balloon or stent opened with no culprit lesion. The operator did not ask for it and the arteries are clean: open devices when the operator asks for them.' },
     { id: 'antiplatelet-no-acs', actions: ['p2y12', 'cangrelor', 'gp2b3a'], roles: [4, 5], when: (s) => has(s, 'normal-coronaries'), points: 4, severity: 'minor', text: 'A P2Y12 or GP IIb/IIIa inhibitor after the angiogram showed clean coronaries. There is no plaque rupture and no stent to protect: it adds only bleeding.' },
-    { id: 'lytic-lab', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', text: 'A fibrinolytic in the cath lab, with the arteries on the screen. There is no clot to dissolve — only a bleeding risk (intracranial in about 1 in 100), on top of heparin and aspirin.' },
+    { id: 'lytic-lab', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', replaces: LYTIC_RULES, text: 'A fibrinolytic in the cath lab, with the arteries on the screen. There is no clot to dissolve — only a bleeding risk (intracranial in about 1 in 100), on top of heparin and aspirin.' },
     { id: 'pericardiocentesis-no-effusion', actions: ['pericardiocentesis'], roles: MD, points: 15, severity: 'critical', text: 'A pericardiocentesis without an effusion. The low pressure comes from inside the ventricle, and the needle can puncture the right ventricle or a coronary artery. Look first: an echo shows the pericardium and the outflow tract within a minute.' },
     { id: 'sedation-low-pressure', actions: ['sedation'], roles: [4, 5], when: (s) => s.pulse && (obstructing(s) || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES, text: 'Sedation while her pressure was down. Sedatives and opioids in sedating doses dilate the veins and the arteries: less preload and less afterload, a bigger gradient and a lower pressure.' },
     // same id as the built-in rule (which waits for a systolic of 120): before the fall her 106 needed no vasoconstrictor either

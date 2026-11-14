@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_HARMS, start } from '@/lib/sim/scenario/engine';
-import { NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept, sedationForProcedure, topNitrate } from '@/lib/sim/scenario/rules/acs';
+import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept, sedationForProcedure, topNitrate } from '@/lib/sim/scenario/rules/acs';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem, Vitals } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
@@ -347,5 +347,88 @@ describe('no role in an arrest, and the antiemetic', () => {
     expect(penaltyIds(fixture({ setting: 'cathlab', role: 5, rhythm: SINUS, problems: ['heart-failure'] }), 5, ['iv', 'ondansetron'])).toEqual([]);
     // a long QT: the long-QT rule alone
     expect(penaltyIds(patient({ problems: ['heart-failure', 'long-qt'] }), 2, ['iv', 'ondansetron'])).toEqual(['ondansetron-long-qt']);
+  });
+});
+
+describe('the fibrinolytic gate', () => {
+  const STEMI = { profile: 'anterior-stemi', hr: 96 };
+  /** The ER doctor's patient (a STEMI unless the test says otherwise), in a department that cannot reach PCI in time */
+  const ed = ({ vitals, extra, ...over }: Spec = {}) =>
+    fixture({ setting: 'ed', role: 7, rhythm: STEMI, ...over, vitals: { pain: 6, ...vitals }, extra: { noTimelyPci: true, ...extra } });
+  const tnk = (sc: ReturnType<typeof fixture>, before: string[] = ['ecg12']) => penaltyIds(sc, sc.roles[0], [...before, 'iv', 'tnk']);
+
+  it('a STEMI where PCI cannot happen in time, with nothing against it: no penalty', () => {
+    expect(tnk(ed())).toEqual([]);
+  });
+
+  it('lytic-absolute: an intracranial bleed, a recent ischemic stroke, an intracranial lesion or trauma, active bleeding', () => {
+    for (const p of ['intracranial-hemorrhage', 'recent-stroke', 'intracranial-risk', 'bleeding'] as Problem[]) expect(tnk(ed({ problems: [p] })), p).toEqual(['lytic-absolute']);
+  });
+
+  it('a stroke more than 3 months ago or a TIA is a relative contraindication, never an absolute one', () => {
+    expect(tnk(ed({ problems: ['prior-stroke'] }))).toEqual(['lytic-relative']);
+  });
+
+  it('lytic-relative: an oral anticoagulant, recent surgery or bleeding, pregnancy — and more than 10 minutes of CPR for a STEMI', () => {
+    for (const p of ['oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy'] as Problem[]) expect(tnk(ed({ problems: [p] })), p).toEqual(['lytic-relative']);
+    const sc = ed();
+    const s = runScenario(sc, 7, ['ecg12', 'iv']);
+    const relative = rule('lytic-relative');
+    expect(relative.when!({ ...s, counts: { ...s.counts, cpr: 6 } }, sc, 'tnk')).toBe(true);
+    expect(relative.when!({ ...s, counts: { ...s.counts, cpr: 5 } }, sc, 'tnk')).toBe(false);
+    // a pulmonary embolism in arrest: the CPR is no reason to withhold it
+    const pe = ed({ rhythm: SINUS, problems: ['pulmonary-embolism', 'pe-high-risk'] });
+    const p = runScenario(pe, 7, ['iv']);
+    expect(relative.when!({ ...p, counts: { ...p.counts, cpr: 8 } }, pe, 'tnk')).toBe(false);
+  });
+
+  it('lytic-hypertension: over 180 systolic or 110 diastolic, under the absolute ones', () => {
+    expect(tnk(ed({ vitals: { sbp: 192, dbp: 104 } }))).toEqual(['lytic-hypertension']);
+    expect(tnk(ed({ vitals: { sbp: 170, dbp: 114 } }))).toEqual(['lytic-hypertension']);
+    expect(tnk(ed({ vitals: { sbp: 178, dbp: 104 } }))).toEqual([]);
+    expect(tnk(ed({ vitals: { sbp: 192, dbp: 104 }, problems: ['bleeding'] }))).toEqual(['lytic-absolute']);
+  });
+
+  it('second-lytic: a second dose (each fibrinolytic is given once: here alteplase, then tenecteplase)', () => {
+    const pe = fixture({ setting: 'ed', role: 7, rhythm: SINUS, problems: ['pulmonary-embolism', 'pe-high-risk'] });
+    expect(penaltyIds(pe, 7, ['iv', 'alteplase', 'tnk'])).toEqual(['second-lytic']);
+  });
+
+  it('lytic-in-lab: in the cath lab; a case rule with its id says it in its own words', () => {
+    const lab = fixture({ setting: 'cathlab', role: 5, rhythm: STEMI });
+    expect(penaltyIds(lab, 5, ['iv', 'tnk'])).toEqual(['lytic-in-lab']);
+    expect(penaltyIds(fixture({ setting: 'cathlab', role: 5, rhythm: STEMI, problems: ['bleeding'] }), 5, ['iv', 'tnk'])).toEqual(['lytic-absolute']);
+    const stemiLab = SCENARIO_BY_ID['stemi-cathlab'];
+    const s = runScenario(stemiLab, 5, ['tnk']);
+    expect(s.penalties).toMatchObject([{ id: 'lytic-in-lab', text: expect.stringMatching(/primary PCI is happening/) }]);
+  });
+
+  it('lytic-pci-available: a STEMI in a department that can reach PCI in time', () => {
+    expect(tnk(ed({ extra: { noTimelyPci: false } }))).toEqual(['lytic-pci-available']);
+    // with a pulmonary embolism it is the embolism's lysis, not the STEMI's
+    expect(tnk(ed({ extra: { noTimelyPci: false }, problems: ['pulmonary-embolism', 'pe-high-risk'] }))).toEqual([]);
+  });
+
+  it('lytic-no-indication: no STEMI, and no PE with cardiopulmonary failure (a PE in arrest counts)', () => {
+    const sinus = (problems: Problem[] = [], pulse = true) => fixture({ setting: 'ed', role: 7, rhythm: pulse ? SINUS : { profile: 'pea', hr: 40 }, problems, pulse });
+    expect(penaltyIds(sinus(), 7, ['iv', 'tnk'])).toEqual(['lytic-no-indication']);
+    expect(penaltyIds(sinus(['pulmonary-embolism']), 7, ['iv', 'tnk'])).toEqual(['lytic-no-indication']);
+    expect(penaltyIds(sinus(['pulmonary-embolism', 'pe-high-risk']), 7, ['iv', 'tnk'])).toEqual([]);
+    expect(penaltyIds(sinus(['pulmonary-embolism'], false), 7, ['io', 'tnk'])).toEqual([]);
+    expect(rule('lytic-no-indication').text).toMatch(/AHA\/ACC 2026: systemic lysis 3 — Harm in categories A–C/);
+    // one dose, one penalty: no indication and a high pressure is the indication rule alone
+    expect(penaltyIds(fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { sbp: 196, dbp: 112 } }), 7, ['iv', 'tnk'])).toEqual(['lytic-no-indication']);
+  });
+
+  it('the ER nurse\'s alteplase without an order: the critical order rule alone, not also the indication rule', () => {
+    const rn = fixture({ setting: 'ed', role: 6, rhythm: SINUS });
+    const s = runScenario(rn, 6, ['iv', 'alteplase']);
+    expect(s.penalties).toMatchObject([{ id: 'rn-without-order-alteplase', points: 15, severity: 'critical' }]);
+  });
+
+  it('a case rule that lists LYTIC_RULES covers the dose; the dissection is ranked first', () => {
+    const covers = caseRule({ id: 'case-lytic', actions: ['tnk'], points: 15, severity: 'critical', replaces: LYTIC_RULES });
+    expect(penaltyIds(fixture({ setting: 'cathlab', role: 5, rhythm: STEMI, problems: ['bleeding'], harms: [covers] }), 5, ['iv', 'tnk'])).toEqual(['case-lytic']);
+    expect(tnk(ed({ problems: ['aortic-dissection', 'bleeding'], vitals: { sbp: 196, dbp: 112 } }))).toEqual(['lytic-dissection']);
   });
 });

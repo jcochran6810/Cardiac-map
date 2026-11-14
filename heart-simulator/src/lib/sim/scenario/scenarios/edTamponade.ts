@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
-import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -981,7 +981,7 @@ export const edTamponade: Scenario = {
       text: 'Heparin or a P2Y12 loading dose with no order, for a patient with a large effusion and a needle going into her pericardium (or a fresh drain in it). Neither is on the chest pain standing order, and there is no coronary syndrome to treat: it only adds bleeding into the sac.',
     },
     {
-      id: 'lytic-tamponade', actions: ['tnk', 'alteplase'], roles: ED_TEAM, points: 15, severity: 'critical', replaces: ['lytic-no-indication', ...noOrder(['alteplase'])],
+      id: 'lytic-tamponade', actions: ['tnk', 'alteplase'], roles: ED_TEAM, points: 15, severity: 'critical', replaces: [...LYTIC_RULES, ...noOrder(['alteplase'])],
       text: 'A fibrinolytic for a patient with a large pericardial effusion. There is no STEMI and no pulmonary embolism to dissolve: a lytic can turn the effusion into a hemorrhage around the heart, and the needle track into a bleed.',
     },
     {

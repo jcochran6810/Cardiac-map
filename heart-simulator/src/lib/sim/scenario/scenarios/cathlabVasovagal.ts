@@ -3,7 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
-import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * A vasovagal reaction at femoral sheath removal. A diagnostic cath from the right groin is over; the tech pulled the
@@ -708,7 +708,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'An anticoagulant or a P2Y12 inhibitor with nothing to treat, minutes after the femoral sheath came out. There is no ACS and no stent — only mild non-obstructive disease — and it keeps the puncture oozing and raises the risk of a hematoma or a retroperitoneal bleed.',
     },
     {
-      id: 'lytic-no-indication', actions: ['tnk'], roles: MD, points: 15, severity: 'critical',
+      id: 'lytic-no-indication', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', replaces: LYTIC_RULES,
       text: 'A fibrinolytic with no indication, minutes after a femoral artery puncture. Tenecteplase is for a STEMI when PCI cannot be done in time; here it can turn the groin into a major or retroperitoneal bleed.',
     },
   ],

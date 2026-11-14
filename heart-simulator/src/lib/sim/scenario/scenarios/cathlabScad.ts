@@ -5,7 +5,7 @@ import {
   LAD_VIEWS, LEFT_VIEWS, MD, RCA_VIEWS, TECH, WIRES, angioGate, anticoagulated, askCritical, askDone, askEvents, askHarm, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { nitrateRulesExcept } from '../rules/acs';
+import { LYTIC_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Spontaneous coronary artery dissection (SCAD). A 42-year-old woman eight weeks after childbirth, breastfeeding, comes
@@ -765,7 +765,7 @@ export const cathlabScad: Scenario = {
     // before the diagnosis: the nurse's bolus on top of the one the operator gave (the order's fallback). Bivalirudin after
     // heparin is not scored here: switching to it for a PCI is accepted practice (after the diagnosis it is the harm above)
     { id: 'heparin-twice', actions: ['heparin'], roles: [4], when: (s) => has(s, 'heparin') && !has(s, 'scad'), points: 8, severity: 'major', text: 'A second heparin bolus on top of the first. She already had heparin 70 units/kg: check what has been given before you draw up a dose — a double dose doubles the bleeding risk, at the radial artery and in the wall of a fragile coronary.' },
-    { id: 'lytic-scad', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', text: 'A fibrinolytic in the cath lab, where the artery can be seen and treated. It adds only bleeding — and in SCAD it can make the blood in the wall spread (case reports of extension, rupture and tamponade). In a young woman after a pregnancy with a STEMI, think of SCAD before any lytic.' },
+    { id: 'lytic-scad', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', replaces: LYTIC_RULES, text: 'A fibrinolytic in the cath lab, where the artery can be seen and treated. It adds only bleeding — and in SCAD it can make the blood in the wall spread (case reports of extension, rupture and tamponade). In a young woman after a pregnancy with a STEMI, think of SCAD before any lytic.' },
     // the spread hematoma has made the anterior wall ischemic again, with a fast rate and a falling pressure (COMMIT)
     { id: 'beta-blocker-shock-risk', actions: ['metoprolol'], roles: MD, when: (s) => s.pulse && ischemic(s), points: 6, severity: 'major', text: 'IV metoprolol with the anterior wall ischemic again, a heart rate over 110 and the pressure falling. A failing ventricle leans on its rate: an IV beta-blocker now risks cardiogenic shock (COMMIT). Restore the flow first, and start the beta-blocker once she is stable.' },
     { id: 'mcs-stable', actions: ['iabp', 'impella'], roles: MD, when: (s) => s.pulse && s.vitals.sbp >= 90, points: 8, severity: 'major', text: 'A balloon pump or Impella for a stable patient. Nothing needs support, large-bore femoral access risks an iliac dissection in a woman who may have fibromuscular dysplasia, and a balloon pump can push a coronary dissection further.' },

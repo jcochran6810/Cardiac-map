@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Timing } from '../types';
 import { allOf, bpAfter, canSwallow, firstDone, has, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { LYTIC_RULES } from '../rules/acs';
 
 /**
  * An acute coronary syndrome without ST elevation, in a PCI-capable emergency department on a weekday afternoon. A
@@ -604,12 +605,12 @@ export const edNstemi: Scenario = {
     {
       // one penalty for one fibrinolytic: it stands in for the built-in rule (and, for the nurse, the built-in 'no order')
       id: 'lytic-st-depression', actions: ['tnk', 'alteplase'], roles: ED_MD, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',
-      replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],
+      replaces: [...LYTIC_RULES, 'rn-without-order-alteplase'],
       text: 'A fibrinolytic for ST depression. In an acute coronary syndrome without ST elevation the clot does not close the artery: a fibrinolytic opens nothing, and it adds bleeding — in the brain too — and more infarcts (TIMI IIIB). It is harmful in NSTE-ACS; the only ST depression it treats is the mirror image of a posterior STEMI, confirmed on V7–V9. Aspirin, heparin and angiography are the treatment.',
     },
     {
       id: 'rn-lytic-st-depression', actions: ['alteplase'], roles: ED_RN, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',
-      replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],
+      replaces: [...LYTIC_RULES, 'rn-without-order-alteplase'],
       text: 'A fibrinolytic with no order, for ST depression. The ER nurse gives a fibrinolytic only on the physician\'s order, and none is indicated here. In an acute coronary syndrome without ST elevation the clot does not close the artery: a fibrinolytic opens nothing, and it adds bleeding — in the brain too — and more infarcts (TIMI IIIB). It is harmful in NSTE-ACS; the only ST depression it treats is the mirror image of a posterior STEMI, confirmed on V7–V9. Aspirin, heparin and angiography are the treatment.',
     },
     {

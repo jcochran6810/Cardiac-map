@@ -2,7 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { arrestEtco2, bpAfter, count, firstDone, has, mapOf, ventilated } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { NITRATE_RULES } from '../rules/acs';
+import { LYTIC_RULES, NITRATE_RULES } from '../rules/acs';
 
 /**
  * A witnessed, monitored cardiac arrest in the emergency department. A 61-year-old man came in 40 minutes ago with two
@@ -933,7 +933,7 @@ export const edVfArrest: Scenario = {
     },
     {
       id: 'lytic-pci-here', actions: ['tnk', 'alteplase'], points: 15, severity: 'critical',
-      replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],
+      replaces: [...LYTIC_RULES, 'rn-without-order-alteplase'],
       text: 'A fibrinolytic in a hospital whose own cath lab can open the artery. During CPR routine fibrinolysis does not improve survival (TROICA); after ROSC, primary PCI opens more arteries with fewer bleeds — and after minutes of compressions a fibrinolytic adds a real risk of bleeding into the chest and the brain.',
     },
     {

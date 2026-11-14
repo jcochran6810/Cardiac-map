@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, type LabAsk } from '../labKit';
-import { SEDATIVE_RULES } from '../rules/acs';
+import { LYTIC_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * A retroperitoneal bleed after femoral access. Three hours after a PCI from the right groin, a small 76-year-old woman
@@ -714,7 +714,7 @@ export const cathlabRpBleed: Scenario = {
       id: 'more-antithrombotic', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], points: 12, severity: 'critical',
       text: 'More anticoagulant or a GP IIb/IIIa or IV P2Y12 drug in a patient who is bleeding. It keeps the hole open and speeds the blood loss: stop every anticoagulant and give no more, and reverse what is left of the heparin with protamine — bivalirudin, eptifibatide and cangrelor have no antidote, so once given they keep working until they wear off.',
     },
-    { id: 'lytic-in-bleeding', actions: ['tnk'], points: 15, severity: 'critical', text: 'A fibrinolytic in a patient who is bleeding. It dissolves every clot holding the hole closed.' },
+    { id: 'lytic-in-bleeding', actions: ['tnk'], points: 15, severity: 'critical', replaces: LYTIC_RULES, text: 'A fibrinolytic in a patient who is bleeding. It dissolves every clot holding the hole closed.' },
     {
       id: 'extra-antiplatelet', actions: ['aspirin', 'p2y12'], points: 3, severity: 'minor',
       text: 'Another antiplatelet dose for a bleeding patient already on aspirin and ticagrelor. It adds to the bleeding and treats nothing; keep the daily doses for the fresh stent, and add none.',
