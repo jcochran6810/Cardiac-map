@@ -48,6 +48,31 @@ const infranodalBlock = (s: SimState) =>
  */
 const magnesiumIndicated = (s: SimState, sc: Scenario) =>
   longQt(s, sc) || hasProblem(sc, ['hypomagnesemia', 'asthma', 'bronchospasm', 'digoxin-toxicity']);
+/**
+ * An IV beta-blocker was given — by the learner, or by a teammate or the operator (the flag 'beta-blocker' a case sets; the
+ * tablet sets it too, and the diltiazem label's warning is for the IV drugs together)
+ */
+export const ivBetaBlockerGiven = (s: SimState) => IV_BETA_BLOCKERS.some((b) => did(s, b)) || (has(s, 'beta-blocker') && !did(s, 'metoprolol-po'));
+/** IV diltiazem was given, by the learner or a teammate (its flag) */
+export const diltiazemGiven = (s: SimState) => did(s, 'diltiazem') || has(s, 'diltiazem');
+/**
+ * The signs of a risk of cardiogenic shock in an acute MI that rule out an early beta-blocker (2013 ACCF/AHA STEMI, kept by
+ * the 2025 ACC/AHA ACS guideline; COMMIT): a systolic under 120, a sinus tachycardia over 110 or a rate under 60 (not a
+ * pacer's), a PR of 0.24 s or more, or a heart minutes out of a cardiac arrest (the flag 'rosc')
+ */
+export const miShockRisk = (s: SimState) =>
+  s.vitals.sbp < 120 || (rhythmKind(s) === 'sinus' && s.rhythm.hr > 110) || (!paced(s) && s.rhythm.hr < 60)
+  || resolveProfile(s.rhythm.profile).pr >= 240 || has(s, 'rosc');
+/**
+ * A label contraindication of the rate drug itself holds for this dose: a slow rate or AV block (every drug of RATE_DRUGS),
+ * a low pressure (the beta-blockers, diltiazem and verapamil), or IV diltiazem and an IV beta-blocker together. For a case
+ * rule that judges the dose for another reason (e.g. lowering the pressure in a stroke) and steps aside here, so the
+ * built-in rule charges the label's reason at its own weight (one dose, one penalty)
+ */
+export const rateDrugContraindicated = (s: SimState, id: string) =>
+  RATE_DRUGS.includes(id) && s.pulse && (slowOrBlocked(s)
+    || (lowPressure(s) && [...BETA_BLOCKERS, 'diltiazem', ...VERAPAMIL].includes(id))
+    || (IV_BETA_BLOCKERS.includes(id) && diltiazemGiven(s)) || (id === 'diltiazem' && ivBetaBlockerGiven(s)));
 /** Minutes from `t` to now (the clock moves in tenths: rounded, so that 3.8 − 1.8 is 2) */
 const minutesSince = (s: SimState, t: number) => Math.round((s.minute - t) * 1000) / 1000;
 /**
@@ -134,6 +159,10 @@ const RULES: Harm[] = [
   // ─── Vagal maneuvers ───────────────────────────────────────────────────────
   // the same id as the hyperkalemia cases'
   { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse && !paced(s) && (AV_BLOCKS.includes(rhythmKind(s)) || s.rhythm.hr < 60), points: 3, severity: 'minor', text: 'A vagal maneuver with a slow pulse. It slows the sinus and AV nodes further; it is for a regular narrow-complex tachycardia (2015 ACC/AHA/HRS SVT guideline).' },
+  // an SVT is what it is for, unstable too: vagal maneuvers or adenosine may be tried first, so long as they do not delay the
+  // shock (2015 ACC/AHA/HRS SVT: synchronized cardioversion when they are ineffective or not feasible, 1) — the case's timing
+  // judges the delay
+  { id: 'vagal-no-indication', actions: ['vagal'], when: (s) => s.pulse && !slowOrBlocked(s) && rhythmKind(s) !== 'svt', points: 3, severity: 'minor', text: 'A vagal maneuver for a rhythm it cannot treat. It ends a re-entry through the AV node (AVNRT, AVRT) only: sinus tachycardia, atrial fibrillation or flutter and VT go on as before (2015 ACC/AHA/HRS SVT guideline; 2025 AHA). In an unstable patient it only delays the synchronized cardioversion, and the strain drops a low pressure further: treat the rhythm or its cause.' },
 
   // ─── The rate and AV-nodal drugs (one ladder: RATE_LADDER) ─────────────────
   { id: 'av-blocker-preexcited-af', actions: [...AV_NODAL_BLOCKERS, 'amio-arrest'], when: (s) => preexcitedAf(s), points: 15, severity: 'critical', text: 'An AV-nodal blocker in pre-excited atrial fibrillation. Blocking the node sends every impulse down the accessory pathway: the rate climbs and it can turn into VF (2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem, verapamil, digoxin, IV amiodarone and beta-blockers — 3: Harm). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.' },
@@ -143,6 +172,8 @@ const RULES: Harm[] = [
   { id: 'nodal-blocker-slow', actions: RATE_DRUGS, when: (s) => slowOrBlocked(s), points: 10, severity: 'major', text: 'An AV-nodal blocker or amiodarone with a second- or third-degree AV block or a heart rate under 50. Their labels rule them out without a working pacemaker (metoprolol, diltiazem, verapamil: sick sinus or AV block beyond first degree; adenosine: AV block, sinus node disease, symptomatic bradycardia; IV amiodarone: marked sinus bradycardia, AV block): they slow the rate further and can stop the heart. A symptomatic slow rate gets atropine, pacing or an epinephrine or dopamine infusion.' },
   { id: 'adenosine-wide-unstable', actions: ADENOSINE_PUSH, when: (s) => s.pulse && (rhythmKind(s) === 'torsades' || (rhythmKind(s) === 'vt' && lowPressure(s))), points: 8, severity: 'major', text: 'Adenosine for an unstable or polymorphic wide-complex tachycardia (2025 AHA: 3 — Harm). It cannot stop VT, it drops the pressure and its pause can set off VF: unstable VT gets synchronized cardioversion, sustained polymorphic VT defibrillation. Adenosine is only a diagnostic try for a stable, regular, monomorphic one.' },
   { id: 'beta-blocker-stimulant', actions: BETA_BLOCKERS, when: (_s, sc) => hasProblem(sc, ['sympathomimetic-toxicity']), points: 8, severity: 'major', text: 'A beta-blocker in acute cocaine or stimulant toxicity. With the beta receptors blocked, the stimulant\'s alpha effect goes unopposed: worse coronary spasm and a higher pressure (2014 ACC/AHA NSTE-ACS guideline: no beta-blocker with signs of acute intoxication). A benzodiazepine first, then nitroglycerin for the chest pain and the pressure.' },
+  // labetalol too: its beta block outweighs its alpha block, and paradoxical hypertension is reported (label)
+  { id: 'beta-blocker-pheochromocytoma', actions: BETA_BLOCKERS, when: (_s, sc) => hasProblem(sc, ['pheochromocytoma']), points: 8, severity: 'major', text: 'A beta-blocker for a patient with an untreated pheochromocytoma. With the beta receptors blocked and no alpha-blocker on board, the tumor\'s catecholamines act on the alpha receptors alone: the pressure climbs further and the heart can fail (metoprolol, esmolol and labetalol labels). Alpha-blockade first (phentolamine for a crisis); a beta-blocker only once it is in place.' },
   { id: 'nodal-blocker-hypotension', actions: [...BETA_BLOCKERS, 'diltiazem'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'A beta-blocker or IV diltiazem with a systolic under 90 (with an LVAD, a Doppler MAP under 60). Severe hypotension and cardiogenic shock rule out IV diltiazem, and cardiogenic shock or a systolic under 100 in an MI rule out IV metoprolol: both weaken the squeeze and drop the pressure further. A tachycardia that is causing the low pressure is unstable — synchronized cardioversion (2025 AHA); a low pressure from anything else needs its cause treated.' },
   // the same id as the left-main, guide-dissection and air-embolism cases'
   { id: 'cocktail-low-pressure', actions: VERAPAMIL, when: (s) => s.pulse && lowPressure(s), points: 5, severity: 'major', text: 'Verapamil — the radial cocktail, or intracoronary — with a systolic under 90 (with an LVAD, a Doppler MAP under 60). Its label rules it out in severe hypotension and cardiogenic shock, and the cocktail\'s nitroglycerin drops the pressure too: give the sheath its heparin alone, and treat the pressure first.' },
@@ -151,9 +182,10 @@ const RULES: Harm[] = [
   { id: 'ic-vasodilator-hypotension', actions: ['ic-adenosine'], when: (s) => s.pulse && lowPressure(s) && !slowOrBlocked(s), points: 6, severity: 'major', text: 'Intracoronary adenosine with a systolic under 90 (with an LVAD, a Doppler MAP under 60). It drops the pressure and slows the AV node, and a lower perfusion pressure makes no-reflow worse: hold the pressure up first, or use intracoronary epinephrine.' },
   // the fast rate of a pulmonary embolism or a tamponade not yet drained is the heart's answer to filling poorly
   { id: 'rate-drug-compensatory', actions: [...BETA_BLOCKERS, 'diltiazem'], when: (s, sc) => s.pulse && rhythmKind(s) === 'sinus' && (hasProblem(sc, ['pulmonary-embolism']) || ((hasProblem(sc, ['tamponade']) || has(s, 'tamponade')) && !has(s, 'drained'))), points: 8, severity: 'major', text: 'A beta-blocker or diltiazem for the sinus tachycardia of a pulmonary embolism or a tamponade. The fast rate is compensation, for a heart that fills poorly or pumps against a blocked lung circulation: slowing it drops the output and the pressure (the esmolol label rules it out in pulmonary hypertension). Treat the cause — drain the tamponade; anticoagulate, or lyse a high-risk embolism.' },
-  // a sinus tachycardia over 110 is a shock-risk sign (COMMIT); a fast AF in an ACS without failure, instability or
+  // the shock-risk signs of the 2013 ACCF/AHA STEMI guideline (COMMIT): a systolic under 120, a sinus tachycardia over 110 or
+  // a rate under 60 — and a heart minutes out of a cardiac arrest. A fast AF in an ACS without failure, instability or
   // bronchospasm is what an IV beta-blocker slows (2023 ACC/AHA/ACCP/HRS AF guideline)
-  { id: 'beta-blocker-mi-shock-risk', actions: IV_BETA_BLOCKERS, when: (s, sc) => s.pulse && hasProblem(sc, ['acs']) && !lowPressure(s) && (s.vitals.sbp < 100 || (rhythmKind(s) === 'sinus' && s.rhythm.hr > 110) || resolveProfile(s.rhythm.profile).pr >= 240), points: 8, severity: 'major', text: 'An IV beta-blocker in an acute MI with signs of shock risk or a slowed AV node — a systolic under 100, a sinus rate over 110, or a PR interval of 0.24 s or more. The metoprolol injection label rules it out in an MI with a systolic under 100, a heart rate under 45, a significant first-degree block (PR 0.24 s or more) or moderate to severe heart failure, and early IV beta-blockade with shock-risk factors brought on cardiogenic shock (COMMIT; 2013 ACCF/AHA STEMI; 2025 ACC/AHA ACS: no early IV beta-blocker with signs of heart failure, low output or shock risk). Start an oral beta-blocker within 24 hours, once the patient is stable.' },
+  { id: 'beta-blocker-mi-shock-risk', actions: IV_BETA_BLOCKERS, when: (s, sc) => s.pulse && hasProblem(sc, ['acs']) && !lowPressure(s) && miShockRisk(s), points: 8, severity: 'major', text: 'An IV beta-blocker in an acute MI with signs of shock risk or a slowed AV node — a systolic under 120, a sinus rate over 110 or a rate under 60, a PR interval of 0.24 s or more, or a heart just back from a cardiac arrest. Early IV beta-blockade with these risk factors brought on cardiogenic shock (COMMIT; 2013 ACCF/AHA STEMI: 3 — Harm; 2025 ACC/AHA ACS: no early IV beta-blocker with signs of heart failure, low output or shock risk), and the metoprolol injection label rules it out in an MI with a systolic under 100, a heart rate under 45, a PR of 0.24 s or more or moderate to severe heart failure. Start an oral beta-blocker within 24 hours, once the patient is stable.' },
   { id: 'beta-blocker-pulmonary-edema', actions: BETA_BLOCKERS, when: (s, sc) => s.pulse && hasProblem(sc, ['pulmonary-edema']), points: 8, severity: 'major', text: 'A beta-blocker with fluid on the lungs. Decompensated heart failure rules out beta-blockade (metoprolol label; 2022 AHA/ACC/HFSA heart failure; 2025 ACC/AHA ACS): it takes away the squeeze and the rate the failing heart is living on. Treat the congestion — sit up, CPAP, nitroglycerin for a high pressure — and a fast rhythm with amiodarone or synchronized cardioversion.' },
   // even with the pressure held over 90 by a pressor (metoprolol, labetalol and esmolol labels: cardiogenic shock)
   { id: 'beta-blocker-cardiogenic-shock', actions: BETA_BLOCKERS, when: (s, sc) => s.pulse && hasProblem(sc, ['cardiogenic-shock']), points: 8, severity: 'major', text: 'A beta-blocker in cardiogenic shock. The labels of metoprolol, labetalol and esmolol rule them out in shock — even with the pressure held up by an infusion: they take away the squeeze and the rate the failing heart is living on. Support the circulation and open the culprit artery; a fast rhythm gets amiodarone or synchronized cardioversion.' },
@@ -162,7 +194,7 @@ const RULES: Harm[] = [
   { id: 'beta-blocker-bronchospasm', actions: ['metoprolol', 'metoprolol-po', 'esmolol'], when: (_s, sc) => hasProblem(sc, ['asthma', 'bronchospasm']), points: 5, severity: 'major', text: 'A beta-blocker in a patient with asthma or bronchospasm. Even a β1-selective blocker (metoprolol, esmolol) loses its selectivity as the dose rises and can tighten the airways (labels: caution in bronchospastic disease): never during active wheezing — control the rate with diltiazem instead.' },
   // a denervated heart, dipyridamole or carbamazepine: 3 mg is the first dose (AHA ACLS dosing)
   { id: 'adenosine-full-dose', actions: ['adenosine6', 'adenosine12'], when: (s, sc) => hasProblem(sc, ['heart-transplant', 'adenosine-potentiator']) && !did(s, 'adenosine3'), points: 5, severity: 'major', text: 'Adenosine 6 or 12 mg with a transplanted heart, dipyridamole or carbamazepine. The denervated heart, and these drugs, make adenosine\'s effect much stronger and longer — a prolonged asystole: the AHA first dose is 3 mg (the label warns that dipyridamole potentiates adenosine and that carbamazepine can deepen heart block).' },
-  { id: 'iv-beta-blocker-with-diltiazem', actions: [...IV_BETA_BLOCKERS, 'diltiazem'], when: (s, _sc, id) => s.pulse && !preexcitedAf(s) && ((IV_BETA_BLOCKERS.includes(id) && did(s, 'diltiazem')) || (id === 'diltiazem' && IV_BETA_BLOCKERS.some((b) => did(s, b)))), points: 5, severity: 'major', text: 'IV diltiazem and an IV beta-blocker together. The diltiazem label rules out giving them together or within a few hours of each other, and the esmolol label reports fatal arrests with IV calcium-channel blockers given close together: profound bradycardia, heart block and a falling pressure. Choose one.' },
+  { id: 'iv-beta-blocker-with-diltiazem', actions: [...IV_BETA_BLOCKERS, 'diltiazem'], when: (s, _sc, id) => s.pulse && !preexcitedAf(s) && ((IV_BETA_BLOCKERS.includes(id) && diltiazemGiven(s)) || (id === 'diltiazem' && ivBetaBlockerGiven(s))), points: 5, severity: 'major', text: 'IV diltiazem and an IV beta-blocker together. The diltiazem label rules out giving them together or within a few hours of each other, and the esmolol label reports fatal arrests with IV calcium-channel blockers given close together: profound bradycardia, heart block and a falling pressure. Choose one.' },
   { id: 'amiodarone-long-qt', actions: ['amio-infusion'], when: (s, sc) => s.pulse && longQt(s, sc), points: 5, severity: 'major', text: 'Amiodarone with a long QT. It lengthens the QT further and can set off (or keep up) torsades de pointes: magnesium, potassium, a faster heart rate and stopping the QT-prolonging drugs are the treatment.' },
   // when one antiarrhythmic has not worked, the next step is a shock or expert advice, not a second drug on top
   { id: 'amiodarone-after-procainamide', actions: ['amio-infusion'], when: (s) => s.pulse && has(s, 'procainamide'), points: 5, severity: 'minor', text: 'Amiodarone on top of procainamide. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
@@ -189,7 +221,7 @@ const RULES: Harm[] = [
   { id: 'procainamide-slow', actions: ['procainamide'], when: (s) => slowOrBlocked(s), points: 10, severity: 'major', text: 'Procainamide with AV block or a slow heart rate. It slows conduction further and can stop the heart; it is a drug for tachycardia.' },
   { id: 'procainamide-long-qt', actions: ['procainamide'], when: (s, sc) => longQt(s, sc), points: 10, severity: 'major', text: 'Procainamide with a long QT. It lengthens the QT further and can set off torsades de pointes.' },
   { id: 'procainamide-hypotension', actions: ['procainamide'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one: an unstable tachycardia needs synchronized cardioversion.' },
-  { id: 'procainamide-heart-failure', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['heart-failure']), points: 8, severity: 'major', text: 'Procainamide in a patient with heart failure. It weakens the squeeze and drops the pressure: in heart failure use amiodarone, or synchronized cardioversion.' },
+  { id: 'procainamide-heart-failure', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['heart-failure', 'pulmonary-edema', 'cardiogenic-shock']), points: 8, severity: 'major', text: 'Procainamide in a patient with heart failure — a weak pump, acute pulmonary edema or cardiogenic shock. It weakens the squeeze and drops the pressure (label; 2025 AHA: avoid it in heart failure): use amiodarone, or synchronized cardioversion.' },
   { id: 'procainamide-lupus', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['lupus']), points: 8, severity: 'major', text: 'Procainamide in a patient with systemic lupus erythematosus. Its label rules it out: procainamide itself causes a lupus-like syndrome and can make lupus flare. Choose amiodarone for a stable wide-complex tachycardia, or synchronized cardioversion.' },
   { id: 'procainamide-after-amiodarone', actions: ['procainamide'], when: (s) => s.pulse && has(s, 'amiodarone'), points: 5, severity: 'minor', text: 'Procainamide on top of amiodarone. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
   { id: 'procainamide-sodium-channel', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['sodium-channel-blocker-overdose']), points: 10, severity: 'major', text: 'Procainamide in a tricyclic or other sodium-channel-blocker overdose. As a class IA drug it deepens the sodium-channel block — a wider QRS, a lower pressure and more ventricular arrhythmias (toxicology references): sodium bicarbonate, then lidocaine.' },
@@ -212,7 +244,7 @@ const RATE_LADDER = [
   // (amiodarone's infusion only)
   'antiarrhythmic-hyperkalemia',
   'adenosine-wide-unstable',
-  'beta-blocker-stimulant',
+  'beta-blocker-stimulant', 'beta-blocker-pheochromocytoma',
   'nodal-blocker-hypotension', 'cocktail-low-pressure', 'amiodarone-hypotension', 'ic-vasodilator-hypotension',
   'rate-drug-compensatory',
   'beta-blocker-mi-shock-risk',
@@ -243,6 +275,7 @@ export const LADDERS: Record<string, string[]> = {
   'temp-wire': ['temp-wire-not-slow', 'temp-wire-no-indication', 'temp-wire-without-pads'],
   'magnesium-sulfate': ['magnesium-routine-arrest', 'magnesium-renal-failure', 'magnesium-no-indication'],
   'adenosine-iv-ffr': ['rate-drug-in-arrest', 'ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'],
+  vagal: ['vagal-slow', 'vagal-no-indication'],
 };
 
 /**

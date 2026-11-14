@@ -486,7 +486,8 @@ describe('hypertensive pulmonary edema in the field — the traps', () => {
   it('a beta-blocker or diltiazem for her fast sinus rate makes her worse', () => {
     for (const drug of ['metoprolol', 'diltiazem']) {
       const s = medic(['vitals', 'cpap', 'iv', drug]);
-      expect(penalties(s), drug).toEqual(['negative-inotrope']);
+      // diltiazem in acute pulmonary edema is the built-in label contraindication, at its own weight (15, critical)
+      expect(penalties(s), drug).toEqual([drug === 'diltiazem' ? 'diltiazem-heart-failure' : 'negative-inotrope']);
       expect(s.vitals.spo2, drug).toBe(86);
       expect(said(s)).toMatch(/grayer and sweatier, not better/);
     }

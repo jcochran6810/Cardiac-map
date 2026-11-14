@@ -84,7 +84,7 @@ const tamponadeUndrained = (s: SimState, sc: Scenario) => (hasProblem(sc, ['tamp
 /**
  * Oral metoprolol in an acute coronary syndrome with a risk of cardiogenic shock (2013 ACCF/AHA STEMI, COR 1: oral
  * beta-blockers in the first 24 hours only without heart failure, a low output, an increased risk of cardiogenic shock —
- * a systolic under 120 with age over 70, a heart rate over 110 — or another contraindication; COMMIT). The rhythm rules
+ * a systolic under 120 with age over 70, a heart rate over 110 or under 60 — or another contraindication; COMMIT), and a heart minutes out of a cardiac arrest. The rhythm rules
  * judge a low pressure, a slow rate or block, fluid on the lungs and bronchospasm: this rule is for the rest
  */
 /**
@@ -99,7 +99,7 @@ const caseSpeaksForBetaBlocker = (s: SimState, sc: Scenario, id: string) => sc.h
 
 const oralBetaBlockerShockRisk = (s: SimState, sc: Scenario) =>
   s.pulse && hasProblem(sc, ['acs']) && !lowPressure(s) && !slowOrBlocked(s) && !hasProblem(sc, ['pulmonary-edema', 'asthma', 'bronchospasm'])
-  && (s.vitals.sbp < 100 || (!paced(s) && (s.rhythm.hr > 110 || s.rhythm.hr < 60)) || hasProblem(sc, ['heart-failure', 'cardiogenic-shock']));
+  && (s.vitals.sbp < 120 || (!paced(s) && (s.rhythm.hr > 110 || s.rhythm.hr < 60)) || has(s, 'rosc') || hasProblem(sc, ['heart-failure', 'cardiogenic-shock']));
 
 /**
  * Stopping the anticoagulant in the middle of a PCI: a wire is in the coronary (not yet out after the final angiogram) and
@@ -219,7 +219,7 @@ export const ADDED_RULES: Harm[] = [
   {
     id: 'oral-beta-blocker-shock-risk', actions: ['metoprolol-po'], when: (s, sc, id) => oralBetaBlockerShockRisk(s, sc) && !caseSpeaksForBetaBlocker(s, sc, id),
     points: 5, severity: 'major',
-    text: 'Oral metoprolol in an acute coronary syndrome with a risk of cardiogenic shock — a systolic under 100, a heart rate over 110 or under 60, or heart failure. The oral beta-blocker starts in the first 24 hours only without signs of heart failure, a low output or an increased risk of shock (2013 ACCF/AHA STEMI guideline; COMMIT, where early beta-blockade in these patients brought on cardiogenic shock; 2025 ACC/AHA ACS): hold it until the patient is stable.',
+    text: 'Oral metoprolol in an acute coronary syndrome with a risk of cardiogenic shock — a systolic under 120, a heart rate over 110 or under 60, heart failure, or a heart just back from a cardiac arrest. The oral beta-blocker starts in the first 24 hours only without signs of heart failure, a low output or an increased risk of shock (2013 ACCF/AHA STEMI guideline; COMMIT, where early beta-blockade in these patients brought on cardiogenic shock; 2025 ACC/AHA ACS): hold it until the patient is stable.',
   },
 
   // Stopping the anticoagulant halfway through a PCI, with nothing bleeding

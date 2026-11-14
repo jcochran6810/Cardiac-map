@@ -444,3 +444,13 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(text).not.toMatch(/unknown duration/);
   });
 });
+
+describe('af-rvr field: atropine after the conversion', () => {
+  it('atropine for the sinus rhythm the shock restored still has nothing to treat', () => {
+    const converted = run(sc, 2, ['primary', 'vitals', 'monitor', 'ecg12', 'iv', 'pads', 'sedation', 'cardiovert']);
+    expect(converted.rhythm.hr).toBeGreaterThanOrEqual(60);
+    expect(resolveProfile(converted.rhythm.profile).rhythm).toBe('sinus');
+    const s = perform(sc, converted, 'atropine');
+    expect(s.penalties.map((p) => p.id).slice(converted.penalties.length)).toEqual(['atropine-fast']);
+  });
+});

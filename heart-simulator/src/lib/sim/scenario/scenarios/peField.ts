@@ -629,7 +629,7 @@ export const peField: Scenario = {
     },
     {
       // magnesium is for torsades: here it only drops the pressure (the engine's default answer)
-      id: 'no-arrhythmia-pe', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'lidocaine', 'vagal', 'magnesium-sulfate'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'vagal-slow', 'magnesium-no-indication'], points: 3, severity: 'minor',
+      id: 'no-arrhythmia-pe', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'lidocaine', 'vagal', 'magnesium-sulfate'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'vagal-slow', 'vagal-no-indication', 'magnesium-no-indication'], points: 3, severity: 'minor',
       text: 'A vagal maneuver, adenosine, lidocaine or magnesium for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down, a pause or a vasodilating drug cuts the output she has left.',
     },
     {

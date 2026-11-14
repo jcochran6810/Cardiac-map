@@ -248,12 +248,16 @@ const NITRO_ORDER: LabAsk = edOrder({
 const RN_ORDERS = [NITRO_ORDER];
 
 /** A role's version of a harm that the ER nurse also commits without an order: one mistake, one penalty for each */
-function bothRoles(base: Harm, nurseText: string, rnReplaces: string[]): Harm[] {
-  // the nurse's twin stands for the missing order too: at least the order's weight (5, major)
+function bothRoles(base: Harm, nurseText: string, rnReplaces: string[], rnBeside: string[] = []): Harm[] {
+  // the nurse's twin stands for the missing order too: at least the order's weight (5, major). A heavier label
+  // contraindication it would hide (`rnBeside`) charges beside it instead, as one does beside a missing order
   const weight = base.points >= 5 ? { points: base.points, severity: base.severity } : { points: 5, severity: 'major' as const };
   return [
     { ...base, roles: ED_MD },
-    { ...base, ...weight, id: `rn-${base.id}`, roles: ED_RN, text: `${base.text} ${nurseText}`, replaces: [...(base.replaces ?? []), ...rnReplaces] },
+    {
+      ...base, ...weight, id: `rn-${base.id}`, roles: ED_RN, text: `${base.text} ${nurseText}`,
+      replaces: [...(base.replaces ?? []), ...rnReplaces].filter((id) => !rnBeside.includes(id)),
+    },
   ];
 }
 const NO_ORDER = 'And the ER nurse gives it only on the physician\'s order — this one was never ordered: tell the physician what you see and what you think he needs.';
@@ -956,7 +960,9 @@ export const edScape: Scenario = {
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
-      id: 'negative-inotrope', actions: [...BETA_BLOCKERS, 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure', ...RATE_RULES], points: 8, severity: 'major',
+      // diltiazem in acute pulmonary edema is the built-in diltiazem-heart-failure's (15, critical: 3 — Harm), at its own
+      // weight — beside the nurse's missing order
+      id: 'negative-inotrope', actions: [...BETA_BLOCKERS, 'diltiazem'], when: (s, _sc, id) => s.pulse && id !== 'diltiazem', replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
     }, NO_ORDER, [...BETA_BLOCKERS, 'diltiazem'].map((id) => `rn-without-order-${id}`)),
     ...bothRoles({
@@ -966,7 +972,9 @@ export const edScape: Scenario = {
     ...bothRoles({
       id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...PROCAINAMIDE_RULES, ...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
-    }, NO_ORDER, ['rn-without-order-adenosine3', 'rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
+    }, NO_ORDER, ['rn-without-order-adenosine3', 'rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine'],
+    // procainamide in acute pulmonary edema is a label contraindication of its own (8): it charges beside the nurse's twin
+    ['procainamide-heart-failure']),
     {
       id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'A sedative off the mask, or for a patient who is tiring. His panic is air hunger, which positive pressure and nitroglycerin treat; a benzodiazepine without that support blunts the breathing he has left. A small dose is for a patient on the mask who is awake and fighting it.',

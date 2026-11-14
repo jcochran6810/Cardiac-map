@@ -398,8 +398,9 @@ describe('vagal-slow', () => {
 
   it('does not fire for a regular narrow-complex tachycardia, or over a pacer', () => {
     expect(pen(field({ rhythm: SVT, vitals: { sbp: 110 } }), ['vagal'])).toEqual([]);
-    expect(pen(field({ rhythm: { profile: 'tcp', hr: 70 } }), ['vagal'])).toEqual([]);
-    expect(pen(field({ rhythm: { profile: 'tcp', hr: 40 } }), ['vagal'])).toEqual([]);
+    // over a pacer the rate is the pacer's: not slow — though a vagal maneuver has nothing to treat there either
+    expect(pen(field({ rhythm: { profile: 'tcp', hr: 70 } }), ['vagal'])).toEqual(['vagal-no-indication']);
+    expect(pen(field({ rhythm: { profile: 'tcp', hr: 40 } }), ['vagal'])).toEqual(['vagal-no-indication']);
   });
 
   it('a case rule with its id replaces it', () => {
@@ -890,7 +891,10 @@ describe('the corrected rules: what is right care is not charged', () => {
   it('cardioversion-unanticoagulated: pulmonary edema makes the AF unstable — cardioverted at once; procainamide still converts it', () => {
     const edema = { rhythm: { profile: 'atrial-fibrillation', hr: 160 }, vitals: { sbp: 100, spo2: 86 }, problems: ['af-over-48h', 'pulmonary-edema'] as Problem[] };
     expect(pen(field(edema), ['iv', 'midazolam', 'pads', 'cardiovert'])).toEqual([]);
-    expect(pen(field(edema), ['iv', 'procainamide'])).toEqual(['cardioversion-unanticoagulated']);
+    // procainamide: the failing heart is the heavier reason, ranked first (its label: a negative inotrope)
+    expect(pen(field(edema), ['iv', 'procainamide'])).toEqual(['procainamide-heart-failure']);
+    // …and without the edema it still converts the clot loose
+    expect(pen(field({ ...edema, problems: ['af-over-48h'] }), ['iv', 'procainamide'])).toEqual(['cardioversion-unanticoagulated']);
   });
 
   it('atropine-infranodal-repeat: a narrow-escape complete block of an inferior MI sits at the AV node — a repeat dose is fair', () => {
@@ -929,7 +933,9 @@ describe('in the cases: one dose, one penalty, at the right weight', () => {
     // …while a second antiarrhythmic stays a mistake of its own, as amiodarone after procainamide does (PROCAINAMIDE_RULES)
     expect(lastDose('scape-ed', 6, ['iv', 'dextrose', 'perfusion', 'nibp', 'labetalol', 'diltiazem', 'atropine', 'sit-up', 'opqrst', 'temp', 'glucose',
       'cpr', 'pulse-check', 'transfuse', 'labs', 'stop-antithrombotics', 'amio-arrest', 'ondansetron', 'observe', 'handoff', 'capno', 'procainamide']))
-      .toEqual(['procainamide-after-amiodarone', 'rn-antiarrhythmic-no-arrhythmia']);
+      // procainamide in his acute pulmonary edema: the label contraindication outranks the second antiarrhythmic, and charges
+      // beside the nurse's twin (which stands for the missing order)
+      .toEqual(['procainamide-heart-failure', 'rn-antiarrhythmic-no-arrhythmia']);
     // af-rvr unstable: procainamide is the case's unstable-patient rule alone, diltiazem the HFrEF rule alone
     expect(lastDose('af-rvr-field', 2, ['vitals', 'smr', 'cpap', 'push-epi', 'ecg-posterior', 'temp', 'vitals', 'lvad-check', 'notify', 'io', 'capno',
       'amio-arrest', 'ecg12-repeat', 'lvad-check', 'poison-control', 'sodium-bicarbonate', 'fluid', 'atropine', 'atropine', 'procainamide']))
@@ -1001,5 +1007,78 @@ describe('the older rules, ranked', () => {
   it('the shock and atropine texts', () => {
     expect(rule('shock-with-pulse').text).toMatch(/An unstable tachycardia with a pulse gets synchronized cardioversion; any other rhythm with a pulse needs no shock at all\.$/);
     expect(rule('atropine-fast').text).toMatch(/^Atropine with no slow heart rate to treat\./);
+  });
+});
+
+describe('review round: contraindications that went free', () => {
+  const caseRun = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+  /** a teammate's (or the operator's) IV beta-blocker: the flag the case sets, with no dose of the learner's */
+  const teammateBeta = flagged('beta-blocker');
+
+  it('iv-beta-blocker-with-diltiazem counts a teammate\'s IV beta-blocker (its flag) and a teammate\'s diltiazem, not the tablet', () => {
+    expect(pen(lab({ extra: teammateBeta }), ['iv', 'diltiazem'])).toEqual(['iv-beta-blocker-with-diltiazem']);
+    expect(pen(lab({ extra: flagged('diltiazem') }), ['iv', 'metoprolol'])).toEqual(['iv-beta-blocker-with-diltiazem']);
+    // the learner's own oral tablet sets the same flag: tablet then IV diltiazem is no label contraindication
+    expect(pen(lab(), ['iv', 'metoprolol-po', 'diltiazem'])).not.toContain('iv-beta-blocker-with-diltiazem');
+    // nearest correct state: no beta-blocker on board
+    expect(pen(lab(), ['iv', 'diltiazem'])).not.toContain('iv-beta-blocker-with-diltiazem');
+  });
+
+  it('in the SCAD case, diltiazem after the operator\'s metoprolol is the label contraindication', () => {
+    const s = runScenario(SCENARIO_BY_ID['scad-cathlab'], 4, ['consent', 'heparin', 'timeout', 'ecg12', 'callout', 'ic-nitro', 'callout', 'reassess', 'reassess']);
+    expect(s.flags['beta-blocker']).toBeDefined();
+    expect(s.counts.metoprolol ?? 0).toBe(0);
+    expect(caseRun('scad-cathlab', 4, ['consent', 'heparin', 'timeout', 'ecg12', 'callout', 'ic-nitro', 'callout', 'reassess', 'reassess', 'diltiazem']))
+      .toEqual(['iv-beta-blocker-with-diltiazem']);
+  });
+
+  it('vagal-no-indication: a vagal maneuver ends a re-entry through the AV node only — an SVT, stable or unstable, is what it is for', () => {
+    expect(pen(field({ rhythm: { profile: 'sinus-tachycardia', hr: 120 } }), ['vagal'])).toEqual(['vagal-no-indication']);
+    expect(pen(field({ rhythm: AF }), ['vagal'])).toEqual(['vagal-no-indication']);
+    expect(pen(field({ rhythm: VT, vitals: { sbp: 78, dbp: 48 } }), ['vagal'])).toEqual(['vagal-no-indication']);
+    expect(pen(field({ rhythm: SVT, vitals: { sbp: 110 } }), ['vagal'])).toEqual([]);
+    expect(pen(field({ rhythm: SVT, vitals: { sbp: 82, dbp: 54 } }), ['vagal'])).toEqual([]);
+    // one dose, one penalty: a slow pulse is vagal-slow's, ranked first
+    expect(pen(field({ rhythm: SLOW_SINUS }), ['vagal'])).toEqual(['vagal-slow']);
+    expect(LADDERS.vagal).toEqual(['vagal-slow', 'vagal-no-indication']);
+    // a case rule with its id replaces it
+    expect(pen(field({ rhythm: AF, harms: [exempt('vagal-no-indication', ['vagal'])] }), ['vagal'])).toEqual([]);
+    // in the cases: an unstable AF or a cardiogenic shock costs it; the unstable SVT's own timing judges the delay there
+    expect(caseRun('unstable-af-cardioversion-ed', 7, ['ems-handoff', 'vagal'])).toEqual(['vagal-no-indication']);
+    expect(caseRun('shock-cathlab', 5, ['vagal'])).toEqual(['vagal-no-indication']);
+    expect(caseRun('svt-unstable-field', 2, ['primary', 'pads', 'nibp', 'iv', 'vagal'])).toEqual([]);
+  });
+
+  it('procainamide-heart-failure: acute pulmonary edema and cardiogenic shock are heart failure too', () => {
+    const vt = { rhythm: { profile: 'vt', hr: 160 }, vitals: { sbp: 150 } };
+    expect(pen(field({ ...vt, problems: ['pulmonary-edema'] }), ['iv', 'procainamide'])).toEqual(['procainamide-heart-failure']);
+    expect(pen(lab({ ...vt, problems: ['cardiogenic-shock'] }), ['iv', 'procainamide'])).toEqual(['procainamide-heart-failure']);
+    expect(pen(field(vt), ['iv', 'procainamide'])).toEqual([]);
+    // the SCAPE patient's fast sinus rate: the label's reason (one penalty), not the 3-point no-arrhythmia rule
+    expect(caseRun('scape-field', 2, ['vitals', 'cpap', 'iv', 'procainamide'])).toEqual(['procainamide-heart-failure']);
+  });
+
+  it('beta-blocker-mi-shock-risk: the 2013 STEMI shock-risk signs — a systolic under 120, a rate under 60, a heart just out of an arrest', () => {
+    const acs = (vitals: Partial<Vitals>, rhythm = SINUS, extra?: Partial<Scenario>) => lab({ rhythm, vitals, problems: ['acs'], extra });
+    expect(pen(acs({ sbp: 112 }), ['iv', 'metoprolol'])).toEqual(['beta-blocker-mi-shock-risk']);
+    expect(pen(acs({ sbp: 130 }, { profile: 'sinus-bradycardia', hr: 56 }), ['iv', 'metoprolol'])).toEqual(['beta-blocker-mi-shock-risk']);
+    expect(pen(acs({ sbp: 130 }, SINUS, flagged('rosc')), ['iv', 'metoprolol'])).toEqual(['beta-blocker-mi-shock-risk']);
+    expect(pen(acs({ sbp: 130 }), ['iv', 'metoprolol'])).toEqual([]);
+    // the tablet too (the oral rule, rules/added.ts)
+    expect(pen(acs({ sbp: 112 }), ['metoprolol-po'])).toEqual(['oral-beta-blocker-shock-risk']);
+    expect(pen(acs({ sbp: 130 }, SINUS, flagged('rosc')), ['metoprolol-po'])).toEqual(['oral-beta-blocker-shock-risk']);
+    // VF arrest in the field: minutes after ROSC, the pressure held at 104 by the infusion, IV metoprolol is the shock risk
+    const rosc = ['cpr', 'defib', 'cpr', 'io', 'defib', 'epinephrine', 'cpr', 'defib', 'amio-arrest', 'capno', 'bvm', 'cpr', 'defib', 'bvm', 'ecg12', 'pressor'];
+    expect(runScenario(SCENARIO_BY_ID['vf-arrest-field'], 2, rosc).vitals.sbp).toBeGreaterThanOrEqual(90);
+    expect(caseRun('vf-arrest-field', 2, [...rosc, 'metoprolol'])).toEqual(['beta-blocker-mi-shock-risk']);
+  });
+
+  it('beta-blocker-pheochromocytoma: no beta-blocker before alpha-blockade', () => {
+    const pheo = { rhythm: { profile: 'sinus-tachycardia', hr: 120 }, vitals: { sbp: 190, dbp: 110 }, problems: ['pheochromocytoma'] as Problem[] };
+    for (const id of ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po']) expect(pen(lab(pheo), ['iv', id]), id).toEqual(['beta-blocker-pheochromocytoma']);
+    expect(pen(lab({ ...pheo, problems: [] }), ['iv', 'esmolol'])).toEqual([]);
+    expect(pen(lab({ ...pheo, harms: [exempt('beta-blocker-pheochromocytoma', ['esmolol'])] }), ['iv', 'esmolol'])).toEqual([]);
+    // one dose, one penalty: a slow rate outranks it
+    expect(pen(lab({ ...pheo, rhythm: SLOW_SINUS }), ['iv', 'metoprolol'])).toEqual(['nodal-blocker-slow']);
   });
 });

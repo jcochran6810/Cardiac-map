@@ -657,7 +657,7 @@ export const lvadField: Scenario = {
     },
     {
       // either crew can try one
-      id: 'vagal-sinus', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-slow'], points: 3, severity: 'minor',
+      id: 'vagal-sinus', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-slow', 'vagal-no-indication'], points: 3, severity: 'minor',
       text: 'A vagal maneuver for a fast sinus rate. It only stops a rhythm whose circuit runs through the AV node; his rate is his answer to a low volume, and bearing down cuts the blood returning to a heart — and a pump — already short of it.',
     },
     {

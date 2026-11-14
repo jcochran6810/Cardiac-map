@@ -1070,7 +1070,7 @@ export const edTamponade: Scenario = {
       text: 'Laying her flat with her legs up. She cannot breathe lying down: let her sit up, leaning forward, as she wants to. The fluid bolus is the way to fill her heart.',
     },
     {
-      id: 'vagal-tamponade', actions: ['vagal'], roles: ED_TEAM, when: (s) => s.pulse, points: 2, severity: 'minor',
+      id: 'vagal-tamponade', actions: ['vagal'], roles: ED_TEAM, when: (s) => s.pulse, replaces: ['vagal-slow', 'vagal-no-indication'], points: 2, severity: 'minor',
       text: 'A vagal maneuver for a sinus tachycardia in shock. Bearing down raises the pressure in her chest and cuts the blood returning to a heart that cannot fill, and there is no reentry circuit to break.',
     },
     {

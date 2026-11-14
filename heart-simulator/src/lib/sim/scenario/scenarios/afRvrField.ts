@@ -1,5 +1,5 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
-import { bpAfter, has } from '../kit';
+import { bpAfter, has, paced } from '../kit';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -444,7 +444,8 @@ export const afRvrField: Scenario = {
       text: 'A drug for an unstable patient. Once he had become unstable, the treatment was an immediate synchronized shock (200 J or more), not an infusion that takes minutes to work and drops the pressure further.',
     },
     // atropine is for a slow rate; in a fast one it only lets more impulses through the AV node
-    { id: 'atropine-fast', actions: ['atropine'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'Atropine for a fast heart rate. It is for symptomatic bradycardia; it speeds AV conduction, so with fibrillating atria the ventricular rate went up.' },
+    // the built-in rule's id: in AF, and after the conversion to sinus rhythm (a rate of 60 or more) as the built-in judges it
+    { id: 'atropine-fast', actions: ['atropine'], when: (s) => s.pulse && !paced(s) && (inAf(s) || s.rhythm.hr >= 60), points: 3, severity: 'minor', text: 'Atropine for a heart rate that is not slow. It is for symptomatic bradycardia: it speeds AV conduction, so with fibrillating atria the ventricular rate goes up — and in sinus rhythm at 60 or more it has nothing to treat, and any speeding adds to the oxygen demand of a failing heart.' },
     { id: 'beta-agonist-no-indication', actions: ['epi-im', 'albuterol'], when: (s) => inAf(s), replaces: ['albuterol-no-bronchospasm', 'epi-im-no-anaphylaxis'], points: 3, severity: 'minor', text: 'A beta-agonist with no anaphylaxis and no wheeze. His breathlessness is fluid from a weak heart (crackles, not wheezing): IM epinephrine or albuterol treats nothing here, and speeds AV conduction, so the rate went up.' },
     { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. His 12-lead shows none: a fast rate in a weak heart can cause chest tightness and a troponin rise, but that is the emergency department\'s to sort out, not the cath lab team\'s to be called in for.' },
     { id: 'fluid-hf', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A fluid bolus for a failing heart with crackles at both bases. It goes to the lungs: his pressure falls because of the fast rate (and any drug), not for want of volume.' },

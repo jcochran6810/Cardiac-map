@@ -326,7 +326,12 @@ describe('SCAPE in the ED: the ER nurse', () => {
     expect(ids(opioid)).toEqual(['rn-opioid-air-hunger']);
     expect(opioid.vitals.gcs).toBe(12);
     expect(ids(rn(['cpap', 'iv', 'metoprolol']))).toEqual(['rn-negative-inotrope']);
-    expect(ids(rn(['cpap', 'iv', 'diltiazem']))).toEqual(['rn-negative-inotrope']);
+    // diltiazem in acute pulmonary edema is a label contraindication of its own (3 — Harm): it charges at its weight, with
+    // the missing order beside it
+    expect(ids(rn(['cpap', 'iv', 'diltiazem']))).toEqual(['diltiazem-heart-failure', 'rn-without-order-diltiazem']);
+    expect(rn(['cpap', 'iv', 'diltiazem']).penalties[0]).toMatchObject({ points: 15, severity: 'critical' });
+    // …and so is procainamide (a failing heart): beside the nurse's twin, which stands for the missing order
+    expect(ids(rn(['cpap', 'iv', 'procainamide']))).toEqual(['procainamide-heart-failure', 'rn-antiarrhythmic-no-arrhythmia']);
     expect(ids(rn(['cpap', 'midazolam']))).toEqual(['rn-sedative-no-order']);
     expect(ids(rn(['cpap', 'iv', 'adenosine6']))).toEqual(['rn-antiarrhythmic-no-arrhythmia']);
     // it stands for the missing order too: at the order's weight

@@ -952,7 +952,7 @@ export const edPeLysis: Scenario = {
       // the doctor's, and the nurse's vagal maneuver (it needs no order); her drugs are the rule below
       id: 'no-arrhythmia-pe', actions: [...ADENOSINE_PUSH, 'lidocaine', 'vagal'], roles: ED_TEAM,
       when: (s, _sc, id) => s.pulse && (s.role !== 6 || id === 'vagal'), points: 3, severity: 'minor',
-      replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'vagal-slow'],
+      replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'vagal-slow', 'vagal-no-indication'],
       text: 'A vagal maneuver, adenosine or lidocaine for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down or a pause cuts the output she has left.',
     },
     {

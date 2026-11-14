@@ -4,6 +4,7 @@ import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
 import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { slowOrBlocked } from '../rules/helpers';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -881,7 +882,8 @@ export const cathlabLeftMain: Scenario = {
     { id: 'adenosine-in-shock', actions: ['adenosine-iv-ffr'], when: (s) => s.pulse, replaces: ['ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'], points: 5, severity: 'major', text: 'An IV adenosine infusion in cardiogenic shock. It is for hyperemia during FFR of a stable lesion: here it drops a pressure that is already failing, and FFR means nothing at an acute culprit.' },
     // the radial cocktail is verapamil and nitroglycerin: both drop a low pressure. The same id as the built-in rule, which
     // it hides for every action: so it says intracoronary verapamil too
-    { id: 'cocktail-low-pressure', actions: ['radial-cocktail', 'ic-verapamil'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: RATE_RULES, points: 3, severity: 'minor', text: 'Verapamil — the radial cocktail, or intracoronary — with a systolic pressure under 90 mmHg. Verapamil (and the cocktail\'s nitroglycerin) drops the pressure further: in shock, heparin alone through the sheath — and no verapamil even once a pressor holds the pressure (its label rules it out in cardiogenic shock).' },
+    // a slow rate or block is the heavier label reason (nodal-blocker-slow): the built-in charges it
+    { id: 'cocktail-low-pressure', actions: ['radial-cocktail', 'ic-verapamil'], when: (s) => s.pulse && s.vitals.sbp < 90 && !slowOrBlocked(s), replaces: RATE_RULES, points: 5, severity: 'major', text: 'Verapamil — the radial cocktail, or intracoronary — with a systolic pressure under 90 mmHg. Verapamil (and the cocktail\'s nitroglycerin) drops the pressure further: in shock, heparin alone through the sheath — and no verapamil even once a pressor holds the pressure (its label rules it out in cardiogenic shock).' },
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[0], 'The wrong catheter when the operator asked for one for the left coronary from the groin. A JR4 is shaped for the right coronary, a pigtail for the left ventricle, and a Tiger for the radial approach.', 2),
     askHarm(TECH_ASKS[1], 'A balloon pump when the operator asked for the Impella. In infarct-related shock a routine IABP does not improve survival (IABP-SHOCK II; 2025 ACC/AHA: 3, no benefit).'),

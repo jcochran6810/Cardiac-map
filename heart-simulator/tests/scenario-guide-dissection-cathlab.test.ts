@@ -435,10 +435,16 @@ describe('guide-catheter dissection: the traps', () => {
   });
 
   it('intracoronary vasodilators and epinephrine have nothing to treat in a torn ostium: one penalty each, the built-in nitroprusside rule included', () => {
+    // with the rate and the pressure brought back up: the case's words, one penalty each
     for (const drug of ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside']) {
-      expect(penalties(run(sc, 5, [drug])), drug).toEqual(['ic-vasodilator-dissection']);
-      expect(penalties(run(sc, 4, ['callout', drug])), `nurse ${drug}`).toEqual(['ic-vasodilator-dissection']);
+      expect(penalties(run(sc, 4, ['callout', 'atropine', 'fluid', drug])), `nurse ${drug}`).toEqual(['ic-vasodilator-dissection']);
     }
+    // at a rate of 48 and 84/50 their labels' heavier reasons charge instead, at their own weight: the slow rate for adenosine and
+    // verapamil, the low pressure for nitroprusside — and for adenosine once the rate is up but the pressure still low
+    expect(penalties(run(sc, 5, ['ic-adenosine']))).toEqual(['nodal-blocker-slow']);
+    expect(penalties(run(sc, 4, ['callout', 'ic-verapamil']))).toEqual(['nodal-blocker-slow']);
+    expect(penalties(run(sc, 5, ['ic-nitroprusside']))).toEqual(['nitroprusside-hypotension']);
+    expect(penalties(run(sc, 4, ['callout', 'atropine', 'ic-adenosine']))).toEqual(['ic-vasodilator-hypotension']);
     expect(penalties(run(sc, 5, ['ic-epinephrine']))).toEqual(['ic-epi-no-indication']);
   });
 
@@ -680,12 +686,16 @@ describe('guide-catheter dissection: review fixes (correct care in another order
   });
 
   it('there is no tachycardia in this case: AV-nodal blockers, antiarrhythmics, lidocaine and IM epinephrine each cost points, once', () => {
-    expect(penalties(run(sc, 5, ['diltiazem']))).toEqual(['nodal-blocker-no-tachycardia']);
-    expect(penalties(run(sc, 5, ['adenosine12']))).toEqual(['nodal-blocker-no-tachycardia']);
+    // at 48 the slow rate is their labels' heavier reason (10); with the rate treated, adenosine has only nothing to treat,
+    // and diltiazem the low pressure of its label
+    expect(penalties(run(sc, 5, ['diltiazem']))).toEqual(['nodal-blocker-slow']);
+    expect(penalties(run(sc, 5, ['adenosine12']))).toEqual(['nodal-blocker-slow']);
+    expect(penalties(run(sc, 4, ['callout', 'atropine', 'adenosine12']))).toEqual(['nodal-blocker-no-tachycardia']);
     // the nurse answering the open rate request with it at 48: the slow rate's contraindication alone (it outranks that
     // request's minor penalty); once the rate is treated, this one
     expect(penalties(run(sc, 4, ['callout', 'diltiazem']))).toEqual(['nodal-blocker-slow']);
-    expect(penalties(run(sc, 4, ['callout', 'atropine', 'diltiazem']))).toEqual(['nodal-blocker-no-tachycardia']);
+    expect(penalties(run(sc, 4, ['callout', 'atropine', 'diltiazem']))).toEqual(['nodal-blocker-hypotension']);
+    expect(penalties(run(sc, 4, ['callout', 'atropine', 'fluid', 'diltiazem']))).toEqual(['nodal-blocker-no-tachycardia']);
     expect(penalties(run(sc, 5, ['amio-infusion']))).toEqual(['antiarrhythmic-no-arrhythmia']);
     // procainamide at 48 and 84: one penalty, not the built-in low-pressure and slow-rate rules on top
     expect(penalties(run(sc, 5, ['procainamide']))).toEqual(['antiarrhythmic-no-arrhythmia']);

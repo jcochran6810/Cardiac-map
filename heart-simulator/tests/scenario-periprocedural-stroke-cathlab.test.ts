@@ -557,3 +557,19 @@ describe('stroke in the cath lab: the traps', () => {
     expect(r.percent).toBeLessThan(100);
   });
 });
+
+describe('periprocedural stroke: the rate drugs\' own label contraindications are never free', () => {
+  it('after two lowering doses, a beta-blocker under 90 is the built-in low-pressure rule; diltiazem after metoprolol the IV combination rule', () => {
+    const low = run(sc, 4, ['callout', 'nitro-high', 'nitro-high', 'nitro-high']);
+    expect(penalties(low)).toEqual(['lower-bp-stroke', 'lower-bp-again']);
+    expect(low.vitals.sbp).toBeLessThan(90);
+    for (const id of ['metoprolol', 'esmolol', 'diltiazem']) {
+      expect(penalties(perform(sc, low, id)), id).toEqual(['lower-bp-stroke', 'lower-bp-again', 'nodal-blocker-hypotension']);
+    }
+    // the second lowering drug, diltiazem after IV metoprolol: the label's combination rule speaks for it (one dose, one penalty)
+    expect(penalties(run(sc, 4, ['callout', 'metoprolol', 'diltiazem']))).toEqual(['lower-bp-stroke', 'iv-beta-blocker-with-diltiazem']);
+    // …and still after both stroke rules have charged
+    expect(penalties(run(sc, 4, ['callout', 'nitro', 'nitro', 'metoprolol', 'diltiazem'])))
+      .toEqual(['lower-bp-stroke', 'lower-bp-again', 'iv-beta-blocker-with-diltiazem']);
+  });
+});

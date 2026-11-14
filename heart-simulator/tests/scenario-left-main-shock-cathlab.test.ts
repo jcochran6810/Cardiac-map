@@ -682,3 +682,11 @@ describe('left main in cardiogenic shock: review fixes', () => {
     expect(said(s, /flow alarm/)).toBe(false);
   });
 });
+
+describe('left main shock: verapamil in cardiogenic shock is the label contraindication at its weight', () => {
+  it('intracoronary verapamil under 90: the case\'s words at the built-in rule\'s weight (5, major)', () => {
+    const s = run(sc, 5, ['ic-verapamil']);
+    expect(s.penalties.map((p) => p.id)).toEqual(['cocktail-low-pressure']);
+    expect(s.penalties[0]).toMatchObject({ points: 5, severity: 'major' });
+  });
+});

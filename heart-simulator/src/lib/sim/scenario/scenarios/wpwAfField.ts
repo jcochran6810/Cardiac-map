@@ -635,7 +635,7 @@ export const wpwAfField: Scenario = {
       text: 'Magnesium for pre-excited atrial fibrillation. It acts on the AV node, not the pathway: it cannot slow or stop this rhythm, and it drops the pressure. A sedated synchronized cardioversion, or procainamide.',
     },
     {
-      id: 'vagal-preexcited-af', actions: ['vagal'], when: (s) => inAf(s), points: 3, severity: 'minor',
+      id: 'vagal-preexcited-af', actions: ['vagal'], when: (s) => inAf(s), replaces: ['vagal-no-indication'], points: 3, severity: 'minor',
       text: 'A vagal maneuver for a very fast, irregular heartbeat. Vagal maneuvers are for a regular narrow-complex tachycardia that runs through the AV node; this irregular wide-complex one is atrial fibrillation down an accessory pathway, which they cannot stop — and slowing the node only leaves more of the impulses to the pathway.',
     },
     {
