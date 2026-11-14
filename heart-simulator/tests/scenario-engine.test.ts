@@ -458,7 +458,7 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
     const label = (id: string) => INTERVENTION_BY_ID[id].label;
     expect(label('calcium-chloride')).toBe('Calcium chloride 1 g IV/IO');
     expect(label('sodium-bicarbonate')).toBe('Sodium bicarbonate 50 mEq IV/IO');
-    expect(label('insulin-dextrose')).toBe('Insulin 10 units IV with dextrose 25 g');
+    expect(label('insulin-dextrose')).toBe('Insulin 5–10 units IV with dextrose 25 g');
     expect(label('magnesium-sulfate')).toBe('Magnesium sulfate 2 g IV/IO');
     expect(label('procainamide')).toBe('Procainamide 20–50 mg/min IV');
     expect(INTERVENTION_BY_ID.procainamide.detail).toMatch(/hypotension.*50 %.*17 mg\/kg.*heart failure.*long QT/);

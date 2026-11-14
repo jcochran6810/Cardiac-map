@@ -39,7 +39,7 @@ const pde5Known = (s: SimState) => has(s, 'pde5-reported') || has(s, 'physician-
 const firstNitrate = (s: SimState) => firstDone(s, ['nitro', 'nitro-high']);
 
 /**
- * He was asked about the erectile-dysfunction drugs before any nitrate went in (or none ever did): the minute, or null. A
+ * He was asked about the PDE-5 inhibitors (and riociguat) before any nitrate went in (or none ever did): the minute, or null. A
  * question asked only after the nitrate is no screen — the 'nitro-pde5' harm scores that mistake, so the item drops out
  * then (one mistake, one penalty) instead of being listed as done
  */
@@ -467,7 +467,7 @@ export const edStemiWalkIn: Scenario = {
     },
     {
       // asked only after a nitrate is no screen: the item then drops out, and the 'nitro-pde5' harm says what went wrong
-      id: 'rn-pde5', label: 'Ask about erectile-dysfunction drugs before any nitrate — by name', roles: ED_RN, points: 5,
+      id: 'rn-pde5', label: 'Ask about PDE-5 inhibitors and riociguat before any nitrate — by name', roles: ED_RN, points: 5,
       done: askedBeforeNitrate, uses: ['ask-pde5'], applies: pde5ItemApplies,
       why: 'The standing order\'s nitroglycerin has exclusions: a systolic under 90, a suspected right ventricular infarct, and a PDE-5 inhibitor within 48 hours (tadalafil), 24 hours (sildenafil, vardenafil) or 12 hours (avanafil). Ask by name: his "pill for my prostate" is tadalafil 5 mg daily.',
     },
@@ -496,7 +496,7 @@ export const edStemiWalkIn: Scenario = {
       why: 'Non-enteric-coated aspirin, chewed, as soon as possible for every suspected ACS without a true allergy or active bleeding: it cuts the mortality of a STEMI (ISIS-2).',
     },
     {
-      id: 'md-pde5', label: 'Ask about erectile-dysfunction drugs before any nitrate', roles: ED_MD, points: 5,
+      id: 'md-pde5', label: 'Ask about PDE-5 inhibitors and riociguat before any nitrate', roles: ED_MD, points: 5,
       done: askedBeforeNitrate, uses: ['ask-pde5'], applies: pde5ItemApplies,
       why: 'No nitrate within 48 hours of tadalafil, 24 hours of sildenafil or vardenafil, or 12 hours of avanafil: together they can drop the pressure profoundly. His "pill for my prostate" is tadalafil 5 mg, taken this morning.',
     },

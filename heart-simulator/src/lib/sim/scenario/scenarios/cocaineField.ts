@@ -447,7 +447,7 @@ export const cocaineField: Scenario = {
     {
       // by the time the aspirin and the nitroglycerin are due: a paramedic who treats first and asks second is not late
       id: 'history', label: 'The pain and the history (OPQRST and SAMPLE)', points: 5, target: { by: 15 },
-      why: 'What he took, how much, how and when; what the pain is like; allergies and medicines (an erectile-dysfunction drug rules out nitroglycerin). Cocaine an hour ago with squeezing chest pain is a possible heart attack until the hospital rules it out.',
+      why: 'What he took, how much, how and when; what the pain is like; allergies and medicines (a PDE-5 inhibitor — for erections, pulmonary hypertension or the prostate — or riociguat rules out nitroglycerin). Cocaine an hour ago with squeezing chest pain is a possible heart attack until the hospital rules it out.',
       done: (s) => (has(s, 'opqrst') && has(s, 'sample') ? Math.max(s.flags.opqrst, s.flags.sample) : null), uses: ['opqrst', 'sample'],
     },
     { id: 'transmit', label: 'Transmit the 12-lead (you do not interpret it)', roles: [1], points: 10, target: { by: 15 }, done: ['ecg-transmit'], why: 'The physician reads it from the field: no STEMI, so no cath lab — and the hospital knows what is coming.' },
@@ -458,7 +458,7 @@ export const cocaineField: Scenario = {
     { id: 'iv', label: 'IV access', roles: [2], points: 5, done: ['iv', 'io'], why: 'For more midazolam if the agitation comes back, fluid for a man who has sweated through his clothes, and anything else he needs.' },
     {
       id: 'nitro', label: 'Nitroglycerin for the chest pain', roles: [2], points: 10, target: { by: 15 }, done: ['nitro', 'nitro-high'],
-      why: 'Nitroglycerin opens the coronaries cocaine has squeezed and lowers the pressure: 0.4 mg sublingual every 5 minutes for the pain, once you have his pressure and know he has taken no erectile-dysfunction drug (AHA; 2014 ACC/AHA NSTE-ACS).',
+      why: 'Nitroglycerin opens the coronaries cocaine has squeezed and lowers the pressure: 0.4 mg sublingual every 5 minutes for the pain, once you have his pressure and know he has taken no PDE-5 inhibitor or riociguat (AHA; 2014 ACC/AHA NSTE-ACS).',
     },
     { id: 'glucose', label: 'Blood glucose', points: 5, target: { by: 15 }, done: ['glucose'], why: 'Every agitated or confused patient gets a glucose: a low one looks the same and needs a different treatment.' },
     {
@@ -494,7 +494,7 @@ export const cocaineField: Scenario = {
     },
     {
       id: 'nitro-no-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'pde5-asked'), points: 3, severity: 'minor',
-      text: 'Nitroglycerin without asking about erectile-dysfunction drugs — often taken with cocaine at parties. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil: together they can cause profound hypotension.',
+      text: 'Nitroglycerin without asking about PDE-5 inhibitors and riociguat — the erection drugs are often taken with cocaine at parties, and the same drugs are taken for pulmonary hypertension or the prostate. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil, and none with riociguat (nitroglycerin label): together they can cause profound hypotension.',
     },
     {
       id: 'nitro-high-chest-pain', actions: ['nitro-high'], when: (s) => s.pulse, points: 2, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
@@ -560,7 +560,7 @@ export const cocaineField: Scenario = {
   teaching: [
     'Cocaine (and methamphetamine) hurts the heart three ways: it drives the rate and the pressure up, it squeezes the coronary arteries (spasm), and it makes the blood clot. A small but real share of cocaine chest pain is a heart attack — treat it as possible ACS.',
     'A benzodiazepine first: it calms the agitation and brings down the rate, the pressure and the heat the muscles make, and it eases the chest pain (2014 ACC/AHA NSTE-ACS guideline: alone or with nitroglycerin for the hypertension and tachycardia of acute intoxication; 2023 AHA poisoning update). Midazolam 2.5–5 mg IV, or 5 mg IM or intranasal without a line, repeated until calm — not asleep; watch the breathing.',
-    'Aspirin 162–325 mg chewed and nitroglycerin 0.4 mg sublingual for the chest pain, as for any possible ACS (AHA statement on cocaine-associated chest pain); oxygen only for an SpO₂ under 90 % (2025 ACC/AHA ACS guideline). Ask about erectile-dysfunction drugs before any nitrate.',
+    'Aspirin 162–325 mg chewed and nitroglycerin 0.4 mg sublingual for the chest pain, as for any possible ACS (AHA statement on cocaine-associated chest pain); oxygen only for an SpO₂ under 90 % (2025 ACC/AHA ACS guideline). Ask about PDE-5 inhibitors (for erections, pulmonary hypertension or the prostate) and riociguat before any nitrate.',
     'No beta-blocker while the signs of acute intoxication last — a fast rate, a high pressure, agitation (2014 ACC/AHA NSTE-ACS guideline: 3 — Harm). With the beta receptors blocked, cocaine\'s alpha effect goes unopposed: the pressure climbs and the coronary spasm worsens. Treat the rate by treating its cause.',
     'Take the temperature of every stimulant patient. Hyperthermia is one of the deadliest effects of a stimulant: undress, cool the room, cold packs to the neck, armpits and groin, mist and fan; rapid external cooling (ice water where your protocol has it) for a life-threatening temperature (2023 AHA). The benzodiazepine stops the muscle work that makes the heat.',
     'Calm talk comes first with any agitated patient, and it goes on while the benzodiazepine works: the drug treats what the cocaine does to his rate, pressure and heat, and the words keep him from fighting. Make sure the scene is safe (here the police are already there), keep a clear way out for you and for him, turn the noise down and approach calmly: one voice, a quiet room, nobody crowding him.',

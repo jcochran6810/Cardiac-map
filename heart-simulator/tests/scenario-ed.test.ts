@@ -124,15 +124,15 @@ describe('emergency department scope', () => {
     const ed = Object.fromEntries(interventionsFor(7, 'ed').map((i) => [i.id, i.detail]));
     expect(ed.heparin).toMatch(/^weight-based: 60 U\/kg \(max 4,000 U\)/);
     expect(ed.p2y12).toMatch(/fibrinolytic, clopidogrel 300 mg/);
-    expect(ed['ct-urgent']).toMatch(/pulmonary embolism.*leave the department$/);
+    expect(ed['ct-urgent']).toMatch(/pulmonary embolism.*leave the department; an earlier contrast reaction needs premedication$/);
     expect(ed['call-vad']).toMatch(/advise where the patient should be treated$/);
     expect(Object.fromEntries(interventionsFor(6, 'ed').map((i) => [i.id, i.detail])).heparin).toBe(ed.heparin);
     // the cath lab nurse and cardiologist, and the field crews, see the words they saw before the ED came
     for (const role of [4, 5] as const) {
       const lab = Object.fromEntries(interventionsFor(role, 'cathlab').map((i) => [i.id, i.detail]));
       expect(lab.heparin).toBe('70–100 U/kg for primary PCI');
-      expect(lab.p2y12).toBe('ticagrelor 180 mg (or prasugrel 60 mg)');
-      expect(lab['ct-urgent']).toBe('head CT for a stroke (CT angiography if a clot could be pulled), abdomen and pelvis for a retroperitoneal bleed, chest CT angiography for a dissection — once the patient is stable enough to leave the lab');
+      expect(lab.p2y12).toBe('ticagrelor 180 mg (or prasugrel 60 mg: not after a stroke or TIA, not at 75 or over, and not during a cangrelor infusion)');
+      expect(lab['ct-urgent']).toBe('head CT for a stroke (CT angiography if a clot could be pulled), abdomen and pelvis for a retroperitoneal bleed, chest CT angiography for a dissection — once the patient is stable enough to leave the lab; not before the culprit artery is open in a STEMI; an earlier contrast reaction needs premedication');
     }
     for (const role of [1, 2] as const) {
       expect(interventionsFor(role, 'field').find((i) => i.id === 'call-vad')!.detail).toBe('the implanting center, 24/7: they talk you through the alarms and say where to take the patient');
