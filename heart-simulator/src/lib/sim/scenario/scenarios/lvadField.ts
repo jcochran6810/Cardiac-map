@@ -623,7 +623,7 @@ export const lvadField: Scenario = {
       text: 'Chest compressions on a man who is awake and talking to you. A continuous-flow pump leaves no pulse to feel, and the cuff and the oximeter cannot read him: being awake is the sign that the pump is perfusing his brain (2025 AHA durable LVAD algorithm). Compressions hurt him and, on warfarin, bleed; they are for an LVAD patient who is unresponsive with inadequate perfusion — a Doppler MAP of 50 or less — and then without delay.',
     },
     {
-      id: 'cpap-dry-pump', actions: ['cpap'], when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'cpap-dry-pump', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-no-indication'], points: 5, severity: 'major',
       text: 'CPAP for an SpO₂ that cannot be trusted. Over a continuous-flow pump the oximeter has almost no pulse to read; his lips are pink, his lungs clear and he breathes easily. Positive pressure in the chest cuts the blood returning to the heart, and a dry pump needs every drop: judge oxygenation by the patient, not the number.',
     },
     {

@@ -518,7 +518,7 @@ export const torsadesField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['magnesium-sulfate', 'epinephrine', 'lidocaine', 'iv', 'io', 'airway'],
-      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), points: 5, severity: 'major',
+      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), replaces: ['airway-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Pulseless torsades — or the VF it turns into — needs a shock first: magnesium, IV access, drugs and the airway come after it, during CPR.',
     },
     {

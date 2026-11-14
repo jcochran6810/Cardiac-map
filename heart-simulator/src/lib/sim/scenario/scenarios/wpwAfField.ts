@@ -659,7 +659,7 @@ export const wpwAfField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['iv', 'io', 'epinephrine', 'amio-arrest', 'lidocaine', 'magnesium-sulfate', 'airway'],
-      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), points: 5, severity: 'major',
+      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), replaces: ['airway-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Witnessed VF needs a shock first: IV access, drugs and the airway come after it, during CPR.',
     },
   ],

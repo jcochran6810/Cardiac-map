@@ -526,7 +526,7 @@ export const peaArrestField: Scenario = {
       text: 'Sodium bicarbonate in an arrest from a breathing problem. Routine bicarbonate in cardiac arrest brings no benefit (2025 AHA), and her acid is mostly the CO₂ she could not breathe off: bicarbonate turns into more CO₂, which only ventilation removes. Ventilate her.',
     },
     {
-      id: 'cpap-not-breathing', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
+      id: 'cpap-not-breathing', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension'], points: 5, severity: 'major',
       text: 'CPAP for a patient who is not breathing on her own. CPAP supports breaths a patient takes and needs someone awake enough to protect the airway; it gives no breaths. In the arrest, and unresponsive after ROSC, she needs ventilation with a bag-mask or an advanced airway.',
     },
     {

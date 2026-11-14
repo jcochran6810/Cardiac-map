@@ -463,7 +463,7 @@ export const hyperkalemiaField: Scenario = {
       text: 'Magnesium for a dialysis patient. Nothing here calls for it, and failed kidneys cannot clear it: a high magnesium adds weakness, slows the heart and lowers the pressure.',
     },
     { id: 'fluid-overload', actions: ['fluid'], when: (s) => count(s, 'fluid') >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses for a dialysis patient who missed two sessions. He cannot pass the fluid, his lungs are already wet, and the low pressure comes from the slow rate, not from too little volume.' },
-    { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'CPAP with a systolic pressure under 90 mmHg. It cuts the blood returning to the heart and can deepen the shock: fix the rate and the pressure first (calcium).' },
+    { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['cpap-hypotension'], points: 6, severity: 'major', text: 'CPAP with a systolic pressure under 90 mmHg. It cuts the blood returning to the heart and can deepen the shock: fix the rate and the pressure first (calcium).' },
     { id: 'no-dialysis', actions: ['transport-near'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'The nearest emergency department cannot dialyze him. Calcium and albuterol only buy time, and he would need a second transfer: go to the regional center that can.' },
   ],
   timings: [

@@ -5,9 +5,11 @@
  * One dose, one penalty: where several rules here judge the same action, each lower one is written to stay silent while
  * a higher one applies (the gate order is noted above each group).
  */
-import { LOW_GLUCOSE, canSwallow, has, mapOf, paced } from '../kit';
+import { LOW_GLUCOSE, canSwallow, has, mapOf, paced, ventilated } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
-import { BICARBONATE_FOR, CALCIUMS, CALCIUM_FOR, hasProblem, lowPressure, lvadPerfusing } from './helpers';
+import {
+  BICARBONATE_FOR, CALCIUMS, CALCIUM_FOR, hasProblem, lowPressure, lvadPerfusing, preloadDependent, procedureComing, shockable, shockedThisArrest,
+} from './helpers';
 
 // ─── Vasopressors: what each rule reads ────────────────────────────────────
 
@@ -28,15 +30,45 @@ const phenylephrineNotLow = (s: SimState) => s.pulse && (s.lvad ? mapOf(s.vitals
 /** Phenylephrine onto a slow heart of its own: the reflex slowing it brings makes the bradycardia worse */
 const phenylephrineSlow = (s: SimState) => s.pulse && s.rhythm.hr < 50 && !paced(s);
 
+// ─── Breathing: what each rule reads ───────────────────────────────────────
+
+/** Not breathing for themselves: no pulse, or too few breaths (under 8) or no airway reflexes (GCS 8 or less) with nobody bagging */
+const notBreathing = (s: SimState) => !s.pulse || ((s.vitals.rr < 8 || s.vitals.gcs <= 8) && !ventilated(s));
+/** Glucagon in the last half hour: vomiting is the rule at the antidote doses */
+const vomitingLikely = (s: SimState) => has(s, 'glucagon') && s.minute - s.flags.glucagon <= 30;
+/** A drowsy patient in the field (GCS 9–12): no airway reflexes to trust under a sealed mask, and nobody watching them alone */
+const drowsyInField = (s: SimState, sc: Scenario) => sc.setting === 'field' && s.vitals.gcs >= 9 && s.vitals.gcs <= 12;
+/** The rules on the RSI before the one for a preload-dependent heart (see rsi-preload-dependent) */
+const rsiNoIndication = (s: SimState) => s.pulse && s.vitals.gcs >= 13 && s.vitals.spo2 >= 92 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && !lowPressure(s);
+const rsiUnresuscitated = (s: SimState) => s.pulse && lowPressure(s) && !has(s, 'pressor') && !has(s, 'push-epi');
+
 export const SUPPORT_RULES: Harm[] = [
   { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse && !s.lvad, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
   // the LVAD patient whose pump is perfusing has no pulse to check: the mistake is a different one, and so is the lesson
   { id: 'cpr-lvad-perfusing', actions: ['cpr'], when: (s) => lvadPerfusing(s), points: 10, severity: 'major', text: 'Chest compressions on an LVAD patient whose pump is perfusing. A continuous-flow pump leaves no pulse to feel: judge perfusion instead — responsiveness, skin color and temperature, capillary refill, a Doppler MAP over 50 (2025 AHA durable LVAD algorithm). An unresponsive LVAD patient whose perfusion is inadequate gets compressions without delay, pump or no pump; one who is perfusing needs the cause of the problem found, not CPR.' },
+  // Oxygen. Gate order: oxygen-not-breathing > oxygen-normoxic
+  { id: 'oxygen-not-breathing', actions: ['o2-nc', 'o2-nrb'], when: (s) => notBreathing(s), points: 3, severity: 'minor', text: 'Oxygen by mask or cannula for a patient who is not breathing for themselves. A mask or a cannula only offers oxygen to someone who breathes: with no pulse, fewer than 8 breaths a minute or no airway reflexes (GCS 8 or less), squeeze it in — a bag-mask with oxygen (2025 AHA).' },
+  // the case says the patient has an acute coronary syndrome (Problem 'acs'): not the tracing, since an air embolism in the
+  // lab shows ST elevation and needs the oxygen
+  { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s, sc) => s.pulse && hasProblem(sc, ['acs']) && s.vitals.spo2 >= 90 && s.vitals.rr <= 24 && !has(s, 'rosc') && !hasProblem(sc, ['pulmonary-edema']) && !notBreathing(s), points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more in an acute coronary syndrome. It brings no benefit, and too much oxygen may enlarge the infarct (2025 ACC/AHA ACS): oxygen is for an SpO₂ under 90 %, or for respiratory distress.' },
+
+  // CPAP. Gate order: cpap-hypotension > cpap-vomiting > cpap-preload-dependent > cpap-drowsy > cpap-no-indication
+  { id: 'cpap-hypotension', actions: ['cpap'], when: (s) => s.pulse && lowPressure(s), points: 6, severity: 'major', text: 'CPAP with a systolic under 90 (with an LVAD, a Doppler MAP under 60). Positive pressure in the chest cuts the blood returning to the heart and drops the pressure further (EMS CPAP protocols: a systolic under 90 rules it out).' },
+  { id: 'cpap-vomiting', actions: ['cpap'], when: (s) => s.pulse && !lowPressure(s) && vomitingLikely(s), points: 5, severity: 'major', text: 'CPAP within half an hour of glucagon. Vomiting is the rule at the antidote doses, and vomit under a sealed mask goes into the lungs: CPAP needs a patient who can take the mask off to vomit (EMS CPAP protocols: vomiting rules it out).' },
+  { id: 'cpap-preload-dependent', actions: ['cpap'], when: (s, sc) => s.pulse && !lowPressure(s) && !vomitingLikely(s) && preloadDependent(s, sc), points: 6, severity: 'major', text: 'CPAP for a heart that lives on its preload: a tamponade not yet drained, a pulmonary embolism or a right-ventricular infarction. Positive pressure in the chest cuts the venous return that heart depends on (and with a clot in the lungs raises what the right ventricle pumps against): the pressure can crash. High-flow oxygen, and let the patient breathe on their own.' },
+  { id: 'cpap-drowsy', actions: ['cpap'], when: (s, sc) => s.pulse && !lowPressure(s) && !vomitingLikely(s) && !preloadDependent(s, sc) && drowsyInField(s, sc), points: 3, severity: 'minor', text: 'CPAP for a drowsy patient (GCS 9–12). CPAP needs a patient who is awake, follows commands and can take the mask off to vomit: a drowsy one can aspirate under it, or stop breathing with nobody noticing. If the breathing is failing, assist it with a bag-mask (EMS CPAP protocols).' },
+  { id: 'cpap-no-indication', actions: ['cpap'], when: (s, sc) => s.pulse && !lowPressure(s) && !vomitingLikely(s) && !preloadDependent(s, sc) && !drowsyInField(s, sc) && !hasProblem(sc, ['pulmonary-edema', 'bronchospasm']) && s.vitals.rr <= 24 && s.vitals.spo2 >= 94, points: 3, severity: 'minor', text: 'CPAP with no respiratory distress: breathing 24 a minute or less, an SpO₂ of 94 % or more, no fluid on the lungs and no wheeze. CPAP is for respiratory distress from pulmonary edema (or COPD and asthma); otherwise it only adds a tight mask, air in the stomach and a lower pressure (EMS CPAP protocols).' },
+
+  // The bag-mask and the advanced airway. A bag-mask readied for a shock or a pacer (procedural sedation) is preparation
+  { id: 'bvm-breathing', actions: ['bvm'], when: (s) => s.pulse && s.vitals.gcs > 8 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && s.vitals.spo2 >= 90 && !procedureComing(s), points: 3, severity: 'minor', text: 'Bag-mask ventilation for a patient who is breathing well on their own (awake, 10–30 breaths a minute, an SpO₂ of 90 % or more). Breaths forced in over their own fill the stomach and make them fight the mask: give oxygen, and keep the bag for breathing that fails.' },
   { id: 'airway-awake', actions: ['airway'], when: (s) => s.pulse && s.vitals.gcs > 8, points: 10, severity: 'major', text: 'An advanced airway is not indicated in a patient who is awake and protecting their own airway.' },
-  // the emergency department's drug-assisted airway (ACEP clinical policy: monitoring and capnography)
-  { id: 'rsi-no-indication', actions: ['rsi'], when: (s) => s.pulse && s.vitals.gcs >= 13 && s.vitals.spo2 >= 92 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && !lowPressure(s), points: 10, severity: 'major', text: 'Rapid sequence intubation without an indication. A tube is for a patient who cannot protect the airway, cannot oxygenate or ventilate, or whose expected course will soon take one of those away; an awake patient breathing well, with a normal oxygen saturation and pressure, gets only its risks — a failed airway, aspiration, a falling pressure and the ventilator.' },
+  { id: 'airway-before-shock', actions: ['airway'], when: (s) => shockable(s) && !shockedThisArrest(s), points: 5, severity: 'major', text: 'An advanced airway before the first shock in VF or pulseless VT. The shock is what ends it, and every minute without one lowers survival: shock first, then compressions; the airway waits for a pause that costs nothing, and a bag-mask at 30:2 does until then (2025 AHA).' },
+  // the emergency department's drug-assisted airway (ACEP clinical policy: monitoring and capnography). Gate order: the
+  // first three (which may each apply) > rsi-preload-dependent
+  { id: 'rsi-no-indication', actions: ['rsi'], when: (s) => rsiNoIndication(s), points: 10, severity: 'major', text: 'Rapid sequence intubation without an indication. A tube is for a patient who cannot protect the airway, cannot oxygenate or ventilate, or whose expected course will soon take one of those away; an awake patient breathing well, with a normal oxygen saturation and pressure, gets only its risks — a failed airway, aspiration, a falling pressure and the ventilator.' },
   { id: 'rsi-unmonitored', actions: ['rsi'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Rapid sequence intubation without the cardiac monitor on. The induction drug, the paralytic and positive-pressure ventilation can drop the pressure, the oxygen saturation and the heart rate within a minute: the ECG, pulse oximetry, the blood pressure and waveform capnography run before the first drug goes in.' },
-  { id: 'rsi-unresuscitated', actions: ['rsi'], when: (s) => s.pulse && lowPressure(s) && !has(s, 'pressor') && !has(s, 'push-epi'), points: 8, severity: 'major', text: 'Rapid sequence intubation with a low blood pressure and nothing to hold it up. The induction drug and positive-pressure ventilation drop the pressure further, and the patient can arrest around the tube: resuscitate before you intubate — fluids or blood, push-dose epinephrine or an infusion running — and give a reduced dose of the most stable induction drug.' },
+  { id: 'rsi-unresuscitated', actions: ['rsi'], when: (s) => rsiUnresuscitated(s), points: 8, severity: 'major', text: 'Rapid sequence intubation with a low blood pressure and nothing to hold it up. The induction drug and positive-pressure ventilation drop the pressure further, and the patient can arrest around the tube: resuscitate before you intubate — fluids or blood, push-dose epinephrine or an infusion running — and give a reduced dose of the most stable induction drug.' },
+  { id: 'rsi-preload-dependent', actions: ['rsi'], when: (s, sc) => s.pulse && s.vitals.gcs > 8 && preloadDependent(s, sc) && has(s, 'monitor') && !rsiNoIndication(s) && !rsiUnresuscitated(s), points: 10, severity: 'major', text: 'Intubating a heart that lives on its preload: a tamponade not yet drained, a right ventricle failing from a pulmonary embolism or an infarction. The induction drug drops the vascular tone and positive pressure cuts the venous return: the patient can arrest around the tube. Drain or treat the cause first; if the tube cannot wait, have a pressor running, give a reduced dose of a stable induction drug, and ventilate with small breaths and little PEEP.' },
 
   // Drugs for a specific problem: without it they cannot help and only bring their risks. The case lists what the patient
   // has (Scenario.problems); "not well established" in a hyperkalemic arrest (2025 AHA) is never penalized.

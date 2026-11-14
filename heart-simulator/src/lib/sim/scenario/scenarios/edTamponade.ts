@@ -888,7 +888,7 @@ export const edTamponade: Scenario = {
       text: 'Nitroglycerin with nothing to treat. Her chest heaviness was the effusion, now drained: nitroglycerin is for coronary ischemia (and 0.8 mg, which no standing order covers, for hypertensive pulmonary edema), and here it only takes preload from a heart that has just started to fill again.',
     },
     {
-      id: 'cpap-tamponade', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 8, severity: 'major',
+      id: 'cpap-tamponade', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), replaces: ['cpap-hypotension', 'cpap-preload-dependent'], points: 8, severity: 'major',
       text: 'CPAP for a patient in tamponade. Positive pressure in the chest pushes back against the blood returning to her already squeezed right heart: the output falls, and it can bring on PEA. Her breathlessness comes from a heart that cannot fill, not wet lungs (they are clear): oxygen by cannula or mask, sitting up.',
     },
     {
@@ -897,7 +897,7 @@ export const edTamponade: Scenario = {
     },
     {
       id: 'intubation-tamponade', actions: ['rsi'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
-      replaces: ['rsi-unresuscitated', 'rsi-no-indication'],
+      replaces: ['rsi-unresuscitated', 'rsi-no-indication', 'rsi-preload-dependent'],
       text: 'Intubating a patient in tamponade before the drain. The induction drug takes away the adrenaline holding her vessels tight, and positive-pressure ventilation cuts the blood returning to a heart that cannot fill: the pressure collapses, and she can arrest around the tube (Spodick, N Engl J Med 2003). Oxygen by mask holds her; drain the fluid first. If a tube cannot wait, have the needle ready, the vasopressor running, a reduced dose of a stable induction drug and small breaths with little PEEP.',
     },
     {

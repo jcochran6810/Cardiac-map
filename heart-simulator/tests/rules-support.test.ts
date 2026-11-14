@@ -104,3 +104,119 @@ describe('phenylephrine and intracoronary epinephrine', () => {
     expect(ids(5, { harms: [exempt('ic-epi-no-indication', ['ic-epinephrine'])] }, ['ic-epinephrine'])).toEqual([]);
   });
 });
+
+describe('oxygen', () => {
+  it('oxygen-not-breathing: a mask or a cannula only offers oxygen to someone who breathes', () => {
+    for (const mask of ['o2-nc', 'o2-nrb']) {
+      expect(ids(2, { pulse: false, rhythm: VF }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+      expect(ids(2, { vitals: { gcs: 6 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+      expect(ids(2, { vitals: { rr: 6 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+      // the nearest correct state: someone is bagging (or there is an airway)
+      expect(ids(2, { vitals: { gcs: 6 } }, ['bvm', mask]), mask).toEqual([]);
+      expect(ids(2, { pulse: false, rhythm: VF, harms: [exempt('oxygen-not-breathing', ['o2-nc', 'o2-nrb'])] }, [mask]), mask).toEqual([]);
+      // the gate: not breathing comes first, whatever the saturation
+      expect(ids(2, { ...withProblems('acs'), vitals: { gcs: 6 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+    }
+    // once for the case
+    expect(ids(2, { pulse: false, rhythm: VF }, ['o2-nrb', 'o2-nc'])).toEqual(['oxygen-not-breathing']);
+  });
+
+  it('oxygen-normoxic: an acute coronary syndrome with an SpO₂ of 90 % or more', () => {
+    const acs = withProblems('acs');
+    expect(ids(2, acs, ['o2-nc'])).toEqual(['oxygen-normoxic']);
+    expect(ids(2, acs, ['o2-nrb'])).toEqual(['oxygen-normoxic']);
+    // the nearest correct states: a low saturation, respiratory distress, fluid on the lungs, no coronary syndrome
+    expect(ids(2, { ...acs, vitals: { spo2: 88 } }, ['o2-nc'])).toEqual([]);
+    expect(ids(2, { ...acs, vitals: { rr: 28 } }, ['o2-nrb'])).toEqual([]);
+    expect(ids(2, withProblems('acs', 'pulmonary-edema'), ['o2-nrb'])).toEqual([]);
+    expect(ids(2, {}, ['o2-nrb'])).toEqual([]);
+    expect(ids(2, { ...acs, harms: [exempt('oxygen-normoxic', ['o2-nc', 'o2-nrb'])] }, ['o2-nc'])).toEqual([]);
+  });
+});
+
+describe('CPAP', () => {
+  const edema = withProblems('pulmonary-edema');
+  it('cpap-hypotension: positive pressure drops a low pressure further', () => {
+    expect(ids(2, { ...edema, vitals: LOW }, ['cpap'])).toEqual(['cpap-hypotension']);
+    expect(ids(2, edema, ['cpap'])).toEqual([]);
+    expect(ids(2, { ...edema, vitals: LOW, harms: [exempt('cpap-hypotension', ['cpap'])] }, ['cpap'])).toEqual([]);
+    // the gate: first of all the CPAP rules
+    expect(ids(2, { ...withProblems('rv-infarction'), vitals: { ...LOW, gcs: 11 } }, ['cpap'])).toEqual(['cpap-hypotension']);
+  });
+
+  it('cpap-vomiting: not within half an hour of glucagon', () => {
+    const overdose = withProblems('beta-blocker-overdose', 'pulmonary-edema');
+    expect(ids(2, overdose, ['iv', 'glucagon', 'cpap'])).toEqual(['cpap-vomiting']);
+    expect(ids(2, overdose, ['iv', 'cpap'])).toEqual([]);
+    expect(ids(2, { ...overdose, harms: [exempt('cpap-vomiting', ['cpap'])] }, ['iv', 'glucagon', 'cpap'])).toEqual([]);
+    // the gate: before the preload, the drowsiness and the indication — one penalty
+    expect(ids(2, { ...withProblems('beta-blocker-overdose', 'rv-infarction'), vitals: { gcs: 11 } }, ['iv', 'glucagon', 'cpap'])).toEqual(['cpap-vomiting']);
+  });
+
+  it('cpap-preload-dependent: a heart that lives on its preload', () => {
+    for (const problem of ['rv-infarction', 'pulmonary-embolism', 'tamponade'] as Problem[]) {
+      expect(ids(2, withProblems(problem, 'pulmonary-edema'), ['cpap']), problem).toEqual(['cpap-preload-dependent']);
+    }
+    // a tamponade drained is no longer one (the flag 'drained')
+    expect(ids(7, withProblems('tamponade', 'pulmonary-edema'), ['pocus', 'pericardiocentesis', 'cpap'])).toEqual([]);
+    // a tamponade that begins mid-case (the flag 'tamponade') is one
+    const later = { extra: { events: [{ id: 'bleeds', when: () => true, effect: () => ({ flags: ['tamponade'] }) }] } };
+    expect(ids(2, { ...edema, ...later }, ['cpap'])).toEqual(['cpap-preload-dependent']);
+    expect(ids(2, { ...withProblems('rv-infarction'), harms: [exempt('cpap-preload-dependent', ['cpap'])] }, ['cpap'])).toEqual([]);
+    // the gate: before the drowsiness and the indication — one penalty
+    expect(ids(2, { ...withProblems('rv-infarction'), vitals: { gcs: 11 } }, ['cpap'])).toEqual(['cpap-preload-dependent']);
+  });
+
+  it('cpap-drowsy: in the field, not for a GCS of 9–12', () => {
+    expect(ids(2, { ...edema, vitals: { gcs: 11 } }, ['cpap'])).toEqual(['cpap-drowsy']);
+    expect(ids(2, { ...edema, vitals: { gcs: 13 } }, ['cpap'])).toEqual([]);
+    // the emergency department is left alone: a nurse at the bedside, a physician to intubate
+    expect(ids(7, { ...edema, vitals: { gcs: 11 } }, ['cpap'])).toEqual([]);
+    expect(ids(2, { ...edema, vitals: { gcs: 11 }, harms: [exempt('cpap-drowsy', ['cpap'])] }, ['cpap'])).toEqual([]);
+    // the gate: before the indication — one penalty
+    expect(ids(2, { vitals: { gcs: 11 } }, ['cpap'])).toEqual(['cpap-drowsy']);
+  });
+
+  it('cpap-no-indication: no respiratory distress, no fluid on the lungs, no wheeze', () => {
+    expect(ids(2, {}, ['cpap'])).toEqual(['cpap-no-indication']);
+    expect(ids(7, {}, ['cpap'])).toEqual(['cpap-no-indication']);
+    expect(ids(2, { vitals: { rr: 28 } }, ['cpap'])).toEqual([]);
+    expect(ids(2, { vitals: { spo2: 91 } }, ['cpap'])).toEqual([]);
+    expect(ids(2, edema, ['cpap'])).toEqual([]);
+    expect(ids(2, withProblems('bronchospasm'), ['cpap'])).toEqual([]);
+    expect(ids(2, { harms: [exempt('cpap-no-indication', ['cpap'])] }, ['cpap'])).toEqual([]);
+  });
+});
+
+describe('the bag-mask, the advanced airway and RSI', () => {
+  it('bvm-breathing: a patient breathing well on their own', () => {
+    expect(ids(2, {}, ['bvm'])).toEqual(['bvm-breathing']);
+    expect(ids(2, { vitals: { gcs: 7 } }, ['bvm'])).toEqual([]);
+    expect(ids(2, { vitals: { rr: 6 } }, ['bvm'])).toEqual([]);
+    expect(ids(2, { vitals: { spo2: 85 } }, ['bvm'])).toEqual([]);
+    // readied for a cardioversion or a pacer: preparation, not a mistake
+    expect(ids(2, { rhythm: { profile: 'avnrt', hr: 180 } }, ['bvm'])).toEqual([]);
+    expect(ids(2, { rhythm: SLOW }, ['bvm'])).toEqual([]);
+    expect(ids(2, { harms: [exempt('bvm-breathing', ['bvm'])] }, ['bvm'])).toEqual([]);
+  });
+
+  it('airway-before-shock: in VF or pulseless VT the shock comes first', () => {
+    expect(ids(2, { pulse: false, rhythm: VF }, ['airway'])).toEqual(['airway-before-shock']);
+    expect(ids(2, { pulse: false, rhythm: VF }, ['defib', 'cpr', 'airway'])).toEqual([]);
+    expect(ids(2, { pulse: false, rhythm: { profile: 'asystole', hr: 0 } }, ['airway'])).toEqual([]);
+    expect(ids(2, { pulse: false, rhythm: VF, harms: [exempt('airway-before-shock', ['airway'])] }, ['airway'])).toEqual([]);
+    // an awake patient with a pulse is the other rule's
+    expect(ids(2, {}, ['airway'])).toEqual(['airway-awake']);
+  });
+
+  it('rsi-preload-dependent: induction and positive pressure in a heart that lives on its preload', () => {
+    const tamponade = { ...withProblems('tamponade'), vitals: { gcs: 12 } };
+    expect(ids(7, tamponade, ['monitor', 'iv', 'rsi'])).toEqual(['rsi-preload-dependent']);
+    expect(ids(7, { vitals: { gcs: 12 } }, ['monitor', 'iv', 'rsi'])).toEqual([]);
+    expect(ids(7, { ...tamponade, harms: [exempt('rsi-preload-dependent', ['rsi'])] }, ['monitor', 'iv', 'rsi'])).toEqual([]);
+    // the gate: the existing RSI rules come first — one penalty
+    expect(ids(7, withProblems('tamponade'), ['monitor', 'iv', 'rsi'])).toEqual(['rsi-no-indication']);
+    expect(ids(7, { ...withProblems('tamponade'), vitals: { ...LOW, gcs: 12 } }, ['monitor', 'iv', 'rsi'])).toEqual(['rsi-unresuscitated']);
+    expect(ids(7, tamponade, ['iv', 'rsi'])).toEqual(['rsi-unmonitored']);
+  });
+});

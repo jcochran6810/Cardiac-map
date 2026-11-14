@@ -820,7 +820,7 @@ export const edHeartBlock: Scenario = {
       text: 'Handing her over without having reported her potassium to the physician. A critical value goes to the physician the moment it is known (read back, closed loop): a potassium of 6.9 slows conduction and raises the pacing threshold.',
     },
     {
-      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension'], points: 5, severity: 'major',
       text: 'CPAP without breathing trouble. Her lungs are clear and her oxygen is fine; the positive pressure cuts the blood returning to the heart, and with a systolic in the 80s it deepens the shock.',
     },
     {

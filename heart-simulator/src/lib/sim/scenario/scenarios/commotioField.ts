@@ -591,7 +591,7 @@ export const commotioField: Scenario = {
       text: 'Loading him for transport while he is in cardiac arrest. It looks like a trauma arrest, but the blow set off VF, and what treats VF — the shock and high-quality CPR — works right here, better than on a moving stretcher. Work the arrest on scene and transport after ROSC.',
     },
     {
-      id: 'cpap-unresponsive', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
+      id: 'cpap-unresponsive', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension'], points: 5, severity: 'major',
       text: 'CPAP for a patient who is not breathing adequately on his own. CPAP supports breaths a patient takes and needs someone awake enough to protect the airway; it gives no breaths. In the arrest, and unresponsive after ROSC, he needs a bag-mask or an advanced airway.',
     },
     {
