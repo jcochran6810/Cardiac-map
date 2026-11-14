@@ -371,6 +371,12 @@ export type Problem =
   /** a low potassium (under 4 mEq/L for sotalol) */
   | 'hypokalemia'
   /**
+   * a blood glucose under 70 mg/dL now (a fingerstick, or the labs): dextrose — or oral glucose, or glucagon without a line
+   * — treats it; insulin is contraindicated during hypoglycemia (regular insulin labels): give the dextrose first, and
+   * recheck the glucose in 15 minutes
+   */
+  | 'hypoglycemia'
+  /**
    * a transplanted, denervated heart: atropine does not work and can cause high-grade block (2018 ACC/AHA/HRS: 3 — Harm);
    * adenosine starts at 3 mg
    */

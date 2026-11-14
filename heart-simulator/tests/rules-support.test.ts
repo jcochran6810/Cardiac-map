@@ -385,6 +385,16 @@ describe('electrolytes, insulin and the antidotes', () => {
     expect(ids(7, bleeding, ['iv', 'transfuse', 'transfuse', 'transfuse', 'transfuse', 'calcium-chloride'])).toEqual([]);
   });
 
+  it('insulin-hypoglycemia: the label contraindication, critical — on the glucose now, or on the low the case declares', () => {
+    const rule = BUILT_IN_HARMS.find((h) => h.id === 'insulin-hypoglycemia')!;
+    expect([rule.points, rule.severity]).toEqual([15, 'critical']);
+    expect(ids(4, { ...withProblems('hyperkalemia'), vitals: { glucose: 60 } }, ['iv', 'glucose', 'insulin-dextrose'])).toEqual(['insulin-hypoglycemia']);
+    expect(ids(4, withProblems('hyperkalemia', 'hypoglycemia'), ['iv', 'glucose', 'insulin-dextrose'])).toEqual(['insulin-hypoglycemia']);
+    // dextrose (or oral glucose) for the declared low is the treatment
+    expect(ids(4, withProblems('hypoglycemia'), ['iv', 'dextrose'])).toEqual([]);
+    expect(ids(2, withProblems('hypoglycemia'), ['oral-glucose'])).toEqual([]);
+  });
+
   it('insulin-glucose-unchecked: the nurse who pushes it checks the glucose first', () => {
     const hyperk = withProblems('hyperkalemia');
     expect(ids(4, hyperk, ['iv', 'insulin-dextrose'])).toEqual(['insulin-glucose-unchecked']);

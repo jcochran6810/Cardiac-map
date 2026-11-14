@@ -357,6 +357,17 @@ describe('classic responses', () => {
     expect(planDose('epinephrine', patient('takotsubo', 102, { sbp: 82 }), 0.02).verdict.text).not.toMatch(/outflow obstruction/);
   });
 
+  it('a low glucose: insulin is contraindicated (label) — dextrose first, then recheck; dextrose is the treatment', () => {
+    expect(HISTORY.find((h) => h.id === 'hypoglycemia')?.label).toBe('Low glucose (hypoglycemia)');
+    const hyperk = (problems: Problem[]) => patient('hyperkalemia', 64, { problems });
+    expect(planDose('insulin-dextrose', hyperk(['hypoglycemia']), 10).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Contraindicated during hypoglycemia.*dextrose first.*recheck/) });
+    expect(planDose('insulin-dextrose', hyperk([]), 10).verdict.tone).toBe('good');
+    expect(planDose('dextrose', patient('normal-sinus', 96, { problems: ['hypoglycemia'] }), 25).verdict).toMatchObject({ tone: 'good', text: expect.stringMatching(/recheck/) });
+    // without a low glucose on the page: check it first
+    expect(planDose('dextrose', patient('normal-sinus', 96), 25).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^Check the glucose first/) });
+    expect(MED_BY_ID.dextrose.usual(patient('normal-sinus', 96))).toEqual({ low: 10, high: 25 });
+  });
+
   it('lupus: procainamide is contraindicated (label), and the history offers the chip', () => {
     expect(HISTORY.find((h) => h.id === 'lupus')?.label).toBe('Lupus (SLE)');
     const vt = (problems: Problem[]) => patient('vt', 160, { sbp: 120, problems });

@@ -18,7 +18,7 @@ import type { Problem } from '@/lib/sim/scenario/types';
 
 export type MedId = Extract<MedicationId,
   | 'adenosine' | 'diltiazem' | 'metoprolol' | 'esmolol' | 'amiodarone' | 'procainamide' | 'sotalol' | 'lidocaine' | 'digoxin'
-  | 'atropine' | 'epinephrine' | 'magnesium-sulfate' | 'calcium-chloride' | 'sodium-bicarbonate' | 'insulin-dextrose' | 'albuterol'
+  | 'atropine' | 'epinephrine' | 'magnesium-sulfate' | 'calcium-chloride' | 'sodium-bicarbonate' | 'insulin-dextrose' | 'dextrose' | 'albuterol'
   | 'aspirin' | 'ticagrelor' | 'clopidogrel' | 'prasugrel' | 'tenecteplase' | 'heparin' | 'nitroglycerin' | 'fentanyl' | 'phenylephrine'>;
 
 export type DoseUnit = 'mg' | 'mcg' | 'g' | 'mEq' | 'units';
@@ -1351,6 +1351,39 @@ const insulinDextrose: MedDef = {
   },
 };
 
+/**
+ * Dextrose for a low glucose (the drug card 'dextrose'). The page has no glucose value: the history chip says the glucose is
+ * low now (Problem 'hypoglycemia'); without it, check the glucose first — dextrose treats a low, and goes with insulin for
+ * hyperkalemia (the insulin + dextrose entry)
+ */
+const dextrose: MedDef = {
+  id: 'dextrose',
+  name: 'Dextrose (D10, or D50 25 g)',
+  group: 'Electrolytes',
+  unit: 'g',
+  route: 'IV: D10 50–100 mL (5–10 g) at a time, or D50 25 g (50 mL) slowly through a large, secure vein',
+  verb: 'Give',
+  onset: 'IV: within minutes; recheck the glucose at 15 min',
+  guide: 'Hypoglycemia (under about 70 mg/dL with symptoms, or unable to take sugar by mouth): D10 in 5–10 g steps, or D50 25 g, then recheck the glucose in 15 min and repeat to effect. Check the glucose first: no dextrose for a normal or high glucose. With insulin for hyperkalemia it is part of the insulin + dextrose entry.',
+  usual: () => ({ low: 10, high: 25 }),
+  max: () => 50,
+  picks: () => [10, 25, 50],
+  step: 5,
+  plan(p, dose, cls) {
+    const c = category(resolveProfile(p.profileId), p.hr);
+    const recheck: EffectStep[] = [
+      { at: 2 * MIN, note: 'The glucose rises within minutes; a patient confused by a low glucose wakes up.', tone: 'effect', mark: 'glucose ↑' },
+      { at: 15 * MIN, note: cls === 'high' || cls === 'toxic' ? 'Recheck the glucose: more than 25 g at once overshoots into a high glucose.' : 'Recheck the glucose: repeat the dose if it is still under 70 mg/dL; it can fall again (a sulfonylurea, long-acting insulin).', tone: cls === 'high' || cls === 'toxic' ? 'warn' : 'info' },
+    ];
+    if (hasProblem(p, 'hypoglycemia')) {
+      return { verdict: good('A low glucose: dextrose is the treatment — D10 in steps or D50 25 g, then recheck in 15 minutes. Before any insulin (for a high potassium) the glucose comes up first.'), steps: recheck };
+    }
+    if (c === 'arrest') return { verdict: caution('In an arrest only for a measured low glucose (check it — a reversible cause): routine dextrose does nothing for the arrest, and a high glucose after it harms the brain.'), steps: noEcg(60 * S, 'No change during the arrest.') };
+    if (c === 'hyperk') return { verdict: caution('Dextrose alone does not lower the potassium: it goes with insulin (the insulin + dextrose entry), or alone only for a low glucose. Check the glucose.'), steps: noEcg(15 * MIN, 'No change in the potassium or the ECG.') };
+    return { verdict: caution('Check the glucose first: dextrose treats a glucose under about 70 mg/dL; with a normal or high one it only raises it (and D50 injures the vein if it leaks). Set "Low glucose" in the history if it is low.'), steps: noEcg(15 * MIN, 'No direct ECG effect.') };
+  },
+};
+
 const albuterol: MedDef = {
   id: 'albuterol',
   name: 'Albuterol (nebulized)',
@@ -1808,7 +1841,7 @@ const phenylephrine: MedDef = {
 export const MEDS: MedDef[] = [
   adenosine, diltiazem, metoprolol, esmolol, amiodarone, procainamide, sotalol, lidocaine, digoxin,
   atropine, epinephrine,
-  magnesium, calcium, bicarbonate, insulinDextrose, albuterol,
+  magnesium, calcium, bicarbonate, insulinDextrose, dextrose, albuterol,
   aspirin, ticagrelor, clopidogrel, prasugrel, tenecteplase, heparin, nitroglycerin, fentanyl, phenylephrine,
 ];
 
@@ -2149,6 +2182,8 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   { problems: ['renal-failure', 'dialysis'], drugs: ['magnesium-sulfate', 'digoxin', 'procainamide'], tone: 'caution', text: (p, _, id) => `${hasProblem(p, 'dialysis') ? 'On dialysis' : 'Kidney failure'}: ${RENAL[id]}.` },
   { problems: ['renal-failure', 'dialysis'], drugs: ['sotalol'], tone: 'bad', text: (_p, c) => (c === 'af' || c === 'flutter' ? 'Not for AF or flutter with kidney failure: the sotalol label rules it out below a creatinine clearance of 40 mL/min — it is cleared by the kidneys, and its level (and the QT) climbs.' : null) },
   { problems: ['renal-failure', 'dialysis'], drugs: ['sotalol'], tone: 'caution', text: (_p, c) => (c === 'af' || c === 'flutter' ? null : 'Kidney failure: sotalol is cleared by the kidneys — a longer dosing interval by the creatinine clearance (label), with QTc monitoring; and it is no longer in the 2025 AHA tachycardia algorithm.') },
+  // a low glucose now: the insulin label's contraindication (dextrose for it is the dextrose entry's own plan)
+  { problems: ['hypoglycemia'], drugs: ['insulin-dextrose'], tone: 'bad', text: () => 'Contraindicated during hypoglycemia (regular insulin label): it drives the glucose lower, and the worst lows come 1–3 h later. Give dextrose first (D10 in steps, or D50 25 g), recheck the glucose in 15 min, and give the insulin with its dextrose once the glucose is back up — calcium protects the heart meanwhile.' },
   { problems: ['renal-failure', 'dialysis'], drugs: ['insulin-dextrose'], tone: 'caution', text: (_p, _c, _id, dose) => (dose > 5 * 1.15 ? 'Kidney failure: 5 units, not 10 — insulin is cleared by the kidneys, and hypoglycemia is much more likely.' : null) },
   { problems: ['hypokalemia'], drugs: ['sotalol'], tone: 'bad', text: () => 'Not with a potassium below 4 mEq/L (label): a low potassium and sotalol together set off torsades. Correct the potassium and magnesium first.' },
   { problems: ['hypokalemia'], drugs: ['digoxin'], tone: 'caution', text: () => 'A low potassium makes digoxin toxicity more likely (arrhythmias at a "normal" level): correct it first.' },
@@ -2168,6 +2203,7 @@ export const HISTORY: readonly { id: Problem; label: string }[] = [
   { id: 'renal-failure', label: 'Kidney failure' },
   { id: 'dialysis', label: 'On dialysis' },
   { id: 'hypokalemia', label: 'Low potassium' },
+  { id: 'hypoglycemia', label: 'Low glucose (hypoglycemia)' },
   { id: 'long-qt', label: 'Long QT' },
   { id: 'heart-transplant', label: 'Heart transplant' },
   { id: 'adenosine-potentiator', label: 'Dipyridamole / carbamazepine' },
