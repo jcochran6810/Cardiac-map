@@ -14,6 +14,7 @@
 import { resolveProfile, type ECGProfile } from '@/lib/ecg/profiles';
 import type { RhythmMods } from '@/lib/ecg/mods';
 import type { MedicationId } from '@/types/content';
+import type { Problem } from '@/lib/sim/scenario/types';
 
 export type MedId = Extract<MedicationId,
   | 'adenosine' | 'diltiazem' | 'metoprolol' | 'esmolol' | 'amiodarone' | 'procainamide' | 'sotalol' | 'lidocaine' | 'digoxin'
@@ -40,6 +41,15 @@ export interface Patient {
   given: Given[];
   /** systolic BP on the monitor at the push (falls back to the rhythm's typical hemodynamics) */
   sbp?: number;
+  /**
+   * drug time of this push (ms), on the same clock as `Given.at`: the store adds what skip-ahead has brought forward, so
+   * the interval since an earlier dose is the time the drugs have really had. Without it no interval rule is applied.
+   */
+  now?: number;
+  /** age in years, when the learner sets one (without it the doses are those for an adult under 75) */
+  age?: number;
+  /** what the patient has, in the case simulator's Problem words (without it: nothing known beyond the monitor) */
+  problems?: readonly Problem[];
 }
 
 export interface EffectStep {
@@ -205,6 +215,17 @@ function noRateToControl(c: Category, p: Patient): Verdict | null {
  */
 const TORSADES = 'Sustained torsades is defibrillated at once — unsynchronized, pulse or not; then magnesium 1–2 g, stop QT-prolonging drugs and correct K⁺.';
 
+/**
+ * An IV β-blocker in acute MI: the metoprolol label rules it out with a systolic below 100 mmHg (and a heart rate below 45,
+ * a PR of 0.24 s or more, AV block beyond the first degree, moderate or severe failure); ACC/AHA calls it harmful with a
+ * raised risk of cardiogenic shock — a heart rate above 110 is one of those risks (2013 STEMI, COMMIT)
+ */
+function miBetaRisk(p: Patient): string | null {
+  if (p.sbp !== undefined && p.sbp < 100) return `Contraindicated here: a systolic of ${p.sbp} mmHg in an acute MI — the metoprolol injection label rules out IV use below 100 mmHg, and a β-blocker can tip a borderline pressure into cardiogenic shock (COMMIT).`;
+  if (p.hr > 110) return `Harmful here: a heart rate of ${p.hr}/min in an acute MI is a risk factor for cardiogenic shock (the fast rate is often holding up the output) — no IV β-blocker (2013 ACCF/AHA STEMI guideline, after COMMIT). Find the cause; oral β-blockade later once stable.`;
+  return null;
+}
+
 /** hypotensive now (SBP < 90) */
 const lowBP = (p: Patient, prof: ECGProfile) => (p.sbp !== undefined ? p.sbp < 90 : prof.hemo === 'shock' || prof.hemo === 'no-output');
 /** heart failure or hypotension: negative inotropes are dangerous */
@@ -270,7 +291,7 @@ const adenosine: MedDef = {
   route: 'Rapid IV push in 1–2 s, then a 20 mL saline flush (arm raised)',
   verb: 'Push',
   onset: 'Reaches the heart in ~10–20 s; gone within a minute (half-life < 10 s)',
-  guide: '6 mg rapid IV push + 20 mL flush; if no conversion in 1–2 min, 12 mg. 3 mg via a central line, after heart transplant, or with dipyridamole / carbamazepine.',
+  guide: '6 mg rapid IV push + 20 mL flush; if no conversion in 1–2 min, 12 mg. 3 mg via a central line, after heart transplant, or with dipyridamole / carbamazepine. Not with: second- or third-degree AV block or sick sinus without a pacemaker, asthma, or an irregular or unstable wide-complex tachycardia.',
   // 6 mg first; 12 mg once a full dose (≥ 6 mg) has failed; after an under-dose, 6–12 mg
   usual: (p) => {
     const most = Math.max(0, ...dosesOf(p, 'adenosine').map((g) => g.dose));
@@ -295,6 +316,9 @@ const adenosine: MedDef = {
     if (c === 'arrest' || c === 'torsades') {
       return { verdict: bad('Adenosine has no place in cardiac arrest: CPR, defibrillate a shockable rhythm, epinephrine.'), steps: noEcg(arrive, 'No effect on the arrest rhythm.') };
     }
+    if ((c === 'af' || c === 'flutter') && p.hr > 0 && p.hr < SLOW) {
+      return { verdict: bad(`Not with a slow ventricular rate (${p.hr}/min): adenosine blocks the AV node outright, and a slow AV node then lets nothing through — a long pause (label: symptomatic bradycardia). Look for the cause of the slow rate.`), steps: [flush, { at: arrive, hr: 25, note: 'A long pause: the AV node lets nothing through for several seconds.', tone: 'warn', mark: 'pause' }, { at: arrive + pause + 2 * S, restore: true, note: 'Conduction returns: back to the slow ventricular rate.', tone: 'info' }] };
+    }
     if (spent && c === 'svt') {
       return { verdict: caution('Adenosine is given as 6 mg, then 12 mg — both have been given, and more is unlikely to help. Think again about the rhythm, and about a calcium-channel blocker, a β-blocker or synchronized cardioversion.'), steps: noEcg(arrive, 'No further effect.') };
     }
@@ -311,7 +335,9 @@ const adenosine: MedDef = {
           };
         }
         return {
-          verdict: good('Indicated: regular narrow-complex SVT (AVNRT) that vagal maneuvers did not stop. Adenosine blocks the AV node for a few seconds and breaks the re-entry circuit (6 mg converts most; 12 mg if not).'),
+          verdict: dose > 12
+            ? caution(`The right drug, but ${fmtDose(dose)} mg is more than the label allows (6 mg, then 12 mg): doses above 12 mg are not recommended. A longer pause, and bronchospasm in asthma.`)
+            : good(`Indicated: regular narrow-complex SVT (AVNRT) that vagal maneuvers did not stop. Adenosine blocks the AV node for a few seconds and breaks the re-entry circuit (6 mg converts most; 12 mg if not).${lowBP(p, prof) ? ' With a low pressure the SVT is unstable: synchronized cardioversion is the treatment — adenosine may be tried while it is set up.' : ''}`),
           steps: [
             flush,
             { at: arrive, profile: 'normal-sinus', hr: 48, mods: { avBlock: true }, note: 'The AV node blocks and the re-entry circuit breaks: SVT stops. P waves with no QRS — a pause of a few seconds (expect it).', tone: 'effect', mark: 'AV block' },
@@ -393,7 +419,7 @@ const diltiazem: MedDef = {
   route: 'IV over 2 min',
   verb: 'Give',
   onset: 'Starts in 2–3 min, full effect in ~5–10 min, lasts 1–3 h',
-  guide: '0.25 mg/kg actual body weight (≈15–20 mg) IV over 2 min; if not enough after 15 min, 0.35 mg/kg (≈20–25 mg). Infusion 5–15 mg/h.',
+  guide: '0.25 mg/kg actual body weight (≈15–20 mg) IV over 2 min; if not enough after 15 min, 0.35 mg/kg (≈20–25 mg). Infusion 5–15 mg/h. Not with: hypotension, HFrEF, pre-excited AF (WPW), VT, second- or third-degree AV block, or an IV β-blocker within a few hours.',
   usual: (p) => (dosesOf(p, 'diltiazem').length ? { low: 0.3 * p.kg, high: 0.4 * p.kg } : { low: 0.2 * p.kg, high: 0.3 * p.kg }),
   // by weight only: a fixed ceiling would let a light patient have three times the weight-based dose
   max: (p) => 0.45 * p.kg,
@@ -426,6 +452,12 @@ const diltiazem: MedDef = {
           ],
         };
       case 'svt':
+        if (failing(p, prof)) {
+          return {
+            verdict: bad('Not with a low pressure or a failing ventricle: IV diltiazem is contraindicated in severe hypotension and cardiogenic shock (label) and avoided in HFrEF — a negative inotrope can tip this patient into shock. An unstable SVT gets synchronized cardioversion (adenosine may be tried while it is set up).'),
+            steps: [{ at: 3 * MIN, hr: rate(p.hr, 0.92), note: 'The SVT slows a little — and the blood pressure falls further.', tone: 'warn' }, ...hypo],
+          };
+        }
         if (cls === 'low') {
           return {
             verdict: good('A calcium-channel blocker terminates most AVNRT when adenosine fails or the SVT keeps recurring — but the dose was low.'),
@@ -433,7 +465,7 @@ const diltiazem: MedDef = {
           };
         }
         return {
-          verdict: good(`Second line for AVNRT (after vagal maneuvers and adenosine): a calcium-channel blocker terminates most by blocking the AV node.${failingNote}`),
+          verdict: good('Second line for AVNRT (after vagal maneuvers and adenosine): a calcium-channel blocker terminates most by blocking the AV node.'),
           steps: [
             { at: 2 * MIN, hr: rate(p.hr, 0.92), note: 'The SVT slows slightly as AV-nodal conduction slows.', tone: 'effect' },
             { at: 3 * MIN, profile: 'normal-sinus', hr: cls === 'toxic' ? 48 : cls === 'high' ? 70 : 88, mods: { prAdd }, note: 'SVT terminated: sinus rhythm, with a slightly longer PR (diltiazem is still slowing the AV node).', tone: 'good', mark: 'sinus' },
@@ -523,6 +555,7 @@ const metoprolol: MedDef = {
         return { verdict: bad('Usually wrong: sinus tachycardia is compensating for something (bleeding, sepsis, PE, tamponade, low output) — slowing it can cause collapse. Treat the cause.'), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.25 * f), mods, note: 'The sinus rate falls.', tone: 'effect', mark: 'rate ↓' }, ...over] };
       case 'stemi':
         if (slowSinus(c, p)) return { verdict: bad(`Harmful here: the heart rate is already ${p.hr}/min. A β-blocker in an infarct with bradycardia (often vagal, or an ischemic AV node in inferior MI) invites heart block and low output.`), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.18 * f, 25), mods, note: 'The rate falls further — bradycardia gets worse.', tone: 'warn', mark: 'slower' }, ...over] };
+        if (miBetaRisk(p)) return { verdict: bad(miBetaRisk(p)!), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.18 * f), mods, note: 'The rate falls — and so does the cardiac output.', tone: 'warn' }, ...over] };
         return { verdict: caution('IV β-blocker in acute MI only for hypertension or ongoing ischemia with tachycardia, and never with signs of heart failure, low output, shock risk or AV block. Oral β-blockade within 24 h is the routine.'), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.18 * f), mods, note: 'The sinus rate falls and the PR lengthens slightly.', tone: 'effect', mark: 'rate ↓' }, ...over] };
       case 'paced':
         return { verdict: bad('No indication.'), steps: noEcg(3 * MIN, 'No change: the pacemaker sets the rate.') };
@@ -530,6 +563,10 @@ const metoprolol: MedDef = {
         return { verdict: aivrNodal(), steps: [...noEcg(3 * MIN, 'No change in the ventricular rate.'), ...over] };
       default:
         if (isBrady(c)) return { verdict: bad('Not indicated: β-blockers worsen bradycardia and AV block.'), steps: slowsBrady(p, prof, c, 3 * MIN, 0.8, 40) };
+        if (isAcs(prof) && c === 'sinus') {
+          const risk = miBetaRisk(p);
+          return { verdict: risk ? bad(risk) : caution('IV β-blocker in an acute coronary syndrome only for hypertension or ongoing ischemia with tachycardia, and never with signs of heart failure, low output, shock risk or AV block. Oral β-blockade within 24 h is the routine.'), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.18 * f), mods, note: 'The sinus rate falls and the PR lengthens slightly.', tone: 'effect', mark: 'rate ↓' }, ...over] };
+        }
         return { verdict: bad('No indication in this rhythm.'), steps: [{ at: 3 * MIN, hr: rate(p.hr, 1 - 0.15 * f), mods, note: 'The sinus rate falls a little.', tone: 'effect' }, ...over] };
     }
   },
@@ -543,7 +580,7 @@ const esmolol: MedDef = {
   route: 'Loading dose IV over 1 min, then an infusion of 50–200 mcg/kg/min',
   verb: 'Give',
   onset: 'Within 1–2 min; wears off 10–20 min after the infusion stops',
-  guide: 'Load 500 mcg/kg (0.5 mg/kg) IV over 1 min, then 50 mcg/kg/min, increasing by 50 every ~4 min (usual max ~200).',
+  guide: 'Load 500 mcg/kg (0.5 mg/kg) IV over 1 min, then 50 mcg/kg/min, increasing by 50 every ~4 min (usual max ~200). Not with: bradycardia, AV block, shock, decompensated heart failure, pulmonary hypertension, or IV diltiazem or verapamil.',
   usual: (p) => ({ low: 0.4 * p.kg, high: 0.5 * p.kg }),
   max: (p) => 1 * p.kg,
   picks: (p) => uniq([round(0.25 * p.kg, 5), round(0.5 * p.kg, 5), round(1.2 * p.kg, 10)]),
@@ -563,6 +600,13 @@ const esmolol: MedDef = {
         steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.22 * f, cls === 'toxic' ? 45 : 60), note: atTarget ? 'The heart rate falls a little further, toward the bottom of the target range.' : 'The heart rate falls toward the target of 60–80/min.', tone: atTarget ? 'effect' : 'good', mark: 'rate ↓' }, ...warn],
       };
     }
+    // obstructive HCM: the low pressure comes from the outflow obstruction, which a slower, less forceful heart relieves
+    if (prof.hemo === 'hcm' && lowBP(p, prof) && c !== 'vt') {
+      return {
+        verdict: caution('Obstructive HCM with a low pressure: give fluid and phenylephrine first; after them a β-blocker lowers the outflow gradient (a slower, less forceful heart fills better and obstructs less — 2024 AHA/ACC HCM). Esmolol is the one to titrate: it wears off within minutes.'),
+        steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.18 * f), note: 'The rate falls; with fluid on board the outflow gradient eases.', tone: 'effect', mark: 'rate ↓' }, ...warn],
+      };
+    }
     if (failing(p, prof)) return { verdict: bad(`Dangerous in decompensated heart failure or shock (negative inotrope) — though esmolol wears off fastest of the β-blockers.${c === 'vt' ? ' This VT is unstable: synchronized cardioversion now.' : ''}`), steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.15 * f), note: 'The rate falls — and so does the output.', tone: 'warn' }, ...warn] };
     switch (c) {
       case 'af':
@@ -579,7 +623,7 @@ const esmolol: MedDef = {
         return {
           verdict: c === 'sinus-tach' ? bad('Usually wrong: sinus tachycardia is compensating for something — treat the cause.')
             : slowSinus(c, p) ? bad(`Harmful here: the heart rate is already ${p.hr}/min — a β-blocker worsens bradycardia and AV block.`)
-              : c === 'stemi' ? caution('Short-acting β-blockade in MI only without heart failure, low output or AV block.') : bad('No indication in this rhythm.'),
+              : (c === 'stemi' || (isAcs(prof) && c === 'sinus')) ? (miBetaRisk(p) ? bad(miBetaRisk(p)!) : caution('Short-acting β-blockade in MI only without heart failure, low output or AV block.')) : bad('No indication in this rhythm.'),
           steps: [{ at: 90 * S, hr: rate(p.hr, 1 - 0.18 * f), mods: { prAdd: Math.round(8 * f) }, note: 'The sinus rate falls.', tone: 'effect', mark: 'rate ↓' }, ...warn],
         };
     }
@@ -594,7 +638,7 @@ const amiodarone: MedDef = {
   route: 'Arrest: IV/IO push · with a pulse: IV over 10 min',
   verb: 'Give',
   onset: 'Arrest: helps the next shock · with a pulse: works over 10–30 min',
-  guide: 'VF / pulseless VT: 300 mg IV/IO push, then 150 mg. Stable VT and other uses: 150 mg IV over 10 min (repeat as needed), then 1 mg/min.',
+  guide: 'VF / pulseless VT: 300 mg IV/IO push, then 150 mg. Stable VT and other uses: 150 mg IV over 10 min (repeat as needed), then 1 mg/min. Not with: cardiogenic shock, marked bradycardia, AV block, a long QT, or pre-excited AF.',
   usual: (p) => (category(resolveProfile(p.profileId)) === 'arrest' ? (dosesOf(p, 'amiodarone').length ? { low: 150, high: 150 } : { low: 300, high: 300 }) : { low: 150, high: 150 }),
   max: (p) => (category(resolveProfile(p.profileId)) === 'arrest' ? 450 : 300),
   picks: () => [150, 300, 450],
@@ -634,11 +678,11 @@ const amiodarone: MedDef = {
       case 'af':
       case 'flutter':
         return {
-          verdict: caution('Rate control in heart failure or critical illness when other drugs are unsafe — but it can convert to sinus rhythm: think about anticoagulation if the arrhythmia is > 48 h old.'),
+          verdict: (p.hr < SLOW && noRateToControl(c, p)) || caution('Rate control in heart failure or critical illness when other drugs are unsafe — but it can convert to sinus rhythm: think about anticoagulation if the arrhythmia is > 48 h old.'),
           steps: [{ at: 10 * MIN, hr: rate(p.hr, 0.8, 50), mods, note: 'The ventricular rate falls; the PR / QT lengthen slightly.', tone: 'effect', mark: 'rate ↓' }, ...fast],
         };
       case 'svt':
-        return { verdict: caution('Not a first-line SVT drug — vagal maneuvers, adenosine, then a calcium-channel blocker or β-blocker.'), steps: [{ at: 10 * MIN, profile: 'normal-sinus', hr: 88, mods, note: 'SVT terminated: sinus rhythm.', tone: 'good', mark: 'sinus' }, ...fast] };
+        return { verdict: caution(`Not a first-line SVT drug — vagal maneuvers, adenosine, then a calcium-channel blocker or β-blocker.${lowBP(p, prof) ? ' With a low pressure the SVT is unstable: synchronized cardioversion (adenosine may be tried while it is set up).' : ''}`), steps: [{ at: 10 * MIN, profile: 'normal-sinus', hr: 88, mods, note: 'SVT terminated: sinus rhythm.', tone: 'good', mark: 'sinus' }, ...fast] };
       case 'aivr': {
         const s = suppressesAivr('amiodarone', 10 * MIN);
         return { verdict: s.verdict, steps: [{ ...s.steps[0], mods }, ...fast] };
@@ -664,16 +708,21 @@ const procainamide: MedDef = {
   picks: (p) => uniq([round(5 * p.kg, 100), round(12 * p.kg, 100), Math.floor((17 * p.kg) / 50) * 50, round(25 * p.kg, 100)]),
   step: 50,
   tolerance: 0.02,
+  cumulative: true,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
     const c = category(prof, p.hr);
     const T = Math.max(3 * MIN, (dose / 30) * MIN);
-    const perKg = dose / p.kg;
-    const m = (frac: number): RhythmMods => ({ qrsWiden: 1 + 0.3 * ((perKg * frac) / 17), qtcAdd: Math.round(60 * ((perKg * frac) / 17)) });
+    // one load, given in parts or not: the QRS and QT follow everything given so far (17 mg/kg in all is the ceiling)
+    const before = totalOf(p, 'procainamide');
+    const m = (frac: number): RhythmMods => {
+      const perKg = (before + dose * frac) / p.kg;
+      return { qrsWiden: 1 + 0.3 * (perKg / 17), qtcAdd: Math.round(60 * (perKg / 17)) };
+    };
     const widening: EffectStep[] = [
       { at: T / 3, mods: m(1 / 3), note: 'The QRS starts to widen and the QT to lengthen (sodium- and potassium-channel block).', tone: 'effect', mark: 'QRS ↑' },
       { at: (2 * T) / 3, mods: m(2 / 3), note: 'QRS and QT longer still — watch both, and the blood pressure.', tone: 'effect' },
-      { at: T, mods: m(1), note: `Loading infusion finished (${Math.round(perKg)} mg/kg).`, tone: 'info' },
+      { at: T, mods: m(1), note: `Loading infusion finished (${Math.round((before + dose) / p.kg)} mg/kg${before ? ' in all' : ''}).`, tone: 'info' },
     ];
     const toxic: EffectStep[] = cls === 'toxic' ? [
       { at: T + 5 * S, note: 'QRS widened by more than 50% and the QT is very long: stop the infusion (hypotension, torsades risk).', tone: 'warn' },
@@ -681,6 +730,28 @@ const procainamide: MedDef = {
     ] : [];
     if (c === 'arrest') return { verdict: bad('Not used in cardiac arrest (too slow to load).'), steps: noEcg(T / 3, 'No change.') };
     if (c === 'torsades') return { verdict: bad(`Dangerous: procainamide prolongs the QT and worsens torsades. ${TORSADES}`), steps: widening };
+    // the label: contraindicated in complete heart block, avoided in second-degree block — it suppresses the escape below
+    if (c === 'chb' || c === 'mobitz2') {
+      return {
+        verdict: bad(c === 'chb'
+          ? 'Contraindicated (label): complete heart block. The escape rhythm below the block is what keeps this patient alive, and procainamide suppresses nodal and ventricular pacemakers — it can leave asystole. Pace; atropine or epinephrine for the rate.'
+          : 'Avoid (label: second-degree AV block): procainamide slows conduction below the AV node and can turn Mobitz II into complete heart block — with an escape it also suppresses. Pace; atropine or epinephrine for the rate.'),
+        steps: [
+          widening[0],
+          c === 'chb'
+            ? { at: (2 * T) / 3, hr: rate(p.hr, 0.8, 20), mods: m(2 / 3), note: 'The escape slows and the QRS widens: the drug is suppressing the only pacemaker left.', tone: 'warn', mark: 'escape ↓' }
+            : { at: (2 * T) / 3, hr: rate(p.hr, 0.85, 25), mods: m(2 / 3), note: 'More beats are dropped as conduction below the AV node slows: watch for complete heart block.', tone: 'warn', mark: 'more block' },
+          widening[2],
+          ...toxic,
+        ],
+      };
+    }
+    if (c !== 'vt' && failing(p, prof)) {
+      return {
+        verdict: bad(`${prof.pathway ? 'Unstable pre-excited AF: synchronized cardioversion now (2023 AF guideline) — procainamide is for the stable patient. ' : ''}Not with a low pressure or a failing ventricle: procainamide lowers the blood pressure (hypotension is a reason to stop the load) and depresses the heart; avoid it in heart failure.${c === 'af' || c === 'flutter' || c === 'svt' ? ' Unstable: synchronized cardioversion.' : ''}`),
+        steps: [...widening, { at: T / 3 + 20 * S, note: 'The blood pressure falls further.', tone: 'warn' }, ...toxic],
+      };
+    }
     switch (c) {
       case 'vt':
         if (lowBP(p, prof)) {
@@ -761,6 +832,7 @@ const sotalol: MedDef = {
       case 'af':
       case 'flutter':
         if (failing(p, prof)) return { verdict: bad('Not with heart failure or a low blood pressure: β-blockade and a long QT. For the rate, amiodarone or digoxin; cardioversion if unstable.'), steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.85, 50), mods, note: 'The rate falls and so does the blood pressure.', tone: 'warn' }] };
+        if (longQt) return { verdict: bad(`Not with a long QT.${qtWarn} For the rate, a β-blocker or diltiazem; correct potassium and magnesium.`), steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.82, 35), mods, note: 'The ventricular rate falls (β-blockade); the QT lengthens further.', tone: 'warn', mark: 'QT ↑' }, ...torsades] };
         return {
           verdict: (p.hr < SLOW && noRateToControl(c, p)) || caution(`Sotalol keeps AF or flutter in sinus rhythm once it has been restored (by mouth, or started with an IV load on ECG monitoring) — for rate control now, a β-blocker or diltiazem is simpler.${qtWarn}`),
           steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.82, 35), mods, note: 'The ventricular rate falls (β-blockade); the QT lengthens.', tone: 'effect', mark: 'rate ↓' }, ...torsades],
@@ -786,7 +858,7 @@ const lidocaine: MedDef = {
   route: 'IV/IO push',
   verb: 'Push',
   onset: 'Within 1–2 min; redistributes in ~15 min',
-  guide: '1–1.5 mg/kg IV/IO, then 0.5–0.75 mg/kg every 5–10 min, to a maximum of 3 mg/kg. Infusion 1–4 mg/min.',
+  guide: '1–1.5 mg/kg IV/IO, then 0.5–0.75 mg/kg every 5–10 min, to a maximum of 3 mg/kg. Infusion 1–4 mg/min. Not with: severe AV block or a ventricular escape rhythm, WPW, or an amide allergy.',
   usual: (p) => (dosesOf(p, 'lidocaine').length ? { low: 0.5 * p.kg, high: 0.75 * p.kg } : { low: 1 * p.kg, high: 1.5 * p.kg }),
   max: (p) => 2 * p.kg,
   picks: (p) => uniq([round(0.5 * p.kg, 10), round(1 * p.kg, 10), round(1.5 * p.kg, 10), round(3 * p.kg, 10)]),
@@ -815,15 +887,29 @@ const lidocaine: MedDef = {
         };
       case 'pvcs':
         return {
-          verdict: caution('It suppresses ventricular ectopy, but routine suppression of PVCs is not recommended — find the cause (ischemia, K⁺, Mg²⁺, drugs).'),
+          verdict: caution(`It suppresses ventricular ectopy, but routine suppression of PVCs is not recommended — find the cause (ischemia, K⁺, Mg²⁺, drugs).${p.hr < SLOW ? ` At ${p.hr}/min the label warns that lidocaine for ectopy in a slow rhythm, without first raising the rate, can bring on worse ventricular arrhythmias or complete heart block — treat the rate first.` : ''}`),
           steps: [{ at: 90 * S, profile: 'normal-sinus', hr: p.hr, note: 'PVCs suppressed: sinus rhythm.', tone: 'effect', mark: 'no PVCs' }, ...tox],
         };
       case 'aivr': {
         const s = suppressesAivr('lidocaine', 90 * S);
         return { verdict: s.verdict, steps: [...s.steps, ...tox] };
       }
+      case 'chb':
+      case 'mobitz2':
+        return {
+          verdict: bad(`Contraindicated (label): severe AV block without a pacemaker. ${c === 'chb' ? 'The escape rhythm below the block is what keeps this patient alive, and lidocaine suppresses ventricular pacemakers — it can leave asystole.' : 'It does nothing for the block and can suppress the escape rhythm if the block becomes complete.'} Pace; atropine or epinephrine for the rate.`),
+          steps: [{ at: 2 * MIN, hr: c === 'chb' ? rate(p.hr, 0.7, 20) : p.hr, note: c === 'chb' ? 'The escape rhythm slows: lidocaine is suppressing the only pacemaker left.' : 'No help for the block.', tone: 'warn', mark: c === 'chb' ? 'escape ↓' : undefined }, ...tox],
+        };
       default:
-        return { verdict: bad('No indication: lidocaine (class IB) acts on ventricular tissue — no effect on sinus, atrial or AV-nodal rhythms.'), steps: [...noEcg(2 * MIN, 'No visible change.'), ...tox] };
+        if (c === 'junctional' && p.hr < SLOW) return { verdict: bad('Not with a slow escape rhythm: the label rules lidocaine out in severe sinoatrial or AV-nodal disease without a pacemaker — it can suppress the escape pacemaker.'), steps: [{ at: 2 * MIN, hr: rate(p.hr, 0.85, 25), note: 'The escape rhythm slows.', tone: 'warn' }, ...tox] };
+        return {
+          verdict: bad(prof.id === 'wpw' || prof.pathway
+            ? 'No indication — and the label lists Wolff-Parkinson-White as a contraindication. Pre-excited AF: synchronized cardioversion, or IV procainamide or ibutilide if stable.'
+            : c === 'stemi' || isAcs(prof)
+              ? 'No indication: lidocaine is for sustained VT or VF. Given to prevent arrhythmias in an acute MI it saves no one and causes more bradycardia and asystole — not recommended.'
+              : 'No indication: lidocaine (class IB) acts on ventricular tissue — no effect on sinus, atrial or AV-nodal rhythms.'),
+          steps: [...noEcg(2 * MIN, 'No visible change.'), ...tox],
+        };
     }
   },
 };
@@ -836,7 +922,7 @@ const digoxin: MedDef = {
   route: 'IV over 5 min',
   verb: 'Give',
   onset: 'Slow: starts in 30–60 min, peaks in 2–6 h',
-  guide: 'AF rate control: 0.25–0.5 mg IV, then 0.25 mg every ~6 h (max ~1.5 mg in 24 h); less in renal impairment and the elderly.',
+  guide: 'AF rate control: 0.25–0.5 mg IV, then 0.25 mg every ~6 h (max ~1.5 mg in 24 h); less in renal impairment and the elderly. Not with: WPW, AV block, obstructive HCM or a low K⁺; halve it with amiodarone.',
   usual: () => ({ low: 0.25, high: 0.5 }),
   max: () => 1,
   picks: () => [0.125, 0.25, 0.5, 1.5],
@@ -861,7 +947,7 @@ const digoxin: MedDef = {
     }
     if (c === 'af' || c === 'flutter') {
       return {
-        verdict: caution('Slow but useful in heart failure or hypotension, where β-blockers and calcium-channel blockers are risky. Not a first choice for fast rate control.'),
+        verdict: noRateToControl(c, p) ?? caution('Slow but useful in heart failure or hypotension, where β-blockers and calcium-channel blockers are risky. Not a first choice for fast rate control.'),
         steps: [
           { at: 30 * MIN, hr: rate(p.hr, 0.88, 50), mods: effect, note: 'Digoxin effect: sagging ("scooped") ST depression, flatter T waves, a shorter QT — and the rate begins to fall.', tone: 'effect', mark: 'dig effect' },
           { at: 2 * 60 * MIN, hr: rate(p.hr, 0.78, 50), note: 'Two hours on: rate better controlled.', tone: 'good', mark: 'rate ↓' },
@@ -884,7 +970,7 @@ const atropine: MedDef = {
   route: 'IV/IO push',
   verb: 'Push',
   onset: 'Within 1 min, peak 2–4 min',
-  guide: 'Symptomatic bradycardia: 1 mg IV every 3–5 min, maximum 3 mg. Not for asystole or PEA. Doses below 0.5 mg can paradoxically slow the heart.',
+  guide: 'Symptomatic bradycardia: 1 mg IV every 3–5 min, maximum 3 mg. Not for asystole or PEA. Doses below 0.5 mg can paradoxically slow the heart. Not with: a heart transplant; for wide-complex Mobitz II or complete heart block, pace.',
   usual: () => ({ low: 1, high: 1 }),
   max: () => 2,
   picks: () => [0.4, 0.5, 1, 3],
@@ -914,7 +1000,10 @@ const atropine: MedDef = {
         steps: [{ at: 45 * S, hr: rate(p.hr, 0.85, 25), note: 'Paradoxical slowing (a central vagal effect of a small dose).', tone: 'warn', mark: 'slower' }, { at: 3 * MIN, restore: true, note: 'Back to where it was.', tone: 'info' }],
       };
     }
-    const tachy: EffectStep[] = cls === 'high' || cls === 'toxic' ? [{ at: 2 * MIN, note: 'More than 1 mg at once: tachycardia, confusion, urinary retention, hot dry skin.', tone: 'warn' }] : [];
+    const tachy: EffectStep[] = [
+      ...(cls === 'high' || cls === 'toxic' ? [{ at: 2 * MIN, note: 'More than 1 mg at once: tachycardia, confusion, urinary retention, hot dry skin.', tone: 'warn' as const }] : []),
+      ...(before + dose > 3 + 1e-6 ? [{ at: 2 * MIN, note: `${fmtDose(before + dose)} mg in total — past the 3 mg maximum (full vagal block): more only adds anticholinergic toxicity.`, tone: 'warn' as const }] : []),
+    ];
     if (sinusBrady) {
       const why = c !== 'stemi' ? 'Symptomatic sinus bradycardia'
         : prof.id.startsWith('inferior') ? 'Bradycardia in inferior MI is usually vagal (the Bezold–Jarisch reflex) or an ischemic AV node. If it is symptomatic (hypotension, poor perfusion)'
@@ -946,9 +1035,10 @@ const atropine: MedDef = {
         if (!slow) return { verdict: bad('No bradycardia to treat: a junctional rhythm at this rate is accelerated, not slow — look for the cause (digoxin toxicity, ischemia, recent heart surgery).'), steps: noEcg(60 * S, 'No useful change.') };
         return { verdict: mildBrady(p, good('A slow junctional rhythm from vagal tone or a sick sinus node often responds: atropine speeds the sinus node so it takes over again.')), steps: [{ at: 75 * S, profile: 'normal-sinus', hr: 78, note: 'The sinus node takes over again: P waves before every QRS.', tone: 'good', mark: 'sinus' }, ...tachy] };
       case 'avb1':
-        return { verdict: slow ? mildBrady(p, good('Symptomatic bradycardia with a long PR interval: atropine speeds the sinus node and shortens the AV-nodal delay (1 mg every 3–5 min, max 3 mg).')) : caution('First-degree AV block alone needs no treatment — but atropine does shorten AV-nodal delay.'), steps: [{ at: 60 * S, hr: rate(p.hr, 1.25), mods: { prAdd: -80 }, note: 'The PR shortens and the rate rises (vagal block at the AV node).', tone: 'effect', mark: 'PR ↓' }, ...tachy] };
+        return { verdict: slow ? mildBrady(p, good('Symptomatic bradycardia with a long PR interval: atropine speeds the sinus node and shortens the AV-nodal delay (1 mg every 3–5 min, max 3 mg).')) : bad('No bradycardia to treat: first-degree AV block alone needs no treatment, and a faster rate only adds oxygen demand.'), steps: [{ at: 60 * S, hr: rate(p.hr, 1.25), mods: { prAdd: -80 }, note: 'The PR shortens and the rate rises (vagal block at the AV node).', tone: 'effect', mark: 'PR ↓' }, ...tachy] };
       case 'wenckebach':
-        return { verdict: good('Mobitz I (Wenckebach) is AV-nodal — if symptomatic it usually responds to atropine.'), steps: [{ at: 75 * S, profile: 'first-degree-avb', hr: 92, mods: { prAdd: -40 }, note: 'Every P now conducts (1:1), with a still-long PR: the Wenckebach pattern has gone.', tone: 'good', mark: '1:1' }, ...tachy] };
+        if (!slow) return { verdict: bad(`No bradycardia to treat: Mobitz I with a ventricular rate of ${p.hr}/min needs no treatment — watch it.`), steps: noEcg(60 * S, 'No useful change.') };
+        return { verdict: mildBrady(p, good('Mobitz I (Wenckebach) is AV-nodal — if symptomatic it usually responds to atropine.')), steps: [{ at: 75 * S, profile: 'first-degree-avb', hr: 92, mods: { prAdd: -40 }, note: 'Every P now conducts (1:1), with a still-long PR: the Wenckebach pattern has gone.', tone: 'good', mark: '1:1' }, ...tachy] };
       case 'mobitz2':
         return { verdict: caution('Mobitz II is below the AV node: atropine rarely helps and can worsen it by sending more impulses at the block. Prepare transcutaneous pacing; epinephrine or dopamine infusion.'), steps: [{ at: 60 * S, hr: Math.min(110, p.hr + 15), note: 'The atrial rate rises, but beats are still dropped — the block is unchanged.', tone: 'warn' }] };
       case 'chb':
@@ -990,8 +1080,8 @@ const epinephrine: MedDef = {
   verb: 'Push',
   onset: 'Within 1 min; push-dose lasts 5–10 min',
   guide: 'Cardiac arrest: 1 mg IV/IO every 3–5 min. With a pulse: an infusion (2–10 mcg/min for bradycardia) or, by protocol, push-dose 10–20 mcg. Never 1 mg IV to a patient with a pulse.',
-  usual: (p) => (category(resolveProfile(p.profileId)) === 'arrest' ? { low: 1, high: 1 } : { low: 0.01, high: 0.02 }),
-  max: (p) => (category(resolveProfile(p.profileId)) === 'arrest' ? 1 : 0.05),
+  usual: (p) => (resolveProfile(p.profileId).hemo === 'no-output' ? { low: 1, high: 1 } : { low: 0.01, high: 0.02 }),
+  max: (p) => (resolveProfile(p.profileId).hemo === 'no-output' ? 1 : 0.05),
   picks: () => [0.01, 0.02, 0.1, 1],
   step: 0.01,
   plan(p, dose, cls) {
@@ -1008,9 +1098,18 @@ const epinephrine: MedDef = {
         steps: noEcg(30 * S, 'Torsades carries on — epinephrine does not convert it. Shock it.'),
       };
     }
+    // the bradycardia branch is for a slow rate, not for the name of a block: first-degree block at 180 is no bradycardia
+    const slowNow = (isBrady(c) && p.hr > 0 && p.hr < SLOW) || slowSinus(c, p);
+    // obstructive HCM: a catecholamine makes the ventricle squeeze harder and faster, and the outflow obstruction worse
+    if (prof.hemo === 'hcm' && cls !== 'toxic') {
+      return {
+        verdict: bad('Not in obstructive HCM: epinephrine makes the ventricle squeeze harder and faster, and the outflow obstruction worse — the pressure falls further. Fluid and phenylephrine (2024 AHA/ACC HCM).'),
+        steps: [{ at: 30 * S, hr: rate(p.hr, 1.2, 30, 200), note: 'The rate rises — and the outflow gradient with it.', tone: 'warn', mark: 'rate ↑' }, { at: 7 * MIN, restore: true, note: 'Wears off.', tone: 'info' }],
+      };
+    }
     if (cls === 'high') {
       return {
-        verdict: caution(`${fmtDose(dose * 1000)} mcg is above the usual push-dose (10–20 mcg): expect marked tachycardia and hypertension. With a pulse, epinephrine is titrated in small steps or as an infusion (2–10 mcg/min).`),
+        verdict: (slowNow || lowBP(p, prof) ? caution : bad)(`${fmtDose(dose * 1000)} mcg is above the usual push-dose (10–20 mcg): expect marked tachycardia and hypertension.${slowNow || lowBP(p, prof) ? '' : ' And there is no slow rate or low pressure to treat.'} With a pulse, epinephrine is titrated in small steps or as an infusion (2–10 mcg/min).`),
         steps: [
           { at: 20 * S, hr: rate(p.hr, 1.35, 30, 170), note: 'Marked tachycardia and a surge in blood pressure.', tone: 'warn', mark: 'rate ↑' },
           { at: 7 * MIN, restore: true, note: 'Wears off in 5–10 min.', tone: 'info' },
@@ -1033,7 +1132,7 @@ const epinephrine: MedDef = {
         ],
       };
     }
-    if (isBrady(c) || slowSinus(c, p)) {
+    if (slowNow) {
       const up: EffectStep = c === 'brady' || slowSinus(c, p)
         ? { at: 30 * S, profile: faster(prof), hr: 74, note: 'The sinus rate rises.', tone: 'effect', mark: 'rate ↑' }
         : c === 'chb' ? { at: 30 * S, hr: Math.min(60, p.hr + 10), note: 'The escape rhythm speeds up a little.', tone: 'effect', mark: 'rate ↑' }
@@ -1041,6 +1140,13 @@ const epinephrine: MedDef = {
       return {
         verdict: caution('Bradycardia not responding to atropine: an epinephrine infusion (2–10 mcg/min) — or push-dose epinephrine by protocol — while transcutaneous pacing is set up.'),
         steps: [up, { at: 7 * MIN, restore: true, note: 'The push-dose wears off in 5–10 min: start an infusion or pace.', tone: 'info' }],
+      };
+    }
+    // a low pressure behind a compensating sinus tachycardia (shock, PE, tamponade): push-dose epinephrine is a bridge
+    if (lowBP(p, prof) && COMPENSATORY.has(prof.id)) {
+      return {
+        verdict: caution('A bridge for a low pressure while the cause is treated (a pump that is failing, a clot, a tamponade): push-dose epinephrine buys minutes — norepinephrine is the usual infusion, and the cause is what has to be fixed.'),
+        steps: [{ at: 30 * S, hr: rate(p.hr, 1.1, 30, 200), note: 'The pressure rises for a few minutes, and the rate a little.', tone: 'effect', mark: 'BP ↑' }, { at: 7 * MIN, restore: true, note: 'The push-dose wears off in 5–10 min.', tone: 'info' }],
       };
     }
     return {
@@ -1058,7 +1164,7 @@ const magnesium: MedDef = {
   route: 'Pulseless: IV/IO push (diluted) · with a pulse: IV over ~15 min',
   verb: 'Give',
   onset: 'Within 1–2 min (push)',
-  guide: 'Torsades: 1–2 g IV/IO diluted — as a push if pulseless, over ~15 min with a pulse. Lower doses in renal impairment.',
+  guide: 'Torsades: 1–2 g IV/IO diluted — as a push if pulseless, over ~15 min with a pulse. Lower doses in renal impairment. Not with: heart block (torsades is the exception, with pacing ready).',
   usual: () => ({ low: 1, high: 2 }),
   max: () => 4,
   picks: () => [0.5, 1, 2, 6],
@@ -1088,6 +1194,8 @@ const magnesium: MedDef = {
         steps: [...noEcg(2 * MIN, 'VT carries on.'), ...toxic],
       };
     }
+    if (c === 'chb' || c === 'mobitz2' || c === 'wenckebach') return { verdict: bad('Contraindicated (label): parenteral magnesium in heart block — it slows AV conduction further. Torsades is the exception, with pacing ready.'), steps: [{ at: 2 * MIN, hr: rate(p.hr, 0.9, 20), mods: { prAdd: 20 }, note: 'AV conduction slows further: a longer PR, more dropped beats, a slower rate.', tone: 'warn', mark: 'PR ↑' }, ...toxic] };
+    if (isAcs(prof)) return { verdict: caution('Not routine in an acute MI: magnesium did not help in ISIS-4, and the label lists myocardial damage among its contraindications — give it to replace a low level or for torsades.'), steps: [...noEcg(2 * MIN, 'No visible change.'), ...toxic] };
     return { verdict: caution('No direct ECG effect at normal levels: magnesium corrects a low level (which can provoke ectopy and torsades).'), steps: [...noEcg(2 * MIN, 'No visible change.'), ...toxic] };
   },
 };
@@ -1103,7 +1211,7 @@ const calcium: MedDef = {
   route: 'IV over 2–5 min (push in arrest), large vein',
   verb: 'Give',
   onset: 'Within 1–3 min; lasts 30–60 min',
-  guide: 'Hyperkalemia with ECG changes: 1 g (10 mL of 10%) IV over 2–5 min; repeat if changes persist. Arrest with suspected hyperkalemia: 1 g IV/IO push, without pausing CPR or shocks (benefit not well established). 3 g calcium gluconate ≈ 1 g calcium chloride.',
+  guide: 'Hyperkalemia with ECG changes: 1 g (10 mL of 10%) IV over 2–5 min; repeat if changes persist. Arrest with suspected hyperkalemia: 1 g IV/IO push, without pausing CPR or shocks (benefit not well established). 3 g calcium gluconate ≈ 1 g calcium chloride. Not through the bicarbonate line (they precipitate); slowly with digoxin on board.',
   usual: () => ({ low: 1, high: 1 }),
   max: () => 2,
   picks: () => [0.5, 1, 3],
@@ -1122,6 +1230,11 @@ const calcium: MedDef = {
       };
     }
     if (c === 'arrest') return { verdict: caution(`Not routine in arrest (no benefit): only when hyperkalemia, hypocalcemia or a calcium-channel-blocker overdose is suspected. ${ARREST_K}`), steps: noEcg(60 * S, 'No change.') };
+    const ccbToxic = dosesOf(p, 'diltiazem').length > 0 && (lowBP(p, prof) || totalOf(p, 'diltiazem') > 0.45 * p.kg);
+    const mgToxic = totalOf(p, 'magnesium-sulfate') > 4;
+    if (ccbToxic || mgToxic) return { verdict: good(`${ccbToxic ? 'Too much calcium-channel blocker (diltiazem)' : 'Too much magnesium'}: IV calcium is the antidote — 1 g of calcium chloride (or 3 g of gluconate), repeated as needed, with fluids; pace a slow rate.`), steps: [p.hr < 100 ? { at: 3 * MIN, hr: rate(p.hr, 1.1, 30, 120), note: 'The blood pressure and the rate recover a little.', tone: 'good' } : { at: 3 * MIN, note: 'The blood pressure recovers a little.', tone: 'good' }, ...toxic] };
+    // a slow rhythm: calcium helps only when its cause is one calcium reverses
+    if (isBrady(c) || slowSinus(c, p)) return { verdict: caution('Only when a calcium-channel-blocker or β-blocker overdose, hyperkalemia or a low calcium causes the slow rate — then 1 g, repeated as needed. Otherwise it does nothing for a bradycardia: atropine, pacing, epinephrine.'), steps: [...noEcg(2 * MIN, 'No change in the rate: nothing here for calcium to reverse.'), ...toxic] };
     return { verdict: bad('No indication: calcium has no useful ECG effect at a normal potassium.'), steps: [...noEcg(2 * MIN, 'No visible change.'), ...toxic] };
   },
 };
@@ -1217,6 +1330,7 @@ const albuterol: MedDef = {
       return { verdict: bad('Avoid: it speeds the heart and can provoke arrhythmias — the rate is already fast.'), steps: [tachy] };
     }
     if (isAcs(prof)) return { verdict: caution('Only for real bronchospasm: the faster rate raises the oxygen demand of an ischemic heart.'), steps: [tachy] };
+    if (prof.qtc >= 500) return { verdict: caution(`Only for real bronchospasm: with a long QT (QTc about ${prof.qtc} ms) a β-agonist lowers the potassium and adds adrenergic drive — both make torsades more likely. Avoid it unless the patient is wheezing.`), steps: [tachy] };
     return { verdict: caution('A bronchodilator (2.5–5 mg for wheezing) — no indication for the rhythm on the monitor.'), steps: [tachy] };
   },
 };
@@ -1250,6 +1364,9 @@ function p2y12Plan(p: Patient, drug: P2y12, dose: number, cls: DoseClass): { ver
       verdict: bad(`A P2Y12 inhibitor has already been loaded (${what}): one at a time, with aspirin. A second load — the same drug again or another one — adds bleeding with no benefit. A switch, or a top-up load before PCI, is the cardiologist's decision, with its own timing rules.`),
       steps: noEcg(60 * S, 'No ECG change — only more bleeding risk.'),
     };
+  }
+  if (prof.id === 'cardiogenic-shock' && !lysed(p)) {
+    return { verdict: caution(`Cardiogenic shock: oral loads are absorbed poorly and late, and the angiogram may send the patient for urgent bypass surgery (${drug === 'prasugrel' ? 'the prasugrel label: do not start it when urgent CABG is likely' : 'a loaded P2Y12 inhibitor delays CABG by days'}) — the interventionalist usually decides at the angiogram (IV cangrelor is an option).`), steps: none };
   }
   const plan = p2y12Load(p, drug, before + dose, partial, cls, c, prof.id, none);
   // after lysis the clopidogrel verdict already says what a total other than 300 mg means
@@ -1311,7 +1428,7 @@ const ticagrelor: MedDef = {
 const clopidogrel: MedDef = {
   id: 'clopidogrel', name: 'Clopidogrel', group: 'Coronary care & other', unit: 'mg', route: 'By mouth', verb: 'Give',
   onset: '~2 h after 600 mg, ~6 h after 300 mg',
-  guide: 'PCI: 600 mg load. With fibrinolysis: 300 mg (no load, 75 mg, over 75 years). Then 75 mg daily. The P2Y12 inhibitor with an oral anticoagulant and after lysis.',
+  guide: 'PCI: 600 mg load. With fibrinolysis: 300 mg (no load, 75 mg, over 75 years). Then 75 mg daily. The P2Y12 inhibitor with an oral anticoagulant and after lysis. Not with: active bleeding.',
   // with a fibrinolytic the load is 300 mg: the 600 mg PCI load adds bleeding on top of the lysis
   usual: (p) => (lysed(p) ? { low: 300, high: 300 } : { low: 300, high: 600 }), max: () => 900, picks: () => [75, 300, 600, 900], step: 75, tolerance: 0.02, cumulative: true,
   plan: (p, dose, cls) => p2y12Plan(p, 'clopidogrel', dose, cls),
@@ -1333,9 +1450,10 @@ const aspirin: MedDef = {
   verb: 'Give',
   onset: 'Platelets inhibited within ~15–30 min when chewed',
   guide: 'Suspected ACS: 162–325 mg chewed as early as possible (150–300 mg in European guidance), then 75–100 mg daily. Not with a true aspirin allergy, active bleeding or suspected aortic dissection.',
-  usual: () => ({ low: 162, high: 325 }),
-  max: () => 650,
-  picks: () => [81, 162, 325, 1000],
+  // pericarditis is treated at the anti-inflammatory dose (650–1000 mg every 8 h), not the ACS load
+  usual: (p) => (p.profileId === 'pericarditis' ? { low: 650, high: 1000 } : { low: 162, high: 325 }),
+  max: (p) => (p.profileId === 'pericarditis' ? 1000 : 650),
+  picks: (p) => (p.profileId === 'pericarditis' ? [81, 325, 650, 1000] : [81, 162, 325, 1000]),
   step: 81,
   plan(p, dose, cls) {
     const prof = resolveProfile(p.profileId);
@@ -1344,6 +1462,8 @@ const aspirin: MedDef = {
     const big: EffectStep[] = cls === 'toxic' ? [{ at: 30 * MIN, note: 'High doses add bleeding and stomach injury with no extra benefit.', tone: 'warn' }] : [];
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest — nothing by mouth.'), steps: noEcg(60 * S, 'No change.') };
     if (prof.id === DISSECTION) return { verdict: bad('Contraindicated: aortic dissection can mimic an MI — antiplatelets feed the bleeding into the wall.'), steps: noEcg(60 * S, 'No ECG change.') };
+    if (prof.id === 'pericarditis') return { verdict: caution('Pericarditis: aspirin is first line (with colchicine; aspirin is the one after an MI) — but at the anti-inflammatory dose, 650–1000 mg every 8 h (2025 ACC), not the 162–325 mg ACS load. Not with a tamponade or a dissection.'), steps: [...noEcg(60 * S, 'No direct ECG change: the pericarditis settles over days, not minutes.'), ...big] };
+    if (isAcs(prof) && dosesOf(p, 'aspirin').length) return { verdict: caution(`Aspirin has already been given (${fmtDose(totalOf(p, 'aspirin'))} mg): the load is once, then 75–100 mg daily. More adds bleeding and stomach injury, no benefit.`), steps: [...noEcg(60 * S, none), ...big] };
     if (isAcs(prof)) {
       return {
         verdict: good('Every suspected acute coronary syndrome gets aspirin, chewed, as early as possible (it cut deaths by about a fifth in ISIS-2) — within EMT scope by protocol. A P2Y12 inhibitor and an anticoagulant follow in hospital.'),
@@ -1380,8 +1500,14 @@ const tenecteplase: MedDef = {
     const prof = resolveProfile(p.profileId);
     const c = category(prof, p.hr);
     const bleed: EffectStep[] = cls === 'high' || cls === 'toxic' ? [{ at: 10 * MIN, note: 'Above the weight band: more bleeding (intracranial hemorrhage ~1%) with no extra benefit.', tone: 'warn' }] : [];
+    if (dosesOf(p, 'tenecteplase').length) {
+      return { verdict: bad('Tenecteplase has already been given: it is one bolus. A failed lysis (less than 50% ST resolution at 60–90 min) goes for rescue PCI — repeat fibrinolysis did no better than none and worse than rescue PCI (REACT), and it adds bleeding.'), steps: [...noEcg(10 * MIN, 'No further reperfusion — only more bleeding risk.'), ...bleed] };
+    }
     if (prof.id === DISSECTION) {
       return { verdict: bad('Absolutely contraindicated: aortic dissection — fibrinolysis can cause fatal bleeding into the dissection (it can mimic an MI: check before lysis).'), steps: [...noEcg(10 * MIN, 'No benefit — and catastrophic bleeding risk.'), ...bleed] };
+    }
+    if (c === 'arrest' || c === 'torsades') {
+      return { verdict: bad('Not routine in cardiac arrest: fibrinolysis did not improve survival in unselected arrests, and it adds bleeding to CPR. The exception is an arrest from a suspected pulmonary embolism, where it may be considered (2025 AHA) — nothing on this page says PE.'), steps: [...noEcg(10 * MIN, 'No change in the arrest rhythm.'), ...bleed] };
     }
     if (prof.id === 'cardiogenic-shock') {
       return {
@@ -1408,10 +1534,13 @@ const tenecteplase: MedDef = {
         steps: [{ at: 60 * MIN, mods: { stScale: 0.75 }, note: 'Less than 50% ST resolution at 60 min: failed reperfusion — rescue PCI.', tone: 'warn', mark: 'ST still ↑' }],
       };
     }
+    const hypertensive = p.sbp !== undefined && p.sbp > 180;
     const reperfused = prof.id === 'anterior-stemi' ? 'anterior-stemi-reperfused' : prof.id === 'inferior-stemi' || prof.id === 'inferior-stemi-chb' ? 'inferior-stemi-reperfused' : null;
     const opened = 'ST elevation resolving (> 50%) — the artery has opened. Brief reperfusion arrhythmias such as accelerated idioventricular rhythm (a wide, regular rhythm at about 50–120/min, usually under 100) are common and need no treatment.';
     return {
-      verdict: good('STEMI within 12 h of onset when primary PCI cannot be done within 120 min: fibrinolysis as soon as possible (ESC: within 10 min of the diagnosis; ACC/AHA door-to-needle ≤ 30 min) — then transfer for angiography (within 2–24 h, or at once if it fails).'),
+      verdict: hypertensive
+        ? caution(`A systolic of ${p.sbp} mmHg: above 180 (or a diastolic above 110) is a relative contraindication to fibrinolysis — the risk of intracranial hemorrhage rises steeply. Lower the pressure first; if it cannot be controlled, lysis is contraindicated — transfer for PCI.`)
+        : good('STEMI within 12 h of onset when primary PCI cannot be done within 120 min: fibrinolysis as soon as possible (ESC: within 10 min of the diagnosis; ACC/AHA door-to-needle ≤ 30 min) — then transfer for angiography (within 2–24 h, or at once if it fails).'),
       steps: [
         reperfused
           ? { at: 30 * MIN, profile: reperfused, hr: prof.id === 'anterior-stemi' ? 80 : 70, note: `${opened} Terminal T-wave inversion follows.`, tone: 'good', mark: 'reperfused' }
@@ -1430,7 +1559,7 @@ const heparin: MedDef = {
   route: 'IV bolus, then an infusion',
   verb: 'Push',
   onset: 'Immediate anticoagulation',
-  guide: 'ACS: 60 units/kg IV bolus (max 4000 units), then 12 units/kg/h (max 1000 units/h). Primary PCI: 70–100 units/kg to a target ACT. PE: LMWH is preferred over UFH (2026 AHA/ACC); UFH — 80 units/kg, then 18 units/kg/h — when renal function is severely impaired, or rapid reversal or a procedure (lysis, catheter therapy, surgery) may be needed.',
+  guide: 'ACS: 60 units/kg IV bolus (max 4000 units), then 12 units/kg/h (max 1000 units/h). Primary PCI: 70–100 units/kg to a target ACT. PE: LMWH is preferred over UFH (2026 AHA/ACC); UFH — 80 units/kg, then 18 units/kg/h — when renal function is severely impaired, or rapid reversal or a procedure (lysis, catheter therapy, surgery) may be needed. Not with: HIT, active bleeding or severe thrombocytopenia.',
   // ACS / AF: 60 units/kg (max 4000); PE: 80 units/kg, no cap
   usual: (p) => (p.profileId === 'pulmonary-embolism' ? { low: 75 * p.kg, high: 85 * p.kg } : { low: Math.min(4000, 50 * p.kg), high: Math.min(4000, 60 * p.kg) }),
   // 100 units/kg is the top of any bolus (PCI); the old habit of a flat 5000 units is 125 units/kg in a 40 kg patient
@@ -1452,8 +1581,11 @@ const heparin: MedDef = {
       };
     }
     const useful = isAcs(prof) || c === 'af' || c === 'flutter';
+    if (useful && dosesOf(p, 'heparin').length) return { verdict: caution('The bolus has already been given: unfractionated heparin is one bolus, then an infusion adjusted to the aPTT (or ACT in the lab). A second full bolus doubles the anticoagulation — more bleeding.'), steps: none };
     return {
-      verdict: useful ? good('Anticoagulation to stop the clot growing (ACS, AF before cardioversion). It does not open an occluded artery.') : bad('No indication here.'),
+      verdict: useful ? good('Anticoagulation to stop the clot growing (ACS, AF before cardioversion). It does not open an occluded artery.')
+        : prof.id === 'pericarditis' || prof.hemo === 'tamponade' ? bad('No indication — and in pericarditis or a tamponade, anticoagulation risks bleeding into the pericardium.')
+          : bad('No indication here.'),
       steps: none,
     };
   },
@@ -1467,7 +1599,7 @@ const nitroglycerin: MedDef = {
   route: 'Sublingual tablet or spray, every 5 min up to 3 doses',
   verb: 'Give',
   onset: '1–3 min',
-  guide: '0.4 mg SL every 5 min, up to 3 doses. Hold if SBP < 90 mmHg or ≥ 30 mmHg below baseline, with marked bradycardia (< 50/min) or tachycardia (> 100/min) without heart failure, with RV infarction or severe aortic stenosis, or after a PDE-5 inhibitor: avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h.',
+  guide: '0.4 mg SL every 5 min, up to 3 doses. Hold if SBP < 90 mmHg or ≥ 30 mmHg below baseline, with marked bradycardia (< 50/min) or tachycardia (> 100/min) without heart failure, with RV infarction or severe aortic stenosis, or after a PDE-5 inhibitor: avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h. Not with riociguat or raised intracranial pressure either.',
   usual: () => ({ low: 0.4, high: 0.4 }),
   max: () => 0.8,
   picks: () => [0.3, 0.4, 0.8, 1.2],
@@ -1480,6 +1612,7 @@ const nitroglycerin: MedDef = {
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in arrest.'), steps: noEcg(2 * MIN, 'No change.') };
     if (['aortic-stenosis', 'hcm'].includes(prof.id)) return { verdict: bad('Dangerous: a preload-dependent heart (aortic stenosis, obstructive HCM) — nitrates can cause collapse.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
     if (lowBP(p, prof)) return { verdict: bad('Contraindicated: the patient is hypotensive (SBP < 90) — nitrates drop the pressure further.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling further.', tone: 'warn' }] };
+    if (prof.hemo === 'tamponade' || prof.hemo === 'pe') return { verdict: bad(`Dangerous: ${prof.hemo === 'tamponade' ? 'a tamponade' : 'a PE straining the right ventricle'} makes the heart preload-dependent — a nitrate drops the filling and the pressure.`), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
     if (prof.id === DISSECTION) return { verdict: caution('Aortic dissection: vasodilators lower the BP only after β-blockade — alone they cause a reflex tachycardia that increases the shear on the aortic wall.'), steps: [reflex, ...drop] };
     // ACC/AHA (STEMI guideline; AHA ACLS ACS): no nitrates with marked bradycardia (< 50/min) — the heart cannot speed
     // up to make up for the fall in preload — or with tachycardia (> 100/min) without heart failure, which can mean low
@@ -1509,6 +1642,10 @@ const nitroglycerin: MedDef = {
         };
       }
     }
+    // three sublingual doses is the regimen: pain they do not relieve is not treated with a fourth
+    if (dosesOf(p, 'nitroglycerin').length >= 3 && (c === 'stemi' || ['nstemi', 'wellens', 'hfref', 'hfpef'].includes(prof.id))) {
+      return { verdict: caution('Three doses already: pain that 3 doses of nitroglycerin do not relieve is an MI until proven otherwise — reperfusion, and IV nitroglycerin or an opioid in hospital, not a fourth tablet.'), steps: [onRate, ...drop] };
+    }
     if (c === 'stemi') {
       return {
         verdict: inferior
@@ -1532,7 +1669,7 @@ const fentanyl: MedDef = {
   route: 'IV slow push',
   verb: 'Give',
   onset: '1–2 min',
-  guide: '~1 mcg/kg IV (typically 25–100 mcg), titrated; about 0.5 mcg/kg in the elderly or frail.',
+  guide: '~1 mcg/kg IV (typically 25–100 mcg), titrated; about 0.5 mcg/kg in the elderly or frail. Not with: hypotension or respiratory depression; with benzodiazepines only on monitoring (boxed warning).',
   usual: (p) => ({ low: 0.5 * p.kg, high: 1 * p.kg }),
   max: (p) => 2 * p.kg,
   picks: (p) => uniq([25, 50, round(p.kg, 25), round(2.5 * p.kg, 25)]),
@@ -1542,6 +1679,7 @@ const fentanyl: MedDef = {
     const c = category(prof, p.hr);
     const resp: EffectStep[] = cls === 'toxic' ? [{ at: 3 * MIN, note: 'Respiratory depression (and chest-wall rigidity with large fast doses): support the airway; naloxone.', tone: 'warn' }] : [];
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in arrest.'), steps: noEcg(2 * MIN, 'No change.') };
+    if (lowBP(p, prof)) return { verdict: caution('A low pressure: an opioid blunts the sympathetic drive that is holding it up (and more so with an RV infarct or a tamponade). Support the pressure first; then small, titrated doses.'), steps: [{ at: 2 * MIN, hr: rate(p.hr, 0.93, 30), note: 'The heart rate falls slightly — and the pressure dips.', tone: 'warn' }, ...resp] };
     return {
       verdict: c === 'stemi' || ['nstemi', 'pericarditis', 'aortic-dissection'].includes(prof.id) ? good('Analgesia: pain drives catecholamines and oxygen demand. No direct ECG effect.') : caution('Analgesia only — no direct effect on the rhythm.'),
       steps: [{ at: 2 * MIN, hr: rate(p.hr, 0.93, 30), note: 'A slight fall in heart rate (vagotonic) as the pain settles.', tone: 'effect' }, ...resp],
@@ -1557,7 +1695,7 @@ const phenylephrine: MedDef = {
   route: 'IV push (100 mcg/mL)',
   verb: 'Push',
   onset: 'Within 1 min; lasts 10–20 min',
-  guide: '~40–100 mcg IV every 1–2 min as needed (protocol-dependent); infusion 10–200 mcg/min. A pure α-agonist: raises BP by vasoconstriction.',
+  guide: '~40–100 mcg IV every 1–2 min as needed (protocol-dependent); infusion 10–200 mcg/min. A pure α-agonist: raises BP by vasoconstriction. Not with: bradycardia; only for a low pressure.',
   usual: () => ({ low: 40, high: 100 }),
   max: () => 200,
   picks: () => [50, 100, 200, 500],
@@ -1567,8 +1705,14 @@ const phenylephrine: MedDef = {
     const c = category(prof, p.hr);
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not an arrest drug.'), steps: noEcg(60 * S, 'No change.') };
     const fall = cls === 'toxic' ? 0.7 : cls === 'high' ? 0.78 : 0.86;
+    const low = lowBP(p, prof);
     return {
-      verdict: isBrady(c) || slowSinus(c, p) ? bad('Avoid in bradycardia: the reflex slowing makes it worse.') : caution('A vasopressor for hypotension from vasodilation (e.g. anesthesia) — not for a rhythm problem. Note the reflex slowing.'),
+      verdict: isBrady(c) || slowSinus(c, p) ? bad('Avoid in bradycardia: the reflex slowing makes it worse.')
+        : !low ? bad('No low pressure to treat: phenylephrine only adds afterload and slows the heart.')
+          : prof.hemo === 'hcm' || prof.hemo === 'aortic-stenosis' ? good('Hypotension with outflow obstruction (obstructive HCM) or severe aortic stenosis: a vasoconstrictor without inotropy is the drug, after fluid (HCM guideline).')
+            : prof.hemo === 'tamponade' ? caution('Tamponade: the output depends on the fast rate, and phenylephrine slows it (reflex). Drain the pericardium; fluid meanwhile.')
+              : prof.hemo === 'hfref' || prof.hemo === 'shock' || isAcs(prof) ? caution('Raises the afterload of a failing ventricle: norepinephrine is the usual first pressor in cardiogenic shock.')
+                : caution('A vasopressor for hypotension from vasodilation (e.g. anesthesia) — not for a rhythm problem. Note the reflex slowing.'),
       steps: [{ at: 40 * S, hr: rate(p.hr, fall, 25), note: 'The blood pressure rises and the heart rate falls (baroreceptor reflex).', tone: 'effect', mark: 'reflex ↓' }, { at: 12 * MIN, restore: true, note: 'Wears off.', tone: 'info' }],
     };
   },
@@ -1637,7 +1781,7 @@ function rhythmCaveats(id: MedId, p: Patient, plan: { verdict: Verdict; steps: E
   if (prof.pathway) {
     if (NODAL_BLOCKERS.includes(id)) {
       return {
-        verdict: bad(`Harmful in pre-excited AF: blocking the AV node sends every impulse down the accessory pathway — the rate climbs and it can degenerate into VF (2023 AF guideline: adenosine, diltiazem, verapamil, digoxin and IV amiodarone are harmful; beta-blockers too${id === 'sotalol' ? ', and sotalol is a β-blocker' : ''}). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.`),
+        verdict: bad(`Harmful in pre-excited AF: blocking the AV node sends every impulse down the accessory pathway — the rate climbs and it can degenerate into VF (2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem, verapamil, digoxin, IV amiodarone and β-blockers — 3: Harm${id === 'sotalol' ? '; sotalol is a β-blocker' : ''}). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.`),
         steps: [{ at: id === 'adenosine' ? 20 * S : 2 * MIN, hr: rate(p.hr, 1.12, 30, 250), note: 'With the AV node blocked, more impulses race down the pathway: the rate climbs and the complexes widen.', tone: 'warn', mark: 'faster' }],
       };
     }
@@ -1677,10 +1821,143 @@ function rhythmCaveats(id: MedId, p: Patient, plan: { verdict: Verdict; steps: E
   return plan;
 }
 
+type Plan = { verdict: Verdict; steps: EffectStep[] };
+
+const RANK: Record<Verdict['tone'], number> = { good: 0, caution: 1, bad: 2 };
+/**
+ * The verdict made at least as bad as `tone`, with the reason: first when it raises the tone (it is now the point), after
+ * the drug's own verdict when it does not (it is then one more thing to know)
+ */
+function worse(v: Verdict, tone: Verdict['tone'], reason: string): Verdict {
+  return RANK[tone] > RANK[v.tone] ? { tone, text: `${reason} ${v.text}` } : { tone: v.tone, text: `${v.text} ${reason}` };
+}
+/** one more thing to know, whatever the verdict */
+const also = (v: Verdict, text: string): Verdict => ({ ...v, text: `${v.text} ${text}` });
+/** one warning on the timeline, without a rate of its own: it shows when the drug's last effect does (a minute at the earliest) */
+const warnStep = (steps: EffectStep[], note: string): EffectStep => ({ at: Math.max(60 * S, ...steps.map((st) => st.at)), note, tone: 'warn' });
+
+/** IV β-blockers (sotalol is one too) */
+const IV_BETA: MedId[] = ['metoprolol', 'esmolol', 'sotalol'];
+const givenOf = (p: Patient, ids: MedId[]) => ids.filter((id) => dosesOf(p, id).length);
+const names = (ids: MedId[]) => ids.map((id) => MED_BY_ID[id].name.toLowerCase()).join(' and ');
+/** time since the last dose of a drug, in drug time (null without the clock, or before the first dose) */
+const sinceLast = (p: Patient, id: MedId): number | null => {
+  const doses = dosesOf(p, id);
+  return p.now === undefined || !doses.length ? null : p.now - Math.max(...doses.map((g) => g.at));
+};
+const minutes = (ms: number) => (ms < MIN ? `${Math.round(ms / S)} s` : `${Math.round(ms / MIN)} min`);
+
+/**
+ * What a drug's own plan, which looks at this one dose, does not see: the doses of it given before — a regimen that
+ * stops (atropine 3 mg, amiodarone 300 + 150 mg in an arrest, two diltiazem boluses), a total past what is safe, and a
+ * repeat sooner than the regimen allows (it needs the drug clock, `now`). Each drug's own verdict is kept; this only
+ * makes it worse.
+ */
+function repeatCaveats(id: MedId, p: Patient, dose: number, cls: DoseClass, plan: Plan): Plan {
+  const prof = resolveProfile(p.profileId);
+  const c = category(prof, p.hr);
+  const total = totalOf(p, id) + dose;
+  let { verdict } = plan;
+  const since = sinceLast(p, id);
+  switch (id) {
+    case 'epinephrine':
+      // every 3–5 min in an arrest (about every other 2-minute cycle)
+      if (prof.hemo === 'no-output' && since !== null && since < 3 * MIN) verdict = worse(verdict, 'caution', `Too soon: the last epinephrine was ${minutes(since)} ago — 1 mg every 3–5 min (about every other 2-minute cycle). Keep compressing.`);
+      break;
+    case 'atropine':
+      if (total > 3 + 1e-6 && totalOf(p, 'atropine') < 3) verdict = worse(verdict, 'caution', `${fmtDose(total)} mg in total — past the 3 mg maximum (full vagal block): more only adds anticholinergic toxicity. Pace, or start an epinephrine infusion.`);
+      break;
+    case 'diltiazem':
+      if (dosesOf(p, 'diltiazem').length >= 2) verdict = worse(verdict, 'caution', 'Two boluses already (0.25, then 0.35 mg/kg): the label does not give a third — start an infusion (5–15 mg/h), or think again about the rhythm.');
+      else if (since !== null && since < 15 * MIN) verdict = worse(verdict, 'caution', `Too soon: the last bolus was ${minutes(since)} ago — the label repeats it after 15 min, once the first has had its full effect.`);
+      break;
+    case 'amiodarone':
+      if (c === 'arrest' && dosesOf(p, 'amiodarone').length >= 2) verdict = worse(verdict, 'caution', 'The arrest doses are 300 mg, then 150 mg — both have been given. The algorithm stops there; after ROSC an infusion (1 mg/min) follows.');
+      break;
+    case 'procainamide':
+      if (cls === 'toxic') verdict = worse(verdict, 'bad', `${fmtDose(total / p.kg)} mg/kg in all — past the 17 mg/kg ceiling of the load (label): stop the infusion. Hypotension, a QRS widened by half and torsades come next.`);
+      break;
+    case 'magnesium-sulfate':
+      if (c !== 'torsades' && total > 4 + 1e-6 && cls !== 'toxic') verdict = worse(verdict, 'caution', `${fmtDose(total)} g in all: more than 4 g without torsades risks hypermagnesemia (weakness, hypotension, heart block — worse when the kidneys are poor). Check the level before more.`);
+      break;
+    case 'sodium-bicarbonate':
+      if (dosesOf(p, id).length && total > 2 * p.kg + 1e-6 && cls !== 'toxic') verdict = worse(verdict, 'caution', `${fmtDose(total)} mEq in all — more than 2 mEq/kg: alkalosis, a low potassium and calcium, and a sodium and fluid load. Check a blood gas before more.`);
+      break;
+    case 'fentanyl':
+      if (dosesOf(p, id).length && total > 2 * p.kg + 1e-6 && cls !== 'toxic') verdict = worse(verdict, 'caution', `${fmtDose(total)} mcg in all — more than 2 mcg/kg: respiratory depression and a falling pressure. Watch the breathing, and have naloxone and a bag-mask ready.`);
+      break;
+    case 'insulin-dextrose':
+      if (dosesOf(p, id).length && (since === null || since < 60 * MIN)) verdict = worse(verdict, 'caution', 'A second dose of insulin: most lows come at 1–3 h, and two doses stack. Recheck the potassium and the glucose first — a repeat is for a potassium still high at the recheck, with more dextrose.');
+      break;
+    case 'sotalol':
+      if (dosesOf(p, id).length) verdict = worse(verdict, 'caution', 'A second IV load: sotalol is loaded once, then given by the kidneys\' clock. Its effect on the QT builds with the level — check the QTc before any more.');
+      break;
+    default:
+      break;
+  }
+  return { verdict, steps: plan.steps };
+}
+
+/**
+ * What a drug's own plan does not see: the drugs already given — dangerous pairs, a second drug of the same kind, a
+ * level that another drug raises. Not in a pulseless patient (the arrest drugs are given together by design). It keeps
+ * the plan's own steps and adds one warning to the timeline, without a rate of its own.
+ */
+function comboCaveats(id: MedId, p: Patient, plan: Plan): Plan {
+  const prof = resolveProfile(p.profileId);
+  if (prof.hemo === 'no-output') return plan;
+  let { verdict } = plan;
+  const warns: string[] = [];
+  // IV diltiazem and an IV β-blocker: the diltiazem label rules out giving them together or within a few hours, and the
+  // esmolol label rules out a cardiodepressant calcium-channel blocker while its effects last
+  const ccbThenBeta = IV_BETA.includes(id) && dosesOf(p, 'diltiazem').length > 0;
+  const betaThenCcb = id === 'diltiazem' && givenOf(p, IV_BETA).length > 0;
+  if (ccbThenBeta || betaThenCcb) {
+    verdict = worse(verdict, 'bad', `Not on top of ${ccbThenBeta ? 'IV diltiazem' : `an IV β-blocker (${names(givenOf(p, IV_BETA))})`}: the diltiazem and esmolol labels rule out giving them together or within a few hours — profound bradycardia, AV block, hypotension, even asystole. More of the same drug, or cardioversion.`);
+    warns.push('A calcium-channel blocker and a β-blocker together: watch for bradycardia, AV block and a falling pressure.');
+  }
+  // two antiarrhythmics that lengthen the QT
+  const qt = QT_PROLONGING.includes(id) ? givenOf(p, QT_PROLONGING.filter((x) => x !== id)) : [];
+  if (qt.length) {
+    verdict = worse(verdict, id === 'sotalol' ? 'bad' : 'caution', `${MED_BY_ID[qt[0]].name}${qt.length > 1 ? ` and ${names(qt.slice(1))}` : ''} already given: a second QT-prolonging antiarrhythmic stacks the QT (torsades) — not without expert advice; synchronized cardioversion is the usual next step.`);
+    warns.push('Two QT-prolonging drugs on board: watch the QTc.');
+  }
+  // two β-blockers
+  const beta = IV_BETA.includes(id) ? givenOf(p, IV_BETA.filter((x) => x !== id)) : [];
+  if (beta.length) {
+    verdict = worse(verdict, 'caution', `${MED_BY_ID[beta[0]].name} already given: a second β-blocker on top adds bradycardia and hypotension — titrate one.`);
+    warns.push('Two β-blockers on board: watch the rate and the pressure.');
+  }
+  // digoxin with amiodarone: amiodarone roughly doubles the digoxin level (either order)
+  if ((id === 'digoxin' && dosesOf(p, 'amiodarone').length) || (id === 'amiodarone' && dosesOf(p, 'digoxin').length)) {
+    verdict = worse(verdict, 'caution', id === 'digoxin'
+      ? 'Amiodarone already given: it roughly doubles the digoxin level — halve the digoxin.'
+      : 'Digoxin already given: amiodarone roughly doubles its level — halve the digoxin and watch for toxicity.');
+    warns.push('Amiodarone and digoxin: watch for slowing, AV block and new ectopy (a rising digoxin level).');
+  }
+  // calcium in a patient given digoxin (Levine 2011: no excess arrhythmias or deaths in digoxin toxicity)
+  if (id === 'calcium-chloride' && dosesOf(p, 'digoxin').length) {
+    verdict = worse(verdict, 'caution', 'Digoxin on board: give the calcium slowly (label). The hyperkalemia of digoxin toxicity is treated with digoxin Fab (2023 AHA); calcium is no longer considered contraindicated (Levine 2011).');
+    warns.push('Calcium on top of digoxin: watch for ectopy and slowing.');
+  }
+  // lidocaine after procainamide: two class I drugs
+  if (id === 'lidocaine' && dosesOf(p, 'procainamide').length) {
+    verdict = worse(verdict, 'caution', 'Procainamide already given: two class I drugs add their toxicity (QRS widening, a falling pressure, seizures).');
+    warns.push('Two class I drugs on board: watch the QRS width and the pressure.');
+  }
+  // text only: the label warning, the unopposed α, the delayed absorption
+  if (id === 'adenosine' && dosesOf(p, 'digoxin').length) verdict = also(verdict, 'Digoxin on board: the label reports rare ventricular fibrillation after adenosine with digoxin — have the defibrillator ready.');
+  if (id === 'epinephrine' && givenOf(p, IV_BETA).length) verdict = also(verdict, 'A β-blocker on board: epinephrine\'s α effect is unopposed — the pressure can surge, with a reflex slowing.');
+  if (P2Y12.includes(id as P2y12) && dosesOf(p, 'fentanyl').length) verdict = also(verdict, 'An opioid has been given: it delays the absorption of the oral load (2025 ACC/AHA ACS).');
+  if (!warns.length) return { verdict, steps: plan.steps };
+  return { verdict, steps: [...plan.steps, warnStep(plan.steps, warns.join(' '))] };
+}
+
 /** Everything that happens when this dose is given to this patient now */
 export function planDose(id: MedId, p: Patient, dose: number): DosePlan {
   const def = MED_BY_ID[id];
   const doseClass = classifyDose(def, p, dose);
-  const { verdict, steps } = rhythmCaveats(id, p, def.plan(p, dose, doseClass));
+  const own = rhythmCaveats(id, p, def.plan(p, dose, doseClass));
+  const { verdict, steps } = comboCaveats(id, p, repeatCaveats(id, p, dose, doseClass, own));
   return { doseClass, doseText: describeDose(def, p, dose, doseClass), verdict, steps: [...steps].sort((a, b) => a.at - b.at) };
 }

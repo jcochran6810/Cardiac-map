@@ -654,6 +654,7 @@ describe('a medication session on the live clock', () => {
     sim.time = 100_000;
     setRhythm('avnrt', 180);
     sim.engine.setRhythm('avnrt', 180, sim.time, null);
+    run(6_000);
   });
 
   /** run the simulation like SimulationDriver does, 16 ms at a time (coarser steps for long waits) */
@@ -1150,5 +1151,405 @@ describe('sotalol', () => {
     const over = planDose('sotalol', patient('vt', 160, { sbp: 118 }), 200);
     expect(over.doseClass).toBe('toxic');
     expect(over.steps.some((s) => s.profile === 'torsades')).toBe(true);
+  });
+});
+
+/**
+ * The contraindication audit of Give meds (GM1–GM51): each rule says no — or "with care" — where the label or the
+ * guideline does, and the nearest right use still reads right.
+ */
+describe('contraindications: the drugs already given', () => {
+  const dose = (id: MedId, d: number, at = 0) => ({ id, dose: d, at });
+  const af = (extra: Partial<Patient> = {}) => patient('atrial-fibrillation', 150, { sbp: 120, ...extra });
+
+  it('GM1: IV diltiazem and an IV β-blocker, either order, are not given together (diltiazem and esmolol labels)', () => {
+    expect(planDose('diltiazem', af(), 20).verdict.tone).toBe('good');
+    for (const beta of ['metoprolol', 'esmolol', 'sotalol'] as MedId[]) {
+      const plan = planDose('diltiazem', af({ given: [dose(beta, beta === 'esmolol' ? 40 : 5)] }), 20);
+      expect(plan.verdict.tone, beta).toBe('bad');
+      expect(plan.verdict.text, beta).toMatch(/^Not on top of an IV β-blocker \(/);
+      expect(plan.verdict.text).toMatch(/diltiazem and esmolol labels.*within a few hours/);
+      // one warning on the timeline, without a rate of its own
+      expect(plan.steps.filter((s) => s.tone === 'warn' && /calcium-channel blocker and a β-blocker/.test(s.note))).toHaveLength(1);
+      expect(plan.steps.find((s) => /calcium-channel blocker and a β-blocker/.test(s.note))!.hr).toBeUndefined();
+    }
+    for (const beta of ['metoprolol', 'esmolol'] as MedId[]) {
+      const plan = planDose(beta, af({ given: [dose('diltiazem', 20)] }), MED_BY_ID[beta].usual(af()).low);
+      expect(plan.verdict.tone, beta).toBe('bad');
+      expect(plan.verdict.text).toMatch(/^Not on top of IV diltiazem/);
+    }
+  });
+
+  it('GM2: a second QT-prolonging antiarrhythmic — sotalol no, amiodarone or procainamide only with care', () => {
+    const vt = (given: Patient['given']) => patient('vt', 160, { sbp: 120, given });
+    expect(planDose('amiodarone', vt([]), 150).verdict.tone).toBe('good');
+    const amio = planDose('amiodarone', vt([dose('procainamide', 1000)]), 150);
+    expect(amio.verdict.tone).toBe('caution');
+    expect(amio.verdict.text).toMatch(/^Procainamide already given: a second QT-prolonging antiarrhythmic stacks the QT.*not without expert advice; synchronized cardioversion is the usual next step/);
+    expect(planDose('procainamide', vt([dose('amiodarone', 150)]), 1000).verdict.tone).toBe('caution');
+    expect(planDose('sotalol', vt([dose('amiodarone', 150)]), 120).verdict.tone).toBe('bad');
+  });
+
+  it('GM3: a second β-blocker is at most "with care"', () => {
+    expect(planDose('metoprolol', af(), 5).verdict.tone).toBe('good');
+    const plan = planDose('metoprolol', af({ given: [dose('esmolol', 40)] }), 5);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/^Esmolol already given: a second β-blocker/);
+  });
+
+  it('GM4: digoxin and amiodarone, either order: halve the digoxin', () => {
+    expect(planDose('digoxin', af({ given: [dose('amiodarone', 150)] }), 0.25).verdict.text).toMatch(/halve the digoxin/);
+    const amio = planDose('amiodarone', af({ given: [dose('digoxin', 0.25)] }), 150);
+    expect(amio.verdict.tone).toBe('caution');
+    expect(amio.verdict.text).toMatch(/Digoxin already given: amiodarone roughly doubles its level/);
+  });
+
+  it('GM5: calcium on top of digoxin — slowly, and Fab for the hyperkalemia of digoxin toxicity', () => {
+    const k = patient('hyperkalemia', 64);
+    expect(planDose('calcium-chloride', k, 1).verdict.tone).toBe('good');
+    const plan = planDose('calcium-chloride', { ...k, given: [dose('digoxin', 0.5)] }, 1);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/^Digoxin on board: give the calcium slowly \(label\)\. The hyperkalemia of digoxin toxicity is treated with digoxin Fab \(2023 AHA\); calcium is no longer considered contraindicated \(Levine 2011\)/);
+  });
+
+  it('GM6: calcium is the antidote to too much diltiazem or magnesium, not "no indication"', () => {
+    expect(planDose('calcium-chloride', patient('normal-sinus', 72), 1).verdict.tone).toBe('bad');
+    // diltiazem with a low pressure, or more than 0.45 mg/kg in all: the slowed rate comes up a little
+    for (const p of [af({ hr: 70, sbp: 82, given: [dose('diltiazem', 20)] }), af({ hr: 70, given: [dose('diltiazem', 50)] })]) {
+      const plan = planDose('calcium-chloride', p, 1);
+      expect(plan.verdict.tone).toBe('good');
+      expect(plan.verdict.text).toMatch(/IV calcium is the antidote — 1 g of calcium chloride \(or 3 g of gluconate\), repeated as needed, with fluids; pace a slow rate/);
+      expect(plan.steps.find((s) => s.hr !== undefined)!.hr).toBe(77);
+    }
+    // a fast rate is not pushed faster
+    expect(planDose('calcium-chloride', af({ sbp: 82, given: [dose('diltiazem', 20)] }), 1).steps.every((s) => s.hr === undefined)).toBe(true);
+    // a usual dose with the pressure holding is not an overdose
+    expect(planDose('calcium-chloride', af({ given: [dose('diltiazem', 20)] }), 1).verdict.tone).toBe('bad');
+    expect(planDose('calcium-chloride', patient('normal-sinus', 72, { given: [dose('magnesium-sulfate', 4), dose('magnesium-sulfate', 2)] }), 1).verdict.tone).toBe('good');
+    expect(planDose('calcium-chloride', patient('normal-sinus', 72, { given: [dose('magnesium-sulfate', 2)] }), 1).verdict.tone).toBe('bad');
+  });
+
+  it('GM7–GM8: adenosine after digoxin, lidocaine after procainamide, epinephrine on a β-blocker, a P2Y12 load after an opioid', () => {
+    expect(planDose('adenosine', patient('avnrt', 180, { given: [dose('digoxin', 0.25)] }), 6).verdict.text).toMatch(/defibrillator ready/);
+    expect(planDose('adenosine', patient('avnrt', 180), 6).verdict.text).not.toMatch(/defibrillator/);
+    const lido = planDose('lidocaine', patient('vt', 160, { sbp: 120, given: [dose('procainamide', 1000)] }), 100);
+    expect(lido.verdict.tone).toBe('caution');
+    expect(lido.verdict.text).toMatch(/two class I drugs add their toxicity/);
+    expect(planDose('epinephrine', patient('sinus-bradycardia', 40, { given: [dose('metoprolol', 5)] }), 0.01).verdict.text).toMatch(/α effect is unopposed/);
+    const tica = planDose('ticagrelor', patient('anterior-stemi', 92, { given: [dose('fentanyl', 50)] }), 180);
+    expect(tica.verdict.tone).toBe('good');
+    expect(tica.verdict.text).toMatch(/An opioid has been given: it delays the absorption of the oral load/);
+  });
+
+  it('in an arrest the drugs are given together by design: no combination caveat', () => {
+    const vf = patient('vf', 0, { given: [dose('amiodarone', 300), dose('epinephrine', 1), dose('lidocaine', 100)] });
+    expect(planDose('amiodarone', vf, 150).verdict.text).not.toMatch(/already given/);
+  });
+});
+
+describe('contraindications: the pressure and the ventricle', () => {
+  it('GM9: diltiazem for an SVT with a low pressure or a failing ventricle is refused (label)', () => {
+    expect(planDose('diltiazem', patient('avnrt', 180, { sbp: 120 }), 20).verdict.tone).toBe('good');
+    const plan = planDose('diltiazem', patient('avnrt', 180, { sbp: 80 }), 20);
+    expect(plan.verdict.tone).toBe('bad');
+    expect(plan.verdict.text).toMatch(/^Not with a low pressure or a failing ventricle: IV diltiazem is contraindicated in severe hypotension and cardiogenic shock \(label\)/);
+    expect(plan.verdict.text).toMatch(/synchronized cardioversion/);
+  });
+
+  it('GM10: procainamide outside VT with a low pressure or a failing ventricle; unstable pre-excited AF is cardioverted', () => {
+    const stable = planDose('procainamide', patient('af-wpw', 214, { sbp: 112 }), 1000);
+    expect(stable.verdict.tone).toBe('good');
+    const unstable = planDose('procainamide', patient('af-wpw', 250, { sbp: 87 }), 1000);
+    expect(unstable.verdict.tone).toBe('bad');
+    expect(unstable.verdict.text).toMatch(/^Unstable pre-excited AF: synchronized cardioversion now/);
+    expect(planDose('procainamide', patient('atrial-fibrillation', 150, { sbp: 80 }), 1000).verdict.tone).toBe('bad');
+    // a failing ventricle: the widening steps are kept, and an overdose still shows torsades
+    const dcm = planDose('procainamide', patient('dcm', 96, { sbp: 110 }), 2000);
+    expect(dcm.verdict.tone).toBe('bad');
+    expect(dcm.steps.some((s) => s.profile === 'torsades')).toBe(true);
+  });
+
+  it('GM35: fentanyl with a low pressure — support the pressure first', () => {
+    expect(planDose('fentanyl', patient('anterior-stemi', 92, { sbp: 130 }), 50).verdict.tone).toBe('good');
+    const plan = planDose('fentanyl', patient('anterior-stemi', 92, { sbp: 80 }), 50);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/blunts the sympathetic drive.*RV infarct or a tamponade.*Support the pressure first/);
+  });
+
+  it('GM36: phenylephrine is for a low pressure — the drug in outflow obstruction, second to norepinephrine in pump failure', () => {
+    expect(planDose('phenylephrine', patient('normal-sinus', 72, { sbp: 120 }), 100).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^No low pressure to treat/) });
+    expect(planDose('phenylephrine', patient('hcm', 70, { sbp: 80 }), 100).verdict.tone).toBe('good');
+    expect(planDose('phenylephrine', patient('aortic-stenosis', 70, { sbp: 80 }), 100).verdict.tone).toBe('good');
+    expect(planDose('phenylephrine', patient('tamponade', 118, { sbp: 80 }), 100).verdict.text).toMatch(/Drain the pericardium/);
+    expect(planDose('phenylephrine', patient('cardiogenic-shock', 118, { sbp: 80 }), 100).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/norepinephrine is the usual first pressor/) });
+    expect(planDose('phenylephrine', patient('sinus-bradycardia', 40, { sbp: 80 }), 100).verdict.tone).toBe('bad');
+    // the steps stay: the pressure rises, the rate falls, it wears off
+    expect(planDose('phenylephrine', patient('hcm', 70, { sbp: 80 }), 100).steps.map((s) => s.mark ?? s.tone)).toEqual(['reflex ↓', 'info']);
+  });
+
+  it('GM45: esmolol in obstructive HCM with a low pressure is "with care" (after fluid and phenylephrine), not "dangerous"', () => {
+    const plan = planDose('esmolol', patient('hcm', 80, { sbp: 82 }), 40);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/fluid and phenylephrine first; after them a β-blocker lowers the outflow gradient/);
+    // any other failing ventricle is still refused
+    expect(planDose('esmolol', patient('dcm', 96, { sbp: 82 }), 40).verdict.tone).toBe('bad');
+  });
+
+  it('push-dose epinephrine: a bridge for a compensated low pressure, never in obstructive HCM', () => {
+    const shock = planDose('epinephrine', patient('cardiogenic-shock', 118, { sbp: 78 }), 0.01);
+    expect(shock.verdict.tone).toBe('caution');
+    expect(shock.verdict.text).toMatch(/A bridge for a low pressure while the cause is treated.*norepinephrine is the usual infusion/);
+    expect(planDose('epinephrine', patient('cardiogenic-shock', 118, { sbp: 110 }), 0.01).verdict.tone).toBe('bad');
+    const hcm = planDose('epinephrine', patient('hcm', 80, { sbp: 78 }), 0.01);
+    expect(hcm.verdict.tone).toBe('bad');
+    expect(hcm.verdict.text).toMatch(/outflow obstruction worse/);
+  });
+
+  it('calcium in a bradycardia is "only for its cause", not "no indication"', () => {
+    const plan = planDose('calcium-chloride', patient('sinus-bradycardia', 40), 1);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/^Only when a calcium-channel-blocker or β-blocker overdose, hyperkalemia or a low calcium causes the slow rate/);
+  });
+});
+
+describe('contraindications: the rhythm', () => {
+  it('GM11: procainamide in complete heart block (label) and Mobitz II (avoid)', () => {
+    const chb = planDose('procainamide', patient('third-degree-avb', 36, { sbp: 100 }), 1000);
+    expect(chb.verdict.text).toMatch(/^Contraindicated \(label\): complete heart block/);
+    expect(chb.steps.some((s) => s.mark === 'escape ↓' && s.hr! < 36)).toBe(true);
+    expect(planDose('procainamide', patient('mobitz-ii', 80, { sbp: 120 }), 1000).verdict.text).toMatch(/^Avoid \(label: second-degree AV block\)/);
+  });
+
+  it('GM12: procainamide is one load — 17 mg/kg in all, however it is split', () => {
+    const vt = (given: Patient['given']) => patient('vt', 160, { sbp: 120, given });
+    expect(classifyDose(MED_BY_ID.procainamide, vt([{ id: 'procainamide', dose: 800, at: 0 }]), 500)).toBe('usual');
+    expect(planDose('procainamide', vt([{ id: 'procainamide', dose: 800, at: 0 }]), 500).verdict.tone).toBe('good');
+    const over = planDose('procainamide', vt([{ id: 'procainamide', dose: 1360, at: 0 }]), 800);
+    expect(over.doseClass).toBe('toxic');
+    expect(over.doseText).toMatch(/2160 mg in all/);
+    expect(over.verdict.tone).toBe('bad');
+    expect(over.verdict.text).toMatch(/^27 mg\/kg in all — past the 17 mg\/kg ceiling of the load/);
+    // the QRS shows everything given, not only this part of the load
+    const last = over.steps.filter((s) => s.mods).at(-1)!.mods!;
+    expect(last.qrsWiden!).toBeCloseTo(1 + 0.3 * (27 / 17), 1);
+  });
+
+  it('GM13: lidocaine in complete heart block, Mobitz II and a slow junctional escape (label: it suppresses the escape)', () => {
+    const chb = planDose('lidocaine', patient('third-degree-avb', 36, { sbp: 100 }), 100);
+    expect(chb.verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Contraindicated \(label\): severe AV block without a pacemaker/) });
+    expect(chb.steps[0].hr).toBe(Math.round(36 * 0.7));
+    expect(planDose('lidocaine', patient('mobitz-ii', 80), 100).verdict.text).toMatch(/^Contraindicated \(label\)/);
+    expect(planDose('lidocaine', patient('junctional', 45), 100).verdict.text).toMatch(/suppress the escape pacemaker/);
+    expect(planDose('lidocaine', patient('junctional', 90), 100).verdict.text).toMatch(/^No indication/);
+  });
+
+  it('GM14–GM15: lidocaine for ectopy in a slow rhythm, in WPW and as prophylaxis in MI', () => {
+    const slow = planDose('lidocaine', patient('pvcs', 50), 100);
+    expect(slow.verdict.tone).toBe('caution');
+    expect(slow.verdict.text).toMatch(/the label warns that lidocaine for ectopy in a slow rhythm/);
+    expect(slow.steps.some((s) => s.mark === 'no PVCs')).toBe(true);
+    expect(planDose('lidocaine', patient('pvcs', 80), 100).verdict.text).not.toMatch(/label warns/);
+    expect(planDose('lidocaine', patient('wpw', 80), 100).verdict.text).toMatch(/label lists Wolff-Parkinson-White as a contraindication/);
+    expect(planDose('lidocaine', patient('anterior-stemi', 92), 100).verdict.text).toMatch(/saves no one and causes more bradycardia and asystole/);
+  });
+
+  it('GM16: magnesium in heart block (label), not routine in MI; still the drug for torsades', () => {
+    for (const [id, hr] of [['third-degree-avb', 36], ['mobitz-ii', 80], ['mobitz-i', 80]] as const) {
+      const plan = planDose('magnesium-sulfate', patient(id, hr), 2);
+      expect(plan.verdict.tone, id).toBe('bad');
+      expect(plan.verdict.text).toMatch(/^Contraindicated \(label\): parenteral magnesium in heart block.*Torsades is the exception, with pacing ready/);
+      expect(plan.steps[0]).toMatchObject({ hr: Math.round(Math.max(20, hr * 0.9)), mods: { prAdd: 20 } });
+    }
+    expect(planDose('magnesium-sulfate', patient('anterior-stemi', 92), 2).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/ISIS-4/) });
+    expect(planDose('magnesium-sulfate', patient('torsades', 230), 2).verdict.tone).toBe('good');
+  });
+
+  it('GM17–GM19: digoxin, amiodarone and adenosine in a slow or controlled AF', () => {
+    expect(planDose('digoxin', patient('atrial-fibrillation', 55), 0.25).verdict.tone).toBe('bad');
+    expect(planDose('digoxin', patient('atrial-fibrillation', 90), 0.25).verdict.text).toMatch(/already controlled/);
+    expect(planDose('digoxin', patient('atrial-fibrillation', 150), 0.25).verdict.text).toMatch(/^Slow but useful/);
+    expect(planDose('amiodarone', patient('atrial-fibrillation', 50), 150).verdict.tone).toBe('bad');
+    expect(planDose('amiodarone', patient('atrial-fibrillation', 150), 150).verdict.tone).toBe('caution');
+    const ado = planDose('adenosine', patient('atrial-fibrillation', 50), 6);
+    expect(ado.verdict.tone).toBe('bad');
+    expect(ado.steps.find((s) => s.mark === 'pause')!.hr).toBe(25);
+    expect(planDose('adenosine', patient('atrial-flutter', 50), 6).verdict.tone).toBe('bad');
+    expect(planDose('adenosine', patient('atrial-flutter', 150), 6).verdict.tone).toBe('caution');
+  });
+
+  it('GM20: adenosine above 12 mg is more than the label allows', () => {
+    const plan = planDose('adenosine', patient('avnrt', 180), 18);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/more than the label allows \(6 mg, then 12 mg\)/);
+    expect(planDose('adenosine', patient('avnrt', 180), 12).verdict.tone).toBe('good');
+  });
+
+  it('GM21–GM22: an IV β-blocker in an acute coronary syndrome — refused with a systolic under 100 or a rate over 110, "with care" otherwise', () => {
+    for (const id of ['metoprolol', 'esmolol'] as MedId[]) {
+      const d = MED_BY_ID[id].usual(patient('anterior-stemi', 92)).low;
+      expect(planDose(id, patient('anterior-stemi', 92, { sbp: 130 }), d).verdict.tone, id).toBe('caution');
+      expect(planDose(id, patient('anterior-stemi', 92, { sbp: 95 }), d).verdict.text, id).toMatch(/metoprolol injection label rules out IV use below 100 mmHg/);
+      expect(planDose(id, patient('anterior-stemi', 115, { sbp: 130 }), d).verdict, id).toMatchObject({ tone: 'bad', text: expect.stringMatching(/risk factor for cardiogenic shock.*2013 ACCF\/AHA STEMI/) });
+      // NSTE-ACS reads like the STEMI: not "no indication"
+      for (const prof of ['nstemi', 'wellens', 'anterior-stemi-reperfused']) {
+        const plan = planDose(id, patient(prof, 84, { sbp: 130 }), d);
+        expect(plan.verdict.tone, `${id} ${prof}`).toBe('caution');
+        expect(plan.verdict.text).not.toMatch(/No indication/);
+        expect(planDose(id, patient(prof, 84, { sbp: 95 }), d).verdict.tone, `${id} ${prof} 95`).toBe('bad');
+      }
+    }
+  });
+
+  it('GM23–GM25: epinephrine — the bradycardia branch needs a slow rate; a big push-dose needs a slow rate or a low pressure; 1 mg in pulseless torsades is the arrest dose', () => {
+    expect(planDose('epinephrine', patient('first-degree-avb', 100, { sbp: 120 }), 0.01).verdict.text).toMatch(/^No indication/);
+    expect(planDose('epinephrine', patient('first-degree-avb', 45, { sbp: 120 }), 0.01).verdict.text).toMatch(/^Bradycardia not responding to atropine/);
+    expect(planDose('epinephrine', patient('mobitz-ii', 80, { sbp: 120 }), 0.01).verdict.tone).toBe('bad');
+    const big = planDose('epinephrine', patient('atrial-fibrillation', 150, { sbp: 120 }), 0.05);
+    expect(big.doseClass).toBe('high');
+    expect(big.verdict.tone).toBe('bad');
+    expect(big.verdict.text).toMatch(/no slow rate or low pressure to treat/);
+    expect(planDose('epinephrine', patient('sinus-bradycardia', 40), 0.05).verdict.tone).toBe('caution');
+    expect(classifyDose(MED_BY_ID.epinephrine, patient('torsades', 230), 1)).toBe('usual');
+    expect(describeDose(MED_BY_ID.epinephrine, patient('torsades', 230), 1)).not.toMatch(/overdose/);
+  });
+
+  it('GM27–GM28: atropine needs a bradycardia, and stops at 3 mg in all', () => {
+    expect(planDose('atropine', patient('mobitz-i', 80), 1).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^No bradycardia to treat: Mobitz I/) });
+    expect(planDose('atropine', patient('mobitz-i', 45), 1).verdict.tone).toBe('good');
+    expect(planDose('atropine', patient('mobitz-i', 55), 1).verdict.tone).toBe('caution');
+    expect(planDose('atropine', patient('first-degree-avb', 80), 1).verdict.tone).toBe('bad');
+    const past = planDose('atropine', patient('sinus-bradycardia', 40, { given: [{ id: 'atropine', dose: 2.5, at: 0 }] }), 1);
+    expect(past.verdict.tone).toBe('caution');
+    expect(past.verdict.text).toMatch(/^3\.5 mg in total — past the 3 mg maximum/);
+    expect(past.steps.some((s) => s.tone === 'warn' && /past the 3 mg maximum/.test(s.note))).toBe(true);
+    expect(planDose('atropine', patient('sinus-bradycardia', 40, { given: [{ id: 'atropine', dose: 2, at: 0 }] }), 1).verdict.tone).toBe('good');
+  });
+
+  it('pre-excited AF: β-blockers are named among the 2023 AF guideline\'s 3: Harm drugs', () => {
+    expect(planDose('metoprolol', patient('af-wpw', 214, { sbp: 112 }), 5).verdict.text).toMatch(/2023 ACC\/AHA\/ACCP\/HRS AF guideline: adenosine, diltiazem, verapamil, digoxin, IV amiodarone and β-blockers — 3: Harm/);
+  });
+});
+
+describe('contraindications: repeats and dose limits', () => {
+  const g = (id: MedId, dose: number, at = 0) => ({ id, dose, at });
+
+  it('GM29: tenecteplase is one bolus — a failed lysis goes for rescue PCI (REACT)', () => {
+    expect(planDose('tenecteplase', patient('anterior-stemi', 92, { sbp: 130 }), 45).verdict.tone).toBe('good');
+    const again = planDose('tenecteplase', patient('anterior-stemi', 92, { sbp: 130, given: [g('tenecteplase', 45)] }), 45);
+    expect(again.verdict.tone).toBe('bad');
+    expect(again.verdict.text).toMatch(/one bolus.*rescue PCI.*REACT/);
+  });
+
+  it('GM30: tenecteplase with a systolic over 180 — lower it first', () => {
+    const plan = planDose('tenecteplase', patient('anterior-stemi', 92, { sbp: 190 }), 45);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/Lower the pressure first; if it cannot be controlled, lysis is contraindicated — transfer for PCI/);
+  });
+
+  it('GM31–GM32: a second heparin bolus or a second aspirin load is "with care"', () => {
+    const stemi = patient('anterior-stemi', 92, { sbp: 130 });
+    expect(planDose('heparin', stemi, 4000).verdict.tone).toBe('good');
+    expect(planDose('heparin', { ...stemi, given: [g('heparin', 4000)] }, 4000).verdict.text).toMatch(/^The bolus has already been given/);
+    expect(planDose('aspirin', stemi, 325).verdict.tone).toBe('good');
+    expect(planDose('aspirin', { ...stemi, given: [g('aspirin', 325)] }, 325).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/the load is once/) });
+  });
+
+  it('GM33: aspirin in pericarditis is first line at the anti-inflammatory dose', () => {
+    const p = patient('pericarditis', 104);
+    const plan = planDose('aspirin', p, 650);
+    expect(plan.verdict.tone).toBe('caution');
+    expect(plan.verdict.text).toMatch(/650–1000 mg every 8 h/);
+    expect(plan.doseClass).toBe('usual');
+    expect(classifyDose(MED_BY_ID.aspirin, p, 1000)).toBe('usual');
+    expect(classifyDose(MED_BY_ID.aspirin, p, 325)).toBe('low');
+    expect(MED_BY_ID.aspirin.picks(p)).toContain(650);
+  });
+
+  it('GM34: an oral P2Y12 load in cardiogenic shock waits for the angiogram', () => {
+    for (const id of ['ticagrelor', 'clopidogrel', 'prasugrel'] as MedId[]) {
+      const plan = planDose(id, patient('cardiogenic-shock', 118), MED_BY_ID[id].usual(patient('cardiogenic-shock', 118)).low);
+      expect(plan.verdict.tone, id).toBe('caution');
+      expect(plan.verdict.text).toMatch(/^Cardiogenic shock: oral loads are absorbed poorly and late.*cangrelor/);
+    }
+  });
+
+  it('GM37–GM38: nitroglycerin in a tamponade or a PE (preload-dependent), and not a fourth tablet', () => {
+    expect(planDose('nitroglycerin', patient('tamponade', 96, { sbp: 100 }), 0.4).verdict.text).toMatch(/^Dangerous: a tamponade makes the heart preload-dependent/);
+    expect(planDose('nitroglycerin', patient('pulmonary-embolism', 96, { sbp: 110 }), 0.4).verdict.text).toMatch(/PE straining the right ventricle/);
+    const nstemi = patient('nstemi', 84, { sbp: 130 });
+    const three = [g('nitroglycerin', 0.4), g('nitroglycerin', 0.4), g('nitroglycerin', 0.4)];
+    expect(planDose('nitroglycerin', { ...nstemi, given: three.slice(0, 2) }, 0.4).verdict.tone).toBe('good');
+    expect(planDose('nitroglycerin', { ...nstemi, given: three }, 0.4).verdict.text).toMatch(/^Three doses already/);
+    // a contraindication still wins over the count
+    expect(planDose('nitroglycerin', { ...nstemi, sbp: 80, given: three }, 0.4).verdict.tone).toBe('bad');
+  });
+
+  it('GM39: diltiazem — two boluses, then an infusion', () => {
+    const p = patient('atrial-fibrillation', 150, { sbp: 120 });
+    expect(planDose('diltiazem', { ...p, given: [g('diltiazem', 20)] }, 25).verdict.tone).toBe('good');
+    const third = planDose('diltiazem', { ...p, given: [g('diltiazem', 20), g('diltiazem', 25)] }, 25);
+    expect(third.verdict.tone).toBe('caution');
+    expect(third.verdict.text).toMatch(/^Two boluses already.*start an infusion \(5–15 mg\/h\)/);
+  });
+
+  it('GM40: amiodarone in an arrest stops after 300 mg and 150 mg', () => {
+    expect(planDose('amiodarone', patient('vf', 0, { given: [g('amiodarone', 300)] }), 150).verdict.tone).toBe('good');
+    const third = planDose('amiodarone', patient('vf', 0, { given: [g('amiodarone', 300), g('amiodarone', 150)] }), 150);
+    expect(third.verdict.tone).toBe('caution');
+    expect(third.verdict.text).toMatch(/^The arrest doses are 300 mg, then 150 mg — both have been given/);
+  });
+
+  it('GM51: totals — magnesium, bicarbonate, fentanyl, insulin and sotalol given again', () => {
+    const mg = planDose('magnesium-sulfate', patient('normal-sinus', 72, { given: [g('magnesium-sulfate', 4)] }), 2);
+    // already "with care" (no ECG effect at a normal level): the reason is added after it
+    expect(mg.verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/ 6 g in all: more than 4 g without torsades risks hypermagnesemia/) });
+    expect(planDose('magnesium-sulfate', patient('torsades', 230, { given: [g('magnesium-sulfate', 2)] }), 2).verdict.tone).toBe('good');
+    const k = patient('hyperkalemia', 64);
+    expect(planDose('sodium-bicarbonate', { ...k, given: [g('sodium-bicarbonate', 100)] }, 100).verdict.text).toMatch(/ 200 mEq in all — more than 2 mEq\/kg/);
+    expect(planDose('sodium-bicarbonate', { ...k, given: [g('sodium-bicarbonate', 50)] }, 50).verdict.text).not.toMatch(/in all/);
+    const pain = patient('anterior-stemi', 92, { sbp: 130 });
+    expect(planDose('fentanyl', { ...pain, given: [g('fentanyl', 100)] }, 100).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^200 mcg in all — more than 2 mcg\/kg/) });
+    expect(planDose('fentanyl', { ...pain, given: [g('fentanyl', 50)] }, 50).verdict.tone).toBe('good');
+    expect(planDose('insulin-dextrose', { ...k, given: [g('insulin-dextrose', 10)] }, 10).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^A second dose of insulin/) });
+    const vt = patient('vt', 160, { sbp: 120 });
+    expect(planDose('sotalol', vt, 120).verdict.tone).toBe('good');
+    expect(planDose('sotalol', { ...vt, given: [g('sotalol', 120)] }, 120).verdict.text).toMatch(/^A second IV load/);
+  });
+});
+
+describe('contraindications: what the learner reads', () => {
+  it('GM46–GM48, GM50: albuterol with a long QT, tenecteplase in an arrest, heparin in pericarditis, an unstable SVT', () => {
+    expect(planDose('albuterol', patient('long-qt', 72), 2.5).verdict.text).toMatch(/with a long QT.*lowers the potassium and adds adrenergic drive/);
+    const pea = planDose('tenecteplase', patient('pea', 48), 45);
+    expect(pea.verdict.tone).toBe('bad');
+    expect(pea.verdict.text).toMatch(/arrest from a suspected pulmonary embolism, where it may be considered \(2025 AHA\)/);
+    expect(planDose('heparin', patient('pericarditis', 104), 4000).verdict.text).toMatch(/bleeding into the pericardium/);
+    expect(planDose('heparin', patient('tamponade', 118), 4000).verdict.text).toMatch(/bleeding into the pericardium/);
+    const ado = planDose('adenosine', patient('avnrt', 180, { sbp: 80 }), 6);
+    expect(ado.verdict.tone).toBe('good');
+    expect(ado.verdict.text).toMatch(/unstable: synchronized cardioversion is the treatment — adenosine may be tried while it is set up/);
+    expect(planDose('adenosine', patient('avnrt', 180, { sbp: 120 }), 6).verdict.text).not.toMatch(/unstable/);
+    expect(planDose('amiodarone', patient('avnrt', 180, { sbp: 80 }), 150).verdict.text).toMatch(/unstable: synchronized cardioversion/);
+  });
+});
+
+describe('GM43: the dosing guide says what each drug is not given with', () => {
+  it.each([
+    ['adenosine', /Not with: second- or third-degree AV block or sick sinus without a pacemaker, asthma, or an irregular or unstable wide-complex tachycardia/],
+    ['diltiazem', /Not with: hypotension, HFrEF, pre-excited AF \(WPW\), VT, second- or third-degree AV block, or an IV β-blocker within a few hours/],
+    ['esmolol', /Not with: .*pulmonary hypertension, or IV diltiazem or verapamil/],
+    ['amiodarone', /Not with: cardiogenic shock, marked bradycardia, AV block, a long QT, or pre-excited AF/],
+    ['lidocaine', /Not with: severe AV block or a ventricular escape rhythm, WPW, or an amide allergy/],
+    ['digoxin', /Not with: WPW, AV block, obstructive HCM or a low K⁺; halve it with amiodarone/],
+    ['atropine', /Not with: a heart transplant; for wide-complex Mobitz II or complete heart block, pace/],
+    ['magnesium-sulfate', /Not with: heart block/],
+    ['calcium-chloride', /Not through the bicarbonate line.*slowly with digoxin/],
+    ['heparin', /Not with: HIT, active bleeding or severe thrombocytopenia/],
+    ['fentanyl', /Not with: hypotension or respiratory depression; with benzodiazepines/],
+    ['phenylephrine', /Not with: bradycardia; only for a low pressure/],
+    ['clopidogrel', /Not with: active bleeding/],
+    ['nitroglycerin', /riociguat or raised intracranial pressure/],
+  ] as [MedId, RegExp][])('%s', (id, re) => {
+    expect(MED_BY_ID[id].guide).toMatch(re);
   });
 });
