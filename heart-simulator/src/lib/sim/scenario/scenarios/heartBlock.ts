@@ -83,6 +83,7 @@ export const heartBlock: Scenario = {
     metoprolol: (s) => blocker(s, 'Rate 22 after the beta-blocker!'),
     diltiazem: (s) => blocker(s, 'Rate 22 after the calcium-channel blocker!'),
     // adenosine blocks the AV node, not the pacer's capture of the ventricles
+    adenosine3: (s) => (paced(s) ? { say: [['monitor', PACER_HOLDS]] } : { say: [['monitor', 'Four seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     adenosine6: (s) => (paced(s) ? { say: [['monitor', PACER_HOLDS]] } : { say: [['monitor', 'Six seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     adenosine12: (s) => (paced(s) ? { say: [['monitor', PACER_HOLDS]] } : { say: [['monitor', 'Eight seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     'pulse-check': (s) => s.rhythm.profile === 'tcp'
@@ -130,7 +131,7 @@ export const heartBlock: Scenario = {
   harms: yieldToHeavier([
     { id: 'lidocaine-escape', actions: ['lidocaine', 'amio-infusion'], replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 20, severity: 'critical', text: 'Never give lidocaine or amiodarone for a wide ventricular escape rhythm: it is the only thing keeping him alive, and suppressing it can cause asystole.' },
     { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 15, severity: 'critical', text: 'Beta-blockers and calcium-channel blockers slow AV conduction further: they worsen complete heart block.' },
-    { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
+    { id: 'adenosine-block', actions: ['adenosine3', 'adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
     { id: 'cpap-shock', actions: ['cpap'], replaces: ['cpap-hypotension', 'cpap-no-indication', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 6, severity: 'major', text: 'CPAP reduces venous return; with SBP in the 70s it can deepen shock.' },
     { id: 'big-fluid', actions: ['fluid'], when: (s) => (s.counts.fluid ?? 0) >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses with crackles at both bases: the problem is the rate, not the volume.' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 3, severity: 'minor', text: 'The nearest ED cannot place a transvenous pacing wire; the regional heart center can.' },
@@ -141,7 +142,10 @@ export const heartBlock: Scenario = {
   ],
   transportMinutes: 14,
   nearestMinutes: 7,
-  arrival: 'You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it cannot place a transvenous pacing wire — the emergency physician takes over and arranges a transfer to the regional heart center.'
+    : 'You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.'),
   teaching: [
     'Unstable bradycardia (hypotension, altered mental status, shock, ischemic chest pain, acute heart failure) needs treatment now.',
     'Atropine 1 mg IV every 3–5 minutes (max 3 mg) is first-line, but it is unlikely to work in infranodal (wide-escape) block. After a heart transplant do not use it: it may cause paradoxical high-grade block.',

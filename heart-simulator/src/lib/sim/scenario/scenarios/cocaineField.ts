@@ -18,8 +18,9 @@ import { cpapHarmful } from '../rules/support';
  *
  * The traps: a beta-blocker (unopposed alpha: a higher pressure and worse coronary spasm), no 12-lead, missing the fever, and
  * more sedative than calm needs. Left without a benzodiazepine he gets worse at minute 10 and out of control at minute 16, his
- * temperature climbing each time (less if the crew is cooling him). The simulator has no restraint or cooling action yet, so
- * the restraint trap is taught in the events and teaching points, and the cooling starts with the skin check that finds the fever.
+ * temperature climbing each time (less if the crew is cooling him). The skin check finds him hot; the thermometer ('temp')
+ * gives the number and active cooling ('cool') is its own step. Talking him down comes first ('calm'); restraint is the
+ * last resort — never face down (the built-in prone-restraint rule), and never without the sedation that ends the fight.
  */
 
 /** Minutes from the EMT's call until the paramedic intercept is at his side */
@@ -41,8 +42,14 @@ const tempText = (c: number) => `${c.toFixed(1)} °C (${(c * 1.8 + 32).toFixed(1
 /** The temperature after it rises or falls, to one decimal */
 const warmer = (s: SimState, by: number) => Math.round((s.vitals.temp + by) * 10) / 10;
 
-/** The crew has felt his skin, taken his temperature and started cooling him */
+/** The crew is cooling him (their own cooling, or the paramedic intercept's) */
 const cooling = (s: SimState) => has(s, 'cooling');
+
+/** The crew has taken his temperature (or the intercept has, with its thermometer) */
+const tempKnown = (s: SimState) => has(s, 'temp');
+
+/** Minutes a restrained patient may fight the straps before the missing sedation is charged */
+const UNSEDATED_RESTRAINT = 5;
 
 /** A benzodiazepine (the learner's or the intercept's) has settled the agitation */
 const calm = (s: SimState) => has(s, 'calm');
@@ -73,7 +80,7 @@ const onMonitor = (s: SimState, hr: number, bp: { sbp: number; dbp: number }): L
 /** A set of vital signs; the temperature once the crew has taken it */
 function vitalsText(s: SimState): string {
   const v = s.vitals;
-  return `BP ${v.sbp}/${v.dbp} · pulse ${s.rhythm.hr} · RR ${v.rr} · SpO₂ ${v.spo2}%${cooling(s) ? ` · temp ${tempText(v.temp)}` : ''}`;
+  return `BP ${v.sbp}/${v.dbp} · pulse ${s.rhythm.hr} · RR ${v.rr} · SpO₂ ${v.spo2}%${tempKnown(s) ? ` · temp ${tempText(v.temp)}` : ''}`;
 }
 
 function status(s: SimState): string {
@@ -220,8 +227,8 @@ export const cocaineField: Scenario = {
       : 'He cannot answer. His friend: "A few lines of coke and some beers tonight. No medicines, no allergies that I know of."'),
     pde5: (s) => (s.pulse ? '"No — nothing like that."' : 'He cannot answer.'),
     lungs: (s) => (s.pulse ? 'Clear and equal on both sides; he is breathing fast.' : 'No breaths of his own.'),
+    // with no pulse the engine refuses the neuro check (nothing for it to find)
     neuro: (s) => {
-      if (!s.pulse) return 'Unresponsive.';
       if (has(s, 'oversedated')) return `Drowsy: he opens his eyes only ${s.vitals.gcs <= 11 ? 'to a shake' : 'when you speak to him'}; pupils mid-sized; moves all four limbs.`;
       if (has(s, 'severe') && !calm(s)) return 'Confused — he does not know where he is; pupils wide and reactive; moves all four limbs; no facial droop.';
       return 'Oriented, but restless and talking fast; pupils wide and reactive; no facial droop or weakness; speech clear.';
@@ -236,22 +243,28 @@ export const cocaineField: Scenario = {
   respond: {
     // a manual set: the hand on his wrist feels the heat before anyone takes a temperature
     vitals: (s) => (s.pulse
-      ? { say: [['you', `${vitalsText(s)}${cooling(s) ? '' : '. His wrist is hot and slick with sweat under your fingers.'}`]], flags: ['bp'] }
+      ? { say: [['you', `${vitalsText(s)}${tempKnown(s) ? '' : '. His wrist is hot and slick with sweat under your fingers.'}`]], flags: ['bp'] }
       : null),
     reassess: (s) => (s.pulse ? { say: [['you', vitalsText(s)], ['patient', status(s)]] } : null),
-    // the skin check finds the fever, and the crew starts cooling him (more of it the hotter he is)
+    // the skin check finds him hot: the thermometer gives the number
     perfusion: (s) => {
       // the default would report equal pulses: in the VF a shock can cause there are none, and the shock comes first
       if (!s.pulse) return { blocked: true, say: [['system', 'He has no pulse: CPR and a shock come first.']] };
-      const t = s.vitals.temp;
-      const how = t >= 39
+      return { say: [['you', 'Hot to the touch, flushed and drenched in sweat; pupils wide; strong, fast radial pulses; no JVD.']], flags: ['perfusion'] };
+    },
+    temp: (s) => ({ say: [['you', `Temperature ${tempText(s.vitals.temp)}.`]], flags: ['temp'] }),
+    // the crew cools him (more of it the hotter he is); the heat comes off over the next minutes once he is calm
+    cool: (s) => {
+      if (!s.pulse) return null;
+      const how = s.vitals.temp >= 39
         ? 'Clothes off, cold packs to his neck, armpits and groin, and a fan on his wet skin.'
         : 'His sweat-soaked hoodie comes off, the air conditioning goes up, and cold packs are ready if it climbs.';
-      return {
-        say: [['you', `Hot, flushed and drenched in sweat; pupils wide; strong, fast radial pulses; no JVD. Temperature ${tempText(t)}.`], ['you', how]],
-        flags: ['perfusion', 'cooling'],
-      };
+      return { say: [['you', how]], flags: ['cooling'] };
     },
+    // the first step with a stimulant's agitation: it helps, but only the benzodiazepine settles what the drug drives
+    calm: (s) => (s.pulse
+      ? { say: [['you', 'One calm voice, the friends out of the room, each step explained before it is done.'], ...awake(s, '"Okay… okay. But my heart won\'t slow down."')], flags: ['de-escalated'] }
+      : null),
     midazolam: (s) => benzo(s, has(s, 'iv') ? 'Midazolam 2.5 mg IV.' : 'Midazolam 5 mg IM in the thigh (no IV yet); it takes hold over the next few minutes.'),
     // the paramedic's sedation protocol for a stimulant's agitation is a benzodiazepine
     sedation: (s) => benzo(s, 'Sedation per protocol: midazolam 2.5 mg IV.'),
@@ -329,7 +342,7 @@ export const cocaineField: Scenario = {
         ? (has(s, 'transmitted') ? ', and we have his 12-lead: no STEMI' : '. Send us his 12-lead')
         : (has(s, 'ecg12') ? ', no STEMI on your 12-lead' : '. Get a 12-lead on him');
       return {
-        say: [['hospital', cooling(s)
+        say: [['hospital', tempKnown(s)
           ? `Copy: chest pain an hour after cocaine, ${state}, temperature ${tempText(s.vitals.temp)}${ecg}. A monitored bed will be ready.`
           : `Copy: chest pain an hour after cocaine, ${state}${ecg}. Do you have a temperature on him? A monitored bed will be ready.`]],
         flags: ['notified'],
@@ -369,7 +382,7 @@ export const cocaineField: Scenario = {
         return {
           say: lines,
           vitals: { ...bp, pain: Math.max(0, s.vitals.pain - 5), rr: Math.min(s.vitals.rr, 18), gcs: severe ? 14 : s.vitals.gcs },
-          rhythm: atRate(s, hr), flags: ['iv', 'benzodiazepine', 'sedation', 'calm', 'nitro', 'cooling', 'als-here'],
+          rhythm: atRate(s, hr), flags: ['iv', 'benzodiazepine', 'sedation', 'calm', 'nitro', 'cooling', 'temp', 'als-here'],
         };
       },
     },
@@ -419,6 +432,19 @@ export const cocaineField: Scenario = {
       },
     },
     {
+      // restrained and still unsedated: he fights the straps, and the heat and the acid climb (charged once)
+      id: 'restrained-unsedated',
+      when: (s) => s.pulse && !has(s, 'benzodiazepine') && ['restrained', 'restrained-prone'].some((f) => has(s, f) && s.minute >= s.flags[f] + UNSEDATED_RESTRAINT),
+      effect: (s) => ({
+        say: [['partner', 'He is still fighting the straps — hotter, soaked and breathing hard.', 'bad']],
+        vitals: { temp: warmer(s, 0.3) },
+        penalty: {
+          id: 'restraint-without-sedation', points: 5, severity: 'major',
+          text: 'Restraint with no sedation to follow. A patient who keeps fighting the restraints makes more heat and more acid in his blood — the road to a sudden arrest: restraint is only a bridge to a benzodiazepine given promptly (by the paramedic), with his breathing, SpO₂ and EtCO₂ watched without a break (joint NAEMSP/NASEMSO/NEMSMA/NAEMT/APA position statement, 2021).',
+        },
+      }),
+    },
+    {
       // calm, and being cooled: the heat comes off
       id: 'cooler',
       when: (s) => s.pulse && calm(s) && cooling(s) && s.minute >= Math.max(s.flags.calm, s.flags.cooling) + COOLS_AFTER,
@@ -444,8 +470,16 @@ export const cocaineField: Scenario = {
       why: 'Chest pain after cocaine can be a heart attack: coronary spasm, a clot, or a heart driven past its oxygen supply. A 12-lead within 10 minutes of first contact looks for a STEMI — his shows none.',
     },
     {
-      id: 'temperature', label: 'Check his skin and take his temperature — and cool him', points: 10, target: { by: 10 }, done: ['perfusion'],
-      why: 'Cocaine makes heat (agitation, muscle work, skin vessels clamped shut): his 38.4 °C (101.1 °F) climbs while he stays agitated, and hyperthermia is one of the deadliest effects of a stimulant. Undress him, cool the room, cold packs and a fan as it rises — and treat the agitation that makes the heat.',
+      id: 'temperature', label: 'Take his temperature', points: 5, target: { by: 10 }, done: ['temp'],
+      why: 'Cocaine makes heat (agitation, muscle work, skin vessels clamped shut): his 38.4 °C (101.1 °F) climbs while he stays agitated, and hyperthermia is one of the deadliest effects of a stimulant. A hot, sweaty skin says to measure it.',
+    },
+    {
+      id: 'cool', label: 'Cool him: undress, cold packs, mist and a fan', points: 5, target: { by: 12 }, done: ['cool'],
+      why: 'Cool him as the temperature climbs: undress him, cool the room, cold packs to the neck, armpits and groin, mist and a fan — rapid external cooling is for a life-threatening temperature (2023 AHA) — and treat the agitation that makes the heat.',
+    },
+    {
+      id: 'calm-approach', label: 'Talk him down first: one calm voice, a quiet space', roles: [1, 2], points: 5, target: { by: 5 }, done: ['calm'],
+      why: 'Verbal de-escalation comes before any drug or restraint (joint NAEMSP/NASEMSO/NEMSMA/NAEMT/APA position statement, 2021): one calm voice, fewer people and less noise, each step explained. It lowers the fight — and the heat and the rate that come with it — even when he still needs the benzodiazepine.',
     },
     {
       // by the time the aspirin and the nitroglycerin are due: a paramedic who treats first and asks second is not late
@@ -481,6 +515,13 @@ export const cocaineField: Scenario = {
     },
   ],
   harms: yieldToHeavier([
+    {
+      // the case declares severe agitation for the whole case, but he is oriented and only restless until the 'severe'
+      // event (a benzodiazepine before it prevents it), and calm once one takes hold: restraint is right only in between
+      id: 'restraint-not-yet', actions: ['restrain'], when: (s) => s.pulse && (!has(s, 'severe') || calm(s)), points: 5, severity: 'major',
+      replaces: ['restraint-no-indication'],
+      text: 'Restraining him while he is no danger to himself or the crew. Oriented and restless, he can be talked down, and the benzodiazepine treats what the cocaine drives; calmed by it, he needs no straps at all. Restraint is the last resort, for agitation that endangers him or the crew once talking has failed — face up, with the sedation that ends the fight (joint NAEMSP/NASEMSO/NEMSMA/NAEMT/APA position statement, 2021).',
+    },
     {
       // the same id as the built-in rule, in this case's words and weight: the beta-blocker is this case's main trap, weighted
       // as the other field cases weight a Class 3 — Harm drug (it must not leave an otherwise perfect run "Excellent")
@@ -530,7 +571,7 @@ export const cocaineField: Scenario = {
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {
-      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-sinus', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       when: (s) => s.pulse && ['sinus-tachycardia', 'normal-sinus'].includes(s.rhythm.profile),
       text: 'A drug for an arrhythmia, given for a fast sinus rate. The rate is the cocaine and the agitation driving a normal heart: adenosine and the antiarrhythmics treat nothing here. A benzodiazepine brings the rate down by treating its cause.',
     },
@@ -556,7 +597,7 @@ export const cocaineField: Scenario = {
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     // the EMT's intercept gives it: the flag counts theirs
     { label: 'Benzodiazepine', actions: ['midazolam', 'sedation'], flag: 'benzodiazepine', target: 10 },
-    { label: 'Temperature taken', actions: ['perfusion'], target: 10 },
+    { label: 'Temperature taken', actions: ['temp'], target: 10 },
     { label: 'Aspirin', actions: ['aspirin'], target: 15 },
     { label: 'Left the scene', actions: ['transport-pci', 'transport-near'], target: 18 },
   ],

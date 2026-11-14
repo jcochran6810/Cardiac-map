@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { PADS, bpAfter, count, cprCycles, firstDone, has } from '../kit';
 import { SEDATIVE_RULES } from '../rules/acs';
+import { CALCIUMS } from '../rules/helpers';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** His rhythm while the potassium is high: the case keeps it until he arrests or a pacer takes over */
@@ -24,7 +25,7 @@ const comesRound = (s: SimState) => !has(s, 'rosc');
 
 /** The minute the last dose of calcium went in (its effect wears off 30–60 minutes later), or null */
 function lastCalcium(s: SimState): number | null {
-  const doses = s.performed.filter((p) => p.id === 'calcium-chloride');
+  const doses = s.performed.filter((p) => CALCIUMS.includes(p.id));
   return doses.length ? doses[doses.length - 1].minute : null;
 }
 
@@ -50,6 +51,29 @@ function suppress(s: SimState): Effect | null {
   return {
     say: [['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ...ifAwake(s, '"I feel faint again…"')],
     rhythm: { profile: HYPERK, hr }, vitals: { ...bp, gcs: Math.min(v.gcs, 13) }, flags: ['suppressed'],
+  };
+}
+
+/**
+ * Calcium raises the threshold the potassium has pushed the cells toward: within minutes the rate and the pressure come
+ * up. It lowers no potassium and wears off in 30–60 minutes, so a repeat dose is for changes that persist or return.
+ */
+function calcium(s: SimState, given: string, burns: boolean): Effect | null {
+  if (!s.pulse || s.rhythm.profile !== HYPERK) return null;
+  // the first dose (or one after the effect has faded or a drug has slowed him) does most; a repeat adds a little
+  const first = s.rhythm.hr < 50 || !has(s, 'calcium');
+  const hr = first ? Math.max(s.rhythm.hr, 54) : Math.max(s.rhythm.hr, Math.min(s.rhythm.hr + 6, 64));
+  const bp = first ? atLeast(s, 96, 58) : bpAfter(s, 6, 4);
+  // the better pressure clears the confusion the slow rate caused — not the coma an arrest leaves behind
+  const wakes = first && comesRound(s);
+  return {
+    say: [
+      ['you', given],
+      ...(burns ? ifAwake(s, '"That burns going up my arm."') : []),
+      ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'good'],
+      ...(wakes ? [['patient', '"I can think straight again."'] as Line] : []),
+    ],
+    rhythm: { profile: HYPERK, hr }, vitals: { ...bp, ...(comesRound(s) ? { gcs: 15 } : {}) }, flags: ['calcium'],
   };
 }
 
@@ -126,26 +150,10 @@ export const hyperkalemiaField: Scenario = {
       ? { say: [['you', `Right arm ${s.vitals.sbp}/${s.vitals.dbp}. Not on the left: it carries his dialysis fistula — no cuff on that arm.`]], flags: ['bp', 'bp-arms'] }
       : null),
 
-    // Calcium raises the threshold the potassium has pushed the cells toward: within minutes the rate and the pressure
-    // come up. It lowers no potassium and wears off in 30–60 minutes, so a repeat dose is for changes that persist or return.
-    'calcium-chloride': (s) => {
-      if (!s.pulse || s.rhythm.profile !== HYPERK) return null; // in arrest: pushed and flushed while compressions go on
-      // the first dose (or one after the effect has faded or a drug has slowed him) does most; a repeat adds a little
-      const first = s.rhythm.hr < 50 || !has(s, 'calcium');
-      const hr = first ? Math.max(s.rhythm.hr, 54) : Math.max(s.rhythm.hr, Math.min(s.rhythm.hr + 6, 64));
-      const bp = first ? atLeast(s, 96, 58) : bpAfter(s, 6, 4);
-      // the better pressure clears the confusion the slow rate caused — not the coma an arrest leaves behind
-      const wakes = first && comesRound(s);
-      return {
-        say: [
-          ['you', 'Calcium chloride 1 g in slowly over 2–3 minutes; line flushed.'],
-          ...ifAwake(s, '"That burns going up my arm."'),
-          ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'good'],
-          ...(wakes ? [['patient', '"I can think straight again."'] as Line] : []),
-        ],
-        rhythm: { profile: HYPERK, hr }, vitals: { ...bp, ...(comesRound(s) ? { gcs: 15 } : {}) }, flags: ['calcium'],
-      };
-    },
+    // Calcium (see calcium()); in arrest the engine's line: pushed and flushed while compressions go on. Calcium chloride
+    // 1 g and calcium gluconate 3 g carry about the same calcium (2025 AHA: either, for hyperkalemia with ECG changes)
+    'calcium-chloride': (s) => calcium(s, 'Calcium chloride 1 g in slowly over 2–3 minutes; line flushed.', true),
+    'calcium-gluconate': (s) => calcium(s, 'Calcium gluconate 3 g IV over 5 minutes; line flushed.', false),
     // the shift is slow (about 30 minutes): it shows later, as an event; for now only the beta-agonist's tremor and a few beats
     'albuterol-hyperk': (s) => {
       if (!s.pulse) return null; // a nebulizer needs a breathing patient: the default blocks it
@@ -201,6 +209,7 @@ export const hyperkalemiaField: Scenario = {
     procainamide: suppress,
     metoprolol: suppress,
     diltiazem: suppress,
+    adenosine3: (s) => adenosinePause(s, 4),
     adenosine6: (s) => adenosinePause(s, 6),
     adenosine12: (s) => adenosinePause(s, 8),
     // he cannot pass the fluid: a little pressure, and wetter lungs
@@ -267,7 +276,7 @@ export const hyperkalemiaField: Scenario = {
     // A call can be repeated: each answer is for the patient as he is now. In the arrest there is no 12-lead, no
     // nebulizer and no transport (the engine refuses the first two and scores the third), so the order is the arrest's own
     'med-control': (s) => {
-      const calcium = count(s, 'calcium-chloride');
+      const calcium = CALCIUMS.reduce((n, id) => n + count(s, id), 0);
       const calciumLeft = calcium < (INTERVENTION_BY_ID['calcium-chloride'].maxTimes ?? Infinity);
       if (!s.pulse) {
         const drugs = calciumLeft
@@ -415,7 +424,7 @@ export const hyperkalemiaField: Scenario = {
       // is a reasonable first try too, though in an overloaded dialysis patient it does little
       id: 'post-bp', label: 'After ROSC: treat the low pressure (MAP under 65)', points: 5, applies: (s) => has(s, 'rosc'),
       why: 'After ROSC avoid hypotension: keep the MAP at 65 mmHg or more (2025 AHA). Here calcium again (the potassium is still high), an epinephrine infusion or push-dose epinephrine.',
-      done: ['calcium-chloride', 'pressor', 'push-epi', 'fluid'], after: 'rosc',
+      done: [...CALCIUMS, 'pressor', 'push-epi', 'fluid'], after: 'rosc',
     },
     { id: 'ecg', label: '12-lead ECG early', why: 'Weak and slow in a dialysis patient: the 12-lead shows whether the potassium is reaching the heart (peaked T waves, flattened P waves, a widening QRS) — the sign to give calcium now.', done: ['ecg12'], points: 10, target: { by: 6 } },
     { id: 'history', label: 'History: his dialysis schedule and the missed sessions (SAMPLE)', why: 'Two missed sessions (five days since his last dialysis, on Monday) and a potassium-rich meal explain the tracing — and point to the hospital that can dialyze him.', done: ['sample'], points: 5 },
@@ -424,7 +433,7 @@ export const hyperkalemiaField: Scenario = {
     {
       id: 'calcium', label: 'IV calcium at once for the ECG changes',
       why: 'Calcium steadies the heart within minutes and is the first drug for hyperkalemia with ECG changes. It lowers no potassium and lasts only 30–60 minutes: repeat it if the changes persist after 5–10 minutes.',
-      done: ['calcium-chloride'], points: 20, target: { by: 10 },
+      done: CALCIUMS, points: 20, target: { by: 10 },
     },
     { id: 'recheck', label: 'Reassess the rate and pressure after the calcium', why: 'Look for its effect (a faster rate, a better pressure); if the changes persist after 5–10 minutes, give another dose.', done: ['nibp', 'vitals', 'reassess', 'pulse-check', 'ecg12-repeat'], after: 'calcium', points: 5 },
     { id: 'shift', label: 'Shift the potassium: high-dose albuterol (10–20 mg nebulized)', why: 'Albuterol moves potassium into the cells within about 30 minutes (insulin with dextrose does the same in hospital); calcium only buys time. The wheezing dose (2.5–5 mg) is far too small.', done: ['albuterol-hyperk'], points: 10 },
@@ -451,7 +460,7 @@ export const hyperkalemiaField: Scenario = {
       id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 12, severity: 'critical',
       text: 'A beta-blocker or calcium-channel blocker for a slow heart with a high potassium. Both slow the AV node and weaken the squeeze; with the potassium they spiral toward standstill (BRASH: bradycardia, renal failure, AV-nodal blockade, shock, hyperkalemia).',
     },
-    { id: 'adenosine-slow', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
+    { id: 'adenosine-slow', actions: ['adenosine3', 'adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
     { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
     // a pacer that has captured (after the calcium wore off) hurts: then analgesia and sedation are right
     {
@@ -471,7 +480,7 @@ export const hyperkalemiaField: Scenario = {
   timings: [
     { label: '12-lead', actions: ['ecg12'], target: 6 },
     { label: 'Pads on', actions: PADS, target: 8 },
-    { label: 'Calcium', actions: ['calcium-chloride'], target: 10 },
+    { label: 'Calcium', actions: CALCIUMS, target: 10 },
     { label: 'High-dose albuterol', actions: ['albuterol-hyperk'] },
     { label: 'Call to the hospital', actions: ['notify'], target: 15 },
   ],

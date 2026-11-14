@@ -132,16 +132,19 @@ describe('air embolism in the cath lab: ideal runs end by themselves with full m
     s = answerRead(sc, s, 'clin-bezold');
     expect(s.reads.at(-1)).toMatchObject({ answer: 'clin-air', verdict: 'wrong' });
     expect(s.penalties.at(-1)).toMatchObject({ points: 5 });
-    expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is Coronary air embolism\./);
+    // the feedback comes first; what waited on the read follows it at once
+    expect(s.log.filter((l) => l.who === 'feedback').at(-1)!.text).toMatch(/^Not quite — this is Coronary air embolism\./);
   });
 
   it('a published run of the same complication reaches the Imaging screen only after the read, labeled as another patient\'s', () => {
     let s = run(sc, 5, [], undefined, 'manual');
     expect(s.images).toEqual([{ minute: 0, id: 'view-rca-lao', view: 'LAO view of the right coronary (check run)' }]);
     s = answerRead(sc, s, 'clin-air');
-    expect(s.images).toHaveLength(1);
+    // it waits for the read, then comes with it (no case time passes), not after the next action
+    expect(s.images).toHaveLength(2);
+    expect(s.images.at(-1)).toMatchObject({ minute: 0, image: 'rca-air-embolism', view: expect.stringMatching(/^Another patient/) });
     s = perform(sc, s, 'stop-contrast');
-    expect(s.images.at(-1)).toMatchObject({ image: 'rca-air-embolism', view: expect.stringMatching(/^Another patient/) });
+    expect(s.images).toHaveLength(2);
     // nothing waits on it, so its caption shows at once
     expect(s.pendingRead).toBeNull();
   });
@@ -369,10 +372,11 @@ describe('air embolism in the cath lab: the tech and the nurse', () => {
 
   it('when the tech never answers, the operator gets his own syringe and clears it in time: no VF', () => {
     const s = run(sc, 3, R(7));
-    expect(s.flags['air-cleared']).toBe(4);
-    expect(s.fired).toEqual(expect.arrayContaining(['worse', 'md-clears', 'recovered', 'deair-fallback', 'stent-fallback', 'md-stent', 'md-final']));
+    // the operator asks as the read is given (minute 0) and gets his own syringe when the wait is over
+    expect(s.flags['asked-syringe']).toBe(0);
+    expect(s.flags['air-cleared']).toBe(2);
+    expect(s.fired).toEqual(expect.arrayContaining(['worse', 'syringe-fallback', 'md-clears', 'recovered', 'deair-fallback', 'stent-fallback', 'md-stent', 'md-final']));
     expect(s.fired).not.toContain('vf');
-    expect(s.fired).not.toContain('syringe-fallback');
     expect(s.pulse).toBe(true);
     expect(missed(s)).toEqual(expect.arrayContaining(['A bubble-free aspiration and flush set-up, at once']));
   });
@@ -402,12 +406,16 @@ describe('air embolism in the cath lab: the tech and the nurse', () => {
     expect(s.counts.phenylephrine).toBeUndefined();
     expect(s.fired).not.toContain('vf');
     expect(s.flags.recovered).toBeDefined();
-    expect(missed(s)).toEqual(expect.arrayContaining(['100 % oxygen (non-rebreather)', 'Bring the slow rate up: atropine (pacing if it does not hold)', 'Hold the pressure up while it clears']));
+    // the orders come as the read is given, so the team steps in sooner and he recovers sooner: the oxygen is missed, the
+    // rate counts only half (he came back more than 3 minutes after the air, without her)
+    expect(missed(s)).toEqual(expect.arrayContaining(['100 % oxygen (non-rebreather)']));
+    expect(review(sc, s).toFix.filter((t) => t.kind === 'late').map((t) => t.label)).toContain('Bring the slow rate up: atropine (pacing if it does not hold)');
   });
 
-  it('a nurse who gives atropine before she is asked still gets the credit, and the pressure order follows', () => {
+  it('a nurse who gives atropine first gets the credit (the order comes with the read), and the pressure order follows', () => {
     const s = run(sc, 4, ['atropine', 'callout', 'o2-nrb', 'push-epi', 'reassess', 'ecg12', 'hemostasis', 'handoff']);
-    expect(s.fired).not.toContain('rn-atropine-ask');
+    expect(s.flags['asked-rn-atropine']).toBe(0);
+    expect(s.fired).toContain('rn-atropine-got');
     expect(s.fired).toContain('rn-pressure-ask');
     expectFullMarks(s);
   });

@@ -592,3 +592,14 @@ describe('complete heart block in the ED: what the independent review fixed', ()
     expect(s.vitals.sbp).toBeGreaterThanOrEqual(90);
   });
 });
+
+describe('calcium gluconate in the heart block case', () => {
+  it('answers the calcium order and the physician\'s item as the chloride does: full marks for both roles', () => {
+    for (const role of [6, 7] as const) {
+      const s = run(sc, role, IDEAL[role].map((id) => (id === 'calcium-chloride' ? 'calcium-gluconate' : id)));
+      expect(ids(s), `role ${role}`).toEqual([]);
+      expect(review(sc, s).percent, `role ${role}`).toBe(100);
+      expect(said(s, role === 6 ? 'you' : 'nurse', /^Calcium gluconate 3 g IV over 5–10 minutes/), `role ${role}`).toBe(true);
+    }
+  });
+});

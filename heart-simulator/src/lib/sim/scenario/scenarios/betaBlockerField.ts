@@ -83,7 +83,8 @@ function picture(s: SimState, at = s.minute): Picture {
     [PUSH_EPI, pushEpi ? 1 : 0],
     [EPI_BOLUS, bolus ? 1 : 0],
     [ATROPINE, running(s, 'atropineUntil', at) ? 1 : 0],
-    [CALCIUM, Math.min(2, count(s, 'calcium-chloride'))],
+    // calcium chloride 1 g and calcium gluconate 3 g carry about the same calcium
+    [CALCIUM, Math.min(2, count(s, 'calcium-chloride') + count(s, 'calcium-gluconate'))],
     [FLUID, Math.min(2, count(s, 'fluid'))],
     [PACED, has(s, 'paced') ? 1 : 0],
     [AV_BLOCKER, count(s, 'diltiazem') + count(s, 'metoprolol')],
@@ -421,6 +422,12 @@ export const betaBlockerField: Scenario = {
       return settle(s, after(s, { id: 'calcium-chloride' }), end(s, 'calcium-chloride'), [['you', 'Calcium chloride 1 g in slowly over a few minutes; line flushed.']],
         (p) => [...awake(p, '"That burns going up my arm."'), ['monitor', `${BP(p)}.`]], ['calcium']);
     },
+    // the same calcium as the chloride, gentler on a peripheral vein
+    'calcium-gluconate': (s) => {
+      if (!s.pulse) return null;
+      return settle(s, after(s, { id: 'calcium-gluconate' }), end(s, 'calcium-gluconate'), [['you', 'Calcium gluconate 3 g IV over 5–10 minutes; line flushed.']],
+        (p) => [['monitor', `${BP(p)}.`]], ['calcium']);
+    },
     pace: (s) => {
       // pacing in arrest, or a rate that needs no pacer: the engine's own response
       if (!s.pulse || has(s, 'paced') || !slowAndFailing(s)) return null;
@@ -456,6 +463,7 @@ export const betaBlockerField: Scenario = {
     'magnesium-sulfate': harmful('magnesium-sulfate', 'Magnesium sulfate 2 g running over 15 minutes.', 'magnesium'),
     cpap: harmful('cpap', 'CPAP applied at 5 cmH₂O.', 'cpap'),
     // adenosine blocks the AV node for seconds: a pause, then the same beats (the pacer is not blocked)
+    adenosine3: (s) => (s.pulse ? { say: [['monitor', has(s, 'paced') ? 'No change: the pacer holds 70.' : 'Five seconds with no QRS complexes… then the same slow beats return.', 'bad']], flags: ['adenosine'] } : null),
     adenosine6: (s) => (s.pulse ? { say: [['monitor', has(s, 'paced') ? 'No change: the pacer holds 70.' : 'Seven seconds with no QRS complexes… then the same slow beats return.', 'bad']], flags: ['adenosine'] } : null),
     adenosine12: (s) => (s.pulse ? { say: [['monitor', has(s, 'paced') ? 'No change: the pacer holds 70.' : 'Nine seconds with no QRS complexes… then the same slow beats return.', 'bad']], flags: ['adenosine'] } : null),
     vagal: (s) => (s.pulse && !has(s, 'paced') ? { say: [['monitor', 'Heart rate 33 for a few seconds, then back.', 'bad']], flags: ['vagal'] } : null),
@@ -612,7 +620,7 @@ export const betaBlockerField: Scenario = {
   ],
   harms: yieldToHeavier([
     { id: 'av-blocker', actions: ['diltiazem', 'metoprolol'], replaces: RATE_RULES, points: 20, severity: 'critical', text: 'Another AV-nodal blocker on top of a beta-blocker overdose. A calcium-channel blocker or more beta-blocker slows the heart, weakens the squeeze and opens the vessels further, and can stop the heart: treat the poison, never add to it.' },
-    { id: 'adenosine-brady', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
+    { id: 'adenosine-brady', actions: ['adenosine3', 'adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
     // one penalty for one mistake: these stand in for the engine's procainamide and arrest-dose amiodarone rules
     { id: 'antiarrhythmic-brady', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['procainamide-slow', 'procainamide-hypotension', 'arrest-amio-with-pulse', ...LIDOCAINE_RULES, ...RATE_RULES], text: 'An antiarrhythmic for a slow rhythm with a low pressure. Amiodarone and procainamide slow conduction and drop the pressure, and all three can suppress the backup pacemaker that is keeping her going; there is nothing here to suppress.' },
     // her arrest is an organized rhythm without a pulse: nothing for amiodarone or lidocaine to treat (procainamide has its own built-in rule)

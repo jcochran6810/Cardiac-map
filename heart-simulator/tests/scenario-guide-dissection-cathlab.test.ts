@@ -167,7 +167,8 @@ describe('guide-catheter dissection: recognizing it', () => {
     s = answerRead(sc, s, 'clin-perforation');
     expect(s.reads.at(-1)).toMatchObject({ answer: 'clin-dissection', verdict: 'wrong' });
     expect(s.penalties.at(-1)).toMatchObject({ points: 5 });
-    expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is Coronary dissection\./);
+    // the feedback comes first; what waited on the read follows it at once
+    expect(s.log.filter((l) => l.who === 'feedback').at(-1)!.text).toMatch(/^Not quite — this is Coronary dissection\./);
   });
 
   it('the real run from before the stain reaches the Imaging screen only once it has been named', () => {

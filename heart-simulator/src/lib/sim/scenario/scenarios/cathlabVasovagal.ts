@@ -110,11 +110,11 @@ function epiFx(s: SimState, what: string, flag: string, dHr: number, dSbp: numbe
  * Nitroglycerin: no chest pain to ease, only wider vessels — the pressure falls (nitrates during a sheath pull are a known
  * trigger of this reaction). The 0.8 mg dose drops it about twice as far
  */
-const nitroFx = (high: boolean): Responder => (s) => {
+const nitroFx = (high: boolean, iv = false): Responder => (s) => {
   const bp = high ? bpAfter(s, -20, -10) : bpAfter(s, -10, -6);
   return {
-    say: [['you', `Nitroglycerin ${high ? '0.8' : '0.4'} mg under the tongue.`], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ...(reacting(s) ? [line('patient', '"Everything\'s going dark…"', 'bad')] : [])],
-    vitals: bp, flags: high ? ['nitro', 'nitro-high'] : ['nitro'],
+    say: [['you', iv ? 'Nitroglycerin infusion running IV.' : `Nitroglycerin ${high ? '0.8' : '0.4'} mg under the tongue.`], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ...(reacting(s) ? [line('patient', '"Everything\'s going dark…"', 'bad')] : [])],
+    vitals: bp, flags: [...(high ? ['nitro', 'nitro-high'] : ['nitro']), ...(iv ? ['nitro-iv'] : [])],
   };
 };
 
@@ -466,6 +466,7 @@ export const cathlabVasovagal: Scenario = {
     'epi-im': (s) => epiFx(s, 'Epinephrine 0.5 mg IM, lateral thigh.', 'epi-im', 8, 12, 6),
     nitro: nitroFx(false),
     'nitro-high': nitroFx(true),
+    'nitro-iv': nitroFx(true, true),
     'amio-infusion': amiodaroneFx,
     fentanyl: sedativeFx('Fentanyl 25 mcg IV.', ['analgesia']),
     midazolam: sedativeFx('Midazolam 1 mg IV.', ['benzodiazepine', 'sedation']),
@@ -680,7 +681,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'Epinephrine for anaphylaxis with no anaphylaxis. A contrast reaction drops the pressure too, but with a fast pulse, flushing, hives, wheeze or swelling; here the pulse is slow, the skin pale and wet, and he yawned and felt sick first — a vagal picture. Unneeded epinephrine races the heart and spikes the pressure in a man just studied for chest pain: legs up, fluid and atropine.',
     },
     {
-      id: 'nodal-blocker-slow', actions: ['metoprolol', 'diltiazem', 'adenosine6', 'adenosine12', 'amio-infusion'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60 && !paced(s), replaces: RATE_RULES, points: 8, severity: 'major',
+      id: 'nodal-blocker-slow', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem', 'adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60 && !paced(s), replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A drug that slows the heart, with a pulse under 60. Metoprolol, diltiazem, amiodarone and adenosine slow the sinus node or the AV node further and deepen the fall in pressure: atropine is the drug for a slow rate.',
     },
     {
@@ -690,7 +691,7 @@ export const cathlabVasovagal: Scenario = {
     // the built-in rule scores nitroglycerin with a systolic under 90; this one the rest of the time (and the 0.8 mg dose), giving
     // way to a reason to hold it that is worth more — a rate under 50 in the reaction, or a pressure fallen 30 below where it started
     nitrateCaseRule({
-      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: RN_MD, when: (s) => s.vitals.sbp >= 90, points: 3, severity: 'minor',
+      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: RN_MD, when: (s) => s.vitals.sbp >= 90, points: 3, severity: 'minor',
       text: 'Nitroglycerin with no chest pain to treat. It is for ischemic chest pain (or a high pressure in pulmonary edema); here it only opens the vessels and drops the pressure — and nitrates during a sheath pull are a known trigger of this reaction.',
     }, 'nitro-high-not-hypertensive'),
     {

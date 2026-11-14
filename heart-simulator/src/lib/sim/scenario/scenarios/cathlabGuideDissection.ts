@@ -352,7 +352,7 @@ const RN_ASKS: LabAsk[] = [
     // metoprolol gets the operator's word too, but its penalty is the case's own 'beta-blocker' (see the harm below)
     id: 'rn-rate', role: 4, when: (s) => has(s, 'dissection'), within: 1.5,
     ask: 'Rate\'s 48 and she\'s gray — something for her rate, please.',
-    accept: ['atropine', 'pace'], wrong: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol'],
+    accept: ['atropine', 'pace'], wrong: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'esmolol', 'labetalol'],
     wrongSay: 'No! That slows her further. Atropine, 1 milligram.',
     thanks: 'Thanks — rate\'s coming up.', fallback: 'I\'ll give the atropine myself.', gives: 'rate-treated',
     fallbackEffect: (s) => atropineBy(s, 'operator'),
@@ -362,7 +362,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'rn-pressure', role: 4, when: (s) => has(s, 'dissection'), within: 2,
     ask: 'And her pressure is 84 — what does she need?',
-    accept: SUPPORT, wrong: ['nitro', 'nitro-high', 'ic-nitro'],
+    accept: SUPPORT, wrong: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'],
     wrongSay: 'No — that drops it further. Fluid, wide open.',
     thanks: 'Thanks — pressure\'s coming up.', fallback: 'Open the fluids, someone!', gives: 'pressure-supported',
     fallbackEffect: (s) => {
@@ -376,7 +376,7 @@ const RN_ASKS: LabAsk[] = [
     // a nurse who has already eased her pain (fentanyl before the operator asks) has answered it: it counts
     id: 'rn-pain', role: 4, when: (s) => has(s, 'pressure-supported'), within: 2, early: true,
     ask: 'She\'s still in pain — something for it, please.',
-    accept: ['fentanyl'], wrong: ['nitro', 'nitro-high', 'ic-nitro'],
+    accept: ['fentanyl'], wrong: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'],
     wrongSay: 'Not nitroglycerin — her pressure won\'t take it. Fentanyl, 25 micrograms.',
     thanks: 'Thanks.', fallback: 'I\'ll give the fentanyl myself.', gives: 'pain-treated',
     fallbackEffect: (s) => ({ say: [['operator', 'Fentanyl 25 micrograms IV.']], vitals: { pain: Math.max(0, s.vitals.pain - 3) }, flags: ['analgesia'] }),
@@ -471,7 +471,8 @@ export const cathlabGuideDissection: Scenario = {
       const reply = s.role === 4 ? 'I see it — thanks. Treat her rate and her pressure for me.' : 'I see it — thanks. Nobody injects.';
       return { say: [['you', said], ['operator', reply]], flags: ['callout', 'dissection-called'] };
     },
-    // the heparin from the start of the case, unless it was reversed (protamine) or topped up on top of a good ACT
+    // the heparin from the start of the case, unless it was reversed (protamine) or topped up on top of a good ACT. A low ACT
+    // is what guides the next heparin bolus (the built-in heparin-repeat-unguided reads the timer)
     act: (s) => ({
       say: [['team', reversed(s)
         ? 'ACT 158 s: the heparin is largely reversed — too low for a wire and a stent in a coronary.'
@@ -479,6 +480,7 @@ export const cathlabGuideDissection: Scenario = {
           ? 'ACT 356 s: above the PCI range.'
           : 'ACT 272 s: in range for PCI.']],
       flags: ['act'],
+      ...(reversed(s) ? { timers: { actLowAt: s.minute } } : {}),
     }),
     // nobody answers questions in cardiac arrest (the case's own answers would otherwise be spoken by her)
     opqrst: (s) => (s.pulse ? null : { blocked: true, say: [['system', 'Not in cardiac arrest: she cannot answer. Shock first.']] }),
@@ -805,19 +807,19 @@ export const cathlabGuideDissection: Scenario = {
     { id: 'tech-unasked-stent', actions: STENTS, roles: TECH, when: (s) => torn(s) && !has(s, 'lumen-known'), points: 2, severity: 'minor', text: 'A stent opened before anyone knew which lumen the wire was in. Open devices when the operator asks for them: the stent waits for the IVUS.' },
     // until the entry is sealed the right ventricle is ischemic, whatever the pressure has been pushed up to: this covers the
     // built-in rule under 90 too. Once the flow is back, only a systolic under 100 still counts
-    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, when: nitroWrong, points: 6, severity: 'major', text: 'Nitroglycerin while the torn RCA was closing (or the pressure low). V4R shows the right ventricle ischemic, and her pressure had fallen far more than 30 below her 136: nitrates are avoided with a right ventricular infarction, a systolic under 90 or a fall of more than 30 (2025 ACC/AHA ACS), because they drop the filling an ischemic right ventricle depends on — and the pressure with it. They open nothing here either: the flap is mechanical, and the fix is a stent. For the pain: fentanyl.' },
+    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], replaces: NITRATE_RULES, when: nitroWrong, points: 6, severity: 'major', text: 'Nitroglycerin while the torn RCA was closing (or the pressure low). V4R shows the right ventricle ischemic, and her pressure had fallen far more than 30 below her 136: nitrates are avoided with a right ventricular infarction, a systolic under 90 or a fall of more than 30 (2025 ACC/AHA ACS), because they drop the filling an ischemic right ventricle depends on — and the pressure with it. They open nothing here either: the flap is mechanical, and the fix is a stent. For the pain: fentanyl.' },
     // the built-in rule in its own words, only where the one above does not already apply: one mistake, one penalty
     nitrateCaseRule({ id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !nitroWrong(s) && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' }),
-    { id: 'beta-blocker', actions: ['metoprolol'], when: stillSlowOrLow, replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker with a slow rate and a low pressure from a closing RCA. It slows the rate and weakens the squeeze further.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], when: stillSlowOrLow, replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker with a slow rate and a low pressure from a closing RCA. It slows the rate and weakens the squeeze further.' },
     // once the flow is back: no longer dangerous at once, but nothing to give it for, minutes after a rate of 48 and a pressure of 84
-    { id: 'beta-blocker-after', actions: ['metoprolol'], when: (s) => !stillSlowOrLow(s), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'An IV beta-blocker with nothing to treat. Minutes ago the closing RCA gave her a rate of 48 and a pressure of 84: an IV beta-blocker is not routine after a myocardial infarction and is avoided in anyone at risk of a low output (2025 ACC/AHA ACS). An oral one can start on the unit once she is stable.' },
+    { id: 'beta-blocker-after', actions: ['metoprolol', 'esmolol', 'labetalol'], when: (s) => !stillSlowOrLow(s), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'An IV beta-blocker with nothing to treat. Minutes ago the closing RCA gave her a rate of 48 and a pressure of 84: an IV beta-blocker is not routine after a myocardial infarction and is avoided in anyone at risk of a low output (2025 ACC/AHA ACS). An oral one can start on the unit once she is stable.' },
     // the heparin from the start of the case still holds the ACT in range (272 s): more only adds bleeding. After protamine
     // has reversed it, a new bolus is right
-    { id: 'heparin-extra', actions: ['heparin'], when: (s) => !reversed(s), points: 3, severity: 'minor', replaces: ANTITHROMBOTIC_RULES, text: 'Another heparin bolus with the ACT already in range. More heparin adds bleeding — into the wall of the torn artery among other places — and treats nothing: check the ACT and redose only when it falls below the PCI target (250–300 s).' },
+    { id: 'heparin-extra', actions: ['heparin'], when: (s) => !reversed(s), points: 3, severity: 'minor', replaces: [...ANTITHROMBOTIC_RULES, 'heparin-repeat-unguided'], text: 'Another heparin bolus with the ACT already in range. More heparin adds bleeding — into the wall of the torn artery among other places — and treats nothing: check the ACT and redose only when it falls below the PCI target (250–300 s).' },
     // no tachycardia anywhere in this case: drugs that slow the node or treat an arrhythmia only slow a heart the RCA has
     // slowed and drop its pressure. While the nurse's rate request is open, a wrong answer to it is that request's own
     // penalty ('wrong-rn-rate'): one mistake, one penalty
-    { id: 'nodal-blocker-no-tachycardia', actions: ['adenosine6', 'adenosine12', 'diltiazem'], when: (s) => s.pulse && !(s.role === 4 && has(s, 'asked-rn-rate') && !has(s, 'rate-treated')), replaces: RATE_RULES, points: 5, severity: 'major', text: 'Adenosine or diltiazem with no tachycardia to treat. They slow the AV node, and diltiazem drops the pressure — in a heart the RCA has just slowed, with a right ventricle that needs its rate and its filling.' },
+    { id: 'nodal-blocker-no-tachycardia', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem'], when: (s) => s.pulse && !(s.role === 4 && has(s, 'asked-rn-rate') && !has(s, 'rate-treated')), replaces: RATE_RULES, points: 5, severity: 'major', text: 'Adenosine or diltiazem with no tachycardia to treat. They slow the AV node, and diltiazem drops the pressure — in a heart the RCA has just slowed, with a right ventricle that needs its rate and its filling.' },
     { id: 'antiarrhythmic-no-arrhythmia', actions: ['amio-infusion', 'procainamide'], replaces: ['procainamide-hypotension', 'procainamide-slow', ...RATE_RULES], when: (s) => s.pulse, points: 8, severity: 'major', text: 'An antiarrhythmic infusion with no arrhythmia to treat. Amiodarone and procainamide slow the heart and drop the pressure; the slow rate and the low pressure here come from the RCA, and the fix is the stent.' },
     { id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], when: (s) => s.pulse, replaces: LIDOCAINE_RULES, points: 3, severity: 'minor', text: 'Lidocaine with no ventricular arrhythmia to treat. Lidocaine to prevent VF in an acute MI brings no benefit and more asystole; here it only adds its toxicity.' },
     { id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'IM epinephrine with no anaphylaxis. It speeds the heart and raises its oxygen demand while the RCA is closing; a low pressure here takes fluid first, then push-dose epinephrine or an infusion that can be titrated.' },
@@ -830,7 +832,7 @@ export const cathlabGuideDissection: Scenario = {
     askHarm(TECH_ASKS[1], 'OCT when the operator asked for IVUS. Its forceful contrast flush is another injection into the torn ostium, and it cannot clear the blood there.'),
     askHarm(TECH_ASKS[2], 'The wrong device when the operator asked for a drug-eluting stent to seal the ostium. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[3], 'A compliant balloon when the operator asked for a non-compliant one. Taken to high pressure, it grows past its size and can tear the vessel at the stent edges.'),
-    { ...askHarm(RN_ASKS[0], 'A drug that slows the rate further when the operator asked for something for a rate of 48. Atropine 1 mg IV.', 5), actions: ['adenosine6', 'adenosine12', 'diltiazem'], replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[0], 'A drug that slows the rate further when the operator asked for something for a rate of 48. Atropine 1 mg IV.', 5), actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem'], replaces: RATE_RULES },
   ]),
   timings: [
     { label: 'Contrast stopped', actions: ['stop-contrast'], flag: 'contrast-stopped', target: 1, from: 'dissection' },

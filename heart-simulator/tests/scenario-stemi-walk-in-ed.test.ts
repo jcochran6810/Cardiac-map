@@ -591,3 +591,48 @@ describe('walk-in STEMI in the ED: the code in the nurse\'s run', () => {
     expect(run(sc, 6, RN).fired).not.toContain('rn-physician-at-code');
   });
 });
+
+describe('an order held through the arrest is judged again at ROSC', () => {
+  // the fentanyl order comes late (the history taken after a pause), and the VF comes before anyone has given it
+  const LATE_ORDER = ['triage', 'ecg12', 'notify-physician', 'aspirin', 'pads', 'iv', 'heparin', 'p2y12', 'labs', 'reassess', 'sample', 'ask-pde5',
+    'notify-physician'];
+  /** The same case with the pressure under 90 as the pulse comes back (an event before the orders') */
+  const lowAfterRosc: typeof sc = {
+    ...sc,
+    events: [{ id: 'low-after-rosc', when: (s) => 'rosc' in s.flags, effect: () => ({ vitals: { sbp: 84, dbp: 50 } }) }, ...sc.events],
+  };
+
+  it('held in the arrest: no fallback while there is no pulse', () => {
+    const s = run(sc, 6, [...LATE_ORDER, ...R(2)]);
+    expect(s.pulse).toBe(false);
+    expect(s.fired).toEqual(expect.arrayContaining(['fentanyl-ask', 'fentanyl-held']));
+    expect(s.fired).not.toContain('fentanyl-fallback');
+  });
+
+  it('still right after ROSC (his pressure holds): the order goes on, and the fallback gives it', () => {
+    const s = run(sc, 6, [...LATE_ORDER, ...R(2), 'defib']);
+    expect(s.pulse).toBe(true);
+    expect(s.flags['resumed:fentanyl']).toBeDefined();
+    expect(s.flags['cancelled:fentanyl']).toBeUndefined();
+    expect(s.fired).toContain('fentanyl-fallback');
+    expect(criticalsFor(sc, 6).find((c) => c.id === 'ask-fentanyl')!.applies!(s)).toBe(true);
+  });
+
+  it('no longer right (a systolic under 90): cancelled with one line, no fallback, the item dropped, and the order gone', () => {
+    const s = run(lowAfterRosc, 6, [...LATE_ORDER, ...R(2), 'defib']);
+    expect(s.vitals.sbp).toBe(84);
+    expect(s.flags['cancelled:fentanyl']).toBeDefined();
+    expect(s.fired).not.toContain('fentanyl-fallback');
+    expect(s.flags['ordered:fentanyl']).toBeUndefined();
+    const lines = s.log.filter((l) => /cancels the order/.test(l.text));
+    expect(lines).toEqual([{ minute: s.minute, who: 'team', text: 'After the arrest the physician cancels the order — fentanyl for the pain: his systolic is 84 now — no opioid until his pressure holds.' }]);
+    // the item neither counts as missed nor as applicable
+    expect(criticalsFor(lowAfterRosc, 6).find((c) => c.id === 'ask-fentanyl')!.applies!(s)).toBe(false);
+    expect(review(lowAfterRosc, stop(s)).toFix.map((t) => t.label)).not.toContain('Fentanyl for the pain, on the physician\'s order');
+    // later: still no fallback; given now, it is a dose with no order
+    const later = run(lowAfterRosc, 6, [...LATE_ORDER, ...R(2), 'defib', ...R(4), 'fentanyl']);
+    expect(later.fired).not.toContain('fentanyl-fallback');
+    expect(later.fired).not.toContain('fentanyl-got');
+    expect(ids(later)).toContain('rn-without-order-fentanyl');
+  });
+});

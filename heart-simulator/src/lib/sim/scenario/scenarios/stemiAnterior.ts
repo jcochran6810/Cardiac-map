@@ -6,12 +6,15 @@ import { cpapHarmful } from '../rules/support';
 
 const ROSC_VITALS = { sbp: 104, dbp: 66, spo2: 94, rr: 16, gcs: 14, pain: 6 };
 
+/** What a shock puts on the chest: the EMT's AED is pads only (no rhythm or numbers to read); a defibrillator is a monitor too */
+const padFlags = (s: SimState) => (s.role === 1 ? ['pads'] : ['pads', 'monitor']);
+
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;
   // brief, witnessed VF with early CPR / defibrillation: the first or second shock converts
   const early = has(s, 'cpr') || (s.timers.arrestAt !== undefined && s.minute - s.timers.arrestAt <= 1);
   if (!early && shocks(s) === 0) {
-    return { say: [['monitor', 'Shock delivered. No change on the monitor — resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
+    return { say: [['monitor', 'Shock delivered. No change on the monitor — resume CPR.']], flags: [...padFlags(s), 'shocked'] };
   }
   return {
     say: [
@@ -20,7 +23,7 @@ function shockOutcome(s: SimState): Effect | null {
       ['patient', 'Groans and opens his eyes: "What happened?"'],
     ],
     rhythm: { profile: 'anterior-stemi', hr: 112 }, pulse: true, phase: 'rosc', vitals: ROSC_VITALS,
-    flags: ['pads', 'monitor', 'shocked'],
+    flags: [...padFlags(s), 'shocked'],
   };
 }
 
@@ -121,10 +124,13 @@ export const stemiAnterior: Scenario = {
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     { label: 'Aspirin', actions: ['aspirin'], target: 15 },
     { label: 'Cath lab activated', actions: ['stemi-alert', 'ecg-transmit'], target: 15 },
-    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   ],
   transportMinutes: 15,
-  arrival: 'You arrive at the heart center; the cath lab team meets you at the door.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it has no cath lab — the emergency physician calls the heart center to transfer him for PCI.'
+    : 'You arrive at the heart center; the cath lab team meets you at the door.'),
   teaching: [
     'Anterior STEMI is a proximal LAD occlusion: a large territory with a high risk of VF and cardiogenic shock in the first hours. Pads on early.',
     '12-lead within 10 minutes of first contact; transmit it and activate the cath lab from the field.',

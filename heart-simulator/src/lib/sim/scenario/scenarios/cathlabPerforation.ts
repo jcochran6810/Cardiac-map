@@ -53,7 +53,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'support', role: 4, when: (s) => has(s, 'perforation'), within: 2,
     ask: 'Her pressure is falling — support it, please.',
-    accept: ['fluid', 'push-epi', 'pressor', 'phenylephrine'], wrong: ['nitro', 'nitro-high', 'metoprolol', 'gp2b3a'],
+    accept: ['fluid', 'push-epi', 'pressor', 'phenylephrine'], wrong: ['nitro', 'nitro-high', 'nitro-iv', 'metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'gp2b3a'],
     wrongSay: 'No! That makes it worse. Fluid, wide open.',
     thanks: 'Thanks.', fallback: 'Open the fluids, someone!', gives: 'supported',
     label: 'Support the falling pressure (fluid wide open)',
@@ -216,8 +216,8 @@ export const cathlabPerforation: Scenario = {
     { id: 'des-for-perforation', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'perforation'), points: 4, severity: 'minor', text: 'A drug-eluting stent for a perforation. It does not seal the hole; a covered stent does.' },
     { id: 'gp-in-perforation', actions: ['gp2b3a'], when: (s) => has(s, 'perforation'), points: 12, severity: 'critical', replaces: ANTITHROMBOTIC_RULES, text: 'A GP IIb/IIIa inhibitor during an active perforation. It keeps the hole bleeding.' },
     { id: 'more-heparin', actions: ['heparin', 'bivalirudin'], when: (s) => has(s, 'perforation'), points: 10, severity: 'major', replaces: ANTITHROMBOTIC_RULES, text: 'More anticoagulant during an active perforation.' },
-    { id: 'nitro-in-tamponade', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => has(s, 'perforation'), replaces: NITRATE_RULES, points: 6, severity: 'major', text: 'Nitroglycerin with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], when: (s) => has(s, 'perforation'), replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
+    { id: 'nitro-in-tamponade', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], when: (s) => has(s, 'perforation'), replaces: NITRATE_RULES, points: 6, severity: 'major', text: 'Nitroglycerin with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], when: (s) => has(s, 'perforation'), replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a covered stent to seal the perforation.'),
     { ...askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5), replaces: RATE_RULES },
     // The built-in pressor rules, same ids (deliberate exemptions). The hole bleeds into the pericardium: the pressure falls

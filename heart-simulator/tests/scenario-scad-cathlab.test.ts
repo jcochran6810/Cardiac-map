@@ -23,9 +23,10 @@ const IDEAL: Record<3 | 4 | 5, string[]> = {
   // called out, intracoronary nitroglycerin, "no more heparin" read back, metoprolol, fentanyl, the band, the repeat 12-lead, the hand-off
   4: ['consent', 'heparin', 'timeout', 'ecg12', 'callout', 'ic-nitro', 'callout', 'metoprolol', 'fentanyl', 'hemostasis', 'ecg12-repeat', 'handoff'],
   // the cardiologist: consent, heparin and the time-out before access; the damped catheter backed out; the diagnostic run;
-  // nitroglycerin and a repeat of the LAD; no intervention; metoprolol; the ache treated and a 12-lead; the echo; the hand-off
-  5: ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'metoprolol', 'fentanyl', 'ecg12',
-    'echo', 'handoff'],
+  // nitroglycerin and a repeat of the LAD; no intervention; the heparin stopped; metoprolol; the ache treated and a 12-lead;
+  // the echo; the hand-off
+  5: ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'stop-antithrombotics', 'metoprolol',
+    'fentanyl', 'ecg12', 'echo', 'handoff'],
 };
 const ROLES = [3, 4, 5] as const;
 const MD = IDEAL[5];
@@ -410,13 +411,21 @@ describe('SCAD in the cath lab: the independent review', () => {
   const TO_ENGAGE = MD.slice(0, MD.indexOf('cath-jl4') + 1);
   const handoff = (s: SimState) => s.log.find((l) => /^SBAR hand-off/.test(l.text))!.text;
 
-  it('a beta-blocker is not required in the lab: starting it by mouth on the unit is right too, and the hand-off says so', () => {
-    expect(criticalsFor(sc, 5).map((c) => c.id)).not.toContain('md-bb');
-    const s = run(sc, 5, MD.filter((id) => id !== 'metoprolol'));
-    expectFullMarks(s);
-    expect(handoff(s)).toMatch(/Metoprolol by mouth to start on the unit/);
+  it('the beta-blocker can be IV in the lab or by mouth: either counts, and the hand-off says it was started', () => {
+    expect(criticalsFor(sc, 5).find((c) => c.id === 'md-bb')).toMatchObject({ points: 5, uses: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'] });
+    // another IV beta-blocker counts too, and the hand-off names it
+    const esmolol = run(sc, 5, MD.map((id) => (id === 'metoprolol' ? 'esmolol' : id)));
+    expectFullMarks(esmolol);
+    expect(handoff(esmolol)).toMatch(/Esmolol given; metoprolol by mouth to follow/);
+    const oral = run(sc, 5, MD.map((id) => (id === 'metoprolol' ? 'metoprolol-po' : id)));
+    expectFullMarks(oral);
+    expect(handoff(oral)).toMatch(/Metoprolol started/);
     // and IV metoprolol in the stable patient costs nothing (the ideal run gives it)
     expect(handoff(run(sc, 5, MD))).toMatch(/Metoprolol started/);
+    // none at all: the item is missed, and the hand-off leaves it for the unit
+    const none = run(sc, 5, MD.filter((id) => id !== 'metoprolol'));
+    expect(missed(none)).toEqual(['A beta-blocker once the SCAD is seen: IV, or by mouth']);
+    expect(handoff(none)).toMatch(/Metoprolol by mouth to start on the unit/);
   });
 
   it('IV metoprolol once the spread hematoma has made the wall ischemic again (rate over 110, pressure falling) is a major error', () => {
@@ -480,6 +489,14 @@ describe('SCAD in the cath lab: the independent review', () => {
     expect(missed(s)).toContain('Heparin for the STEMI, as ordered');
     // switching to bivalirudin before the diagnosis is not scored as a double dose (after it, it is the anticoagulation harm)
     expect(penalties(run(sc, 5, ['consent', 'heparin', 'bivalirudin']))).toEqual([]);
+    // the cardiologist stops the heparin once the SCAD is seen; the nurse's read-back may be the stop itself
+    const md = run(sc, 5, MD.filter((id) => id !== 'stop-antithrombotics'));
+    expect(missed(md)).toContain('Once the SCAD is seen: stop the heparin — no top-up, no drip');
+    const rn = IDEAL[4];
+    const stopped = run(sc, 4, rn.map((id, i) => (id === 'callout' && i === rn.lastIndexOf('callout') ? 'stop-antithrombotics' : id)));
+    expect(stopped.fired).toContain('rn-heparin-off-got');
+    // her own second bolus: the case's double dose stands in for the built-in unguided repeat (one dose, one penalty)
+    expect(penalties(run(sc, 4, ['consent', 'heparin', 'heparin']))).toEqual(['heparin-twice']);
   });
 
   it('the tech who opens a balloon or a stent before anyone has seen the artery wastes it; a guide and a wire opened ahead are no mistake', () => {

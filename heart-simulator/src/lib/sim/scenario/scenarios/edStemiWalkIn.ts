@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { allOf, bpAfter, firstDone, has, shocks, PADS } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { BETA_BLOCKERS } from '../rules/helpers';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -37,7 +38,9 @@ const doctorRun = (s: SimState) => s.role === 7;
 const pde5Known = (s: SimState) => has(s, 'pde5-reported') || has(s, 'physician-knows-pde5');
 
 /** Minute of the first nitrate (0.4 or 0.8 mg), or null */
-const firstNitrate = (s: SimState) => firstDone(s, ['nitro', 'nitro-high']);
+/** Every nitroglycerin he can be given here: the standing order's sublingual doses and the IV infusion */
+const NITRATES = ['nitro', 'nitro-high', 'nitro-iv'];
+const firstNitrate = (s: SimState) => firstDone(s, NITRATES);
 
 /**
  * He was asked about the erectile-dysfunction drugs before any nitrate went in (or none ever did): the minute, or null. A
@@ -80,13 +83,13 @@ function shock(s: SimState, aed: boolean): Effect | null {
  * Nitroglycerin on top of the tadalafil he took this morning: both raise the cyclic GMP that relaxes the vessels, so the
  * pressure falls far more than nitroglycerin alone would drop it — and the chest pain barely changes
  */
-function nitrate(s: SimState, high: boolean): Effect | null {
+function nitrate(s: SimState, high: boolean, iv = false): Effect | null {
   if (!s.pulse) return null;
   const bp = has(s, 'nitro-crash') ? bpAfter(s, -16, -10) : bpAfter(s, high ? -66 : -58, high ? -40 : -36);
   return {
     say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ...awake(s, 'Whoa… I feel faint — the room is spinning.')],
     vitals: { ...bp, pain: Math.max(0, s.vitals.pain - 1) },
-    flags: high ? ['nitro', 'nitro-high', 'nitro-crash'] : ['nitro', 'nitro-crash'],
+    flags: [...(high ? ['nitro', 'nitro-high', 'nitro-crash'] : ['nitro', 'nitro-crash']), ...(iv ? ['nitro-iv'] : [])],
   };
 }
 
@@ -173,6 +176,8 @@ const FENTANYL_ORDER: LabAsk = edOrder({
   fallbackEffect: (s) => { const line = lineFor(s); return { say: line.say, vitals: { pain: Math.max(0, s.vitals.pain - 3) }, flags: [...(line.flags ?? []), 'analgesia'] }; },
   gives: 'fentanyl-given', points: 5,
   within: 3, wait: 4,
+  // held through an arrest and no longer right at ROSC (the order's own `when`): what the physician says as he cancels it
+  cancelWhy: (s) => (s.vitals.sbp < 90 ? `his systolic is ${s.vitals.sbp} now — no opioid until his pressure holds` : 'his pain is already treated'),
   // one dose: more needs another order
   doses: 1,
   label: 'Fentanyl for the pain, on the physician\'s order',
@@ -193,7 +198,7 @@ const TIMINGS: Timing[] = [
   DOOR_TO_ECG,
   { ...ECG_TO_ACTIVATION, target: 10 },
   { label: 'Door to aspirin', actions: ['aspirin'], target: 10 },
-  { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+  { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   // the device itself is the lab's: the department's share is everything up to handing him over
   { label: 'Door to the cath lab team (goal: a device within 90 minutes of arrival)', actions: ['handoff'] },
 ];
@@ -287,6 +292,8 @@ export const edStemiWalkIn: Scenario = {
       : null),
     nitro: (s) => nitrate(s, false),
     'nitro-high': (s) => nitrate(s, true),
+    // the IV infusion meets the same tadalafil: the crash of the larger dose
+    'nitro-iv': (s) => nitrate(s, true, true),
     // a small bolus for the pressure the nitrate dropped (the vessels it opened); otherwise the default (and with a normal
     // pressure a harm: his lungs are already wet)
     fluid: (s) => {
@@ -295,6 +302,8 @@ export const edStemiWalkIn: Scenario = {
       return { say: [['monitor', `250 mL in. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['fluid'] };
     },
     metoprolol: (s) => failingPump(s, 12, 'beta-blocker'),
+    esmolol: (s) => failingPump(s, 12, 'beta-blocker'),
+    labetalol: (s) => failingPump(s, 10, 'beta-blocker'),
     diltiazem: (s) => failingPump(s, 6, 'diltiazem'),
     defib: (s) => shock(s, false),
     aed: (s) => shock(s, true),
@@ -475,7 +484,7 @@ export const edStemiWalkIn: Scenario = {
     {
       // a nitrate given after he named the tadalafil was not held: the 'nitro-pde5' harm scores it, and this item drops out
       id: 'rn-pde5-report', label: 'Hold the nitroglycerin and tell the physician about the tadalafil', roles: ED_RN, points: 5,
-      applies: (s) => has(s, 'pde5-asked') && firstDone(s, ['nitro', 'nitro-high'], 'pde5-asked') === null,
+      applies: (s) => has(s, 'pde5-asked') && firstDone(s, NITRATES, 'pde5-asked') === null,
       why: 'The physician plans the pain relief and the rest of his care on what you report: tadalafil this morning rules out every nitrate for 48 hours, so the pain needs another drug, on an order.',
       done: (s) => firstDone(s, ['notify-physician'], 'pde5-asked'), uses: ['notify-physician'],
     },
@@ -532,19 +541,19 @@ export const edStemiWalkIn: Scenario = {
   harms: yieldToHeavier([
     {
       // the standing order's own exclusion: one rule for both roles, whether or not anyone asked
-      id: 'nitro-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: ['nitro-high-not-hypertensive', 'rn-without-order-nitro-high'],
+      id: 'nitro-pde5', actions: NITRATES, when: (s) => s.pulse, points: 10, severity: 'major',
+      replaces: ['nitro-high-not-hypertensive', 'rn-without-order-nitro-high', 'rn-without-order-nitro-iv'],
       text: 'Nitroglycerin within 48 hours of tadalafil. His "pill for my prostate" is tadalafil 5 mg, taken this morning: a PDE-5 inhibitor and a nitrate together can drop the pressure profoundly — no nitrate within 48 hours of tadalafil, 24 hours of sildenafil or vardenafil, 12 hours of avanafil. Ask by name before every nitrate (the chest pain standing order excludes it too); if the pressure falls, lay him flat and give a small fluid bolus, and treat the pain with a small dose of an IV opioid instead.',
     },
     {
-      id: 'rate-drug-heart-failure', actions: ['metoprolol', 'diltiazem'], roles: ED_MD, when: (s) => s.pulse, replaces: RATE_RULES, points: 8, severity: 'major',
-      text: 'An IV beta-blocker or diltiazem in an anterior STEMI with crackles at both bases. Signs of heart failure (Killip II or worse), a low-output state and a risk of cardiogenic shock are contraindications to early beta-blockade (ACC/AHA ACS guidelines): the drug takes away output the injured heart needs, and in COMMIT early IV metoprolol caused more cardiogenic shock than it prevented. An oral beta-blocker comes within 24 hours, once the heart failure has settled; diltiazem has no place in it.',
+      id: 'rate-drug-heart-failure', actions: [...BETA_BLOCKERS, 'diltiazem'], roles: ED_MD, when: (s) => s.pulse, replaces: RATE_RULES, points: 8, severity: 'major',
+      text: 'A beta-blocker (IV, or now by mouth) or diltiazem in an anterior STEMI with crackles at both bases. Signs of heart failure (Killip II or worse), a low-output state and a risk of cardiogenic shock are contraindications to early beta-blockade (ACC/AHA ACS guidelines): the drug takes away output the injured heart needs, and in COMMIT early IV metoprolol caused more cardiogenic shock than it prevented. An oral beta-blocker comes within 24 hours, once the heart failure has settled; diltiazem has no place in it.',
     },
     {
       // one penalty for the nurse: the drug is wrong for him, and it was never ordered
-      id: 'rn-rate-drug-heart-failure', actions: ['metoprolol', 'diltiazem'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem', ...RATE_RULES],
-      text: 'IV metoprolol or diltiazem with no order, in an anterior STEMI with crackles at both bases. With signs of heart failure they take away output the injured heart needs and can tip him into cardiogenic shock (COMMIT; ACC/AHA ACS guidelines) — and the ER nurse gives them only on the physician\'s order. Report the rate, the pressure and the lungs, and let the physician decide.',
+      id: 'rn-rate-drug-heart-failure', actions: [...BETA_BLOCKERS, 'diltiazem'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
+      replaces: [...RATE_RULES, ...[...BETA_BLOCKERS, 'diltiazem'].map((id) => `rn-without-order-${id}`)],
+      text: 'A beta-blocker or diltiazem with no order, in an anterior STEMI with crackles at both bases. With signs of heart failure they take away output the injured heart needs and can tip him into cardiogenic shock (COMMIT; ACC/AHA ACS guidelines) — and the ER nurse gives them only on the physician\'s order. Report the rate, the pressure and the lungs, and let the physician decide.',
     },
     {
       // after ROSC oxygen is titrated to an SpO₂ of 90–98 % (2025 AHA), and once his lungs fill (a blocker, or the wait for

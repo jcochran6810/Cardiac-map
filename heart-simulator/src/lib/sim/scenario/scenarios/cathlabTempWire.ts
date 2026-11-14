@@ -1,4 +1,4 @@
-import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../types';
+import type { Effect, Line, PendingRead, Penalty, Scenario, SimState, Speaker } from '../types';
 import { PADS, atRate, bpAfter, count, firstDone, has, line, paced } from '../kit';
 import { MD, TECH, askCritical, askDone, askEvents, askHarm, type LabAsk } from '../labKit';
 import { ANTITHROMBOTIC_RULES, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule } from '../rules/acs';
@@ -55,6 +55,15 @@ function doneWhile(s: SimState, ids: string[], from: string, until: string): num
 
 /** Analgesia or sedation for the pads pacing: given before it starts (premedication) or after, it is the same care */
 const COMFORT = ['fentanyl', 'midazolam', 'sedation'];
+
+/**
+ * The tamponade left until her heart stopped: a preventable deterioration, charged once when it happens (draining it during
+ * CPR earns the rescue's items, so without this charge letting it reach PEA would score like preventing it)
+ */
+const TAMPONADE_ARREST: Omit<Penalty, 'minute'> = {
+  id: 'tamponade-to-arrest', points: 10, severity: 'major',
+  text: 'The tamponade was left until her heart stopped. A perforation that fills the pericardium is drained as soon as the echo shows it squeezing the heart — the tray open, the needle in under echo — not during CPR: this arrest was preventable.',
+};
 
 const TECH_WIRE = 'Bipolar pacing catheter (5 Fr, balloon-tipped) opened, flushed and handed up; the pacing box checked with a fresh battery and set: rate 70, output 5 mA, demand mode; the bridging cable ready, distal to negative, proximal to positive. Fluoroscopy over the heart.';
 const THRESHOLD_WORDS = 'Output down from 5 mA a step at a time… she paces down to 0.8 mA and loses it at 0.7 — straight back up. Threshold 0.8 mA. Output set to 3 mA, about four times the threshold; rate 70, demand mode. Sensitivity left at 2 mV: she has too little rhythm of her own to test it safely.';
@@ -155,12 +164,12 @@ function drain(s: SimState, who: Speaker): Effect {
  * Nitroglycerin once the wire has come through the wall (before that the engine's own response stands): the pressure falls
  * as the filling falls, and the pain, which is pericardial, does not ease
  */
-function nitrateAfterWire(s: SimState, high: boolean): Effect | null {
+function nitrateAfterWire(s: SimState, high: boolean, iv = false): Effect | null {
   if (!s.pulse || !has(s, 'perforated')) return null;
   const bp = high ? bpAfter(s, -20, -10) : bpAfter(s, -10, -6);
   return {
     say: [['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad'], ...awake(s, '"It still hurts when I breathe in."')],
-    vitals: bp, flags: high ? ['nitro', 'nitro-high'] : ['nitro'],
+    vitals: bp, flags: [...(high ? ['nitro', 'nitro-high'] : ['nitro']), ...(iv ? ['nitro-iv'] : [])],
   };
 }
 
@@ -230,7 +239,7 @@ const RN_ASKS: LabAsk[] = [
     // names no cause: the read of what is happening is still the learner's to give
     id: 'rn-support', role: 4, when: (s) => has(s, 'tamponade'), points: 10,
     ask: 'Her pressure is falling — support it, please.',
-    accept: ['fluid', 'push-epi', 'pressor', 'phenylephrine'], wrong: ['nitro', 'nitro-high', 'metoprolol', 'diltiazem'],
+    accept: ['fluid', 'push-epi', 'pressor', 'phenylephrine'], wrong: ['nitro', 'nitro-high', 'nitro-iv', 'metoprolol', 'esmolol', 'labetalol', 'diltiazem'],
     wrongSay: 'No! That drops it further. Fluid, wide open.',
     thanks: 'Thanks — keep it running.', fallback: 'Open the fluids, someone!', gives: 'supported',
     fallbackEffect: (s) => {
@@ -318,6 +327,7 @@ export const cathlabTempWire: Scenario = {
     // the new pain after the wire is pleuritic, from the pericardium: a nitrate does not touch it, it only drops the pressure
     nitro: (s) => nitrateAfterWire(s, false),
     'nitro-high': (s) => nitrateAfterWire(s, true),
+    'nitro-iv': (s) => nitrateAfterWire(s, true, true),
     // an epinephrine (or dopamine) drip speeds the escape a little and lifts the pressure: a bridge too
     pressor: (s) => {
       if (!ownRhythm(s)) return null;
@@ -402,8 +412,13 @@ export const cathlabTempWire: Scenario = {
     'amio-infusion': (s) => ({ ...slower(s, 'Heart rate 22.'), flags: ['amiodarone'] }),
     procainamide: (s) => ({ ...slower(s, 'Heart rate 22.'), flags: ['procainamide'] }),
     metoprolol: (s) => blocker(s, 'beta-blocker', true),
+    esmolol: (s) => blocker(s, 'beta-blocker', true),
+    labetalol: (s) => blocker(s, 'beta-blocker', true),
     diltiazem: (s) => blocker(s, 'diltiazem', false),
     // adenosine blocks the AV node, not the pacer's capture of the ventricles
+    adenosine3: (s) => (ownRhythm(s)
+      ? { say: [['monitor', 'Four seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: atRate(s, 30), flags: ['adenosine'] }
+      : { say: [['monitor', `No change: the pacer holds the rate at ${s.rhythm.hr}.`]], flags: ['adenosine'] }),
     adenosine6: (s) => (ownRhythm(s)
       ? { say: [['monitor', 'Six seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: atRate(s, 30), flags: ['adenosine'] }
       : { say: [['monitor', `No change: the pacer holds the rate at ${s.rhythm.hr}.`]], flags: ['adenosine'] }),
@@ -582,7 +597,7 @@ export const cathlabTempWire: Scenario = {
     {
       // left undrained, the squeezed heart stops filling: electrical activity, no output
       id: 'pea', when: (s) => s.pulse && squeezed(s) && s.minute >= s.flags.tamponade + 5,
-      effect: () => ({ say: [['monitor', 'No pressure on the cuff and no pleth; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.', 'bad']], pulse: false, flags: ['pea'] }),
+      effect: () => ({ say: [['monitor', 'No pressure on the cuff and no pleth; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.', 'bad']], pulse: false, flags: ['pea'], penalty: TAMPONADE_ARREST }),
     },
   ],
   critical: [
@@ -656,14 +671,14 @@ export const cathlabTempWire: Scenario = {
     { id: 'wire-without-pads', actions: ['temp-wire'], roles: MD, when: (s) => !has(s, 'pads'), replaces: ['temp-wire-without-pads'], points: 10, severity: 'major', text: 'A transvenous wire with no pads on. Crossing the tricuspid valve can set off VT, and a wire can stop pacing at any moment in a patient whose own escape is 30: pads on (and transcutaneous pacing ready) before the wire goes in, and until it is secure.' },
     { id: 'atropine-repeat', actions: ['atropine'], roles: [4, 5], when: (s) => s.pulse && count(s, 'atropine') >= 1 && !paced(s), replaces: ['atropine-infranodal-repeat'], points: 5, severity: 'major', text: 'More atropine for a block that atropine has already failed. A wide escape means the block is below the AV node: atropine speeds the sinus node, not the ventricles. Pace (pads, then the wire), or start an epinephrine or dopamine drip.' },
     { id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'procainamide'], replaces: ['procainamide-slow', ...LIDOCAINE_RULES, ...RATE_RULES], points: 20, severity: 'critical', text: 'Never give lidocaine, amiodarone or procainamide to a patient living on a ventricular escape: it is what keeps her alive, and suppressing it can leave nothing at all — even with a wire in, which can stop pacing at any time.' },
-    { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 15, severity: 'critical', text: 'A beta-blocker or diltiazem in complete heart block. They are among the drugs that cause AV block, not treatments for it: they weaken the squeeze and drop the pressure, and a beta-blocker slows the ventricular escape she lives on.' },
-    { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine in complete heart block. It is for a regular narrow-complex tachycardia, and its label rules it out in second- or third-degree AV block without a working pacemaker: it can add seconds of standstill to a slow escape.' },
+    { id: 'av-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'], replaces: RATE_RULES, points: 15, severity: 'critical', text: 'A beta-blocker or diltiazem in complete heart block. They are among the drugs that cause AV block, not treatments for it: they weaken the squeeze and drop the pressure, and a beta-blocker slows the ventricular escape she lives on.' },
+    { id: 'adenosine-block', actions: ['adenosine3', 'adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine in complete heart block. It is for a regular narrow-complex tachycardia, and its label rules it out in second- or third-degree AV block without a working pacemaker: it can add seconds of standstill to a slow escape.' },
     // Nitroglycerin: before the wire comes through the wall the engine's own two rules stand, in their own words (a case
     // rule with the same id replaces a built-in one, so they are restated here, limited to that time); after it, the case's
     // rule covers it — one mistake, one penalty
-    nitrateCaseRule({ id: 'nitro-hypotension', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => !has(s, 'perforated') && s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further, and she has no chest pain for them to treat: hold them, and get her rate up — that is what her pressure needs.' }),
+    nitrateCaseRule({ id: 'nitro-hypotension', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], when: (s) => !has(s, 'perforated') && s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further, and she has no chest pain for them to treat: hold them, and get her rate up — that is what her pressure needs.' }),
     nitrateCaseRule({ id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => !has(s, 'perforated') && s.pulse && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; she has neither.' }),
-    { id: 'nitro-after-wire', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => has(s, 'perforated'), points: 10, severity: 'major', replaces: NITRATE_RULES, text: 'Nitroglycerin for chest pain after a pacing wire. Sharp pain that is worse on breathing in, with hiccups in time with the pacer, is perforation until proven otherwise — not angina: nitrates drop the filling a heart with blood around it depends on. Echo first.' },
+    { id: 'nitro-after-wire', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], when: (s) => has(s, 'perforated'), points: 10, severity: 'major', replaces: NITRATE_RULES, text: 'Nitroglycerin for chest pain after a pacing wire. Sharp pain that is worse on breathing in, with hiccups in time with the pacer, is perforation until proven otherwise — not angina: nitrates drop the filling a heart with blood around it depends on. Echo first.' },
     // the pads' pacing needs sedation, the wire's does not: once the wire paces, nothing hurts that needs it, so a falling
     // pressure (the tamponade) makes it a mistake again — this case's words for the built-in sedation rules
     { id: 'sedation-low-pressure', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && s.rhythm.profile === 'paced' && s.vitals.sbp < 90, points: 5, severity: 'major', replaces: SEDATIVE_RULES, text: 'Sedation with a falling pressure once the wire is pacing. The wire needs no sedation (only the pads pacing hurts), and a benzodiazepine drops the pressure and the breathing further: support the pressure and find out why it is falling.' },
@@ -671,7 +686,7 @@ export const cathlabTempWire: Scenario = {
     // new effusion, so what is left to judge is a drain before it squeezes the heart — a judgement call on a growing
     // iatrogenic effusion (the tray is open for it), not the critical needle with no effusion at all
     { id: 'pericardiocentesis-no-tamponade', actions: ['pericardiocentesis'], roles: MD, when: (s) => s.pulse && !has(s, 'tamponade'), points: 5, severity: 'major', text: 'A pericardiocentesis before the effusion squeezes the heart. The echo shows about 1 cm with the right ventricle still filling: no tamponade yet — her low pressure is the lost capture. Get her paced again (the pads, then the wire pulled back into the RV), keep the tray open and repeat the echo; a needle into a small effusion, over a heart with a fresh hole in it, can puncture it again. Drain it when it squeezes.' },
-    { id: 'anticoagulant-perforation', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: (s) => has(s, 'perforated'), points: 8, severity: 'major', replaces: ANTITHROMBOTIC_RULES, text: 'An anticoagulant or antiplatelet drug after the wire has come through the RV wall. It keeps the hole bleeding into the pericardium.' },
+    { id: 'anticoagulant-perforation', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: (s) => has(s, 'perforated'), points: 8, severity: 'major', replaces: [...ANTITHROMBOTIC_RULES, 'heparin-repeat-unguided'], text: 'An anticoagulant or antiplatelet drug after the wire has come through the RV wall. It keeps the hole bleeding into the pericardium.' },
     askHarm(RN_ASKS[0], 'Atropine when the operator asked you to get the rate up. It already failed in the ED, and a wide escape means the block is below the AV node, where atropine rarely works: pace her through the pads (or start an epinephrine drip).'),
   ]),
   timings: [

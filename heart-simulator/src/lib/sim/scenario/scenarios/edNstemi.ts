@@ -151,18 +151,23 @@ function report(s: SimState): Effect {
   return { say, flags };
 }
 
-/** Nitroglycerin for the returning pain: the first dose eases it, a second takes it away (the case's own numbers) */
-function nitroForPain(s: SimState, who: 'learner' | 'physician' | 'nurse'): Effect {
+/**
+ * Nitroglycerin for the returning pain: the first dose eases it, a second takes it away (the case's own numbers). The ED
+ * physician may run it as an IV infusion instead (`iv`): 10 mcg/min with no bolus, titrated to the pain — the guideline
+ * drug for ischemic pain that persists (2014 AHA/ACC NSTE-ACS, 2025 ACC/AHA ACS)
+ */
+function nitroForPain(s: SimState, who: 'learner' | 'physician' | 'nurse', iv = false): Effect {
   const bp = bpAfter(s, -14, -8);
   const first = !has(s, 'nitro-for-pain');
   const hr = first ? 96 : 90;
   const given: Line[] = who === 'physician'
     ? [['physician', 'I\'m giving her a nitroglycerin myself — 0.4 under the tongue.', 'warn']]
-    : who === 'nurse' ? [['nurse', 'I gave her a nitroglycerin on the chest pain standing order, doctor.', 'warn']] : [];
+    : who === 'nurse' ? [['nurse', 'I gave her a nitroglycerin on the chest pain standing order, doctor.', 'warn']]
+      : iv ? [['you', first ? 'Nitroglycerin infusion started at 10 mcg/min, no bolus, to be titrated up 10 mcg/min every 3–5 minutes to the pain.' : 'The nitroglycerin infusion up by 10 mcg/min.']] : [];
   return {
     say: [...given, ['patient', first ? '"It\'s easing… maybe a 2 now."' : '"It\'s gone."'], ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]],
     vitals: { ...bp, pain: first ? 2 : 0 }, rhythm: { profile: s.rhythm.profile, hr },
-    flags: who === 'learner' ? ['nitro', first ? 'nitro-for-pain' : 'pain-relieved'] : ['nitro-for-pain'],
+    flags: who === 'learner' ? ['nitro', ...(iv ? ['nitro-iv'] : []), first ? 'nitro-for-pain' : 'pain-relieved'] : ['nitro-for-pain'],
   };
 }
 
@@ -286,6 +291,7 @@ export const edNstemi: Scenario = {
     },
     // nitroglycerin while the pain is back eases it; at any other time the default (no pain to relieve, the pressure falls)
     nitro: (s) => (s.pulse && painOn(s) ? nitroForPain(s, 'learner') : null),
+    'nitro-iv': (s) => (s.pulse && painOn(s) ? nitroForPain(s, 'learner', true) : null),
     // the serial troponin: the ER doctor orders it for the 1-hour mark (the nurse draws it then); the ER nurse draws it, and
     // a sample drawn too soon after the first cannot show the change
     'troponin-repeat': (s) => {
@@ -591,8 +597,8 @@ export const edNstemi: Scenario = {
     },
     {
       id: 'md-nitro-pain', label: 'Nitroglycerin for the returning pain', roles: ED_MD, points: 5, applies: (s) => has(s, 'pain-back'),
-      target: { within: { flag: 'pain-back', minutes: 10 } }, done: ['nitro'], after: 'pain-back',
-      why: 'Sublingual nitroglycerin, 0.4 mg every 5 minutes up to three doses, for ongoing ischemic pain (hold for a systolic under 90, a PDE-5 inhibitor, a right ventricular infarct). Pain that will not settle despite it and the heparin takes her to the lab now.',
+      target: { within: { flag: 'pain-back', minutes: 10 } }, done: ['nitro', 'nitro-iv'], after: 'pain-back',
+      why: 'Sublingual nitroglycerin, 0.4 mg every 5 minutes up to three doses (or an IV infusion from 10 mcg/min, no bolus), for ongoing ischemic pain (hold for a systolic under 90, a PDE-5 inhibitor, a right ventricular infarct). Pain that will not settle despite it and the heparin takes her to the lab now.',
     },
 
     // ─── both ───
@@ -602,6 +608,11 @@ export const edNstemi: Scenario = {
     },
   ],
   harms: [
+    {
+      // the "discharge after one troponin" trap, in this case's words: it stands in for the built-in unsafe discharge
+      id: 'discharge-acs', actions: ['discharge'], roles: ED_MD, points: 15, severity: 'critical', replaces: ['discharge-unsafe'],
+      text: 'Discharging a woman with an NSTE-ACS. Diffuse ST depression with aVR up, recurring pain, diabetes and a first troponin above the women\'s limit make her high risk: one troponin rules nothing out — the chest pain pathway repeats the high-sensitivity troponin at 1–3 hours (2021 AHA/ACC chest pain guideline), and her picture needs admission, antithrombotic treatment and an early invasive strategy (2025 ACC/AHA ACS guideline).',
+    },
     {
       // one penalty for one fibrinolytic: it stands in for the built-in rule (and, for the nurse, the built-in 'no order')
       id: 'lytic-st-depression', actions: ['tnk', 'alteplase'], roles: ED_MD, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',

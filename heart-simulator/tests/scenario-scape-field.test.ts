@@ -228,7 +228,8 @@ describe('hypertensive pulmonary edema in the field — what turns her around', 
     expect(said(s)).toMatch(/One spray of her own nitroglycerin \(0\.4 mg\)/);
     expect(s.vitals.sbp).toBe(198);
     expect(penalties(s)).toEqual([]);
-    expect(unavailableReason(sc, s, 'nitro-assist')).toBe('Already done');
+    // the patient's own nitroglycerin may be repeated every 5 minutes, up to 3 (the button allows it; the case decides)
+    expect(unavailableReason(sc, s, 'nitro-assist')).toBeNull();
   });
 
   it('the EMT cannot help a drowsy patient take a spray: refused, no time passes, nothing scored', () => {

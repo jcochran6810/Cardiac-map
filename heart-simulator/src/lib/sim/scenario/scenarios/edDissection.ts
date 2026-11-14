@@ -25,11 +25,9 @@ import { cpapHarmful } from '../rules/support';
  * bleeds into the pericardium (minute 40, or 55 with the rate and pressure controlled; minutes after heparin or a
  * fibrinolytic), and 10 minutes later his heart stops.
  *
- * The only IV beta-blocker the simulator offers is metoprolol (one action stands for the titrated doses) and the only
- * vasodilator sublingual nitroglycerin: the case uses them for the guideline's esmolol or labetalol and its IV vasodilator.
- * Once the rate is controlled the nitroglycerin is the bridge, and a nicardipine infusion (in the words of the case: no
- * action of its own yet) takes over from it, so the pressure that settles at the goal is the infusion's (RATE_DRUGS and
- * VASODILATORS below are the lists to extend when the infusions exist).
+ * The IV beta-blockers are metoprolol (one action stands for the titrated doses), esmolol and labetalol; the vasodilator is
+ * the nicardipine infusion — sublingual nitroglycerin, which the case accepted before the infusion had an action of its
+ * own, still brings the pressure toward the goal (RATE_DRUGS and VASODILATORS below).
  *
  * The hospital is a high-volume cardiac surgery center: the 2022 guideline's transfer of a stable type A patient to an
  * aortic center is for hospitals without one, so here the surgeon on call is the answer and a transfer only loses time.
@@ -60,9 +58,9 @@ const LYTIC_BLEED = 4;
 const ARREST_AFTER = 10;
 
 /** IV drugs that control the rate first (2022 ACC/AHA: a beta-blocker; a non-dihydropyridine calcium-channel blocker if one cannot be used) */
-const RATE_DRUGS = ['metoprolol', 'diltiazem'];
+const RATE_DRUGS = ['metoprolol', 'esmolol', 'labetalol', 'diltiazem'];
 /** Vasodilators for a systolic still over 120 once the rate is controlled */
-const VASODILATORS = ['nitro', 'nitro-high'];
+const VASODILATORS = ['nitro', 'nitro-high', 'nitro-iv', 'nicardipine'];
 /** What makes the tear bleed (the fibrinolytics are the built-in rule's: 'lytic-dissection') */
 const ANTITHROMBOTICS = ['aspirin', 'heparin', 'p2y12'];
 const ANTITHROMBOTIC_NAMES: [string, string][] = [['aspirin', 'aspirin'], ['heparin', 'heparin'], ['p2y12', 'a P2Y12 inhibitor']];
@@ -150,10 +148,15 @@ function fentanyl(s: SimState, by: By): Effect | null {
  * on the torn wall and brings the pressure down with it. One action stands for the titrated doses. In shock, or with the
  * rate already slow, it takes away the rate that is holding up his output; on top of another rate drug it overshoots
  */
-function rateDrug(s: SimState, by: By, id: 'metoprolol' | 'diltiazem'): Effect | null {
+function rateDrug(s: SimState, by: By, id: 'metoprolol' | 'esmolol' | 'labetalol' | 'diltiazem'): Effect | null {
   if (!s.pulse) return null;
-  const text = id === 'metoprolol' ? 'Metoprolol 5 mg IV over 2 minutes, then 5 mg every 5 minutes to the rate goal: 15 mg in all' : 'Diltiazem 0.25 mg/kg IV over 2 minutes';
-  const flag = id === 'metoprolol' ? 'beta-blocker' : 'diltiazem';
+  const text = {
+    metoprolol: 'Metoprolol 5 mg IV over 2 minutes, then 5 mg every 5 minutes to the rate goal: 15 mg in all',
+    esmolol: 'Esmolol 500 mcg/kg IV over 1 minute, then the infusion titrated to the rate goal',
+    labetalol: 'Labetalol 20 mg IV over 2 minutes, then 40 mg to the rate goal',
+    diltiazem: 'Diltiazem 0.25 mg/kg IV over 2 minutes',
+  }[id];
+  const flag = id === 'diltiazem' ? 'diltiazem' : 'beta-blocker';
   if (shock(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60) {
     const bp = bpAfter(s, -14, -8);
     const hr = Math.max(48, s.rhythm.hr - 14);
@@ -164,7 +167,7 @@ function rateDrug(s: SimState, by: By, id: 'metoprolol' | 'diltiazem'): Effect |
     const hr = Math.max(52, s.rhythm.hr - 12);
     return { say: [giver(s, by, text), pressures(s, hr, bp, 'warn')], vitals: bp, rhythm: atRate(s, hr), flags: [flag] };
   }
-  const goal = id === 'metoprolol' ? 66 : 72;
+  const goal = id === 'diltiazem' ? 72 : 66;
   const hr = s.rhythm.hr > goal ? goal : Math.max(60, s.rhythm.hr - 6);
   const bp = bpAfter(s, -18, -10);
   return {
@@ -178,10 +181,15 @@ function rateDrug(s: SimState, by: By, id: 'metoprolol' | 'diltiazem'): Effect |
  * harder against the tear, and does nothing for this pain; once the rate is controlled it brings the pressure toward the
  * goal. With the systolic already at 120 or less it overshoots; with a low pressure the engine's own rule answers
  */
-function vasodilator(s: SimState, by: By, high: boolean): Effect | null {
+function vasodilator(s: SimState, by: By, drug: 'nitro' | 'nitro-high' | 'nitro-iv' | 'nicardipine'): Effect | null {
   if (!s.pulse || low(s)) return null;
-  const dose = high ? 'Nitroglycerin 0.8 mg sublingual' : 'Nitroglycerin 0.4 mg sublingual';
-  const flags = high ? ['nitro', 'nitro-high'] : ['nitro'];
+  const high = drug === 'nitro-high' || drug === 'nicardipine';
+  const dose = {
+    nitro: 'Nitroglycerin 0.4 mg sublingual', 'nitro-high': 'Nitroglycerin 0.8 mg sublingual',
+    'nitro-iv': 'Nitroglycerin infusion IV at 10 mcg/min, titrated up 10 mcg/min every 3–5 minutes',
+    nicardipine: 'Nicardipine infusion at 5 mg/h, titrated up 2.5 mg/h every 5–15 minutes',
+  }[drug];
+  const flags = { nitro: ['nitro'], 'nitro-high': ['nitro', 'nitro-high'], 'nitro-iv': ['nitro', 'nitro-iv'], nicardipine: ['vasodilator', 'nicardipine'] }[drug];
   // in the tamponade a bolus may hold the systolic over 90, and a nitrate takes it away again
   if (bled(s)) {
     const bp = bpAfter(s, high ? -20 : -14, high ? -10 : -8);
@@ -191,7 +199,7 @@ function vasodilator(s: SimState, by: By, high: boolean): Effect | null {
     const bp = bpAfter(s, high ? -20 : -12, high ? -10 : -6);
     const hr = Math.min(130, s.rhythm.hr + (high ? 16 : 12));
     const physician: Line[] = s.role === 6 && has(s, 'md-here') && by === 'learner'
-      ? [['physician', '"Hold the nitroglycerin — his rate first. On its own it makes his heart race and pound harder; the metoprolol goes in before any vasodilator."', 'warn']]
+      ? [['physician', `"Hold the ${drug === 'nicardipine' ? 'nicardipine' : 'nitroglycerin'} — his rate first. On its own it makes his heart race and pound harder; the metoprolol goes in before any vasodilator."`, 'warn']]
       : [];
     return {
       say: [giver(s, by, dose), ...awake(s, '"It\'s not touching the pain — and now my heart is pounding."', 'bad'), pressures(s, hr, bp, 'bad'), ...physician],
@@ -200,10 +208,8 @@ function vasodilator(s: SimState, by: By, high: boolean): Effect | null {
   }
   const atGoal = s.vitals.sbp <= 120;
   const bp = bpAfter(s, high ? -28 : -20, high ? -14 : -10);
-  // the guideline's vasodilator is an IV infusion: the sublingual dose is the bridge while it is mixed (the first time)
-  const bridge = !atGoal && !has(s, 'vasodilated') ? `${dose}, while pharmacy mixes the nicardipine infusion that takes over from it` : dose;
   return {
-    say: [giver(s, by, bridge), ...awake(s, atGoal ? '"I feel light-headed…"' : '"A bit of a headache. The pain\'s no worse."', atGoal ? 'bad' : undefined), pressures(s, s.rhythm.hr, bp, atGoal ? 'bad' : undefined)],
+    say: [giver(s, by, dose), ...awake(s, atGoal ? '"I feel light-headed…"' : '"A bit of a headache. The pain\'s no worse."', atGoal ? 'bad' : undefined), pressures(s, s.rhythm.hr, bp, atGoal ? 'bad' : undefined)],
     vitals: bp, flags: atGoal ? flags : [...flags, 'vasodilated'],
   };
 }
@@ -273,15 +279,15 @@ const RN_FENTANYL: LabAsk = edOrder({
 const RN_VASODILATOR: LabAsk = edOrder({
   id: 'rn-vasodilator',
   when: (s) => has(s, 'md-here') && has(s, 'rate-controlled') && has(s, 'needs-vasodilator') && !has(s, 'vasodilated') && s.pulse && !bled(s) && s.vitals.sbp > 120,
-  ask: '"His rate is controlled. Now the pressure: nitroglycerin 0.4 milligrams sublingual while pharmacy mixes a nicardipine infusion — I want his systolic between 100 and 120."',
-  accept: ['nitro'],
+  ask: '"His rate is controlled. Now the pressure: a nicardipine infusion at 5 milligrams an hour, or nitroglycerin 0.4 milligrams sublingual — I want his systolic between 100 and 120."',
+  accept: ['nicardipine', 'nitro'],
   // twice the ordered dose is a medication error, whatever the drug
   wrong: ['nitro-high'],
   wrongSay: '"That was 0.8 — I ordered 0.4. Read the dose back before you give it."',
   thanks: '"Thanks — rate and pressure both coming into range."',
   fallback: '"I\'ll see to his pressure myself."',
   // never a second vasodilator on top of one already in (the nurse's double dose)
-  fallbackEffect: (s) => (has(s, 'vasodilated') ? { say: [['physician', '"It is coming down on what he has had — nothing more for now."']] } : vasodilator(s, 'physician', false) ?? {}),
+  fallbackEffect: (s) => (has(s, 'vasodilated') ? { say: [['physician', '"It is coming down on what he has had — nothing more for now."']] } : vasodilator(s, 'physician', 'nicardipine') ?? {}),
   gives: 'vasodilator-done',
   label: 'The vasodilator on order, once the rate is controlled',
   why: 'With the rate at 60–80, a vasodilator brings the systolic under 120 without a reflex surge in the heart rate (2022 ACC/AHA). Give it only after the beta-blocker, at the dose ordered, and recheck the pressure in the higher arm.',
@@ -292,7 +298,9 @@ const RN_VASODILATOR: LabAsk = edOrder({
 const RN_ORDERS = [RN_BETA, RN_FENTANYL, RN_VASODILATOR];
 
 /** Drugs the physician orders here that the nurse may give only on that order (engine RN_ORDER_ONLY), as the physician names them */
-const UNORDERED_NAMES: [string, string][] = [['metoprolol', 'metoprolol'], ['diltiazem', 'diltiazem'], ['fentanyl', 'fentanyl']];
+const UNORDERED_NAMES: [string, string][] = [
+  ['metoprolol', 'metoprolol'], ['esmolol', 'esmolol'], ['labetalol', 'labetalol'], ['diltiazem', 'diltiazem'], ['nicardipine', 'nicardipine'], ['fentanyl', 'fentanyl'],
+];
 
 /** The nurse gave one of these before anyone ordered it (the chest pain standing order covers none of them) */
 const givenUnordered = (s: SimState, ids: string[]) => s.performed.some((p) => ids.includes(p.id) && !(s.flags[orderedFlag(p.id)] <= p.minute));
@@ -398,9 +406,13 @@ export const edDissection: Scenario = {
     },
     fentanyl: (s) => fentanyl(s, 'learner'),
     metoprolol: (s) => rateDrug(s, 'learner', 'metoprolol'),
+    esmolol: (s) => rateDrug(s, 'learner', 'esmolol'),
+    labetalol: (s) => rateDrug(s, 'learner', 'labetalol'),
     diltiazem: (s) => rateDrug(s, 'learner', 'diltiazem'),
-    nitro: (s) => vasodilator(s, 'learner', false),
-    'nitro-high': (s) => vasodilator(s, 'learner', true),
+    nitro: (s) => vasodilator(s, 'learner', 'nitro'),
+    'nitro-high': (s) => vasodilator(s, 'learner', 'nitro-high'),
+    'nitro-iv': (s) => vasodilator(s, 'learner', 'nitro-iv'),
+    nicardipine: (s) => vasodilator(s, 'learner', 'nicardipine'),
     // fluid for a pressure of 196 pushes it higher; in shock a small bolus is the bridge to the operating room
     fluid: (s) => {
       if (!s.pulse) return null;
@@ -591,17 +603,19 @@ export const edDissection: Scenario = {
       effect: () => ({ say: [['team', LABS_BACK]] }),
     },
     {
-      // the beta-blocker, the opioid and the nicardipine infusion that took over from the bridging nitroglycerin: the pressure
-      // settles into the goal (the pain, if it is still untreated, holds it higher)
+      // the beta-blocker, the opioid and the nicardipine infusion (started as the vasodilator, or after a first sublingual
+      // nitroglycerin): the pressure settles into the goal (the pain, if it is still untreated, holds it higher)
       id: 'settle', when: (s) => s.pulse && !bled(s) && has(s, 'vasodilated') && s.minute >= s.flags.vasodilated + 4,
       effect: (s) => {
         const goal = has(s, 'analgesia') ? { sbp: 116, dbp: 70 } : { sbp: 128, dbp: 76 };
         const bp = { sbp: Math.min(s.vitals.sbp, goal.sbp), dbp: Math.min(s.vitals.dbp, goal.dbp) };
         // untreated pain holds the pressure over the goal whatever the infusion does: the opioid is part of the treatment
         const pain = has(s, 'analgesia') ? '' : ` His pain is still ${s.vitals.pain} out of 10, and it holds his pressure up.`;
-        const drip: Line = s.role === 7
-          ? ['nurse', `"The nicardipine infusion is up from pharmacy and running at 5 milligrams an hour — I'll titrate it to your systolic goal."${pain}`]
-          : ['team', `Pharmacy brings the nicardipine infusion: running at 5 mg/h on the physician's order, titrated to his systolic.${pain}`];
+        const drip: Line = has(s, 'nicardipine')
+          ? [s.role === 7 ? 'nurse' : 'team', `The nicardipine infusion titrated to the systolic goal.${pain}`]
+          : s.role === 7
+            ? ['nurse', `"The nicardipine infusion is up from pharmacy and running at 5 milligrams an hour — I'll titrate it to your systolic goal."${pain}`]
+            : ['team', `Pharmacy brings the nicardipine infusion: running at 5 mg/h on the physician's order, titrated to his systolic.${pain}`];
         return { say: [drip, pressures(s, s.rhythm.hr, bp)], vitals: bp, flags: bp.sbp <= 120 ? ['bp-goal'] : [] };
       },
     },
@@ -720,17 +734,18 @@ export const edDissection: Scenario = {
     },
     {
       // before the beta-blocker: a vasodilator makes the heart race and pound harder (not with a low pressure: the engine's rule)
-      id: 'vasodilator-before-rate-rn', actions: VASODILATORS, roles: ED_RN, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
-      replaces: NITRATE_RULES,
-      text: 'Nitroglycerin for this pain before the rate is controlled. It is on the chest pain standing order, but not for pain that tears through to the back with a difference between the arms: on its own a vasodilator makes the heart race (reflex tachycardia) and pound harder against the tear, and it does not ease this pain. Report what you found; the physician orders the beta-blocker first, and a vasodilator only after it.',
+      id: 'vasodilator-before-rate-rn', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: ED_RN, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
+      // the IV infusion has no standing order at all: this one rule stands for that missing order too
+      replaces: [...NITRATE_RULES, 'rn-without-order-nitro-iv'],
+      text: 'Nitroglycerin for this pain before the rate is controlled. The sublingual dose is on the chest pain standing order (the IV infusion needs the physician\'s), but not for pain that tears through to the back with a difference between the arms: on its own a vasodilator makes the heart race (reflex tachycardia) and pound harder against the tear, and it does not ease this pain. Report what you found; the physician orders the beta-blocker first, and a vasodilator only after it.',
     },
     {
       id: 'vasodilator-before-rate-md', actions: VASODILATORS, roles: ED_MD, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
-      replaces: NITRATE_RULES,
+      replaces: [...NITRATE_RULES, 'nicardipine-no-hypertension'],
       text: 'A vasodilator before the rate is controlled. On its own it makes the heart race (reflex tachycardia) and pump harder against the tear (2022 ACC/AHA: an IV beta-blocker first, to a rate of 60–80; a vasodilator only after it, for a systolic still over 120).',
     },
     nitrateCaseRule({
-      id: 'vasodilator-below-goal', actions: VASODILATORS, when: (s) => s.pulse && !shock(s) && has(s, 'rate-controlled') && s.vitals.sbp <= 120, points: 3, severity: 'minor',
+      id: 'vasodilator-below-goal', actions: VASODILATORS, when: (s) => s.pulse && !shock(s) && has(s, 'rate-controlled') && s.vitals.sbp <= 120, points: 3, severity: 'minor', replaces: ['nicardipine-no-hypertension'],
       text: 'More vasodilator with the systolic already at 120 or less. The goal is a systolic under 120, or the lowest pressure that keeps the brain, the kidneys and the gut perfused — not lower: a falling pressure in a torn aorta also hides the bleed into the pericardium.',
     }, 'nitro-high-not-hypertensive'),
     {
@@ -741,16 +756,16 @@ export const edDissection: Scenario = {
       text: 'High-dose nitroglycerin without a high blood pressure.',
     },
     {
-      id: 'rate-drug-low', actions: RATE_DRUGS, when: (s) => s.pulse && (bled(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), replaces: RATE_RULES, points: 8, severity: 'major',
+      id: 'rate-drug-low', actions: [...RATE_DRUGS, 'metoprolol-po'], when: (s) => s.pulse && (bled(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in shock, or with a systolic under 100 or a rate under 60. With a torn aorta a falling pressure means tamponade, rupture or a badly leaking aortic valve: slowing the heart takes away the rate that is holding up his output.',
     },
     {
-      id: 'second-rate-drug', actions: RATE_DRUGS, when: (s) => s.pulse && has(s, 'rate-controlled') && s.vitals.sbp >= 100 && s.rhythm.hr >= 60, replaces: RATE_RULES, points: 3, severity: 'minor',
+      id: 'second-rate-drug', actions: [...RATE_DRUGS, 'metoprolol-po'], when: (s) => s.pulse && has(s, 'rate-controlled') && s.vitals.sbp >= 100 && s.rhythm.hr >= 60, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'A second rate-slowing drug with the rate already at 60–80. More beta-blocker or diltiazem now only adds bradycardia (and with the aortic valve leaking, a slow rate lets more blood fall back into the ventricle): a systolic still over 120 needs a vasodilator.',
     },
     {
       // the engine's low-pressure nitrate rule, in this case's words, and also over 90 once the tamponade is under way
-      id: 'vasodilator-in-shock', actions: VASODILATORS, when: (s) => s.pulse && shock(s), points: 8, severity: 'major', replaces: NITRATE_RULES,
+      id: 'vasodilator-in-shock', actions: VASODILATORS, when: (s) => s.pulse && shock(s), points: 8, severity: 'major', replaces: [...NITRATE_RULES, 'vasodilator-hypotension', 'nicardipine-no-hypertension'],
       text: 'A vasodilator in shock. With blood around his heart (or a systolic under 90) his pressure is held up by tight vessels, a fast rate and whatever fluid he has had: a nitrate drops it further. Stop the rate drugs and the vasodilators, give small fluid boluses and get him to the operating room.',
     },
     {
@@ -834,7 +849,7 @@ export const edDissection: Scenario = {
     'Look for what backs it up: a systolic difference of more than 20 mmHg between the arms, a weak or missing pulse, a new early diastolic murmur (the root stretched and the aortic valve leaking), a neurologic deficit or a cold leg. Treat the higher arm\'s pressure; put the arterial line on that side.',
     'The 12-lead is often normal or shows only LVH from years of high blood pressure, and that does not rule out a dissection; a flap that blocks a coronary ostium (usually the right) can even produce a real STEMI pattern. The chest film can show a wide mediastinum, but a normal one rules nothing out.',
     'Suspect it, and hold the aspirin, heparin, P2Y12 inhibitors, fibrinolytics and the cath lab: they make the tear bleed and complicate the surgery. For the ER nurse, the chest pain standing order is the trap: screen before you give it, and tell the physician what you found (SBAR, closed loop).',
-    'Anti-impulse therapy starts at once (2022 ACC/AHA, COR 1): an IV beta-blocker first — esmolol, labetalol or metoprolol — to a heart rate of 60–80, then, if the systolic is still over 120, an IV vasodilator (a nicardipine, clevidipine or nitroprusside infusion) only once the rate is controlled, for a systolic under 120 or the lowest pressure that keeps the organs perfused, with an arterial line. A vasodilator on its own makes the heart race and pound harder against the tear. An IV non-dihydropyridine calcium-channel blocker (diltiazem) if a beta-blocker cannot be used. In this simulator sublingual nitroglycerin stands in for the first vasodilator dose, and the infusion takes over from it.',
+    'Anti-impulse therapy starts at once (2022 ACC/AHA, COR 1): an IV beta-blocker first — esmolol, labetalol or metoprolol — to a heart rate of 60–80, then, if the systolic is still over 120, an IV vasodilator (a nicardipine, clevidipine or nitroprusside infusion) only once the rate is controlled, for a systolic under 120 or the lowest pressure that keeps the organs perfused, with an arterial line. A vasodilator on its own makes the heart race and pound harder against the tear. An IV non-dihydropyridine calcium-channel blocker (diltiazem) if a beta-blocker cannot be used. In this simulator the nicardipine infusion is the vasodilator (sublingual nitroglycerin, which the case also accepts, brings the pressure down the same way here).',
     'Treat the pain with an IV opioid: pain drives the rate and the pressure (2022 ACC/AHA).',
     'Imaging: bedside ultrasound can show a dilated root with a flap, aortic regurgitation or a pericardial effusion, and none of them rules it out when absent; CT angiography of the chest, abdomen and pelvis is the test for a stable patient. A patient in shock goes to the operating room, where a transesophageal echo confirms it — not to the scanner, and never unmonitored.',
     'A tear in the ascending aorta (type A) needs emergency surgery (2022 ACC/AHA, COR 1); untreated, about 1–2 % die each hour in the first day. Call the cardiac surgeon as soon as you suspect it — not after every test is back. Where there is no cardiac surgery, or the hospital rarely does these operations, transfer to a high-volume aortic center at once (2022 ACC/AHA: considered for a stable patient).',

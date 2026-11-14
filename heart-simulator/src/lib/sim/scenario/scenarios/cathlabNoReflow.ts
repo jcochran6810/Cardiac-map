@@ -145,7 +145,8 @@ function act(s: SimState, who: Speaker): Effect {
   if (has(s, 'heparin-topup')) return { say: [[who, 'ACT 268 s.']], flags: ['act'] };
   if (has(s, 'bivalirudin')) return { say: [[who, 'ACT 334 s, with bivalirudin running.']], flags: ['act'] };
   if (has(s, 'gp2b3a')) return { say: [[who, 'ACT 212 s, with eptifibatide running.']], flags: ['act'] };
-  return { say: [[who, 'ACT 212 s.']], flags: ['act', 'act-low'] };
+  // below the PCI range: what guides the heparin top-up (the built-in heparin-repeat-unguided reads the timer)
+  return { say: [[who, 'ACT 212 s.']], flags: ['act', 'act-low'], timers: { actLowAt: s.minute } };
 }
 
 /** A balloon or a stent once the flow has stalled: the artery is open, so more metal and more pressure only push more debris downstream */
@@ -266,7 +267,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'rn-adenosine', role: 4, when: (s) => has(s, 'mech-excluded') && !has(s, 'reflow'), wait: 3,
     ask: 'Imaging\'s clean and his pressure is up. Now adenosine down the guide — 200 micrograms — and watch his rhythm when it goes in.',
-    accept: ['ic-adenosine'], wrong: ['adenosine6', 'adenosine12', 'adenosine-iv-ffr'],
+    accept: ['ic-adenosine'], wrong: ['adenosine3', 'adenosine6', 'adenosine12', 'adenosine-iv-ffr'],
     wrongSay: 'Not an IV dose — 200 micrograms intracoronary, down the guide.',
     thanks: 'Thanks.', fallback: 'I\'ll draw up the adenosine myself.', gives: 'adenosine-given',
     fallbackEffect: (s) => (stalled(s) ? adenosine(s, 'operator') : {}),
@@ -585,7 +586,7 @@ export const cathlabNoReflow: Scenario = {
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'The no-reflow, every drug and dose and when, the final flow, the ACT and the heparin, the access site — and that the infarct is likely bigger than it looked: watch for heart failure and arrhythmias.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: yieldToHeavier([
-    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
+    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], replaces: NITRATE_RULES, when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
     // the case's own choice (same id: it hides the built-in rule): 200 mcg of adenosine down the culprit acts for seconds,
     // and its dip comes straight back, so at the no-reflow pressure (86) it is a fair no-reflow drug. The operator's request
     // decides between it and epinephrine, and a wrong answer to that request is scored (askHarm). Lower than that — after
@@ -605,7 +606,7 @@ export const cathlabNoReflow: Scenario = {
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     { id: 'protamine-in-thrombus', actions: ['protamine'], points: 10, severity: 'major', replaces: PROTAMINE_RULES, text: 'Protamine in the middle of a thrombotic PCI. Reversing the heparin lets clot form on the wire, in the fresh stent and in the small vessels: no-reflow needs full anticoagulation (ACT 250–300 s).' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. On top of heparin and two antiplatelet drugs it adds major bleeding risk; no-reflow is treated with intracoronary drugs.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker in a large anterior STEMI with crackles at both lung bases. With heart failure signs, a low output or a falling pressure it takes away output the heart needs and risks cardiogenic shock (COMMIT); IV beta-blockers are not routine in STEMI.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in a large anterior STEMI with crackles at both lung bases. With heart failure signs, a low output or a falling pressure it takes away output the heart needs and risks cardiogenic shock (COMMIT); IV beta-blockers are not routine in STEMI.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     { ...askHarm(TECH_ASKS[2], 'Adenosine when the operator asked for epinephrine with a pressure of 86. Adenosine lowers the pressure, it does not hold it up. Read the order back and check the syringe label before you hand it up.'), actions: ['ic-adenosine'], replaces: RATE_RULES },

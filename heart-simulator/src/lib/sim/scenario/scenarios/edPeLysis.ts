@@ -3,6 +3,7 @@ import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../ki
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo, physicianOrder } from '../edKit';
 import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { ADENOSINE_PUSH, BETA_BLOCKERS } from '../rules/helpers';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -184,7 +185,10 @@ function alteplase(s: SimState, by: 'learner' | 'physician'): Effect {
       : given(s, 'Alteplase 50 mg IV push, now — and keep the compressions going: it needs circulation to reach the clot.', 'Alteplase 50 mg IV push, flushed; compressions go on.');
     return { say: lines, flags: ['lytic', 'alteplase', 'arrest-lytic'] };
   }
-  const paused = has(s, 'heparin') ? '; the heparin drip paused while it runs' : '';
+  // the heparin drip is paused while it runs: the ER nurse pauses it herself ('stop-antithrombotics'); the computer nurse and
+  // the physician do it as they hang it
+  const pauses = has(s, 'heparin') && (by === 'physician' || s.role === 7 || has(s, 'antithrombotics-stopped'));
+  const paused = pauses ? '; the heparin drip paused while it runs' : '';
   // the computer nurse records the baseline neuro check before she hangs it; the ER nurse does her own ('neuro')
   const lines: Line[] = by === 'physician'
     ? [['physician', `I've gone through the checklist with her myself: alteplase 100 mg running over 2 hours${paused}.`]]
@@ -193,7 +197,7 @@ function alteplase(s: SimState, by: 'learner' | 'physician'): Effect {
       : [['you', `Alteplase 100 mg running over 2 hours on a pump${paused}.`], ...unordered(s)];
   // the charge nurse who catches an unordered lytic before the physician is in the room brings him
   const fetch = s.role === 6 && !has(s, orderedFlag('alteplase')) && !has(s, 'md-bedside') ? ['physician-notified'] : [];
-  return { say: lines, flags: ['lytic', 'alteplase', 'alteplase-infusion', 'lytic-watch', ...(has(s, 'heparin') ? ['heparin-paused'] : []), ...fetch] };
+  return { say: lines, flags: ['lytic', 'alteplase', 'alteplase-infusion', 'lytic-watch', ...(pauses ? ['heparin-paused'] : []), ...fetch] };
 }
 
 /**
@@ -223,20 +227,20 @@ function slower(s: SimState, drug: string, dHr: number, flag: string): Effect | 
 }
 
 /** Nitroglycerin: the preload goes, and with it the pressure — to 66/40, or further down from a pressure already lower */
-function nitroCrash(s: SimState, high: boolean): Effect | null {
+function nitroCrash(s: SimState, high: boolean, iv = false): Effect | null {
   if (!s.pulse) return null;
   const fall = bpAfter(s, high ? -20 : -12, high ? -10 : -8);
   const sbp = Math.min(66, fall.sbp);
   const dbp = Math.min(40, fall.dbp);
   return {
     say: [
-      ['you', `Nitroglycerin ${high ? '0.8' : '0.4'} mg sublingual.`],
+      ['you', iv ? 'Nitroglycerin infusion running.' : `Nitroglycerin ${high ? '0.8' : '0.4'} mg sublingual.`],
       ...awake(s, '"Everything\'s going dark…"'),
       ['monitor', `BP ${sbp}/${dbp}.`, 'bad'],
       [helper(s), 'She has gone gray and slumped down in the bed.', 'bad'],
     ],
     vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 13) },
-    flags: high ? ['nitro', 'nitro-high'] : ['nitro'],
+    flags: [...(high ? ['nitro', 'nitro-high'] : ['nitro']), ...(iv ? ['nitro-iv'] : [])],
   };
 }
 
@@ -491,6 +495,10 @@ export const edPeLysis: Scenario = {
       if (has(s, 'lytic')) return { say: [['you', 'A second fibrinolytic dose.'], [helper(s), 'Wait — she already has a lytic in!', 'bad']], flags: ['second-lytic'] };
       return alteplase(s, 'learner');
     },
+    // the heparin drip paused for the alteplase (before it is hung, or as it starts): it restarts when the infusion ends
+    'stop-antithrombotics': (s) => (has(s, 'heparin') && !has(s, 'heparin-paused')
+      ? { say: [['you', 'Heparin drip paused at the pump while the alteplase runs: it restarts when the infusion ends, once the aPTT is under twice normal.']], flags: ['antithrombotics-stopped', 'heparin-paused'] }
+      : null),
     // tenecteplase is used off-label for a pulmonary embolism in the US; alteplase is the approved regimen
     tnk: (s) => {
       if (has(s, 'lytic')) return { say: [['you', 'A second fibrinolytic dose.'], [helper(s), 'Wait — she already has a lytic in!', 'bad']], flags: ['second-lytic'] };
@@ -502,6 +510,7 @@ export const edPeLysis: Scenario = {
     // a venodilator takes away the preload a pressure-overloaded right ventricle lives on (as in an RV infarct)
     nitro: (s) => nitroCrash(s, false),
     'nitro-high': (s) => nitroCrash(s, true),
+    'nitro-iv': (s) => nitroCrash(s, true, true),
     // positive pressure squeezes the venous return and loads the right ventricle further; her lungs are not wet
     cpap: (s) => {
       if (!s.pulse) return null;
@@ -553,6 +562,8 @@ export const edPeLysis: Scenario = {
       return { say: [['you', 'Laid flat with her legs raised.'], ...awake(s, '"I can\'t breathe lying down!"'), [helper(s), 'Her pressure has not moved, and her neck veins are fuller. Sitting her back up.']], flags: ['legs-up'] };
     },
     metoprolol: (s) => slower(s, 'Metoprolol 5 mg IV', 12, 'beta-blocker'),
+    esmolol: (s) => slower(s, 'Esmolol 500 mcg/kg IV', 12, 'beta-blocker'),
+    labetalol: (s) => slower(s, 'Labetalol 20 mg IV', 10, 'beta-blocker'),
     diltiazem: (s) => slower(s, 'Diltiazem IV', 10, 'diltiazem'),
     'amio-infusion': (s) => slower(s, 'Amiodarone 150 mg over 10 minutes', 0, 'amiodarone'),
     procainamide: (s) => slower(s, 'Procainamide at 30 mg/min', 0, 'procainamide'),
@@ -805,6 +816,13 @@ export const edPeLysis: Scenario = {
       uses: ['sample', 'neuro'],
     },
     {
+      // the order's last words: the heparin drip does not run with the alteplase (the fallback's physician pauses it himself)
+      id: 'rn-heparin-paused', label: 'The heparin drip paused while the alteplase runs, as ordered', roles: ED_RN, points: 5,
+      applies: (s) => has(s, 'heparin') && s.performed.some((p) => p.id === 'alteplase') && has(s, 'alteplase-infusion'),
+      done: (s) => firstDone(s, ['stop-antithrombotics'], 'asked-rn-alteplase'), uses: ['stop-antithrombotics'],
+      why: 'Unfractionated heparin and alteplase together only add bleeding: the drip is paused for the 2-hour infusion and restarted when it ends, once the aPTT is under twice normal (alteplase label for pulmonary embolism).',
+    },
+    {
       id: 'rn-lytic-monitor', label: 'During the infusion: vital signs and a neuro check every 15 minutes', roles: ED_RN, points: 5,
       done: ['reassess', 'nibp', 'vitals'], after: 'alteplase-infusion', target: { within: { flag: 'alteplase-infusion', minutes: 15 } }, applies: (s) => has(s, 'alteplase-infusion'),
       why: 'While the alteplase runs: the pressure, the rhythm and the oxygen, a neuro check against the baseline, and a look for bleeding (IV sites, gums, urine) — every 15 minutes. A headache or a neuro change stops the infusion.',
@@ -892,8 +910,8 @@ export const edPeLysis: Scenario = {
       text: 'More than 500 mL of fluid for a failing right ventricle. Distended neck veins, a wide IVC and clear lungs say her right heart is already overfilled: more volume stretches it further, pushes the septum into the left ventricle and empties it, and the pressure falls. At most one small bolus, and only with a low central venous pressure; support the pressure with norepinephrine.',
     },
     {
-      id: 'nitro-pe', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse, points: 15, severity: 'critical',
-      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
+      id: 'nitro-pe', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: ED_TEAM, when: (s) => s.pulse, points: 15, severity: 'critical',
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high', 'nitro-iv'])],
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic — the chest pain standing order does not cover it — and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {
@@ -920,27 +938,27 @@ export const edPeLysis: Scenario = {
     },
     {
       // the fast rate is her compensation, not an arrhythmia; it stands in for the low-pressure procainamide rule
-      id: 'rate-control-pe', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse, points: 10, severity: 'major',
+      id: 'rate-control-pe', actions: [...BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse, points: 10, severity: 'major',
       replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert her rhythm. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest.',
     },
     {
       // the nurse's version also stands for the missing order (and, like the doctor's, for the low-pressure procainamide rule)
-      id: 'rate-control-pe-rn', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: [...noOrder(['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide']), 'procainamide-hypotension', ...RATE_RULES],
+      id: 'rate-control-pe-rn', actions: [...BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
+      replaces: ['procainamide-hypotension', ...RATE_RULES, ...noOrder([...BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'procainamide'])],
       text: 'A drug to slow or convert her rhythm, with no order. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest — and none of them is on a standing order. Tell the physician what you see instead.',
     },
     {
       // the doctor's, and the nurse's vagal maneuver (it needs no order); her drugs are the rule below
-      id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal'], roles: ED_TEAM,
+      id: 'no-arrhythmia-pe', actions: [...ADENOSINE_PUSH, 'lidocaine', 'vagal'], roles: ED_TEAM,
       when: (s, _sc, id) => s.pulse && (s.role !== 6 || id === 'vagal'), points: 3, severity: 'minor',
       replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'vagal-slow'],
       text: 'A vagal maneuver, adenosine or lidocaine for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down or a pause cuts the output she has left.',
     },
     {
       // the nurse's version also stands for the missing order, at the order's weight, and says so
-      id: 'no-arrhythmia-pe-rn', actions: ['adenosine6', 'adenosine12', 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
-      replaces: [...noOrder(['adenosine6', 'adenosine12', 'lidocaine']), ...LIDOCAINE_RULES, ...RATE_RULES],
+      id: 'no-arrhythmia-pe-rn', actions: [...ADENOSINE_PUSH, 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
+      replaces: [...LIDOCAINE_RULES, ...RATE_RULES, ...noOrder([...ADENOSINE_PUSH, 'lidocaine'])],
       text: 'Adenosine or lidocaine with no order, for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break — and with a pulse neither drug is on a standing order. Tell the physician what you see instead.',
     },
     {
@@ -962,7 +980,7 @@ export const edPeLysis: Scenario = {
     },
     {
       // heparin follows a tenecteplase bolus or an arrest push; it is the 2-hour alteplase infusion it must not run with
-      id: 'heparin-extra', actions: ['heparin'], roles: ED_TEAM, when: (s) => has(s, 'heparin') || has(s, 'alteplase-infusion'), points: 3, severity: 'minor',
+      id: 'heparin-extra', actions: ['heparin'], roles: ED_TEAM, when: (s) => has(s, 'heparin') || has(s, 'alteplase-infusion'), points: 3, severity: 'minor', replaces: ['heparin-repeat-unguided'],
       text: 'Heparin on top of a dose already in, or while the alteplase runs. The heparin goes in first, at once; the drip is paused during the 2-hour alteplase infusion and restarted when it ends (once the aPTT is under twice normal) — heparin during the lytic only adds bleeding.',
     },
     {
@@ -985,10 +1003,10 @@ export const edPeLysis: Scenario = {
     {
       // one penalty for the drug that has no place in PEA. The ER nurse's lidocaine and arrest dose of amiodarone need no
       // order in an arrest (they are the code leader's): her other drugs are the twin below, which also stands for the order
-      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
+      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem'],
       roles: ED_TEAM, when: (s, _sc, id) => !s.pulse && (s.role !== 6 || ['amio-arrest', 'lidocaine'].includes(id)), points: 3, severity: 'minor',
       replaces: [
-        'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
+        'procainamide-in-arrest', ...noOrder(['amio-infusion', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem']),
         ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
       ],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the clot, and a lytic for it.',

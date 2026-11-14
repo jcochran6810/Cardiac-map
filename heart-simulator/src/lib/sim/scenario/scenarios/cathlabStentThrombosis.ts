@@ -1,6 +1,7 @@
 import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Speaker } from '../types';
 import { bpAfter, canSwallow, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
+import { lastDoneAt } from '../rules/helpers';
 import { LEFT_VIEWS, MD, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { ANTITHROMBOTIC_RULES, PROTAMINE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
@@ -39,17 +40,23 @@ const named = (s: SimState) => s.reads.some((r) => r.answer === 'clin-stent-thro
 
 /** The stent is shut (TIMI 0) right now */
 const occluded = (s: SimState) => has(s, 'occluded');
+/** His weight (kg): the heparin dose per kilo */
+const KG = 90;
+
 /** Flow is back through the stent right now (it can clot again) */
 const flowing = (s: SimState) => has(s, 'open');
 
 /**
  * The heparin is back in the PCI range: topped up (and not reversed with protamine since), or bivalirudin instead. The
- * emergency department's 4,000 units (about 44 units/kg) never was.
+ * emergency department's 4,000 units (about 44 units/kg) never was. The latest top-up counts (another after protamine
+ * brings it back), and the latest protamine: a flag keeps only its first minute
  */
 function anticoagulated(s: SimState): boolean {
   if (has(s, 'bivalirudin')) return true;
   if (!has(s, 'heparin-topup')) return false;
-  return !(has(s, 'protamine') && s.flags.protamine >= s.flags['heparin-topup']);
+  const topup = Math.max(s.flags['heparin-topup'], lastDoneAt(s, ['heparin']) ?? -Infinity);
+  const reversed = Math.max(s.flags.protamine ?? -Infinity, lastDoneAt(s, ['protamine']) ?? -Infinity);
+  return !(reversed >= topup);
 }
 
 /** A drug that blocks the platelets within minutes is running: cangrelor or a GP IIb/IIIa inhibitor (a tablet takes an hour or more) */
@@ -110,7 +117,8 @@ function actText(s: SimState): { text: string; low: boolean } {
 
 function act(s: SimState, who: Speaker, prefix = ''): Effect {
   const { text, low } = actText(s);
-  return { say: [[who, prefix ? `${prefix}"${text}"` : text]], flags: low ? ['act', 'act-low'] : ['act'] };
+  // a low ACT guides another heparin bolus (the built-in heparin-repeat-unguided reads the timer)
+  return { say: [[who, prefix ? `${prefix}"${text}"` : text]], ...(low ? { flags: ['act', 'act-low'], timers: { actLowAt: s.minute } } : { flags: ['act'] }) };
 }
 
 /**
@@ -119,10 +127,13 @@ function act(s: SimState, who: Speaker, prefix = ''): Effect {
  */
 function heparin(s: SimState, by: By): Effect {
   const small = has(s, 'gp2b3a');
+  // the units given so far, the emergency department's 4,000 first: each top-up adds to them
+  const total = (s.timers.heparinUnits ?? 4000) + (small ? 2000 : 4000);
+  const perKg = Math.round(total / KG / 10) * 10;
   const text = small
     ? 'Heparin 2,000 units IV, flushed — a smaller top-up with eptifibatide running.'
-    : 'Heparin 4,000 units IV, flushed: 8,000 units in all, about 90 units/kg.';
-  return { say: [given(by, text)], flags: ['heparin', 'heparin-topup', ...(small ? ['topup-small'] : [])] };
+    : `Heparin 4,000 units IV, flushed: ${total.toLocaleString('en-US')} units in all, about ${perKg} units/kg.`;
+  return { say: [given(by, text)], flags: ['heparin', 'heparin-topup', ...(small ? ['topup-small'] : [])], timers: { heparinUnits: total } };
 }
 
 const cangrelor = (by: By): Effect => ({
@@ -682,11 +693,11 @@ export const cathlabStentThrombosis: Scenario = {
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. On top of heparin, aspirin and an IV platelet drug it brings major (and intracranial) bleeding, and the clot in the stent is treated mechanically — aspiration, a balloon, then the cause the imaging shows.' },
     // switching from heparin to bivalirudin is fine; adding one on top of the other once the ACT is back in range is not. The
     // nurse's bivalirudin given to an open order is scored by that order's own wrong answer (one mistake, one penalty)
-    { id: 'double-anticoagulant', actions: ['heparin', 'bivalirudin'], roles: [4, 5], when: (s) => !(s.role === 4 && (openOrder(s, 'rn-platelets', 'platelets-given') || openOrder(s, 'rn-heparin', 'heparin-given'))) && (has(s, 'bivalirudin') || (has(s, 'heparin-topup') && anticoagulated(s))), points: 5, severity: 'major', text: 'Heparin and bivalirudin on top of each other. One anticoagulant brought back to the PCI range is enough: both together only add bleeding. Switch from one to the other, or top up the one he has.' },
+    { id: 'double-anticoagulant', actions: ['heparin', 'bivalirudin'], roles: [4, 5], replaces: ['heparin-repeat-unguided'], when: (s) => !(s.role === 4 && (openOrder(s, 'rn-platelets', 'platelets-given') || openOrder(s, 'rn-heparin', 'heparin-given'))) && (has(s, 'bivalirudin') || (has(s, 'heparin-topup') && anticoagulated(s))), points: 5, severity: 'major', text: 'Heparin and bivalirudin on top of each other. One anticoagulant brought back to the PCI range is enough: both together only add bleeding. Switch from one to the other, or top up the one he has.' },
     // a covered stent is another stent, and a worse one: the same weight as another stent before imaging, not a lesser fault
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: MD, points: 10, severity: 'major', text: 'A covered stent without a perforation. Covered stents seal perforations; they clot and restenose far more than drug-eluting stents and can shut the side branches they cover — the last thing a stent that has just clotted needs. Fix the drugs, reopen it, image it, then treat what the imaging shows.' },
     { id: 'tech-unasked-covered', actions: ['stent-covered'], roles: TECH, points: 3, severity: 'minor', text: 'A covered stent opened that nobody asked for. Covered stents are for perforations; there is none, and in a stent that has just clotted it would clot again. Open devices when the operator asks for them.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker in an evolving anterior STEMI. His systolic fell to about 100 when the stent shut — a systolic under 120, like a heart rate over 110, is a risk factor for cardiogenic shock (COMMIT) — and IV beta-blockers are not routine in STEMI. An oral one starts within 24 hours, once he is stable with no heart failure or low output.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in an evolving anterior STEMI. His systolic fell to about 100 when the stent shut — a systolic under 120, like a heart rate over 110, is a risk factor for cardiogenic shock (COMMIT) — and IV beta-blockers are not routine in STEMI. An oral one starts within 24 hours, once he is stable with no heart failure or low output.' },
     // shocked back to 84 systolic (or worse) a pump is a defensible choice; above 90 it treats nothing he has
     { id: 'pump-no-shock', actions: ['iabp', 'impella'], roles: MD, when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['mcs-no-cardiogenic-shock'], points: 3, severity: 'minor', text: 'A mechanical pump without cardiogenic shock. It does nothing for the clot in the stent, it takes minutes while the LAD stays shut, and it adds a large-bore femoral puncture in a patient on heparin and antiplatelet drugs. Reopen the artery: that is what supports this heart.' },
     { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Intracoronary epinephrine for a stent thrombosis. It is a drug for no-reflow with a low pressure; it does nothing for clot in the stent, and it speeds the heart and raises the oxygen need of an infarcting heart.' },

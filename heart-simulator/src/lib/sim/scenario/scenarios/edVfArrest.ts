@@ -318,7 +318,7 @@ const TIMINGS: Timing[] = [
   { label: 'Code called', actions: ['call-help', 'notify-physician'], flag: 'help', target: 1 },
   // the in-hospital benchmark is a first shock within 2 minutes of the collapse: one 2-minute cycle of compressions while
   // the pads go on, then the shock at the first rhythm check
-  { label: 'First shock', actions: ['defib', 'aed'], flag: 'shock-1', target: 2.5 },
+  { label: 'First shock', actions: ['defib', 'aed'], flag: 'shock-1', target: 2.5, shocksOnly: true },
   { label: 'First epinephrine (after the second shock)', actions: ['epinephrine'], flag: 'epi', from: 'arrest' },
   { label: 'ROSC', actions: [], flag: 'rosc' },
   { label: 'MAP 65 or more after ROSC', actions: ['pressor', 'fluid', 'push-epi'], flag: 'pressor-running', from: 'rosc', target: 5 },
@@ -546,6 +546,7 @@ export const edVfArrest: Scenario = {
       say: [['you', 'Push-dose epinephrine, 10–20 mcg — the dose for a low pressure with a pulse. In cardiac arrest the dose is 1 mg.', 'warn']],
       flags: ['push-epi'],
     }),
+    adenosine3: (s) => (s.pulse ? null : { say: [['you', 'Adenosine 3 mg pushed — it has no place in cardiac arrest, and nothing changes.']], flags: ['adenosine'] }),
     adenosine6: (s) => (s.pulse ? null : { say: [['you', 'Adenosine 6 mg pushed — it has no place in cardiac arrest, and nothing changes.']], flags: ['adenosine'] }),
     adenosine12: (s) => (s.pulse ? null : { say: [['you', 'Adenosine 12 mg pushed — it has no place in cardiac arrest, and nothing changes.']], flags: ['adenosine'] }),
     'hs-ts': (s) => ({
@@ -575,12 +576,8 @@ export const edVfArrest: Scenario = {
       // ROSC, when it decides on temperature control
       if (!s.pulse) return { blocked: true, say: [['system', 'Not during CPR: he is unresponsive with no pulse, and a neuro exam has nothing to tell you. Check it once he has a pulse — it decides on temperature control.']] };
       const exam = `GCS ${s.vitals.gcs} (E1 V1 M1): no response to voice or pain; pupils 3 mm, equal, reacting sluggishly; temperature ${s.vitals.temp} °C.`;
-      if (doctorRun(s)) {
-        return {
-          say: [['you', `${exam} He does not follow commands: you order temperature control — a feedback-controlled device holding the target you choose (36 °C here; anywhere from 32 to 37.5 °C fits the guideline) for at least 36 hours, then fever prevention — with sedation as he needs it, and an EEG in the ICU.`]],
-          flags: ['neuro-rosc', 'temp-control'],
-        };
-      }
+      // the doctor's exam decides it; the temperature control is its own order (the action 'temp-control')
+      if (doctorRun(s)) return { say: [['you', `${exam} He does not follow commands: he needs temperature control.`]], flags: ['neuro-rosc'] };
       return { say: [['you', exam]], flags: ['neuro-rosc'] };
     },
     'o2-nrb': (s) => (s.pulse && s.vitals.gcs <= 8 ? { say: [['you', 'He is already being bagged with oxygen: a mask on top adds nothing.']] } : null),
@@ -826,7 +823,7 @@ export const edVfArrest: Scenario = {
       why: 'ST elevation after ROSC means emergent coronary angiography, whether the patient is awake or comatose (2025 AHA: Class 1; 2025 ACC/AHA ACS guideline). His occlusion caused the arrest: opening it is the treatment, and coma does not change it.',
     },
     {
-      id: 'md-temperature', label: 'Not following commands after ROSC: temperature control', roles: ED_MD, points: 5, after: 'rosc', applies: (s) => has(s, 'rosc'), done: ['neuro'],
+      id: 'md-temperature', label: 'Not following commands after ROSC: temperature control', roles: ED_MD, points: 5, after: 'rosc', applies: (s) => has(s, 'rosc'), done: ['temp-control'],
       why: 'Check whether he follows commands: an adult who does not after ROSC gets deliberate temperature control at a chosen target between 32 and 37.5 °C (Class 1) for at least 36 hours (2a), with active fever prevention after (2025 AHA).',
     },
 
@@ -914,18 +911,18 @@ export const edVfArrest: Scenario = {
       text: 'An amiodarone infusion in cardiac arrest. 150 mg over 10 minutes is the dose for a tachycardia with a pulse; in VF the dose is a 300 mg push (then 150 mg), given during compressions.',
     },
     {
-      id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
+      id: 'adenosine-in-arrest', actions: ['adenosine3', 'adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine in cardiac arrest. It is for a regular narrow-complex tachycardia with a pulse; in VF it treats nothing.',
     },
     {
       // in the arrest it has no role; after ROSC he is comatose, hypotensive or pressor-dependent, with no pain to report
-      id: 'nitrate', actions: ['nitro', 'nitro-high'], points: 8, severity: 'major',
-      replaces: [...NITRATE_RULES, 'rn-without-order-nitro-high'],
+      id: 'nitrate', actions: ['nitro', 'nitro-high', 'nitro-iv'], points: 8, severity: 'major',
+      replaces: ['rn-without-order-nitro-high', ...NITRATE_RULES, 'rn-without-order-nitro-iv'],
       text: 'Nitroglycerin in the arrest or after ROSC. In the arrest it has no role; after ROSC his pressure is low, or held up only by norepinephrine, and nitrates drop it further. The ischemia is treated by opening the artery in the cath lab.',
     },
     {
-      id: 'rate-drug', actions: ['metoprolol', 'diltiazem'], points: 8, severity: 'major',
-      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem', ...RATE_RULES],
+      id: 'rate-drug', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'], points: 8, severity: 'major',
+      replaces: [...RATE_RULES, ...['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'].map((id) => `rn-without-order-${id}`)],
       text: 'A beta-blocker or diltiazem in the arrest or after ROSC. His fast rate after ROSC is the body\'s answer to the arrest, the epinephrine and a low pressure: these drugs weaken the squeeze and drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {

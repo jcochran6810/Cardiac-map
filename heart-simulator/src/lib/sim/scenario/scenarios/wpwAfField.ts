@@ -1,4 +1,4 @@
-import type { Effect, Line, Scenario, SimState } from '../types';
+import type { Effect, Line, Penalty, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
 import { nitrateCaseRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
@@ -93,6 +93,16 @@ function toVf(s: SimState, lead: Line[] = []): Effect {
   };
 }
 
+/** The arrest that waiting brought: what would have prevented it, for the EMT and for the paramedic */
+function delayedArrest(s: SimState): Omit<Penalty, 'minute'> {
+  return {
+    id: 'preventable-arrest', points: 10, severity: 'major',
+    text: s.role === 1
+      ? `He arrested after the fast rhythm was left untreated. Requested at once, the paramedic intercept arrives ${ALS_MINUTES} minutes later — in time to stop it with a drug or a sedated shock before he becomes unstable; called late (or not at all), it comes after the arrest.`
+      : 'He arrested after the fast rhythm was left untreated. Stable pre-excited AF is stopped while it is stable (a sedated synchronized cardioversion, or procainamide), and an unstable one is shocked at once: waiting let it break down into VF.',
+  };
+}
+
 /**
  * An AV-nodal blocker in pre-excited AF: with the node blocked, every impulse races down the pathway — faster, wider
  * complexes and a pressure that falls away. VF follows within 2 minutes unless he is shocked first. The monitor line
@@ -173,7 +183,7 @@ function sedate(s: SimState, what: string, flags: string[]): Effect | null {
 }
 
 /** Adenosine acts in seconds: in pre-excited AF the node blocks, the pathway takes every impulse, and VF follows at once */
-function adenosine(s: SimState, mg: 6 | 12): Effect | null {
+function adenosine(s: SimState, mg: 3 | 6 | 12): Effect | null {
   const given = line('you', `Adenosine ${mg} mg rapid push, flushed.`);
   if (!s.pulse) return { say: [given, line('you', 'It has no place in cardiac arrest, and nothing changes on the monitor.')], flags: ['adenosine'] };
   if (!inAf(s)) return null;
@@ -264,6 +274,7 @@ export const wpwAfField: Scenario = {
       };
     },
     // the AV-nodal blockers: faster and wider, the pressure gone — VF follows (adenosine acts in seconds: at once)
+    adenosine3: (s) => adenosine(s, 3),
     adenosine6: (s) => adenosine(s, 6),
     adenosine12: (s) => adenosine(s, 12),
     diltiazem: (s) => fasterDown(s, [line('you', 'Diltiazem 20 mg IV over 2 minutes.')], ['diltiazem']),
@@ -456,10 +467,12 @@ export const wpwAfField: Scenario = {
       }),
     },
     {
-      // unstable and not shocked: the rhythm breaks down and he loses his pulse
+      // unstable and not shocked: the rhythm breaks down and he loses his pulse. When the instability came from waiting
+      // (no treatment, no paramedics in time) the arrest was preventable: charged once, so a well-run resuscitation of an
+      // arrest the delay caused does not score like preventing it
       id: 'vf-unstable',
       when: (s) => inAf(s) && has(s, 'unstable') && s.minute >= s.flags.unstable + VF_AFTER_UNSTABLE,
-      effect: (s) => toVf(s),
+      effect: (s) => ({ ...toVf(s), ...(s.fired.includes('unstable-delay') ? { penalty: delayedArrest(s) } : {}) }),
     },
     {
       // the heart beats again after the shock but gives no pulse: it needs compressions
@@ -592,7 +605,7 @@ export const wpwAfField: Scenario = {
   harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words; the 300 mg push with a pulse is the same mistake made worse
-      id: 'av-blocker-preexcited-af', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion', 'amio-arrest'],
+      id: 'av-blocker-preexcited-af', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion', 'amio-arrest'],
       // amiodarone on top of procainamide is this same mistake here: one penalty
       when: (s) => inAf(s), points: 15, severity: 'critical', replaces: ['amiodarone-after-procainamide'],
       text: 'An AV-nodal blocker for pre-excited atrial fibrillation. With the AV node blocked, every impulse races down the accessory pathway: the rate climbs and it turns into VF. Adenosine, diltiazem and verapamil, beta-blockers, digoxin and amiodarone are all contraindicated (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm). Stable: a sedated synchronized cardioversion, or IV procainamide; unstable: synchronized cardioversion now.',
@@ -651,13 +664,13 @@ export const wpwAfField: Scenario = {
     {
       // once he is back in sinus there is nothing left for them to treat; in WPW adenosine can even set off AF again
       // amiodarone after the procainamide that converted him is this same mistake: one penalty
-      id: 'rate-drug-after-conversion', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion'], when: (s) => s.pulse && !inAf(s), points: 3, severity: 'minor',
+      id: 'rate-drug-after-conversion', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion'], when: (s) => s.pulse && !inAf(s), points: 3, severity: 'minor',
       replaces: ['amiodarone-after-procainamide', ...RATE_RULES],
       text: 'A rate or rhythm drug once he was back in a regular rhythm. There is nothing left to treat: they only drop the pressure — and in WPW adenosine can set off atrial fibrillation again.',
     },
     {
       // one rule for them all, in its own words; it stands in for the built-in procainamide-in-arrest rule
-      id: 'rate-drug-in-arrest', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'procainamide', 'amio-infusion'], when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'rate-drug-in-arrest', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'procainamide', 'amio-infusion'], when: (s) => !s.pulse, points: 3, severity: 'minor',
       replaces: ['procainamide-in-arrest'],
       text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. In VF the treatment is a shock, CPR, epinephrine and — for VF that shocks have not fixed — amiodarone 300 mg or lidocaine.',
     },
@@ -676,7 +689,7 @@ export const wpwAfField: Scenario = {
     { label: 'Transport started', actions: ['transport-pci', 'transport-near'], target: 15 },
     // the EMT's paramedic intercept gives it: the flag counts theirs
     { label: 'Synchronized cardioversion once unstable', actions: ['cardiovert'], flag: 'cardioverted', target: 3, from: 'unstable' },
-    { label: 'First shock once pulseless', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+    { label: 'First shock once pulseless', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   ],
   transportMinutes: 15,
   nearestMinutes: 8,

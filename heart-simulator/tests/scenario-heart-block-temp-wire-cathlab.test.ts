@@ -352,12 +352,19 @@ describe('temporary wire: the effusion', () => {
     const r = review(sc, stop(s));
     expect(r.toFix.some((t) => t.kind === 'missed' && /Drain the tamponade before her heart stops filling/.test(t.label))).toBe(true);
     expect(r.timings.find((t) => t.label === 'Tamponade drained')!.met).toBe(false);
+    // the arrest itself is charged once, at the minute it came: a good rescue does not score like preventing it
+    expect(s.penalties.filter((p) => p.id === 'tamponade-to-arrest')).toEqual([
+      expect.objectContaining({ minute: s.flags.pea, points: 10, severity: 'major', text: expect.stringMatching(/^The tamponade was left until her heart stopped\./) }),
+    ]);
+    s = perform(sc, perform(sc, s, 'reassess'), 'reassess');
+    expect(s.penalties.filter((p) => p.id === 'tamponade-to-arrest')).toHaveLength(1);
   });
 
   it('a drain started before the heart stops (even late in the window) counts in full', () => {
     const steps = MD.slice(0, MD.indexOf('pericardiocentesis'));
     const s = run(sc, 5, [...steps, 'pulse-check', 'pericardiocentesis', 'handoff']);
     expect(s.fired).not.toContain('pea');
+    expect(s.penalties.map((p) => p.id)).not.toContain('tamponade-to-arrest');
     expectFullMarks(s);
   });
 

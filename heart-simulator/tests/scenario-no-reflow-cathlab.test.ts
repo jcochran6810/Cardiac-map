@@ -141,16 +141,19 @@ describe('no-reflow in the cath lab: recognizing it', () => {
     s = answerRead(sc, s, 'clin-dissection');
     expect(s.reads.at(-1)).toMatchObject({ answer: 'clin-no-reflow', verdict: 'wrong' });
     expect(s.penalties.at(-1)).toMatchObject({ points: 5 });
-    expect(s.log.at(-1)!.text).toMatch(/^Not quite — this is No-reflow\./);
+    // the feedback comes first; what waited on the read follows it at once
+    expect(s.log.filter((l) => l.who === 'feedback').at(-1)!.text).toMatch(/^Not quite — this is No-reflow\./);
   });
 
   it('the real post-stent runs (labeled with the finding) reach the Imaging screen only after the read', () => {
     let s = run(sc, 5, MANUAL_TO_STENT[5], undefined, 'manual');
     expect(s.images.map((r) => r.id)).toEqual(['angio']);
     s = answerRead(sc, s, 'clin-no-reflow');
-    expect(s.images.map((r) => r.id)).toEqual(['angio']);
-    s = perform(sc, s, 'ic-epinephrine');
+    // they wait for the read, then come with it (no case time passes), not after the next action
+    expect(s.images.map((r) => r.id)).toEqual(['angio', 'no-reflow']);
     expect(s.images.at(-1)).toMatchObject({ id: 'no-reflow', image: 'lad-no-reflow-pci' });
+    s = perform(sc, s, 'ic-epinephrine');
+    expect(s.images.map((r) => r.id)).toEqual(['angio', 'no-reflow']);
     // nothing waits on that run, so its caption shows at once
     expect(s.pendingRead).toBeNull();
   });

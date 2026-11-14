@@ -94,8 +94,8 @@ describe('emergency department scope', () => {
   it('leaves the field and the cath lab roles exactly as they were', () => {
     const edOnly = INTERVENTIONS.filter((iv) => iv.settings?.length === 1 && iv.settings[0] === 'ed').map((iv) => iv.id);
     expect(edOnly.sort()).toEqual([
-      'admit', 'alteplase', 'cath-lab-activate', 'central-line', 'consult-cardiology', 'cxr', 'ems-handoff', 'notify-physician', 'pocus',
-      'procedural-sedation', 'rsi', 'transfer', 'triage', 'troponin-repeat',
+      'admit', 'alteplase', 'arterial-line', 'cath-lab-activate', 'central-line', 'consult-cardiology', 'cxr', 'discharge', 'ems-handoff',
+      'notify-physician', 'observe', 'pocus', 'procedural-sedation', 'procedure-setup', 'rsi', 'transfer', 'triage', 'troponin-repeat',
     ]);
     for (const [role, setting] of [[1, 'field'], [2, 'field'], [3, 'cathlab'], [4, 'cathlab'], [5, 'cathlab']] as const) {
       const offered = interventionsFor(role, setting).map((i) => i.id);
@@ -120,24 +120,24 @@ describe('emergency department scope', () => {
     expect(groups.map((g) => g.label)).not.toContain('Other');
   });
 
-  it('gives the heparin and P2Y12 doses the ED uses, and keeps the lab\'s and the field\'s words exactly as they were', () => {
+  it('gives the heparin and P2Y12 doses the ED uses, and keeps the lab\'s and the field\'s own words', () => {
     const ed = Object.fromEntries(interventionsFor(7, 'ed').map((i) => [i.id, i.detail]));
     expect(ed.heparin).toMatch(/^weight-based: 60 U\/kg \(max 4,000 U\)/);
     expect(ed.p2y12).toMatch(/fibrinolytic, clopidogrel 300 mg/);
     expect(ed['ct-urgent']).toMatch(/pulmonary embolism.*leave the department$/);
     expect(ed['call-vad']).toMatch(/advise where the patient should be treated$/);
     expect(Object.fromEntries(interventionsFor(6, 'ed').map((i) => [i.id, i.detail])).heparin).toBe(ed.heparin);
-    // the cath lab nurse and cardiologist, and the field crews, see the words they saw before the ED came
+    // the cath lab nurse and cardiologist see the lab's dose (with its contraindications), and the field crews the words they saw before the ED came
     for (const role of [4, 5] as const) {
       const lab = Object.fromEntries(interventionsFor(role, 'cathlab').map((i) => [i.id, i.detail]));
-      expect(lab.heparin).toBe('70–100 U/kg for primary PCI');
+      expect(lab.heparin).toBe('70–100 U/kg for primary PCI, then to the ACT target; not with heparin-induced thrombocytopenia or active bleeding');
       expect(lab.p2y12).toBe('ticagrelor 180 mg (or prasugrel 60 mg)');
       expect(lab['ct-urgent']).toBe('head CT for a stroke (CT angiography if a clot could be pulled), abdomen and pelvis for a retroperitoneal bleed, chest CT angiography for a dissection — once the patient is stable enough to leave the lab');
     }
     for (const role of [1, 2] as const) {
       expect(interventionsFor(role, 'field').find((i) => i.id === 'call-vad')!.detail).toBe('the implanting center, 24/7: they talk you through the alarms and say where to take the patient');
     }
-    expect(detailFor(INTERVENTION_BY_ID.heparin, 'cathlab')).toBe('70–100 U/kg for primary PCI');
+    expect(detailFor(INTERVENTION_BY_ID.heparin, 'cathlab')).toBe('70–100 U/kg for primary PCI, then to the ACT target; not with heparin-induced thrombocytopenia or active bleeding');
     // the log line of the action says the setting's dose too
     expect(run(edPatient(), 7, ['iv', 'heparin']).log.some((l) => l.who === 'you' && l.text === `Unfractionated heparin IV bolus — ${ed.heparin}`)).toBe(true);
     // midazolam's procedural line names no setting
@@ -531,7 +531,7 @@ describe('the ER nurse gives a medication on an order', () => {
   it('every order-only drug is one the ER nurse is offered, scored once per drug', () => {
     // the list also names actions still to come (no case offers them yet), each named here: every other one exists and is
     // the nurse's to give. When an action on this list is added, it moves off it (and the loop below checks it)
-    const PENDING = ['adenosine3', 'esmolol', 'labetalol', 'metoprolol-po', 'nicardipine', 'inotrope', 'nitro-iv', 'furosemide', 'calcium-gluconate'];
+    const PENDING: string[] = [];
     for (const id of PENDING) expect(INTERVENTION_BY_ID[id], `${id} exists now: take it off PENDING`).toBeUndefined();
     for (const id of PENDING) expect(Object.keys(RN_ORDER_ONLY), id).toContain(id);
     const existing = Object.keys(RN_ORDER_ONLY).filter((id) => !PENDING.includes(id));

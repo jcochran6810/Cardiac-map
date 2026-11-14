@@ -1,8 +1,9 @@
 import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
-import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
+import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
 import { NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule, nitrateRulesExcept } from '../rules/acs';
+import { BETA_BLOCKERS, lowPressure } from '../rules/helpers';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -37,7 +38,7 @@ const DROP_AFTER = 5;
 /** Pressures rise as far as a hypertensive emergency can take them (bpAfter's default ceiling is for a normal pressure) */
 const CEILING = { sbp: 250, dbp: 140 };
 /** The nitrates the department offers (the patient's own spray is a field action) */
-const NITRATES = ['nitro', 'nitro-high'];
+const NITRATES = ['nitro', 'nitro-high', 'nitro-iv'];
 /** Every way to see his pressure (a reassessment reads the monitor's last set) */
 const BP_CHECKS = ['vitals', 'nibp', 'bp-both-arms', 'reassess'];
 
@@ -422,6 +423,27 @@ export const edScape: Scenario = {
     // the nitrates: the ER nurse gives them in person; in the ER doctor's run the computer nurse gives them on the doctor's order
     nitro: (s) => nitrate(s, 'standard', edNurse(s)),
     'nitro-high': (s) => nitrate(s, 'high', edNurse(s)),
+    // the IV high dose: the bolus the sublingual 0.8 mg stands in for, and the infusion behind it (the 'drip')
+    'nitro-iv': (s) => {
+      if (!s.pulse) return null;
+      const better = has(s, 'better');
+      const bp = bpAfter(s, better ? -34 : -28, better ? -18 : -12, CEILING);
+      const easing = !better && onNiv(s);
+      const spo2 = easing ? Math.min(96, s.vitals.spo2 + 2) : s.vitals.spo2;
+      const rr = easing ? Math.max(20, s.vitals.rr - 2) : s.vitals.rr;
+      const what = has(s, 'drip') ? 'The nitroglycerin infusion titrated up, his pressure checked every few minutes.' : 'Nitroglycerin 400 micrograms IV over 2 minutes, then the infusion at 100 micrograms a minute.';
+      const low = bp.sbp < 110;
+      return {
+        say: [[edNurse(s), what], line('monitor', `BP ${bp.sbp}/${bp.dbp}.`, low ? 'bad' : undefined), ...(low ? says(s, '"I feel… light-headed."', 'bad') : [])],
+        vitals: { ...bp, spo2, rr }, flags: ['nitro', 'nitro-high', 'nitro-iv', 'drip'],
+      };
+    },
+    // he is not carrying extra fluid (a steady weight, no leg swelling, an IVC that narrows): the diuretic only dries him out
+    furosemide: (s) => {
+      if (!s.pulse) return null;
+      const bp = bpAfter(s, -4, -2);
+      return { say: [[edNurse(s), 'Furosemide 40 mg IV.'], line('monitor', `BP ${bp.sbp}/${bp.dbp}.`)], vitals: bp, flags: ['diuretic'] };
+    },
     // the traps: more volume, laid flat, an opioid, a negative inotrope, a pressor
     fluid: (s) => {
       if (!s.pulse) return null;
@@ -478,6 +500,8 @@ export const edScape: Scenario = {
       };
     },
     metoprolol: negativeInotrope('Metoprolol 5 mg IV', 'beta-blocker'),
+    esmolol: negativeInotrope('Esmolol 500 mcg/kg IV', 'beta-blocker'),
+    labetalol: negativeInotrope('Labetalol 20 mg IV', 'beta-blocker'),
     diltiazem: negativeInotrope('Diltiazem IV', 'diltiazem'),
     'push-epi': adrenergic('Push-dose epinephrine 10 mcg IV.', 16, 10, 'push-epi'),
     pressor: adrenergic('Vasopressor infusion running.', 22, 14, 'pressor'),
@@ -579,7 +603,8 @@ export const edScape: Scenario = {
     {
       // the infusion the physician ordered with the high dose: it needs a line (and, in the nurse's run, the physician's order)
       id: 'drip-on',
-      when: (s) => s.pulse && highDose(s) && has(s, 'iv') && !has(s, 'airway') && (doctorRun(s) || has(s, 'md-here')) && s.minute >= s.flags['nitro-high'] + DRIP_DELAY,
+      // (not when the IV bolus already started it)
+      when: (s) => s.pulse && highDose(s) && !has(s, 'drip') && has(s, 'iv') && !has(s, 'airway') && (doctorRun(s) || has(s, 'md-here')) && s.minute >= s.flags['nitro-high'] + DRIP_DELAY,
       effect: (s) => {
         const bp = bpAfter(s, -10, -6);
         return {
@@ -846,7 +871,7 @@ export const edScape: Scenario = {
       why: 'Crackles to the apices with froth and no wheeze: fluid in the lungs, not asthma or COPD — what tells you positive pressure and nitrates will help, and fluid and albuterol will not.',
     },
     {
-      id: 'md-nitro', label: 'High-dose nitroglycerin early: 0.8 mg sublingual now, an infusion to follow', roles: ED_MD, points: 20, target: { by: 6 }, done: ['nitro-high'],
+      id: 'md-nitro', label: 'High-dose nitroglycerin early: 0.8 mg sublingual now, an infusion to follow', roles: ED_MD, points: 20, target: { by: 6 }, done: ['nitro-high', 'nitro-iv'],
       why: 'His pressure is what floods his lungs: high-dose nitroglycerin takes it off within minutes (the ACEP 2022 clinical policy: an option to consider for acute heart failure with a high pressure, Level C). 0.8 mg under the tongue or an IV bolus at once, then an infusion at 100 micrograms a minute or more, titrated down as the pressure falls. The 0.4 mg doses the crew gave are a chest pain dose; low doses alone leave him tiring.',
     },
     {
@@ -902,14 +927,23 @@ export const edScape: Scenario = {
       },
       text: 'A repeat nitroglycerin dose too soon or without a fresh blood pressure. Repeat it every 5 minutes (3 at the least), with the pressure checked before each: the mask and the doses already given keep lowering it.',
     }, 'nitro-too-soon'),
+    // with a pressure that holds: a low one is the built-in furosemide-hypotension's (8, major) to judge
+    ...bothRoles({
+      id: 'diuretic-not-overloaded', actions: ['furosemide'], when: (s) => s.pulse && !lowPressure(s), points: 3, severity: 'minor',
+      replaces: ['furosemide-no-indication'],
+      text: 'IV furosemide for a man who is not carrying extra fluid. In this pressure surge the fluid has moved into his lungs, not onto his body (a steady weight, no leg swelling, an IVC that still narrows): positive pressure and high-dose nitrates move it back. A loop diuretic is for signs of volume overload, once the pressure is controlled (2022 AHA/ACC/HFSA heart failure guideline).',
+    }, NO_ORDER, ['rn-without-order-furosemide']),
     {
       // the built-in interval rule, same id: a deliberate exemption. The rule above judges every repeat dose here, and it lets
       // the ordered 0.8 mg follow straight after a 0.4 mg given in its place (the correction the physician asked for)
       id: 'nitro-too-soon', actions: NITRATES, when: () => false, points: 3, severity: 'minor',
       text: 'Another nitroglycerin less than 3 minutes after the last.',
     },
+    // the IV high dose (this case's bolus and its drip titrated up) as well as the 0.8 mg tablet; the ER nurse's IV dose with
+    // no order is the order's rule alone (one act, one penalty)
     nitrateCaseRule({
-      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160, points: 3, severity: 'minor',
+      id: 'nitro-high-below-160', actions: ['nitro-high', 'nitro-iv'], points: 3, severity: 'minor',
+      when: (s, _sc, id) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160 && !(id === 'nitro-iv' && s.role === 6 && !has(s, orderedFlag('nitro-iv'))),
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
     }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
     {
@@ -922,17 +956,17 @@ export const edScape: Scenario = {
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
-      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure', ...RATE_RULES], points: 8, severity: 'major',
+      id: 'negative-inotrope', actions: [...BETA_BLOCKERS, 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure', ...RATE_RULES], points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
-    }, NO_ORDER, ['rn-without-order-metoprolol', 'rn-without-order-diltiazem']),
+    }, NO_ORDER, [...BETA_BLOCKERS, 'diltiazem'].map((id) => `rn-without-order-${id}`)),
     ...bothRoles({
       id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding his lungs: raising it makes the edema worse. He needs the pressure taken off — nitroglycerin and positive pressure.',
     }, NO_ORDER, ['rn-without-order-pressor', 'rn-without-order-push-epi']),
     ...bothRoles({
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
-    }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
+    }, NO_ORDER, ['rn-without-order-adenosine3', 'rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {
       id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'A sedative off the mask, or for a patient who is tiring. His panic is air hunger, which positive pressure and nitroglycerin treat; a benzodiazepine without that support blunts the breathing he has left. A small dose is for a patient on the mask who is awake and fighting it.',
@@ -988,7 +1022,7 @@ export const edScape: Scenario = {
     DOOR_TO_ECG,
     { label: 'On the department\'s BiPAP, without a gap', actions: ['cpap'], target: 3 },
     // the physician's own dose (the nurse's run, if the nurse never gave it) counts by its flag
-    { label: 'First high-dose nitroglycerin', actions: ['nitro-high'], flag: 'nitro-high', target: 6 },
+    { label: 'First high-dose nitroglycerin', actions: ['nitro-high', 'nitro-iv'], flag: 'nitro-high', target: 6 },
     { label: 'Breathing easier (SpO₂ in the mid-90s, full sentences)', actions: [], flag: 'better' },
   ],
   teaching: [

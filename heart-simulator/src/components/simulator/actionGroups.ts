@@ -10,11 +10,11 @@ interface Group { label: string; ids: string[] }
 const SUBGROUPS: Partial<Record<Category, Group[]>> = {
   meds: [
     { label: 'Cardiac arrest', ids: ['epinephrine', 'amio-arrest', 'lidocaine'] },
-    { label: 'Heart rhythm', ids: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion', 'procainamide', 'magnesium-sulfate', 'atropine'] },
-    { label: 'Chest pain & clots', ids: ['aspirin', 'nitro', 'nitro-high', 'p2y12', 'cangrelor', 'heparin', 'bivalirudin', 'gp2b3a', 'tnk', 'alteplase', 'protamine'] },
-    { label: 'Pressure & shock', ids: ['push-epi', 'pressor', 'phenylephrine'] },
+    { label: 'Heart rhythm', ids: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'amio-infusion', 'procainamide', 'magnesium-sulfate', 'atropine'] },
+    { label: 'Chest pain & clots', ids: ['aspirin', 'nitro', 'nitro-high', 'nitro-iv', 'p2y12', 'cangrelor', 'heparin', 'bivalirudin', 'gp2b3a', 'stop-antithrombotics', 'tnk', 'alteplase', 'protamine'] },
+    { label: 'Pressure & shock', ids: ['push-epi', 'pressor', 'phenylephrine', 'inotrope', 'nicardipine', 'furosemide'] },
     { label: 'Breathing & allergy', ids: ['albuterol', 'epi-im', 'diphenhydramine', 'steroid'] },
-    { label: 'Electrolytes, antidotes & glucose', ids: ['calcium-chloride', 'sodium-bicarbonate', 'insulin-dextrose', 'albuterol-hyperk', 'glucagon', 'oral-glucose', 'dextrose'] },
+    { label: 'Electrolytes, antidotes & glucose', ids: ['calcium-chloride', 'calcium-gluconate', 'sodium-bicarbonate', 'insulin-dextrose', 'albuterol-hyperk', 'glucagon', 'oral-glucose', 'dextrose'] },
     { label: 'Pain, nausea & sedation', ids: ['fentanyl', 'sedation', 'procedural-sedation', 'midazolam', 'ondansetron'] },
     { label: 'Through the catheter', ids: ['radial-cocktail', 'ic-nitro', 'ic-adenosine', 'ic-verapamil', 'ic-nitroprusside', 'ic-epinephrine', 'adenosine-iv-ffr'] },
   ],

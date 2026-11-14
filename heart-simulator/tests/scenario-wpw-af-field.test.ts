@@ -353,7 +353,7 @@ describe('pre-excited AF in the field — the EMT', () => {
     expect(s.log.at(-1)).toMatchObject({ who: 'system', text: expect.stringMatching(/^Not with a pulse/) });
   });
 
-  it('with no ALS call he goes into VF at minute 17; the AED, then CPR, bring him back — and the review says the call was missed', () => {
+  it('with no ALS call he goes into VF at minute 17; the AED, then CPR, bring him back — and the review says the call was missed, and charges the arrest', () => {
     let s = until(emt(EMT_NO_ALS), (x) => !x.pulse);
     expect(s.rhythm.profile).toBe('vf');
     expect(s.fired).toEqual(expect.arrayContaining(['unstable-delay', 'vf-unstable']));
@@ -366,7 +366,9 @@ describe('pre-excited AF in the field — the EMT', () => {
       s = step === UNTIL_ARRIVED ? until(s, (x) => 'arrived' in x.flags) : perform(sc, s, step);
     }
     expect(s.ended?.reason).toBe('complete');
-    expect(s.penalties).toEqual([]);
+    // the arrest the wait brought is charged once, at the minute it came: a good resuscitation does not score like preventing it
+    expect(s.penalties.map((p) => [p.id, p.points, p.severity])).toEqual([['preventable-arrest', 10, 'major']]);
+    expect(s.penalties[0].text).toMatch(/^He arrested after the fast rhythm was left untreated\. Requested at once, the paramedic intercept arrives 8 minutes later/);
     expect(missed(s)).toEqual(['Request ALS (paramedic intercept) at once']);
     // they stayed on scene until he arrested: loaded only after ROSC, past the 15-minute goal
     expect(late(s)).toEqual(['Transport promptly']);

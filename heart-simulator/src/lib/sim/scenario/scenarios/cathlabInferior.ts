@@ -146,7 +146,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'atropine', role: 4, when: (s) => has(s, 'bezold'), within: 1.5,
     ask: 'Heart rate 38 — give her something for the rate, please!',
-    accept: ['atropine'], wrong: ['adenosine6', 'diltiazem'],
+    accept: ['atropine'], wrong: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem'],
     wrongSay: 'No! Atropine, 1 milligram — her rate is 38.',
     thanks: 'Thanks — rate is coming up.', fallback: 'Tech, give me the atropine — I\'ll push it.', gives: 'atropine-given',
     fallbackEffect: (s) => atropine(s) ?? {},
@@ -241,6 +241,7 @@ export const cathlabInferior: Scenario = {
       : null),
     nitro: nitroCrash,
     'nitro-high': nitroCrash,
+    'nitro-iv': nitroCrash,
     'ic-nitro': nitroCrash,
     rhc: (s) => !has(s, 'venous') ? null : {
       say: [['monitor', 'RA 16 · RV 32/16 · PA 30/14 (mean 20) · PCWP 11 · CO 3.4 L/min, CI 1.9.']], flags: ['rhc'],
@@ -381,7 +382,7 @@ export const cathlabInferior: Scenario = {
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the reflex and its treatment, the RV infarct (no nitrates) and the groin.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: yieldToHeavier([
-    { id: 'nitro-rv', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
+    { id: 'nitro-rv', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], replaces: NITRATE_RULES, points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in a patient who can give them.' },
@@ -398,7 +399,7 @@ export const cathlabInferior: Scenario = {
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a compliant pre-dilation balloon.'),
     askHarm(TECH_ASKS[7], 'The wrong device when the operator asked for a drug-eluting stent.'),
     { ...askHarm(RN_ASKS[0], 'The wrong drug for a reflex bradycardia of 38. Atropine 1 mg IV.', 5), replaces: RATE_RULES },
-    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker with bradycardia, hypotension and an RV infarct.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker with bradycardia, hypotension and an RV infarct.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
   ]),
   timings: [

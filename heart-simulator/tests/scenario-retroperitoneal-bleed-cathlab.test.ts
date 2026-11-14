@@ -359,6 +359,17 @@ describe('retroperitoneal bleed in the cath lab: the traps', () => {
     expect(penalties(run(sc, 5, ['perfusion', 'tnk']))).toEqual(['lytic-in-bleeding']);
   });
 
+  it('a drip started in the bleed has no antidote: it must be stopped, and the item applies only once one runs', () => {
+    expect(criticalsFor(sc, 5).some((c) => c.id === 'stop-drip')).toBe(true);
+    const left = run(sc, 5, ['perfusion', 'bivalirudin']);
+    expect(missed(left)).toContain('Stop the bivalirudin, GP IIb/IIIa or cangrelor drip started in the bleed');
+    const stopped = run(sc, 5, ['perfusion', 'bivalirudin', 'stop-antithrombotics']);
+    expect(stopped.log.at(-1)!.text).toMatch(/^Stopped: .*bivalirudin off at the pump/);
+    expect(missed(stopped)).not.toContain('Stop the bivalirudin, GP IIb/IIIa or cangrelor drip started in the bleed');
+    // with none started the item never applies (the ideal run stays complete)
+    expect(missed(run(sc, 5, ['perfusion']))).not.toContain('Stop the bivalirudin, GP IIb/IIIa or cangrelor drip started in the bleed');
+  });
+
   it('calling it vasovagal and giving only atropine: one penalty, a faster heart, nothing for the bleeding — and she arrests', () => {
     let s = run(sc, 5, ['perfusion', 'atropine']);
     expect(penalties(s)).toEqual(['atropine-vasovagal']);

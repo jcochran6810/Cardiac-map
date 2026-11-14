@@ -85,9 +85,13 @@ export interface LabAsk {
   within?: number;
   /**
    * hold the request — the ask and the fallback — while the patient is in cardiac arrest (edKit's edOrder makes it the
-   * default for an ED physician's order: the arrest comes first). An order meant for the arrest sets false
+   * default for an ED physician's order: the arrest comes first). An order meant for the arrest sets false. An order
+   * asked before the arrest and still open is judged again at ROSC by its own `when`: still right, it goes on; no longer,
+   * it is cancelled (the flag `cancelled:<id>`) — no fallback, its item dropped, and one line saying why (`cancelWhy`)
    */
   holdInArrest?: boolean;
+  /** why the physician cancels the order when it no longer fits after an arrest (default: a general reason) */
+  cancelWhy?: string | ((s: SimState) => string);
   /**
    * an ED physician's order for this many doses: once the learner has given an accepted action that many times since the
    * order, it is used up — `ordered:<id>` is cleared (after that dose's rules have judged it), so another dose needs
@@ -132,6 +136,11 @@ export function askEvents(a: LabAsk): ScenarioEvent[] {
   const mine = (s: SimState) => s.role === askedRole(a);
   // the arrest comes first: no new order, and no teammate stepping in, while there is no pulse
   const held = (s: SimState) => !!a.holdInArrest && !s.pulse;
+  // an order asked before an arrest and still open: at ROSC it is judged again by its own `when` (resumed or cancelled)
+  const heldFlag = `held:${a.id}`;
+  const cancelled = cancelledFlag(a.id);
+  const open = (s: SimState) => has(s, asked) && !has(s, a.gives) && !has(s, cancelled);
+  const judged = (s: SimState) => !has(s, heldFlag) || has(s, `resumed:${a.id}`);
   const order = asker(a) === 'physician';
   const ordered = order ? a.accept.map(orderedFlag) : [];
   const wrongOpen = order ? (a.wrong ?? []).map((id) => wrongAnswerFlag(a.id, id)) : [];
@@ -141,6 +150,22 @@ export function askEvents(a: LabAsk): ScenarioEvent[] {
     when: (s) => mine(s) && has(s, asked) && given(s) >= a.doses!,
     effect: () => ({ clear: ordered }),
   }] : [];
+  const rechecked: ScenarioEvent[] = a.holdInArrest ? [
+    { id: `${a.id}-held`, when: (s) => mine(s) && !s.pulse && open(s), effect: () => ({ flags: [heldFlag] }) },
+    {
+      id: `${a.id}-recheck`,
+      when: (s) => mine(s) && s.pulse && has(s, heldFlag) && open(s),
+      effect: (s) => {
+        if (a.when(s)) return { flags: [`resumed:${a.id}`] };
+        const why = typeof a.cancelWhy === 'function' ? a.cancelWhy(s) : a.cancelWhy ?? 'after the arrest it no longer fits the patient';
+        const clear = [...ordered, ...wrongOpen];
+        // the item's label without its "on the physician's order" ending, as part of a sentence
+        const what = a.label.replace(/[.,;:]?\s*(on the physician's order|as ordered)$/i, '');
+        const order = /^[A-Z][a-z]/.test(what) ? `${what[0].toLowerCase()}${what.slice(1)}` : what;
+        return { say: [['team', `After the arrest the physician cancels the order — ${order}: ${why}.`]], flags: [cancelled], ...(clear.length ? { clear } : {}) };
+      },
+    },
+  ] : [];
   return [
     {
       id: `${a.id}-ask`,
@@ -149,17 +174,18 @@ export function askEvents(a: LabAsk): ScenarioEvent[] {
     },
     {
       id: `${a.id}-wrong`,
-      when: (s) => mine(s) && !!a.wrongSay && !has(s, a.gives) && doneAfter(s, a.wrong ?? [], asked) !== null,
+      when: (s) => mine(s) && !!a.wrongSay && !has(s, a.gives) && !has(s, cancelled) && doneAfter(s, a.wrong ?? [], asked) !== null,
       effect: () => ({ say: [[asker(a), a.wrongSay ?? '', 'warn']] }),
     },
     {
       id: `${a.id}-got`,
-      when: (s) => mine(s) && !has(s, a.gives) && askDone(s, a) !== null,
+      when: (s) => mine(s) && !has(s, a.gives) && !has(s, cancelled) && askDone(s, a) !== null,
       effect: () => ({ say: [[asker(a), a.thanks, 'good']], flags: [a.gives], ...(wrongOpen.length ? { clear: wrongOpen } : {}) }),
     },
+    ...rechecked,
     {
       id: `${a.id}-fallback`,
-      when: (s) => mine(s) && !held(s) && has(s, asked) && !has(s, a.gives) && s.minute >= s.flags[asked] + wait,
+      when: (s) => mine(s) && !held(s) && open(s) && judged(s) && s.minute >= s.flags[asked] + wait,
       effect: (s) => {
         const done = a.fallbackEffect?.(s) ?? {};
         const clear = [...wrongOpen, ...(done.clear ?? [])];
@@ -170,14 +196,17 @@ export function askEvents(a: LabAsk): ScenarioEvent[] {
   ];
 }
 
-/** The learner's critical item for a request: the right answer within 2 minutes of it */
+/** The flag an order cancelled after an arrest sets (askEvents: judged again at ROSC by its own `when`) */
+export const cancelledFlag = (askId: string) => `cancelled:${askId}`;
+
+/** The learner's critical item for a request: the right answer within 2 minutes of it (none once the order is cancelled) */
 export function askCritical(a: LabAsk): Critical {
   return {
     id: `ask-${a.id}`, label: a.label, why: a.why, roles: [askedRole(a)], points: a.points ?? 5,
     done: (s) => askDone(s, a),
     uses: a.accept,
     target: { within: { flag: `asked-${a.id}`, minutes: a.within ?? 2 } },
-    applies: (s) => has(s, `asked-${a.id}`),
+    applies: (s) => has(s, `asked-${a.id}`) && !has(s, cancelledFlag(a.id)),
   };
 }
 

@@ -195,8 +195,11 @@ export const cathlabShock: Scenario = {
     },
     nitro: (s) => worse(s, -14, -10, (bp) => `BP ${bp}.`, ['nitro']),
     'nitro-high': (s) => worse(s, -24, -14, (bp) => `BP ${bp}.`, ['nitro', 'nitro-high']),
+    'nitro-iv': (s) => worse(s, -24, -14, (bp) => `BP ${bp}.`, ['nitro', 'nitro-iv']),
     'ic-nitro': (s) => worse(s, -14, -10, (bp) => `BP ${bp}.`, ['ic-nitro']),
     metoprolol: (s) => worse(s, -18, -12, (bp) => `BP ${bp}.`, ['beta-blocker']),
+    esmolol: (s) => worse(s, -18, -12, (bp) => `BP ${bp}.`, ['beta-blocker']),
+    labetalol: (s) => worse(s, -22, -14, (bp) => `BP ${bp}.`, ['beta-blocker']),
     sedation: (s) => worse(s, -10, -8, (bp) => `Sedated. BP ${bp}, breathing slower.`, ['sedation'], { rr: Math.max(10, s.vitals.rr - 8) }),
     midazolam: (s) => worse(s, -10, -8, (bp) => `Midazolam in. BP ${bp}, breathing slower.`, ['sedation', 'benzodiazepine'], { rr: Math.max(10, s.vitals.rr - 8) }),
     // more volume for an overfilled LV, from the legs or a bag of blood: it goes to the lungs, as a fluid bolus does
@@ -331,9 +334,9 @@ export const cathlabShock: Scenario = {
   ],
   harms: yieldToHeavier([
     { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
-    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
+    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], replaces: NITRATE_RULES, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow', 'phenylephrine-heart-failure'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing LV must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock (with an inotrope if the output stays low).' },
-    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], replaces: RATE_RULES, points: 12, severity: 'critical', text: 'A beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
     { id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], replaces: SEDATIVE_RULES, points: 3, severity: 'minor', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'impella'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A pump or a coronary wire without anticoagulation. Both clot without heparin.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for an LAD culprit. Use a left guide with back-up (EBU).' },
