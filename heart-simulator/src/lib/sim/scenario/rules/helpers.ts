@@ -64,7 +64,13 @@ export function hasProblem(sc: Scenario, problems: Problem[]): boolean {
   return problems.some((p) => sc.problems?.includes(p));
 }
 export const CALCIUM_FOR: Problem[] = ['hyperkalemia', 'hypocalcemia', 'ccb-overdose', 'beta-blocker-overdose'];
-export const BICARBONATE_FOR: Problem[] = ['hyperkalemia', 'metabolic-acidosis', 'sodium-channel-blocker-overdose'];
+/**
+ * What sodium bicarbonate treats with a pulse: a metabolic acidosis, or a sodium-channel-blocker (e.g. tricyclic) overdose.
+ * Hyperkalemia alone is not one — bicarbonate shifts little potassium without an acidosis (KDIGO 2020)
+ */
+export const BICARBONATE_WITH_A_PULSE_FOR: Problem[] = ['metabolic-acidosis', 'sodium-channel-blocker-overdose'];
+/** …and in a cardiac arrest: those, and hyperkalemia (a hyperkalemic arrest, 2025 AHA) */
+export const BICARBONATE_IN_ARREST_FOR: Problem[] = ['hyperkalemia', ...BICARBONATE_WITH_A_PULSE_FOR];
 
 /**
  * The heart lives on its preload: a tamponade not yet drained — the case's Problem, or the flag 'tamponade' a case sets
@@ -114,10 +120,7 @@ export const shockedThisArrest = (s: SimState) =>
 /** The learner gave compressions in this arrest */
 export const cprThisArrest = (s: SimState) => s.performed.some((p) => p.id === 'cpr' && p.minute >= (s.timers.arrestAt ?? 0));
 
-// ─── What is coming ────────────────────────────────────────────────────────
-
-/** A shock or a pacer is coming (a tachyarrhythmia, torsades, a rate under 50) or running: what procedural sedation is for */
-export const procedureComing = (s: SimState) => tachyarrhythmia(s) || rhythmKind(s) === 'torsades' || s.rhythm.hr < 50 || paced(s);
+// ─── The sheath, the STEMI, the last dose ──────────────────────────────────
 
 /** The lab's arterial sheath is radial: the learner placed the radial sheath, or the case's sheath is in and not femoral */
 export const radialSheath = (s: SimState) => did(s, 'access') || (has(s, 'access') && !has(s, 'femoral'));

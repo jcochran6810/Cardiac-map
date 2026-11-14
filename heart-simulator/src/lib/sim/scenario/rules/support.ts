@@ -8,9 +8,10 @@
 import { LOW_GLUCOSE, canSwallow, count, has, mapOf, orderedFlag, paced, ventilated } from '../kit';
 import type { Harm, Problem, Scenario, SimState } from '../types';
 import {
-  BICARBONATE_FOR, CALCIUMS, CALCIUM_FOR, did, hasProblem, lastDoneAt, lowPressure, lvadPerfusing, outflowObstruction, preloadDependent,
-  procedureComing, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
+  BICARBONATE_IN_ARREST_FOR, BICARBONATE_WITH_A_PULSE_FOR, CALCIUMS, CALCIUM_FOR, did, hasProblem, lastDoneAt, lowPressure, lvadPerfusing, outflowObstruction, preloadDependent,
+  shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
+import { sedationForProcedure } from './acs';
 
 // ─── Vasopressors: what each rule reads ────────────────────────────────────
 
@@ -28,16 +29,26 @@ export const pressureNotLow = (s: SimState, sc: Scenario) =>
   s.pulse && !lowPressure(s) && mapOf(s.vitals) >= 65 && !slowOrBlocked(s) && !hasProblem(sc, ['beta-blocker-overdose', 'ccb-overdose']);
 /**
  * The pressure a vasopressor finds is a bridge's, not the patient's own: a push of push-dose epinephrine or phenylephrine
- * in the last few minutes is holding it up (the infusion that takes over, or the next push, is the bridge's next step —
+ * given with a pulse in the last few minutes is holding it up (the infusion that takes over, or the next push, is the bridge's next step —
  * "that buys a few minutes: an infusion keeps it there"), or, for the infusion, the case is cardiogenic shock, where
  * norepinephrine is the first vasopressor (2025 ACC/AHA ACS). `id` is the action judged: 'pressor' (the infusion) or
  * 'push-epi'
  */
 export const pressorBridging = (s: SimState, sc: Scenario, id: string) => {
   if (id === 'pressor' && hasProblem(sc, ['cardiogenic-shock'])) return true;
-  const push = lastDoneAt(s, ['push-epi', 'phenylephrine']);
-  return push !== null && s.minute - push <= BRIDGE_MINUTES;
+  // the latest push given with a pulse: one given in an arrest held no pressure up (the action being judged is not yet in
+  // s.performed)
+  const push = [...s.performed].reverse().find((p) => PUSHES.includes(p.id) && !inAnArrest(s, p.minute));
+  return push !== undefined && s.minute - push.minute <= BRIDGE_MINUTES;
 };
+const PUSHES = ['push-epi', 'phenylephrine'];
+/**
+ * This minute fell in a cardiac arrest: the one under way, or the case's first (the flags 'arrest' and 'rosc' keep the
+ * minute each was first set — a case rarely has two)
+ */
+const inAnArrest = (s: SimState, minute: number) =>
+  (s.timers.arrestAt !== undefined && minute >= s.timers.arrestAt)
+  || (s.flags.arrest !== undefined && minute >= s.flags.arrest && (s.flags.rosc === undefined || minute < s.flags.rosc));
 /**
  * What pressor-no-hypotension judges: no low pressure of the patient's own and no bridge under way. A case whose own
  * line differs builds its same-id rule on this (`pressorNotLow(s, sc, id) && <the case's condition>`)
@@ -77,19 +88,16 @@ const drowsyInField = (s: SimState, sc: Scenario) =>
 export const cpapHarmful = (s: SimState, sc: Scenario) => s.pulse && (lowPressure(s) || vomitingLikely(s) || preloadDependent(s, sc));
 // ─── Electrolytes and antidotes: what each rule reads ──────────────────────
 
-/**
- * What sodium bicarbonate treats with a pulse: a metabolic acidosis, or a sodium-channel-blocker (e.g. tricyclic)
- * overdose. Hyperkalemia alone is not one — bicarbonate shifts little potassium without an acidosis (KDIGO 2020) — but in
- * a hyperkalemic arrest it is (BICARBONATE_FOR, the arrest list)
- */
-const BICARBONATE_WITH_A_PULSE: Problem[] = ['metabolic-acidosis', 'sodium-channel-blocker-overdose'];
-const bicarbonateNoIndication = (s: SimState, sc: Scenario) => !hasProblem(sc, s.pulse ? BICARBONATE_WITH_A_PULSE : BICARBONATE_FOR);
+/** Sodium bicarbonate has nothing to treat: none of its indications with a pulse, or in the arrest (rules/helpers.ts) */
+const bicarbonateNoIndication = (s: SimState, sc: Scenario) => !hasProblem(sc, s.pulse ? BICARBONATE_WITH_A_PULSE_FOR : BICARBONATE_IN_ARREST_FOR);
 /** A massive transfusion (4 units or more): the citrate in the blood binds the ionized calcium */
 const massiveTransfusion = (s: SimState) => count(s, 'transfuse') >= 4;
 /** High-dose albuterol has nothing to treat (albuterol-hyperk-no-indication) */
 const albuterolHyperkNoIndication = (sc: Scenario) => !hasProblem(sc, ['hyperkalemia']);
 /** Glucagon has nothing to treat: no beta- or calcium-channel-blocker overdose */
 const glucagonNoIndication = (sc: Scenario) => !hasProblem(sc, ['beta-blocker-overdose', 'ccb-overdose']);
+/** A pheochromocytoma: glucagon's catecholamine release is the reason above every other (glucagon-pheochromocytoma) */
+const pheochromocytoma = (sc: Scenario) => hasProblem(sc, ['pheochromocytoma']);
 /** Glucagon's vomiting with no airway reflexes (GCS 8 or less) and no airway in */
 const unprotectedAirway = (s: SimState) => s.pulse && s.vitals.gcs <= 8 && !has(s, 'airway');
 
@@ -116,7 +124,7 @@ export const SUPPORT_RULES: Harm[] = [
   { id: 'cpap-no-indication', actions: ['cpap'], when: (s, sc) => s.pulse && !lowPressure(s) && !vomitingLikely(s) && !preloadDependent(s, sc) && !drowsyInField(s, sc) && !hasProblem(sc, ['pulmonary-edema', 'bronchospasm']) && s.vitals.rr <= 24 && s.vitals.spo2 >= 94, points: 3, severity: 'minor', text: 'CPAP with no respiratory distress: breathing 24 a minute or less, an SpO₂ of 94 % or more, no fluid on the lungs and no wheeze. CPAP is for respiratory distress from pulmonary edema (or COPD and asthma); otherwise it only adds a tight mask, air in the stomach and a lower pressure (EMS CPAP protocols).' },
 
   // The bag-mask and the advanced airway. A bag-mask readied for a shock or a pacer (procedural sedation) is preparation
-  { id: 'bvm-breathing', actions: ['bvm'], when: (s) => s.pulse && s.vitals.gcs > 8 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && s.vitals.spo2 >= 90 && !procedureComing(s), points: 3, severity: 'minor', text: 'Bag-mask ventilation for a patient who is breathing well on their own (awake, 10–30 breaths a minute, an SpO₂ of 90 % or more). Breaths forced in over their own fill the stomach and make them fight the mask: give oxygen, and keep the bag for breathing that fails.' },
+  { id: 'bvm-breathing', actions: ['bvm'], when: (s, sc) => s.pulse && s.vitals.gcs > 8 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && s.vitals.spo2 >= 90 && !sedationForProcedure(s, sc), points: 3, severity: 'minor', text: 'Bag-mask ventilation for a patient who is breathing well on their own (awake, 10–30 breaths a minute, an SpO₂ of 90 % or more). Breaths forced in over their own fill the stomach and make them fight the mask: give oxygen, and keep the bag for breathing that fails.' },
   { id: 'airway-awake', actions: ['airway'], when: (s) => s.pulse && s.vitals.gcs > 8, points: 10, severity: 'major', text: 'An advanced airway is not indicated in a patient who is awake and protecting their own airway.' },
   { id: 'airway-before-shock', actions: ['airway'], when: (s) => shockable(s) && !shockedThisArrest(s), points: 5, severity: 'major', text: 'An advanced airway before the first shock in VF or pulseless VT. The shock is what ends it, and every minute without one lowers survival: shock first, then compressions; the airway waits for a pause that costs nothing, and a bag-mask at 30:2 does until then (2025 AHA).' },
   // the emergency department's drug-assisted airway (ACEP clinical policy: monitoring and capnography). Gate order: the
@@ -158,9 +166,12 @@ export const SUPPORT_RULES: Harm[] = [
   // High-dose albuterol. Gate order: albuterol-hyperk-no-indication > albuterol-hyperk-tachycardia
   { id: 'albuterol-hyperk-no-indication', actions: ['albuterol-hyperk'], when: (_s, sc) => albuterolHyperkNoIndication(sc), points: 3, severity: 'minor', text: 'High-dose albuterol (10–20 mg) without hyperkalemia. That dose is for shifting potassium and it races the heart; for wheezing the dose is 2.5–5 mg.' },
   { id: 'albuterol-hyperk-tachycardia', actions: ['albuterol-hyperk'], when: (s, sc) => s.pulse && (tachyarrhythmia(s) || s.rhythm.hr >= 120) && !albuterolHyperkNoIndication(sc), points: 3, severity: 'minor', text: 'High-dose albuterol with a fast heart rate (120 or more, or a tachyarrhythmia). 10–20 mg speeds the heart further and can bring on an arrhythmia (albuterol label: cardiovascular effects): shift the potassium with insulin and dextrose instead.' },
-  // Glucagon. Gate order: glucagon-unprotected-airway > glucagon-no-indication
-  { id: 'glucagon-unprotected-airway', actions: ['glucagon'], when: (s) => unprotectedAirway(s), points: 3, severity: 'minor', text: 'Glucagon for a patient who cannot protect the airway (GCS 8 or less, no airway in). Vomiting is the rule at the antidote doses: secure the airway first — a GCS of 8 or less needs it anyway — then give the antidote (GlucaGen label: nausea and vomiting).' },
-  { id: 'glucagon-no-indication', actions: ['glucagon'], when: (s, sc) => glucagonNoIndication(sc) && !unprotectedAirway(s), points: 3, severity: 'minor', text: 'Glucagon without a beta- or calcium-channel-blocker overdose. In those doses it is an antidote, with vomiting the rule; with no overdose it treats nothing (and it raises the glucose).' },
+  // Glucagon. Gate order: glucagon-pheochromocytoma > glucagon-unprotected-airway > glucagon-insulinoma > glucagon-no-indication
+  { id: 'glucagon-pheochromocytoma', actions: ['glucagon'], when: (_s, sc) => pheochromocytoma(sc), points: 15, severity: 'critical', text: 'Glucagon for a patient with a pheochromocytoma. It makes the tumor release its catecholamines: a sudden, severe rise in the pressure — a hypertensive crisis with arrhythmias (GlucaGen label: contraindicated in pheochromocytoma). For a beta- or calcium-channel-blocker overdose in such a patient use calcium, high-dose insulin and a vasopressor instead.' },
+  { id: 'glucagon-unprotected-airway', actions: ['glucagon'], when: (s, sc) => unprotectedAirway(s) && !pheochromocytoma(sc), points: 3, severity: 'minor', text: 'Glucagon for a patient who cannot protect the airway (GCS 8 or less, no airway in). Vomiting is the rule at the antidote doses: secure the airway first — a GCS of 8 or less needs it anyway — then give the antidote (GlucaGen label: nausea and vomiting).' },
+  // the rebound low comes hours later: a caution, not a reason to withhold the antidote from an overdose
+  { id: 'glucagon-insulinoma', actions: ['glucagon'], when: (s, sc) => hasProblem(sc, ['insulinoma']) && !unprotectedAirway(s) && !pheochromocytoma(sc), points: 3, severity: 'minor', text: 'Glucagon for a patient with an insulinoma. The glucose rises at first, but the tumor answers with a burst of insulin and the glucose can then fall lower than before (GlucaGen label: contraindicated in insulinoma): give IV dextrose for a low glucose, and if glucagon is needed for an overdose, check the glucose often for hours after it.' },
+  { id: 'glucagon-no-indication', actions: ['glucagon'], when: (s, sc) => glucagonNoIndication(sc) && !unprotectedAirway(s) && !pheochromocytoma(sc) && !hasProblem(sc, ['insulinoma']), points: 3, severity: 'minor', text: 'Glucagon without a beta- or calcium-channel-blocker overdose. In those doses it is an antidote, with vomiting the rule; with no overdose it treats nothing (and it raises the glucose).' },
 
   // Glucose: judged on the patient's real glucose, checked or not
   { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE, points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
@@ -169,8 +180,8 @@ export const SUPPORT_RULES: Harm[] = [
   // Vasopressors. Gate order — the infusion and push-dose epinephrine: push-epi-in-arrest > catecholamine-lvoto >
   // pressor-no-hypotension > pressor-before-volume; phenylephrine: phenylephrine-no-hypotension and phenylephrine-slow >
   // pressor-before-volume > phenylephrine-heart-failure; intracoronary epinephrine: catecholamine-lvoto > ic-epi-no-indication
-  // the ER nurse's push with no order is the order rule's (rn-without-order-push-epi): one act, one penalty
-  { id: 'push-epi-in-arrest', actions: ['push-epi'], when: (s) => !s.pulse && (s.role !== 6 || has(s, orderedFlag('push-epi'))), points: 3, severity: 'minor', text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg IV/IO every 3–5 minutes (2025 AHA).' },
+  // an indication rule (INDICATION_RULES): the ER nurse's push with no order is the order rule's (rn-without-order-push-epi)
+  { id: 'push-epi-in-arrest', actions: ['push-epi'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg IV/IO every 3–5 minutes (2025 AHA).' },
   { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi', 'ic-epinephrine'], when: (s, sc) => lvoto(s, sc), points: 10, severity: 'major', text: 'A catecholamine with dynamic LV outflow obstruction. Epinephrine, norepinephrine and dopamine push the contractility up: the ventricle squeezes harder, the outflow tract narrows further, the gradient climbs and the pressure falls. For a low pressure with outflow obstruction: fluid first, then a vasoconstrictor with no inotropic effect — phenylephrine (2024 AHA/ACC HCM guideline) — and if those fail, mechanical support.' },
   { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s, sc, id) => pressorNotLow(s, sc, id) && !lvoto(s, sc), points: 3, severity: 'minor', text: 'A vasopressor or push-dose epinephrine without a low pressure. With a systolic of 90 or more and a MAP of 65 or more — and no push in the last few minutes holding it there — it only adds afterload, rate and oxygen demand for the heart (and speeds conduction through the AV node in atrial fibrillation): a pressor is for hypotension (Levophed label: acute hypotensive states; 2025 AHA: a MAP of 65 or more is the target), or a bridge for a symptomatic bradycardia that atropine has not fixed.' },
   { id: 'pressor-before-volume', actions: ['pressor', 'push-epi', 'phenylephrine'], when: (s, sc, id) => noVolumeYet(s, sc) && (id === 'phenylephrine' ? !phenylephrineNotLow(s) && !phenylephrineSlow(s) : !pressorNotLow(s, sc, id) && !lvoto(s, sc)), points: 3, severity: 'minor', text: 'A vasopressor before any volume in a bleeding patient. It squeezes an empty circulation: fill it first (saline, then blood), and use a pressor only as a bridge while the volume goes in (ATLS).' },

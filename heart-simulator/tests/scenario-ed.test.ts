@@ -329,7 +329,8 @@ describe('emergency department defaults', () => {
   });
 
   it('midazolam in the department: the titrated IV procedural dose before a shock or the pacer, never IM for a procedure', () => {
-    const af = edPatient({ profile: 'atrial-fibrillation', hr: 150, vitals: { sbp: 96, dbp: 60 } });
+    // a procedure is coming as the rules read it (rules/acs.ts sedationForProcedure): an unstable tachycardia, or the pads on
+    const af = edPatient({ profile: 'atrial-fibrillation', hr: 150, vitals: { sbp: 84, dbp: 54 } });
     const noLine = tryAct(af, run(af, 7, []), 'midazolam');
     expect(noLine.minute).toBe(0);
     expect(last(noLine).text).toMatch(/goes in IV, a little at a time/);
@@ -337,7 +338,10 @@ describe('emergency department defaults', () => {
     expect(s.log.some((l) => l.text === 'Midazolam 1 mg IV, titrated.')).toBe(true);
     expect(s.log.some((l) => /^Midazolam \d+(\.\d+)? mg IM/.test(l.text))).toBe(false);
     const block = edPatient({ profile: 'third-degree-avb', hr: 34 });
-    expect(run(block, 7, ['iv', 'midazolam']).log.some((l) => l.text === 'Midazolam 1 mg IV, titrated.')).toBe(true);
+    expect(run(block, 7, ['iv', 'pads', 'midazolam']).log.some((l) => l.text === 'Midazolam 1 mg IV, titrated.')).toBe(true);
+    // a stable AF being slowed with drugs is no procedure: the usual dose, and the dose text matches the rule that judges it
+    const stable = edPatient({ profile: 'atrial-fibrillation', hr: 150, vitals: { sbp: 96, dbp: 60 } });
+    expect(run(stable, 7, ['iv', 'midazolam']).log.some((l) => l.text === 'Midazolam 2.5 mg IV.')).toBe(true);
     // agitation (no procedure): the usual dose, IM without a line
     const agitated = edPatient({ profile: 'sinus-tachycardia', hr: 118, vitals: { sbp: 170, dbp: 100 } });
     expect(run(agitated, 7, ['midazolam']).log.some((l) => l.text === 'Midazolam 5 mg IM (no IV yet).')).toBe(true);

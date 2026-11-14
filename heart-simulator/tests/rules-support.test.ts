@@ -7,10 +7,10 @@ import { describe, expect, it } from 'vitest';
 import type { FixtureSpec } from './ruleFixture';
 import { fixture, penaltyIds } from './ruleFixture';
 import { runScenario as runSteps } from './helpers';
-import { perform } from '@/lib/sim/scenario/engine';
+import { BUILT_IN_HARMS, perform } from '@/lib/sim/scenario/engine';
 import { standingOrders } from '@/lib/sim/scenario/edKit';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
-import type { Harm, Problem, SimState } from '@/lib/sim/scenario/types';
+import type { Harm, Problem, Scenario, SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 
 const SINUS = { profile: 'normal-sinus', hr: 80 };
@@ -57,6 +57,15 @@ describe('vasopressors: the infusion and push-dose epinephrine', () => {
     expect(ids(5, { vitals: LOW }, ['iv', 'phenylephrine', 'pressor'])).toEqual([]);
     // the nearest wrong state: more than ten minutes after the push the pressure is the patient's own again
     expect(ids(2, { vitals: LOW }, ['iv', 'push-epi', 'reassess', 'reassess', 'reassess', 'reassess', 'reassess', 'reassess', 'pressor'])).toEqual(['pressor-no-hypotension']);
+  });
+
+  it('a push given in an arrest holds no pressure up: after ROSC the infusion at a normal pressure is judged on its own', () => {
+    // pulseless, a push-dose (the wrong dose for the arrest), then the pulse comes back with a normal pressure
+    const rosc: Partial<Scenario> = {
+      events: [{ id: 'rosc', when: (s) => !s.pulse && (s.counts['push-epi'] ?? 0) > 0, effect: () => ({ pulse: true, rhythm: SINUS, vitals: { sbp: 124, dbp: 76 } }) }],
+    };
+    const arrest = { pulse: false, rhythm: VF, extra: rosc };
+    expect(ids(2, arrest, ['io', 'push-epi', 'pressor'])).toEqual(['push-epi-in-arrest', 'pressor-no-hypotension']);
   });
 
   it('pressor-no-hypotension: in cardiogenic shock the norepinephrine infusion is the first vasopressor', () => {
@@ -261,9 +270,14 @@ describe('the bag-mask, the advanced airway and RSI', () => {
     expect(ids(2, { vitals: { gcs: 7 } }, ['bvm'])).toEqual([]);
     expect(ids(2, { vitals: { rr: 6 } }, ['bvm'])).toEqual([]);
     expect(ids(2, { vitals: { spo2: 85 } }, ['bvm'])).toEqual([]);
-    // readied for a cardioversion or a pacer: preparation, not a mistake
-    expect(ids(2, { rhythm: { profile: 'avnrt', hr: 180 } }, ['bvm'])).toEqual([]);
-    expect(ids(2, { rhythm: SLOW }, ['bvm'])).toEqual([]);
+    // readied for a cardioversion or a pacer (rules/acs.ts sedationForProcedure): preparation, not a mistake — an unstable
+    // tachycardia, or the pads on for the shock or the pacer
+    expect(ids(2, { rhythm: { profile: 'avnrt', hr: 180 }, vitals: { sbp: 84, dbp: 50 } }, ['bvm'])).toEqual([]);
+    expect(ids(2, { rhythm: { profile: 'avnrt', hr: 180 } }, ['pads', 'bvm'])).toEqual([]);
+    expect(ids(2, { rhythm: SLOW }, ['pads', 'bvm'])).toEqual([]);
+    // a stable tachycardia being slowed with drugs, or a slow rate with no pads on, is no procedure yet
+    expect(ids(2, { rhythm: { profile: 'avnrt', hr: 180 } }, ['bvm'])).toEqual(['bvm-breathing']);
+    expect(ids(2, { rhythm: SLOW }, ['bvm'])).toEqual(['bvm-breathing']);
     expect(ids(2, { harms: [exempt('bvm-breathing', ['bvm'])] }, ['bvm'])).toEqual([]);
   });
 
@@ -424,6 +438,18 @@ describe('electrolytes, insulin and the antidotes', () => {
     expect(ids(2, { ...drowsy, harms: [exempt('glucagon-unprotected-airway', ['glucagon'])] }, ['iv', 'glucagon'])).toEqual([]);
     // the gate: the airway first — one penalty
     expect(ids(2, { vitals: { gcs: 7 } }, ['iv', 'glucagon'])).toEqual(['glucagon-unprotected-airway']);
+  });
+
+  it('glucagon-pheochromocytoma and glucagon-insulinoma: the GlucaGen label', () => {
+    // a pheochromocytoma is critical and comes first, overdose or not, airway or not — one penalty
+    expect(ids(2, withProblems('beta-blocker-overdose', 'pheochromocytoma'), ['iv', 'glucagon'])).toEqual(['glucagon-pheochromocytoma']);
+    expect(ids(2, { ...withProblems('pheochromocytoma'), vitals: { gcs: 7 } }, ['iv', 'glucagon'])).toEqual(['glucagon-pheochromocytoma']);
+    // an insulinoma: the rebound low is a caution, judged after the airway and before the indication
+    expect(ids(2, withProblems('beta-blocker-overdose', 'insulinoma'), ['iv', 'glucagon'])).toEqual(['glucagon-insulinoma']);
+    expect(ids(2, withProblems('insulinoma'), ['iv', 'glucagon'])).toEqual(['glucagon-insulinoma']);
+    expect(ids(2, { ...withProblems('beta-blocker-overdose', 'insulinoma'), vitals: { gcs: 7 } }, ['iv', 'glucagon'])).toEqual(['glucagon-unprotected-airway']);
+    expect(BUILT_IN_HARMS.find((h) => h.id === 'glucagon-pheochromocytoma')).toMatchObject({ points: 15, severity: 'critical' });
+    expect(BUILT_IN_HARMS.find((h) => h.id === 'glucagon-insulinoma')).toMatchObject({ points: 3, severity: 'minor' });
   });
 });
 

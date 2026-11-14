@@ -331,8 +331,13 @@ export type Problem =
   | 'intracranial-risk'
   /** warfarin or a DOAC on board */
   | 'oral-anticoagulant'
-  /** major surgery or trauma within 3 weeks (6 weeks for eptifibatide) */
+  /** major surgery or trauma within 3 weeks: a relative contraindication to a lytic, and within eptifibatide's 6 weeks too */
   | 'recent-surgery'
+  /**
+   * major surgery 3 to 6 weeks ago: past a lytic's 3 weeks but within the 6 weeks the eptifibatide label rules it out for
+   * (Integrilin label: major surgery within the previous 6 weeks)
+   */
+  | 'surgery-within-6-weeks'
   /** internal bleeding within 2–4 weeks, or an active peptic ulcer, not bleeding now */
   | 'recent-bleeding'
   /** pregnant, or within a week after delivery */
@@ -410,7 +415,32 @@ export type Problem =
   /** NPH or protamine-zinc insulin, an earlier protamine dose, a fish allergy or a vasectomy */
   | 'protamine-sensitized'
   /** severe agitation that endangers the patient or the crew (e.g. stimulant toxicity): what restraint and sedation are for */
-  | 'severe-agitation';
+  | 'severe-agitation'
+  /**
+   * a seizure under way (status epilepticus, or one that has not stopped): a benzodiazepine (midazolam) is its first
+   * treatment, given even to a drowsy patient or one breathing poorly — with the airway supported (2016 AES status
+   * epilepticus guideline)
+   */
+  | 'seizure'
+  /** systemic lupus erythematosus: procainamide is contraindicated (procainamide label: it can cause or worsen drug-induced lupus) */
+  | 'lupus'
+  /**
+   * a pheochromocytoma: glucagon is contraindicated — it releases catecholamines from the tumor and can bring a
+   * hypertensive crisis (GlucaGen label)
+   */
+  | 'pheochromocytoma'
+  /**
+   * an insulinoma: glucagon raises the glucose at first, then the tumor's insulin release can bring a rebound hypoglycemia
+   * (GlucaGen label: contraindicated) — glucose checks after any dose
+   */
+  | 'insulinoma'
+  /**
+   * significant right-ventricular failure: an Impella that unloads only the left ventricle cannot fill from a failing right
+   * one (Impella instructions for use: a contraindication)
+   */
+  | 'rv-failure'
+  /** a rupture of the left-ventricular free wall: no pump may go into the ventricle (Impella instructions for use) */
+  | 'lv-rupture';
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'

@@ -193,6 +193,23 @@ describe('the clean coronaries and the fall', () => {
   });
 });
 
+describe('the 12-lead over the obstruction', () => {
+  it('the obstructed heart draws the same 12-lead (sameTracing): a repeat after the fall is "unchanged", asks no new read and blocks nothing', () => {
+    const steps = ['consent', 'heparin', 'timeout', 'ecg12', 'read:takotsubo', 'access', 'cath-tiger', 'angio', 'read:angio-normal', 'ecg12-repeat'];
+    const s = run(sc, 5, steps, undefined, 'manual');
+    expect(s.rhythm.profile).toBe('takotsubo-lvoto');
+    expect(s.log.at(-1)).toMatchObject({ who: 'monitor', text: 'Unchanged from the previous 12-lead.' });
+    expect(s.pendingRead).toBeNull();
+    expect(s.reads.filter((r) => r.kind === 'ecg')).toHaveLength(1);
+    // nothing waits for a read: the fluid goes in
+    const fluid = perform(sc, s, 'fluid');
+    expect(fluid.performed.at(-1)?.id).toBe('fluid');
+    // …and after a bolus, still obstructed at a rate in the same band, again unchanged
+    const bolus = run(sc, 5, [...steps, 'cath-pigtail', 'lvedp', 'read:hemo-lvoto', 'fluid', 'ecg12-repeat'], undefined, 'manual');
+    expect(bolus.log.at(-1)?.text).toBe('Unchanged from the previous 12-lead.');
+  });
+});
+
 describe('right care works as it would', () => {
   it('fluid helps but is not enough; phenylephrine on top brings the pressure back, softens the murmur and slows the rate', () => {
     let s = run(sc, 5, [...MD_TO_GRADIENT, 'fluid']);

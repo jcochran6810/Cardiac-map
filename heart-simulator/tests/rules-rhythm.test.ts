@@ -61,13 +61,14 @@ describe('the gate: one dose, one penalty', () => {
     for (const action of RATE_DRUGS) expect(LADDERS[action]).toBe(LADDERS.metoprolol);
   });
 
-  it('the indication rules come last in every ladder, so a missing order that covers one never hides a contraindication', () => {
-    for (const [action, ladder] of Object.entries(LADDERS)) {
-      const own = ladder.filter((id) => rule(id).actions.includes(action));
-      const first = own.findIndex((id) => INDICATION_RULES.includes(id));
-      if (first < 0) continue;
-      expect(own.slice(first).every((id) => INDICATION_RULES.includes(id)), action).toBe(true);
-    }
+  it('an indication rank the ER nurse\'s missing order covers stands aside, so it never hides a contraindication ranked under it', () => {
+    expect(INDICATION_RULES).toContain('rate-drug-in-arrest');
+    // in an arrest with asthma: the missing order speaks for "no role in an arrest", and the asthma still charges
+    const asthmaArrest = { rhythm: VF, pulse: false, problems: ['asthma'] as Problem[] };
+    expect(pen(edRn(asthmaArrest), ['io', 'adenosine6'])).toEqual(['adenosine-asthma', 'rn-without-order-adenosine6']);
+    // the physician (and the ordered dose) is judged by the top rule alone
+    expect(pen(edMd(asthmaArrest), ['io', 'adenosine6'])).toEqual(['rate-drug-in-arrest']);
+    expect(pen(edRn({ ...asthmaArrest, extra: ordered('adenosine6') }), ['io', 'adenosine6'])).toEqual(['rate-drug-in-arrest']);
   });
 
   it('RATE_RULES are the newer rules on the rate drugs; LIDOCAINE_RULES every rule on lidocaine', () => {
@@ -370,6 +371,12 @@ describe('antiarrhythmic-no-arrhythmia', () => {
 
   it('one penalty: a failing heart outranks it for procainamide', () => {
     expect(pen(field({ problems: ['heart-failure'] }), ['iv', 'procainamide'])).toEqual(['procainamide-heart-failure']);
+  });
+
+  it('procainamide-lupus: its label rules it out with systemic lupus — one penalty, under the pressure and the failing heart', () => {
+    expect(pen(field({ rhythm: VT, problems: ['lupus'] }), ['iv', 'procainamide'])).toEqual(['procainamide-lupus']);
+    expect(pen(field({ rhythm: VT, vitals: { sbp: 82, dbp: 50 }, problems: ['lupus'] }), ['iv', 'procainamide'])).toEqual(['procainamide-hypotension']);
+    expect(pen(field({ rhythm: VT }), ['iv', 'procainamide'])).toEqual([]);
   });
 
   it('the ER nurse without an order: the missing order covers the indication (INDICATION_RULES); the doctor gets it', () => {

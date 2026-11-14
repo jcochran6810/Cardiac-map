@@ -19,7 +19,7 @@
  * orders (RN_ORDER_ONLY) and the ER doctor's procedures to their indications (see edKit).
  */
 import type { LearningLevel } from '@/store/useAppStore';
-import { resolveProfile, stLevel } from '@/lib/ecg/profiles';
+import { resolveProfile, sameTracing, stLevel } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, detailFor, interventionsFor } from './interventions';
 import { READ_KIND_NAME, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
 import { angioGate } from './labKit';
@@ -28,7 +28,8 @@ import type {
   Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
 import { BUILT_IN_HARMS } from './rules';
-import { INDICATION_RULES, RN_ORDER_ONLY, rnWithoutOrderId } from './rules/scope';
+import { sedationForProcedure } from './rules/acs';
+import { INDICATION_RULES, RN_ORDER_ONLY, missingOrderCovers } from './rules/scope';
 import {
   cprThisArrest, did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, outflowObstruction, preexcitedAf, preloadDependent, profileShowsStemi,
   radialSheath, rhythmKind, shockable, slowOrBlocked, tachyarrhythmia,
@@ -524,7 +525,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       const gcs = Math.min(v.gcs, Math.max(12, 14 - (s.counts.midazolam ?? 0)));
       // in the lab, and in the emergency department before a shock or the pacer, it is procedural (moderate) sedation:
       // 0.5–1 mg IV at a time, titrated, never IM. For agitation or a stimulant (the field): 2.5 mg IV, or 5 mg IM
-      const procedure = sc.setting === 'ed' && (tachyarrhythmia(s) || s.rhythm.hr < 50 || paced(s));
+      const procedure = sc.setting === 'ed' && sedationForProcedure(s, sc);
       if (procedure && !has(s, 'iv')) return { blocked: true, say: [['system', 'Sedation for a procedure goes in IV, a little at a time and titrated: start a line first.']] };
       const dose = sc.setting === 'cathlab' ? 'Midazolam 1 mg IV.' : procedure ? 'Midazolam 1 mg IV, titrated.' : has(s, 'iv') ? 'Midazolam 2.5 mg IV.' : 'Midazolam 5 mg IM (no IV yet).';
       return { say: [['you', dose], ...ifAwake(s, '"…Okay. I feel calmer."'), ...bpLine(s, bp)], vitals: { ...bp, rr, gcs }, flags: ['benzodiazepine', 'sedation'] };
@@ -1232,28 +1233,24 @@ function askRead(s: SimState, r: PendingRead) {
 /**
  * The rules that charge this action (`id`), judged on the state just before it takes effect. Each rule charges at most
  * once per case. One mistake, one penalty:
- * - a case rule with the same id as a built-in replaces it always, for the roles the case rule is written for (a
- *   deliberate exemption);
+ * - a case rule with the same id as a built-in replaces it for the actions the case rule lists, for the roles it is
+ *   written for (a deliberate exemption, or the case's own words). For any other action the built-in still judges;
  * - a case rule's `replaces` hides those built-ins only while the case rule applies to this action — same action, a role
  *   it is written for, its `when` true now (whether or not it was charged before). In any other state the built-ins apply;
- * - the ER nurse giving a drug without the order it needs: when the missing order is scored for this act — the built-in
- *   'rn-without-order-<id>' charges it, or a case rule that stands in for that one (same id, or listed in its `replaces`)
- *   applies to it, whether it charges now or already did — the built-in indication rules (INDICATION_RULES) are skipped
- *   for it: the missing order covers the indication. The contraindication rules still apply.
+ * - the ER nurse giving a drug without the order it needs: when the missing order is scored for this act (rules/scope.ts
+ *   missingOrderCovers) the built-in indication rules (INDICATION_RULES) are skipped for it: the missing order covers the
+ *   indication. The contraindication rules still apply.
  */
 function harmsFor(sc: Scenario, s: SimState, id: string) {
   const roleOk = (h: Harm) => !h.roles || h.roles.includes(s.role);
   const applies = (h: Harm) => h.actions.includes(id) && roleOk(h) && (!h.when || h.when(s, sc, id));
   const charged = (h: Harm) => s.penalties.some((p) => p.id === h.id);
-  const own = new Set([...sc.harms.filter(roleOk).map((h) => h.id), ...sc.harms.filter(applies).flatMap((h) => h.replaces ?? [])]);
+  const own = new Set([
+    ...sc.harms.filter((h) => roleOk(h) && h.actions.includes(id)).map((h) => h.id),
+    ...sc.harms.filter(applies).flatMap((h) => h.replaces ?? []),
+  ]);
   const builtIn = BUILT_IN_HARMS.filter((b) => !own.has(b.id));
-  const noOrderId = rnWithoutOrderId(id);
-  const noOrderRule = BUILT_IN_HARMS.find((b) => b.id === noOrderId);
-  // only for the role the order rule is written for (the ER nurse): a case rule for every role is no order for the doctor
-  const orderCovers = !!noOrderRule && roleOk(noOrderRule) && (
-    (!own.has(noOrderId) && !charged(noOrderRule) && applies(noOrderRule))
-    || sc.harms.some((h) => (h.id === noOrderId || !!h.replaces?.includes(noOrderId)) && applies(h))
-  );
+  const orderCovers = missingOrderCovers(s, sc, id);
   for (const h of [...builtIn.filter((b) => !(orderCovers && INDICATION_RULES.includes(b.id))), ...sc.harms]) {
     if (!applies(h) || charged(h)) continue;
     s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text });
@@ -1359,13 +1356,14 @@ const rateBand = (hr: number) => (hr < 60 ? 0 : hr <= 100 ? 1 : 2);
 const ECG_RATE_CHANGE = 20;
 
 /**
- * The patient's rhythm is no longer the one on the last 12-lead: another rhythm, or the same one at a rate out of the
+ * The patient's rhythm is no longer the one on the last 12-lead: another tracing (two profiles that draw the same 12-lead,
+ * e.g. Takotsubo with and without its outflow obstruction, are one: sameTracing), or the same one at a rate out of the
  * band it was read in (crossing 60 or 100) or more than 20/min away. A repeat 12-lead then needs a new read, and the
  * 12-lead view says the patient has changed since it was recorded.
  */
 export function ecgChanged(last: SimState['lastEcg'], rhythm: SimState['rhythm']): boolean {
   if (!last) return true;
-  if (last.profile !== rhythm.profile) return true;
+  if (!sameTracing(last.profile, rhythm.profile)) return true;
   return rateBand(last.hr) !== rateBand(rhythm.hr) || Math.abs(last.hr - rhythm.hr) > ECG_RATE_CHANGE;
 }
 

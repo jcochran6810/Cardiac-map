@@ -68,6 +68,18 @@ describe('a case rule stands in for a built-in only while it applies', () => {
     expect(penaltyIds(lowEd(6, [doctorsOnly]), 6, ['nitro'])).toEqual(['nitro-hypotension']);
   });
 
+  it('…and only for the actions it lists: for another action the built-in still judges', () => {
+    // a rule outside any gate: oxygen with a normal saturation in an ACS, exempted for the cannula only
+    const acs = (harms: Harm[]) => fixture({ setting: 'field', role: 2, rhythm: SINUS, problems: ['acs'], harms });
+    const cannulaOnly: Harm = { id: 'oxygen-normoxic', actions: ['o2-nc'], when: () => false, points: 2, severity: 'minor', text: 'Not here.' };
+    expect(penaltyIds(acs([cannulaOnly]), 2, ['o2-nc'])).toEqual([]);
+    expect(penaltyIds(acs([cannulaOnly]), 2, ['o2-nrb'])).toEqual(['oxygen-normoxic']);
+    // in a gate: an exemption for the sublingual tablet leaves the IV infusion to the built-in rank
+    const tabletOnly = caseRule({ id: 'nitro-hypotension', actions: ['nitro'], when: () => false });
+    expect(penaltyIds(lowEd(7, [tabletOnly]), 7, [...CHECKED, 'nitro'])).toEqual([]);
+    expect(penaltyIds(lowEd(7, [tabletOnly]), 7, ['iv', 'nitro-iv'])).toEqual(['nitro-hypotension']);
+  });
+
   it('Harm.when receives the action being judged', () => {
     const seen: string[] = [];
     const harms = [caseRule({ id: 'by-action', actions: ['nitro', 'aspirin'], when: (_s, _sc, id) => { seen.push(id); return id === 'aspirin'; } })];
@@ -139,6 +151,51 @@ describe('the ER nurse: one act, one penalty', () => {
     const everyone: Harm = { id: 'case-calcium', actions: ['calcium-chloride'], points: 3, severity: 'minor', text: 'Calcium for nothing.', replaces: ['rn-without-order-calcium-chloride'] };
     expect(penaltyIds(fixture({ setting: 'ed', role: 7, rhythm: SINUS, harms: [everyone] }), 7, ['iv', 'calcium-chloride']).sort()).toEqual(['calcium-no-indication', 'case-calcium']);
     expect(penaltyIds(nurse({ harms: [everyone] }), 6, ['iv', 'calcium-chloride'])).toEqual(['case-calcium']);
+  });
+});
+
+describe('the indication rules the missing order covers (INDICATION_RULES)', () => {
+  const VF = { profile: 'vf', hr: 0 };
+  const ed = (role: 6 | 7, over: Partial<Parameters<typeof fixture>[0]> = {}) => fixture({ setting: 'ed', role, rhythm: SINUS, ...over });
+  const orderFor = (id: string): Partial<Scenario> => ({ events: [{ id: 'order', when: () => true, effect: () => ({ flags: [`ordered:${id}`] }) }] });
+
+  it('lists the arrest, reperfusion, post-arrest and low-output indication rules', () => {
+    for (const id of ['rate-drug-in-arrest', 'no-role-in-arrest', 'push-epi-in-arrest', 'lytic-pci-available', 'temp-control-no-indication', 'inotrope-no-indication']) {
+      expect(INDICATION_RULES, id).toContain(id);
+    }
+    // the checks before a nitrate are made whether or not there is an order: they are not indication rules
+    for (const id of ['nitro-no-bp', 'nitro-no-pde5', 'nitro-too-soon']) expect(INDICATION_RULES, id).not.toContain(id);
+    expect(RN_ORDER_ONLY['temp-control']).toBe('Temperature control');
+  });
+
+  it('in an arrest: the ER nurse\'s unordered nitroglycerin, midazolam or push-dose epinephrine is the missing order alone', () => {
+    for (const drug of ['nitro-high', 'midazolam', 'push-epi']) {
+      expect(penaltyIds(ed(6, { rhythm: VF, pulse: false }), 6, ['io', drug]), drug).toEqual([`rn-without-order-${drug}`]);
+    }
+    expect(penaltyIds(ed(7, { rhythm: VF, pulse: false }), 7, ['io', 'midazolam'])).toEqual(['no-role-in-arrest']);
+    expect(penaltyIds(ed(7, { rhythm: VF, pulse: false }), 7, ['io', 'push-epi'])).toEqual(['push-epi-in-arrest']);
+    expect(penaltyIds(ed(6, { rhythm: VF, pulse: false, extra: orderFor('push-epi') }), 6, ['io', 'push-epi'])).toEqual(['push-epi-in-arrest']);
+  });
+
+  it('a STEMI that PCI can reach: the nurse\'s unordered alteplase is the critical missing order alone; the doctor\'s is the reperfusion choice', () => {
+    const stemi = (role: 6 | 7) => ed(role, { rhythm: { profile: 'anterior-stemi', hr: 90 }, vitals: { pain: 7 } });
+    expect(penaltyIds(stemi(6), 6, ['ecg12', 'iv', 'alteplase'])).toEqual(['rn-without-order-alteplase']);
+    expect(penaltyIds(stemi(7), 7, ['ecg12', 'iv', 'alteplase'])).toEqual(['lytic-pci-available']);
+    // a contraindication ranked under it still charges beside the missing order
+    const pregnant = fixture({ setting: 'ed', role: 6, rhythm: { profile: 'anterior-stemi', hr: 90 }, problems: ['pregnancy'] });
+    expect(penaltyIds(pregnant, 6, ['ecg12', 'iv', 'alteplase'])).toEqual(['lytic-relative', 'rn-without-order-alteplase']);
+  });
+
+  it('temperature control and an inotrope: the nurse without an order earns the missing order alone', () => {
+    expect(penaltyIds(ed(6), 6, ['temp-control'])).toEqual(['rn-without-order-temp-control']);
+    expect(penaltyIds(ed(7), 7, ['temp-control'])).toEqual(['temp-control-no-indication']);
+    expect(penaltyIds(ed(6), 6, ['iv', 'inotrope'])).toEqual(['rn-without-order-inotrope']);
+    expect(penaltyIds(ed(7), 7, ['iv', 'inotrope'])).toEqual(['inotrope-no-indication']);
+  });
+
+  it('the nurse\'s unordered 0.8 mg with no pressure taken: the missing order, and the pressure check beside it', () => {
+    const htn = ed(6, { vitals: { sbp: 150, dbp: 90, pain: 6 } });
+    expect(penaltyIds(htn, 6, ['ask-pde5', 'nitro-high'])).toEqual(['nitro-no-bp', 'rn-without-order-nitro-high']);
   });
 });
 

@@ -9,6 +9,7 @@
 import { READ_OPTIONS } from '../reads';
 import { has, mapOf, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
+import { indicationCovered } from './scope';
 import {
   ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, ecgShowsStemi, hasProblem, lastDoneAt,
   longQt, lowPressure, outflowObstruction, preloadDependent, rhythmKind, tachyarrhythmia,
@@ -21,11 +22,12 @@ type GateRule = Omit<Harm, 'when'> & { applies: Check };
 
 /**
  * The highest-ranked rule of a gate that applies to this dose (`id`), or null. A case rule with the same id as one of the
- * gate's rules (for this role) decides that rank in the built-in's place: while it applies to the dose it covers it (the
- * gate stops there, so no lower-ranked built-in adds a second penalty); while it does not — a deliberate exemption, or its
- * condition is false — the gate goes on to the next rank: the case has said this reason does not hold here, not that the
- * dose is right. (A case rule that lists the top rule in its `replaces` hides it while it applies: the whole dose is covered.)
- * A rank that already charged an earlier dose is passed over.
+ * gate's rules (for this role and this action) decides that rank in the built-in's place: while it applies to the dose it
+ * covers it (the gate stops there, so no lower-ranked built-in adds a second penalty); while it does not — a deliberate
+ * exemption, or its condition is false — the gate goes on to the next rank: the case has said this reason does not hold
+ * here, not that the dose is right. (A case rule that lists the top rule in its `replaces` hides it while it applies: the
+ * whole dose is covered.) A rank that already charged an earlier dose is passed over, and so is an indication rank the ER
+ * nurse's missing order covers (rules/scope.ts indicationCovered).
  */
 function topOf(rules: GateRule[], s: SimState, sc: Scenario, id: string): string | null {
   for (const r of rules) {
@@ -34,10 +36,10 @@ function topOf(rules: GateRule[], s: SimState, sc: Scenario, id: string): string
     // next reason that holds and never goes free because an earlier one was charged (the penalty pushed for this dose has
     // this minute: every drug the gates judge takes time)
     if (s.penalties.some((p) => p.id === r.id && p.minute < s.minute)) continue;
-    const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)));
+    const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id));
     if (own.length) {
-      if (own.some((h) => h.actions.includes(id) && (!h.when || h.when(s, sc, id)))) return r.id;
-    } else if (r.applies(s, sc, id)) return r.id;
+      if (own.some((h) => !h.when || h.when(s, sc, id))) return r.id;
+    } else if (r.applies(s, sc, id) && !indicationCovered(r.id, s, sc, id)) return r.id;
   }
   return null;
 }
@@ -56,8 +58,17 @@ const inferiorStemi = (s: SimState) => {
   return !!read && ['stemi-inferior', 'stemi-inferior-chb'].includes(read.id);
 };
 
-/** A beta-blocker or diltiazem has been given (by the learner, or a teammate: the drug's flag) */
-const rateSlowed = (s: SimState) => has(s, 'beta-blocker') || has(s, 'diltiazem') || BETA_BLOCKERS.some((b) => did(s, b)) || did(s, 'diltiazem');
+/**
+ * The rate is slowed: a beta-blocker or diltiazem was given — by the learner, or by a teammate or the physician's fallback
+ * (the drug's flag)
+ */
+export const rateSlowed = (s: SimState) => has(s, 'beta-blocker') || has(s, 'diltiazem') || BETA_BLOCKERS.some((b) => did(s, b)) || did(s, 'diltiazem');
+
+/**
+ * An aortic dissection whose rate is not yet slowed, with a pressure that is not low: a vasodilator there comes too early
+ * (vasodilator-before-rate-control). The nicardipine rules (rules/added.ts) stand aside while it holds
+ */
+export const vasodilatorBeforeRateControl = (s: SimState, sc: Scenario) => hasProblem(sc, ['aortic-dissection']) && !lowPressure(s) && !rateSlowed(s);
 
 /** Out of hospital or in the emergency department: the nitrate checklist (a pressure, the PDE-5 question, V4R) is the learner's */
 const beforeTheLab = (sc: Scenario) => sc.setting === 'field' || sc.setting === 'ed';
@@ -108,7 +119,7 @@ const NITRATE_RANKS: GateRule[] = [
     // nicardipine has no other rank here: it is judged on this one alone. The rate drug counts whoever gave it (a teammate's
     // dose sets the same flag)
     id: 'vasodilator-before-rate-control', actions: [...NITRATES_SL, 'nitro-iv', 'nicardipine'],
-    applies: (s, sc) => hasProblem(sc, ['aortic-dissection']) && !lowPressure(s) && !rateSlowed(s),
+    applies: vasodilatorBeforeRateControl,
     points: 5, severity: 'major',
     text: 'A vasodilator in an aortic dissection before the heart rate is slowed. On its own it makes the heart race (reflex tachycardia) and pump harder against the tear (2022 ACC/AHA aortic disease guideline: an IV beta-blocker first, to a rate of 60–80; a vasodilator only after it, for a systolic still over 120).',
   },
@@ -361,7 +372,7 @@ const ANTITHROMBOTIC_GATE = gate([
   },
   {
     // the label's stroke is any within 30 days (a recent stroke here means 3 months, which covers it) or one under way now
-    id: 'gp-contraindicated', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'stroke', 'recent-surgery', 'recent-bleeding', 'dialysis']),
+    id: 'gp-contraindicated', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'stroke', 'recent-surgery', 'surgery-within-6-weeks', 'recent-bleeding', 'dialysis']),
     points: 10, severity: 'major',
     text: 'Eptifibatide with a contraindication on its label: a bleed in the head ever, a stroke now or a recent one (the label: within 30 days), major surgery within 6 weeks, bleeding within 30 days, or dialysis (Integrilin label). It doubles the bleeding risk where it is highest — and on dialysis it is not cleared at all.',
   },
@@ -441,11 +452,13 @@ export const sedationForProcedure = (s: SimState, sc: Scenario) =>
 
 /**
  * Too unwell to sedate: a low pressure, breathing under 10 a minute, or drowsy (GCS 12 or less) — and no procedure to sedate
- * for. In the emergency department a drowsy patient with an advanced airway (RSI, or a tube after the arrest) is a ventilated
+ * for, and for midazolam no seizure under way. In the emergency department a drowsy patient with an advanced airway (RSI, or a tube after the arrest) is a ventilated
  * one, sedated for the tube on the physician's decision: no mistake there
  */
-export const unsafeToSedate: Check = (s, sc) =>
-  s.pulse && (lowPressure(s) || s.vitals.rr < 10 || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !sedationForProcedure(s, sc);
+export const unsafeToSedate: Check = (s, sc, id) =>
+  s.pulse && (lowPressure(s) || s.vitals.rr < 10 || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !sedationForProcedure(s, sc)
+  // a seizure under way: midazolam is its treatment, given with the airway supported (2016 AES status epilepticus guideline)
+  && !(id === 'midazolam' && hasProblem(sc, ['seizure']));
 
 /** The opioid (fentanyl), ranked: the breathing first, then the pressure, then whether there is pain to treat */
 const OPIOID_GATE = gate([

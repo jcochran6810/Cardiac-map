@@ -77,7 +77,8 @@ describe('the pumps', () => {
       expect(ids(5, withProblems(p), ['iabp']), p).toEqual(['iabp-contraindicated']);
       expect(ids(5, withProblems(p), ['impella']), p).toEqual(['impella-contraindicated']);
     }
-    for (const p of ['mechanical-aortic-valve', 'severe-aortic-stenosis', 'lv-thrombus', 'ventricular-septal-rupture'] as Problem[]) {
+    // a failing right ventricle cannot fill a pump that unloads the left, and a ruptured free wall takes no device (Impella IFU)
+    for (const p of ['mechanical-aortic-valve', 'severe-aortic-stenosis', 'lv-thrombus', 'ventricular-septal-rupture', 'rv-failure', 'lv-rupture'] as Problem[]) {
       expect(ids(5, { ...withProblems(p, 'cardiogenic-shock'), vitals: LOW }, ['impella']), p).toEqual(['impella-contraindicated']);
       // not the balloon pump's: in shock it is judged as any balloon pump in shock
       expect(ids(5, { ...withProblems(p, 'cardiogenic-shock'), vitals: LOW }, ['iabp']), p).toEqual(['iabp-routine-shock']);

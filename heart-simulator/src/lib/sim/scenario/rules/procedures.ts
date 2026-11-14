@@ -23,8 +23,13 @@ const PUMP_CONTRA: Problem[] = ['aortic-dissection', 'aortic-regurgitation', 'pe
  * past the obstruction, so it is not on the Impella's list
  */
 const IABP_CONTRA: Problem[] = [...PUMP_CONTRA, 'lvot-obstruction'];
-/** …and an Impella, which sits across the aortic valve in the left ventricle (its instructions for use) */
-const IMPELLA_CONTRA: Problem[] = [...PUMP_CONTRA, 'mechanical-aortic-valve', 'severe-aortic-stenosis', 'lv-thrombus', 'ventricular-septal-rupture'];
+/**
+ * …and an Impella, which sits across the aortic valve in the left ventricle and unloads it alone (its instructions for use:
+ * a failing right ventricle cannot fill it, and a ruptured free wall rules out any device in the ventricle)
+ */
+const IMPELLA_CONTRA: Problem[] = [
+  ...PUMP_CONTRA, 'mechanical-aortic-valve', 'severe-aortic-stenosis', 'lv-thrombus', 'ventricular-septal-rupture', 'rv-failure', 'lv-rupture',
+];
 /** The device's own contraindications (the action being judged: 'iabp' or 'impella') */
 const pumpContraindicated = (sc: Scenario, id: string) => hasProblem(sc, id === 'iabp' ? IABP_CONTRA : IMPELLA_CONTRA);
 /**
@@ -104,7 +109,7 @@ export const PROCEDURE_RULES: Harm[] = [
   // The pumps (the operator's). Gate order: iabp-contraindicated and impella-contraindicated > mcs-tamponade >
   // mcs-bleeding > mcs-no-cardiogenic-shock > iabp-routine-shock
   { id: 'iabp-contraindicated', actions: ['iabp'], roles: [5], when: (s, sc) => s.pulse && hasProblem(sc, IABP_CONTRA), points: 15, severity: 'critical', text: 'A balloon pump in a patient it can harm. Inflating in diastole it pours blood back through a leaking aortic valve and can extend an aortic dissection, and its sheath in a diseased iliac or femoral artery can cost the leg (IABP instructions for use); with LV outflow obstruction its deflation lowers the afterload as the ventricle ejects and the gradient climbs (InterTAK 2018). Choose another support, or none.' },
-  { id: 'impella-contraindicated', actions: ['impella'], roles: [5], when: (s, sc) => s.pulse && hasProblem(sc, IMPELLA_CONTRA), points: 15, severity: 'critical', text: 'An Impella in a patient its label rules out: a clot in the left ventricle (the pump can suck it in and throw it to the brain), a mechanical aortic valve, severe aortic stenosis or regurgitation, a ventricular septal rupture, an aortic dissection, or iliac and femoral arteries too diseased for the sheath (Impella instructions for use).' },
+  { id: 'impella-contraindicated', actions: ['impella'], roles: [5], when: (s, sc) => s.pulse && hasProblem(sc, IMPELLA_CONTRA), points: 15, severity: 'critical', text: 'An Impella in a patient its label rules out: a clot in the left ventricle (the pump can suck it in and throw it to the brain), a mechanical aortic valve, severe aortic stenosis or regurgitation, a ventricular septal rupture or a ruptured free wall, significant right-ventricular failure (a pump that unloads the left ventricle cannot fill from a failing right one), an aortic dissection, or iliac and femoral arteries too diseased for the sheath (Impella instructions for use).' },
   { id: 'mcs-tamponade', actions: ['iabp', 'impella'], roles: [5], when: (s, sc, id) => s.pulse && undrainedTamponade(s, sc) && !pumpContraindicated(sc, id), points: 10, severity: 'major', text: 'A mechanical pump with the heart squeezed by a tamponade not yet drained. No pump can fill a heart that cannot fill: the Impella\'s instructions for use list cardiac tamponade as a contraindication, and a balloon pump adds nothing to a squeezed heart. Drain it first (pericardiocentesis), with fluid meanwhile.' },
   { id: 'mcs-bleeding', actions: ['iabp', 'impella'], roles: [5], when: (s, sc, id) => s.pulse && hasProblem(sc, ['bleeding']) && !undrainedTamponade(s, sc) && !pumpContraindicated(sc, id), points: 10, severity: 'major', text: 'A mechanical pump in a bleeding patient. It needs another large-bore arterial sheath and full anticoagulation, and it fixes neither the bleeding nor a squeezed heart: stop the bleeding, drain a tamponade, give volume and blood.' },
   { id: 'mcs-no-cardiogenic-shock', actions: ['iabp', 'impella'], roles: [5], when: (s, sc, id) => s.pulse && !lowPressure(s) && !hasProblem(sc, ['cardiogenic-shock', 'bleeding']) && !undrainedTamponade(s, sc) && !pumpContraindicated(sc, id), points: 5, severity: 'major', text: 'A balloon pump or an Impella without cardiogenic shock. Nothing needs support (outside a planned high-risk PCI, where the heart team may choose one), and the large-bore femoral access brings bleeding, limb ischemia and stroke (and with an Impella, hemolysis).' },

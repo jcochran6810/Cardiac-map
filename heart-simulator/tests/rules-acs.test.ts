@@ -196,10 +196,10 @@ describe('the nitrate gate and the case rules', () => {
     expect(pde5.harms[0].text).toBe('The case\'s own words.');
     const exempt = withProblems(['pde5-inhibitor'], { vitals: { sbp: 84, dbp: 50 }, harms: [caseRule({ id: 'nitro-pde5', when: () => false })] });
     expect(after(exempt, ['nitro'])).toEqual(['nitro-hypotension']);
-    // a same-id rule hides the built-in for every action (whatever its own actions): each dose goes on to the next rank
+    // a same-id rule speaks only for the actions it lists: an exemption for 'nitro' leaves the 0.8 mg dose to the built-in
     const nitroOnly = withProblems(['pde5-inhibitor'], { harms: [caseRule({ id: 'nitro-pde5', actions: ['nitro'], when: () => false })] });
     expect(after(nitroOnly, ['nitro'])).toEqual([]);
-    expect(after(nitroOnly, ['nitro-high'])).toEqual(['nitro-high-not-hypertensive']);
+    expect(after(nitroOnly, ['nitro-high'])).toEqual(['nitro-pde5']);
   });
 
   it('a same-id case rule for another role leaves the built-in to this one', () => {
@@ -323,6 +323,14 @@ describe('the opioid and the sedatives', () => {
     expect(penaltyIds(ivPatient({ rhythm: { profile: 'avnrt', hr: 190 }, vitals: { sbp: 84, dbp: 50 } }), 2, ['midazolam'])).toEqual([]);
     // the emergency department's ventilated patient: sedated for the tube
     expect(penaltyIds(fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { gcs: 7 } }), 7, ['iv', 'airway', 'midazolam'])).toEqual([]);
+  });
+
+  it('a seizure under way: midazolam is its treatment, even drowsy or breathing poorly (not the other sedatives)', () => {
+    const seizing = (vitals: Partial<Vitals>) => ivPatient({ problems: ['seizure'], vitals });
+    expect(penaltyIds(seizing({ gcs: 8 }), 2, ['midazolam'])).toEqual([]);
+    expect(penaltyIds(seizing({ rr: 8 }), 2, ['midazolam'])).toEqual([]);
+    expect(penaltyIds(ivPatient({ vitals: { gcs: 8 } }), 2, ['midazolam'])).toEqual(['midazolam-unsafe']);
+    expect(penaltyIds(seizing({ gcs: 8 }), 2, ['iv', 'sedation'])).toEqual(['sedation-unsafe']);
   });
 
   it('sedation-unsafe: the paramedic\'s and the lab\'s sedation, on the same predicate', () => {
@@ -516,7 +524,10 @@ describe('the antithrombotic gate', () => {
   });
 
   it('gp-contraindicated, gp-after-lytic and gp-hypertension: eptifibatide\'s label', () => {
-    for (const p of ['intracranial-hemorrhage', 'recent-stroke', 'recent-surgery', 'recent-bleeding', 'dialysis'] as Problem[]) expect(give(lab([p]), 'gp2b3a'), p).toEqual(['gp-contraindicated']);
+    // surgery 3 to 6 weeks ago is past a lytic's window but within eptifibatide's (Integrilin label: 6 weeks)
+    for (const p of ['intracranial-hemorrhage', 'recent-stroke', 'recent-surgery', 'surgery-within-6-weeks', 'recent-bleeding', 'dialysis'] as Problem[]) {
+      expect(give(lab([p]), 'gp2b3a'), p).toEqual(['gp-contraindicated']);
+    }
     expect(give(lab(['renal-failure']), 'gp2b3a')).toEqual([]);
     expect(give(lab(), 'tnk', 'gp2b3a')).toEqual(['lytic-in-lab', 'gp-after-lytic']);
     expect(give(lab([], { vitals: { sbp: 208, dbp: 104 } }), 'gp2b3a')).toEqual(['gp-hypertension']);

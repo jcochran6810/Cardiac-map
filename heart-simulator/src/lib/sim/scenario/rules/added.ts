@@ -3,49 +3,38 @@
  * team actions the simulator gained with them (each ships with its label contraindications). Within one action the rules
  * are written in their gate order: the first that applies is the one that charges (one dose, one penalty).
  */
-import { has, orderedFlag, paced } from '../kit';
+import { has, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
-import { antithromboticCharges } from './acs';
+import { antithromboticCharges, vasodilatorBeforeRateControl } from './acs';
 import { BETA_BLOCKERS, did, hasProblem, lastDoneAt, lowPressure, outflowObstruction, preloadDependent, slowOrBlocked, tachyarrhythmia } from './helpers';
 import { RATE_RULES } from './rhythm';
+import { indicationCovered } from './scope';
 
 type Check = (s: SimState, sc: Scenario) => boolean;
 
 /**
  * The first rule of a gate (`[id, applies]` in rank order) that charges this dose, or null. A case rule with the same id
- * (for this role) decides that rank in the built-in's place, as in the ACS rules' gate: while it applies to the dose the
- * gate stops there (it charges, and nothing ranked lower adds a second penalty); while it does not — an exemption, or its
- * condition is false — the gate goes on to the next rank: the case has said this one reason does not hold here.
+ * (for this role and this action) decides that rank in the built-in's place, as in the ACS rules' gate: while it applies to
+ * the dose the gate stops there (it charges, and nothing ranked lower adds a second penalty); while it does not — an
+ * exemption, or its condition is false — the gate goes on to the next rank: the case has said this one reason does not
+ * hold here. An indication rank the ER nurse's missing order covers is passed over (rules/scope.ts indicationCovered).
  */
 function topOf(ranks: [string, Check][], s: SimState, sc: Scenario, action: string): string | null {
   for (const [id, applies] of ranks) {
-    const own = sc.harms.filter((h) => h.id === id && (!h.roles || h.roles.includes(s.role)));
+    const own = sc.harms.filter((h) => h.id === id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(action));
     if (own.length) {
-      if (own.some((h) => h.actions.includes(action) && (!h.when || h.when(s, sc, action)))) return id;
-    } else if (applies(s, sc)) return id;
+      if (own.some((h) => !h.when || h.when(s, sc, action))) return id;
+    } else if (applies(s, sc) && !indicationCovered(id, s, sc, action)) return id;
   }
   return null;
 }
-
-/**
- * The rate is slowed: a beta-blocker or diltiazem was given — by the learner, or by a teammate or the physician's fallback
- * (the drug's flag). The same test as the ACS rules' 'vasodilator-before-rate-control', so the two never drift apart
- */
-const rateSlowed = (s: SimState) => has(s, 'beta-blocker') || has(s, 'diltiazem') || BETA_BLOCKERS.some((b) => did(s, b)) || did(s, 'diltiazem');
 
 /**
  * A dissection whose rate is not yet controlled, with a pressure that is not low: the vasodilator's mistake there is giving
  * it before the beta-blocker — the ACS rules' 'vasodilator-before-rate-control' scores it, and the nicardipine rules here
  * stand aside for it (one dose, one penalty)
  */
-const beforeRateControl = (s: SimState, sc: Scenario) => s.pulse && hasProblem(sc, ['aortic-dissection']) && !lowPressure(s) && !rateSlowed(s);
-
-/**
- * The ER nurse giving a drug the physician has not ordered: the built-in 'rn-without-order-<id>' (or the order's own rule,
- * for a wrong answer to an open order) charges it, and the missing order covers the indication — so an indication rule
- * here stands aside (one act, one penalty), as the engine does for the rules in INDICATION_RULES
- */
-const nurseWithoutOrder = (s: SimState, sc: Scenario, id: string) => s.role === 6 && sc.setting === 'ed' && !has(s, orderedFlag(id));
+const beforeRateControl = (s: SimState, sc: Scenario) => s.pulse && vasodilatorBeforeRateControl(s, sc);
 
 /** The nicardipine rules, in their gate order */
 const NICARDIPINE: [string, Check][] = [
@@ -66,7 +55,7 @@ const INOTROPE: [string, Check][] = [
   ['inotrope-unsupported-hypotension', (s) => lowPressure(s) && !has(s, 'pressor')],
   ['inotrope-tachyarrhythmia', (s) => tachyarrhythmia(s)],
   // low output is what it is for: cardiogenic shock or failing pump, or a low pressure already held up by a vasopressor
-  ['inotrope-no-indication', (s, sc) => !hasProblem(sc, ['cardiogenic-shock', 'heart-failure']) && !lowPressure(s) && !nurseWithoutOrder(s, sc, 'inotrope')],
+  ['inotrope-no-indication', (s, sc) => !hasProblem(sc, ['cardiogenic-shock', 'heart-failure']) && !lowPressure(s)],
 ];
 /** The one inotrope rule that charges this dose, in the gate order (or none) */
 function inotropeRule(s: SimState, sc: Scenario): string | null {

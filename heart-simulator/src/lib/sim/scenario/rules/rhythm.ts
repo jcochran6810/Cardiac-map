@@ -17,7 +17,7 @@ import {
   ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, did, hasProblem, lastDoneAt, longQt, lowPressure,
   lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
-import { SCOPE_RULES, rnWithoutOrderId } from './scope';
+import { indicationCovered } from './scope';
 import { pressorBridging } from './support';
 
 /** The drugs that slow the AV node or the rate (and amiodarone's infusion), with the cath lab's intracoronary ones */
@@ -55,15 +55,6 @@ const minutesSince = (s: SimState, t: number) => Math.round((s.minute - t) * 100
  */
 const cprCycleAfterShock = (s: SimState) =>
   shockedThisArrest(s) && minutesSince(s, s.timers.lastShockAt!) < 2 && lastDoneAt(s, ['pulse-check'], s.timers.lastShockAt) === null;
-/**
- * The ER nurse gives this drug without the order it needs, and the scope rule ('rn-without-order-<id>') charges it now. As
- * with the built-in indication rules (INDICATION_RULES, which the engine skips then), whether the drug fits the patient is
- * left to the missing order: asking the physician is where that is decided (one act, one penalty)
- */
-function nurseWithoutOrder(s: SimState, sc: Scenario, id: string): boolean {
-  const r = SCOPE_RULES.find((h) => h.id === rnWithoutOrderId(id));
-  return !!r && (!r.roles || r.roles.includes(s.role)) && (!r.when || r.when(s, sc, id)) && !chargedBefore(s, r.id);
-}
 /**
  * This rule was charged on an earlier act. Every act takes at least a tenth of a minute, and the engine judges an act
  * before its clock moves, so a penalty of this act carries the current minute: a condition that reads it does not change
@@ -105,8 +96,8 @@ const RULES: Harm[] = [
   { id: 'amiodarone-arrest-long-qt', actions: ['amio-arrest'], when: (s, sc) => !s.pulse && longQt(s, sc), points: 3, severity: 'minor', text: 'Amiodarone 300 mg in a torsades or long-QT arrest. It lengthens the QT further and can keep torsades going: defibrillate, give 2 g of IV magnesium, and correct the potassium (2025 AHA).' },
   // not in the CPR cycle right after a shock to VF: the rhythm under the compressions is not known until the next check
   { id: 'antiarrhythmic-nonshockable', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && !shockable(s) && !cprCycleAfterShock(s), points: 3, severity: 'minor', text: 'Amiodarone or lidocaine in PEA or asystole. They are for VF or pulseless VT that shocks have not fixed (2025 AHA): a rhythm that cannot be shocked gets CPR, epinephrine and a search for the cause.' },
-  // the same id as wpw-af-field's. An indication rule: the ER nurse's missing order stands in for it
-  { id: 'rate-drug-in-arrest', actions: [...ADENOSINE_PUSH, ...IV_BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'adenosine-iv-ffr'], when: (s, sc, id) => !s.pulse && !nurseWithoutOrder(s, sc, id), points: 3, severity: 'minor', text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem and the 150 mg amiodarone infusion are not arrest drugs: CPR, a shock for VF or pulseless VT, epinephrine and — for shock-refractory VF — amiodarone 300 mg or lidocaine (2025 AHA).' },
+  // the same id as wpw-af-field's. An indication rule (INDICATION_RULES): the ER nurse's missing order stands in for it
+  { id: 'rate-drug-in-arrest', actions: [...ADENOSINE_PUSH, ...IV_BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'adenosine-iv-ffr'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem and the 150 mg amiodarone infusion are not arrest drugs: CPR, a shock for VF or pulseless VT, epinephrine and — for shock-refractory VF — amiodarone 300 mg or lidocaine (2025 AHA).' },
 
   // ─── Pacing and the transvenous wire ───────────────────────────────────────
   // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
@@ -198,6 +189,7 @@ const RULES: Harm[] = [
   { id: 'procainamide-long-qt', actions: ['procainamide'], when: (s, sc) => longQt(s, sc), points: 10, severity: 'major', text: 'Procainamide with a long QT. It lengthens the QT further and can set off torsades de pointes.' },
   { id: 'procainamide-hypotension', actions: ['procainamide'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one: an unstable tachycardia needs synchronized cardioversion.' },
   { id: 'procainamide-heart-failure', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['heart-failure']), points: 8, severity: 'major', text: 'Procainamide in a patient with heart failure. It weakens the squeeze and drops the pressure: in heart failure use amiodarone, or synchronized cardioversion.' },
+  { id: 'procainamide-lupus', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['lupus']), points: 8, severity: 'major', text: 'Procainamide in a patient with systemic lupus erythematosus. Its label rules it out: procainamide itself causes a lupus-like syndrome and can make lupus flare. Choose amiodarone for a stable wide-complex tachycardia, or synchronized cardioversion.' },
   { id: 'procainamide-after-amiodarone', actions: ['procainamide'], when: (s) => s.pulse && has(s, 'amiodarone'), points: 5, severity: 'minor', text: 'Procainamide on top of amiodarone. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
   { id: 'procainamide-sodium-channel', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['sodium-channel-blocker-overdose']), points: 10, severity: 'major', text: 'Procainamide in a tricyclic or other sodium-channel-blocker overdose. As a class IA drug it deepens the sodium-channel block — a wider QRS, a lower pressure and more ventricular arrhythmias (toxicology references): sodium bicarbonate, then lidocaine.' },
 
@@ -236,7 +228,7 @@ export const LADDERS: Record<string, string[]> = {
   lidocaine: ['lidocaine-slow-or-block', 'antiarrhythmic-hyperkalemia', 'antiarrhythmic-nonshockable', 'lidocaine-no-arrhythmia'],
   procainamide: [
     'procainamide-in-arrest', 'procainamide-slow', 'procainamide-long-qt', 'procainamide-hypotension', 'procainamide-heart-failure',
-    'procainamide-after-amiodarone', 'procainamide-sodium-channel', 'antiarrhythmic-hyperkalemia', 'cardioversion-unanticoagulated',
+    'procainamide-lupus', 'procainamide-after-amiodarone', 'procainamide-sodium-channel', 'antiarrhythmic-hyperkalemia', 'cardioversion-unanticoagulated',
     'antiarrhythmic-no-arrhythmia',
   ],
   'amio-arrest': ['arrest-amio-with-pulse', 'av-blocker-preexcited-af', 'antiarrhythmic-hyperkalemia', 'amiodarone-arrest-long-qt', 'antiarrhythmic-nonshockable'],
@@ -297,7 +289,8 @@ function firstHolding(s: SimState, sc: Scenario, id: string): string | null {
 function caseVoice(s: SimState, sc: Scenario, id: string, ruleId: string): 'speaks' | 'repeat' | 'covered' | 'passed' | null {
   let hidden: 'repeat' | 'hidden' | null = null;
   for (const h of sc.harms) {
-    if (!roleOk(h, s) || (h.id !== ruleId && !h.replaces?.includes(ruleId))) continue;
+    // a rule with its id speaks only for the actions it lists: for another action the built-in judges
+    if (!roleOk(h, s) || (h.id === ruleId ? !h.actions.includes(id) && !h.replaces?.includes(ruleId) : !h.replaces?.includes(ruleId))) continue;
     const on = applies(h, s, sc, id);
     if (on && !charged(s, h.id)) return 'speaks';
     if (on && h.id === ruleId) hidden = 'repeat';
@@ -315,7 +308,12 @@ function caseVoice(s: SimState, sc: Scenario, id: string, ruleId: string): 'spea
 export function topRhythmRule(s: SimState, sc: Scenario, id: string): string | null {
   for (const ruleId of LADDERS[id] ?? []) {
     const r = BY_ID.get(ruleId);
-    if (r && applies(r, s, sc, id) && caseVoice(s, sc, id, ruleId) !== 'passed') return ruleId;
+    if (!r || !applies(r, s, sc, id)) continue;
+    const voice = caseVoice(s, sc, id, ruleId);
+    if (voice === 'passed') continue;
+    // an indication rank the ER nurse's missing order covers stands aside: the dose goes on to the next reason that holds
+    if (voice === null && indicationCovered(ruleId, s, sc, id)) continue;
+    return ruleId;
   }
   return null;
 }
@@ -336,7 +334,7 @@ export function yieldsTo(s: SimState, sc: Scenario, id: string, h: Harm): boolea
   const heavier = (r: Harm) => r.severity !== 'minor' && r.points > h.points;
   // the case judges it under its own id: step aside only for that rule, heavier and charging this act (if that rule
   // steps aside too, its own check finds itself here and stops)
-  const own = sc.harms.find((c) => c.id === top && roleOk(c, s));
+  const own = sc.harms.find((c) => c.id === top && roleOk(c, s) && c.actions.includes(id));
   if (own) return own.id !== h.id && heavier(own) && applies(own, s, sc, id) && !chargedBefore(s, own.id);
   if (!heavier(BY_ID.get(top)!) || chargedBefore(s, top)) return false;
   return !sc.harms.some((c) => c.id !== h.id && roleOk(c, s) && c.actions.includes(id) && !!c.replaces?.includes(top) && chargedBefore(s, c.id));

@@ -3,7 +3,7 @@ import { resolveProfile } from '@/lib/ecg/profiles';
 import { BUILT_IN_HARMS, clockText, criticalsFor, perform, review, start, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { peaArrestField as sc } from '@/lib/sim/scenario/scenarios/peaArrestField';
-import { BICARBONATE_FOR, CALCIUM_FOR } from '@/lib/sim/scenario/rules/helpers';
+import { BICARBONATE_IN_ARREST_FOR, CALCIUM_FOR } from '@/lib/sim/scenario/rules/helpers';
 import type { SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 import { UNTIL_ARRIVED, readAfter, runScenario } from './helpers';
@@ -52,7 +52,7 @@ describe('PEA arrest in the field — the case itself', () => {
     // nothing she has makes calcium or bicarbonate right: the built-in rules judge them as given with no indication. Her COPD,
     // wheezing after the ROSC, is all she has
     expect(sc.problems ?? []).toEqual(['asthma', 'bronchospasm']);
-    for (const p of [...CALCIUM_FOR, ...BICARBONATE_FOR]) expect(sc.problems, p).not.toContain(p);
+    for (const p of [...CALCIUM_FOR, ...BICARBONATE_IN_ARREST_FOR]) expect(sc.problems, p).not.toContain(p);
   });
 
   it('nothing the learner sees before the arrest is worked names the rhythm or the cause', () => {
