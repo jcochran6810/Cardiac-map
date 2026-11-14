@@ -278,7 +278,7 @@ export const CONDITION_IDS = [
   // ventricular
   'pvcs', 'monomorphic-vt', 'ventricular-fibrillation', 'torsades-de-pointes',
   // ischemia
-  'anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'nstemi', 'wellens-pattern',
+  'anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'nstemi', 'wellens-pattern', 'scad',
   // cardiomyopathy
   'dilated-cardiomyopathy', 'hcm', 'takotsubo',
   // heart failure

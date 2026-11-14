@@ -17,7 +17,8 @@ export default function ImagingPanel({ state }: { state: SimState }) {
   const runs = state.images.map((r, i) => ({ ...r, n: i + 1 })).reverse();
   // runs the learner is still to read: what they show stays hidden until the read is given
   const asked = new Set(state.ended ? [] : [state.pendingRead, ...state.queuedReads].flatMap((q) => (q?.run ? [q.run] : [])));
-  const reading = !state.ended && (state.pendingRead?.kind === 'angio' || !!state.pendingRead?.run);
+  // only a read of a recorded run is read here: one in words alone is answered on the story
+  const reading = !state.ended && !!state.pendingRead?.run;
   if (!runs.length) {
     return (
       <div className="absolute inset-0 flex items-center justify-center p-6 text-center">

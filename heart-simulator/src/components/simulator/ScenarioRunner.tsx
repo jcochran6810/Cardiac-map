@@ -56,7 +56,8 @@ export default function ScenarioRunner({ onReview }: { onReview: () => void }) {
     const last = state.performed.at(-1);
     const fresh = state.performed.length > prev.performed;
     const kind = state.pendingRead?.kind;
-    const onImage = imagingTab && (kind === 'angio' || !!state.pendingRead?.run);
+    // a read of a recorded run looks at its picture; a read in words alone (an angiogram described, not filmed) is on the story
+    const onImage = imagingTab && !!state.pendingRead?.run;
     if (fresh && last && (last.id === 'ecg12' || last.id === 'ecg12-repeat') && kind === 'ecg') setTab('ecg');
     else if (onImage && tab !== 'imaging') setTab('imaging');
     else if (kind && kind !== 'ecg' && !onImage && tab !== 'story') setTab('story');
