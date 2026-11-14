@@ -706,6 +706,17 @@ export const cathlabRpBleed: Scenario = {
     { id: 'md-balloon', label: 'Stop the bleeding from the inside: a balloon over the hole', why: 'A peripheral balloon at low pressure over the hole stops the bleeding at once, while everything else is readied; 5–10 minutes of it seals some holes for good.', done: ['balloon-tamponade', 'stent-covered'], after: 'leak-seen', roles: MD, points: 15, target: { within: { flag: 'leak-seen', minutes: 2 } }, applies: (s) => has(s, 'leak-seen') },
     { id: 'md-covered', label: 'Seal the hole with a covered stent', why: 'A hole that still leaks after the balloon is sealed with a covered stent in the external iliac (not across the common femoral, where the hip bends and the profunda branches off), or by the surgeon.', done: ['stent-covered'], roles: MD, points: 10, applies: (s) => has(s, 'leak-seen') },
     { id: 'md-final', label: 'Final run: no more leak', why: 'Prove the seal, and that the femoral, the profunda and the internal iliac still fill, before you leave.', done: ['final-angio'], after: 'sealed', roles: MD, points: 5, applies: (s) => has(s, 'sealed') },
+    {
+      // only once a drip was started in the bleed (itself a critical error): it has no antidote, so it must be turned off
+      id: 'stop-drip', label: 'Stop the bivalirudin, GP IIb/IIIa or cangrelor drip started in the bleed', roles: [4, 5], points: 5,
+      applies: (s) => ['extra-bivalirudin', 'extra-gp2b3a', 'extra-cangrelor'].some((f) => has(s, f)),
+      done: (s) => {
+        const started = Math.min(...['extra-bivalirudin', 'extra-gp2b3a', 'extra-cangrelor'].map((f) => s.flags[f] ?? Infinity));
+        return s.performed.find((p) => p.id === 'stop-antithrombotics' && p.minute >= started)?.minute ?? null;
+      },
+      uses: ['stop-antithrombotics'],
+      why: 'Bivalirudin, eptifibatide and cangrelor have no antidote: protamine reverses heparin only. A drip of any of them keeps the hole bleeding until it is turned off — then it wears off within an hour or two (bivalirudin) or a few hours (eptifibatide).',
+    },
     { id: 'handoff', label: 'Hand-off to the ICU', why: 'The bleed and where it was, how it was sealed, the blood given and the hemoglobin, the protamine and the ACT, the aspirin and ticagrelor kept for the stent, the leg checks — and a hemoglobin again in a few hours.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [

@@ -182,7 +182,10 @@ function alteplase(s: SimState, by: 'learner' | 'physician'): Effect {
       : given(s, 'Alteplase 50 mg IV push, now — and keep the compressions going: it needs circulation to reach the clot.', 'Alteplase 50 mg IV push, flushed; compressions go on.');
     return { say: lines, flags: ['lytic', 'alteplase', 'arrest-lytic'] };
   }
-  const paused = has(s, 'heparin') ? '; the heparin drip paused while it runs' : '';
+  // the heparin drip is paused while it runs: the ER nurse pauses it herself ('stop-antithrombotics'); the computer nurse and
+  // the physician do it as they hang it
+  const pauses = has(s, 'heparin') && (by === 'physician' || s.role === 7 || has(s, 'antithrombotics-stopped'));
+  const paused = pauses ? '; the heparin drip paused while it runs' : '';
   // the computer nurse records the baseline neuro check before she hangs it; the ER nurse does her own ('neuro')
   const lines: Line[] = by === 'physician'
     ? [['physician', `I've gone through the checklist with her myself: alteplase 100 mg running over 2 hours${paused}.`]]
@@ -191,7 +194,7 @@ function alteplase(s: SimState, by: 'learner' | 'physician'): Effect {
       : [['you', `Alteplase 100 mg running over 2 hours on a pump${paused}.`], ...unordered(s)];
   // the charge nurse who catches an unordered lytic before the physician is in the room brings him
   const fetch = s.role === 6 && !has(s, orderedFlag('alteplase')) && !has(s, 'md-bedside') ? ['physician-notified'] : [];
-  return { say: lines, flags: ['lytic', 'alteplase', 'alteplase-infusion', 'lytic-watch', ...(has(s, 'heparin') ? ['heparin-paused'] : []), ...fetch] };
+  return { say: lines, flags: ['lytic', 'alteplase', 'alteplase-infusion', 'lytic-watch', ...(pauses ? ['heparin-paused'] : []), ...fetch] };
 }
 
 /**
@@ -489,6 +492,10 @@ export const edPeLysis: Scenario = {
       if (has(s, 'lytic')) return { say: [['you', 'A second fibrinolytic dose.'], [helper(s), 'Wait — she already has a lytic in!', 'bad']], flags: ['second-lytic'] };
       return alteplase(s, 'learner');
     },
+    // the heparin drip paused for the alteplase (before it is hung, or as it starts): it restarts when the infusion ends
+    'stop-antithrombotics': (s) => (has(s, 'heparin') && !has(s, 'heparin-paused')
+      ? { say: [['you', 'Heparin drip paused at the pump while the alteplase runs: it restarts when the infusion ends, once the aPTT is under twice normal.']], flags: ['antithrombotics-stopped', 'heparin-paused'] }
+      : null),
     // tenecteplase is used off-label for a pulmonary embolism in the US; alteplase is the approved regimen
     tnk: (s) => {
       if (has(s, 'lytic')) return { say: [['you', 'A second fibrinolytic dose.'], [helper(s), 'Wait — she already has a lytic in!', 'bad']], flags: ['second-lytic'] };
@@ -801,6 +808,13 @@ export const edPeLysis: Scenario = {
         return start === null || at <= start ? at : null;
       },
       uses: ['sample', 'neuro'],
+    },
+    {
+      // the order's last words: the heparin drip does not run with the alteplase (the fallback's physician pauses it himself)
+      id: 'rn-heparin-paused', label: 'The heparin drip paused while the alteplase runs, as ordered', roles: ED_RN, points: 5,
+      applies: (s) => has(s, 'heparin') && s.performed.some((p) => p.id === 'alteplase') && has(s, 'alteplase-infusion'),
+      done: (s) => firstDone(s, ['stop-antithrombotics'], 'asked-rn-alteplase'), uses: ['stop-antithrombotics'],
+      why: 'Unfractionated heparin and alteplase together only add bleeding: the drip is paused for the 2-hour infusion and restarted when it ends, once the aPTT is under twice normal (alteplase label for pulmonary embolism).',
     },
     {
       id: 'rn-lytic-monitor', label: 'During the infusion: vital signs and a neuro check every 15 minutes', roles: ED_RN, points: 5,

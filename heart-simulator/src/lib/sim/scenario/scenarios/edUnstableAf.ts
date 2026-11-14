@@ -749,13 +749,14 @@ export const edUnstableAf: Scenario = {
       // physician gave up waiting and sedated (the fallback) came after it: it does not count
       done: (s) => {
         const capno = firstDone(s, ['capno']);
-        const kit = firstDone(s, ['bvm']);
+        // the bag-mask on oxygen ready (or the whole set-up: suction, bag-mask, airways, the crash cart)
+        const kit = firstDone(s, ['bvm', 'procedure-setup']);
         const sedated = s.flags.sedation;
         if (capno === null || kit === null) return null;
         if (sedated !== undefined && (capno >= sedated || kit >= sedated)) return null;
         return Math.max(capno, kit);
       },
-      uses: ['capno', 'bvm'],
+      uses: ['capno', 'bvm', 'procedure-setup'],
       why: 'Procedural sedation can stop the breathing and drop the pressure: continuous ECG, pulse oximetry, a pressure every few minutes and waveform capnography (it shows a slowing or obstructed breath before the oxygen falls), with suction, a bag-mask on oxygen and an airway in reach — all ready before the first dose. The nurse watches the patient, not the procedure.',
     },
     {

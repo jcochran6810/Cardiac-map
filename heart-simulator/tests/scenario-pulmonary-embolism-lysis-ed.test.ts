@@ -32,8 +32,8 @@ function until(s: SimState, ok: (x: SimState) => boolean, max = 30): SimState {
 
 /** The ideal runs (the lead copies them into tests/scenarios.test.ts) */
 const IDEAL: Record<6 | 7, string[]> = {
-  6: ['ems-handoff', 'triage', 'monitor', 'o2-nrb', 'notify-physician', 'iv', 'labs', 'ecg12', 'perfusion', 'heparin', 'pressor', 'sample', 'neuro', 'alteplase',
-    'reassess', 'reassess', 'notify-physician', ...R(5), 'handoff'],
+  6: ['ems-handoff', 'triage', 'monitor', 'o2-nrb', 'notify-physician', 'iv', 'labs', 'ecg12', 'perfusion', 'heparin', 'pressor', 'sample', 'neuro',
+    'stop-antithrombotics', 'alteplase', 'reassess', 'reassess', 'notify-physician', ...R(5), 'handoff'],
   7: ['ems-handoff', 'pocus', 'heparin', 'pressor', 'sample', 'alteplase', 'consult-cardiology', 'admit', ...R(5), 'handoff'],
 };
 
@@ -226,11 +226,21 @@ describe('the ER nurse', () => {
   it('the alteplase order: the bleeding checklist and a baseline neuro check first, then 100 mg over 2 hours with the heparin paused', () => {
     const order = rn(RN_TO_LYTIC_ORDER);
     expect(order.log.at(-1)!.text).toMatch(/I'm giving her alteplase, 100 milligrams over 2 hours.*bleeding checklist.*baseline neuro check.*pause the heparin drip/);
-    const s = rn([...RN_TO_LYTIC_ORDER, 'sample', 'neuro', 'alteplase']);
+    // the nurse pauses the heparin drip herself, as ordered (before it is hung, or as it starts)
+    const s = rn([...RN_TO_LYTIC_ORDER, 'sample', 'neuro', 'stop-antithrombotics', 'alteplase']);
     expect(ids(s)).toEqual([]);
     expect(said(s)).toMatch(/I didn't hit my head/);
+    expect(said(s)).toMatch(/Heparin drip paused at the pump while the alteplase runs/);
     expect(said(s)).toMatch(/Alteplase 100 mg running over 2 hours on a pump; the heparin drip paused while it runs/);
     expect(has(s, 'heparin-paused')).toBe(true);
+    expect(done(s, /^The heparin drip paused while the alteplase runs/)).toBe(true);
+    const after = rn([...RN_TO_LYTIC_ORDER, 'sample', 'neuro', 'alteplase', 'stop-antithrombotics']);
+    expect(done(after, /^The heparin drip paused while the alteplase runs/)).toBe(true);
+    // left running: the item is missed, and the alteplase line does not pretend it was paused
+    const running = rn([...RN_TO_LYTIC_ORDER, 'sample', 'neuro', 'alteplase']);
+    expect(has(running, 'heparin-paused')).toBe(false);
+    expect(said(running)).not.toMatch(/heparin drip paused/);
+    expect(missed(running, /^The heparin drip paused while the alteplase runs/)).toBe(true);
     // the history taken early counts: the checks only have to come before the drug
     const early = rn(['ems-handoff', 'sample', ...RN_TO_LYTIC_ORDER.slice(1), 'neuro', 'alteplase']);
     expect(done(early, /^Before the alteplase: the bleeding checklist/)).toBe(true);

@@ -173,6 +173,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'reassess':
       // the line prints the pressure: perform() sets the flag 'bp' after any reassessment, this one or a case's own
       return { say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? (s.pulse ? `Pain ${v.pain}/10.` : 'Unresponsive.')]] };
+    case 'observe':
+      // perform() lets the minutes pass first; this is what the watch ends with
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: nobody stands back and watches a patient with no pulse. CPR and the rhythm.']] };
+      return { say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? `Pain ${v.pain}/10.`]] };
 
     case 'monitor': return { say: [['monitor', monitorLine(s)]], flags: ['monitor'] };
     case 'pads':
@@ -200,6 +204,11 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['monitor', ventilated(s) ? `EtCO₂ ${etco2} mmHg.` : `EtCO₂ ${etco2} mmHg: almost no waveform.`]], flags: ['capno'] };
     }
     case 'transducer': return { say: [['you', 'Transducers zeroed to air and leveled at the phlebostatic axis.']], flags: ['transducer'] };
+    case 'arterial-line': {
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not during CPR: an arterial line goes in once there is a pulse (the pulse check and the capnography guide the compressions).']] };
+      const art = s.lvad ? `MAP ${mapOf(v)} on the arterial line, a nearly flat trace (the pump flows through systole and diastole)` : `${v.sbp}/${v.dbp}, MAP ${mapOf(v)}, beat to beat`;
+      return { say: [['you', 'Radial arterial line in under ultrasound, 20 G, transduced and leveled.'], ['monitor', `Arterial line: ${art}.`]], flags: ['arterial-line', 'bp'] };
+    }
     case 'labs': return { say: [['team', fact('labs') ?? 'Labs sent: troponin, electrolytes, CBC, coagulation.']], flags: ['labs'] };
     case 'troponin-repeat':
       // the second of the serial high-sensitivity troponins: the change from the first decides as much as either value
@@ -248,6 +257,8 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         };
       }
       return { say: [['you', 'Ventilating 1 breath every 6 seconds; chest rising.']], flags: ['ventilated'] };
+    case 'procedure-setup':
+      return { say: [['you', 'Suction on and tested, the bag-mask on oxygen at the head of the bed, oral and nasal airways laid out, the crash cart open beside the bed.']], flags: ['procedure-setup', 'airway-ready'] };
     case 'cpap':
       // a mask that pushes air in helps only a patient who breathes on their own and can guard the airway
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: CPAP needs a patient who breathes on their own. Ventilate with the bag-mask.']] };
@@ -294,6 +305,9 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: compressions move the blood, not the position of the body.']] };
       if (v.gcs <= 8) return { blocked: true, say: [['system', 'Not with a GCS of 8 or less: a patient this drowsy cannot hold the airway sitting up. Keep them on their side or flat, and support the breathing.']] };
       return { say: [['you', 'Sitting upright, the legs hanging down.']], flags: ['sat-up'], clear: ['legs-up'] };
+    case 'temp-control':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not during CPR: temperature control is for after ROSC.']] };
+      return { say: [['you', 'Temperature control started: a feedback-controlled device set to the chosen target (36 °C), to be held at least 36 hours, then fever prevented; no cold IV fluid boluses.']], flags: ['temp-control'] };
     case 'legs-up': {
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: compressions move the blood, not the position of the legs.']] };
       // about 300 mL of blood comes back from the legs for a few minutes
@@ -361,6 +375,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       const rr = Math.min(v.rr, Math.max(10, v.rr - 1));
       const feels = v.pain === 0 ? '"I feel a bit floaty."' : pain <= 3 ? '"That takes the edge off."' : '"Still hurts, but a bit less."';
       return { say: [['you', 'Fentanyl IV given.'], ...ifAwake(s, feels)], vitals: { pain, rr }, flags: ['analgesia'] };
+    }
+    case 'stop-antithrombotics': {
+      // only something given can be stopped: the drips, and no more boluses
+      const running = [['heparin', 'heparin'], ['bivalirudin', 'bivalirudin'], ['gp2b3a', 'eptifibatide'], ['cangrelor', 'cangrelor']].filter(([f]) => has(s, f)).map(([, name]) => name);
+      if (!running.length) return { blocked: true, say: [['system', 'There is no heparin, bivalirudin, GP IIb/IIIa or cangrelor to stop: none has been given.']] };
+      return { say: [['you', `Stopped: ${running.join(', ')} — off at the pump, no more boluses, and the orders say so.`]], flags: ['antithrombotics-stopped'] };
     }
     case 'heparin': return { say: [['you', did(s, 'heparin') ? 'Another heparin bolus given (weight-based).' : 'Heparin bolus given (weight-based).']], flags: ['heparin'] };
     case 'metoprolol': {
@@ -863,6 +883,9 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     }
     case 'consult-cardiology':
       return { say: [['consultant', fact('consult') ?? 'Cardiology: "Thanks for the call — I\'ll come down and see the patient. Keep them on the monitor, and call me back if anything changes."']], flags: ['consult'] };
+    case 'discharge':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: the resuscitation goes on here.']] };
+      return { say: [['you', 'Discharge home: the instructions gone through with the patient, the follow-up booked, and what should bring them back.']], flags: ['dispo', 'discharge'] };
     case 'admit':
     case 'transfer':
       // nobody leaves the department in the middle of a cardiac arrest
@@ -928,6 +951,7 @@ function edHandoff(s: SimState): Effect {
   if (has(s, 'alert') && !has(s, 'cath-ready') && !has(s, 'admit') && !has(s, 'transfer')) {
     return { blocked: true, say: [['system', 'The cath lab team is still on its way: keep caring for the patient (reassess), and hand off when the lab is ready.']] };
   }
+  if (has(s, 'discharge')) return { say: [['you', 'SBAR hand-off to the patient, with discharge instructions and follow-up.']], flags: ['handoff'] };
   const to = has(s, 'transfer') ? 'the transport team' : has(s, 'admit') ? 'the admitting team' : has(s, 'alert') ? 'the cath lab team' : 'the receiving team';
   return { say: [['you', `SBAR hand-off to ${to}; they take over.`]], flags: ['handoff'] };
 }
@@ -1400,6 +1424,7 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   say(s, 'you', detail ? `${iv.label} — ${detail}` : iv.label);
   s.counts[id] = (s.counts[id] ?? 0) + 1;
   s.performed.push({ id, minute: s.minute });
+  if (id === 'observe') return observe(sc, s);
   // a few actions take less time during CPR (e.g. an ultrasound done within the 10-second pulse check)
   s.minute = round(s.minute + (!s.pulse && iv.arrestMinutes !== undefined ? iv.arrestMinutes : iv.minutes));
   applyEffect(s, shown);
@@ -1411,6 +1436,33 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   const before = recording && s.pulse ? { ...s.rhythm } : null;
   if (!s.ended) advance(sc, s);
   if (recording) requestRead(sc, s, before && !s.pulse ? before : undefined);
+  finish(sc, s);
+  return s;
+}
+
+/** The longest watch one 'observe' keeps (minutes) */
+const OBSERVE_MINUTES = 15;
+
+/**
+ * Observing on the monitor: the clock runs a minute at a time (up to 15), and stops as soon as something happens — a line
+ * in the log, the pulse lost, a read to give, the case over — so nothing waits unseen until the end. Then the reassessment
+ * line, as it is then.
+ */
+function observe(sc: Scenario, s: SimState): SimState {
+  const from = s.minute;
+  const logged = s.log.length;
+  for (let i = 0; i < OBSERVE_MINUTES; i++) {
+    s.minute = round(s.minute + 1);
+    advance(sc, s);
+    if (s.ended || !s.pulse || s.pendingRead || s.log.length > logged) break;
+  }
+  if (!s.ended && s.pulse && !s.pendingRead) {
+    const end = sc.respond.observe?.(s) ?? defaultEffect(sc, s, 'observe');
+    if (!end.blocked) {
+      const quiet = s.log.length === logged ? [['you', `Watched on the monitor for ${round(s.minute - from)} minutes.`] as Line] : [];
+      applyEffect(s, { ...end, say: [...quiet, ...(end.say ?? [])], ...(s.lvad || !printsPressure(end) ? {} : { flags: [...(end.flags ?? []), 'bp'] }) });
+    }
+  }
   finish(sc, s);
   return s;
 }

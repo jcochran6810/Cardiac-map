@@ -573,12 +573,8 @@ export const edVfArrest: Scenario = {
       // ROSC, when it decides on temperature control
       if (!s.pulse) return { blocked: true, say: [['system', 'Not during CPR: he is unresponsive with no pulse, and a neuro exam has nothing to tell you. Check it once he has a pulse — it decides on temperature control.']] };
       const exam = `GCS ${s.vitals.gcs} (E1 V1 M1): no response to voice or pain; pupils 3 mm, equal, reacting sluggishly; temperature ${s.vitals.temp} °C.`;
-      if (doctorRun(s)) {
-        return {
-          say: [['you', `${exam} He does not follow commands: you order temperature control — a feedback-controlled device holding the target you choose (36 °C here; anywhere from 32 to 37.5 °C fits the guideline) for at least 36 hours, then fever prevention — with sedation as he needs it, and an EEG in the ICU.`]],
-          flags: ['neuro-rosc', 'temp-control'],
-        };
-      }
+      // the doctor's exam decides it; the temperature control is its own order (the action 'temp-control')
+      if (doctorRun(s)) return { say: [['you', `${exam} He does not follow commands: he needs temperature control.`]], flags: ['neuro-rosc'] };
       return { say: [['you', exam]], flags: ['neuro-rosc'] };
     },
     'o2-nrb': (s) => (s.pulse && s.vitals.gcs <= 8 ? { say: [['you', 'He is already being bagged with oxygen: a mask on top adds nothing.']] } : null),
@@ -824,7 +820,7 @@ export const edVfArrest: Scenario = {
       why: 'ST elevation after ROSC means emergent coronary angiography, whether the patient is awake or comatose (2025 AHA: Class 1; 2025 ACC/AHA ACS guideline). His occlusion caused the arrest: opening it is the treatment, and coma does not change it.',
     },
     {
-      id: 'md-temperature', label: 'Not following commands after ROSC: temperature control', roles: ED_MD, points: 5, after: 'rosc', applies: (s) => has(s, 'rosc'), done: ['neuro'],
+      id: 'md-temperature', label: 'Not following commands after ROSC: temperature control', roles: ED_MD, points: 5, after: 'rosc', applies: (s) => has(s, 'rosc'), done: ['temp-control'],
       why: 'Check whether he follows commands: an adult who does not after ROSC gets deliberate temperature control at a chosen target between 32 and 37.5 °C (Class 1) for at least 36 hours (2a), with active fever prevention after (2025 AHA).',
     },
 

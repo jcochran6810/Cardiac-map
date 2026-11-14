@@ -364,7 +364,8 @@ const RN_ASKS: LabAsk[] = [
     // the read-back is the nurse's part of stopping it: no heparin infusion runs here, so nothing else has to be turned off
     id: 'rn-heparin-off', role: 4, when: (s) => has(s, 'decided'),
     ask: 'So: no more heparin — no top-up now, and no heparin drip on the unit. Read that back to me, please.',
-    accept: ['callout'], wrong: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'],
+    // the read-back, or the stop itself (nothing runs, so it says no top-up and no drip)
+    accept: ['callout', 'stop-antithrombotics'], wrong: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'],
     wrongSay: 'No! No more anticoagulation — it can feed the bleeding inside the wall of that artery.',
     thanks: 'That\'s right. Thank you.', fallback: 'Did anyone hear me? No more heparin — I\'ll write it on the orders myself.', gives: 'heparin-off',
     label: 'Read back the order: no more heparin', points: 10,
@@ -731,6 +732,12 @@ export const cathlabScad: Scenario = {
     askCritical(TECH_ASKS[1]),
     askCritical(RN_ASKS[1]),
     askCritical(RN_ASKS[2]),
+    {
+      // the cardiologist's decision once the SCAD is seen: the heparin given for the STEMI stops (no top-up, no drip)
+      id: 'md-heparin-off', label: 'Once the SCAD is seen: stop the heparin — no top-up, no drip', roles: MD, points: 5, applies: (s) => has(s, 'scad'),
+      why: 'Once SCAD is diagnosed, the heparin given for the STEMI is stopped when nothing else calls for it: it could feed the bleed in the wall of the artery (AHA 2018: "consideration of discontinuation is appropriate"). Say it, and write it: no top-up now and no heparin drip on the unit.',
+      done: (s) => firstDone(s, ['stop-antithrombotics'], 'scad'), uses: ['stop-antithrombotics'],
+    },
     // the cardiologist's beta-blocker: IV metoprolol in the lab or metoprolol by mouth are both right (AHA 2018: "should be
     // considered"). The nurse gives it because the operator orders it
     {

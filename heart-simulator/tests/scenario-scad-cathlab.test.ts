@@ -23,9 +23,10 @@ const IDEAL: Record<3 | 4 | 5, string[]> = {
   // called out, intracoronary nitroglycerin, "no more heparin" read back, metoprolol, fentanyl, the band, the repeat 12-lead, the hand-off
   4: ['consent', 'heparin', 'timeout', 'ecg12', 'callout', 'ic-nitro', 'callout', 'metoprolol', 'fentanyl', 'hemostasis', 'ecg12-repeat', 'handoff'],
   // the cardiologist: consent, heparin and the time-out before access; the damped catheter backed out; the diagnostic run;
-  // nitroglycerin and a repeat of the LAD; no intervention; metoprolol; the ache treated and a 12-lead; the echo; the hand-off
-  5: ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'metoprolol', 'fentanyl', 'ecg12',
-    'echo', 'handoff'],
+  // nitroglycerin and a repeat of the LAD; no intervention; the heparin stopped; metoprolol; the ache treated and a 12-lead;
+  // the echo; the hand-off
+  5: ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'stop-antithrombotics', 'metoprolol',
+    'fentanyl', 'ecg12', 'echo', 'handoff'],
 };
 const ROLES = [3, 4, 5] as const;
 const MD = IDEAL[5];
@@ -484,6 +485,12 @@ describe('SCAD in the cath lab: the independent review', () => {
     expect(missed(s)).toContain('Heparin for the STEMI, as ordered');
     // switching to bivalirudin before the diagnosis is not scored as a double dose (after it, it is the anticoagulation harm)
     expect(penalties(run(sc, 5, ['consent', 'heparin', 'bivalirudin']))).toEqual([]);
+    // the cardiologist stops the heparin once the SCAD is seen; the nurse's read-back may be the stop itself
+    const md = run(sc, 5, MD.filter((id) => id !== 'stop-antithrombotics'));
+    expect(missed(md)).toContain('Once the SCAD is seen: stop the heparin — no top-up, no drip');
+    const rn = IDEAL[4];
+    const stopped = run(sc, 4, rn.map((id, i) => (id === 'callout' && i === rn.lastIndexOf('callout') ? 'stop-antithrombotics' : id)));
+    expect(stopped.fired).toContain('rn-heparin-off-got');
     // her own second bolus: the case's double dose stands in for the built-in unguided repeat (one dose, one penalty)
     expect(penalties(run(sc, 4, ['consent', 'heparin', 'heparin']))).toEqual(['heparin-twice']);
   });

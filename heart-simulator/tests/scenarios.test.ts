@@ -166,8 +166,8 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
   'scad-cathlab': {
     3: ['prep', 'transducer', 'pads', 'timeout', 'cath-jl4', 'callout', 'view-lao-cranial', 'cath-jr4', 'hemostasis', 'ecg12'],
     4: ['consent', 'heparin', 'timeout', 'ecg12', 'callout', 'ic-nitro', 'callout', 'metoprolol', 'fentanyl', 'hemostasis', 'ecg12-repeat', 'handoff'],
-    5: ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'metoprolol', 'fentanyl',
-      'ecg12', 'echo', 'handoff'],
+    5: ['consent', 'heparin', 'timeout', 'access', 'cath-jl4', 'reposition', 'angio', 'ic-nitro', 'view-lao-cranial', 'stop-antithrombotics', 'metoprolol',
+      'fentanyl', 'ecg12', 'echo', 'handoff'],
   },
   'takotsubo-lvot-cathlab': {
     3: ['prep', 'transducer', 'pads', 'timeout', 'cath-tiger', 'callout', 'cath-pigtail', 'lvedp', 'callout', 'lv-gram', 'ecg12', 'hemostasis'],
@@ -250,7 +250,7 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
   },
   'pulmonary-embolism-lysis-ed': {
     6: ['ems-handoff', 'triage', 'monitor', 'o2-nrb', 'notify-physician', 'iv', 'labs', 'ecg12', 'perfusion', 'heparin', 'pressor', 'sample',
-      'neuro', 'alteplase', ...R(2), 'notify-physician', ...R(5), 'handoff'],
+      'neuro', 'stop-antithrombotics', 'alteplase', ...R(2), 'notify-physician', ...R(5), 'handoff'],
     7: ['ems-handoff', 'pocus', 'heparin', 'pressor', 'sample', 'alteplase', 'consult-cardiology', 'admit', ...R(5), 'handoff'],
   },
   'aortic-dissection-ed': {
@@ -267,7 +267,7 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
     6: ['call-help', 'cpr', 'defib', 'iv', 'cpr', 'defib', 'epinephrine', 'bvm', 'cpr', 'defib', 'amio-arrest', 'epinephrine', 'capno', 'cpr',
       'defib', 'cpr', 'pulse-check', 'pressor', 'bvm', 'ecg12', 'notify-physician', 'neuro', ...R(5), 'handoff'],
     7: ['defib', 'cpr', 'defib', 'epinephrine', 'airway', 'epinephrine', 'capno', 'cpr', 'defib', 'amio-arrest', 'hs-ts', 'cpr', 'defib', 'cpr',
-      'pulse-check', 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'neuro', ...R(5), 'handoff'],
+      'pulse-check', 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'neuro', 'temp-control', ...R(5), 'handoff'],
   },
 };
 

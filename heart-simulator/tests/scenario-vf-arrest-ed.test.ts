@@ -14,7 +14,7 @@ const IDEAL: Record<6 | 7, string[]> = {
     'cpr', 'pulse-check', 'pressor', 'bvm', 'ecg12', 'notify-physician', 'neuro', ...R(5), 'handoff'],
   // the second epinephrine 3.5 minutes after the first (every 3–5 minutes), as the tube goes in during the compressions
   7: ['defib', 'cpr', 'defib', 'epinephrine', 'airway', 'epinephrine', 'capno', 'cpr', 'defib', 'amio-arrest', 'hs-ts', 'cpr', 'defib',
-    'cpr', 'pulse-check', 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'neuro', ...R(5), 'handoff'],
+    'cpr', 'pulse-check', 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'neuro', 'temp-control', ...R(5), 'handoff'],
 };
 
 /** Each ideal run up to ROSC (the pulse check at the rhythm check after the converting shock) */
@@ -396,9 +396,14 @@ describe('after ROSC', () => {
   });
 
   it('temperature control for a patient who does not follow commands: the doctor orders it; the nurse\'s exam brings the physician\'s order', () => {
-    const md = doctor([...TO_ROSC[7], 'neuro']);
-    expect(md.log.at(-1)?.text).toMatch(/does not follow commands.*32 to 37\.5 °C.*at least 36 hours/);
+    // the doctor's exam finds the indication; the temperature control is its own order
+    const exam = doctor([...TO_ROSC[7], 'neuro']);
+    expect(exam.log.at(-1)?.text).toMatch(/does not follow commands: he needs temperature control\.$/);
+    expect('temp-control' in exam.flags).toBe(false);
+    const md = doctor([...TO_ROSC[7], 'neuro', 'temp-control']);
+    expect(md.log.at(-1)?.text).toMatch(/^Temperature control started: a feedback-controlled device set to the chosen target \(36 °C\), to be held at least 36 hours/);
     expect('temp-control' in md.flags).toBe(true);
+    expect(penalties(md)).toEqual([]);
     const rn = nurse([...TO_ROSC[6], 'pressor', 'neuro']);
     expect(rn.log.some((l) => l.who === 'physician' && /temperature control/.test(l.text))).toBe(true);
   });
@@ -505,7 +510,7 @@ describe('review fixes: shocks, doses and one-time actions', () => {
     expect([tried.minute, tried.counts.neuro, tried.counts.pressor, penalties(tried)]).toEqual([2.3, undefined, undefined, []]);
     expect(tried.log.at(-1)?.text).toMatch(/no pressure to titrate an infusion to/);
     const rosc = doctor([...TO_ROSC[7], 'neuro', 'pressor']);
-    expect(['temp-control' in rosc.flags, rosc.vitals.sbp]).toEqual([true, 104]);
+    expect(['neuro-rosc' in rosc.flags, rosc.vitals.sbp]).toEqual([true, 104]);
     // the nurse's version: no order to answer for during the arrest
     expect(penalties(nurse(['call-help', 'cpr', 'defib', 'iv', 'pressor']))).toEqual([]);
   });
@@ -538,7 +543,7 @@ describe('review fixes: shocks, doses and one-time actions', () => {
   it('the interventional cardiologist asks for temperature control only if nobody has ordered it yet', () => {
     const before = doctor([...TO_ROSC[7], 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'reassess']);
     expect(before.log.some((l) => l.who === 'consultant' && /if he does not follow commands, start temperature control/.test(l.text))).toBe(true);
-    const after = doctor([...TO_ROSC[7], 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'neuro', 'reassess']);
+    const after = doctor([...TO_ROSC[7], 'pressor', 'bvm', 'ecg12', 'cath-lab-activate', 'neuro', 'temp-control', 'reassess']);
     expect(after.log.some((l) => l.who === 'consultant' && /keep the temperature control going/.test(l.text))).toBe(true);
   });
 

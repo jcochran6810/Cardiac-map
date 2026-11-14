@@ -91,6 +91,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'glucose', label: 'Blood glucose', category: 'assess', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5, repeatable: true },
   { id: 'neuro', label: 'Neuro check: GCS and stroke screen', category: 'assess', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'reassess', label: 'Reassess the patient (2 min)', category: 'assess', roles: ALL, minutes: 2, repeatable: true },
+  // the department's watchful wait: the clock runs a minute at a time and stops as soon as something happens
+  { id: 'observe', label: 'Observe on the monitor (up to 15 min)', category: 'assess', roles: ED_TEAM, settings: ED, minutes: 0, repeatable: true, detail: 'the monitor on, a nurse in the room: the clock stops at the first change' },
 
   // Monitoring & ECG
   { id: 'monitor', label: 'Attach the cardiac monitor and pulse oximeter', category: 'monitor', roles: ALL, minutes: 1 },
@@ -103,6 +105,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'ecg-posterior', label: 'Posterior leads (V7–V9)', category: 'monitor', roles: MANUAL, minutes: 1 },
   { id: 'capno', label: 'Waveform capnography (EtCO₂)', category: 'monitor', roles: MANUAL, minutes: 0.5, repeatable: true },
   { id: 'transducer', label: 'Zero and level the pressure transducers', category: 'monitor', roles: [3, 4], settings: LAB, minutes: 0.5 },
+  { id: 'arterial-line', label: 'Radial arterial line', category: 'monitor', roles: ED_MD, settings: ED, minutes: 5, detail: 'beat-to-beat pressure for a pressor or a titrated infusion; in a dissection the arm with the higher pressure; a compressible site after a fibrinolytic' },
   { id: 'labs', label: 'Draw labs: troponin, electrolytes, CBC, coagulation', category: 'monitor', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5 },
   // the chest pain pathway's serial high-sensitivity troponin (2021 AHA/ACC chest pain guideline: at 0 and 1–3 h), part of
   // the chest pain order set the nurse draws on
@@ -140,6 +143,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'o2-nc', label: 'Oxygen by nasal cannula', category: 'airway', roles: ALL, minutes: 0.5, detail: '2–4 L/min' },
   { id: 'o2-nrb', label: 'Oxygen by non-rebreather mask', category: 'airway', roles: ALL, minutes: 0.5, detail: '15 L/min' },
   { id: 'bvm', label: 'Bag-valve-mask ventilation', category: 'airway', roles: ALL, minutes: 0.5, repeatable: true },
+  // the ER nurse's set-up for the physician's sedation or bedside procedure: airway equipment ready, not used
+  { id: 'procedure-setup', label: 'Set up for the physician\'s procedure: suction, bag-mask on oxygen, airway adjuncts, the crash cart open', category: 'airway', roles: ED_RN, settings: ED, minutes: 0.5 },
   { id: 'cpap', label: 'CPAP', category: 'airway', roles: [1, 2, 6, 7], settings: FIELD_ED, minutes: 1 },
   { id: 'airway', label: 'Advanced airway (supraglottic or intubation)', category: 'airway', roles: [2, 5, 7], minutes: 3 },
   // the ER doctor intubates a patient with a pulse who still breathes and guards the airway: induction drug and paralytic
@@ -165,6 +170,8 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'fentanyl', label: 'Fentanyl IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '25–50 mcg (0.5–1 mcg/kg)', repeatable: true, maxTimes: 3, needsAccess: true },
   // the dose depends on where it is given: the lab the PCI dose, the ED the ACS (or fibrinolytic) bolus and infusion
   { id: 'heparin', label: 'Unfractionated heparin IV bolus', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, detail: '70–100 U/kg for primary PCI', detailBySetting: { ed: 'weight-based: 60 U/kg (max 4,000 U), then 12 U/kg/h (max 1,000 U/h) for ACS; for a pulmonary embolism 80 U/kg, then 18 U/kg/h; the cath lab tops it up for PCI — not with heparin-induced thrombocytopenia, active bleeding or a possible aortic dissection' }, repeatable: true, maxTimes: 3, needsAccess: true },
+  // stopping a drip for a bleed (or a lytic, or SCAD) is within the nurse's judgment: the physician is told
+  { id: 'stop-antithrombotics', label: 'Stop the heparin, bivalirudin, GP IIb/IIIa or cangrelor infusion', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.2, detail: 'off at the pump, no more boluses, and the orders say so' },
   { id: 'p2y12', label: 'P2Y12 loading dose', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, detail: 'ticagrelor 180 mg (or prasugrel 60 mg)', detailBySetting: { ed: 'by mouth: ticagrelor 180 mg (prasugrel 60 mg only once the anatomy is known); with a fibrinolytic, clopidogrel 300 mg (75 mg over age 75)' } },
   { id: 'metoprolol', label: 'Metoprolol IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '5 mg', needsAccess: true },
   // the titratable IV beta-blockers in hospital (a dissection's anti-impulse therapy, a rate to bring down for minutes),
@@ -241,6 +248,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'vagal', label: 'Vagal maneuver (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5 },
   { id: 'hs-ts', label: 'Look for reversible causes (Hs and Ts)', category: 'resus', roles: ALS_RN_MD, minutes: 0.5 },
   { id: 'sit-up', label: 'Sit the patient up, legs down', category: 'resus', roles: ALL, minutes: 0.2, detail: 'upright, the legs hanging down: less blood returns to a heart that is backing up into the lungs, and the breathing is easier' },
+  { id: 'temp-control', label: 'Temperature control after ROSC (32–37.5 °C)', category: 'resus', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 1, detail: 'for a patient who does not follow commands after ROSC: a feedback device, the chosen target held at least 36 hours, fever prevented; no rapid cold IV fluids (2025 AHA)' },
   { id: 'legs-up', label: 'Lay flat and raise the legs', category: 'resus', roles: ALL, minutes: 0.3, detail: 'about 45°: blood from the legs returns to the heart for a few minutes' },
 
   // Procedures (cath lab; the ER doctor drains the pericardium at the bedside)
@@ -305,6 +313,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'cath-lab-activate', label: 'Activate the cath lab (STEMI alert from the ED)', category: 'team', roles: ED_MD, settings: ED, minutes: 0.5, detail: 'one call brings in the interventional cardiologist and the lab team; the goal is arrival to device within 90 minutes' },
   { id: 'consult-cardiology', label: 'Consult cardiology', category: 'team', roles: ED_MD, settings: ED, minutes: 1, repeatable: true, maxTimes: 2, detail: 'the question, the 12-lead and the findings, physician to physician' },
   { id: 'admit', label: 'Admit: CCU or ICU', category: 'team', roles: ED_MD, settings: ED, minutes: 1, detail: 'the admitting team accepts; the patient stays on the monitor with a nurse until the bed is ready' },
+  { id: 'discharge', label: 'Discharge home with follow-up', category: 'team', roles: ED_MD, settings: ED, minutes: 1, detail: 'only when the workup has ruled out what could kill: instructions, the follow-up booked, and what should bring the patient back' },
   { id: 'transfer', label: 'Transfer to a center that can treat it (PCI, cardiac surgery)', category: 'team', roles: ED_MD, settings: ED, minutes: 2, detail: 'physician-to-physician acceptance (EMTALA), critical care transport, and the records and images go with the patient' },
   { id: 'handoff', label: 'Hand-off report (SBAR)', category: 'team', roles: ALL, minutes: 1 },
 ];

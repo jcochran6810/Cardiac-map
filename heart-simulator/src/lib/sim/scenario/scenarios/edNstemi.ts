@@ -599,6 +599,11 @@ export const edNstemi: Scenario = {
   ],
   harms: [
     {
+      // the "discharge after one troponin" trap, in this case's words: it stands in for the built-in unsafe discharge
+      id: 'discharge-acs', actions: ['discharge'], roles: ED_MD, points: 15, severity: 'critical', replaces: ['discharge-unsafe'],
+      text: 'Discharging a woman with an NSTE-ACS. Diffuse ST depression with aVR up, recurring pain, diabetes and a first troponin above the women\'s limit make her high risk: one troponin rules nothing out — the chest pain pathway repeats the high-sensitivity troponin at 1–3 hours (2021 AHA/ACC chest pain guideline), and her picture needs admission, antithrombotic treatment and an early invasive strategy (2025 ACC/AHA ACS guideline).',
+    },
+    {
       // one penalty for one fibrinolytic: it stands in for the built-in rule (and, for the nurse, the built-in 'no order')
       id: 'lytic-st-depression', actions: ['tnk', 'alteplase'], roles: ED_MD, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',
       replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],

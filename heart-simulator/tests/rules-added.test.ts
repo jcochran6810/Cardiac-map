@@ -242,3 +242,72 @@ describe('IV nitroglycerin and calcium gluconate reach the existing rules', () =
     expect(INTERVENTION_BY_ID.inotrope.detail).toMatch(/milrinone 0\.125–0\.75 mcg\/kg\/min, no routine bolus, a lower dose with kidney disease/);
   });
 });
+
+describe('the hospital team actions: arterial line, procedure set-up, stopping the drips, temperature control, discharge, observing', () => {
+  it('an arterial line shows the pressure beat to beat (flag bp); not during CPR', () => {
+    const s = run(edLine({ vitals: { sbp: 150, dbp: 90 } }), 7, ['arterial-line']);
+    expect(s.log.at(-1)!.text).toBe('Arterial line: 150/90, MAP 110, beat to beat.');
+    expect(s.flags).toMatchObject({ 'arterial-line': expect.any(Number), bp: expect.any(Number) });
+    const vf = edLine({ rhythm: { profile: 'vf', hr: 0 }, pulse: false });
+    expect(perform(vf, start(vf, 7), 'arterial-line').counts['arterial-line']).toBeUndefined();
+  });
+
+  it('the ER nurse sets up for the physician\'s procedure', () => {
+    const s = run(opened('ed', 6, []), 6, ['procedure-setup']);
+    expect(s.flags).toMatchObject({ 'procedure-setup': expect.any(Number), 'airway-ready': expect.any(Number) });
+    expect(INTERVENTION_BY_ID['procedure-setup']).toMatchObject({ roles: [6], settings: ['ed'], category: 'airway' });
+  });
+
+  it('stopping the drips needs something given; it names what it stops', () => {
+    const none = edLine();
+    const refused = perform(none, start(none, 7), 'stop-antithrombotics');
+    expect(refused.counts['stop-antithrombotics']).toBeUndefined();
+    expect(refused.log.at(-1)!.text).toMatch(/^There is no heparin, bivalirudin, GP IIb\/IIIa or cangrelor to stop/);
+    const s = run(edLine(), 7, ['heparin', 'stop-antithrombotics']);
+    expect(s.log.at(-1)!.text).toBe('Stopped: heparin — off at the pump, no more boluses, and the orders say so.');
+    expect(s.flags['antithrombotics-stopped']).toBeDefined();
+  });
+
+  it('temperature control: after ROSC for a patient who does not follow commands; charged without that (3, minor); never during CPR', () => {
+    const awake = edLine();
+    expect(penaltyIds(awake, 7, ['temp-control'])).toEqual(['temp-control-no-indication']);
+    const rosc = opened('ed', 7, ['iv', 'rosc'], { vitals: { gcs: 3 } });
+    expect(penaltyIds(rosc, 7, ['temp-control'])).toEqual([]);
+    expect(run(rosc, 7, ['temp-control']).flags['temp-control']).toBeDefined();
+    const awakeAfter = opened('ed', 7, ['iv', 'rosc'], { vitals: { gcs: 14 } });
+    expect(penaltyIds(awakeAfter, 7, ['temp-control'])).toEqual(['temp-control-no-indication']);
+    expect(penaltyIds(opened('ed', 7, ['iv'], { harms: [exempt('temp-control-no-indication', ['temp-control'])] }), 7, ['temp-control'])).toEqual([]);
+    const vf = edLine({ rhythm: { profile: 'vf', hr: 0 }, pulse: false });
+    expect(perform(vf, start(vf, 7), 'temp-control').counts['temp-control']).toBeUndefined();
+  });
+
+  it('discharge: critical unless the case says the patient may go; the hand-off is to the patient', () => {
+    const s = run(edLine(), 7, ['discharge', 'handoff']);
+    expect(s.penalties.map((p) => [p.id, p.points, p.severity])).toEqual([['discharge-unsafe', 15, 'critical']]);
+    expect(s.log.some((l) => l.text === 'SBAR hand-off to the patient, with discharge instructions and follow-up.')).toBe(true);
+    expect(s.flags.dispo).toBeDefined();
+    expect(penaltyIds(edLine({ extra: { dischargeOk: () => true } }), 7, ['discharge'])).toEqual([]);
+    expect(penaltyIds(edLine({ harms: [exempt('discharge-unsafe', ['discharge'])] }), 7, ['discharge'])).toEqual([]);
+  });
+
+  it('observing runs the clock a minute at a time, up to 15, and stops at the first thing that happens', () => {
+    const quiet = run(edLine(), 7, ['observe']);
+    expect(quiet.minute).toBe(15);
+    expect(quiet.log.slice(-3).map((l) => l.text)[0]).toBe('Watched on the monitor for 15 minutes.');
+    expect(quiet.flags.bp).toBeDefined();
+    const event = edLine({ extra: { events: [
+      { id: 'setup', when: () => true, effect: () => ({ flags: ['iv'] }) },
+      { id: 'pain', when: (s) => s.minute >= 4, effect: () => ({ say: [['patient', 'The pain is back!']], vitals: { pain: 7 } }) },
+    ] } });
+    const s = run(event, 7, ['observe']);
+    expect(s.minute).toBe(4);
+    expect(s.log.some((l) => l.text === 'The pain is back!')).toBe(true);
+    expect(s.log.at(-1)!.text).toBe('Pain 7/10.');
+    const arrest = edLine({ extra: { events: [{ id: 'vf', when: (s) => s.minute >= 3, effect: () => ({ rhythm: { profile: 'vf', hr: 0 }, pulse: false }) }] } });
+    const vf = run(arrest, 7, ['observe']);
+    expect([vf.minute, vf.pulse]).toEqual([3, false]);
+    // nothing to watch in an arrest
+    const pulseless = edLine({ rhythm: { profile: 'vf', hr: 0 }, pulse: false });
+    expect(perform(pulseless, start(pulseless, 7), 'observe').counts.observe).toBeUndefined();
+  });
+});

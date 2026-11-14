@@ -99,6 +99,18 @@ export const ADDED_RULES: Harm[] = [
     text: 'IV furosemide with no fluid overload to treat. It is for congestion — pulmonary edema, decompensated heart failure — or as an add-on for a high potassium in a patient who makes urine; otherwise it only dries the patient out and lowers the potassium.',
   },
 
+  // Temperature control: for a patient who does not follow commands after ROSC
+  {
+    id: 'temp-control-no-indication', actions: ['temp-control'], when: (s) => !has(s, 'rosc') || s.vitals.gcs >= 13, points: 3, severity: 'minor',
+    text: 'Temperature control without its indication. It is for an adult who does not follow commands after the return of circulation (2025 AHA: a chosen target of 32–37.5 °C for at least 36 hours); a patient who never arrested, or who is awake after ROSC, needs only a normal temperature kept — and cooling an awake patient brings shivering and discomfort for nothing.',
+  },
+
+  // Discharge from the emergency department: only when the case says the patient may go home
+  {
+    id: 'discharge-unsafe', actions: ['discharge'], when: (s, sc) => !sc.dischargeOk?.(s), points: 15, severity: 'critical',
+    text: 'Discharging a patient who still needs the hospital. Home is for a patient whose workup has ruled out what could kill them and who is safe to go: this one needs admission, the cath lab or a transfer. A discharge that sends a heart attack, a dissection or an arrhythmia home is how patients die after leaving the department.',
+  },
+
   // Sitting up: for the breathless patient with fluid on the lungs; with a low pressure it pools the blood in the legs
   {
     id: 'sit-up-low-pressure', actions: ['sit-up'], when: (s, sc) => s.pulse && lowPressure(s) && !hasProblem(sc, ['pulmonary-edema']), points: 5, severity: 'major',

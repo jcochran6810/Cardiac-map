@@ -94,8 +94,8 @@ describe('emergency department scope', () => {
   it('leaves the field and the cath lab roles exactly as they were', () => {
     const edOnly = INTERVENTIONS.filter((iv) => iv.settings?.length === 1 && iv.settings[0] === 'ed').map((iv) => iv.id);
     expect(edOnly.sort()).toEqual([
-      'admit', 'alteplase', 'cath-lab-activate', 'central-line', 'consult-cardiology', 'cxr', 'ems-handoff', 'notify-physician', 'pocus',
-      'procedural-sedation', 'rsi', 'transfer', 'triage', 'troponin-repeat',
+      'admit', 'alteplase', 'arterial-line', 'cath-lab-activate', 'central-line', 'consult-cardiology', 'cxr', 'discharge', 'ems-handoff',
+      'notify-physician', 'observe', 'pocus', 'procedural-sedation', 'procedure-setup', 'rsi', 'transfer', 'triage', 'troponin-repeat',
     ]);
     for (const [role, setting] of [[1, 'field'], [2, 'field'], [3, 'cathlab'], [4, 'cathlab'], [5, 'cathlab']] as const) {
       const offered = interventionsFor(role, setting).map((i) => i.id);
