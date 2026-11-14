@@ -3120,4 +3120,750 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     relatedConditions: ['acute-pericarditis', 'nstemi', 'anterior-stemi'],
   },
+
+  // ─── Drugs the simulator gives: lytic, rate, lab, sedation, antidotes, vasodilators ───
+  alteplase: {
+    id: 'alteplase',
+    name: 'Alteplase',
+    brandNames: ['Activase', 'Actilyse', 'Cathflo Activase'],
+    drugClass: 'Fibrinolytic (recombinant tissue plasminogen activator, tPA)',
+    summary:
+      'Recombinant tPA that turns clot-bound plasminogen into plasmin, which dissolves the fibrin. It runs as an infusion: for acute ischemic stroke, for a pulmonary embolism with cardiopulmonary failure, and in older STEMI regimens, where the single-bolus tenecteplase has largely replaced it.',
+    levelNotes: [
+      'Alteplase is a hospital drug, but what you bring decides whether it can be given: the exact time the patient was last known well, any recent stroke, surgery, head injury or bleeding, and the medicine list (anticoagulants). Notify early and transport fast to the right center.',
+      'Prehospital lysis, where a system allows it, is tenecteplase, not alteplase. For a suspected stroke or a massive PE, bring the last-known-well time, the glucose, a stroke scale and the anticoagulant list, and notify early: they decide eligibility at the door.',
+      'In the lab alteplase may run through a catheter (catheter-directed lysis of a PE or a clotted graft) on physician order. Record the dose, the rate and the start time, keep new punctures to a minimum, and report oozing or any neurologic change at once.',
+      'Run the infusion on a pump exactly as ordered (PE: 100 mg over 2 h; catheter-directed: the low protocol dose). Check neuro status and vital signs often, give no IM injections, and stop it and call at once for a headache, a falling GCS or major bleeding.',
+      'Systemic lysis for PE is for cardiopulmonary failure (AHA/ACC 2026 category E; may be considered in D) when the bleeding risk allows, and must not be used in categories A1–C2. Pause heparin during the 2 h infusion and restart it once the aPTT is under twice normal; catheter-directed or surgical therapy when lysis is contraindicated or fails.',
+      'Two large IVs and the labs first; then 100 mg over 2 h for PE (or the stroke dose) on a pump, alone in its line. Stop the heparin infusion while it runs. Neuro checks and pressures every 15 min; stop it and call for a headache, vomiting, a new deficit or bleeding, and know the reversal plan.',
+      'Go through the bleeding checklist yourself before you order it: any prior intracranial hemorrhage, an ischemic stroke within 3 months, an intracranial lesion, recent neurosurgery or head trauma, active bleeding or a suspected dissection rule it out. For PE only with cardiopulmonary failure; in an arrest from a suspected PE it may be considered.',
+    ],
+    mechanism: [
+      'Binds fibrin and converts clot-bound plasminogen to plasmin, which lyses the fibrin',
+      'Half-life ~5 min: given as an infusion, unlike the single-bolus tenecteplase',
+      'Less fibrin-specific than tenecteplase: some systemic fibrinogen depletion',
+    ],
+    indications: [
+      'Acute ischemic stroke within 4.5 h of last known well',
+      'Pulmonary embolism with cardiopulmonary failure (AHA/ACC 2026 category E; may be considered in category D)',
+      'Cardiac arrest from a suspected pulmonary embolism (may be considered — 2025 AHA)',
+      'STEMI when primary PCI cannot happen in time (tenecteplase, one bolus, is simpler)',
+      'Catheter-directed lysis; restoring flow in an occluded central line (Cathflo, 2 mg)',
+    ],
+    dosing: [
+      'PE: 100 mg IV over 2 h; heparin is paused during the infusion and restarted once the aPTT is under twice normal',
+      'Acute ischemic stroke: 0.9 mg/kg (max 90 mg) — 10% as a bolus over 1 min, the rest over 60 min',
+      'STEMI (accelerated): 15 mg bolus, then 0.75 mg/kg (max 50 mg) over 30 min, then 0.5 mg/kg (max 35 mg) over 60 min',
+      'Cardiac arrest from a suspected PE: a bolus per local protocol, with CPR kept going long enough for it to work',
+    ],
+    contraindications: [
+      'Active internal bleeding',
+      'Any prior intracranial hemorrhage, or an ischemic stroke within 3 months (for stroke treatment, its own criteria)',
+      'Intracranial or intraspinal surgery, or serious head trauma, within 3 months',
+      'An intracranial neoplasm, arteriovenous malformation or aneurysm',
+      'A known bleeding diathesis',
+      'Severe uncontrolled hypertension',
+      'Suspected aortic dissection',
+      'Pulmonary embolism without cardiopulmonary failure (AHA/ACC 2026 categories A1–C2) — systemic lysis must not be used',
+      'A TIA, or an ischemic stroke more than 3 months ago (relative)',
+      'Recent major surgery or trauma, or GI or urinary bleeding (relative)',
+      'Systolic 175 mmHg or more, or diastolic 110 or more (relative)',
+      'Acute pericarditis or bacterial endocarditis (relative)',
+      'An oral anticoagulant, pregnancy, or non-compressible vascular punctures (relative)',
+    ],
+    adverseEffects: [
+      'Bleeding — intracranial hemorrhage is the feared one (headache, vomiting, a falling GCS, a new deficit)',
+      'Orolingual angioedema (more likely with an ACE inhibitor)',
+      'Reperfusion arrhythmias after STEMI lysis',
+      'Cholesterol embolization (rare)',
+    ],
+    ecgEffects: [
+      'No direct ECG effect',
+      'STEMI: ST resolution and reperfusion arrhythmias (AIVR) when it works',
+      'PE: the tachycardia and the right-heart strain pattern ease as the clot lyses',
+    ],
+    hemodynamics: [
+      'PE: the right ventricle unloads — the pressure and the oxygen saturation recover over hours',
+      'Bleeding causes hypotension',
+    ],
+    monitoring: [
+      'Neuro checks and vital signs every 15 min during the infusion, then often for 24 h',
+      'Bleeding: puncture sites, gums, urine, stool; hemoglobin',
+      'aPTT before heparin is restarted (under twice normal)',
+      'Tongue and lips for angioedema, especially with an ACE inhibitor',
+    ],
+    interactions: [
+      'Heparin: paused during PE lysis, restarted when the aPTT is under twice normal',
+      'Antiplatelets and anticoagulants add bleeding',
+      'ACE inhibitors raise the risk of angioedema',
+      'Give it in its own line',
+    ],
+    teaching: [
+      'Tenecteplase replaced alteplase for STEMI (one bolus); alteplase is the best-studied agent for PE and a standard for stroke',
+      'For PE the decision follows the circulation, not the size of the clot: lysis is for cardiopulmonary failure',
+      'Absolute contraindications are checked before the order, not after the bleed',
+      'Serious bleeding: stop it; cryoprecipitate and an antifibrinolytic (tranexamic acid) per local protocol',
+    ],
+    relatedConditions: ['pulmonary-embolism', 'anterior-stemi'],
+  },
+
+  verapamil: {
+    id: 'verapamil',
+    name: 'Verapamil',
+    brandNames: ['Calan', 'Isoptin'],
+    drugClass: 'Non-dihydropyridine calcium-channel blocker (class IV antiarrhythmic)',
+    summary:
+      'Blocks L-type calcium channels in the AV node and the heart muscle: it slows AV conduction and the rate and weakens contraction. Given IV for SVT and rate control, and intracoronary (or in the radial cocktail) against spasm and no-reflow.',
+    levelNotes: [
+      'Verapamil is an ALS and hospital drug, but many patients take it by mouth for blood pressure, angina or rate control. Record it: with a β-blocker it can cause a very slow pulse and a low pressure.',
+      'Diltiazem is the field calcium-channel blocker, and the same rules apply: never for a wide or an irregular wide tachycardia, pre-excited AF, a low pressure or heart failure, and not within hours of an IV β-blocker. Calcium is the antidote.',
+      'In the lab it goes intracoronary for no-reflow (100–200 mcg boluses) and into the radial sheath against spasm. Have it drawn up and labeled, record each dose and time, and watch for a slow rate or heart block after an intracoronary bolus, above all in the right coronary.',
+      'Know the radial-cocktail and no-reflow doses and record each one. Watch for bradycardia, heart block and hypotension, especially in a patient on a β-blocker, with atropine, pacing and calcium chloride at hand.',
+      'Intracoronary verapamil for no-reflow; radial spasm prophylaxis. IV it is an alternative to diltiazem for AVNRT, but contraindicated in VT, pre-excited AF, cardiogenic shock and HFrEF, and within hours of an IV β-blocker. An overdose needs calcium, high-dose insulin and pressors.',
+      'If it is ordered for an SVT: 2.5–5 mg IV over 2 min (3 min in the elderly), on the monitor with the pads on. Check the pressure before and after and have calcium chloride ready. Never push it into a wide-complex tachycardia, and never right after an IV β-blocker.',
+      'Second line for a regular narrow SVT, after vagal maneuvers and adenosine. Not for a wide tachycardia of uncertain origin (collapse in VT), pre-excited AF, a low pressure, HFrEF or AV block. An overdose: calcium, high-dose insulin with glucose, pressors and pacing.',
+    ],
+    mechanism: [
+      'Blocks L-type calcium channels in the SA and AV nodes → a slower rate and slower AV conduction',
+      'Negative inotrope; dilates arterioles and the coronary arteries',
+      'Relieves coronary and radial artery spasm',
+    ],
+    indications: [
+      'Regular narrow-complex SVT after vagal maneuvers and adenosine',
+      'Rate control in AF or flutter without pre-excitation or HFrEF',
+      'Intracoronary: no-reflow and coronary spasm',
+      'Radial artery spasm prophylaxis (radial cocktail)',
+    ],
+    dosing: [
+      'SVT: 2.5–5 mg IV over 2 min (over 3 min in the elderly); 5–10 mg after 15–30 min if needed (max 20 mg)',
+      'Intracoronary for no-reflow: 100–200 mcg boluses, up to about 1 mg',
+      'Radial cocktail: typically 2.5–5 mg into the sheath, with heparin (and often nitroglycerin)',
+    ],
+    contraindications: [
+      'Severe hypotension or cardiogenic shock',
+      'Sick sinus syndrome or second- or third-degree AV block without a pacemaker',
+      'Severe heart failure or an LVEF under 40% (2023 AF: IV non-dihydropyridine calcium-channel blockers — 3: Harm)',
+      'An IV β-blocker given together or within a few hours (label)',
+      'AF or flutter with an accessory pathway (pre-excited AF, WPW)',
+      'Ventricular tachycardia, or a wide-complex tachycardia of uncertain origin',
+      'Hypersensitivity to verapamil',
+    ],
+    adverseEffects: [
+      'Hypotension and bradycardia',
+      'AV block and asystole (more with a β-blocker)',
+      'Worsening heart failure',
+      'Constipation (by mouth)',
+    ],
+    ecgEffects: [
+      'PR prolongation',
+      'Slows the ventricular rate in AF and flutter; terminates AVNRT',
+      'AV block or a junctional rhythm in toxicity',
+    ],
+    hemodynamics: [
+      '↓HR, ↓contractility and ↓SVR — the pressure falls',
+      'Coronary vasodilation',
+    ],
+    monitoring: [
+      'Continuous ECG with the pads on',
+      'Blood pressure every few minutes after an IV dose',
+      'PR interval and AV conduction',
+    ],
+    interactions: [
+      'IV β-blockers → profound bradycardia, AV block and asystole (contraindicated within a few hours)',
+      'Digoxin: its level rises and the AV block adds up',
+      'Raises the levels of statins, colchicine, DOACs and others (a CYP3A4 and P-gp inhibitor)',
+      'IV calcium (chloride or gluconate) reverses it',
+    ],
+    teaching: [
+      'A wide tachycardia is VT until proven otherwise: verapamil in VT can be fatal',
+      'Pre-excited AF: an AV-nodal blocker sends every impulse down the pathway',
+      'In the lab its main uses are the microvessels (no-reflow) and the radial artery',
+      'An overdose is one of the deadliest cardiac drug overdoses: calcium, high-dose insulin, pressors, pacing',
+    ],
+    relatedConditions: ['avnrt', 'atrial-fibrillation', 'wpw-syndrome'],
+  },
+
+  eptifibatide: {
+    id: 'eptifibatide',
+    name: 'Eptifibatide',
+    brandNames: ['Integrilin'],
+    drugClass: 'GP IIb/IIIa receptor antagonist (IV antiplatelet)',
+    summary:
+      'A short-acting IV blocker of the platelet GP IIb/IIIa receptor, the final common path of platelet aggregation. Today mostly a bailout at PCI for a heavy thrombus or no-reflow, given with heparin or bivalirudin.',
+    levelNotes: [
+      'Eptifibatide is a hospital drug. On a transfer, report the running infusion and any bleeding (gums, puncture sites, urine) or a new headache at once.',
+      'On an interfacility transfer keep the infusion at the ordered rate, keep the access site in view, and stop it and call medical direction for major bleeding or any neurologic change.',
+      'It is drawn up for bailout during PCI (a heavy thrombus, no-reflow). Record the bolus doses and the start of the infusion, and report oozing at the access site or around the sheath.',
+      'Double bolus 10 min apart, then the infusion; check the creatinine clearance (under 50 mL/min: half the infusion). Watch the access site, the hemoglobin and the platelet count (a sudden drop is GP IIb/IIIa thrombocytopenia), and stop it for serious bleeding.',
+      'A bailout, not routine: a large thrombus or no-reflow at PCI. Contraindicated with recent bleeding, a recent or hemorrhagic stroke, recent major surgery, uncontrolled hypertension and dialysis; halve the infusion with a CrCl under 50. Platelet function recovers within about 4 h of stopping it.',
+      'Rare in the ED today. If it arrives running, know the rate and the kidney function, watch for bleeding and a sudden platelet drop, and stop it and call for any serious bleeding or a neurologic change.',
+      'Routine upstream GP IIb/IIIa before the cath lab is not recommended; it is a lab decision. If a patient arrives on it, the bleeding and stroke contraindications apply, and stopping it is the reversal (about 4 h).',
+    ],
+    mechanism: [
+      'Reversibly blocks the platelet GP IIb/IIIa receptor, so fibrinogen cannot link platelets together',
+      'Inhibits aggregation whatever started it (ADP, thrombin, collagen)',
+      'Short-acting: platelet function returns within about 4 h of stopping it; cleared by the kidneys',
+    ],
+    indications: [
+      'Bailout at PCI: a large thrombus burden, slow flow or no-reflow',
+      'High-risk NSTE-ACS going to PCI (selected patients)',
+    ],
+    dosing: [
+      'PCI: 180 mcg/kg IV bolus, a second 180 mcg/kg bolus 10 min later, and 2 mcg/kg/min for up to 18–24 h',
+      'Creatinine clearance under 50 mL/min: the infusion is 1 mcg/kg/min (the boluses are unchanged)',
+      'With heparin (lower ACT target) or bivalirudin',
+    ],
+    contraindications: [
+      'A bleeding diathesis, or abnormal bleeding within the past 30 days',
+      'Severe hypertension that is not controlled — systolic above 200 or diastolic above 110 mmHg',
+      'Major surgery within the past 6 weeks',
+      'A stroke within 30 days, or any hemorrhagic stroke ever',
+      'Another IV GP IIb/IIIa inhibitor',
+      'Dependence on dialysis',
+      'Hypersensitivity to eptifibatide',
+      'Platelets under 100,000 (label warning)',
+      'After a full-dose fibrinolytic (relative — bleeding)',
+    ],
+    adverseEffects: [
+      'Bleeding, mostly at the access site',
+      'Thrombocytopenia (sudden and sometimes profound)',
+      'Intracranial hemorrhage (rare)',
+    ],
+    ecgEffects: [
+      'No direct ECG effect',
+    ],
+    hemodynamics: [
+      'No direct hemodynamic effect; bleeding can cause hypotension',
+    ],
+    monitoring: [
+      'Access site and other bleeding',
+      'Platelet count at baseline and within hours of starting',
+      'Hemoglobin; creatinine clearance before the infusion rate is set',
+    ],
+    interactions: [
+      'Heparin, bivalirudin, P2Y12 inhibitors and fibrinolytics add bleeding',
+      'Not with another GP IIb/IIIa inhibitor',
+    ],
+    teaching: [
+      'GP IIb/IIIa inhibitors are now a bailout in the lab, not a routine part of ACS care',
+      'Kidney failure: halve the infusion (CrCl under 50); dialysis is a contraindication',
+      'A sudden platelet drop on it is drug-induced thrombocytopenia — stop it',
+    ],
+    relatedConditions: ['nstemi', 'anterior-stemi'],
+  },
+
+  cangrelor: {
+    id: 'cangrelor',
+    name: 'Cangrelor',
+    brandNames: ['Kengreal'],
+    drugClass: 'IV P2Y12 inhibitor (reversible)',
+    summary:
+      'An IV P2Y12 inhibitor that works within minutes and wears off within about an hour of stopping it. Used at PCI in patients who have not been given an oral P2Y12 inhibitor, and sometimes to bridge to surgery.',
+    levelNotes: [
+      'Cangrelor is given only in the cath lab or hospital. Report any bleeding on a transfer.',
+      'Not a field drug. On a transfer after PCI, know whether the patient has had an oral P2Y12 load; the cangrelor effect is gone within an hour of stopping it.',
+      'Drawn up at PCI for a patient with no oral P2Y12 load. Record the bolus and infusion start times, and remind the team of the timing of the oral load that must follow.',
+      'Bolus, then the infusion for at least 2 h or the length of the PCI. The oral load follows on time: ticagrelor any time, clopidogrel or prasugrel only once the infusion has stopped (right after it), never during it.',
+      'For P2Y12-naive patients at PCI, or when oral loading is not possible (intubated, vomiting, shock). Plan the transition: ticagrelor 180 mg during or right after the infusion; prasugrel 60 mg or clopidogrel 600 mg as it stops.',
+      'Rare outside the lab. If a patient comes back from the lab on it, check that the oral P2Y12 load was given or is ordered for when it stops, and watch the access site.',
+      'Know the transition rule if you start the oral P2Y12 inhibitor: clopidogrel and prasugrel cannot bind while cangrelor occupies the receptor — give them after it stops, or the patient is unprotected when it wears off.',
+    ],
+    mechanism: [
+      'Reversibly blocks the platelet P2Y12 (ADP) receptor',
+      'Full effect within about 2 min of the bolus; platelet function recovers within about 1 h of stopping it',
+      'Does not need liver activation (unlike clopidogrel and prasugrel)',
+    ],
+    indications: [
+      'PCI in patients not given an oral P2Y12 inhibitor',
+      'When oral loading is not possible (intubated, vomiting, cardiogenic shock)',
+      'Bridge to surgery in a patient with a recent stent (off-label)',
+    ],
+    dosing: [
+      'PCI: 30 mcg/kg IV bolus, then 4 mcg/kg/min for at least 2 h or the length of the PCI',
+      'Transition: ticagrelor 180 mg at any time during the infusion or right after it; prasugrel 60 mg or clopidogrel 600 mg only after it stops',
+      'Bridge to surgery (off-label): 0.75 mcg/kg/min, no bolus',
+    ],
+    contraindications: [
+      'Significant active bleeding',
+      'Hypersensitivity to cangrelor',
+    ],
+    adverseEffects: [
+      'Bleeding',
+      'Dyspnea (less than with ticagrelor)',
+    ],
+    ecgEffects: [
+      'No direct ECG effect',
+    ],
+    hemodynamics: [
+      'No direct hemodynamic effect',
+    ],
+    monitoring: [
+      'Access site and other bleeding',
+      'The time the infusion stops, and the oral load given at the right moment',
+    ],
+    interactions: [
+      'Clopidogrel and prasugrel: give them only after the infusion stops — they cannot bind while cangrelor occupies P2Y12',
+      'Ticagrelor: may be given during the infusion',
+      'Anticoagulants and fibrinolytics add bleeding',
+    ],
+    teaching: [
+      'Its strength is the short half-life: on and off within minutes to an hour',
+      'The transition to an oral P2Y12 inhibitor is where mistakes are made — know which can be given during it',
+    ],
+    relatedConditions: ['anterior-stemi', 'nstemi', 'cardiogenic-shock'],
+  },
+
+  protamine: {
+    id: 'protamine',
+    name: 'Protamine',
+    brandNames: [],
+    drugClass: 'Heparin antagonist (basic protein)',
+    summary:
+      'A strongly basic protein that binds heparin and neutralizes it at once. Used to reverse unfractionated heparin after the cath lab or bypass, or for heparin-related bleeding. It only partly reverses enoxaparin and does not reverse bivalirudin or the oral anticoagulants.',
+    levelNotes: [
+      'Protamine is a hospital drug. Report fish allergy, a vasectomy, NPH insulin or an earlier protamine reaction on the history — they raise the risk of a reaction.',
+      'Not a field drug. On a transfer after a procedure, know whether the heparin was reversed and watch for a delayed reaction (low pressure, breathlessness).',
+      'Drawn up at the end of the case or for bleeding. Record the dose, the time and the ACT before and after, and tell the team at once if the pressure falls or the PA pressure rises as it goes in.',
+      'Give it slowly — no more than 50 mg over 10 min — with the pressure on the monitor. Stop it and call for hypotension, bronchospasm, flushing or a rising PA pressure, and have epinephrine and fluid ready.',
+      '1 mg reverses about 100 units of heparin given in the last 2–3 h. Boxed risks: collapse, non-cardiogenic pulmonary edema and catastrophic pulmonary vasoconstriction — higher with earlier protamine, NPH insulin, fish allergy, a vasectomy or poor LV function. Never after a fresh stent if it may thrombose.',
+      'Draw it up as ordered and give it slowly on a pump or by slow push (no more than 50 mg over 10 min) with the monitor on. Watch for a falling pressure, flushing, wheeze or breathlessness, and stop it at once if they appear.',
+      'Heparin-related bleeding: the dose follows the heparin given in the last few hours (1 mg per 100 units, max 50 mg per dose). It only partly reverses enoxaparin and does nothing for bivalirudin, the factor Xa inhibitors or dabigatran.',
+    ],
+    mechanism: [
+      'A positively charged protein that binds the negatively charged heparin into a stable, inactive salt',
+      'Works within 5 min; a small dose of protamine on its own has an anticoagulant effect',
+    ],
+    indications: [
+      'Reversal of unfractionated heparin after the cath lab, vascular surgery or bypass',
+      'Bleeding on unfractionated heparin',
+      'Partial reversal of enoxaparin given within 8 h',
+    ],
+    dosing: [
+      '1 mg per 100 units of heparin given in the last 2–3 h (less for heparin given earlier); no more than 50 mg in one dose',
+      'Slowly: no more than 50 mg over 10 min (label)',
+      'Enoxaparin within 8 h: 1 mg per 1 mg of enoxaparin (only partial reversal)',
+    ],
+    contraindications: [
+      'Hypersensitivity to protamine',
+      'Boxed warning: severe hypotension, cardiovascular collapse, non-cardiogenic pulmonary edema, catastrophic pulmonary vasoconstriction and pulmonary hypertension',
+      'Higher risk (relative): an earlier protamine dose or protamine-containing insulin (NPH), a fish allergy, a vasectomy or infertility in men, severe LV dysfunction, a high dose or a fast push',
+    ],
+    adverseEffects: [
+      'Hypotension and bradycardia, especially with a fast push',
+      'Anaphylactoid reactions',
+      'Pulmonary hypertension and RV failure',
+      'Rebound bleeding as heparin is released from the tissues',
+    ],
+    ecgEffects: [
+      'No direct ECG effect; bradycardia with a fast push',
+    ],
+    hemodynamics: [
+      'A fall in systemic pressure (histamine release)',
+      'In a severe reaction: a sharp rise in pulmonary artery pressure and RV failure',
+    ],
+    monitoring: [
+      'Blood pressure throughout the dose',
+      'ACT or aPTT before and after',
+      'Oxygen saturation and breathing',
+    ],
+    interactions: [
+      'Reverses unfractionated heparin fully, enoxaparin only partly',
+      'Does not reverse bivalirudin, fondaparinux or the oral anticoagulants',
+    ],
+    teaching: [
+      'Slow is safe: the reactions come with fast pushes and big doses',
+      'Ask about fish allergy, a vasectomy and NPH insulin before it is given',
+    ],
+    relatedConditions: ['anterior-stemi', 'nstemi'],
+  },
+
+  midazolam: {
+    id: 'midazolam',
+    name: 'Midazolam',
+    brandNames: [],
+    drugClass: 'Benzodiazepine (short-acting sedative)',
+    summary:
+      'A short-acting benzodiazepine for procedural sedation, premedication before cardioversion or pacing, agitation and seizures. It adds to the breathing depression of opioids, and can drop the pressure in a patient who is already low.',
+    levelNotes: [
+      'Midazolam is an ALS drug. Help by watching the breathing and the oxygen saturation after it is given, and have the bag-mask ready.',
+      'For pacing or cardioversion, seizures or severe agitation, per protocol: small IV doses, titrated, with capnography and the bag-mask at hand. Smaller doses in the elderly, with opioids or a low pressure.',
+      'In the lab it is part of moderate sedation with fentanyl. Record the doses and times, and tell the RN or the operator if the patient stops answering, the saturation falls or the capnography changes.',
+      'Titrate small doses (0.5–1 mg) to effect, with oxygen, capnography and flumazenil at hand. Reduce both drugs when an opioid is given, and watch the pressure in a patient who is already low.',
+      'Moderate sedation for the lab, premedication for cardioversion or pacing. Contraindicated in acute narrow-angle glaucoma; boxed warnings for respiratory depression and for combination with opioids. A low pressure: smaller doses, or another agent.',
+      'For procedural sedation or pacing on order: small IV doses titrated to effect, capnography, oxygen and suction ready, someone watching the airway, and flumazenil at hand. Record the sedation score and the vital signs every few minutes.',
+      'Sedation for cardioversion or pacing, seizures, agitation. Use smaller doses with an opioid, in the elderly or with a low pressure; consider ketamine or etomidate when the pressure is the problem. It is contraindicated in acute narrow-angle glaucoma.',
+    ],
+    mechanism: [
+      'Enhances GABA-A receptor activity: anxiolysis, sedation, amnesia and anticonvulsant effect',
+      'Onset 1–3 min IV; shorter acting than diazepam or lorazepam',
+    ],
+    indications: [
+      'Procedural sedation (with an opioid for pain)',
+      'Premedication for cardioversion or transcutaneous pacing',
+      'Seizures and status epilepticus',
+      'Severe agitation',
+    ],
+    dosing: [
+      'Procedural sedation: 0.5–2 mg IV over 2 min, repeated after 2–3 min to effect (less in the elderly, with opioids or a low pressure)',
+      'Premedication for pacing or cardioversion: 1–2 mg IV',
+      'Status epilepticus: 10 mg IM (over 40 kg)',
+      'Reversal: flumazenil 0.2 mg IV, repeated (it can provoke seizures in benzodiazepine dependence)',
+    ],
+    contraindications: [
+      'Hypersensitivity to midazolam',
+      'Acute narrow-angle glaucoma (label)',
+      'Boxed warning: respiratory depression — only where the airway, oxygen, monitoring and a reversal agent are at hand',
+      'Boxed warning: with opioids — profound sedation, respiratory depression and death; reduce both doses',
+      'Shock, a low pressure or an unprotected airway without monitoring (practice)',
+    ],
+    adverseEffects: [
+      'Respiratory depression and apnea (more with opioids)',
+      'Hypotension',
+      'Paradoxical agitation',
+    ],
+    ecgEffects: [
+      'No direct ECG effect',
+    ],
+    hemodynamics: [
+      'A modest fall in pressure — more in hypovolemia or with opioids',
+    ],
+    monitoring: [
+      'Sedation score, breathing and oxygen saturation',
+      'Capnography during procedural sedation',
+      'Blood pressure',
+    ],
+    interactions: [
+      'Opioids (boxed warning) and alcohol: additive respiratory depression',
+      'Strong CYP3A4 inhibitors (clarithromycin, ritonavir, diltiazem, verapamil) prolong its effect',
+    ],
+    teaching: [
+      'Titrate: the second small dose is safer than one big dose',
+      'Midazolam does not relieve pain — pair it with an analgesic',
+      'With a low pressure, the sedative is chosen for the pressure',
+    ],
+    relatedConditions: ['third-degree-av-block', 'atrial-fibrillation'],
+  },
+
+  ondansetron: {
+    id: 'ondansetron',
+    name: 'Ondansetron',
+    brandNames: ['Zofran'],
+    drugClass: '5-HT3 receptor antagonist (antiemetic)',
+    summary:
+      'A serotonin 5-HT3 blocker for nausea and vomiting. It lengthens the QT, so it is used with care in a patient with a long QT, a low potassium or magnesium, or other QT-prolonging drugs.',
+    levelNotes: [
+      'Ondansetron (ODT) is given by EMTs in some systems for nausea, per protocol. Note any heart rhythm problem or long-QT history and report it.',
+      '4 mg IV/IM/ODT per protocol. Look at the QT on the monitor first and avoid it in congenital long QT; take care with a low potassium or magnesium, heart failure, a slow rate and other QT-prolonging drugs.',
+      'Given in the lab for nausea (contrast, opioids, vasovagal). Record the dose; watch the QTc on the monitor in patients already on QT-prolonging drugs.',
+      'Give 4 mg IV slowly (at least 30 s; 2–5 min is better). Check the QTc and the electrolytes in patients at risk, and watch for headache and constipation.',
+      'Avoid in congenital long QT; ECG monitoring with low K⁺ or Mg²⁺, heart failure, bradyarrhythmia or other QT drugs. Contraindicated with apomorphine (profound hypotension).',
+      'On order: 4 mg IV slowly, or ODT. Check the QTc on the monitor and the potassium and magnesium in a patient at risk, and ask about apomorphine (Parkinson disease).',
+      'First-line ED antiemetic, but it lengthens the QT: avoid in congenital long QT and correct K⁺ and Mg²⁺ first. Not with apomorphine. Watch for serotonin syndrome with other serotonergic drugs.',
+    ],
+    mechanism: [
+      'Blocks 5-HT3 receptors in the gut and the chemoreceptor trigger zone',
+      'Blocks cardiac potassium channels at higher doses: QT prolongation',
+    ],
+    indications: [
+      'Nausea and vomiting (procedures, opioids, contrast)',
+      'Prevention of postoperative or chemotherapy-induced nausea',
+    ],
+    dosing: [
+      '4 mg IV over at least 30 s (2–5 min preferred), may repeat; or 4–8 mg ODT',
+      'No single IV dose above 16 mg (QT prolongation)',
+    ],
+    contraindications: [
+      'Apomorphine — profound hypotension and loss of consciousness (label)',
+      'Hypersensitivity to ondansetron',
+      'Congenital long QT syndrome — avoid (label warning)',
+      'ECG monitoring with a low potassium or magnesium, heart failure, bradyarrhythmias or other QT-prolonging drugs (label warning)',
+      'Serotonin syndrome with other serotonergic drugs (label warning)',
+    ],
+    adverseEffects: [
+      'Headache',
+      'Constipation',
+      'QT prolongation; torsades (rare)',
+      'Serotonin syndrome (with other serotonergic drugs)',
+    ],
+    ecgEffects: [
+      'QTc prolongation (dose-related)',
+    ],
+    hemodynamics: [
+      'No significant hemodynamic effect',
+    ],
+    monitoring: [
+      'QTc in patients at risk',
+      'Potassium and magnesium before dosing when they may be low',
+    ],
+    interactions: [
+      'Apomorphine — contraindicated',
+      'Other QT-prolonging drugs (amiodarone, sotalol, macrolides, antipsychotics): additive QT prolongation',
+      'SSRIs, SNRIs and other serotonergic drugs: serotonin syndrome',
+    ],
+    teaching: [
+      'Even a common antiemetic can lengthen the QT — look before you give it',
+      'Correct potassium and magnesium in a patient with a long QT before any QT-prolonging drug',
+    ],
+    relatedConditions: ['torsades-de-pointes', 'nstemi'],
+  },
+
+  nitroprusside: {
+    id: 'nitroprusside',
+    name: 'Nitroprusside',
+    brandNames: ['Nipride RTU', 'Nitropress'],
+    drugClass: 'Direct nitric-oxide donor (arterial and venous vasodilator)',
+    summary:
+      'A potent, very short-acting vasodilator that releases nitric oxide. Used by infusion for hypertensive emergencies and afterload reduction, and intracoronary for no-reflow. Cyanide builds up with high doses or long infusions.',
+    levelNotes: [
+      'Nitroprusside is an ICU and cath lab drug. If a patient is on it, report any fall in pressure, confusion or a change in breathing at once.',
+      'On a critical-care transfer keep the rate as ordered, protect the bag from light, and watch the pressure closely: it falls within a minute of a rate change and recovers within minutes of stopping it.',
+      'Drawn up for intracoronary use in no-reflow (50–200 mcg). Record each dose and time and watch the pressure after each bolus.',
+      'Run the infusion on a pump with an arterial line, protected from light. Titrate every few minutes; watch for hypotension, and for cyanide toxicity (acidosis, confusion) with high doses or long infusions.',
+      'Intracoronary for no-reflow; IV for a hypertensive emergency or acute severe MR or AR (afterload reduction). Like nitrates it is contraindicated with PDE-5 inhibitors and riociguat; not for compensatory hypertension.',
+      'Arterial line, pump, protect the bag from light, and titrate in small steps on order. Check the pressure every few minutes, and report acidosis, confusion or a rising lactate (cyanide) with a long infusion.',
+      'Hypertensive emergency or afterload reduction with an arterial line. Never with a PDE-5 inhibitor or riociguat. In dissection, after β-blockade. Limit the dose and the duration (cyanide); kidney failure adds thiocyanate.',
+    ],
+    mechanism: [
+      'Releases nitric oxide in the vessel wall: arterial and venous dilation',
+      'Onset within 1–2 min; the effect ends within minutes of stopping it',
+      'Breaks down to cyanide (cleared to thiocyanate by the liver, then the kidneys)',
+    ],
+    indications: [
+      'Hypertensive emergency (with an arterial line)',
+      'Acute severe mitral or aortic regurgitation, afterload reduction in acute heart failure',
+      'Intracoronary: no-reflow',
+      'Aortic dissection after β-blockade',
+    ],
+    dosing: [
+      'IV infusion: start 0.3 mcg/kg/min, titrate every few minutes; usual maximum 10 mcg/kg/min, for no more than 10 min at that rate',
+      'Intracoronary for no-reflow: 50–200 mcg boluses',
+    ],
+    contraindications: [
+      'A PDE-5 inhibitor (sildenafil, tadalafil, vardenafil) or riociguat — profound hypotension (label)',
+      'Compensatory hypertension (an arteriovenous shunt or coarctation) (label)',
+      'Acute heart failure with a low systemic vascular resistance (label)',
+      'Congenital (Leber) optic atrophy or tobacco amblyopia (label)',
+      'Hypotension (relative)',
+    ],
+    adverseEffects: [
+      'Hypotension',
+      'Cyanide toxicity (metabolic acidosis, confusion) with high doses or long infusions',
+      'Thiocyanate toxicity in kidney failure',
+      'Reflex tachycardia; coronary steal',
+    ],
+    ecgEffects: [
+      'No direct ECG effect; reflex tachycardia',
+    ],
+    hemodynamics: [
+      '↓SVR and ↓preload — the pressure falls fast',
+      'Intracoronary: restores microvascular flow in no-reflow',
+    ],
+    monitoring: [
+      'Continuous arterial pressure',
+      'Lactate and acid-base status during long or high-dose infusions',
+      'Thiocyanate levels in kidney failure',
+    ],
+    interactions: [
+      'PDE-5 inhibitors and riociguat — contraindicated',
+      'Other antihypertensives add hypotension',
+    ],
+    teaching: [
+      'The most potent IV vasodilator, and the fastest to wear off',
+      'A nitric-oxide donor like the nitrates: the same PDE-5 rule applies',
+      'Protect it from light and limit the dose and the duration (cyanide)',
+    ],
+    relatedConditions: ['aortic-dissection', 'mitral-regurgitation', 'hfref'],
+  },
+
+  glucagon: {
+    id: 'glucagon',
+    name: 'Glucagon',
+    brandNames: ['GlucaGen', 'Gvoke', 'Baqsimi'],
+    drugClass: 'Pancreatic hormone (raises cAMP without the β receptor)',
+    summary:
+      'Raises the blood glucose by releasing liver glycogen, and raises cAMP in the heart without the β receptor — which is why high doses are used for a β-blocker or calcium-channel-blocker overdose. Vomiting is common.',
+    levelNotes: [
+      'Glucagon (IM or intranasal) is given for severe hypoglycemia when the patient cannot swallow, per protocol. Turn the patient on the side: vomiting is common.',
+      'Hypoglycemia without IV access: 1 mg IM. A β-blocker or calcium-channel-blocker overdose: 3–10 mg IV per protocol or medical direction, then an infusion — protect the airway, vomiting is common.',
+      'Not used in the cath lab routinely. If given for a β-blocker overdose, record the dose and time and have suction ready.',
+      'For a β-blocker overdose: 3–10 mg IV over 1–2 min, then an infusion of the dose that worked, per hour. Check the glucose and the potassium, protect the airway and give an antiemetic.',
+      'β-blocker (and calcium-channel-blocker) overdose: a bridge — calcium, high-dose insulin with glucose, pressors and pacing are the core. Not with a pheochromocytoma or an insulinoma.',
+      'On order for a β-blocker overdose: 3–10 mg IV over 1–2 min, then the infusion. Vomiting is likely: suction ready, the head of the bed up. Check the glucose.',
+      'β-blocker overdose with bradycardia and shock: glucagon 3–10 mg IV, then an infusion; high-dose insulin and pressors as well. Avoid in a pheochromocytoma (catecholamine release) and an insulinoma.',
+    ],
+    mechanism: [
+      'Releases liver glycogen: the glucose rises in 10–15 min',
+      'Activates adenylyl cyclase in the heart without the β receptor: ↑rate and contractility',
+    ],
+    indications: [
+      'Severe hypoglycemia without IV access',
+      'β-blocker overdose with bradycardia or hypotension',
+      'Calcium-channel-blocker overdose (adjunct)',
+    ],
+    dosing: [
+      'Hypoglycemia: 1 mg IM/SC, or 3 mg intranasal',
+      'β-blocker overdose: 3–10 mg IV over 1–2 min (about 0.05–0.15 mg/kg), then an infusion of the dose that worked, per hour',
+    ],
+    contraindications: [
+      'Pheochromocytoma — it releases catecholamines (severe hypertension) (label)',
+      'Insulinoma — rebound hypoglycemia (label)',
+      'Hypersensitivity',
+      'Vomiting with an unprotected airway (relative — high doses cause vomiting)',
+    ],
+    adverseEffects: [
+      'Nausea and vomiting (common with high doses)',
+      'Hyperglycemia, then hypokalemia',
+      'Tachycardia',
+    ],
+    ecgEffects: [
+      'A faster rate in β-blockade',
+    ],
+    hemodynamics: [
+      '↑HR and contractility (cAMP)',
+    ],
+    monitoring: [
+      'Glucose and potassium',
+      'Airway and vomiting',
+      'Heart rate and blood pressure',
+    ],
+    interactions: [
+      'Warfarin: its effect increases with prolonged glucagon',
+    ],
+    teaching: [
+      'It works around the blocked β receptor, but its benefit is limited — high-dose insulin is the stronger antidote',
+      'Expect vomiting: the airway first',
+    ],
+    relatedConditions: ['sinus-bradycardia', 'third-degree-av-block'],
+  },
+
+  labetalol: {
+    id: 'labetalol',
+    name: 'Labetalol',
+    brandNames: ['Trandate'],
+    drugClass: 'Combined α1 and non-selective β blocker',
+    summary:
+      'Lowers the pressure by blocking α1 receptors (vasodilation) and β receptors (no reflex tachycardia), with β blockade dominant IV. A first-line drug for hypertensive emergencies, aortic dissection and hypertension in pregnancy.',
+    levelNotes: [
+      'Labetalol is a hospital and ALS drug. Patients may take it by mouth (often in pregnancy). Report a slow pulse, a low pressure or wheezing.',
+      'For a hypertensive emergency where protocols allow: 10–20 mg IV slowly, with the pressure checked every 5 min. Not with asthma or COPD, heart failure, AV block or a slow rate.',
+      'Rarely given in the lab. If it is, record the dose and time and watch the rate and the pressure.',
+      'Give 20 mg IV over 2 min, then 40–80 mg every 10 min as ordered (max 300 mg), or run an infusion. Check the pressure and rate every 5 min, keep the patient lying down, and watch for wheeze.',
+      'Aortic dissection (rate 60–80, systolic under 120) and hypertensive emergencies. Contraindicated in bronchial asthma, overt heart failure, AV block beyond the first degree, cardiogenic shock and severe bradycardia.',
+      'On order: 20 mg IV over 2 min, then repeat doses or an infusion. Pressure and rate every 5 min; keep the patient lying down (postural drop). Stop and call for wheezing, a rate under 60 or a falling pressure.',
+      'First-line for aortic dissection and hypertensive emergencies, one drug for the rate and the pressure. Not with asthma or another obstructive airway disease, decompensated failure, AV block, shock or a slow rate; not in acute cocaine intoxication.',
+    ],
+    mechanism: [
+      'Blocks α1 (vasodilation) and β1/β2 receptors; IV the ratio of β to α blockade is about 7:1',
+      'Lowers the pressure without a reflex tachycardia',
+    ],
+    indications: [
+      'Hypertensive emergency',
+      'Acute aortic dissection (to a rate of 60–80/min and a systolic under 120 mmHg)',
+      'Severe hypertension in pregnancy',
+      'Hypertension in acute stroke before or after lysis',
+    ],
+    dosing: [
+      '20 mg IV over 2 min, then 40–80 mg every 10 min (max 300 mg)',
+      'Infusion: 0.5–2 mg/min, titrated',
+    ],
+    contraindications: [
+      'Bronchial asthma or another obstructive airway disease (label)',
+      'Overt cardiac failure (label)',
+      'AV block beyond the first degree (label)',
+      'Cardiogenic shock (label)',
+      'Severe bradycardia (label)',
+      'Other conditions with severe, prolonged hypotension (label)',
+      'Acute cocaine or methamphetamine intoxication — a β-blocker (2025 ACC/AHA ACS: no β-blocker in acute intoxication)',
+      'Hypersensitivity',
+    ],
+    adverseEffects: [
+      'Hypotension, especially on standing',
+      'Bradycardia and AV block',
+      'Bronchospasm',
+      'Scalp tingling; liver injury (rare)',
+    ],
+    ecgEffects: [
+      'Slower sinus rate; PR prolongation',
+    ],
+    hemodynamics: [
+      '↓SVR and ↓HR: the pressure falls without reflex tachycardia',
+    ],
+    monitoring: [
+      'Blood pressure and heart rate every 5 min during IV dosing',
+      'Breathing (bronchospasm)',
+      'Keep the patient supine for a few hours after IV doses',
+    ],
+    interactions: [
+      'IV calcium-channel blockers (diltiazem, verapamil): additive AV block and hypotension',
+      'Other antihypertensives: additive hypotension',
+    ],
+    teaching: [
+      'One drug for both targets in aortic dissection: the rate and the pressure',
+      'A β-blocker first: it is contraindicated where any β-blocker is',
+    ],
+    relatedConditions: ['aortic-dissection'],
+  },
+
+  nicardipine: {
+    id: 'nicardipine',
+    name: 'Nicardipine',
+    brandNames: ['Cardene IV', 'Cleviprex (clevidipine, the same class)'],
+    drugClass: 'Dihydropyridine calcium-channel blocker (IV arterial vasodilator)',
+    summary:
+      'An IV arterial vasodilator with little effect on the heart rate or contraction, titrated by infusion for hypertensive emergencies, stroke and, after β-blockade, aortic dissection. Clevidipine, an ultra-short-acting relative given in a lipid emulsion, is used the same way.',
+    levelNotes: [
+      'Nicardipine is a hospital infusion. If a patient is on it on a transfer, report a falling pressure, headache or chest pain.',
+      'On a critical-care transfer keep the ordered rate and check the pressure every 5–15 min; it takes minutes to act and longer to wear off.',
+      'Rarely used in the lab. If it is running, note the rate and watch the arterial pressure.',
+      'Run it on a pump, through a large peripheral vein (change the site every 12 h) or a central line. Check the pressure every 5–15 min while titrating; watch for headache, flushing and reflex tachycardia.',
+      'Hypertensive emergencies and stroke; in aortic dissection only after the β-blocker. Contraindicated in advanced aortic stenosis. Clevidipine is faster on and off, but not with a soy or egg allergy or a disorder of lipid metabolism.',
+      'On order: 5 mg/h, raised by 2.5 mg/h every 5–15 min to the target (max 15 mg/h). Pressure every 5–15 min, the site checked for phlebitis, and call for a pressure below the target or chest pain.',
+      'Titratable IV vasodilator for hypertensive emergencies and stroke. Not in advanced aortic stenosis. In dissection, β-blockade comes first (reflex tachycardia). Clevidipine: not with a soy or egg allergy or defective lipid metabolism.',
+    ],
+    mechanism: [
+      'Blocks L-type calcium channels in arterial smooth muscle: arterial vasodilation',
+      'Little effect on the AV node or contraction; can cause reflex tachycardia',
+    ],
+    indications: [
+      'Hypertensive emergency',
+      'Blood pressure control in acute stroke and intracerebral hemorrhage',
+      'Acute aortic dissection, after β-blockade',
+    ],
+    dosing: [
+      'Nicardipine: 5 mg/h IV, raised by 2.5 mg/h every 5–15 min to a maximum of 15 mg/h',
+      'Clevidipine: 1–2 mg/h, doubled every 90 s at first; usually 4–6 mg/h, max 32 mg/h (a lipid load: no more than 1000 mL in 24 h)',
+    ],
+    contraindications: [
+      'Advanced aortic stenosis — the afterload falls and the heart cannot raise its output (label)',
+      'Hypersensitivity',
+      'Clevidipine: allergy to soy or eggs, or defective lipid metabolism (pathologic hyperlipidemia, lipoid nephrosis, acute pancreatitis with hyperlipidemia) (label)',
+      'Aortic dissection without a β-blocker first — the reflex tachycardia raises the shear on the wall (2022 ACC/AHA aortic)',
+    ],
+    adverseEffects: [
+      'Hypotension',
+      'Headache and flushing',
+      'Reflex tachycardia',
+      'Phlebitis at a peripheral site',
+    ],
+    ecgEffects: [
+      'Reflex sinus tachycardia',
+    ],
+    hemodynamics: [
+      '↓SVR: the pressure falls; the output is maintained or rises',
+    ],
+    monitoring: [
+      'Blood pressure every 5–15 min while titrating (an arterial line in emergencies)',
+      'Heart rate',
+      'The infusion site',
+    ],
+    interactions: [
+      'Other antihypertensives: additive hypotension',
+      'Strong CYP3A4 inhibitors raise nicardipine levels',
+    ],
+    teaching: [
+      'A dihydropyridine: it dilates arteries but does not slow the heart — the opposite of diltiazem and verapamil',
+      'In aortic dissection, the rate first (β-blocker), then the vasodilator',
+    ],
+    relatedConditions: ['aortic-dissection', 'aortic-stenosis'],
+  },
 };

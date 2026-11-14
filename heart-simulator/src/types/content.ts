@@ -324,6 +324,9 @@ export const MEDICATION_IDS = [
   'furosemide', 'lisinopril', 'sacubitril-valsartan', 'spironolactone', 'empagliflozin', 'atorvastatin',
   // electrolytes / other
   'calcium-chloride', 'insulin-dextrose', 'albuterol', 'sodium-bicarbonate', 'colchicine',
+  // drugs the simulator gives: lytic, rate, lab, sedation, antidotes, vasodilators
+  'alteplase', 'verapamil', 'eptifibatide', 'cangrelor', 'protamine', 'midazolam', 'ondansetron', 'nitroprusside', 'glucagon',
+  'labetalol', 'nicardipine',
 ] as const;
 
 /**

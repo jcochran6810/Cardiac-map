@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { MEDICATIONS } from '@/data/content/medications';
 import { MEDICATION_IDS } from '@/types/content';
+import { answerQuestion, type TutorContext } from '@/lib/tutor';
+import { loadContent, useContentStore, type ContentLibrary } from '@/lib/content';
 
 /**
  * The drug cards' contraindications, brought to the current US labels and guidelines (the contraindication audit,
@@ -196,5 +198,73 @@ describe('every card in the Library', () => {
       expect(MEDICATION_IDS as readonly string[]).toContain(m.id);
     }
     for (const id of MEDICATION_IDS) expect(MEDICATIONS[id], id).toBeDefined();
+  });
+});
+
+/** British spellings that must not reach a US learner (as in the glossary and Give-meds tests) */
+const BRITISH = /haem|aemi[ac]|ischaem|oedema|fibre|litre|tumour|colour|centre|labelled|practise|synchronis|recognis|organis|stabilis|localis|minimis|visualis|catheteris|anaesth|polaris|analys(e|ed|ing)\b|paralys|manoeuvr|oesoph|paediatr|characteris|normalis|utilis|hospitalis|vascularis/i;
+
+describe('new cards for the drugs the simulator gives', () => {
+  let lib: ContentLibrary;
+  beforeAll(async () => {
+    await loadContent();
+    lib = useContentStore.getState().lib!;
+  });
+  const ask = (q: string) => answerQuestion(q, lib, { level: 7, profileId: 'normal-sinus', selectedStructureId: null, selectedConditionId: null, selectedProcedureId: null, selectedMedicationId: null } as TutorContext);
+
+  const HIGH = ['alteplase', 'verapamil', 'eptifibatide', 'cangrelor', 'protamine', 'midazolam', 'ondansetron', 'nitroprusside', 'glucagon', 'labetalol', 'nicardipine'];
+
+  it.each(HIGH)('%s: in the Library, in US English, and the tutor answers "contraindications to …" from it', (id) => {
+    const m = card(id);
+    expect(m, id).toBeDefined();
+    expect(MEDICATION_IDS as readonly string[]).toContain(id);
+    expect(m.contraindications.length).toBeGreaterThan(1);
+    for (const f of ['mechanism', 'indications', 'dosing', 'adverseEffects', 'ecgEffects', 'hemodynamics', 'monitoring', 'interactions', 'teaching'] as const) {
+      expect(m[f].length, `${id} ${f}`).toBeGreaterThan(0);
+    }
+    // ("angioedema" is the US spelling; the pattern would catch its "oedema")
+    expect(JSON.stringify(m).replace(/angioedema/gi, '')).not.toMatch(BRITISH);
+    const a = ask(`What are the contraindications to ${m.name}?`);
+    expect(a.title).toBe(`${m.name} — contraindications`);
+    expect(a.bullets[0]).toBe(m.contraindications[0]);
+  });
+
+  it('alteplase: the absolute list, PE only with cardiopulmonary failure, heparin paused', () => {
+    const c = contra('alteplase');
+    for (const re of [/Active internal bleeding/, /an ischemic stroke within 3 months/, /Intracranial or intraspinal surgery, or serious head trauma, within 3 months/, /neoplasm, arteriovenous malformation or aneurysm/, /bleeding diathesis/, /Severe uncontrolled hypertension/]) expect(c).toMatch(re);
+    // a TIA or a stroke more than 3 months ago is relative only
+    expect(c).toMatch(/A TIA, or an ischemic stroke more than 3 months ago \(relative\)/);
+    expect(c).toMatch(/categories A1–C2\) — systemic lysis must not be used/);
+    expect(card('alteplase').dosing.join(' ')).toMatch(/100 mg IV over 2 h; heparin is paused during the infusion and restarted once the aPTT is under twice normal/);
+  });
+
+  it('verapamil, eptifibatide, cangrelor and protamine: their label contraindications and rules', () => {
+    const v = contra('verapamil');
+    for (const re of [/cardiogenic shock/, /AV block without a pacemaker/, /LVEF under 40%/, /IV β-blocker given together or within a few hours/, /accessory pathway/, /Ventricular tachycardia/, /Hypersensitivity/]) expect(v).toMatch(re);
+    const e = contra('eptifibatide');
+    for (const re of [/within the past 30 days/, /systolic above 200 or diastolic above 110/, /within the past 6 weeks/, /stroke within 30 days, or any hemorrhagic stroke/, /Another IV GP IIb\/IIIa inhibitor/, /dialysis/i, /full-dose fibrinolytic/]) expect(e).toMatch(re);
+    expect(card('eptifibatide').dosing.join(' ')).toMatch(/under 50 mL\/min: the infusion is 1 mcg\/kg\/min/);
+    expect(contra('cangrelor')).toMatch(/Significant active bleeding/);
+    expect(card('cangrelor').interactions.join(' ')).toMatch(/Clopidogrel and prasugrel: give them only after the infusion stops/);
+    expect(contra('protamine')).toMatch(/Boxed warning: severe hypotension, cardiovascular collapse, non-cardiogenic pulmonary edema, catastrophic pulmonary vasoconstriction/);
+    expect(card('protamine').dosing.join(' ')).toMatch(/no more than 50 mg over 10 min/);
+  });
+
+  it('midazolam, ondansetron, nitroprusside, glucagon, labetalol, nicardipine', () => {
+    expect(contra('midazolam')).toMatch(/Acute narrow-angle glaucoma \(label\)[\s\S]*Boxed warning: respiratory depression[\s\S]*Boxed warning: with opioids/);
+    expect(contra('ondansetron')).toMatch(/^Apomorphine/);
+    expect(contra('ondansetron')).toMatch(/Congenital long QT syndrome — avoid \(label warning\)/);
+    expect(contra('ondansetron')).toMatch(/ECG monitoring with a low potassium or magnesium/);
+    expect(contra('nitroprusside')).toMatch(/PDE-5 inhibitor .* or riociguat[\s\S]*Compensatory hypertension/);
+    expect(contra('glucagon')).toMatch(/Pheochromocytoma[\s\S]*Insulinoma[\s\S]*Vomiting with an unprotected airway/);
+    const l = contra('labetalol');
+    for (const re of [/Bronchial asthma/, /Overt cardiac failure/, /AV block beyond the first degree/, /Cardiogenic shock/, /Severe bradycardia/]) expect(l).toMatch(re);
+    expect(contra('nicardipine')).toMatch(/Advanced aortic stenosis[\s\S]*soy or eggs, or defective lipid metabolism/);
+    // the tutor finds clevidipine on the nicardipine card
+    expect(ask('contraindications to clevidipine').title).toBe('Nicardipine — contraindications');
+  });
+
+  it('fibrinolytic questions still go to tenecteplase, the STEMI lytic', () => {
+    expect(ask('who is not a candidate for fibrinolysis').title).toBe('Tenecteplase — contraindications');
   });
 });
