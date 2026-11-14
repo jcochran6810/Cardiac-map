@@ -2,6 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -912,35 +913,38 @@ export const edTamponade: Scenario = {
     },
     {
       id: 'rate-slowing-tamponade', actions: ['metoprolol', 'diltiazem'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
+      replaces: RATE_RULES,
       text: 'A drug to slow her heart. Her sinus tachycardia is compensation: while the effusion squeezes her heart, the fast rate is the only thing keeping her output up as each beat fills so little — a beta-blocker or diltiazem takes it away and drops the pressure, and can stop her heart. A sinus tachycardia in shock is never the problem to treat.',
     },
     {
       id: 'rate-slowing-tamponade-rn', actions: ['metoprolol', 'diltiazem'], roles: ED_RN, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
-      replaces: noOrder(['metoprolol', 'diltiazem']),
+      replaces: [...noOrder(['metoprolol', 'diltiazem']), ...RATE_RULES],
       text: 'A drug to slow her heart, with no order. Her sinus tachycardia is compensation — while the effusion squeezes her heart, the fast rate is the only thing keeping her output up: a beta-blocker or diltiazem drops the pressure and can stop her heart — and neither is on a standing order. Tell the physician what you see instead.',
     },
     {
       // once the fluid is off the heart fills again: still wrong, no longer a collapse (for the nurse it also stands for the order)
       id: 'rate-slowing-after-drain', actions: ['metoprolol', 'diltiazem'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 8, severity: 'major',
-      replaces: noOrder(['metoprolol', 'diltiazem']),
+      replaces: [...noOrder(['metoprolol', 'diltiazem']), ...RATE_RULES],
       text: 'A drug to slow her heart just after the drain. The sinus tachycardia that kept her alive is settling by itself as her heart fills again; a beta-blocker or diltiazem only drops the pressure of a heart just freed from tamponade, and with an effusion that can come back. A sinus tachycardia after shock is never the problem to treat — and neither drug is given without a physician\'s order.',
     },
     {
-      id: 'antiarrhythmic-tamponade', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: ED_MD, when: (s) => s.pulse, points: 8, severity: 'major', replaces: ['procainamide-hypotension'],
+      id: 'antiarrhythmic-tamponade', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: ED_MD, when: (s) => s.pulse, points: 8, severity: 'major',
+      replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'An antiarrhythmic for a sinus tachycardia (or for the extra beats a needle sets off). There is no arrhythmia to convert — the fast rate is her compensation, and extra beats with the needle in mean pull it back: amiodarone and procainamide drop a pressure that has little in reserve, and lidocaine treats nothing she has.',
     },
     {
       id: 'antiarrhythmic-tamponade-rn', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: [...noOrder(['amio-infusion', 'procainamide', 'lidocaine']), 'procainamide-hypotension'],
+      replaces: [...noOrder(['amio-infusion', 'procainamide', 'lidocaine']), 'procainamide-hypotension', ...RATE_RULES],
       text: 'An antiarrhythmic with no order, for a sinus tachycardia or the extra beats a needle sets off. The fast rate is her compensation; extra beats with the needle in mean the physician pulls back — call them out. Amiodarone and procainamide drop a pressure that has little in reserve, lidocaine treats nothing she has, and with a pulse none of them is on a standing order.',
     },
     {
-      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => s.pulse, points: 3, severity: 'minor', replaces: RATE_RULES,
       text: 'Adenosine for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for her.',
     },
     {
       // the nurse's version also stands for the missing order, at the order's weight (one mistake, one penalty)
-      id: 'adenosine-sinus-rn', actions: ['adenosine6', 'adenosine12'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major', replaces: noOrder(['adenosine6', 'adenosine12']),
+      id: 'adenosine-sinus-rn', actions: ['adenosine6', 'adenosine12'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
+      replaces: [...noOrder(['adenosine6', 'adenosine12']), ...RATE_RULES],
       text: 'Adenosine with no order, for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for her — and with a pulse it is on no standing order.',
     },
     {
@@ -1004,7 +1008,7 @@ export const edTamponade: Scenario = {
       // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'procainamide', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem'],
       roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
-      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'])],
+      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']), ...RATE_RULES],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },
   ],

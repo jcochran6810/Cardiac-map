@@ -346,7 +346,7 @@ describe('cocaine chest pain in the field — the traps', () => {
     expect(penalties(medic(['iv', 'epinephrine']))).toEqual(['arrest-epi-with-pulse']);
   });
 
-  it('diltiazem before the benzodiazepine and nitroglycerin is a minor mistake; after them, for a pressure still 160 or more, it costs nothing', () => {
+  it('diltiazem before the benzodiazepine and nitroglycerin is a minor mistake; after them, for a pressure still 160 or more, the case does not charge it', () => {
     const early = medic(['iv', 'diltiazem']);
     expect(penalties(early)).toEqual(['diltiazem-stimulant']);
     expect(early.penalties[0]).toMatchObject({ points: 2, severity: 'minor', text: expect.stringMatching(/2023 AHA poisoning update/) });
@@ -355,7 +355,8 @@ describe('cocaine chest pain in the field — the traps', () => {
     expect(s.fired).toEqual(['worse']);
     expect(s.vitals.sbp).toBeGreaterThanOrEqual(160);
     s = perform(sc, s, 'diltiazem');
-    expect(penalties(s)).toEqual(['beta-blocker-stimulant']);
+    // …but minutes after IV metoprolol it is the built-in combination rule's (the diltiazem label: not within a few hours)
+    expect(penalties(s)).toEqual(['beta-blocker-stimulant', 'iv-beta-blocker-with-diltiazem']);
     // once the pressure is down, it is not
     const down = medic(['vitals', 'iv', 'midazolam', 'ask-pde5', 'nitro', 'diltiazem']);
     expect(penalties(down)).toEqual(['diltiazem-stimulant']);

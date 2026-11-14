@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState, Vitals } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Acute type A aortic dissection in the field. A hypertensive man who ran out of his pills tears his ascending aorta lifting
@@ -445,12 +446,12 @@ export const dissectionField: Scenario = {
       text: 'Raising the legs of a patient who is not in shock. It returns more blood to a heart that is already pushing too hard against the tear: let him rest in the position of comfort.',
     },
     {
-      id: 'rate-drug-low', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && (shock(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), points: 8, severity: 'major',
+      id: 'rate-drug-low', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && (shock(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in shock, or with a systolic under 100 or a rate under 60. With a torn aorta a falling pressure means tamponade, rupture or a leaking aortic valve: slowing the heart takes away the rate that is holding up his output.',
     },
     {
       // metoprolol and diltiazem are offered once each: one already on board means this is the second AV-nodal blocker
-      id: 'rate-drug-double', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && !shock(s) && s.vitals.sbp >= 100 && s.rhythm.hr >= 60 && rateControlled(s), points: 5, severity: 'major',
+      id: 'rate-drug-double', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && !shock(s) && s.vitals.sbp >= 100 && s.rhythm.hr >= 60 && rateControlled(s), replaces: RATE_RULES, points: 5, severity: 'major',
       text: 'IV diltiazem and an IV beta-blocker together. Two AV-nodal blockers on top of each other can bring profound bradycardia, heart block and a falling pressure. The guideline gives one: a beta-blocker, or diltiazem only for a patient who cannot take one.',
     },
     {

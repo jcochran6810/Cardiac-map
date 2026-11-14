@@ -2,6 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Hypertensive acute pulmonary edema ("sympathetic crashing acute pulmonary edema", SCAPE) arriving in the emergency
@@ -914,7 +915,7 @@ export const edScape: Scenario = {
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
-      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure'], points: 8, severity: 'major',
+      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure', ...RATE_RULES], points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
     }, NO_ORDER, ['rn-without-order-metoprolol', 'rn-without-order-diltiazem']),
     ...bothRoles({
@@ -922,7 +923,7 @@ export const edScape: Scenario = {
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding his lungs: raising it makes the edema worse. He needs the pressure taken off — nitroglycerin and positive pressure.',
     }, NO_ORDER, ['rn-without-order-pressor', 'rn-without-order-push-epi']),
     ...bothRoles({
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
     }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {

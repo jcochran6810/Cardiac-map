@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Pre-excited atrial fibrillation (Wolff-Parkinson-White). A 24-year-old man whose heart took off in a pickup basketball
@@ -648,7 +649,7 @@ export const wpwAfField: Scenario = {
       // once he is back in sinus there is nothing left for them to treat; in WPW adenosine can even set off AF again
       // amiodarone after the procainamide that converted him is this same mistake: one penalty
       id: 'rate-drug-after-conversion', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion'], when: (s) => s.pulse && !inAf(s), points: 3, severity: 'minor',
-      replaces: ['amiodarone-after-procainamide'],
+      replaces: ['amiodarone-after-procainamide', ...RATE_RULES],
       text: 'A rate or rhythm drug once he was back in a regular rhythm. There is nothing left to treat: they only drop the pressure — and in WPW adenosine can set off atrial fibrillation again.',
     },
     {

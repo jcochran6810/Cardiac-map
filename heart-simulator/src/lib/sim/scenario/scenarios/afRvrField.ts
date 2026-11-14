@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, has } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * The version this case teaches: atrial fibrillation with a rapid ventricular response in a man whose heart pumps at
@@ -409,8 +410,8 @@ export const afRvrField: Scenario = {
   harms: [
     // the case's central trap: rescued perfectly, it still leaves the run below "Competent"
     { id: 'diltiazem-hfref', actions: ['diltiazem'], when: (s) => s.pulse, points: 25, severity: 'critical', replaces: ['diltiazem-heart-failure'], text: 'Diltiazem in a heart that pumps at 30 %. Calcium-channel blockers weaken the squeeze and dilate the vessels: with a reduced ejection fraction IV diltiazem and verapamil must not be given, with or without decompensated heart failure (2023 ACC/AHA AF guideline: 3 — Harm), and his failing heart could not hold its pressure. Take the history before the drug; with a weak, congested heart, amiodarone (or a synchronized shock if he is unstable).' },
-    { id: 'metoprolol-decompensated', actions: ['metoprolol'], when: (s) => inAf(s), points: 4, severity: 'minor', text: 'IV metoprolol in a weak heart that is backing up into the lungs. A beta-blocker is a fair choice for a weak heart that is not congested (2023 AF guideline), but his crackles, low SpO₂ and new breathlessness are decompensated heart failure, where IV beta-blockers are to be avoided (2025 AHA) — and he already takes carvedilol: the extra dose weakened the squeeze more than it slowed the rate. Amiodarone is the drug here.' },
-    { id: 'adenosine-af', actions: ['adenosine6', 'adenosine12'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'Adenosine does not convert atrial fibrillation. The atria fibrillate on their own, with no circuit through the AV node to break: adenosine slows the rate for seconds and the same rhythm comes back. It is for a regular narrow-complex tachycardia — and in pre-excited AF it can be dangerous.' },
+    { id: 'metoprolol-decompensated', actions: ['metoprolol'], when: (s) => inAf(s), replaces: RATE_RULES, points: 4, severity: 'minor', text: 'IV metoprolol in a weak heart that is backing up into the lungs. A beta-blocker is a fair choice for a weak heart that is not congested (2023 AF guideline), but his crackles, low SpO₂ and new breathlessness are decompensated heart failure, where IV beta-blockers are to be avoided (2025 AHA) — and he already takes carvedilol: the extra dose weakened the squeeze more than it slowed the rate. Amiodarone is the drug here.' },
+    { id: 'adenosine-af', actions: ['adenosine6', 'adenosine12'], when: (s) => inAf(s), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'Adenosine does not convert atrial fibrillation. The atria fibrillate on their own, with no circuit through the AV node to break: adenosine slows the rate for seconds and the same rhythm comes back. It is for a regular narrow-complex tachycardia — and in pre-excited AF it can be dangerous.' },
     // he takes aspirin 81 mg for his old infarct, so the point is "aspirin is not anticoagulation", not "aspirin is never right"
     { id: 'aspirin-anticoagulation', actions: ['aspirin'], points: 3, severity: 'minor', text: 'A loading dose of aspirin with no indication. Aspirin is not stroke prevention in atrial fibrillation (2023 ACC/AHA AF guideline: aspirin as an alternative to anticoagulation is not recommended), he already takes 81 mg a day for his old infarct, and with no ischemic chest pain and no ST elevation a 324 mg dose treats nothing. Whether and how he is anticoagulated — and when sinus rhythm can safely be restored — is decided at the hospital, from the onset time you report.' },
     // a judgment call: his early congestion is the gray zone of "acute heart failure", so a sedated shock costs a little and
@@ -420,7 +421,7 @@ export const afRvrField: Scenario = {
     {
       id: 'antiarrhythmic-unstable', actions: ['amio-infusion', 'procainamide', 'diltiazem', 'metoprolol'], when: (s) => unstableAf(s), points: 8, severity: 'major',
       // the same mistake as the built-in "procainamide with a pressure under 90": one mistake, one penalty
-      replaces: ['procainamide-hypotension'],
+      replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug for an unstable patient. Once he had become unstable, the treatment was an immediate synchronized shock (200 J or more), not an infusion that takes minutes to work and drops the pressure further.',
     },
     // atropine is for a slow rate; in a fast one it only lets more impulses through the AV node

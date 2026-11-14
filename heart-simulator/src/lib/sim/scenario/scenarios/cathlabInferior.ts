@@ -4,6 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine,
   doneAfter, nextStep, type LabAsk,
 } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'rca-occlusion', 'final-angio': 'rca-open-timi3' };
@@ -395,8 +396,8 @@ export const cathlabInferior: Scenario = {
     askHarm(TECH_ASKS[4], 'A hydrophilic wire when the operator asked for a workhorse.'),
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a compliant pre-dilation balloon.'),
     askHarm(TECH_ASKS[7], 'The wrong device when the operator asked for a drug-eluting stent.'),
-    askHarm(RN_ASKS[0], 'The wrong drug for a reflex bradycardia of 38. Atropine 1 mg IV.', 5),
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'An IV beta-blocker with bradycardia, hypotension and an RV infarct.' },
+    { ...askHarm(RN_ASKS[0], 'The wrong drug for a reflex bradycardia of 38. Atropine 1 mg IV.', 5), replaces: RATE_RULES },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker with bradycardia, hypotension and an RV infarct.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
   ],
   timings: [

@@ -3,6 +3,7 @@ import { PADS, allOf, bpAfter, firstDone, has, line, orderedFlag, paced } from '
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, physicianDispo } from '../edKit';
 import { INTERVENTION_BY_ID } from '../interventions';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Complete heart block in the emergency department. A 78-year-old woman comes in by a basic (BLS) ambulance after two
@@ -778,15 +779,15 @@ export const edHeartBlock: Scenario = {
   harms: [
     {
       id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 20, severity: 'critical',
-      replaces: ['arrest-amio-with-pulse', 'procainamide-slow', 'procainamide-hypotension'],
+      replaces: ['arrest-amio-with-pulse', 'procainamide-slow', 'procainamide-hypotension', ...RATE_RULES],
       text: 'Lidocaine, amiodarone or procainamide for a wide escape rhythm. The wide beats are the only thing keeping her alive: suppressing them can leave no rhythm at all. A slow wide rhythm needs a faster rate (pacing), never an antiarrhythmic.',
     },
     {
-      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 15, severity: 'critical',
+      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'A beta-blocker or a calcium-channel blocker in complete heart block. They slow conduction further and weaken the squeeze — her own metoprolol is part of why she is here.',
     },
     {
-      id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major',
+      id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major',
       text: 'Adenosine in complete heart block. It has nothing to treat — the AV node already conducts nothing — and it can suppress the slow escape that is left, for seconds of standstill.',
     },
     {

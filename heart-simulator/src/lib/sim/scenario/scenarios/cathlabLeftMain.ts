@@ -3,6 +3,7 @@ import { PADS, bpAfter, firstDone, has, line, mapOf } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * A thrombotic left main in cardiogenic shock. A 72-year-old man comes straight up from the emergency department with
@@ -843,7 +844,7 @@ export const cathlabLeftMain: Scenario = {
     { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'Nitroglycerin in cardiogenic shock. It drops a pressure that is already too low to perfuse the heart and the brain; the chest pain is treated by opening the artery.' },
     // the built-in nitroglycerin rule is replaced above for every nitrate: intracoronary nitroglycerin with a low pressure keeps its own
     { id: 'ic-nitro-low-pressure', actions: ['ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['nitro-hypotension'], points: 8, severity: 'major', text: 'Intracoronary nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing ventricle must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock.' },
     // a benzodiazepine, named as one, is the bigger mistake; the generic "sedation / analgesia" order is a smaller one
     { id: 'benzodiazepine-in-shock', actions: ['midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse, points: 5, severity: 'major', text: 'Midazolam in a shocked, hypoxic, drowsy patient. A benzodiazepine drops the pressure and the breathing; a small dose of fentanyl eases the pain without either.' },
@@ -873,9 +874,9 @@ export const cathlabLeftMain: Scenario = {
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. The culprit is being opened mechanically; a lytic on top of heparin, cangrelor and a large-bore sheath only adds major bleeding.' },
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     // IV adenosine for hyperemia: no physiology to measure at an acute culprit, and it drops the pressure of a shocked patient
-    { id: 'adenosine-in-shock', actions: ['adenosine-iv-ffr'], when: (s) => s.pulse, points: 5, severity: 'major', text: 'An IV adenosine infusion in cardiogenic shock. It is for hyperemia during FFR of a stable lesion: here it drops a pressure that is already failing, and FFR means nothing at an acute culprit.' },
+    { id: 'adenosine-in-shock', actions: ['adenosine-iv-ffr'], when: (s) => s.pulse, replaces: ['ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'], points: 5, severity: 'major', text: 'An IV adenosine infusion in cardiogenic shock. It is for hyperemia during FFR of a stable lesion: here it drops a pressure that is already failing, and FFR means nothing at an acute culprit.' },
     // the radial cocktail is verapamil and nitroglycerin: both drop a low pressure
-    { id: 'cocktail-low-pressure', actions: ['radial-cocktail'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 3, severity: 'minor', text: 'The radial cocktail with a systolic pressure under 90 mmHg. Its verapamil and nitroglycerin drop the pressure further: in shock, heparin alone through the sheath, or none at all until the pressure is held.' },
+    { id: 'cocktail-low-pressure', actions: ['radial-cocktail'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: RATE_RULES, points: 3, severity: 'minor', text: 'The radial cocktail with a systolic pressure under 90 mmHg. Its verapamil and nitroglycerin drop the pressure further: in shock, heparin alone through the sheath — and no verapamil even once a pressor holds the pressure (its label rules it out in cardiogenic shock).' },
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[0], 'The wrong catheter when the operator asked for one for the left coronary from the groin. A JR4 is shaped for the right coronary, a pigtail for the left ventricle, and a Tiger for the radial approach.', 2),
     askHarm(TECH_ASKS[1], 'A balloon pump when the operator asked for the Impella. In infarct-related shock a routine IABP does not improve survival (IABP-SHOCK II; 2025 ACC/AHA: 3, no benefit).'),

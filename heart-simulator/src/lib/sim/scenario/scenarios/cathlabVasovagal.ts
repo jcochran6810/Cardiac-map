@@ -3,6 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * A vasovagal reaction at femoral sheath removal. A diagnostic cath from the right groin is over; the tech pulled the
@@ -678,7 +679,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'Epinephrine for anaphylaxis with no anaphylaxis. A contrast reaction drops the pressure too, but with a fast pulse, flushing, hives, wheeze or swelling; here the pulse is slow, the skin pale and wet, and he yawned and felt sick first — a vagal picture. Unneeded epinephrine races the heart and spikes the pressure in a man just studied for chest pain: legs up, fluid and atropine.',
     },
     {
-      id: 'nodal-blocker-slow', actions: ['metoprolol', 'diltiazem', 'adenosine6', 'adenosine12', 'amio-infusion'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60 && !paced(s), points: 8, severity: 'major',
+      id: 'nodal-blocker-slow', actions: ['metoprolol', 'diltiazem', 'adenosine6', 'adenosine12', 'amio-infusion'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60 && !paced(s), replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A drug that slows the heart, with a pulse under 60. Metoprolol, diltiazem, amiodarone and adenosine slow the sinus node or the AV node further and deepen the fall in pressure: atropine is the drug for a slow rate.',
     },
     {

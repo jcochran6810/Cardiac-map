@@ -577,9 +577,9 @@ describe('left main in cardiogenic shock: review fixes', () => {
     expect(s.vitals.sbp).toBeLessThan(78);
   });
 
-  it('the radial cocktail with a systolic under 90 costs a little; on the pressor it does not', () => {
+  it('the radial cocktail with a systolic under 90 costs a little; on the pressor its verapamil still does (cardiogenic shock)', () => {
     expect(penalties(run(sc, 5, ['consent', 'timeout', 'access', 'radial-cocktail']))).toEqual(['cocktail-low-pressure']);
-    expect(penalties(run(sc, 5, ['pressor', 'consent', 'timeout', 'access', 'radial-cocktail']))).toEqual([]);
+    expect(penalties(run(sc, 5, ['pressor', 'consent', 'timeout', 'access', 'radial-cocktail']))).toEqual(['verapamil-cardiogenic-shock']);
   });
 
   it('going without support costs the score, not just the patient: below Excellent even with a fast shock', () => {

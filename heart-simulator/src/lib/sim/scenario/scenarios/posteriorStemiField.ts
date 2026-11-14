@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, atRate, bpAfter, has, interpret, line } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Posterior STEMI in the field. A 61-year-old woman with diabetes and high blood pressure had to sit down halfway up the
@@ -446,7 +447,7 @@ export const posteriorStemiField: Scenario = {
     // the 2025 guideline does not support routine IV beta-blockade before primary PCI (it allows it in a stable patient with
     // ongoing ischemia, in hospital): in the field it is off protocol and adds risk for no gain, so a minor penalty
     {
-      id: 'beta-blocker', actions: ['metoprolol'], roles: [2], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'beta-blocker', actions: ['metoprolol'], roles: [2], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'IV metoprolol in the field. Routine IV beta-blockade before primary PCI is not supported (2025 ACC/AHA ACS guideline), and it is no part of US prehospital STEMI protocols: given early it can bring on bradycardia, hypotension and cardiogenic shock (COMMIT). The hospital starts an oral beta-blocker within 24 hours once heart failure, a low output and the risk of shock are excluded.',
     },
     {
@@ -454,7 +455,7 @@ export const posteriorStemiField: Scenario = {
       text: 'Epinephrine or a vasopressor with a normal pressure in an acute MI. It drives up the rate, the pressure and the oxygen the starving muscle needs, and can set off arrhythmias: her pressure needs no support.',
     },
     {
-      id: 'rate-drug-sinus', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'rate-drug-sinus', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'A drug for an arrhythmia with a regular sinus rate. Her rhythm needs no treatment: adenosine, diltiazem and the antiarrhythmics have nothing to treat and bring only their side effects — a pause, a falling pressure, slower conduction (prophylactic lidocaine in MI was abandoned decades ago). The treatment of her heart is opening the artery.',
     },
     {

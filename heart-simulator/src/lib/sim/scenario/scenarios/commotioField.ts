@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { ARREST_ETCO2, arrestEtco2, bpAfter, firstDone, has, interpret, line, mapOf, ventilated } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Minutes after the crew reaches him (he collapsed about 5 minutes before, with the coach's CPR since) within which the
@@ -602,12 +603,12 @@ export const commotioField: Scenario = {
     {
       // procainamide included: its built-in rule only fires while the systolic is under 90, and after a bolus it may not be
       id: 'rate-drug-post-rosc', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide', 'adenosine6', 'adenosine12'], when: (s) => s.pulse, roles: [2],
-      points: 5, severity: 'major', replaces: ['procainamide-hypotension'],
+      points: 5, severity: 'major', replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert his rhythm after ROSC. His fast rate is the body\'s answer to the arrest and a low pressure — there is no arrhythmia to treat: these drugs drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {
       id: 'rate-drug-arrest', actions: ['adenosine6', 'adenosine12', 'metoprolol', 'diltiazem', 'procainamide', 'amio-infusion'], when: (s) => !s.pulse, roles: [2],
-      points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      points: 3, severity: 'minor', replaces: ['procainamide-in-arrest', ...RATE_RULES],
       text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem, procainamide and the 150 mg amiodarone infusion are not arrest drugs: VF needs shocks, CPR, epinephrine and, if it persists, amiodarone 300 mg or lidocaine.',
     },
     {

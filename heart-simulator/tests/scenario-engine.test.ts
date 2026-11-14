@@ -569,16 +569,17 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
   });
 
   it('procainamide: its stop rules and contraindications are built in', () => {
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide']))).toEqual([]);
+    // a sinus rhythm: no arrhythmia for it to treat (the indication rule)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide']))).toEqual(['antiarrhythmic-no-arrhythmia']);
     // 74/42 with complete heart block at 34: one dose, one penalty — the block outranks the low pressure
     expect(penalties(run(block, 2, ['iv', 'procainamide']))).toEqual(['procainamide-slow']);
     // a pacer protects against the block it would deepen
     expect(penalties(run(block, 2, ['pads', 'iv', 'pace', 'procainamide']))).not.toContain('procainamide-slow');
     expect(penalties(run(withProblems(stemiAnterior, 'heart-failure'), 2, ['iv', 'procainamide']))).toEqual(['procainamide-heart-failure']);
     expect(penalties(run(withProblems(stemiAnterior, 'long-qt'), 2, ['iv', 'procainamide']))).toEqual(['procainamide-long-qt']);
-    // one antiarrhythmic on top of another, either way round
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'amio-infusion', 'procainamide']))).toEqual(['procainamide-after-amiodarone']);
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide', 'amio-infusion']))).toEqual(['amiodarone-after-procainamide']);
+    // one antiarrhythmic on top of another, either way round (the first, on a sinus rhythm, is the indication rule's)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'amio-infusion', 'procainamide']))).toEqual(['antiarrhythmic-no-arrhythmia', 'procainamide-after-amiodarone']);
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide', 'amio-infusion']))).toEqual(['antiarrhythmic-no-arrhythmia', 'amiodarone-after-procainamide']);
   });
 
   it('glucose: oral gel for a patient who can swallow, IV dextrose for the paramedic, and only for a low glucose', () => {
@@ -777,9 +778,12 @@ describe('default responses follow the patient in front of them', () => {
   it('10: calcium for the low pressure diltiazem caused is not "without an indication" — once the pressure is back, or in an arrest, it is', () => {
     const low = perform(stemiAnterior, medic(undefined, { sbp: 84, dbp: 52 }), 'diltiazem');
     expect(low.vitals.sbp).toBeLessThan(90);
-    expect(penalties(perform(stemiAnterior, low, 'calcium-chloride'))).toEqual([]);
+    // (diltiazem at 84 is its own mistake; the calcium after it adds none)
+    expect(penalties(low)).toEqual(['nodal-blocker-hypotension']);
+    expect(penalties(perform(stemiAnterior, low, 'calcium-chloride'))).toEqual(['nodal-blocker-hypotension']);
     // one therapeutic dose that left a normal pressure is no overdose
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem', 'calcium-chloride']))).toEqual(['calcium-no-indication']);
+    // (the diltiazem, on a sinus rhythm, is the indication rule's)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem', 'calcium-chloride']))).toEqual(['antiarrhythmic-no-arrhythmia', 'calcium-no-indication']);
     expect(penalties(run(stemiAnterior, 2, ['iv', 'calcium-chloride']))).toEqual(['calcium-no-indication']);
     // diltiazem, then the VF an unsynchronized shock causes: routine calcium in the arrest has no benefit (2025 AHA)
     const svt = SCENARIO_BY_ID['svt-unstable-field'];
@@ -999,7 +1003,8 @@ describe('default responses follow the patient in front of them', () => {
   it('27: diltiazem with heart failure or in VT is a critical error; a case rule for it stands in for the built-in one', () => {
     expect(penalties(run({ ...stemiAnterior, problems: ['heart-failure'] }, 2, ['iv', 'diltiazem']))).toEqual(['diltiazem-heart-failure']);
     expect(penalties(perform(stemiAnterior, medic({ profile: 'vt', hr: 170 }), 'diltiazem'))).toEqual(['diltiazem-vt']);
-    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem']))).toEqual([]);
+    // a sinus rhythm: no tachyarrhythmia for it (the indication rule only)
+    expect(penalties(run(stemiAnterior, 2, ['iv', 'diltiazem']))).toEqual(['antiarrhythmic-no-arrhythmia']);
     const af = SCENARIO_BY_ID['af-rvr-field'];
     expect(penalties(run(af, 2, ['iv', 'diltiazem']))).toEqual(['diltiazem-hfref']);
     const vt = SCENARIO_BY_ID['stable-vt-field'];

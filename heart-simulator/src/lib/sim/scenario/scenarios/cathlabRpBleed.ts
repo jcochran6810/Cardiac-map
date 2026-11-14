@@ -2,6 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, type LabAsk } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * A retroperitoneal bleed after femoral access. Three hours after a PCI from the right groin, a small 76-year-old woman
@@ -723,7 +724,7 @@ export const cathlabRpBleed: Scenario = {
       text: 'Atropine for a low pressure with a fast heart rate. A vasovagal reaction slows the heart; hers is racing to make up for the blood she is losing. Atropine only drives the rate and the heart\'s oxygen need higher: look for the bleeding, and give volume and blood.',
     },
     {
-      id: 'rate-control-in-bleeding', actions: ['metoprolol', 'diltiazem'], points: 10, severity: 'major',
+      id: 'rate-control-in-bleeding', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 10, severity: 'major',
       text: 'A drug that slows the heart in a patient who is bleeding. The fast rate is what keeps her output up while the volume is low: take it away and the pressure falls further. Treat the cause.',
     },
     {

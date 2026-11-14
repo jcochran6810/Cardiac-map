@@ -1,5 +1,6 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { PADS, has, interpret, line, shocks } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 const ROSC_VITALS = { sbp: 104, dbp: 66, spo2: 94, rr: 16, gcs: 14, pain: 6 };
 
@@ -109,7 +110,7 @@ export const stemiAnterior: Scenario = {
     { id: 'nitro-no-bp', actions: ['nitro', 'nitro-assist', 'nitro-high'], when: (s) => !has(s, 'bp'), points: 5, severity: 'major', text: 'Nitroglycerin without a blood pressure. Check BP first: SBP must be at least 90–100 mmHg (per protocol).' },
     { id: 'nitro-no-pde5', actions: ['nitro', 'nitro-assist', 'nitro-high'], when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor', text: 'Nitroglycerin without asking about erectile-dysfunction drugs: no nitrate within 12 h (avanafil), 24 h (sildenafil, vardenafil) or 48 h (tadalafil) of a PDE-5 inhibitor. Together they can cause profound hypotension.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 3, severity: 'minor', text: 'Oxygen is for SpO₂ below 90 %. Routine oxygen in a normoxic STEMI gives no benefit, and high-flow oxygen may increase infarct size (AVOID).' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'IV beta-blockers are not a prehospital STEMI treatment; in anterior STEMI they raise the risk of cardiogenic shock (COMMIT).' },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'IV beta-blockers are not a prehospital STEMI treatment; in anterior STEMI they raise the risk of cardiogenic shock (COMMIT).' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable center (first medical contact to device within 90 minutes). The nearest ED has no cath lab and adds a transfer.' },
     { id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, points: 4, severity: 'minor', text: 'CPAP is for respiratory distress from pulmonary edema; his lungs were clear.' },
   ],

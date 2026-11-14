@@ -2,6 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { bpAfter, canSwallow, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LEFT_VIEWS, MD, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Acute stent thrombosis on the table. A primary PCI of the proximal LAD: the stent went in on the emergency
@@ -684,7 +685,7 @@ export const cathlabStentThrombosis: Scenario = {
     // a covered stent is another stent, and a worse one: the same weight as another stent before imaging, not a lesser fault
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: MD, points: 10, severity: 'major', text: 'A covered stent without a perforation. Covered stents seal perforations; they clot and restenose far more than drug-eluting stents and can shut the side branches they cover — the last thing a stent that has just clotted needs. Fix the drugs, reopen it, image it, then treat what the imaging shows.' },
     { id: 'tech-unasked-covered', actions: ['stent-covered'], roles: TECH, points: 3, severity: 'minor', text: 'A covered stent opened that nobody asked for. Covered stents are for perforations; there is none, and in a stent that has just clotted it would clot again. Open devices when the operator asks for them.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'An IV beta-blocker in an evolving anterior STEMI. His systolic fell to about 100 when the stent shut — a systolic under 120, like a heart rate over 110, is a risk factor for cardiogenic shock (COMMIT) — and IV beta-blockers are not routine in STEMI. An oral one starts within 24 hours, once he is stable with no heart failure or low output.' },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker in an evolving anterior STEMI. His systolic fell to about 100 when the stent shut — a systolic under 120, like a heart rate over 110, is a risk factor for cardiogenic shock (COMMIT) — and IV beta-blockers are not routine in STEMI. An oral one starts within 24 hours, once he is stable with no heart failure or low output.' },
     // shocked back to 84 systolic (or worse) a pump is a defensible choice; above 90 it treats nothing he has
     { id: 'pump-no-shock', actions: ['iabp', 'impella'], roles: MD, when: (s) => s.pulse && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A mechanical pump without cardiogenic shock. It does nothing for the clot in the stent, it takes minutes while the LAD stays shut, and it adds a large-bore femoral puncture in a patient on heparin and antiplatelet drugs. Reopen the artery: that is what supports this heart.' },
     { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Intracoronary epinephrine for a stent thrombosis. It is a drug for no-reflow with a low pressure; it does nothing for clot in the stent, and it speeds the heart and raises the oxygen need of an infarcting heart.' },

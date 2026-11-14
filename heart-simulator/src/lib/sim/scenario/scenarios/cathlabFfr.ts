@@ -4,6 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-ffr-positive', ffr: 'ffr-significant', 'final-angio': 'lad-stented-after-ffr' };
@@ -397,7 +398,7 @@ export const cathlabFfr: Scenario = {
   harms: [
     { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
     { id: 'stent-before-ffr', actions: ['stent-des', 'balloon-predil'], roles: MD, when: (s) => !has(s, 'ffr-done'), points: 10, severity: 'major', text: 'Treating a borderline narrowing without showing it is significant. Intermediate lesions need physiology first: about two-thirds of them do not limit flow (FAME).' },
-    { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
+    { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for the LAD. Use a left guide with back-up (EBU / XB).' },
@@ -405,14 +406,14 @@ export const cathlabFfr: Scenario = {
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
     ...TECH_ASKS.slice(1, 5).map((a) => askHarm(a, `The wrong view when the operator asked for this one. ${a.why}`, 2)),
-    askHarm(TECH_ASKS[5], 'An intracoronary drug when the operator asked for the radial cocktail.'),
+    { ...askHarm(TECH_ASKS[5], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: RATE_RULES },
     askHarm(TECH_ASKS[6], 'A right-coronary guide when the operator asked for a left guide.'),
     askHarm(TECH_ASKS[10], 'The wrong device when the operator asked for a drug-eluting stent.'),
     askHarm(TECH_ASKS[11], 'A compliant balloon when the operator asked for a non-compliant one.'),
     askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5),
-    askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'),
-    askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'),
-    askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'),
+    { ...askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'), replaces: RATE_RULES },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
   ],
   timings: [

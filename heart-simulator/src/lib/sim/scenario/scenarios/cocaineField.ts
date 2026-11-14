@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -526,14 +527,14 @@ export const cocaineField: Scenario = {
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {
-      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], replaces: RATE_RULES, points: 3, severity: 'minor',
       when: (s) => s.pulse && ['sinus-tachycardia', 'normal-sinus'].includes(s.rhythm.profile),
       text: 'A drug for an arrhythmia, given for a fast sinus rate. The rate is the cocaine and the agitation driving a normal heart: adenosine and the antiarrhythmics treat nothing here. A benzodiazepine brings the rate down by treating its cause.',
     },
     {
       // a calcium-channel blocker is a vasodilator the AHA lists for cocaine's coronary spasm or a dangerous pressure (2023
       // poisoning update) — after the benzodiazepine and nitroglycerin, not instead of them: then it costs nothing
-      id: 'diltiazem-stimulant', actions: ['diltiazem'], points: 2, severity: 'minor',
+      id: 'diltiazem-stimulant', actions: ['diltiazem'], replaces: RATE_RULES, points: 2, severity: 'minor',
       when: (s) => s.pulse && !(has(s, 'benzodiazepine') && has(s, 'nitro') && s.vitals.sbp >= 160),
       text: 'IV diltiazem for the fast rate and the high pressure of cocaine. A benzodiazepine treats both at their cause and nitroglycerin the coronary spasm; a calcium-channel blocker is a later option for spasm or a pressure that stays dangerously high after them (AHA statement on cocaine-associated chest pain; 2023 AHA poisoning update) — and in field protocols IV diltiazem is a rate drug for atrial fibrillation or flutter, not for a fast sinus rate.',
     },

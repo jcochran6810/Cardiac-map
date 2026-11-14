@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { arrestEtco2, bpAfter, count, firstDone, has, mapOf, ventilated } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * A witnessed, monitored cardiac arrest in the emergency department. A 61-year-old man came in 40 minutes ago with two
@@ -908,7 +909,7 @@ export const edVfArrest: Scenario = {
     },
     {
       // the nurse's version is the built-in rule: an infusion without an order
-      id: 'amio-infusion-in-arrest', actions: ['amio-infusion'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'amio-infusion-in-arrest', actions: ['amio-infusion'], roles: ED_MD, when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'An amiodarone infusion in cardiac arrest. 150 mg over 10 minutes is the dose for a tachycardia with a pulse; in VF the dose is a 300 mg push (then 150 mg), given during compressions.',
     },
     {
@@ -916,7 +917,7 @@ export const edVfArrest: Scenario = {
       text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg every 3–5 minutes.',
     },
     {
-      id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine in cardiac arrest. It is for a regular narrow-complex tachycardia with a pulse; in VF it treats nothing.',
     },
     {
@@ -927,7 +928,7 @@ export const edVfArrest: Scenario = {
     },
     {
       id: 'rate-drug', actions: ['metoprolol', 'diltiazem'], points: 8, severity: 'major',
-      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem'],
+      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem', ...RATE_RULES],
       text: 'A beta-blocker or diltiazem in the arrest or after ROSC. His fast rate after ROSC is the body\'s answer to the arrest, the epinephrine and a low pressure: these drugs weaken the squeeze and drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {

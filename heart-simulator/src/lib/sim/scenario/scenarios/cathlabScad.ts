@@ -5,6 +5,7 @@ import {
   LAD_VIEWS, LEFT_VIEWS, MD, RCA_VIEWS, TECH, WIRES, angioGate, anticoagulated, askCritical, askDone, askEvents, askHarm, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Spontaneous coronary artery dissection (SCAD). A 42-year-old woman eight weeks after childbirth, breastfeeding, comes
@@ -766,7 +767,7 @@ export const cathlabScad: Scenario = {
     { id: 'heparin-twice', actions: ['heparin'], roles: [4], when: (s) => has(s, 'heparin') && !has(s, 'scad'), points: 8, severity: 'major', text: 'A second heparin bolus on top of the first. She already had heparin 70 units/kg: check what has been given before you draw up a dose — a double dose doubles the bleeding risk, at the radial artery and in the wall of a fragile coronary.' },
     { id: 'lytic-scad', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', text: 'A fibrinolytic in the cath lab, where the artery can be seen and treated. It adds only bleeding — and in SCAD it can make the blood in the wall spread (case reports of extension, rupture and tamponade). In a young woman after a pregnancy with a STEMI, think of SCAD before any lytic.' },
     // the spread hematoma has made the anterior wall ischemic again, with a fast rate and a falling pressure (COMMIT)
-    { id: 'beta-blocker-shock-risk', actions: ['metoprolol'], roles: MD, when: (s) => s.pulse && ischemic(s), points: 6, severity: 'major', text: 'IV metoprolol with the anterior wall ischemic again, a heart rate over 110 and the pressure falling. A failing ventricle leans on its rate: an IV beta-blocker now risks cardiogenic shock (COMMIT). Restore the flow first, and start the beta-blocker once she is stable.' },
+    { id: 'beta-blocker-shock-risk', actions: ['metoprolol'], roles: MD, when: (s) => s.pulse && ischemic(s), replaces: RATE_RULES, points: 6, severity: 'major', text: 'IV metoprolol with the anterior wall ischemic again, a heart rate over 110 and the pressure falling. A failing ventricle leans on its rate: an IV beta-blocker now risks cardiogenic shock (COMMIT). Restore the flow first, and start the beta-blocker once she is stable.' },
     { id: 'mcs-stable', actions: ['iabp', 'impella'], roles: MD, when: (s) => s.pulse && s.vitals.sbp >= 90, points: 8, severity: 'major', text: 'A balloon pump or Impella for a stable patient. Nothing needs support, large-bore femoral access risks an iliac dissection in a woman who may have fibromuscular dysplasia, and a balloon pump can push a coronary dissection further.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     // the tech only opens it — the operator refuses it and nothing reaches the patient — so a small penalty
@@ -776,8 +777,8 @@ export const cathlabScad: Scenario = {
     askHarm(TECH_ASKS[1], 'A right-coronary view when the operator asked to repeat the LAD. Cranial views lay out the mid and distal LAD.'),
     askHarm(TECH_ASKS[2], 'The wrong catheter when the operator asked for a JR4 for the right coronary.', 2),
     askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,800 units. Read the order back before you give it.'),
-    askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'),
-    askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'),
+    { ...askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'), replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'), replaces: RATE_RULES },
     askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain.', 2),
   ],
   timings: [

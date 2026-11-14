@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, firstDone, has, interpret, line } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /** Minutes from the EMT's call until the paramedic intercept is at her side */
 const ALS_MINUTES = 6;
@@ -517,7 +518,7 @@ export const peaArrestField: Scenario = {
     {
       // one rule for all of them, in its own words; it stands in for the built-in procainamide-in-arrest rule
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
-      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest', ...RATE_RULES],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; adenosine, procainamide, beta-blockers and diltiazem are for tachycardias with a pulse: in PEA they treat nothing. CPR, epinephrine and the cause.',
     },
     {
@@ -537,11 +538,11 @@ export const peaArrestField: Scenario = {
     {
       // procainamide included: its built-in rule only fires while the systolic is under 90, and after a bolus it may not be
       id: 'rate-control-post-rosc', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['procainamide-hypotension'],
+      replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert her rhythm after ROSC. Her fast rate is the body\'s answer to the arrest, the epinephrine and a low pressure — there is no arrhythmia to treat: beta-blockers, diltiazem, amiodarone and procainamide drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {
-      id: 'antiarrhythmic-post-rosc', actions: ['adenosine6', 'adenosine12', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-post-rosc', actions: ['adenosine6', 'adenosine12', 'lidocaine'], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine or lidocaine after ROSC. Her fast rate is the body\'s answer to the arrest, not an arrhythmia: adenosine only stops a rhythm whose circuit runs through the AV node, and hers does not; lidocaine treats nothing after an arrest that was never VF.',
     },
     {

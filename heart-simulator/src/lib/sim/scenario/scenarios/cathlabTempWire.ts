@@ -1,6 +1,7 @@
 import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../types';
 import { PADS, atRate, bpAfter, count, firstDone, has, line, paced } from '../kit';
 import { MD, TECH, askCritical, askDone, askEvents, askHarm, type LabAsk } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Complete heart block with a slow wide escape, sent up from the emergency department for a temporary transvenous pacing
@@ -653,9 +654,9 @@ export const cathlabTempWire: Scenario = {
   harms: [
     { id: 'wire-without-pads', actions: ['temp-wire'], roles: MD, when: (s) => !has(s, 'pads'), points: 10, severity: 'major', text: 'A transvenous wire with no pads on. Crossing the tricuspid valve can set off VT, and a wire can stop pacing at any moment in a patient whose own escape is 30: pads on (and transcutaneous pacing ready) before the wire goes in, and until it is secure.' },
     { id: 'atropine-repeat', actions: ['atropine'], roles: [4, 5], when: (s) => s.pulse && count(s, 'atropine') >= 1 && !paced(s), points: 5, severity: 'major', text: 'More atropine for a block that atropine has already failed. A wide escape means the block is below the AV node: atropine speeds the sinus node, not the ventricles. Pace (pads, then the wire), or start an epinephrine or dopamine drip.' },
-    { id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'procainamide'], replaces: ['procainamide-slow'], points: 20, severity: 'critical', text: 'Never give lidocaine, amiodarone or procainamide to a patient living on a ventricular escape: it is what keeps her alive, and suppressing it can leave nothing at all — even with a wire in, which can stop pacing at any time.' },
-    { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], points: 15, severity: 'critical', text: 'A beta-blocker or diltiazem in complete heart block. They are among the drugs that cause AV block, not treatments for it: they weaken the squeeze and drop the pressure, and a beta-blocker slows the ventricular escape she lives on.' },
-    { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine in complete heart block. It is for a regular narrow-complex tachycardia, and its label rules it out in second- or third-degree AV block without a working pacemaker: it can add seconds of standstill to a slow escape.' },
+    { id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'procainamide'], replaces: ['procainamide-slow', ...RATE_RULES], points: 20, severity: 'critical', text: 'Never give lidocaine, amiodarone or procainamide to a patient living on a ventricular escape: it is what keeps her alive, and suppressing it can leave nothing at all — even with a wire in, which can stop pacing at any time.' },
+    { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 15, severity: 'critical', text: 'A beta-blocker or diltiazem in complete heart block. They are among the drugs that cause AV block, not treatments for it: they weaken the squeeze and drop the pressure, and a beta-blocker slows the ventricular escape she lives on.' },
+    { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine in complete heart block. It is for a regular narrow-complex tachycardia, and its label rules it out in second- or third-degree AV block without a working pacemaker: it can add seconds of standstill to a slow escape.' },
     // Nitroglycerin: before the wire comes through the wall the engine's own two rules stand, in their own words (a case
     // rule with the same id replaces a built-in one, so they are restated here, limited to that time); after it, the case's
     // rule covers it — one mistake, one penalty

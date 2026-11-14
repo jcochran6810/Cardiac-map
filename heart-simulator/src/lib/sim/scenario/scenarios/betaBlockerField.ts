@@ -1,6 +1,7 @@
 import type { Effect, Line, Scenario, ScenarioEvent, SimState, Vitals } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LOW_GLUCOSE, PADS, PERFUSING_FLOOR, canSwallow, count, firstDone, has, paced } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Extended-release metoprolol overdose. The patient is computed, not patched: her rate and pressure are the untreated
@@ -608,12 +609,12 @@ export const betaBlockerField: Scenario = {
     { id: 'handoff', label: 'Hand-off', why: 'The drug and its form (extended-release), the dose and the time, the glucose, what you gave and how she responded, and that this was a suicide attempt.', done: ['handoff'], points: 5 },
   ],
   harms: [
-    { id: 'av-blocker', actions: ['diltiazem', 'metoprolol'], points: 20, severity: 'critical', text: 'Another AV-nodal blocker on top of a beta-blocker overdose. A calcium-channel blocker or more beta-blocker slows the heart, weakens the squeeze and opens the vessels further, and can stop the heart: treat the poison, never add to it.' },
-    { id: 'adenosine-brady', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
+    { id: 'av-blocker', actions: ['diltiazem', 'metoprolol'], replaces: RATE_RULES, points: 20, severity: 'critical', text: 'Another AV-nodal blocker on top of a beta-blocker overdose. A calcium-channel blocker or more beta-blocker slows the heart, weakens the squeeze and opens the vessels further, and can stop the heart: treat the poison, never add to it.' },
+    { id: 'adenosine-brady', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
     // one penalty for one mistake: these stand in for the engine's procainamide and arrest-dose amiodarone rules
-    { id: 'antiarrhythmic-brady', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['procainamide-slow', 'procainamide-hypotension', 'arrest-amio-with-pulse'], text: 'An antiarrhythmic for a slow rhythm with a low pressure. Amiodarone and procainamide slow conduction and drop the pressure, and all three can suppress the backup pacemaker that is keeping her going; there is nothing here to suppress.' },
+    { id: 'antiarrhythmic-brady', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['procainamide-slow', 'procainamide-hypotension', 'arrest-amio-with-pulse', ...RATE_RULES], text: 'An antiarrhythmic for a slow rhythm with a low pressure. Amiodarone and procainamide slow conduction and drop the pressure, and all three can suppress the backup pacemaker that is keeping her going; there is nothing here to suppress.' },
     // her arrest is an organized rhythm without a pulse: nothing for amiodarone or lidocaine to treat (procainamide has its own built-in rule)
-    { id: 'antiarrhythmic-pea', actions: ['lidocaine', 'amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'An antiarrhythmic in a cardiac arrest without VF or VT. Amiodarone and lidocaine are for shock-refractory VF or pulseless VT; with an organized rhythm and no pulse: CPR, epinephrine and the cause.' },
+    { id: 'antiarrhythmic-pea', actions: ['lidocaine', 'amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor', text: 'An antiarrhythmic in a cardiac arrest without VF or VT. Amiodarone and lidocaine are for shock-refractory VF or pulseless VT; with an organized rhythm and no pulse: CPR, epinephrine and the cause.' },
     { id: 'atropine-loop', actions: ['atropine'], when: (s) => s.pulse && count(s, 'atropine') >= 2 && !escalated(s), points: 5, severity: 'major', text: 'A third dose of atropine with nothing else started, while the pressure falls. Atropine often does little in a beta-blocker overdose: when the first dose fails, move on — glucagon, an epinephrine infusion, pacing.' },
     { id: 'atropine-in-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in cardiac arrest. It is no longer recommended for PEA or asystole: CPR, epinephrine and the reversible causes.' },
     // the engine's own rule judges on the real glucose; after a low one was found, the first dose is right even if glucagon has since raised it

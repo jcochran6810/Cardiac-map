@@ -4,6 +4,7 @@ import { INTERVENTION_BY_ID } from '../interventions';
 import {
   LEFT_VIEWS, MD, NO_REFLOW_VASODILATORS, TECH, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * No-reflow after primary PCI. The case opens with the wire across a clot-laden proximal LAD, flow back after aspiration
@@ -583,7 +584,11 @@ export const cathlabNoReflow: Scenario = {
   ],
   harms: [
     { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
-    { id: 'verapamil-low-pressure', actions: ['ic-verapamil'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'Intracoronary verapamil with a systolic pressure under 90 mmHg. It relaxes the vessels and weakens the squeeze, so the pressure falls further — and a lower perfusion pressure makes no-reflow worse. Support the pressure first, or use intracoronary epinephrine.' },
+    // the case's own choice (same id: it hides the built-in rule): 200 mcg of adenosine down the culprit acts for seconds,
+    // and its dip comes straight back, so at this pressure it is a fair no-reflow drug. The operator's request decides
+    // between it and epinephrine, and a wrong answer to that request is scored (askHarm)
+    { id: 'ic-vasodilator-hypotension', actions: ['ic-adenosine'], when: () => false, points: 6, severity: 'major', text: 'Intracoronary adenosine with a low pressure: not charged in this case.' },
+    { id: 'verapamil-low-pressure', actions: ['ic-verapamil'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: RATE_RULES, points: 6, severity: 'major', text: 'Intracoronary verapamil with a systolic pressure under 90 mmHg. It relaxes the vessels and weakens the squeeze, so the pressure falls further — and a lower perfusion pressure makes no-reflow worse. Support the pressure first, or use intracoronary epinephrine.' },
     { id: 'stent-for-no-reflow', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'no-reflow'), points: 10, severity: 'major', text: 'Another stent for slow flow in an artery that is already open. Unless imaging shows a dissection or clot at the stent, the obstruction is in the small vessels beyond it: more metal pushes more debris downstream and fixes nothing.' },
     { id: 'balloon-for-no-reflow', actions: ['balloon-predil', 'balloon-nc'], roles: MD, when: (s) => has(s, 'no-reflow'), points: 5, severity: 'minor', text: 'More balloon inflations for slow flow in a well-expanded stent. The obstruction is beyond the stent; every inflation squeezes more debris downstream.' },
     // the tech only opens it — the operator refuses it and nothing reaches the patient — so a smaller penalty than the operator's
@@ -594,13 +599,13 @@ export const cathlabNoReflow: Scenario = {
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     { id: 'protamine-in-thrombus', actions: ['protamine'], points: 10, severity: 'major', text: 'Protamine in the middle of a thrombotic PCI. Reversing the heparin lets clot form on the wire, in the fresh stent and in the small vessels: no-reflow needs full anticoagulation (ACT 250–300 s).' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. On top of heparin and two antiplatelet drugs it adds major bleeding risk; no-reflow is treated with intracoronary drugs.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'An IV beta-blocker in a large anterior STEMI with crackles at both lung bases. With heart failure signs, a low output or a falling pressure it takes away output the heart needs and risks cardiogenic shock (COMMIT); IV beta-blockers are not routine in STEMI.' },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker in a large anterior STEMI with crackles at both lung bases. With heart failure signs, a low output or a falling pressure it takes away output the heart needs and risks cardiogenic shock (COMMIT); IV beta-blockers are not routine in STEMI.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
-    { ...askHarm(TECH_ASKS[2], 'Adenosine when the operator asked for epinephrine with a pressure of 86. Adenosine lowers the pressure, it does not hold it up. Read the order back and check the syringe label before you hand it up.'), actions: ['ic-adenosine'] },
-    askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'),
-    { ...askHarm(RN_ASKS[2], 'Adenosine when the operator asked for an intracoronary drug that brings a pressure of 86 up. Adenosine is a vasodilator: of the intracoronary drugs only epinephrine raises the pressure.'), actions: ['ic-adenosine'] },
-    askHarm(RN_ASKS[3], 'An IV dose of adenosine when the operator asked for 200 micrograms into the coronary. The 6–12 mg rapid push is the SVT dose and the IV infusion is for FFR — neither is what was ordered for the microvessels.'),
+    { ...askHarm(TECH_ASKS[2], 'Adenosine when the operator asked for epinephrine with a pressure of 86. Adenosine lowers the pressure, it does not hold it up. Read the order back and check the syringe label before you hand it up.'), actions: ['ic-adenosine'], replaces: RATE_RULES },
+    { ...askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'), replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[2], 'Adenosine when the operator asked for an intracoronary drug that brings a pressure of 86 up. Adenosine is a vasodilator: of the intracoronary drugs only epinephrine raises the pressure.'), actions: ['ic-adenosine'], replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[3], 'An IV dose of adenosine when the operator asked for 200 micrograms into the coronary. The 6–12 mg rapid push is the SVT dose and the IV infusion is for FFR — neither is what was ordered for the microvessels.'), replaces: [...RATE_RULES, 'ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'] },
   ],
   timings: [
     // when the pressure came back up: by a drug or a pump, or with the flow

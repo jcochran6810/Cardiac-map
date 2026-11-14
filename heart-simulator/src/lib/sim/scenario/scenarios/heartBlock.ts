@@ -1,5 +1,6 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, paced } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /** While the pacer drives the ventricles, a drug that slows the escape rhythm or the AV node cannot drop the rate */
 const PACER_HOLDS = 'No change: the pacer keeps the heart rate at 70.';
@@ -127,9 +128,9 @@ export const heartBlock: Scenario = {
     { id: 'handoff', label: 'Hand-off', why: 'Report the rhythm, capture threshold, drugs and the beta-blocker.', done: ['handoff'], points: 5 },
   ],
   harms: [
-    { id: 'lidocaine-escape', actions: ['lidocaine', 'amio-infusion'], points: 20, severity: 'critical', text: 'Never give lidocaine or amiodarone for a wide ventricular escape rhythm: it is the only thing keeping him alive, and suppressing it can cause asystole.' },
-    { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], points: 15, severity: 'critical', text: 'Beta-blockers and calcium-channel blockers slow AV conduction further: they worsen complete heart block.' },
-    { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
+    { id: 'lidocaine-escape', actions: ['lidocaine', 'amio-infusion'], replaces: RATE_RULES, points: 20, severity: 'critical', text: 'Never give lidocaine or amiodarone for a wide ventricular escape rhythm: it is the only thing keeping him alive, and suppressing it can cause asystole.' },
+    { id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 15, severity: 'critical', text: 'Beta-blockers and calcium-channel blockers slow AV conduction further: they worsen complete heart block.' },
+    { id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine blocks the AV node: in heart block it causes prolonged ventricular standstill.' },
     { id: 'cpap-shock', actions: ['cpap'], points: 6, severity: 'major', text: 'CPAP reduces venous return; with SBP in the 70s it can deepen shock.' },
     { id: 'big-fluid', actions: ['fluid'], when: (s) => (s.counts.fluid ?? 0) >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses with crackles at both bases: the problem is the rate, not the volume.' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 3, severity: 'minor', text: 'The nearest ED cannot place a transvenous pacing wire; the regional heart center can.' },

@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * Hypertensive acute pulmonary edema — "sympathetic crashing acute pulmonary edema" (SCAPE). A surge of sympathetic tone
@@ -704,11 +705,11 @@ export const scapeField: Scenario = {
       text: 'Nitroglycerin with a systolic pressure under 100. Hold nitrates once the pressure has fallen (protocols set the line at 90, 100 or 110): CPAP and the nitrate already on board keep lowering it, and a low pressure starves the heart and the brain.',
     },
     {
-      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure'], points: 8, severity: 'major',
+      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure', ...RATE_RULES], points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. Her fast rate is the body\'s answer to the hypoxia and the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — CPAP and nitroglycerin — and the rate comes down by itself.',
     },
     {
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. Her 12-lead shows a sinus rhythm whose speed is her response to the hypoxia: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing she has.',
     },
     {

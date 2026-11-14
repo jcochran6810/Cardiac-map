@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { allOf, atRate, bpAfter, count, firstDone, flagAt, has, mapOf } from '../kit';
+import { RATE_RULES } from '../rules/rhythm';
 
 /**
  * A man on a continuous-flow LVAD (a HeartMate 3, the only durable LVAD implanted in the US today) with two days of vomiting
@@ -637,20 +638,20 @@ export const lvadField: Scenario = {
       text: 'Nitroglycerin for a man with no chest pain and a pump short of blood. It pools blood in the veins and cuts what comes back to the pump, his MAP is already low, and he takes sildenafil, which no nitrate may follow within 24 hours.',
     },
     {
-      id: 'beta-blocker-compensation', actions: ['metoprolol'], roles: [2], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'beta-blocker-compensation', actions: ['metoprolol'], roles: [2], when: (s) => s.pulse, replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A beta-blocker for a fast sinus rate that is his answer to a low volume. Slowing it takes away what holds up his output and weakens the right ventricle the pump depends on: treat the cause, with fluid.',
     },
     {
-      id: 'diltiazem-lvad', actions: ['diltiazem'], roles: [2], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['diltiazem-heart-failure'],
+      id: 'diltiazem-lvad', actions: ['diltiazem'], roles: [2], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['diltiazem-heart-failure', ...RATE_RULES],
       text: 'Diltiazem for a fast sinus rate in a man with a failing heart. His rate is his answer to a low volume, and a calcium-channel blocker drops the pressure and weakens the squeeze of the right ventricle the pump depends on (IV diltiazem with a reduced ejection fraction: 3 — Harm). Treat the cause, with fluid.',
     },
     {
       id: 'antiarrhythmic-sinus', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: [2], when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['procainamide-hypotension', 'procainamide-heart-failure'],
+      replaces: ['procainamide-hypotension', 'procainamide-heart-failure', ...RATE_RULES],
       text: 'An antiarrhythmic for a sinus rhythm. His 12-lead shows a fast sinus rate with no arrhythmia to treat; amiodarone and procainamide drop a pressure that is already low, and procainamide weakens a failing heart. Ventricular arrhythmias with an LVAD are treated when the monitor shows one.',
     },
     {
-      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], roles: [2], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], roles: [2], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine for a fast sinus rate. It only stops a rhythm whose circuit runs through the AV node; a sinus rate slows for a moment and comes straight back, and his is his answer to a low volume.',
     },
     {
