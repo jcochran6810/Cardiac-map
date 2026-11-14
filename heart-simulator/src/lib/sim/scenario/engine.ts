@@ -30,7 +30,8 @@ import type {
 import { BUILT_IN_HARMS } from './rules';
 import { INDICATION_RULES, RN_ORDER_ONLY, rnWithoutOrderId } from './rules/scope';
 import {
-  did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, preexcitedAf, profileShowsStemi, rhythmKind, shockable, tachyarrhythmia,
+  did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, preexcitedAf, profileShowsStemi, rhythmKind, shockable, slowOrBlocked,
+  tachyarrhythmia,
 } from './rules/helpers';
 
 const round = (m: number) => Math.round(m * 10) / 10;
@@ -168,7 +169,11 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'glucose': return { say: [['you', `Blood glucose ${v.glucose} mg/dL.`]] };
     case 'neuro': return { say: [['you', `GCS ${v.gcs}. ${fact('neuro') ?? 'No focal deficit.'}`]] };
     case 'reassess':
-      return { say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? (s.pulse ? `Pain ${v.pain}/10.` : 'Unresponsive.')]] };
+      // the line prints the pressure (not with an LVAD: no cuff reads it), so the learner has seen one ('bp')
+      return {
+        say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? (s.pulse ? `Pain ${v.pain}/10.` : 'Unresponsive.')]],
+        ...(s.pulse && !s.lvad ? { flags: ['bp'] } : {}),
+      };
 
     case 'monitor': return { say: [['monitor', monitorLine(s)]], flags: ['monitor'] };
     case 'pads': return { say: [['you', 'Pads on: anterior–lateral.']], flags: ['pads', 'monitor'] };
@@ -956,8 +961,20 @@ function applyEffect(s: SimState, e: Effect) {
   if (e.flags?.includes('shocked')) s.timers.lastShockAt = s.minute;
   if (e.image) s.images.push({ minute: s.minute, ...e.image });
   if (e.read && s.role !== 1) askRead(s, { ...e.read, minute: s.minute, ...(e.image?.image ? { run: s.images.length } : {}) });
+  // a preventable deterioration the case charges: once per id
+  if (e.penalty && !s.penalties.some((p) => p.id === e.penalty!.id)) s.penalties.push({ ...e.penalty, minute: s.minute });
   if (e.end && !s.ended) s.ended = { reason: e.end, minute: s.minute };
   boundVitals(s);
+  noteBradycardia(s);
+}
+
+/**
+ * The flag 'brady-seen': a slow heart of its own (a rate under 50, or second- or third-degree AV block, with a pulse and no
+ * pacer driving it) has been on the monitor at some point — set the first time, at the start or after any change. A rule
+ * about something meant for a slow rate (e.g. a pacing wire in the lab) reads it once the rate has come back up
+ */
+function noteBradycardia(s: SimState) {
+  if (slowOrBlocked(s)) setFlag(s, 'brady-seen');
 }
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
@@ -1177,6 +1194,7 @@ export function start(sc: Scenario, role: LearningLevel): SimState {
     s.timers.arrestAt = 0;
     setFlag(s, 'arrest');
   }
+  noteBradycardia(s);
   for (const line of sc.briefing[role] ?? sc.briefing.default) say(s, line[0], line[1], line[2]);
   tick(sc, s);
   return s;
