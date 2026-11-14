@@ -1586,11 +1586,17 @@ describe('GM43: the dosing guide says what each drug is not given with', () => {
     ['atropine', /Not with: a heart transplant; for wide-complex Mobitz II or complete heart block, pace/],
     ['magnesium-sulfate', /Not with: heart block/],
     ['calcium-chloride', /Not through the bicarbonate line.*slowly with digoxin/],
-    ['heparin', /Not with: HIT, active bleeding or severe thrombocytopenia/],
+    ['heparin', /Not with: HIT, active bleeding, severe thrombocytopenia, or a possible aortic dissection/],
+    ['metoprolol', /not with pre-excited AF, cocaine or methamphetamine on board, or IV diltiazem within hours; in an MI no IV dose with a systolic under 120/],
+    ['procainamide', /Not with: second- or third-degree AV block without a pacer, lupus, torsades, or a tricyclic overdose/],
+    ['epinephrine', /not with dynamic LV outflow obstruction/],
+    ['ticagrelor', /not within 24 h of a fibrinolytic/],
+    ['prasugrel', /not with active bleeding or a fibrinolytic/],
+    ['sodium-bicarbonate', /Not with alkalosis or a low calcium; never through the calcium line/],
     ['fentanyl', /Not with: hypotension or respiratory depression; with benzodiazepines/],
     ['phenylephrine', /Not with: bradycardia; only for a low pressure/],
     ['clopidogrel', /Not with: active bleeding/],
-    ['nitroglycerin', /riociguat or raised intracranial pressure/],
+    ['nitroglycerin', /riociguat or raised intracranial pressure either, a tamponade, a massive PE, or LV outflow obstruction/],
   ] as [MedId, RegExp][])('%s', (id, re) => {
     expect(MED_BY_ID[id].guide).toMatch(re);
   });
@@ -1606,8 +1612,9 @@ describe('GM42: the patient\'s history and age', () => {
       expect(planDose('adenosine', h('avnrt', 180, [x]), 6).verdict.text).toMatch(/^Not with asthma or bronchospastic lung disease: adenosine can bring on severe bronchospasm \(label\)/);
       expect(tone('sotalol', h('vt', 160, [x]), 120)).toBe('bad');
       expect(tone('metoprolol', h('atrial-fibrillation', 150, []), 5)).toBe('good');
-      expect(tone('metoprolol', h('atrial-fibrillation', 150, [x]), 5)).toBe('caution');
-      expect(tone('esmolol', h('atrial-fibrillation', 150, [x]), 40)).toBe('caution');
+      // a history of asthma: with care; wheezing now: not at all (as the case simulator's beta-blocker-bronchospasm)
+      expect(tone('metoprolol', h('atrial-fibrillation', 150, [x]), 5)).toBe(x === 'asthma' ? 'caution' : 'bad');
+      expect(tone('esmolol', h('atrial-fibrillation', 150, [x]), 40)).toBe(x === 'asthma' ? 'caution' : 'bad');
     }
   });
 
@@ -1694,7 +1701,9 @@ describe('GM42: the patient\'s history and age', () => {
     }
     expect(tone('procainamide', h('vt', 160, []), 1000)).toBe('good');
     expect(tone('procainamide', h('vt', 160, hf), 1000)).toBe('bad');
-    expect(tone('sotalol', h('vt', 160, hf), 120)).toBe('bad');
+    // sotalol: only while compensated (label: decompensated failure); wet lungs now rule it out, with the β-blockers
+    expect(planDose('sotalol', h('vt', 160, hf), 120).verdict.text).toMatch(/HFrEF: sotalol only while the failure is compensated/);
+    expect(tone('sotalol', h('vt', 160, ['pulmonary-edema']), 120)).toBe('bad');
     expect(planDose('metoprolol', h('atrial-fibrillation', 150, hf), 5).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/only while the failure is compensated/) });
   });
 
@@ -2024,5 +2033,71 @@ describe('contraindications as the labels and guidelines word them: shock risk, 
     }
     expect(planDose('heparin', h('nstemi', 84, ['intracranial-risk']), 4000).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^An intracranial lesion, or recent brain or spine surgery or head trauma: full anticoagulation is a relative contraindication/) });
     expect(planDose('heparin', h('nstemi', 84, []), 4000).verdict.tone).toBe('good');
+  });
+});
+
+describe('review round: Give meds says the contraindication the simulator and the cards say', () => {
+  const tone = (id: MedId, p: Patient, dose: number) => planDose(id, p, dose).verdict.tone;
+  const text = (id: MedId, p: Patient, dose: number) => planDose(id, p, dose).verdict.text;
+  const withProblems = (profileId: string, hr: number, problems: Problem[], extra: Partial<Patient> = {}) => patient(profileId, hr, { sbp: 120, problems, ...extra });
+
+  it('SCAD: heparin and a P2Y12 load are not judged as for a clot (the heparin card, the SCAD page)', () => {
+    const scad = patient('anterior-stemi', 92, { sbp: 128, conditionId: 'scad' });
+    expect(planDose('heparin', scad, 4000).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^SCAD: heparin is often started before the angiogram/) });
+    expect(planDose('ticagrelor', scad, 180).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^SCAD: aspirin is reasonable; without a stent the role of a P2Y12 inhibitor is uncertain/) });
+    expect(tone('heparin', patient('anterior-stemi', 92, { sbp: 128 }), 4000)).toBe('good');
+  });
+
+  it('digoxin with LV outflow obstruction: the chip, and the HCM and Takotsubo-LVOTO pages', () => {
+    expect(planDose('digoxin', withProblems('atrial-fibrillation', 130, ['lvot-obstruction']), 0.25).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Not with dynamic LV outflow obstruction/) });
+    expect(tone('digoxin', patient('hcm', 80, { sbp: 120 }), 0.25)).toBe('bad');
+    expect(text('digoxin', patient('takotsubo-lvoto', 110, { sbp: 100 }), 0.25)).toMatch(/positive inotrope worsens the gradient/);
+  });
+
+  it('the HCM page: a β-blocker is first line; diltiazem with a low pressure is harmful', () => {
+    for (const [id, dose] of [['metoprolol', 5], ['esmolol', 40]] as const) {
+      expect(planDose(id, patient('hcm', 80, { sbp: 120 }), dose).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/non-vasodilating β-blocker is first line/) });
+    }
+    expect(planDose('diltiazem', patient('hcm', 80, { sbp: 80 }), 20).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Not with hypotension in obstructive HCM/) });
+  });
+
+  it('procainamide after lidocaine is two class I drugs, as lidocaine after procainamide is', () => {
+    const vt = patient('vt', 160, { sbp: 120, given: [{ id: 'lidocaine', dose: 100, at: 0 }] });
+    expect(planDose('procainamide', vt, 1000).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/Lidocaine already given: two class I drugs/) });
+  });
+
+  it('AF with a systolic under 90: amiodarone and digoxin say the shock comes first', () => {
+    const af = patient('atrial-fibrillation', 150, { sbp: 80 });
+    for (const [id, dose] of [['amiodarone', 150], ['digoxin', 0.25]] as const) expect(text(id, af, dose), id).toMatch(/this AF is unstable: synchronized cardioversion/);
+    expect(text('amiodarone', patient('atrial-fibrillation', 150, { sbp: 120 }), 150)).not.toMatch(/unstable/);
+  });
+
+  it('the new history chips: wet lungs, pheochromocytoma, low magnesium or calcium, a sodium-channel-blocker overdose', () => {
+    for (const id of ['pulmonary-edema', 'pheochromocytoma', 'hypomagnesemia', 'hypocalcemia', 'sodium-channel-blocker-overdose'] as Problem[]) {
+      expect(HISTORY.some((x) => x.id === id), id).toBe(true);
+    }
+    const af = (problems: Problem[]) => withProblems('atrial-fibrillation', 150, problems);
+    for (const [id, dose] of [['metoprolol', 5], ['esmolol', 40], ['diltiazem', 20]] as const) expect(tone(id, af(['pulmonary-edema']), dose), id).toBe('bad');
+    expect(tone('procainamide', withProblems('vt', 160, ['pulmonary-edema']), 1000)).toBe('bad');
+    for (const [id, dose] of [['metoprolol', 5], ['esmolol', 40]] as const) expect(text(id, af(['pheochromocytoma']), dose), id).toMatch(/untreated pheochromocytoma/);
+    expect(text('digoxin', af(['hypomagnesemia']), 0.25)).toMatch(/low magnesium/);
+    expect(text('sodium-bicarbonate', withProblems('normal-sinus', 80, ['hypocalcemia']), 50)).toMatch(/A low calcium/);
+    expect(tone('procainamide', withProblems('vt', 160, ['sodium-channel-blocker-overdose']), 1000)).toBe('bad');
+  });
+
+  it('combinations and pages: calcium and bicarbonate, lysis after ticagrelor, heparin on an oral anticoagulant, pericarditis, PE, Takotsubo', () => {
+    const k = patient('hyperkalemia', 60, { sbp: 110, given: [{ id: 'sodium-bicarbonate', dose: 50, at: 0 }] });
+    expect(text('calcium-chloride', k, 1)).toMatch(/Not through the same line/);
+    const stemi = patient('anterior-stemi', 92, { sbp: 128, given: [{ id: 'ticagrelor', dose: 180, at: 0 }] });
+    expect(text('tenecteplase', stemi, 45)).toMatch(/clopidogrel is the P2Y12 inhibitor given with a fibrinolytic/);
+    expect(text('heparin', withProblems('anterior-stemi', 92, ['oral-anticoagulant']), 4000)).toMatch(/check the INR or the time of the last DOAC dose/);
+    expect(planDose('tenecteplase', patient('pericarditis', 104, { sbp: 120 }), 45).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Not in pericarditis/) });
+    expect(text('phenylephrine', patient('pulmonary-embolism', 114, { sbp: 80 }), 0.1)).toMatch(/norepinephrine is the first vasopressor/);
+    expect(text('epinephrine', patient('takotsubo', 102, { sbp: 82 }), 0.02)).toMatch(/catecholamines are avoided where possible/);
+  });
+
+  it('wheezing now rules a β1-selective blocker out; a history of asthma calls for care', () => {
+    expect(tone('metoprolol', withProblems('atrial-fibrillation', 150, ['bronchospasm']), 5)).toBe('bad');
+    expect(tone('metoprolol', withProblems('atrial-fibrillation', 150, ['asthma']), 5)).toBe('caution');
   });
 });
