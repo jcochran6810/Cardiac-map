@@ -382,7 +382,7 @@ describe('in the cases: one dose, one penalty in every state a case rule speaks 
       'albuterol', 'cardiovert', 'adenosine12', 'nitro', 'push-epi', 'ecg12-repeat', 'read:nsr', 'diltiazem', 'nitro-high'], 'manual')).toEqual(['nitro-repeat-unsafe', 'nitro-pressure-fallen']);
   });
 
-  it('aortic dissection (ED): the case judges every 0.8 mg dose itself', () => {
+  it('aortic dissection (ED): the case judges the 0.8 mg dose before rate control and below the goal; otherwise the gate (here the interval rule)', () => {
     const rateControlled = ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro'];
     // rate controlled, systolic 144: a vasodilator toward the goal of under 120 is allowed here — the case's exemption hides
     // only the 0.8 mg rule, so the other nitrate rules still judge the dose: straight after the 0.4 mg, the interval rule
