@@ -47,6 +47,25 @@ describe('the nitrate gate', () => {
     expect(rule('nitro-pde5').actions).toEqual(expect.arrayContaining(['nitro', 'nitro-high', 'nitro-assist', 'ic-nitro', 'nitro-iv', 'radial-cocktail', 'ic-nitroprusside']));
   });
 
+  it('nitro-intracranial: any nitrate, and nitroprusside, with a bleed in the head now (Nitrostat label: increased intracranial pressure)', () => {
+    expect(after(withProblems(['acute-intracranial-hemorrhage']), ['nitro'])).toEqual(['nitro-intracranial']);
+    const ed = withProblems(['acute-intracranial-hemorrhage'], { setting: 'ed', role: 7, vitals: { sbp: 182, dbp: 104 } });
+    expect(penaltyIds(ed, 7, ['vitals', 'ask-pde5', 'nitro'])).toEqual(['nitro-intracranial']);
+    expect(penaltyIds(ed, 7, ['iv', 'nitro-iv'])).toEqual(['nitro-intracranial']);
+    const lab = withProblems(['acute-intracranial-hemorrhage'], { setting: 'cathlab', role: 5 });
+    expect(penaltyIds(lab, 5, ['ic-nitro'])).toEqual(['nitro-intracranial']);
+    expect(penaltyIds(lab, 5, ['ic-nitroprusside'])).toEqual(['nitro-intracranial']);
+    expect(penaltyIds(lab, 5, ['consent', 'access', 'radial-cocktail'])).toEqual(['nitro-intracranial']);
+    // an old, healed bleed raises no intracranial pressure now: no rule of the gate holds
+    expect(after(withProblems(['intracranial-hemorrhage']), ['nitro'])).toEqual([]);
+    // ranked under the PDE-5 inhibitor, over a low pressure (one dose, one penalty)
+    expect(after(withProblems(['acute-intracranial-hemorrhage', 'pde5-inhibitor']), ['nitro'])).toEqual(['nitro-pde5']);
+    expect(after(withProblems(['acute-intracranial-hemorrhage'], { vitals: { sbp: 84, dbp: 50 } }), ['nitro'])).toEqual(['nitro-intracranial']);
+    // the second dose of the same drug is not charged again for it
+    expect(penaltyIds(ed, 7, ['vitals', 'ask-pde5', 'iv', 'nitro', 'nitro-iv']).filter((p) => p === 'nitro-intracranial')).toHaveLength(1);
+    expect(NITRATE_RULES).toContain('nitro-intracranial');
+  });
+
   it('nitro-preload-dependent: an RV infarct, a pulmonary embolism, a tamponade not drained, an outflow obstruction', () => {
     for (const p of ['rv-infarction', 'pulmonary-embolism', 'tamponade', 'severe-aortic-stenosis', 'lvot-obstruction'] as Problem[]) {
       expect(after(withProblems([p]), ['nitro']), p).toEqual(['nitro-preload-dependent']);

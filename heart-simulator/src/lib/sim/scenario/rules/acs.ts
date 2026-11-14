@@ -109,6 +109,12 @@ const NITRATE_RANKS: GateRule[] = [
     text: 'A nitrate after a PDE-5 inhibitor (or riociguat). Within 12 hours of avanafil, 24 hours of sildenafil or vardenafil or 48 hours of tadalafil — and at any time with riociguat — nitroglycerin or nitroprusside can drop the pressure profoundly and for hours (2025 ACC/AHA ACS guideline; Nitrostat and Nipride labels: contraindicated). Treat the pain without nitrates.',
   },
   {
+    // a bleed in the head now: the nitrate labels rule nitroglycerin out with a raised intracranial pressure (Nitrostat:
+    // cerebral hemorrhage or traumatic brain injury); nitroprusside raises it too (Nipride label: caution)
+    id: 'nitro-intracranial', actions: NO_DONORS, applies: (_s, sc) => hasProblem(sc, ['acute-intracranial-hemorrhage']), points: 10, severity: 'major',
+    text: 'A nitrate with a bleed in the head now. Nitroglycerin and nitroprusside dilate the cerebral vessels and raise the intracranial pressure (Nitrostat label: contraindicated with increased intracranial pressure, such as a cerebral hemorrhage): lower the pressure with a titratable drug such as nicardipine or labetalol instead, smoothly and without large swings (2022 AHA/ASA spontaneous intracerebral hemorrhage guideline).',
+  },
+  {
     id: 'nitro-preload-dependent', actions: NO_DONORS, applies: (s, sc) => preloadDependent(s, sc) || outflowObstruction(sc), points: 10, severity: 'major',
     text: 'A nitrate or nitroprusside for a heart that lives on its preload — a tamponade not yet drained, a pulmonary embolism, a right-ventricular infarction — or that pumps against an outflow obstruction (severe aortic stenosis, LV outflow obstruction). Nitroglycerin pools the blood in the veins, and nitroprusside opens the arteries too: the filling the heart depends on falls, and the pressure with it, often suddenly (2025 ACC/AHA ACS: no nitrates in RV infarction; 2020 ACC/AHA valve and 2024 AHA/ACC HCM guidelines; Nipride label). Fluid, not a vasodilator.',
   },
