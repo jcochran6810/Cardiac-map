@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { arrestEtco2, bpAfter, count, firstDone, has, mapOf, ventilated } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * A witnessed, monitored cardiac arrest in the emergency department. A 61-year-old man came in 40 minutes ago with two
@@ -922,7 +923,7 @@ export const edVfArrest: Scenario = {
     {
       // in the arrest it has no role; after ROSC he is comatose, hypotensive or pressor-dependent, with no pain to report
       id: 'nitrate', actions: ['nitro', 'nitro-high'], points: 8, severity: 'major',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', 'rn-without-order-nitro-high'],
+      replaces: [...NITRATE_RULES, 'rn-without-order-nitro-high'],
       text: 'Nitroglycerin in the arrest or after ROSC. In the arrest it has no role; after ROSC his pressure is low, or held up only by norepinephrine, and nitrates drop it further. The ischemia is treated by opening the artery in the cath lab.',
     },
     {

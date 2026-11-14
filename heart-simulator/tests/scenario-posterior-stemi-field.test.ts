@@ -299,14 +299,15 @@ describe('posterior STEMI in the field — the traps', () => {
     let s = medic(['primary', 'vitals', 'ask-pde5', 'nitro']);
     expect([s.vitals.sbp, s.vitals.dbp, s.vitals.pain]).toEqual([132, 80, 5]);
     expect(s.log.some((l) => l.who === 'patient' && /a little better/.test(l.text))).toBe(true);
-    s = perform(sc, perform(sc, s, 'nitro'), 'nitro');
+    // each repeat at least 3 minutes after the last (Nitrostat: every 5 minutes): two reassessments between doses
+    for (const id of ['reassess', 'reassess', 'nitro', 'reassess', 'reassess', 'nitro']) s = perform(sc, s, id);
     expect(s.vitals.sbp).toBe(112);
     expect(s.penalties).toEqual([]);
     expect(unavailableReason(sc, s, 'nitro')).toBe('Maximum 3 doses');
   });
 
   it('regression: nitroglycerin cannot open the artery — three doses leave her pain at 4, and the third brings no more relief', () => {
-    const s = medic(['primary', 'vitals', 'ask-pde5', 'nitro', 'nitro', 'nitro']);
+    const s = medic(['primary', 'vitals', 'ask-pde5', 'nitro', 'reassess', 'reassess', 'nitro', 'reassess', 'reassess', 'nitro']);
     expect(s.vitals.pain).toBe(4);
     expect(lastText(s)).toBe('BP 112/68.');
     expect(s.log.at(-2)).toMatchObject({ who: 'patient', text: '"It\'s still there — about the same."' });

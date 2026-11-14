@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * Pre-excited atrial fibrillation (Wolff-Parkinson-White). A 24-year-old man whose heart took off in a pickup basketball
@@ -633,7 +634,7 @@ export const wpwAfField: Scenario = {
       text: 'IM epinephrine without anaphylaxis. Nothing he has calls for it, and adrenaline makes the pathway conduct faster still.',
     },
     {
-      id: 'nitro-no-pain', actions: ['nitro'], when: (s) => s.pulse && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor',
+      id: 'nitro-no-pain', actions: ['nitro'], when: (s) => s.pulse && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor', replaces: NITRATE_RULES,
       text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; he has none, and it only lowers a pressure the fast rate is already straining.',
     },
     {

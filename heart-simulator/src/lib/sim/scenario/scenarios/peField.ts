@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * Pulmonary embolism with obstructive shock, in the field. A 45-year-old woman ten days after a plate and screws for a
@@ -604,7 +605,7 @@ export const peField: Scenario = {
     },
     {
       id: 'nitro-pe', actions: ['nitro', 'nitro-high', 'nitro-assist'], when: (s) => s.pulse, points: 15, severity: 'critical',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      replaces: NITRATE_RULES,
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic, and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {

@@ -4,6 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
+import { nitrateRulesExcept } from '../rules/acs';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-ffr-positive', ffr: 'ffr-significant', 'final-angio': 'lad-stented-after-ffr' };
@@ -405,13 +406,13 @@ export const cathlabFfr: Scenario = {
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
     ...TECH_ASKS.slice(1, 5).map((a) => askHarm(a, `The wrong view when the operator asked for this one. ${a.why}`, 2)),
-    askHarm(TECH_ASKS[5], 'An intracoronary drug when the operator asked for the radial cocktail.'),
+    { ...askHarm(TECH_ASKS[5], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') },
     askHarm(TECH_ASKS[6], 'A right-coronary guide when the operator asked for a left guide.'),
     askHarm(TECH_ASKS[10], 'The wrong device when the operator asked for a drug-eluting stent.'),
     askHarm(TECH_ASKS[11], 'A compliant balloon when the operator asked for a non-compliant one.'),
     askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5),
-    askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'),
-    askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'),
+    { ...askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') },
+    { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') },
     askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'),
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
   ],

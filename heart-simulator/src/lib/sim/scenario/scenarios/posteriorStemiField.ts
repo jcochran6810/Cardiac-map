@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, atRate, bpAfter, has, interpret, line } from '../kit';
+import { nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Posterior STEMI in the field. A 61-year-old woman with diabetes and high blood pressure had to sit down halfway up the
@@ -434,9 +435,9 @@ export const posteriorStemiField: Scenario = {
       id: 'nearest-ed-emt', actions: ['transport-near'], roles: [1], points: 10, severity: 'major',
       text: 'Transport to the nearest emergency department, which has no cath lab. Transmit the 12-lead and follow the physician who reads it: her ST depression in V1–V3 can be a STEMI in the back wall, and a STEMI goes straight to the PCI-capable heart center — a stop at a hospital without a cath lab adds a transfer.',
     },
-    { id: 'nitro-no-bp', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'bp'), points: 5, severity: 'major', text: 'Nitroglycerin without a blood pressure. Take it first: nitrates need a systolic of at least 90 mmHg (100 in many protocols), and are held for a fall of 30 mmHg or more below her baseline.' },
+    { id: 'nitro-no-bp', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'bp'), points: 5, severity: 'major', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), text: 'Nitroglycerin without a blood pressure. Take it first: nitrates need a systolic of at least 90 mmHg (100 in many protocols), and are held for a fall of 30 mmHg or more below her baseline.' },
     {
-      id: 'nitro-no-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'pde5-asked'), points: 3, severity: 'minor',
+      id: 'nitro-no-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'pde5-asked'), points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
       text: 'Nitroglycerin without asking about PDE-5 inhibitors. Ask women too: sildenafil and tadalafil are also prescribed for pulmonary hypertension. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil: together they can cause profound hypotension.',
     },
     {

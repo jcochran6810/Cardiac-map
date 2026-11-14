@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, firstDone, has, interpret, line } from '../kit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /** Minutes from the EMT's call until the paramedic intercept is at her side */
 const ALS_MINUTES = 6;
@@ -546,7 +547,7 @@ export const peaArrestField: Scenario = {
     },
     {
       // the default nitroglycerin rule only fires under a systolic of 90: after a bolus she has no reason for it either
-      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin after ROSC. She has no chest pain and no ST elevation, and her pressure is low or only just held up by treatment: nitrates drop it further.',
     },
     {

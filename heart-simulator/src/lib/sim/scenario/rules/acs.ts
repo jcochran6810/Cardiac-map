@@ -1,21 +1,162 @@
 /**
  * Built-in safety rules for acute coronary care: the fibrinolytics, the nitrates and nitroprusside, the antiemetic,
  * the antithrombotics in a dissection, and sedation (midazolam and procedural sedation).
+ *
+ * A drug family with several reasons to hold it is judged through a gate: its rules are ranked, and one dose earns only
+ * the highest-ranked rule that applies (one dose, one penalty). Each rule's `when` asks the gate whether it is the top one.
  */
+import { READ_OPTIONS } from '../reads';
 import { has, mapOf, paced } from '../kit';
-import type { Harm } from '../types';
-import { ANTITHROMBOTICS, LYTICS, NITRATES_ACS, hasProblem, longQt, lowPressure, procedureComing, tachyarrhythmia } from './helpers';
+import type { Harm, Scenario, SimState } from '../types';
+import {
+  ANTITHROMBOTICS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, hasProblem, lastDoneAt, longQt,
+  lowPressure, outflowObstruction, preloadDependent, procedureComing, tachyarrhythmia,
+} from './helpers';
+
+type Check = (s: SimState, sc: Scenario, id: string) => boolean;
+
+/** A rule judged through a gate: `applies` is its own condition; the gate decides whether it is the one that charges */
+type GateRule = Omit<Harm, 'when'> & { applies: Check };
+
+/**
+ * The highest-ranked rule of a gate that applies to this dose (`id`), or null. A case rule with the same id as one of the
+ * gate's rules (for this role) decides that rank in the built-in's place: while it applies to the dose it covers it (the
+ * gate stops there, so no lower-ranked built-in adds a second penalty); while it does not — a deliberate exemption, or its
+ * condition is false — the gate goes on to the next rank: the case has said this reason does not hold here, not that the
+ * dose is right. (A case rule that lists the top rule in its `replaces` hides it while it applies: the whole dose is covered.)
+ */
+function topOf(rules: GateRule[], s: SimState, sc: Scenario, id: string): string | null {
+  for (const r of rules) {
+    if (!r.actions.includes(id)) continue;
+    const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)));
+    if (own.length) {
+      if (own.some((h) => h.actions.includes(id) && (!h.when || h.when(s, sc, id)))) return r.id;
+    } else if (r.applies(s, sc, id)) return r.id;
+  }
+  return null;
+}
+
+/** The rules of a gate as built-in harms: each charges only when it is the gate's top rule for the dose */
+function gate(rules: GateRule[], open: Check = () => true): { harms: Harm[]; top: (s: SimState, sc: Scenario, id: string) => string | null } {
+  const top = (s: SimState, sc: Scenario, id: string) => (open(s, sc, id) ? topOf(rules, s, sc, id) : null);
+  return { harms: rules.map(({ applies: _applies, ...h }) => ({ ...h, when: (s, sc, id) => top(s, sc, id) === h.id })), top };
+}
+
+// ─── Nitrates ──────────────────────────────────────────────────────────────
+
+/** The 12-lead pattern on the monitor is an inferior STEMI (with or without complete heart block): the RV may be involved */
+const inferiorStemi = (s: SimState) => {
+  const read = READ_OPTIONS.find((o) => o.profiles?.includes(s.rhythm.profile));
+  return !!read && ['stemi-inferior', 'stemi-inferior-chb'].includes(read.id);
+};
+
+/** A beta-blocker or diltiazem has been given (by the learner, or a teammate: the drug's flag) */
+const rateSlowed = (s: SimState) => has(s, 'beta-blocker') || has(s, 'diltiazem') || BETA_BLOCKERS.some((b) => did(s, b)) || did(s, 'diltiazem');
+
+/** Out of hospital or in the emergency department: the nitrate checklist (a pressure, the PDE-5 question, V4R) is the learner's */
+const beforeTheLab = (sc: Scenario) => sc.setting === 'field' || sc.setting === 'ed';
+
+/**
+ * The nitrates (and nitroprusside), ranked: the most serious reason to hold the dose first. Only with a pulse (in an arrest
+ * the no-role rule speaks). The radial cocktail and intracoronary nitroprusside stop after the preload rule: their
+ * low-pressure rules are their own (the cocktail's, and nitroprusside-hypotension, which is ranked here)
+ */
+const NITRATE_GATE = gate([
+  {
+    id: 'nitro-pde5', actions: NO_DONORS, applies: (_s, sc) => hasProblem(sc, ['pde5-inhibitor']), points: 10, severity: 'major',
+    text: 'A nitrate after a PDE-5 inhibitor (or riociguat). Within 12 hours of avanafil, 24 hours of sildenafil or vardenafil or 48 hours of tadalafil — and at any time with riociguat — nitroglycerin or nitroprusside can drop the pressure profoundly and for hours (2025 ACC/AHA ACS guideline; Nitrostat and Nipride labels: contraindicated). Treat the pain without nitrates.',
+  },
+  {
+    id: 'nitro-preload-dependent', actions: NITRATES_ALL, applies: (s, sc) => preloadDependent(s, sc) || outflowObstruction(sc), points: 10, severity: 'major',
+    text: 'A nitrate for a heart that lives on its preload — a tamponade not yet drained, a pulmonary embolism, a right-ventricular infarction — or that pumps against an outflow obstruction (severe aortic stenosis, LV outflow obstruction). Nitroglycerin pools the blood in the veins: the filling the heart depends on falls, and the pressure with it, often suddenly (2025 ACC/AHA ACS: no nitrates in RV infarction; 2020 ACC/AHA valve and 2024 AHA/ACC HCM guidelines). Fluid, not a vasodilator.',
+  },
+  {
+    id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], applies: (s) => lowPressure(s), points: 8, severity: 'major',
+    text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.',
+  },
+  {
+    id: 'nitro-hypotension', actions: NITRATES_ACS, applies: (s) => lowPressure(s), points: 8, severity: 'major',
+    text: 'Nitroglycerin with a systolic pressure under 90 mmHg (with an LVAD, a Doppler MAP under 60). Nitrates drop the pressure further: hold them until it is back up.',
+  },
+  {
+    // nicardipine has no other rank here: it is judged on this one alone. The rate drug counts whoever gave it (a teammate's
+    // dose sets the same flag)
+    id: 'vasodilator-before-rate-control', actions: [...NITRATES_SL, 'nitro-iv', 'nicardipine'],
+    applies: (s, sc) => hasProblem(sc, ['aortic-dissection']) && !lowPressure(s) && !rateSlowed(s),
+    points: 5, severity: 'major',
+    text: 'A vasodilator in an aortic dissection before the heart rate is slowed. On its own it makes the heart race (reflex tachycardia) and pump harder against the tear (2022 ACC/AHA aortic disease guideline: an IV beta-blocker first, to a rate of 60–80; a vasodilator only after it, for a systolic still over 120).',
+  },
+  {
+    id: 'nitro-bradycardia', actions: NITRATES_ACS, applies: (s) => !paced(s) && s.rhythm.hr < 50, points: 5, severity: 'major',
+    text: 'Nitroglycerin with a heart rate under 50. A slow heart cannot speed up to make good the pressure a nitrate takes away (ACC/AHA STEMI guideline and AHA ACLS: hold nitrates for a rate under 50): treat the slow rate first.',
+  },
+  {
+    // the case's opening systolic stands in for the patient's usual one; not where lowering the pressure is the goal
+    id: 'nitro-pressure-fall', actions: NITRATES_SL,
+    applies: (s, sc) => !s.lvad && sc.initial.pulse !== false && s.vitals.sbp <= sc.initial.vitals.sbp - 30 && !hasProblem(sc, ['pulmonary-edema', 'aortic-dissection']),
+    points: 5, severity: 'major',
+    text: 'Another nitrate after the systolic had fallen 30 mmHg or more below where it started. A fall that size is itself a reason to hold nitrates (2025 ACC/AHA ACS): let the pressure come back up before any more.',
+  },
+  {
+    // the EMT's assist is left out: an EMT records no V4R (the case's own rule judges it)
+    id: 'nitro-inferior-no-v4r', actions: ['nitro', 'nitro-high'], applies: (s, sc) => beforeTheLab(sc) && inferiorStemi(s) && !has(s, 'ecg-right'), points: 5, severity: 'major',
+    text: 'Nitroglycerin for an inferior STEMI before a right-sided lead. Up to half of inferior infarcts take in the right ventricle, which lives on its preload: record V4R first — ST elevation there means no nitrates (2025 ACC/AHA ACS).',
+  },
+  {
+    // with an LVAD a Doppler MAP over 90 is the high pressure, 60 the low one
+    id: 'nitro-high-not-hypertensive', actions: ['nitro-high', 'nitro-iv'], applies: (s) => !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160),
+    points: 3, severity: 'minor',
+    text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.',
+  },
+  {
+    // a stimulant's tachycardia is treated with a benzodiazepine and nitroglycerin (2014 AHA/ACC NSTE-ACS)
+    id: 'nitro-tachycardia', actions: ['nitro', 'nitro-assist'],
+    applies: (s, sc) => s.rhythm.hr > 100 && !hasProblem(sc, ['heart-failure', 'pulmonary-edema', 'sympathomimetic-toxicity', 'aortic-dissection']),
+    points: 3, severity: 'minor',
+    text: 'Nitroglycerin with a heart rate over 100 and no heart failure to treat. A fast rate is a reason to hold nitrates (ACC/AHA STEMI guideline; AHA ACLS): the reflex speeding they bring adds to the heart\'s oxygen demand. Find out why the heart is racing.',
+  },
+  {
+    id: 'nitro-too-soon', actions: NITRATES_SL, applies: (s) => { const last = lastDoneAt(s, NITRATES_SL); return last !== null && s.minute - last < 3; },
+    points: 3, severity: 'minor',
+    text: 'Another nitroglycerin less than 3 minutes after the last. The tablet or spray is repeated every 5 minutes, three at most (Nitrostat label; every 3–5 minutes in AHA ACLS), with a blood pressure before each: each dose needs the time to show what it did to the pressure.',
+  },
+  {
+    id: 'nitro-no-bp', actions: NITRATES_SL, applies: (s, sc) => beforeTheLab(sc) && !has(s, 'bp'), points: 5, severity: 'major',
+    text: 'Nitroglycerin without a blood pressure first. A systolic under 90, or one 30 below the patient\'s usual, rules it out (2025 ACC/AHA ACS), so every protocol takes a pressure before each dose: the monitor\'s cuff, a manual set or a reassessment.',
+  },
+  {
+    id: 'nitro-no-pde5', actions: NITRATES_SL, applies: (s, sc) => beforeTheLab(sc) && !has(s, 'pde5-asked'), points: 3, severity: 'minor',
+    text: 'Nitroglycerin without asking about erectile-dysfunction or pulmonary-hypertension drugs. A PDE-5 inhibitor — avanafil within 12 hours, sildenafil or vardenafil within 24, tadalafil within 48 — or riociguat makes a nitrate drop the pressure profoundly (2025 ACC/AHA ACS): ask before the first dose.',
+  },
+  {
+    id: 'nitro-no-pain', actions: ['nitro', 'nitro-assist'], applies: (s, sc) => s.vitals.pain === 0 && !hasProblem(sc, ['pulmonary-edema', 'aortic-dissection']),
+    points: 3, severity: 'minor',
+    text: 'Nitroglycerin with no chest pain to treat. Sublingual nitroglycerin is for ischemic chest pain (and the high pressure of pulmonary edema): without either it only lowers the pressure, and can bring a headache or a faint.',
+  },
+], (s) => s.pulse);
+
+/** Every built-in nitrate rule: a case rule that says a nitrate is wrong for its patient lists them in `replaces` */
+export const NITRATE_RULES = NITRATE_GATE.harms.map((h) => h.id);
+
+/**
+ * The nitrate rules but these: for a case rule that judges a nitrate dose in its own words but leaves some built-in rules
+ * to charge beside it (e.g. the low-pressure rule, which a rule about the PDE-5 question never stood in for)
+ */
+export const nitrateRulesExcept = (...kept: string[]) => NITRATE_RULES.filter((id) => !kept.includes(id));
+
+/**
+ * The nitrate rule that charges this dose (the gate's top rule), or null: for a rule elsewhere that must not add a second
+ * penalty to a nitrate dose this gate already charges (e.g. the radial cocktail's low-pressure rule)
+ */
+export const topNitrate = NITRATE_GATE.top;
 
 export const ACS_RULES: Harm[] = [
   // the emergency department's procedural sedation (ACEP clinical policy: monitoring and capnography)
   { id: 'sedation-unmonitored', actions: ['procedural-sedation'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Procedural sedation without the cardiac monitor on. Sedation can stop the breathing and drop the pressure: the ECG, pulse oximetry, the blood pressure and capnography run from before the first dose until the patient is awake again.' },
   { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s) => s.pulse && !procedureComing(s), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
   { id: 'lytic-no-indication', actions: LYTICS, when: (s, sc) => sc.setting === 'ed' && !has(s, 'ecg-stemi') && !hasProblem(sc, ['pulmonary-embolism', 'aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic without an indication. In the emergency department it is for a STEMI on the 12-lead when PCI cannot happen within 120 minutes of first medical contact (then within 30 minutes of arrival), or a high-risk pulmonary embolism; any other patient gets only its bleeding — intracranial in about 1 in 100.' },
-  { id: 'nitro-hypotension', actions: NITRATES_ACS, when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg (with an LVAD, a Doppler MAP under 60). Nitrates drop the pressure further: hold them until it is back up.' },
-  { id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.' },
+  ...NITRATE_GATE.harms,
   { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => longQt(s, sc), points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
-  // with an LVAD a Doppler MAP over 90 is the high pressure, 60 the low one
-  { id: 'nitro-high-not-hypertensive', actions: ['nitro-high', 'nitro-iv'], when: (s) => s.pulse && !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160), points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.' },
   // sedation before a cardioversion or for the pacer is needed even with a low pressure (a smaller dose, titrated): a case
   // with its own sedation rule says so in its own words
   // in the emergency department a drowsy patient with an advanced airway (RSI, or a tube after the arrest) is a ventilated

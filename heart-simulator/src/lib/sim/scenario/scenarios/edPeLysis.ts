@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo, physicianOrder } from '../edKit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * Pulmonary embolism with shock, in the emergency department. A 52-year-old woman, four days after a 15-hour flight and
@@ -891,7 +892,7 @@ export const edPeLysis: Scenario = {
     },
     {
       id: 'nitro-pe', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse, points: 15, severity: 'critical',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic — the chest pain standing order does not cover it — and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {

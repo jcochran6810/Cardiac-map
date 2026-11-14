@@ -3,6 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * A vasovagal reaction at femoral sheath removal. A diagnostic cath from the right groin is over; the tech pulled the
@@ -687,7 +688,7 @@ export const cathlabVasovagal: Scenario = {
     },
     {
       // the built-in rule scores nitroglycerin with a systolic under 90; this one the rest of the time
-      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: RN_MD, when: (s) => s.vitals.sbp >= 90, points: 3, severity: 'minor',
+      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: RN_MD, when: (s) => s.vitals.sbp >= 90, points: 3, severity: 'minor', replaces: NITRATE_RULES,
       text: 'Nitroglycerin with no chest pain to treat. It is for ischemic chest pain (or a high pressure in pulmonary edema); here it only opens the vessels and drops the pressure — and nitrates during a sheath pull are a known trigger of this reaction.',
     },
     {

@@ -219,10 +219,10 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
       ...R(3), 'handoff'],
   },
   'nstemi-troponin-ed': {
-    6: ['triage', 'ecg12', 'notify-physician', 'ecg-posterior', 'labs', 'monitor', 'aspirin', 'iv', 'heparin', 'sample', 'opqrst', ...R(10),
+    6: ['triage', 'ecg12', 'notify-physician', 'ecg-posterior', 'labs', 'monitor', 'aspirin', 'iv', 'heparin', 'sample', 'ask-pde5', 'opqrst', ...R(10),
       'ecg12-repeat', 'nitro', 'notify-physician', ...R(16), 'troponin-repeat', ...R(4), 'notify-physician', 'handoff'],
     7: ['opqrst', 'sample', 'ecg-posterior', 'aspirin', 'heparin', 'troponin-repeat', ...R(4), 'consult-cardiology', 'admit', ...R(8),
-      'ecg12-repeat', 'nitro', 'consult-cardiology', ...R(19), 'handoff'],
+      'ecg12-repeat', 'ask-pde5', 'nitro', 'consult-cardiology', ...R(19), 'handoff'],
   },
   'complete-heart-block-ed': {
     6: ['ems-handoff', 'pads', 'notify-physician', 'ecg12', 'iv', 'labs', 'atropine', 'pace', 'pulse-check', 'nibp', 'notify-physician', 'fentanyl',
@@ -254,9 +254,9 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
     7: ['ems-handoff', 'pocus', 'heparin', 'pressor', 'sample', 'alteplase', 'consult-cardiology', 'admit', ...R(5), 'handoff'],
   },
   'aortic-dissection-ed': {
-    6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(9),
+    6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'ask-pde5', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(9),
       'handoff'],
-    7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro', 'ct-urgent', ...R(5), 'handoff'],
+    7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro', 'ct-urgent', ...R(5), 'handoff'],
   },
   'tamponade-ed': {
     6: ['triage', 'monitor', 'o2-nc', 'vitals', 'perfusion', 'lungs', 'notify-physician', 'iv', 'labs', 'ecg12', 'sample', 'fluid', 'pads',

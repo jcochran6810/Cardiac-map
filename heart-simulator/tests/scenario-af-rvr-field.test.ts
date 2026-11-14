@@ -348,7 +348,7 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
   });
 
   it('nitroglycerin unloads his lungs a little and lowers the pressure; he never talks of chest pressure he does not have', () => {
-    const s = run(sc, 2, [...READY, 'nitro']);
+    const s = run(sc, 2, [...READY, 'ask-pde5', 'nitro']);
     expect(ids(s)).toEqual([]);
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([102, 68]);
     expect(s.log.some((l) => /pressure is easing/.test(l.text))).toBe(false);

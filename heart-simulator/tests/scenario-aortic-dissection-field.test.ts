@@ -276,7 +276,7 @@ describe('aortic dissection in the field — the traps', () => {
     expect(blocked.rhythm.hr).toBe(82);
     expect(blocked.penalties).toEqual([expect.objectContaining({ id: 'nitro-against-order', points: 2, severity: 'minor' })]);
     // diltiazem slows the heart too: the guideline's vasodilator comes after a beta-blocker or a calcium-channel blocker
-    const dilt = medic([...MONITORED, 'iv', 'diltiazem', 'nitro']);
+    const dilt = medic([...MONITORED, 'iv', 'diltiazem', 'ask-pde5', 'nitro']);
     expect(penalties(dilt)).toEqual(['diltiazem-not-ordered']);
     expect(dilt.rhythm.hr).toBe(86);
   });

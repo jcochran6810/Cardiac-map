@@ -1,5 +1,6 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { bpAfter, has } from '../kit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /** RV infarction: nitrates drop preload and blood pressure — to 74/44, or further down from a pressure already lower */
 function nitroCrash(s: SimState): Effect {
@@ -129,8 +130,8 @@ export const stemiInferiorRV: Scenario = {
     { id: 'handoff', label: 'Hand-off at the heart center', why: 'Report the RV involvement and the AV block so the team is ready (pacing wire, fluids).', done: ['handoff'], points: 5 },
   ],
   harms: [
-    { id: 'nitro-rv', actions: ['nitro', 'nitro-high'], roles: [2], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 15, severity: 'critical', text: 'Nitroglycerin in an inferior STEMI with RV involvement: it drops preload and the blood pressure crashed to 74/44. Check V4R (and the BP) before nitrates; RV infarction is a contraindication.' },
-    { id: 'nitro-assist-rv', actions: ['nitro-assist'], roles: [1], replaces: ['nitro-hypotension'], points: 15, severity: 'critical', text: "Assisting with her nitroglycerin despite a borderline BP (102) and a slow pulse: it crashed her pressure to 74/44. With an inferior STEMI (which the physician sees on your transmitted ECG), nitrates are dangerous — check with medical control first." },
+    { id: 'nitro-rv', actions: ['nitro', 'nitro-high'], roles: [2], replaces: NITRATE_RULES, points: 15, severity: 'critical', text: 'Nitroglycerin in an inferior STEMI with RV involvement: it drops preload and the blood pressure crashed to 74/44. Check V4R (and the BP) before nitrates; RV infarction is a contraindication.' },
+    { id: 'nitro-assist-rv', actions: ['nitro-assist'], roles: [1], replaces: NITRATE_RULES, points: 15, severity: 'critical', text: "Assisting with her nitroglycerin despite a borderline BP (102) and a slow pulse: it crashed her pressure to 74/44. With an inferior STEMI (which the physician sees on your transmitted ECG), nitrates are dangerous — check with medical control first." },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 3, severity: 'minor', text: 'Oxygen is for SpO₂ below 90 %.' },
     { id: 'beta-blocker', actions: ['metoprolol'], points: 10, severity: 'major', text: 'An IV beta-blocker with bradycardia and borderline blood pressure worsens both — and can push AV block to asystole.' },
     { id: 'opioid-hypotension', actions: ['fentanyl'], when: (s) => s.vitals.sbp < 90, points: 4, severity: 'minor', text: 'Opioids venodilate: avoid them while she is hypotensive with RV infarction.' },

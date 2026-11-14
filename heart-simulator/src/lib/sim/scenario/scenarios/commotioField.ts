@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { ARREST_ETCO2, arrestEtco2, bpAfter, firstDone, has, interpret, line, mapOf, ventilated } from '../kit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * Minutes after the crew reaches him (he collapsed about 5 minutes before, with the coach's CPR since) within which the
@@ -596,7 +597,7 @@ export const commotioField: Scenario = {
     },
     {
       // the default nitroglycerin rule only fires under a systolic of 90: after a bolus he has no reason for it either
-      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, roles: [2], points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, roles: [2], points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin after ROSC. He has no chest pain and no ST elevation, and his pressure is low or only just held up by treatment: nitrates drop it further.',
     },
     {

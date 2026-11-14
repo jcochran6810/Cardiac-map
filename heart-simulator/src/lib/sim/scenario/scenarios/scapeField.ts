@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
+import { NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Hypertensive acute pulmonary edema — "sympathetic crashing acute pulmonary edema" (SCAPE). A surge of sympathetic tone
@@ -677,15 +678,15 @@ export const scapeField: Scenario = {
       text: 'CPAP for a patient who can no longer protect her airway or breathe for herself. CPAP supports breaths a patient takes; it gives none. Unresponsive, with a shallow breath every 8 seconds, she needs breaths given with a bag-mask and a PEEP valve — or an advanced airway.',
     },
     {
-      id: 'nitro-no-bp', actions: NITRATES, when: (s) => !pressureTaken(s), points: 5, severity: 'major',
+      id: 'nitro-no-bp', actions: NITRATES, when: (s) => !pressureTaken(s), points: 5, severity: 'major', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
       text: 'Nitroglycerin without a blood pressure. The pressure decides the dose — 0.8 mg at 160 or more, 0.4 mg below that, none under 100 — so measure it first.',
     },
     {
-      id: 'nitro-no-pde5', actions: NITRATES, when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor',
+      id: 'nitro-no-pde5', actions: NITRATES, when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
       text: 'Nitroglycerin without asking about PDE-5 inhibitors. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil: together they can cause profound hypotension. Ask women too — sildenafil and tadalafil are also prescribed for pulmonary hypertension.',
     },
     {
-      id: 'nitro-repeat-unsafe', actions: NITRATES, points: 3, severity: 'minor',
+      id: 'nitro-repeat-unsafe', actions: NITRATES, points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
       // the learner's own repeat dose: less than 3 minutes after the last, or with no pressure taken since it
       when: (s) => {
         const last = s.performed.filter((p) => NITRATES.includes(p.id)).at(-1);
@@ -695,12 +696,12 @@ export const scapeField: Scenario = {
       text: 'A repeat nitroglycerin dose too soon or without a fresh blood pressure. Doses go every 5 minutes (3 at the least), with the pressure checked before each: CPAP and the doses already given keep lowering it.',
     },
     {
-      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 100 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
+      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 100 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: NITRATE_RULES,
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it step down to 0.4 mg — once the surge has passed, each dose drops the pressure far more.',
     },
     {
       // under 100 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
-      id: 'nitro-pressure-fallen', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 100, points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      id: 'nitro-pressure-fallen', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 100, points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin with a systolic pressure under 100. Hold nitrates once the pressure has fallen (protocols set the line at 90, 100 or 110): CPAP and the nitrate already on board keep lowering it, and a low pressure starves the heart and the brain.',
     },
     {

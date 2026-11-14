@@ -19,8 +19,8 @@ const bp = (s: SimState) => [s.vitals.sbp, s.vitals.dbp];
 
 /** The ideal runs (the lead copies them into tests/scenarios.test.ts) */
 const IDEAL: Record<6 | 7, string[]> = {
-  6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(9), 'handoff'],
-  7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro', 'ct-urgent', ...R(5), 'handoff'],
+  6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'ask-pde5', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(9), 'handoff'],
+  7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro', 'ct-urgent', ...R(5), 'handoff'],
 };
 
 /** The nurse's work up to the report, when the physician comes to the bedside (minute 6.5) */
@@ -147,9 +147,9 @@ describe('aortic dissection in the emergency department — the ideal runs', () 
     expect(review(sc, nurse(IDEAL[6])).timings).toEqual([
       { label: 'Door to 12-lead', minute: 2, target: 10, met: true },
       { label: 'Blood pressure in both arms', minute: 4, target: 10, met: true },
-      { label: 'Rate control (IV beta-blocker)', minute: 8.5, target: 15, met: true },
-      { label: 'Cardiac surgeon called', minute: 8.5, target: 20, met: true },
-      { label: 'Arrival to the operating room', minute: 29.5, met: null },
+      { label: 'Rate control (IV beta-blocker)', minute: 8.8, target: 15, met: true },
+      { label: 'Cardiac surgeon called', minute: 8.8, target: 20, met: true },
+      { label: 'Arrival to the operating room', minute: 29.8, met: null },
     ]);
     // the doctor's run: the computer nurse's 12-lead counts for the team
     expect(review(sc, doctor(IDEAL[7])).timings).toEqual([
@@ -157,7 +157,7 @@ describe('aortic dissection in the emergency department — the ideal runs', () 
       { label: 'Blood pressure in both arms', minute: 1, target: 10, met: true },
       { label: 'Rate control (IV beta-blocker)', minute: 5.2, target: 15, met: true },
       { label: 'Cardiac surgeon called', minute: 5, target: 20, met: true },
-      { label: 'Arrival to the operating room', minute: 27.7, met: null },
+      { label: 'Arrival to the operating room', minute: 28, met: null },
     ]);
   });
 
@@ -310,7 +310,7 @@ describe('aortic dissection in the emergency department — the ER nurse\'s trap
     const atBedside = nurse([...RN_REPORTED, 'nitro']);
     expect(saidBy(atBedside, 'physician')).toMatch(/Hold the nitroglycerin — his rate first/);
     // on the physician's order, after the rate is controlled: no penalty, and no racing
-    const ordered = nurse([...RN_REPORTED, 'iv', 'metoprolol', 'nitro']);
+    const ordered = nurse([...RN_REPORTED, 'iv', 'metoprolol', 'ask-pde5', 'nitro']);
     expect(penalties(ordered)).toEqual([]);
     expect(ordered.rhythm.hr).toBe(66);
   });
@@ -413,11 +413,11 @@ describe('aortic dissection in the emergency department — the ER doctor\'s tra
     expect(first.rhythm.hr).toBe(110);
     expect(penalties(first)).toEqual(['vasodilator-before-rate-md']);
     expect(penalties(doctor([...MD_ASSESSED, 'nitro-high']))).toEqual(['vasodilator-before-rate-md']);
-    const right = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'nitro']);
+    const right = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro']);
     expect(right.penalties).toEqual([]);
     expect(bp(right)).toEqual([144, 78]);
     // a dose too many once at the goal drops him below it
-    const settled = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'nitro', ...R(2)]);
+    const settled = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro', ...R(2)]);
     expect(bp(settled)).toEqual([116, 70]);
     const over = perform(sc, settled, 'nitro');
     expect(over.vitals.sbp).toBe(96);
@@ -500,7 +500,7 @@ describe('aortic dissection in the emergency department — right care works', (
     expect(s.flags['needs-vasodilator']).toBeDefined();
     expect(doctor([...MD_ASSESSED, 'diltiazem']).rhythm.hr).toBe(72);
     // diltiazem when a beta-blocker cannot be used: the same rate control, and the vasodilator after it costs nothing
-    const dil = doctor([...MD_ASSESSED, 'diltiazem', 'fentanyl', 'nitro']);
+    const dil = doctor([...MD_ASSESSED, 'diltiazem', 'fentanyl', 'ask-pde5', 'nitro']);
     expect(dil.flags['rate-controlled']).toBeDefined();
     expect(dil.penalties).toEqual([]);
   });
@@ -643,7 +643,7 @@ describe('aortic dissection in the emergency department — the review\'s fixes'
   });
 
   it('metoprolol or fentanyl before any order costs the scope penalty and the order\'s item: never more than carrying the order out late', () => {
-    const alone = nurse(['triage', 'monitor', 'ecg12', 'iv', 'metoprolol', 'fentanyl', 'bp-both-arms', 'notify-physician', 'labs', 'nitro', ...R(12)]);
+    const alone = nurse(['triage', 'monitor', 'ecg12', 'iv', 'metoprolol', 'fentanyl', 'bp-both-arms', 'notify-physician', 'labs', 'ask-pde5', 'nitro', ...R(12)]);
     expect(penalties(alone)).toEqual(['rn-without-order-metoprolol', 'rn-without-order-fentanyl']);
     expect(saidBy(alone, 'physician')).toMatch(/He has had metoprolol and fentanyl\? Who ordered that\? Call me first/);
     const r = review(sc, stop(alone));
@@ -651,7 +651,7 @@ describe('aortic dissection in the emergency department — the review\'s fixes'
       'IV beta-blocker on the physician\'s order: the rate first', 'IV opioid for the pain, on the physician\'s order',
     ]));
     // the same nurse waiting for the orders and too slow to give them (the physician gives both): a better score
-    const slow = nurse(['triage', 'monitor', 'ecg12', 'iv', 'bp-both-arms', 'notify-physician', 'labs', ...R(2), 'nitro', ...R(12)]);
+    const slow = nurse(['triage', 'monitor', 'ecg12', 'iv', 'bp-both-arms', 'notify-physician', 'labs', ...R(2), 'ask-pde5', 'nitro', ...R(12)]);
     expect(slow.penalties).toEqual([]);
     expect(review(sc, stop(slow)).percent).toBeGreaterThan(r.percent);
   });
@@ -662,7 +662,7 @@ describe('aortic dissection in the emergency department — the review\'s fixes'
     expect(saidBy(s, 'physician')).toMatch(/And I still need that pressure in both arms — now, please/);
     expect(saidBy(s, 'physician')).not.toMatch(/Takes the pressure in both arms/);
     // the nurse takes them and reports them: both items hers, at full marks
-    const done = nurse(['triage', 'monitor', 'notify-physician', 'bp-both-arms', 'ecg12', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(10), 'handoff']);
+    const done = nurse(['triage', 'monitor', 'notify-physician', 'bp-both-arms', 'ecg12', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'ask-pde5', 'nitro', ...R(10), 'handoff']);
     expect(done.ended?.reason).toBe('complete');
     expect(review(sc, done).percent).toBe(100);
   });
@@ -712,7 +712,7 @@ describe('aortic dissection in the emergency department — the review\'s fixes'
   });
 
   it('admitting him to the ICU without the surgeon costs 10 points on top of the missed call; after the call, admitting costs nothing', () => {
-    const s = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'nitro', 'ct-urgent', 'admit', 'handoff']);
+    const s = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro', 'ct-urgent', 'admit', 'handoff']);
     expect(penalties(s)).toEqual(['admit-without-surgeon']);
     expect(review(sc, s).percent).toBeLessThan(75);
     expect(penalties(doctor([...MD_ASSESSED, 'call-surgery', 'admit']))).toEqual([]);

@@ -413,9 +413,9 @@ describe('the traps: wrong care does what it would, and costs points', () => {
     expect(blood.vitals.sbp).toBeGreaterThan(79);
   });
 
-  it('a nitrate before the fall is not penalized, but the pressure dips and the fall is deeper', () => {
+  it('a nitrate before the fall costs only the built-in rate rule (102, no heart failure), but the pressure dips and the fall is deeper', () => {
     const s = run(sc, 5, ['consent', 'heparin', 'timeout', 'nitro', 'access', 'cath-tiger', 'angio']);
-    expect(s.penalties).toEqual([]);
+    expect(s.penalties.map((p) => p.id)).toEqual(['nitro-tachycardia']);
     expect(s.vitals.sbp).toBeLessThan(79);
   });
 });

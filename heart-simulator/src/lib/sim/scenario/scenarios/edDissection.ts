@@ -2,6 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Vitals } from '../type
 import { atRate, bpAfter, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder } from '../edKit';
+import { NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Acute type A aortic dissection in the emergency department. A 63-year-old man whose blood pressure has gone untreated
@@ -718,16 +719,16 @@ export const edDissection: Scenario = {
     {
       // before the beta-blocker: a vasodilator makes the heart race and pound harder (not with a low pressure: the engine's rule)
       id: 'vasodilator-before-rate-rn', actions: VASODILATORS, roles: ED_RN, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
-      replaces: ['nitro-high-not-hypertensive'],
+      replaces: NITRATE_RULES,
       text: 'Nitroglycerin for this pain before the rate is controlled. It is on the chest pain standing order, but not for pain that tears through to the back with a difference between the arms: on its own a vasodilator makes the heart race (reflex tachycardia) and pound harder against the tear, and it does not ease this pain. Report what you found; the physician orders the beta-blocker first, and a vasodilator only after it.',
     },
     {
       id: 'vasodilator-before-rate-md', actions: VASODILATORS, roles: ED_MD, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
-      replaces: ['nitro-high-not-hypertensive'],
+      replaces: NITRATE_RULES,
       text: 'A vasodilator before the rate is controlled. On its own it makes the heart race (reflex tachycardia) and pump harder against the tear (2022 ACC/AHA: an IV beta-blocker first, to a rate of 60–80; a vasodilator only after it, for a systolic still over 120).',
     },
     {
-      id: 'vasodilator-below-goal', actions: VASODILATORS, when: (s) => s.pulse && !shock(s) && has(s, 'rate-controlled') && s.vitals.sbp <= 120, points: 3, severity: 'minor',
+      id: 'vasodilator-below-goal', actions: VASODILATORS, when: (s) => s.pulse && !shock(s) && has(s, 'rate-controlled') && s.vitals.sbp <= 120, points: 3, severity: 'minor', replaces: NITRATE_RULES,
       text: 'More vasodilator with the systolic already at 120 or less. The goal is a systolic under 120, or the lowest pressure that keeps the brain, the kidneys and the gut perfused — not lower: a falling pressure in a torn aorta also hides the bleed into the pericardium.',
     },
     {
@@ -747,7 +748,7 @@ export const edDissection: Scenario = {
     },
     {
       // the engine's low-pressure nitrate rule, in this case's words, and also over 90 once the tamponade is under way
-      id: 'vasodilator-in-shock', actions: VASODILATORS, when: (s) => s.pulse && shock(s), points: 8, severity: 'major', replaces: ['nitro-hypotension'],
+      id: 'vasodilator-in-shock', actions: VASODILATORS, when: (s) => s.pulse && shock(s), points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'A vasodilator in shock. With blood around his heart (or a systolic under 90) his pressure is held up by tight vessels, a fast rate and whatever fluid he has had: a nitrate drops it further. Stop the rate drugs and the vasodilators, give small fluid boluses and get him to the operating room.',
     },
     {
@@ -805,7 +806,7 @@ export const edDissection: Scenario = {
     },
     // the nurse's answer to an order that is not the order: a medication error, scored once (not also as a drug with no order)
     askHarm(RN_BETA, 'Diltiazem in place of the metoprolol the physician ordered. He has no reason not to take a beta-blocker, the drug the guideline puts first (2022 ACC/AHA); diltiazem is for a patient who cannot. Give the drug, the dose and the route that were ordered — read the order back, and ask if it seems wrong.', 5),
-    askHarm(RN_VASODILATOR, 'Nitroglycerin 0.8 mg when 0.4 mg was ordered. Twice the ordered dose of a vasodilator in a patient whose pressure is coming down to a goal of 100–120 is a medication error: give the dose that was ordered, read it back, and recheck the pressure in the higher arm.'),
+    { ...askHarm(RN_VASODILATOR, 'Nitroglycerin 0.8 mg when 0.4 mg was ordered. Twice the ordered dose of a vasodilator in a patient whose pressure is coming down to a goal of 100–120 is a medication error: give the dose that was ordered, read it back, and recheck the pressure in the higher arm.'), replaces: nitrateRulesExcept('nitro-hypotension') },
   ],
   timings: [
     DOOR_TO_ECG,

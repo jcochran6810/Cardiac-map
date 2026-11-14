@@ -234,7 +234,9 @@ export const edNstemi: Scenario = {
     ],
   },
   initial: {
-    rhythm: { profile: 'nstemi', hr: 92 },
+    // pain-free at rest; with the pain back her rate climbs to 96 — a new tracing to read (more than 20/min faster) that
+    // still leaves room for nitroglycerin (none with a rate over 100 and no heart failure)
+    rhythm: { profile: 'nstemi', hr: 74 },
     vitals: { sbp: 138, dbp: 80, spo2: 97, rr: 18, etco2: 36, pain: 0, gcs: 15, glucose: 212, temp: 36.9 },
   },
   // what the built-in safety rules read (types.ts Problem)
@@ -464,12 +466,13 @@ export const edNstemi: Scenario = {
       id: 'pain-back', when: (s) => s.pulse && s.minute >= PAIN_MINUTE,
       effect: (s) => ({
         say: doctorRun(s)
-          ? [['nurse', 'Doctor — bed 7: her chest pressure is back, 6 out of 10, up into her jaw, and she\'s clammy. Heart rate 104, pressure 152 over 88.', 'warn']]
-          : [['patient', '"It\'s back — the same pressure, up into my jaw… and I feel sick."', 'warn'], ['monitor', 'Heart rate 104. BP 152/88.']],
-        rhythm: { profile: s.rhythm.profile, hr: 104 }, vitals: { sbp: 152, dbp: 88, pain: 6, rr: 20 },
+          ? [['nurse', 'Doctor — bed 7: her chest pressure is back, 6 out of 10, up into her jaw, and she\'s clammy. Heart rate 96, pressure 152 over 88.', 'warn']]
+          : [['patient', '"It\'s back — the same pressure, up into my jaw… and I feel sick."', 'warn'], ['monitor', 'Heart rate 96. BP 152/88.']],
+        rhythm: { profile: s.rhythm.profile, hr: 96 }, vitals: { sbp: 152, dbp: 88, pain: 6, rr: 20 },
         // the learner's 12-lead was being recorded as it came back (it is the action that just ended): the tracing, read
         // next, is the one with the pain
-        flags: ['pain-back', ...(ECGS.includes(s.performed.at(-1)?.id ?? '') ? ['ecg-at-pain'] : [])],
+        // the monitor's cuff reads the pressure as it comes back: that is the pressure taken before her nitroglycerin
+        flags: ['pain-back', 'bp', ...(ECGS.includes(s.performed.at(-1)?.id ?? '') ? ['ecg-at-pain'] : [])],
       }),
     },
     {

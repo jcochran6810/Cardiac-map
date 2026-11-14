@@ -3,6 +3,7 @@ import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion', 'final-angio': 'lad-open-impella' };
@@ -322,7 +323,7 @@ export const cathlabShock: Scenario = {
   ],
   harms: [
     { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
-    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
+    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing LV must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock (with an inotrope if the output stays low).' },
     { id: 'beta-blocker', actions: ['metoprolol'], points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
     { id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], replaces: ['midazolam-unsafe'], points: 3, severity: 'minor', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },

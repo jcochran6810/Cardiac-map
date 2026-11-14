@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { allOf, atRate, bpAfter, count, firstDone, flagAt, has, mapOf } from '../kit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * A man on a continuous-flow LVAD (a HeartMate 3, the only durable LVAD implanted in the US today) with two days of vomiting
@@ -633,7 +634,7 @@ export const lvadField: Scenario = {
     },
     {
       id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: [2], when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      replaces: NITRATE_RULES,
       text: 'Nitroglycerin for a man with no chest pain and a pump short of blood. It pools blood in the veins and cuts what comes back to the pump, his MAP is already low, and he takes sildenafil, which no nitrate may follow within 24 hours.',
     },
     {

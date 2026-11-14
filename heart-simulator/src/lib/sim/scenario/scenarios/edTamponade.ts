@@ -2,6 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
+import { NITRATE_RULES } from '../rules/acs';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -877,15 +878,22 @@ export const edTamponade: Scenario = {
     {
       id: 'nitro-tamponade', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
       // whatever her pressure: after a bolus her systolic can be over 90, and nitroglycerin is still wrong for her
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
       text: 'Nitroglycerin for a woman whose heart cannot fill. A vasodilator pools the blood in the veins, and a heart squeezed by fluid lives on the blood coming back to it: the pressure crashes. Vasodilators and diuretics are not recommended in tamponade (2015 ESC pericardial guideline) and can tip a large effusion into it. Her chest heaviness is the effusion, not a blocked artery — and the chest pain standing order excludes a systolic under 90 anyway.',
     },
     {
       // after the drain the crash is gone, but there is still nothing for it to treat. Like the one above, it stands in for the
-      // built-in nitrate rules (and the 0.8 mg the nurse has no order for), which its words cover: one dose, one penalty
-      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 3, severity: 'minor',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      // built-in nitrate rules, which its words cover: one dose, one penalty. The nurse's 0.4 mg needs no order; her 0.8 mg is
+      // the rule below
+      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s, _sc, id) => s.pulse && drained(s) && (s.role !== 6 || id === 'nitro'),
+      points: 3, severity: 'minor', replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
       text: 'Nitroglycerin with nothing to treat. Her chest heaviness was the effusion, now drained: nitroglycerin is for coronary ischemia (and 0.8 mg, which no standing order covers, for hypertensive pulmonary edema), and here it only takes preload from a heart that has just started to fill again.',
+    },
+    {
+      // the nurse's 0.8 mg also stands for the missing order, at the order's weight, and says so
+      id: 'nitro-no-indication-rn', actions: ['nitro-high'], roles: ED_RN, when: (s) => s.pulse && drained(s), points: 5, severity: 'major',
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
+      text: 'High-dose nitroglycerin with no order, and nothing to treat. Her chest heaviness was the tamponade, now drained: nitroglycerin is for coronary ischemia, and 0.8 mg — for hypertensive pulmonary edema — is on no standing order. Here it only takes preload from a heart that has just started to fill again. Tell the physician what you see instead.',
     },
     {
       id: 'cpap-tamponade', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 8, severity: 'major',

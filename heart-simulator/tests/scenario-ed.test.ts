@@ -531,7 +531,7 @@ describe('the ER nurse gives a medication on an order', () => {
   });
 
   it('the chest pain standing order and the ACLS arrest drugs need no order', () => {
-    const chestPain = run(stemi(), 6, ['triage', 'monitor', 'ecg12', 'o2-nc', 'iv', 'labs', 'aspirin', 'nitro', 'cxr', 'troponin-repeat', 'notify-physician']);
+    const chestPain = run(stemi(), 6, ['triage', 'monitor', 'ecg12', 'o2-nc', 'iv', 'labs', 'aspirin', 'nibp', 'ask-pde5', 'nitro', 'cxr', 'troponin-repeat', 'notify-physician']);
     expect(ids(chestPain)).toEqual([]);
     const vf = edPatient({ profile: 'vf', hr: 0, pulse: false });
     expect(ids(run(vf, 6, ['cpr', 'defib', 'io', 'cpr', 'epinephrine', 'defib', 'amio-arrest', 'lidocaine'])).filter((p) => p.startsWith('rn-'))).toEqual([]);
