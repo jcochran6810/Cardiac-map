@@ -120,6 +120,13 @@ function vfShock(s: SimState, how: string): Effect | null {
   };
 }
 
+/** Calcium (chloride 1 g or gluconate 3 g) reverses part of what diltiazem did to the vessels and the squeeze */
+function calciumAfterDiltiazem(s: SimState, given: string): Effect | null {
+  if (!inAf(s) || !has(s, 'diltiazem')) return null;
+  const bp = { sbp: Math.max(s.vitals.sbp, 76), dbp: Math.max(s.vitals.dbp, 46) };
+  return { say: [[edNurse(s), given], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['calcium'] };
+}
+
 /** An AV-nodal blocker in her: a little slower, and the pressure falls further (the rate was holding it up, not dropping it) */
 function nodalBlocker(s: SimState, drug: string, dSbp: number, dDbp: number, hr: number): Effect | null {
   if (!s.pulse) return null;
@@ -379,6 +386,8 @@ export const edUnstableAf: Scenario = {
     },
     diltiazem: (s) => nodalBlocker(s, 'Diltiazem', -14, -10, 150),
     metoprolol: (s) => nodalBlocker(s, 'Metoprolol 5 mg', -12, -8, 156),
+    esmolol: (s) => nodalBlocker(s, 'Esmolol', -12, -8, 156),
+    labetalol: (s) => nodalBlocker(s, 'Labetalol 20 mg', -16, -10, 158),
     // amiodarone slows the rate only a little over its 10 minutes, and its solvent drops the pressure
     'amio-infusion': (s) => {
       if (!inAf(s)) return null;
@@ -393,6 +402,7 @@ export const edUnstableAf: Scenario = {
       return { say: [[edNurse(s), 'Amiodarone 300 mg pushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad']], vitals: bp, flags: ['amiodarone'] };
     },
     // adenosine blocks the AV node for seconds: the atria keep fibrillating, so the same rhythm comes straight back
+    adenosine3: (s) => (inAf(s) ? { say: [['monitor', `A second or two of slower beats, then back to about ${s.rhythm.hr}.`]], flags: ['adenosine'] } : null),
     adenosine6: (s) => (inAf(s) ? { say: [['monitor', `A few seconds of slower, wider-spaced beats, then back to about ${s.rhythm.hr}.`], ...awake(s, '"Whoa — my chest went tight."')], flags: ['adenosine'] } : null),
     adenosine12: (s) => (inAf(s) ? { say: [['monitor', `A few seconds of slower, wider-spaced beats, then back to about ${s.rhythm.hr}.`], ...awake(s, '"Whoa — my chest went tight."')], flags: ['adenosine'] } : null),
     // atropine speeds AV conduction: with fibrillating atria more impulses get through
@@ -404,11 +414,8 @@ export const edUnstableAf: Scenario = {
     pressor: (s) => adrenergic(s, 'Norepinephrine infusion running.', 14, 8, 'pressor'),
     'push-epi': (s) => adrenergic(s, 'Push-dose epinephrine given.', 12, 8, 'push-epi'),
     // calcium reverses part of what diltiazem did to the vessels and the squeeze; the fast rate is still the problem
-    'calcium-chloride': (s) => {
-      if (!inAf(s) || !has(s, 'diltiazem')) return null;
-      const bp = { sbp: Math.max(s.vitals.sbp, 76), dbp: Math.max(s.vitals.dbp, 46) };
-      return { say: [[edNurse(s), 'Calcium chloride 1 g in slowly over a few minutes; line flushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['calcium'] };
-    },
+    'calcium-chloride': (s) => calciumAfterDiltiazem(s, 'Calcium chloride 1 g in slowly over a few minutes; line flushed.'),
+    'calcium-gluconate': (s) => calciumAfterDiltiazem(s, 'Calcium gluconate 3 g IV over 5–10 minutes; line flushed.'),
     // positive pressure cuts the blood returning to a heart that already cannot fill
     cpap: (s) => {
       if (!s.pulse || s.vitals.gcs <= 8) return null;
@@ -845,8 +852,8 @@ export const edUnstableAf: Scenario = {
       text: 'IV diltiazem into a patient whose pressure is 78. Diltiazem dilates the vessels and weakens the squeeze: it slows the rate a little and drops the pressure further — and her pressure was low because of the rate. An unstable tachycardia (hypotension, an acute change in mental status, signs of shock) gets an immediate synchronized shock (2025 AHA; 2023 AF guideline: COR 1), not a rate-control drug. (In the ER nurse\'s run, no rate-control drug goes in without the physician\'s order — and this one should be questioned.)',
     },
     {
-      id: 'metoprolol-unstable', actions: ['metoprolol'], when: (s) => s.pulse && (inAf(s) || s.vitals.sbp < 90), points: 15, severity: 'critical',
-      text: 'IV metoprolol into a patient whose pressure is 78. A beta-blocker weakens the squeeze and slows the rate only a little: her pressure falls further, because it was low from the rate. An unstable tachycardia gets an immediate synchronized shock (2025 AHA), not a rate-control drug; her own metoprolol is restarted by mouth once her pressure holds. (In the ER nurse\'s run, no rate-control drug goes in without the physician\'s order.)',
+      id: 'metoprolol-unstable', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], when: (s) => s.pulse && (inAf(s) || s.vitals.sbp < 90), points: 15, severity: 'critical',
+      text: 'A beta-blocker into a patient whose pressure is 78. It weakens the squeeze and slows the rate only a little: her pressure falls further, because it was low from the rate. An unstable tachycardia gets an immediate synchronized shock (2025 AHA), not a rate-control drug; her own metoprolol is restarted by mouth once her pressure holds. (In the ER nurse\'s run, no rate-control drug goes in without the physician\'s order.)',
     },
     {
       id: 'unsync-shock', actions: ['defib'], when: (s) => s.pulse && !(inAf(s) && has(s, 'sync-shock')), points: 15, severity: 'critical', replaces: ['shock-with-pulse'],
@@ -869,7 +876,7 @@ export const edUnstableAf: Scenario = {
       text: 'Amiodarone instead of the shock. In an unstable patient a 10-minute infusion is too slow, its solvent drops the pressure, and it can convert the rhythm with no plan for the stroke risk: the treatment is an immediate synchronized shock. (After a failed shock, amiodarone to help the next one hold is fair — 2023 AF guideline.)',
     },
     {
-      id: 'adenosine-irregular', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => inAf(s), points: 3, severity: 'minor',
+      id: 'adenosine-irregular', actions: ['adenosine3', 'adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => inAf(s), points: 3, severity: 'minor',
       text: 'Adenosine for an irregular tachycardia. It breaks circuits that run through the AV node (most regular narrow-complex tachycardias); fibrillating atria do not depend on the node, so the same rhythm came straight back after a few seconds — and the shock was delayed.',
     },
     {

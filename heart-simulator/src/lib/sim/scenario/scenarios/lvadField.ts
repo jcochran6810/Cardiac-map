@@ -650,7 +650,7 @@ export const lvadField: Scenario = {
       text: 'An antiarrhythmic for a sinus rhythm. His 12-lead shows a fast sinus rate with no arrhythmia to treat; amiodarone and procainamide drop a pressure that is already low, and procainamide weakens a failing heart. Ventricular arrhythmias with an LVAD are treated when the monitor shows one.',
     },
     {
-      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], roles: [2], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-sinus', actions: ['adenosine3', 'adenosine6', 'adenosine12'], roles: [2], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'Adenosine for a fast sinus rate. It only stops a rhythm whose circuit runs through the AV node; a sinus rate slows for a moment and comes straight back, and his is his answer to a low volume.',
     },
     {

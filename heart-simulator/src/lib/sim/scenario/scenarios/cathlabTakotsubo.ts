@@ -371,7 +371,7 @@ const RN_ASKS: LabAsk[] = [
     // Fentanyl already given for her chest pain counts: a nurse who treats the pain before being asked has done the job
     id: 'rn-pain', role: 4, when: (s) => has(s, 'ballooning') && has(s, 'relieved'), early: true,
     ask: 'She\'s still sore, and frightened. Something for the pain, please — and stay with her.',
-    accept: ['fentanyl'], wrong: ['nitro', 'nitro-high', 'ic-nitro', 'midazolam'],
+    accept: ['fentanyl'], wrong: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro', 'midazolam'],
     wrongSay: 'Not that — a nitrate empties the ventricle and the gradient comes straight back, and a sedative drops her pressure. Fentanyl, 25 micrograms.',
     thanks: 'Thanks.', fallback: 'Is anyone giving her something for the pain?', gives: 'pain-treated',
     fallbackEffect: (s) => ({ say: [['team', 'Fentanyl 25 mcg IV.']], vitals: { pain: Math.max(0, s.vitals.pain - 3) }, flags: ['analgesia'] }),
@@ -396,6 +396,24 @@ const rnNoOrder = (id: string, actions: string[], name: string, when: (s: SimSta
   id: `rn-no-order-${id}`, actions, roles: RN, points: 3, severity: 'minor', when: (s) => s.pulse && when(s),
   text: `${name} without the operator's order. In the cath lab the nurse gives drugs on the operator's order (spoken and read back) or a standing protocol: say what you see and what you think she needs, and give it once it is ordered.`,
 });
+
+/**
+ * A beta-blocker (nobody orders it in this case: no dose to read back). Once the pressure is back it slows the rate and
+ * calms the base, so the gradient falls. Before that — in shock, or before anyone knows why — what it takes off the gradient
+ * it takes off the stunned apex's squeeze too: the rate slows, the pressure does not come up (InterTAK 2018:
+ * contraindicated with hypotension and acute heart failure with a low EF)
+ */
+function betaBlocker(s: SimState, given: string, name: string): Effect | null {
+  if (!s.pulse) return null;
+  const lead: Line[] = [['you', given]];
+  if (!has(s, 'relieved')) {
+    const after: Line[] = s.role === 5 && !has(s, 'lvoto-known')
+      ? [line('team', `Nurse: "${name} — before we know what her heart is doing?"`, 'warn')]
+      : has(s, 'obstructed') ? [line('monitor', 'The rate slows, but the pressure does not come up.', 'warn')] : [];
+    return withGradient(s, gradientOf(s), { lead, after, hrShift: hrShiftOf(s) - 12, flags: ['beta-blocker'] });
+  }
+  return withGradient(s, gradientOf(s) - 15, { lead, hrShift: hrShiftOf(s) - 12, flags: ['beta-blocker'] });
+}
 
 const NITRATE_TEXT = 'A nitrate with dynamic outflow obstruction. Nitroglycerin lowers the preload and the afterload — the two things holding the outflow tract open — so the ventricle empties faster, the gradient climbs and the pressure falls (InterTAK 2018: avoid nitroglycerin with LV outflow tract obstruction). For her pain, a small dose of fentanyl.';
 
@@ -494,10 +512,8 @@ export const cathlabTakotsubo: Scenario = {
     'lv-gram': (s) => {
       if (!has(s, 'pigtail-in')) return { blocked: true, say: [['system', s.role === 5 ? 'Put a pigtail across the aortic valve into the ventricle first.' : 'The operator has no catheter in the ventricle yet.']] };
       if (has(s, 'ballooning') && has(s, 'lv-gram')) return { blocked: true, say: [['system', 'The LV gram is done: no more contrast for it.']] };
-      // the tech fires the injector when the operator calls for it — not into a ventricle in shock, and not before the pressures
-      if (s.role === 3 && !has(s, 'asked-lvgram')) {
-        return { blocked: true, say: [['operator', has(s, 'pullback') ? 'Not while she\'s this low — fluid and pressure first. I\'ll call for the LV gram.' : 'Not yet — pressures first. I\'ll call for the LV gram.']] };
-      }
+      // the tech fires the injector when the operator calls for it — not before the pressures (the call comes with the pullback's read)
+      if (s.role === 3 && !has(s, 'asked-lvgram')) return { blocked: true, say: [['operator', 'Not yet — pressures first. I\'ll call for the LV gram.']] };
       return lvGram(s, 'learner');
     },
     // the cardiologist's echo: the wall motion and the gradient, the mitral leaflet and what is not there (an effusion, a rupture)
@@ -523,21 +539,9 @@ export const cathlabTakotsubo: Scenario = {
     // a unit of blood is volume too (and there is no bleeding: the built-in rule scores it)
     transfuse: (s) => (s.pulse ? withGradient(s, gradientOf(s) - 15, { lead: [['you', 'A unit of packed red cells running through the warmer.']], flags: ['transfused'] }) : null),
     phenylephrine: (s) => (s.pulse ? phenylephrineEffect(s) : null),
-    metoprolol: (s) => {
-      if (!s.pulse) return null;
-      // nobody orders it in this case: no dose to read back
-      const lead: Line[] = [['you', 'Metoprolol 5 mg IV over 2 minutes.']];
-      // once the pressure is back it slows the rate and calms the base, so the gradient falls. Before that — in shock, or before
-      // anyone knows why — what it takes off the gradient it takes off the stunned apex's squeeze too: the rate slows, the
-      // pressure does not come up (InterTAK 2018: contraindicated with hypotension and acute heart failure with a low EF)
-      if (!has(s, 'relieved')) {
-        const after: Line[] = s.role === 5 && !has(s, 'lvoto-known')
-          ? [line('team', 'Nurse: "Metoprolol — before we know what her heart is doing?"', 'warn')]
-          : has(s, 'obstructed') ? [line('monitor', 'The rate slows, but the pressure does not come up.', 'warn')] : [];
-        return withGradient(s, gradientOf(s), { lead, after, hrShift: hrShiftOf(s) - 12, flags: ['beta-blocker'] });
-      }
-      return withGradient(s, gradientOf(s) - 15, { lead, hrShift: hrShiftOf(s) - 12, flags: ['beta-blocker'] });
-    },
+    metoprolol: (s) => betaBlocker(s, 'Metoprolol 5 mg IV over 2 minutes.', 'Metoprolol'),
+    esmolol: (s) => betaBlocker(s, 'Esmolol 500 mcg/kg IV over 1 minute, then the infusion.', 'Esmolol'),
+    labetalol: (s) => betaBlocker(s, 'Labetalol 20 mg IV over 2 minutes.', 'Labetalol'),
     diltiazem: (s) => {
       if (!s.pulse) return null;
       // it slows the rate a little, but it weakens the stunned ventricle and dilates the vessels: the afterload that holds the
@@ -585,6 +589,10 @@ export const cathlabTakotsubo: Scenario = {
     'nitro-high': (s) => {
       if (!s.pulse) return null;
       return withGradient(s, gradientOf(s) + 30, { lead: [['you', 'Nitroglycerin 0.8 mg sublingual.']], vitals: { pain: Math.max(0, s.vitals.pain - 1) }, flags: ['nitro', 'nitro-high', 'nitrate'] });
+    },
+    'nitro-iv': (s) => {
+      if (!s.pulse) return null;
+      return withGradient(s, gradientOf(s) + 30, { lead: [['you', 'Nitroglycerin infusion IV.']], vitals: { pain: Math.max(0, s.vitals.pain - 1) }, flags: ['nitro', 'nitro-iv', 'nitrate'] });
     },
     'ic-nitro': (s) => {
       if (!s.pulse) return null;
@@ -857,7 +865,7 @@ export const cathlabTakotsubo: Scenario = {
       replaces: ['furosemide-hypotension', 'furosemide-preload-dependent', 'furosemide-anuria', 'furosemide-no-indication'],
       text: 'A diuretic during the outflow obstruction. A ventricle that obstructs needs filling to hold its outflow tract open: taking volume off narrows it further, and the gradient climbs as the pressure falls (2024 AHA/ACC HCM guideline: no diuretics in hypotension with obstruction). Fluid and phenylephrine instead.',
     },
-    { id: 'nitrate-lvoto', actions: ['nitro', 'nitro-high'], roles: [4, 5], replaces: ['nitro-hypotension'], when: (s) => s.pulse && has(s, 'obstructed'), points: 10, severity: 'major', text: NITRATE_TEXT },
+    { id: 'nitrate-lvoto', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: [4, 5], replaces: ['nitro-hypotension'], when: (s) => s.pulse && has(s, 'obstructed'), points: 10, severity: 'major', text: NITRATE_TEXT },
     { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail'], roles: MD, when: (s) => s.pulse && has(s, 'obstructed'), replaces: ['nitro-hypotension'], points: 10, severity: 'major', text: NITRATE_TEXT },
     // the built-in rule, kept for the time before the fall (afterwards nitrate-lvoto covers it): one mistake, one penalty
     { id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !has(s, 'obstructed') && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' },
@@ -865,9 +873,9 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'iabp-lvoto', actions: ['iabp'], roles: MD, points: 15, severity: 'critical', text: 'An intra-aortic balloon pump in Takotsubo with outflow obstruction. Its deflation drops the afterload just as the ventricle ejects: the base empties the ventricle faster, the outflow tract narrows, and the gradient and the pressure get worse. Avoid it whenever there is an outflow gradient; if fluid and phenylephrine fail, the support is an Impella (it carries blood past the obstruction) or VA-ECMO.' },
     { id: 'tech-iabp', actions: ['iabp'], roles: TECH, when: (s) => has(s, 'lvoto-known'), points: 3, severity: 'minor', text: 'The balloon pump readied once the gradient was on the screen. A balloon pump lowers the afterload and makes outflow obstruction worse: open devices when the operator asks for them.' },
     { id: 'mcs-first', actions: ['impella'], roles: MD, when: (s) => !(obstructing(s) && has(s, 'fluid') && has(s, 'phenylephrine')), points: 5, severity: 'major', text: 'An Impella without refractory shock: before fluid and phenylephrine had been tried, or with her pressure already back. Large-bore femoral access brings bleeding, limb ischemia and hemolysis, and outflow obstruction in Takotsubo usually answers to volume and afterload within minutes: mechanical support is for the patient they fail.' },
-    { id: 'bb-before-diagnosis', actions: ['metoprolol'], roles: [4, 5], when: (s) => s.pulse && !has(s, 'lvoto-known'), points: 8, severity: 'major', text: 'IV metoprolol before anyone knew why her heart was failing. In COMMIT early IV metoprolol raised the risk of cardiogenic shock, most in older patients with a fast rate and a systolic under 120 — like her; in an ACS the beta-blocker is started by mouth once there are no signs of heart failure, low output or shock risk. In Takotsubo it is contraindicated with hypotension or acute heart failure with a low ejection fraction (InterTAK 2018). It can help only once outflow obstruction is proven and the pressure is back — and then a short-acting one, carefully.' },
+    { id: 'bb-before-diagnosis', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], roles: [4, 5], when: (s) => s.pulse && !has(s, 'lvoto-known'), points: 8, severity: 'major', text: 'A beta-blocker before anyone knew why her heart was failing. In COMMIT early IV metoprolol raised the risk of cardiogenic shock, most in older patients with a fast rate and a systolic under 120 — like her; in an ACS the beta-blocker is started by mouth once there are no signs of heart failure, low output or shock risk. In Takotsubo it is contraindicated with hypotension or acute heart failure with a low ejection fraction (InterTAK 2018). It can help only once outflow obstruction is proven and the pressure is back — and then a short-acting one, carefully.' },
     // in shock is more than a number: cool and clammy with a systolic of 91 after a fall to 79 is no recovered pressure
-    { id: 'bb-hypotension', actions: ['metoprolol'], roles: [4, 5], when: (s) => s.pulse && has(s, 'lvoto-known') && (obstructing(s) || s.vitals.sbp < 90), points: 8, severity: 'major', text: 'A beta-blocker while she was still in shock. It can lower the gradient by slowing the rate and calming the base, but in Takotsubo it is contraindicated with hypotension, acute heart failure with a low ejection fraction or bradycardia (InterTAK 2018): it weakens the stunned apex as much as it calms the base — and IV metoprolol lasts hours. Fluid and phenylephrine first; once the pressure is back, a low dose of a short-acting beta-1 blocker (esmolol) if she stays fast.' },
+    { id: 'bb-hypotension', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], roles: [4, 5], when: (s) => s.pulse && has(s, 'lvoto-known') && (obstructing(s) || s.vitals.sbp < 90), points: 8, severity: 'major', text: 'A beta-blocker while she was still in shock. It can lower the gradient by slowing the rate and calming the base, but in Takotsubo it is contraindicated with hypotension, acute heart failure with a low ejection fraction or bradycardia (InterTAK 2018): it weakens the stunned apex as much as it calms the base — and IV metoprolol lasts hours. Fluid and phenylephrine first; once the pressure is back, a low dose of a short-acting beta-1 blocker (esmolol) if she stays fast.' },
     // her fast rate is sinus, a heart compensating: diltiazem has nothing to treat at any point of the case
     { id: 'diltiazem-takotsubo', actions: ['diltiazem'], roles: [4, 5], when: (s) => s.pulse, points: 8, severity: 'major', text: 'Diltiazem for a sinus tachycardia in a failing heart. Her fast rate is the heart compensating, not an arrhythmia to slow. A calcium-channel blocker weakens the stunned ventricle (EF about 35 %: IV diltiazem is harmful with a reduced ejection fraction, 2023 ACC/AHA/ACCP/HRS AF guideline) and dilates the vessels, dropping the afterload that holds the outflow tract open (verapamil is potentially harmful with obstruction and hypotension, 2024 AHA/ACC HCM guideline).' },
     { id: 'no-culprit-pci', actions: TECH_PCI, roles: MD, when: (s) => has(s, 'normal-coronaries'), points: 8, severity: 'major', text: 'A guide, wire, balloon or stent with no culprit lesion. The coronaries are clean: there is nothing to open, and every device in a normal artery risks a dissection. The ST elevation comes from the muscle, not an artery — look at the ventricle.' },
@@ -880,7 +888,7 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], roles: [4, 5], when: (s) => s.pulse && (!has(s, 'obstructed') || s.vitals.sbp >= 120), points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension — here, the fall with outflow obstruction; before the fall, or with a systolic of 120 or more, it only loads a ventricle under stress and slows the heart.' },
     rnNoOrder('phenylephrine', ['phenylephrine'], 'Phenylephrine', (s) => has(s, 'obstructed') && !phenylephrineOrdered(s)),
     // before the gradient is known, or in shock, the beta-blocker rules above score it
-    rnNoOrder('metoprolol', ['metoprolol'], 'IV metoprolol', (s) => has(s, 'lvoto-known') && has(s, 'relieved')),
+    rnNoOrder('metoprolol', ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], 'A beta-blocker', (s) => has(s, 'lvoto-known') && has(s, 'relieved')),
     // after the fall nitrate-lvoto scores it; 0.8 mg is scored by nitro-high-not-hypertensive
     rnNoOrder('nitro', ['nitro'], 'Sublingual nitroglycerin', (s) => !has(s, 'obstructed')),
     // after the clean pictures antiplatelet-no-acs scores it

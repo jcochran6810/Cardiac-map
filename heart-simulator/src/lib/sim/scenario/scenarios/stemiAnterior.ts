@@ -3,12 +3,15 @@ import { PADS, has, interpret, line, shocks } from '../kit';
 
 const ROSC_VITALS = { sbp: 104, dbp: 66, spo2: 94, rr: 16, gcs: 14, pain: 6 };
 
+/** What a shock puts on the chest: the EMT's AED is pads only (no rhythm or numbers to read); a defibrillator is a monitor too */
+const padFlags = (s: SimState) => (s.role === 1 ? ['pads'] : ['pads', 'monitor']);
+
 function shockOutcome(s: SimState): Effect | null {
   if (s.pulse || s.rhythm.profile !== 'vf') return null;
   // brief, witnessed VF with early CPR / defibrillation: the first or second shock converts
   const early = has(s, 'cpr') || (s.timers.arrestAt !== undefined && s.minute - s.timers.arrestAt <= 1);
   if (!early && shocks(s) === 0) {
-    return { say: [['monitor', 'Shock delivered. No change on the monitor — resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
+    return { say: [['monitor', 'Shock delivered. No change on the monitor — resume CPR.']], flags: [...padFlags(s), 'shocked'] };
   }
   return {
     say: [
@@ -17,7 +20,7 @@ function shockOutcome(s: SimState): Effect | null {
       ['patient', 'Groans and opens his eyes: "What happened?"'],
     ],
     rhythm: { profile: 'anterior-stemi', hr: 112 }, pulse: true, phase: 'rosc', vitals: ROSC_VITALS,
-    flags: ['pads', 'monitor', 'shocked'],
+    flags: [...padFlags(s), 'shocked'],
   };
 }
 

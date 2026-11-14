@@ -317,6 +317,11 @@ export const tamponadeField: Scenario = {
         vitals: bp,
       };
     },
+    // sitting up, leaning forward, is how he breathes: let him (no pressure change — fluid, for a paramedic, fills his heart)
+    'sit-up': (s) => {
+      if (!s.pulse || s.vitals.gcs <= 8) return null;
+      return { say: [['you', 'Sitting up on the edge of the bed, leaning forward, as he wants to.'], ...(s.vitals.gcs >= 13 ? [line('patient', '"That\'s better — I can get a breath like this."')] : [])], flags: ['sat-up'], clear: ['legs-up'] };
+    },
     // he cannot lie down: flat, he cannot breathe (and the fluid bolus, not his legs, is how the paramedic fills his heart)
     'legs-up': (s) => {
       if (!s.pulse) return null;
@@ -621,7 +626,7 @@ export const tamponadeField: Scenario = {
       text: 'An antiarrhythmic for a sinus tachycardia. There is no arrhythmia to convert — the fast rate is his compensation — and amiodarone and procainamide drop a pressure that has nothing in reserve.',
     },
     {
-      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-sinus', actions: ['adenosine3', 'adenosine6', 'adenosine12'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'Adenosine for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for him.',
     },
     {

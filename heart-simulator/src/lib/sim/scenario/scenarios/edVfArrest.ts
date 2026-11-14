@@ -544,6 +544,7 @@ export const edVfArrest: Scenario = {
       say: [['you', 'Push-dose epinephrine, 10–20 mcg — the dose for a low pressure with a pulse. In cardiac arrest the dose is 1 mg.', 'warn']],
       flags: ['push-epi'],
     }),
+    adenosine3: (s) => (s.pulse ? null : { say: [['you', 'Adenosine 3 mg pushed — it has no place in cardiac arrest, and nothing changes.']], flags: ['adenosine'] }),
     adenosine6: (s) => (s.pulse ? null : { say: [['you', 'Adenosine 6 mg pushed — it has no place in cardiac arrest, and nothing changes.']], flags: ['adenosine'] }),
     adenosine12: (s) => (s.pulse ? null : { say: [['you', 'Adenosine 12 mg pushed — it has no place in cardiac arrest, and nothing changes.']], flags: ['adenosine'] }),
     'hs-ts': (s) => ({
@@ -912,18 +913,18 @@ export const edVfArrest: Scenario = {
       text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg every 3–5 minutes.',
     },
     {
-      id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-in-arrest', actions: ['adenosine3', 'adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
       text: 'Adenosine in cardiac arrest. It is for a regular narrow-complex tachycardia with a pulse; in VF it treats nothing.',
     },
     {
       // in the arrest it has no role; after ROSC he is comatose, hypotensive or pressor-dependent, with no pain to report
-      id: 'nitrate', actions: ['nitro', 'nitro-high'], points: 8, severity: 'major',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', 'rn-without-order-nitro-high'],
+      id: 'nitrate', actions: ['nitro', 'nitro-high', 'nitro-iv'], points: 8, severity: 'major',
+      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', 'rn-without-order-nitro-high', 'rn-without-order-nitro-iv'],
       text: 'Nitroglycerin in the arrest or after ROSC. In the arrest it has no role; after ROSC his pressure is low, or held up only by norepinephrine, and nitrates drop it further. The ischemia is treated by opening the artery in the cath lab.',
     },
     {
-      id: 'rate-drug', actions: ['metoprolol', 'diltiazem'], points: 8, severity: 'major',
-      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem'],
+      id: 'rate-drug', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'], points: 8, severity: 'major',
+      replaces: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'].map((id) => `rn-without-order-${id}`),
       text: 'A beta-blocker or diltiazem in the arrest or after ROSC. His fast rate after ROSC is the body\'s answer to the arrest, the epinephrine and a low pressure: these drugs weaken the squeeze and drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {

@@ -357,6 +357,7 @@ export const commotioField: Scenario = {
       const bp = bpAfter(s, -16, -10);
       return { say: [['you', 'Amiodarone 300 mg pushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'bad']], vitals: bp, flags: ['amio-after-rosc'] };
     },
+    adenosine3: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
     adenosine6: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
     adenosine12: (s) => (s.pulse ? null : noRoleInArrest('Adenosine', 'adenosine')),
     // no pain or agitation to treat in someone with a GCS of 6: they only slow his breathing and lower his pressure
@@ -601,12 +602,12 @@ export const commotioField: Scenario = {
     },
     {
       // procainamide included: its built-in rule only fires while the systolic is under 90, and after a bolus it may not be
-      id: 'rate-drug-post-rosc', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide', 'adenosine6', 'adenosine12'], when: (s) => s.pulse, roles: [2],
+      id: 'rate-drug-post-rosc', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide', 'adenosine3', 'adenosine6', 'adenosine12'], when: (s) => s.pulse, roles: [2],
       points: 5, severity: 'major', replaces: ['procainamide-hypotension'],
       text: 'A drug to slow or convert his rhythm after ROSC. His fast rate is the body\'s answer to the arrest and a low pressure — there is no arrhythmia to treat: these drugs drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {
-      id: 'rate-drug-arrest', actions: ['adenosine6', 'adenosine12', 'metoprolol', 'diltiazem', 'procainamide', 'amio-infusion'], when: (s) => !s.pulse, roles: [2],
+      id: 'rate-drug-arrest', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem', 'procainamide', 'amio-infusion'], when: (s) => !s.pulse, roles: [2],
       points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
       text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem, procainamide and the 150 mg amiodarone infusion are not arrest drugs: VF needs shocks, CPR, epinephrine and, if it persists, amiodarone 300 mg or lidocaine.',
     },

@@ -432,9 +432,12 @@ export const edHeartBlock: Scenario = {
     'amio-arrest': (s) => (s.pulse ? suppressed(s, 'Amiodarone 300 mg') : null),
     procainamide: (s) => suppressed(s, 'Procainamide'),
     metoprolol: (s) => blocker(s, 'Metoprolol 5 mg'),
+    esmolol: (s) => blocker(s, 'Esmolol'),
+    labetalol: (s) => blocker(s, 'Labetalol 20 mg'),
     diltiazem: (s) => blocker(s, 'Diltiazem'),
     // the AV node already conducts nothing: adenosine has nothing to treat, and in a heart this sick it can suppress the
     // escape for seconds; a pacer's hold on the ventricles it does not touch
+    adenosine3: (s) => (paced(s) ? { say: [['monitor', 'No change: the pacer keeps the heart rate at 70.']] } : { say: [['monitor', 'Four seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     adenosine6: (s) => (paced(s) ? { say: [['monitor', 'No change: the pacer keeps the heart rate at 70.']] } : { say: [['monitor', 'Six seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     adenosine12: (s) => (paced(s) ? { say: [['monitor', 'No change: the pacer keeps the heart rate at 70.']] } : { say: [['monitor', 'Eight seconds with no QRS complexes… then beats return at 30.', 'bad']], rhythm: { profile: 'third-degree-avb', hr: 30 } }),
     // her metoprolol dose is an everyday one: glucagon (for an overdose, and in BRASH only when the rest fails) does nothing
@@ -787,11 +790,11 @@ export const edHeartBlock: Scenario = {
       text: 'Lidocaine, amiodarone or procainamide for a wide escape rhythm. The wide beats are the only thing keeping her alive: suppressing them can leave no rhythm at all. A slow wide rhythm needs a faster rate (pacing), never an antiarrhythmic.',
     },
     {
-      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 15, severity: 'critical',
+      id: 'av-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'], when: (s) => s.pulse, points: 15, severity: 'critical',
       text: 'A beta-blocker or a calcium-channel blocker in complete heart block. They slow conduction further and weaken the squeeze — her own metoprolol is part of why she is here.',
     },
     {
-      id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major',
+      id: 'adenosine-block', actions: ['adenosine3', 'adenosine6', 'adenosine12'], points: 10, severity: 'major',
       text: 'Adenosine in complete heart block. It has nothing to treat — the AV node already conducts nothing — and it can suppress the slow escape that is left, for seconds of standstill.',
     },
     {

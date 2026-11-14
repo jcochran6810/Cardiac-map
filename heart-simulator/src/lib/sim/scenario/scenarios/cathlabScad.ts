@@ -5,6 +5,7 @@ import {
   LAD_VIEWS, LEFT_VIEWS, MD, RCA_VIEWS, TECH, WIRES, angioGate, anticoagulated, askCritical, askDone, askEvents, askHarm, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
+import { BETA_BLOCKERS } from '../rules/helpers';
 
 /**
  * Spontaneous coronary artery dissection (SCAD). A 42-year-old woman eight weeks after childbirth, breastfeeding, comes
@@ -246,13 +247,11 @@ function icNitro(s: SimState, by: 'learner' | 'operator'): Effect | null {
 }
 
 /** Metoprolol 5 mg IV: the rate and the force of each beat come down, and with them the stress on the torn wall */
-function metoprolol(s: SimState, by: 'learner' | 'operator'): Effect | null {
+function metoprolol(s: SimState, by: 'learner' | 'operator', drug = 'Metoprolol 5 mg IV over 2 minutes', dSbp = -10, dDbp = -6): Effect | null {
   if (!s.pulse) return null;
-  const bp = bpAfter(s, -10, -6);
+  const bp = bpAfter(s, dSbp, dDbp);
   const hr = Math.min(s.rhythm.hr, Math.max(60, s.rhythm.hr - 12));
-  const given: Line = by === 'operator'
-    ? ['operator', 'Metoprolol 5 mg IV over 2 minutes.']
-    : ['you', s.role === 4 ? 'Metoprolol 5 mg IV over 2 minutes, the dose read back.' : 'Metoprolol 5 mg IV over 2 minutes.'];
+  const given: Line = by === 'operator' ? ['operator', `${drug}.`] : ['you', s.role === 4 ? `${drug}, the dose read back.` : `${drug}.`];
   return { say: [given, ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, rhythm: atRate(s, hr), flags: ['beta-blocker'] };
 }
 
@@ -298,7 +297,8 @@ function handoffText(s: SimState): string {
   const antiplatelet = stented
     ? `Aspirin given; the stents need a P2Y12 inhibitor as well (${has(s, 'p2y12') ? 'loaded' : 'not yet given'}) — talk with her about breastfeeding on it, since there are few safety data.`
     : 'Aspirin given (low-dose aspirin is safe while breastfeeding); no second antiplatelet drug without a stent unless the team decides otherwise.';
-  const beta = has(s, 'beta-blocker') ? 'Metoprolol started.' : 'Metoprolol by mouth to start on the unit.';
+  const given = ['esmolol', 'labetalol'].find((id) => (s.counts[id] ?? 0) > 0);
+  const beta = !has(s, 'beta-blocker') ? 'Metoprolol by mouth to start on the unit.' : given ? `${given === 'esmolol' ? 'Esmolol' : 'Labetalol'} given; metoprolol by mouth to follow.` : 'Metoprolol started.';
   const site = has(s, 'femoral') ? 'Right femoral sheath out, pressure held, groin and foot pulses checked.' : 'Right radial band on.';
   const lv = has(s, 'echo') || has(s, 'lv-gram') ? 'LVEF about 50 %. Still to do: ' : 'Still to do: an echo for the LV function; ';
   return `SBAR hand-off to the CCU team: 42-year-old, eight weeks after delivery and breastfeeding, anterior STEMI from a spontaneous coronary artery dissection of the mid-to-distal LAD (type 2) — ${course}. ${heparinPlan} `
@@ -353,7 +353,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'rn-nitro', role: 4, when: (s) => has(s, 'scad'),
     ask: 'I want spasm ruled out. Two hundred micrograms of nitroglycerin down the catheter, please — check her pressure first.',
-    accept: ['ic-nitro'], wrong: ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside', 'ic-epinephrine', 'nitro', 'nitro-high'],
+    accept: ['ic-nitro'], wrong: ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside', 'ic-epinephrine', 'nitro', 'nitro-high', 'nitro-iv'],
     wrongSay: 'Not that — nitroglycerin, 200 micrograms, into the coronary.',
     thanks: 'Thanks — pressure\'s fine. I\'ll repeat the LAD.', fallback: 'I\'ll draw up the nitro myself.', gives: 'nitro-given',
     fallbackEffect: (s) => icNitro(s, 'operator') ?? {},
@@ -374,7 +374,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'rn-bb', role: 4, when: (s) => has(s, 'heparin-off'),
     ask: 'And metoprolol 5 milligrams IV, please — I want her rate, and the force on that artery, down.',
-    accept: ['metoprolol'], wrong: ['diltiazem', 'amio-infusion', 'adenosine6', 'adenosine12', 'procainamide'],
+    accept: ['metoprolol'], wrong: ['diltiazem', 'amio-infusion', 'adenosine3', 'adenosine6', 'adenosine12', 'procainamide', 'esmolol', 'labetalol', 'metoprolol-po'],
     wrongSay: 'Not that — metoprolol, 5 milligrams IV.',
     thanks: 'Thanks.', fallback: 'I\'ll push the metoprolol myself.', gives: 'bb-given',
     fallbackEffect: (s) => metoprolol(s, 'operator') ?? {},
@@ -505,6 +505,9 @@ export const cathlabScad: Scenario = {
       return icNitro(s, 'learner');
     },
     metoprolol: (s) => metoprolol(s, 'learner'),
+    // any IV beta-blocker does the same for the torn wall (labetalol drops the pressure a little more)
+    esmolol: (s) => metoprolol(s, 'learner', 'Esmolol 500 mcg/kg IV over 1 minute, then the infusion'),
+    labetalol: (s) => metoprolol(s, 'learner', 'Labetalol 20 mg IV over 2 minutes', -14, -8),
     fentanyl: (s) => {
       if (!s.pulse) return null;
       const pain = Math.max(0, s.vitals.pain - 3);
@@ -743,9 +746,9 @@ export const cathlabScad: Scenario = {
     // the cardiologist's beta-blocker: IV metoprolol in the lab or metoprolol by mouth are both right (AHA 2018: "should be
     // considered"). The nurse gives it because the operator orders it
     {
-      id: 'md-bb', label: 'A beta-blocker once the SCAD is seen: IV metoprolol, or by mouth', roles: MD, points: 5, applies: (s) => has(s, 'scad'),
+      id: 'md-bb', label: 'A beta-blocker once the SCAD is seen: IV, or by mouth', roles: MD, points: 5, applies: (s) => has(s, 'scad'),
       why: 'A beta-blocker brings down the rate and the force of each beat, and with them the stress on the torn wall; it is part of the care after SCAD (2018 AHA scientific statement: it should be considered). IV metoprolol in the lab or metoprolol by mouth are both right — not with a low pressure, a slow rate or a failing ventricle.',
-      done: (s) => firstDone(s, ['metoprolol', 'metoprolol-po'], 'scad'), uses: ['metoprolol', 'metoprolol-po'],
+      done: (s) => firstDone(s, BETA_BLOCKERS, 'scad'), uses: BETA_BLOCKERS,
     },
     askCritical(RN_ASKS[3]),
     askCritical(TECH_ASKS[2]),
@@ -779,7 +782,7 @@ export const cathlabScad: Scenario = {
     { id: 'heparin-twice', actions: ['heparin'], roles: [4], replaces: ['heparin-repeat-unguided'], when: (s) => has(s, 'heparin') && !has(s, 'scad'), points: 8, severity: 'major', text: 'A second heparin bolus on top of the first. She already had heparin 70 units/kg: check what has been given before you draw up a dose — a double dose doubles the bleeding risk, at the radial artery and in the wall of a fragile coronary.' },
     { id: 'lytic-scad', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', text: 'A fibrinolytic in the cath lab, where the artery can be seen and treated. It adds only bleeding — and in SCAD it can make the blood in the wall spread (case reports of extension, rupture and tamponade). In a young woman after a pregnancy with a STEMI, think of SCAD before any lytic.' },
     // the spread hematoma has made the anterior wall ischemic again, with a fast rate and a falling pressure (COMMIT)
-    { id: 'beta-blocker-shock-risk', actions: ['metoprolol'], roles: MD, when: (s) => s.pulse && ischemic(s), points: 6, severity: 'major', text: 'IV metoprolol with the anterior wall ischemic again, a heart rate over 110 and the pressure falling. A failing ventricle leans on its rate: an IV beta-blocker now risks cardiogenic shock (COMMIT). Restore the flow first, and start the beta-blocker once she is stable.' },
+    { id: 'beta-blocker-shock-risk', actions: BETA_BLOCKERS, roles: MD, when: (s) => s.pulse && ischemic(s), replaces: ['oral-beta-blocker-shock-risk'], points: 6, severity: 'major', text: 'A beta-blocker (IV, or by mouth) with the anterior wall ischemic again, a heart rate over 110 and the pressure falling. A failing ventricle leans on its rate: a beta-blocker now risks cardiogenic shock (COMMIT). Restore the flow first, and start the beta-blocker once she is stable.' },
     { id: 'mcs-stable', actions: ['iabp', 'impella'], roles: MD, when: (s) => s.pulse && s.vitals.sbp >= 90, points: 8, severity: 'major', text: 'A balloon pump or Impella for a stable patient. Nothing needs support, large-bore femoral access risks an iliac dissection in a woman who may have fibromuscular dysplasia, and a balloon pump can push a coronary dissection further.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     // the tech only opens it — the operator refuses it and nothing reaches the patient — so a small penalty

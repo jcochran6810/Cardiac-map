@@ -1,7 +1,8 @@
 import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
-import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
+import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { BETA_BLOCKERS, lowPressure } from '../rules/helpers';
 
 /**
  * Hypertensive acute pulmonary edema ("sympathetic crashing acute pulmonary edema", SCAPE) arriving in the emergency
@@ -35,7 +36,7 @@ const DROP_AFTER = 5;
 /** Pressures rise as far as a hypertensive emergency can take them (bpAfter's default ceiling is for a normal pressure) */
 const CEILING = { sbp: 250, dbp: 140 };
 /** The nitrates the department offers (the patient's own spray is a field action) */
-const NITRATES = ['nitro', 'nitro-high'];
+const NITRATES = ['nitro', 'nitro-high', 'nitro-iv'];
 /** Every way to see his pressure (a reassessment reads the monitor's last set) */
 const BP_CHECKS = ['vitals', 'nibp', 'bp-both-arms', 'reassess'];
 
@@ -497,6 +498,8 @@ export const edScape: Scenario = {
       };
     },
     metoprolol: negativeInotrope('Metoprolol 5 mg IV', 'beta-blocker'),
+    esmolol: negativeInotrope('Esmolol 500 mcg/kg IV', 'beta-blocker'),
+    labetalol: negativeInotrope('Labetalol 20 mg IV', 'beta-blocker'),
     diltiazem: negativeInotrope('Diltiazem IV', 'diltiazem'),
     'push-epi': adrenergic('Push-dose epinephrine 10 mcg IV.', 16, 10, 'push-epi'),
     pressor: adrenergic('Vasopressor infusion running.', 22, 14, 'pressor'),
@@ -922,13 +925,17 @@ export const edScape: Scenario = {
       },
       text: 'A repeat nitroglycerin dose too soon or without a fresh blood pressure. Repeat it every 5 minutes (3 at the least), with the pressure checked before each: the mask and the doses already given keep lowering it.',
     },
-    {
-      id: 'diuretic-not-overloaded', actions: ['furosemide'], when: (s) => s.pulse, points: 3, severity: 'minor',
-      replaces: ['furosemide-hypotension', 'furosemide-preload-dependent', 'furosemide-anuria', 'furosemide-no-indication'],
+    // with a pressure that holds: a low one is the built-in furosemide-hypotension's (8, major) to judge
+    ...bothRoles({
+      id: 'diuretic-not-overloaded', actions: ['furosemide'], when: (s) => s.pulse && !lowPressure(s), points: 3, severity: 'minor',
+      replaces: ['furosemide-no-indication'],
       text: 'IV furosemide for a man who is not carrying extra fluid. In this pressure surge the fluid has moved into his lungs, not onto his body (a steady weight, no leg swelling, an IVC that still narrows): positive pressure and high-dose nitrates move it back. A loop diuretic is for signs of volume overload, once the pressure is controlled (2022 AHA/ACC/HFSA heart failure guideline).',
-    },
+    }, NO_ORDER, ['rn-without-order-furosemide']),
     {
-      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
+      // the IV high dose (this case's bolus and its drip titrated up) as well as the 0.8 mg tablet; the ER nurse's IV dose with
+      // no order is the order's rule alone (one act, one penalty)
+      id: 'nitro-high-below-160', actions: ['nitro-high', 'nitro-iv'], points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
+      when: (s, _sc, id) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160 && !(id === 'nitro-iv' && s.role === 6 && !has(s, orderedFlag('nitro-iv'))),
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
     },
     {
@@ -941,17 +948,17 @@ export const edScape: Scenario = {
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
-      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'negative-inotrope', actions: [...BETA_BLOCKERS, 'diltiazem'], when: (s) => s.pulse, points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
-    }, NO_ORDER, ['rn-without-order-metoprolol', 'rn-without-order-diltiazem']),
+    }, NO_ORDER, [...BETA_BLOCKERS, 'diltiazem'].map((id) => `rn-without-order-${id}`)),
     ...bothRoles({
       id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 8, severity: 'major',
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding his lungs: raising it makes the edema worse. He needs the pressure taken off — nitroglycerin and positive pressure.',
     }, NO_ORDER, ['rn-without-order-pressor', 'rn-without-order-push-epi']),
     ...bothRoles({
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
-    }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
+    }, NO_ORDER, ['rn-without-order-adenosine3', 'rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {
       id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
       text: 'A sedative off the mask, or for a patient who is tiring. His panic is air hunger, which positive pressure and nitroglycerin treat; a benzodiazepine without that support blunts the breathing he has left. A small dose is for a patient on the mask who is awake and fighting it.',

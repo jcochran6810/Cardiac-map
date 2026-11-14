@@ -734,7 +734,7 @@ export const cathlabRpBleed: Scenario = {
       text: 'Atropine for a low pressure with a fast heart rate. A vasovagal reaction slows the heart; hers is racing to make up for the blood she is losing. Atropine only drives the rate and the heart\'s oxygen need higher: look for the bleeding, and give volume and blood.',
     },
     {
-      id: 'rate-control-in-bleeding', actions: ['metoprolol', 'diltiazem'], points: 10, severity: 'major',
+      id: 'rate-control-in-bleeding', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'], points: 10, severity: 'major',
       text: 'A drug that slows the heart in a patient who is bleeding. The fast rate is what keeps her output up while the volume is low: take it away and the pressure falls further. Treat the cause.',
     },
     {

@@ -67,6 +67,11 @@ export const svtUnstable: Scenario = {
     vagal: (s) => s.rhythm.profile === 'avnrt'
       ? { say: [['monitor', 'She strains, legs raised… no change: still 190.']], flags: ['vagal'] }
       : null,
+    // 3 mg (the dose through a central line, or with a transplanted heart, dipyridamole or carbamazepine) is too little
+    // through her forearm IV: a flicker, no break in the circuit
+    adenosine3: (s) => s.rhythm.profile === 'avnrt'
+      ? { say: [['monitor', 'Barely a flicker… the same fast rhythm at 190.']], flags: ['adenosine'] }
+      : null,
     adenosine6: (s) => s.rhythm.profile === 'avnrt'
       ? { say: [['monitor', 'A brief pause… then the same fast rhythm resumes at 190.']], flags: ['adenosine'] }
       : null,

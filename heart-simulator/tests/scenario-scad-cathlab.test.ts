@@ -412,7 +412,11 @@ describe('SCAD in the cath lab: the independent review', () => {
   const handoff = (s: SimState) => s.log.find((l) => /^SBAR hand-off/.test(l.text))!.text;
 
   it('the beta-blocker can be IV in the lab or by mouth: either counts, and the hand-off says it was started', () => {
-    expect(criticalsFor(sc, 5).find((c) => c.id === 'md-bb')).toMatchObject({ points: 5, uses: ['metoprolol', 'metoprolol-po'] });
+    expect(criticalsFor(sc, 5).find((c) => c.id === 'md-bb')).toMatchObject({ points: 5, uses: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'] });
+    // another IV beta-blocker counts too, and the hand-off names it
+    const esmolol = run(sc, 5, MD.map((id) => (id === 'metoprolol' ? 'esmolol' : id)));
+    expectFullMarks(esmolol);
+    expect(handoff(esmolol)).toMatch(/Esmolol given; metoprolol by mouth to follow/);
     const oral = run(sc, 5, MD.map((id) => (id === 'metoprolol' ? 'metoprolol-po' : id)));
     expectFullMarks(oral);
     expect(handoff(oral)).toMatch(/Metoprolol started/);
@@ -420,7 +424,7 @@ describe('SCAD in the cath lab: the independent review', () => {
     expect(handoff(run(sc, 5, MD))).toMatch(/Metoprolol started/);
     // none at all: the item is missed, and the hand-off leaves it for the unit
     const none = run(sc, 5, MD.filter((id) => id !== 'metoprolol'));
-    expect(missed(none)).toEqual(['A beta-blocker once the SCAD is seen: IV metoprolol, or by mouth']);
+    expect(missed(none)).toEqual(['A beta-blocker once the SCAD is seen: IV, or by mouth']);
     expect(handoff(none)).toMatch(/Metoprolol by mouth to start on the unit/);
   });
 

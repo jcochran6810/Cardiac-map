@@ -454,7 +454,7 @@ export const posteriorStemiField: Scenario = {
       text: 'Epinephrine or a vasopressor with a normal pressure in an acute MI. It drives up the rate, the pressure and the oxygen the starving muscle needs, and can set off arrhythmias: her pressure needs no support.',
     },
     {
-      id: 'rate-drug-sinus', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'rate-drug-sinus', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'A drug for an arrhythmia with a regular sinus rate. Her rhythm needs no treatment: adenosine, diltiazem and the antiarrhythmics have nothing to treat and bring only their side effects — a pause, a falling pressure, slower conduction (prophylactic lidocaine in MI was abandoned decades ago). The treatment of her heart is opening the artery.',
     },
     {

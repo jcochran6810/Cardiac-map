@@ -45,6 +45,22 @@ function adenosine(s: SimState): Effect | null {
   };
 }
 
+/**
+ * Calcium reverses part of what diltiazem did to the vessels and the squeeze; the fast rate is still the problem. Calcium
+ * chloride 1 g or calcium gluconate 3 g carry about the same calcium; only the chloride burns in a small vein
+ */
+function calciumAfterDiltiazem(s: SimState, salt: 'chloride' | 'gluconate'): Effect | null {
+  if (!inAf(s) || !has(s, 'diltiazem')) return null;
+  const bp = { sbp: Math.max(s.vitals.sbp, 92), dbp: Math.max(s.vitals.dbp, 56) };
+  return {
+    say: [
+      ['you', salt === 'chloride' ? 'Calcium chloride 1 g in slowly over a few minutes; line flushed.' : 'Calcium gluconate 3 g IV over 5–10 minutes; line flushed.'],
+      ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'good'], ...(salt === 'chloride' ? awake(s, '"That burns going up my arm."') : []),
+    ],
+    vitals: bp, flags: ['calcium'],
+  };
+}
+
 /** Adrenergic drugs raise the pressure and speed AV conduction: in atrial fibrillation the rate goes up */
 function adrenergic(s: SimState, dSbp: number, dDbp: number, flag: string): Effect | null {
   if (!inAf(s)) return null;
@@ -141,6 +157,7 @@ export const afRvrField: Scenario = {
       }
       return { say: [['hospital', advice]], flags: ['med-control'] };
     },
+    adenosine3: adenosine,
     adenosine6: adenosine,
     adenosine12: adenosine,
     diltiazem: (s) => {
@@ -198,14 +215,8 @@ export const afRvrField: Scenario = {
       };
     },
     // calcium reverses part of what diltiazem did to the vessels and the squeeze; the fast rate is still the problem
-    'calcium-chloride': (s) => {
-      if (!inAf(s) || !has(s, 'diltiazem')) return null;
-      const bp = { sbp: Math.max(s.vitals.sbp, 92), dbp: Math.max(s.vitals.dbp, 56) };
-      return {
-        say: [['you', 'Calcium chloride 1 g in slowly over a few minutes; line flushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'good'], ...awake(s, '"That burns going up my arm."')],
-        vitals: bp, flags: ['calcium'],
-      };
-    },
+    'calcium-chloride': (s) => calciumAfterDiltiazem(s, 'chloride'),
+    'calcium-gluconate': (s) => calciumAfterDiltiazem(s, 'gluconate'),
     sedation: (s) => {
       if (!inAf(s)) return null;
       // a heart pumping at 30 % tolerates sedatives badly: the pressure falls more than in a normal heart
@@ -410,7 +421,7 @@ export const afRvrField: Scenario = {
     // the case's central trap: rescued perfectly, it still leaves the run below "Competent"
     { id: 'diltiazem-hfref', actions: ['diltiazem'], when: (s) => s.pulse, points: 25, severity: 'critical', replaces: ['diltiazem-heart-failure'], text: 'Diltiazem in a heart that pumps at 30 %. Calcium-channel blockers weaken the squeeze and dilate the vessels: with a reduced ejection fraction IV diltiazem and verapamil must not be given, with or without decompensated heart failure (2023 ACC/AHA AF guideline: 3 — Harm), and his failing heart could not hold its pressure. Take the history before the drug; with a weak, congested heart, amiodarone (or a synchronized shock if he is unstable).' },
     { id: 'metoprolol-decompensated', actions: ['metoprolol'], when: (s) => inAf(s), points: 4, severity: 'minor', text: 'IV metoprolol in a weak heart that is backing up into the lungs. A beta-blocker is a fair choice for a weak heart that is not congested (2023 AF guideline), but his crackles, low SpO₂ and new breathlessness are decompensated heart failure, where IV beta-blockers are to be avoided (2025 AHA) — and he already takes carvedilol: the extra dose weakened the squeeze more than it slowed the rate. Amiodarone is the drug here.' },
-    { id: 'adenosine-af', actions: ['adenosine6', 'adenosine12'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'Adenosine does not convert atrial fibrillation. The atria fibrillate on their own, with no circuit through the AV node to break: adenosine slows the rate for seconds and the same rhythm comes back. It is for a regular narrow-complex tachycardia — and in pre-excited AF it can be dangerous.' },
+    { id: 'adenosine-af', actions: ['adenosine3', 'adenosine6', 'adenosine12'], when: (s) => inAf(s), points: 3, severity: 'minor', text: 'Adenosine does not convert atrial fibrillation. The atria fibrillate on their own, with no circuit through the AV node to break: adenosine slows the rate for seconds and the same rhythm comes back. It is for a regular narrow-complex tachycardia — and in pre-excited AF it can be dangerous.' },
     // he takes aspirin 81 mg for his old infarct, so the point is "aspirin is not anticoagulation", not "aspirin is never right"
     { id: 'aspirin-anticoagulation', actions: ['aspirin'], points: 3, severity: 'minor', text: 'A loading dose of aspirin with no indication. Aspirin is not stroke prevention in atrial fibrillation (2023 ACC/AHA AF guideline: aspirin as an alternative to anticoagulation is not recommended), he already takes 81 mg a day for his old infarct, and with no ischemic chest pain and no ST elevation a 324 mg dose treats nothing. Whether and how he is anticoagulated — and when sinus rhythm can safely be restored — is decided at the hospital, from the onset time you report.' },
     // a judgment call: his early congestion is the gray zone of "acute heart failure", so a sedated shock costs a little and

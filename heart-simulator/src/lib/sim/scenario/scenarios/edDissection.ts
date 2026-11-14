@@ -57,7 +57,7 @@ const ARREST_AFTER = 10;
 /** IV drugs that control the rate first (2022 ACC/AHA: a beta-blocker; a non-dihydropyridine calcium-channel blocker if one cannot be used) */
 const RATE_DRUGS = ['metoprolol', 'esmolol', 'labetalol', 'diltiazem'];
 /** Vasodilators for a systolic still over 120 once the rate is controlled */
-const VASODILATORS = ['nitro', 'nitro-high', 'nicardipine'];
+const VASODILATORS = ['nitro', 'nitro-high', 'nitro-iv', 'nicardipine'];
 /** What makes the tear bleed (the fibrinolytics are the built-in rule's: 'lytic-dissection') */
 const ANTITHROMBOTICS = ['aspirin', 'heparin', 'p2y12'];
 const ANTITHROMBOTIC_NAMES: [string, string][] = [['aspirin', 'aspirin'], ['heparin', 'heparin'], ['p2y12', 'a P2Y12 inhibitor']];
@@ -178,11 +178,15 @@ function rateDrug(s: SimState, by: By, id: 'metoprolol' | 'esmolol' | 'labetalol
  * harder against the tear, and does nothing for this pain; once the rate is controlled it brings the pressure toward the
  * goal. With the systolic already at 120 or less it overshoots; with a low pressure the engine's own rule answers
  */
-function vasodilator(s: SimState, by: By, drug: 'nitro' | 'nitro-high' | 'nicardipine'): Effect | null {
+function vasodilator(s: SimState, by: By, drug: 'nitro' | 'nitro-high' | 'nitro-iv' | 'nicardipine'): Effect | null {
   if (!s.pulse || low(s)) return null;
-  const high = drug !== 'nitro';
-  const dose = { nitro: 'Nitroglycerin 0.4 mg sublingual', 'nitro-high': 'Nitroglycerin 0.8 mg sublingual', nicardipine: 'Nicardipine infusion at 5 mg/h, titrated up 2.5 mg/h every 5–15 minutes' }[drug];
-  const flags = { nitro: ['nitro'], 'nitro-high': ['nitro', 'nitro-high'], nicardipine: ['vasodilator', 'nicardipine'] }[drug];
+  const high = drug === 'nitro-high' || drug === 'nicardipine';
+  const dose = {
+    nitro: 'Nitroglycerin 0.4 mg sublingual', 'nitro-high': 'Nitroglycerin 0.8 mg sublingual',
+    'nitro-iv': 'Nitroglycerin infusion IV at 10 mcg/min, titrated up 10 mcg/min every 3–5 minutes',
+    nicardipine: 'Nicardipine infusion at 5 mg/h, titrated up 2.5 mg/h every 5–15 minutes',
+  }[drug];
+  const flags = { nitro: ['nitro'], 'nitro-high': ['nitro', 'nitro-high'], 'nitro-iv': ['nitro', 'nitro-iv'], nicardipine: ['vasodilator', 'nicardipine'] }[drug];
   // in the tamponade a bolus may hold the systolic over 90, and a nitrate takes it away again
   if (bled(s)) {
     const bp = bpAfter(s, high ? -20 : -14, high ? -10 : -8);
@@ -404,6 +408,7 @@ export const edDissection: Scenario = {
     diltiazem: (s) => rateDrug(s, 'learner', 'diltiazem'),
     nitro: (s) => vasodilator(s, 'learner', 'nitro'),
     'nitro-high': (s) => vasodilator(s, 'learner', 'nitro-high'),
+    'nitro-iv': (s) => vasodilator(s, 'learner', 'nitro-iv'),
     nicardipine: (s) => vasodilator(s, 'learner', 'nicardipine'),
     // fluid for a pressure of 196 pushes it higher; in shock a small bolus is the bridge to the operating room
     fluid: (s) => {
@@ -726,9 +731,10 @@ export const edDissection: Scenario = {
     },
     {
       // before the beta-blocker: a vasodilator makes the heart race and pound harder (not with a low pressure: the engine's rule)
-      id: 'vasodilator-before-rate-rn', actions: ['nitro', 'nitro-high'], roles: ED_RN, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
-      replaces: ['nitro-high-not-hypertensive'],
-      text: 'Nitroglycerin for this pain before the rate is controlled. It is on the chest pain standing order, but not for pain that tears through to the back with a difference between the arms: on its own a vasodilator makes the heart race (reflex tachycardia) and pound harder against the tear, and it does not ease this pain. Report what you found; the physician orders the beta-blocker first, and a vasodilator only after it.',
+      id: 'vasodilator-before-rate-rn', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: ED_RN, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
+      // the IV infusion has no standing order at all: this one rule stands for that missing order too
+      replaces: ['nitro-high-not-hypertensive', 'rn-without-order-nitro-iv'],
+      text: 'Nitroglycerin for this pain before the rate is controlled. The sublingual dose is on the chest pain standing order (the IV infusion needs the physician\'s), but not for pain that tears through to the back with a difference between the arms: on its own a vasodilator makes the heart race (reflex tachycardia) and pound harder against the tear, and it does not ease this pain. Report what you found; the physician orders the beta-blocker first, and a vasodilator only after it.',
     },
     {
       id: 'vasodilator-before-rate-md', actions: VASODILATORS, roles: ED_MD, when: (s) => s.pulse && !shock(s) && !has(s, 'rate-controlled'), points: 5, severity: 'major',
@@ -747,11 +753,11 @@ export const edDissection: Scenario = {
       text: 'High-dose nitroglycerin without a high blood pressure.',
     },
     {
-      id: 'rate-drug-low', actions: RATE_DRUGS, when: (s) => s.pulse && (bled(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), points: 8, severity: 'major',
+      id: 'rate-drug-low', actions: [...RATE_DRUGS, 'metoprolol-po'], when: (s) => s.pulse && (bled(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in shock, or with a systolic under 100 or a rate under 60. With a torn aorta a falling pressure means tamponade, rupture or a badly leaking aortic valve: slowing the heart takes away the rate that is holding up his output.',
     },
     {
-      id: 'second-rate-drug', actions: RATE_DRUGS, when: (s) => s.pulse && has(s, 'rate-controlled') && s.vitals.sbp >= 100 && s.rhythm.hr >= 60, points: 3, severity: 'minor',
+      id: 'second-rate-drug', actions: [...RATE_DRUGS, 'metoprolol-po'], when: (s) => s.pulse && has(s, 'rate-controlled') && s.vitals.sbp >= 100 && s.rhythm.hr >= 60, points: 3, severity: 'minor',
       text: 'A second rate-slowing drug with the rate already at 60–80. More beta-blocker or diltiazem now only adds bradycardia (and with the aortic valve leaking, a slow rate lets more blood fall back into the ventricle): a systolic still over 120 needs a vasodilator.',
     },
     {

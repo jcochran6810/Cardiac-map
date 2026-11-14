@@ -564,18 +564,23 @@ describe('cocaine chest pain in the field — talking him down and restraint', (
     expect(missed(medic(IDEAL[2].filter((id) => id !== 'calm')))).toEqual(['Talk him down first: one calm voice, a quiet space']);
   });
 
-  it('face down is the critical error; soft restraints face up are allowed for his agitation, but not without the sedation to follow', () => {
+  it('face down is the critical error; soft restraints face up are allowed once his agitation endangers him, but not without the sedation to follow', () => {
     const prone = medic(['primary', 'restrain-prone']);
     expect(penalties(prone)).toEqual(['prone-restraint']);
     expect(prone.penalties[0]).toMatchObject({ points: 15, severity: 'critical' });
-    // face up, then the benzodiazepine within minutes: nothing to charge
-    expect(penalties(medic(['primary', 'restrain', 'iv', 'midazolam', ...R(3)]))).toEqual([]);
+    // out of control and confused (no benzodiazepine by minute 16): face up, then the benzodiazepine within minutes — nothing to charge
+    const OUT_OF_CONTROL = ['primary', ...R(8)];
+    expect(medic(OUT_OF_CONTROL).flags.severe).toBeDefined();
+    expect(penalties(medic([...OUT_OF_CONTROL, 'restrain', 'iv', 'midazolam', ...R(3)]))).toEqual([]);
     // left fighting the straps with no sedation: charged once, after 5 minutes
-    const unsedated = medic(['primary', 'restrain', ...R(4)]);
+    const unsedated = medic([...OUT_OF_CONTROL, 'restrain', ...R(4)]);
     expect(penalties(unsedated)).toEqual(['restraint-without-sedation']);
     expect(unsedated.fired).toContain('restrained-unsedated');
     expect(said(unsedated)).toMatch(/He is still fighting the straps/);
-    // the EMT's intercept brings the sedation: called early, the straps are a bridge
-    expect(penalties(emt(['primary', 'als', 'restrain', ...R(4)]))).toEqual([]);
+    // the EMT's intercept brings the sedation: on its way when he loses control, the straps are a bridge to it
+    expect(penalties(emt(['primary', ...R(7), 'als', 'reassess', 'restrain', ...R(4)]))).toEqual([]);
+    // still oriented and only restless (or calmed by the intercept's benzodiazepine): straps are not yet, or no longer, called for
+    expect(penalties(emt(['primary', 'als', 'restrain', ...R(4)]))).toEqual(['restraint-not-yet']);
+    expect(penalties(medic(['primary', 'restrain', 'iv', 'midazolam', ...R(3)]))).toEqual(['restraint-not-yet']);
   });
 });

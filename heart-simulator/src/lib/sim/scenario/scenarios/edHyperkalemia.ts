@@ -502,7 +502,10 @@ export const edHyperkalemia: Scenario = {
     'amio-arrest': (s) => suppress(s, 'Amiodarone 300 mg'),
     procainamide: (s) => suppress(s, 'Procainamide'),
     metoprolol: (s) => suppress(s, 'Metoprolol 5 mg'),
+    esmolol: (s) => suppress(s, 'Esmolol'),
+    labetalol: (s) => suppress(s, 'Labetalol 20 mg'),
     diltiazem: (s) => suppress(s, 'Diltiazem'),
+    adenosine3: (s) => adenosinePause(s, 4),
     adenosine6: (s) => adenosinePause(s, 6),
     adenosine12: (s) => adenosinePause(s, 8),
     // bearing down raises the vagal tone: a few seconds slower still
@@ -1031,10 +1034,10 @@ export const edHyperkalemia: Scenario = {
       text: 'Lidocaine, amiodarone or procainamide for the wide complexes. This is not VT: a high potassium widens the QRS by depressing the heart\'s sodium channels, and these drugs depress them further — the rate falls and the heart can stop. Treat the potassium: calcium.',
     },
     {
-      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], points: 12, severity: 'critical',
+      id: 'av-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po', 'diltiazem'], points: 12, severity: 'critical',
       text: 'A beta-blocker or calcium-channel blocker for a slow heart with a high potassium. Both slow the AV node and weaken the squeeze; with the potassium they spiral toward standstill.',
     },
-    { id: 'adenosine-slow', actions: ['adenosine6', 'adenosine12'], points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
+    { id: 'adenosine-slow', actions: ['adenosine3', 'adenosine6', 'adenosine12'], points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
     { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
     {
       id: 'magnesium-kidneys', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest'],

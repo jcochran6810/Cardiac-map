@@ -619,7 +619,7 @@ export const peField: Scenario = {
     },
     {
       // magnesium is for torsades: here it only drops the pressure (the engine's default answer)
-      id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal', 'magnesium-sulfate'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'no-arrhythmia-pe', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'lidocaine', 'vagal', 'magnesium-sulfate'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'A vagal maneuver, adenosine, lidocaine or magnesium for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down, a pause or a vasodilating drug cuts the output she has left.',
     },
     {
@@ -641,7 +641,7 @@ export const peField: Scenario = {
       text: 'The nearest emergency department, with no cath lab, no ECMO and no cardiac surgeon. It can give a clot-dissolving drug, but with major surgery ten days ago that is a high bleeding risk: the heart center can take the clot out with a catheter or in the operating room, and a stop on the way adds a transfer of an hour or more.',
     },
     {
-      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
+      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine3', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
       when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause.',
     },

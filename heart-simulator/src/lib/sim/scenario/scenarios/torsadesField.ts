@@ -96,7 +96,8 @@ function sustained(s: SimState, again: boolean): Effect {
  */
 function shock(s: SimState, how: string, mine = true, who: Line[0] = 'monitor'): Effect | null {
   if (s.pulse || (s.rhythm.profile !== 'torsades' && s.rhythm.profile !== 'vf')) return null;
-  const flags = ['pads', 'monitor', 'shocked', ...(mine ? ['arrest-shock'] : [])];
+  // the EMT's own AED is no monitor; the paramedics' defibrillator is
+  const flags = ['pads', ...(s.role !== 1 || !mine ? ['monitor'] : []), 'shocked', ...(mine ? ['arrest-shock'] : [])];
   const from = s.timers.arrestAt ?? s.minute;
   if (s.rhythm.profile === 'vf' && s.minute - from >= DEGENERATES_AFTER && !cprThisArrest(s)) {
     return { say: [line(who, how), line('you', 'Still no pulse — straight back on the chest.', 'warn')], flags };
@@ -280,6 +281,7 @@ export const torsadesField: Scenario = {
       const bp = bpAfter(s, -10, -6);
       return provokes(s, [line('you', 'Procainamide running at 30 mg/min.'), line('monitor', `BP ${bp.sbp}/${bp.dbp}.`)], ['procainamide'], { vitals: bp });
     },
+    adenosine3: (s) => provokes(s, [line('you', 'Adenosine 3 mg rapid push, flushed.'), line('monitor', 'A long pause on the screen.', 'bad')], ['adenosine']),
     adenosine6: (s) => provokes(s, [line('you', 'Adenosine 6 mg rapid push, flushed.'), line('monitor', 'A long pause on the screen.', 'bad')], ['adenosine']),
     adenosine12: (s) => provokes(s, [line('you', 'Adenosine 12 mg rapid push, flushed.'), line('monitor', 'A long pause on the screen.', 'bad')], ['adenosine']),
     // slower beats mean longer pauses, and the pauses are what set the runs off
@@ -499,7 +501,7 @@ export const torsadesField: Scenario = {
       text: 'Procainamide with a long QT. It lengthens the QT further, and here it set off the run that did not stop. The runs get magnesium; a run that does not stop gets a shock.',
     },
     {
-      id: 'adenosine-long-qt', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse, points: 15, severity: 'critical',
+      id: 'adenosine-long-qt', actions: ['adenosine3', 'adenosine6', 'adenosine12'], when: (s) => s.pulse, points: 15, severity: 'critical',
       text: 'Adenosine with a long QT. There is no regular narrow-complex tachycardia for it to treat (and it is never for a polymorphic VT), and the pause it causes is exactly what sets off torsades: it set off the run that did not stop.',
     },
     {

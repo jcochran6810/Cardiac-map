@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo, physicianOrder } from '../edKit';
+import { ADENOSINE_PUSH, BETA_BLOCKERS } from '../rules/helpers';
 
 /**
  * Pulmonary embolism with shock, in the emergency department. A 52-year-old woman, four days after a 15-hour flight and
@@ -224,20 +225,20 @@ function slower(s: SimState, drug: string, dHr: number, flag: string): Effect | 
 }
 
 /** Nitroglycerin: the preload goes, and with it the pressure — to 66/40, or further down from a pressure already lower */
-function nitroCrash(s: SimState, high: boolean): Effect | null {
+function nitroCrash(s: SimState, high: boolean, iv = false): Effect | null {
   if (!s.pulse) return null;
   const fall = bpAfter(s, high ? -20 : -12, high ? -10 : -8);
   const sbp = Math.min(66, fall.sbp);
   const dbp = Math.min(40, fall.dbp);
   return {
     say: [
-      ['you', `Nitroglycerin ${high ? '0.8' : '0.4'} mg sublingual.`],
+      ['you', iv ? 'Nitroglycerin infusion running.' : `Nitroglycerin ${high ? '0.8' : '0.4'} mg sublingual.`],
       ...awake(s, '"Everything\'s going dark…"'),
       ['monitor', `BP ${sbp}/${dbp}.`, 'bad'],
       [helper(s), 'She has gone gray and slumped down in the bed.', 'bad'],
     ],
     vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 13) },
-    flags: high ? ['nitro', 'nitro-high'] : ['nitro'],
+    flags: [...(high ? ['nitro', 'nitro-high'] : ['nitro']), ...(iv ? ['nitro-iv'] : [])],
   };
 }
 
@@ -507,6 +508,7 @@ export const edPeLysis: Scenario = {
     // a venodilator takes away the preload a pressure-overloaded right ventricle lives on (as in an RV infarct)
     nitro: (s) => nitroCrash(s, false),
     'nitro-high': (s) => nitroCrash(s, true),
+    'nitro-iv': (s) => nitroCrash(s, true, true),
     // positive pressure squeezes the venous return and loads the right ventricle further; her lungs are not wet
     cpap: (s) => {
       if (!s.pulse) return null;
@@ -558,6 +560,8 @@ export const edPeLysis: Scenario = {
       return { say: [['you', 'Laid flat with her legs raised.'], ...awake(s, '"I can\'t breathe lying down!"'), [helper(s), 'Her pressure has not moved, and her neck veins are fuller. Sitting her back up.']], flags: ['legs-up'] };
     },
     metoprolol: (s) => slower(s, 'Metoprolol 5 mg IV', 12, 'beta-blocker'),
+    esmolol: (s) => slower(s, 'Esmolol 500 mcg/kg IV', 12, 'beta-blocker'),
+    labetalol: (s) => slower(s, 'Labetalol 20 mg IV', 10, 'beta-blocker'),
     diltiazem: (s) => slower(s, 'Diltiazem IV', 10, 'diltiazem'),
     'amio-infusion': (s) => slower(s, 'Amiodarone 150 mg over 10 minutes', 0, 'amiodarone'),
     procainamide: (s) => slower(s, 'Procainamide at 30 mg/min', 0, 'procainamide'),
@@ -904,8 +908,8 @@ export const edPeLysis: Scenario = {
       text: 'More than 500 mL of fluid for a failing right ventricle. Distended neck veins, a wide IVC and clear lungs say her right heart is already overfilled: more volume stretches it further, pushes the septum into the left ventricle and empties it, and the pressure falls. At most one small bolus, and only with a low central venous pressure; support the pressure with norepinephrine.',
     },
     {
-      id: 'nitro-pe', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse, points: 15, severity: 'critical',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      id: 'nitro-pe', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: ED_TEAM, when: (s) => s.pulse, points: 15, severity: 'critical',
+      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high', 'nitro-iv'])],
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic — the chest pain standing order does not cover it — and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {
@@ -932,26 +936,26 @@ export const edPeLysis: Scenario = {
     },
     {
       // the fast rate is her compensation, not an arrhythmia; it stands in for the low-pressure procainamide rule
-      id: 'rate-control-pe', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse, points: 10, severity: 'major',
+      id: 'rate-control-pe', actions: [...BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse, points: 10, severity: 'major',
       replaces: ['procainamide-hypotension'],
       text: 'A drug to slow or convert her rhythm. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest.',
     },
     {
       // the nurse's version also stands for the missing order (and, like the doctor's, for the low-pressure procainamide rule)
-      id: 'rate-control-pe-rn', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: [...noOrder(['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide']), 'procainamide-hypotension'],
+      id: 'rate-control-pe-rn', actions: [...BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
+      replaces: [...noOrder([...BETA_BLOCKERS, 'diltiazem', 'amio-infusion', 'procainamide']), 'procainamide-hypotension'],
       text: 'A drug to slow or convert her rhythm, with no order. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest — and none of them is on a standing order. Tell the physician what you see instead.',
     },
     {
       // the doctor's, and the nurse's vagal maneuver (it needs no order); her drugs are the rule below
-      id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal'], roles: ED_TEAM,
+      id: 'no-arrhythmia-pe', actions: [...ADENOSINE_PUSH, 'lidocaine', 'vagal'], roles: ED_TEAM,
       when: (s, _sc, id) => s.pulse && (s.role !== 6 || id === 'vagal'), points: 3, severity: 'minor',
       text: 'A vagal maneuver, adenosine or lidocaine for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down or a pause cuts the output she has left.',
     },
     {
       // the nurse's version also stands for the missing order, at the order's weight, and says so
-      id: 'no-arrhythmia-pe-rn', actions: ['adenosine6', 'adenosine12', 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
-      replaces: noOrder(['adenosine6', 'adenosine12', 'lidocaine']),
+      id: 'no-arrhythmia-pe-rn', actions: [...ADENOSINE_PUSH, 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
+      replaces: noOrder([...ADENOSINE_PUSH, 'lidocaine']),
       text: 'Adenosine or lidocaine with no order, for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break — and with a pulse neither drug is on a standing order. Tell the physician what you see instead.',
     },
     {
@@ -996,9 +1000,9 @@ export const edPeLysis: Scenario = {
     {
       // one penalty for the drug that has no place in PEA: for the nurse it also stands for the missing order of those that
       // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
-      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
+      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem'],
       roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
-      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'])],
+      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem'])],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the clot, and a lytic for it.',
     },
   ],

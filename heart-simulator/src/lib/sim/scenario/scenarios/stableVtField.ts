@@ -125,6 +125,7 @@ export const stableVtField: Scenario = {
     return '"My heart is still pounding, but I\'m OK sitting here."';
   },
   respond: {
+    adenosine3: adenosine,
     adenosine6: adenosine,
     adenosine12: adenosine,
     'amio-infusion': (s) => {
@@ -194,6 +195,11 @@ export const stableVtField: Scenario = {
       if (!s.pulse || !has(s, 'diltiazem')) return null;
       const bp = bpAfter(s, 10, 6);
       return { say: [['you', 'Calcium chloride 1 g in slowly to counter the diltiazem; line flushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['calcium'] };
+    },
+    'calcium-gluconate': (s) => {
+      if (!s.pulse || !has(s, 'diltiazem')) return null;
+      const bp = bpAfter(s, 10, 6);
+      return { say: [['you', 'Calcium gluconate 3 g IV over 5–10 minutes to counter the diltiazem; line flushed.'], ['monitor', `BP ${bp.sbp}/${bp.dbp}.`]], vitals: bp, flags: ['calcium'] };
     },
     metoprolol: (s) => {
       if (!inVt(s)) return null;
@@ -394,7 +400,7 @@ export const stableVtField: Scenario = {
     // no penalty for lidocaine: some US protocols still list it for a stable wide-complex tachycardia. It just does not work here.
     { id: 'beta-blocker-vt', actions: ['metoprolol'], when: (s) => inVt(s), points: 3, severity: 'minor', text: 'IV metoprolol for a wide-complex tachycardia. It does not stop a monomorphic VT and it lowers the pressure; for a stable one the drugs are procainamide or amiodarone.' },
     // the 2015–2025 rule: adenosine only for a regular, monomorphic and STABLE wide-complex tachycardia
-    { id: 'adenosine-unstable', actions: ['adenosine6', 'adenosine12'], when: (s) => inVt(s) && unstable(s), points: 5, severity: 'major', text: 'Adenosine for a wide-complex tachycardia that had become unstable (2025 AHA: 3 — Harm). Unstable means synchronized cardioversion now; adenosine only delays it, and in a wide-complex tachycardia it can set off VF.' },
+    { id: 'adenosine-unstable', actions: ['adenosine3', 'adenosine6', 'adenosine12'], when: (s) => inVt(s) && unstable(s), points: 5, severity: 'major', text: 'Adenosine for a wide-complex tachycardia that had become unstable (2025 AHA: 3 — Harm). Unstable means synchronized cardioversion now; adenosine only delays it, and in a wide-complex tachycardia it can set off VF.' },
     // with a low pressure a pressor is a bridge (the shock is still what he needs), so only a normal pressure makes it a mistake
     { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => inVt(s) && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs drive a ventricular circuit faster and can turn it into VF.' },
     { id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => inVt(s) && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; in a fast tachycardia it only lowers the pressure the heart is struggling to keep up.' },
@@ -403,7 +409,7 @@ export const stableVtField: Scenario = {
     // after the shock that brought him back, oxygen titrated to 90–98 % is post-arrest care, not a mistake
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90 && !has(s, 'rosc'), points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. The tachycardia algorithm gives oxygen only if he is hypoxemic (below 90 %).' },
     // calcium is a fair answer to the pressure drop diltiazem caused, so only without it does it count as no indication
-    { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (s) => !has(s, 'diltiazem'), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. He has no high potassium, no low calcium and no calcium-channel-blocker overdose: it cannot stop the tachycardia, and it burns the tissue if it leaks.' },
+    { id: 'calcium-no-indication', actions: ['calcium-chloride', 'calcium-gluconate'], when: (s) => !has(s, 'diltiazem'), points: 3, severity: 'minor', text: 'Calcium (chloride or gluconate) without an indication. He has no high potassium, no low calcium and no calcium-channel-blocker overdose: it cannot stop the tachycardia, and it burns the tissue if it leaks.' },
   ],
   timings: [
     { label: 'Pads on', actions: PADS, target: 4 },

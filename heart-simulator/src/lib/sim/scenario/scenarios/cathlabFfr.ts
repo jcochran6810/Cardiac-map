@@ -205,7 +205,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'nitro', role: 4, when: (s) => has(s, 'equalized'),
     ask: 'Before the measurement: two hundred of intracoronary nitro, please.',
-    accept: ['ic-nitro'], wrong: ['nitro', 'ic-verapamil'],
+    accept: ['ic-nitro'], wrong: ['nitro', 'nitro-iv', 'ic-verapamil'],
     wrongSay: 'Intracoronary nitroglycerin, please — through the guide.',
     thanks: 'Thanks.', fallback: 'I\'ll give the nitro myself.', gives: 'nitro-given',
     label: 'Intracoronary nitroglycerin before the FFR',
@@ -214,7 +214,7 @@ const RN_ASKS: LabAsk[] = [
   {
     id: 'hyperemia', role: 4, when: (s) => has(s, 'nitro-given'),
     ask: 'Now the hyperemia, please.',
-    accept: ['adenosine-iv-ffr', 'ic-adenosine'], wrong: ['adenosine6', 'adenosine12'],
+    accept: ['adenosine-iv-ffr', 'ic-adenosine'], wrong: ['adenosine3', 'adenosine6', 'adenosine12'],
     wrongSay: 'Not the SVT dose! A steady infusion: adenosine 140 micrograms per kilo per minute.',
     thanks: 'Thanks — he\'ll feel flushed in a minute.', fallback: 'I\'ll start the adenosine myself.', gives: 'hyperemia-given',
     fallbackEffect: () => ({ say: [['patient', '"I feel flushed… a bit short of breath."']], flags: ['hyperemia'] }),
@@ -397,7 +397,7 @@ export const cathlabFfr: Scenario = {
   harms: [
     { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
     { id: 'stent-before-ffr', actions: ['stent-des', 'balloon-predil'], roles: MD, when: (s) => !has(s, 'ffr-done'), points: 10, severity: 'major', text: 'Treating a borderline narrowing without showing it is significant. Intermediate lesions need physiology first: about two-thirds of them do not limit flow (FAME).' },
-    { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
+    { id: 'svt-adenosine', actions: ['adenosine3', 'adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for the LAD. Use a left guide with back-up (EBU / XB).' },

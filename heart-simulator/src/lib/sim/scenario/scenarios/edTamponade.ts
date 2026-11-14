@@ -2,6 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
+import { ADENOSINE_PUSH, BETA_BLOCKERS } from '../rules/helpers';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -208,13 +209,14 @@ function drop(s: SimState, dSbp: number, dDbp: number, dHr: number) {
 }
 
 /** Nitroglycerin: no coronary pain to relieve, and it pools the blood her squeezed heart lives on */
-function nitroCrash(s: SimState, high: boolean): Effect | null {
+function nitroCrash(s: SimState, high: boolean, iv = false): Effect | null {
   if (!s.pulse || drained(s)) return null;
   const { bp, hr } = high ? drop(s, 20, 10, 6) : drop(s, 14, 8, 6);
   const dose = `Nitroglycerin ${high ? '0.8' : '0.4'} mg`;
+  const order = iv ? ['Nitroglycerin infusion IV.', 'Nitroglycerin infusion running.'] : [`${dose} sublingual.`, `${dose} under her tongue.`];
   return {
-    say: [...given(s, `${dose} sublingual.`, `${dose} under her tongue.`), ...awake(s, '"Everything\'s going gray… I\'m going to pass out."'), rateBp(hr, bp, 'bad'), [helper(s), 'She has gone gray and slumped in the bed.', 'bad']],
-    vitals: { ...bp, gcs: Math.min(s.vitals.gcs, 14) }, rhythm: atRate(s, hr), flags: high ? ['nitro', 'nitro-high'] : ['nitro'],
+    say: [...given(s, order[0], order[1]), ...awake(s, '"Everything\'s going gray… I\'m going to pass out."'), rateBp(hr, bp, 'bad'), [helper(s), 'She has gone gray and slumped in the bed.', 'bad']],
+    vitals: { ...bp, gcs: Math.min(s.vitals.gcs, 14) }, rhythm: atRate(s, hr), flags: [...(high ? ['nitro', 'nitro-high'] : ['nitro']), ...(iv ? ['nitro-iv'] : [])],
   };
 }
 
@@ -498,6 +500,7 @@ export const edTamponade: Scenario = {
     },
     nitro: (s) => nitroCrash(s, false),
     'nitro-high': (s) => nitroCrash(s, true),
+    'nitro-iv': (s) => nitroCrash(s, true, true),
     // a diuretic takes away the filling her squeezed heart lives on (the built-in rules charge it: a preload-dependent heart)
     furosemide: (s) => {
       if (!s.pulse || drained(s)) return null;
@@ -552,6 +555,11 @@ export const edTamponade: Scenario = {
         vitals: bp, flags: ['ct'],
       };
     },
+    // sitting up, leaning forward, is how she breathes: let her (no pressure change — the fluid bolus fills her heart)
+    'sit-up': (s) => {
+      if (!s.pulse || drained(s) || s.vitals.gcs <= 8) return null;
+      return { say: [['you', 'Sitting up, leaning forward with her hands on her knees, as she wants to.'], ...awake(s, '"That\'s better — I can get a breath like this."')], flags: ['sat-up'], clear: ['legs-up'] };
+    },
     // she cannot breathe lying down; the fluid bolus, not her legs, is how the team fills her heart
     'legs-up': (s) => {
       if (!s.pulse || drained(s)) return null;
@@ -569,6 +577,8 @@ export const edTamponade: Scenario = {
       return down && { ...down, vitals: { ...down.vitals, gcs: 9 } };
     },
     metoprolol: (s) => rateDrop(s, 'Metoprolol 5 mg IV', 18, 'beta-blocker'),
+    esmolol: (s) => rateDrop(s, 'Esmolol 500 mcg/kg IV', 18, 'beta-blocker'),
+    labetalol: (s) => rateDrop(s, 'Labetalol 20 mg IV', 18, 'beta-blocker'),
     diltiazem: (s) => rateDrop(s, 'Diltiazem IV', 18, 'diltiazem'),
     'amio-infusion': (s) => rateDrop(s, 'Amiodarone 150 mg over 10 minutes', 0, 'amiodarone'),
     procainamide: (s) => rateDrop(s, 'Procainamide at 30 mg/min', 0, 'procainamide'),
@@ -884,16 +894,16 @@ export const edTamponade: Scenario = {
   ],
   harms: [
     {
-      id: 'nitro-tamponade', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
+      id: 'nitro-tamponade', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
       // whatever her pressure: after a bolus her systolic can be over 90, and nitroglycerin is still wrong for her
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high', 'nitro-iv'])],
       text: 'Nitroglycerin for a woman whose heart cannot fill. A vasodilator pools the blood in the veins, and a heart squeezed by fluid lives on the blood coming back to it: the pressure crashes. Vasodilators and diuretics are not recommended in tamponade (2015 ESC pericardial guideline) and can tip a large effusion into it. Her chest heaviness is the effusion, not a blocked artery — and the chest pain standing order excludes a systolic under 90 anyway.',
     },
     {
       // after the drain the crash is gone, but there is still nothing for it to treat. Like the one above, it stands in for the
       // built-in nitrate rules (and the 0.8 mg the nurse has no order for), which its words cover: one dose, one penalty
-      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 3, severity: 'minor',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 3, severity: 'minor',
+      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high', 'nitro-iv'])],
       text: 'Nitroglycerin with nothing to treat. Her chest heaviness was the effusion, now drained: nitroglycerin is for coronary ischemia (and 0.8 mg, which no standing order covers, for hypertensive pulmonary edema), and here it only takes preload from a heart that has just started to fill again.',
     },
     {
@@ -920,18 +930,18 @@ export const edTamponade: Scenario = {
       text: 'Sending her to the CT scanner before the drain. A patient in tamponade with shock can arrest on the table, flat on her back, far from the resuscitation bay — and the bedside ultrasound has already shown the effusion squeezing her right heart. Drain it here first; a CT can wait until she is stable.',
     },
     {
-      id: 'rate-slowing-tamponade', actions: ['metoprolol', 'diltiazem'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
+      id: 'rate-slowing-tamponade', actions: [...BETA_BLOCKERS, 'diltiazem'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
       text: 'A drug to slow her heart. Her sinus tachycardia is compensation: while the effusion squeezes her heart, the fast rate is the only thing keeping her output up as each beat fills so little — a beta-blocker or diltiazem takes it away and drops the pressure, and can stop her heart. A sinus tachycardia in shock is never the problem to treat.',
     },
     {
-      id: 'rate-slowing-tamponade-rn', actions: ['metoprolol', 'diltiazem'], roles: ED_RN, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
-      replaces: noOrder(['metoprolol', 'diltiazem']),
+      id: 'rate-slowing-tamponade-rn', actions: [...BETA_BLOCKERS, 'diltiazem'], roles: ED_RN, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
+      replaces: noOrder([...BETA_BLOCKERS, 'diltiazem']),
       text: 'A drug to slow her heart, with no order. Her sinus tachycardia is compensation — while the effusion squeezes her heart, the fast rate is the only thing keeping her output up: a beta-blocker or diltiazem drops the pressure and can stop her heart — and neither is on a standing order. Tell the physician what you see instead.',
     },
     {
       // once the fluid is off the heart fills again: still wrong, no longer a collapse (for the nurse it also stands for the order)
-      id: 'rate-slowing-after-drain', actions: ['metoprolol', 'diltiazem'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 8, severity: 'major',
-      replaces: noOrder(['metoprolol', 'diltiazem']),
+      id: 'rate-slowing-after-drain', actions: [...BETA_BLOCKERS, 'diltiazem'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 8, severity: 'major',
+      replaces: noOrder([...BETA_BLOCKERS, 'diltiazem']),
       text: 'A drug to slow her heart just after the drain. The sinus tachycardia that kept her alive is settling by itself as her heart fills again; a beta-blocker or diltiazem only drops the pressure of a heart just freed from tamponade, and with an effusion that can come back. A sinus tachycardia after shock is never the problem to treat — and neither drug is given without a physician\'s order.',
     },
     {
@@ -944,12 +954,12 @@ export const edTamponade: Scenario = {
       text: 'An antiarrhythmic with no order, for a sinus tachycardia or the extra beats a needle sets off. The fast rate is her compensation; extra beats with the needle in mean the physician pulls back — call them out. Amiodarone and procainamide drop a pressure that has little in reserve, lidocaine treats nothing she has, and with a pulse none of them is on a standing order.',
     },
     {
-      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-sinus', actions: ADENOSINE_PUSH, roles: ED_MD, when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'Adenosine for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for her.',
     },
     {
       // the nurse's version also stands for the missing order, at the order's weight (one mistake, one penalty)
-      id: 'adenosine-sinus-rn', actions: ['adenosine6', 'adenosine12'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major', replaces: noOrder(['adenosine6', 'adenosine12']),
+      id: 'adenosine-sinus-rn', actions: ADENOSINE_PUSH, roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major', replaces: noOrder(ADENOSINE_PUSH),
       text: 'Adenosine with no order, for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for her — and with a pulse it is on no standing order.',
     },
     {
@@ -1011,9 +1021,9 @@ export const edTamponade: Scenario = {
     {
       // one penalty for the drug that has no place in PEA: for the nurse it also stands for the missing order of those that
       // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
-      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'procainamide', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem'],
+      id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'procainamide', ...ADENOSINE_PUSH, ...BETA_BLOCKERS, 'diltiazem'],
       roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
-      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'])],
+      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem'])],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },
   ],

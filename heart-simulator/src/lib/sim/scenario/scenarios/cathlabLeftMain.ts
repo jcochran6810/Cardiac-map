@@ -537,8 +537,11 @@ export const cathlabLeftMain: Scenario = {
     // shock: everything below drops the pressure, slows the breathing or floods the lungs
     nitro: (s) => (s.pulse ? worse(s, -14, -10, (bp) => `BP ${bp}.`, ['nitro']) : null),
     'nitro-high': (s) => (s.pulse ? worse(s, -24, -14, (bp) => `BP ${bp}.`, ['nitro', 'nitro-high']) : null),
+    'nitro-iv': (s) => (s.pulse ? worse(s, -24, -14, (bp) => `BP ${bp}.`, ['nitro', 'nitro-iv']) : null),
     'ic-nitro': (s) => (s.pulse && s.vitals.sbp < 90 ? worse(s, -14, -10, (bp) => `BP ${bp}.`, ['ic-nitro']) : null),
     metoprolol: (s) => (s.pulse ? worse(s, -18, -12, (bp) => `BP ${bp}.`, ['beta-blocker']) : null),
+    esmolol: (s) => (s.pulse ? worse(s, -18, -12, (bp) => `BP ${bp}.`, ['beta-blocker']) : null),
+    labetalol: (s) => (s.pulse ? worse(s, -22, -14, (bp) => `BP ${bp}.`, ['beta-blocker']) : null),
     sedation: (s) => (s.pulse ? worse(s, -10, -8, (bp) => `Sedated. BP ${bp}, breathing slower.`, ['sedation'], { rr: Math.max(10, s.vitals.rr - 8), spo2: Math.max(70, s.vitals.spo2 - 4) }) : null),
     midazolam: (s) => (s.pulse ? worse(s, -10, -8, (bp) => `Midazolam 1 mg in. BP ${bp}, breathing slower.`, ['sedation', 'benzodiazepine'], { rr: Math.max(10, s.vitals.rr - 8), spo2: Math.max(70, s.vitals.spo2 - 4) }) : null),
     fluid: (s) => (s.pulse ? wetter(s, 'Bolus in.', ['fluid']) : null),
@@ -840,10 +843,10 @@ export const cathlabLeftMain: Scenario = {
   ],
   harms: [
     { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a failing left ventricle. An overfilled ventricle cannot use more volume: it goes to the lungs, and the oxygen falls.' },
-    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'Nitroglycerin in cardiogenic shock. It drops a pressure that is already too low to perfuse the heart and the brain; the chest pain is treated by opening the artery.' },
+    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'nitro-iv'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'Nitroglycerin in cardiogenic shock. It drops a pressure that is already too low to perfuse the heart and the brain; the chest pain is treated by opening the artery.' },
     // the built-in nitroglycerin rule is replaced above for every nitrate: intracoronary nitroglycerin with a low pressure keeps its own
     { id: 'ic-nitro-low-pressure', actions: ['ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['nitro-hypotension'], points: 8, severity: 'major', text: 'Intracoronary nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], points: 12, severity: 'critical', text: 'A beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing ventricle must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock.' },
     // a benzodiazepine, named as one, is the bigger mistake; the generic "sedation / analgesia" order is a smaller one
     { id: 'benzodiazepine-in-shock', actions: ['midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse, points: 5, severity: 'major', text: 'Midazolam in a shocked, hypoxic, drowsy patient. A benzodiazepine drops the pressure and the breathing; a small dose of fentanyl eases the pain without either.' },

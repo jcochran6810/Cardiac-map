@@ -287,7 +287,7 @@ const RN_ASKS: LabAsk[] = [
     // answer it too: a nurse who paces has treated the rate, and the operator must not then announce atropine that never comes
     id: 'rn-atropine', role: 4, when: (s) => readGiven(s) && unwell(s) && s.pulse && s.rhythm.hr < 60 && !has(s, 'rate-up') && !paced(s), early: true, wait: 2,
     ask: 'His rate is down in the forties — something for the rate, please!',
-    accept: ['atropine', 'pace'], wrong: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion'],
+    accept: ['atropine', 'pace'], wrong: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'esmolol', 'labetalol', 'amio-infusion'],
     wrongSay: 'No! That slows him down further. Atropine, 1 milligram.',
     thanks: 'Thanks — rate\'s coming up.', fallback: 'I\'ll push the atropine myself.', gives: 'atropine-given',
     fallbackEffect: (s) => (s.pulse && unwell(s) && s.rhythm.hr < 60 && !paced(s) ? atropine(s, 'operator') : {}),
@@ -297,7 +297,7 @@ const RN_ASKS: LabAsk[] = [
     // nitroglycerin and the vasodilators each carry their own penalty with this pressure: the operator's word only here
     id: 'rn-pressure', role: 4, when: (s) => readGiven(s) && unwell(s) && s.pulse && (has(s, 'rate-up') || paced(s)) && !has(s, 'supported'), wait: 2,
     ask: 'Rate\'s better, but the pressure is still low — bring it up for me, please.',
-    accept: SUPPORT, wrong: ['nitro', 'nitro-high', 'ic-nitro', 'ic-adenosine', 'ic-verapamil', 'ic-nitroprusside'],
+    accept: SUPPORT, wrong: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro', 'ic-adenosine', 'ic-verapamil', 'ic-nitroprusside'],
     wrongSay: 'Not that — that drops his pressure. Something that raises it: phenylephrine, push-dose epinephrine.',
     thanks: 'Thanks — that\'s better.', fallback: 'I\'ll push the phenylephrine myself.', gives: 'pressure-held',
     fallbackEffect: (s) => (s.pulse && unwell(s) ? phenylephrine(s, 'operator') : {}),
@@ -446,6 +446,7 @@ export const cathlabAirEmbolism: Scenario = {
     // sublingual nitroglycerin cannot move gas: no relief, a lower pressure (the default would ease the pain)
     nitro: (s) => nitroNoHelp(s, -10, -6, ['nitro']),
     'nitro-high': (s) => nitroNoHelp(s, -20, -10, ['nitro', 'nitro-high']),
+    'nitro-iv': (s) => nitroNoHelp(s, -20, -10, ['nitro', 'nitro-iv']),
     // the AV-nodal and sinus-node slowing drugs deepen the bradycardia (the defaults leave the rate where it was)
     diltiazem: (s) => slower(s, 'Diltiazem IV.', ['diltiazem']),
     'amio-infusion': (s) => slower(s, 'Amiodarone 150 mg running over 10 minutes.', ['amiodarone']),
@@ -742,7 +743,7 @@ export const cathlabAirEmbolism: Scenario = {
     { id: 'handoff', label: 'Hand-off to the recovery area', why: 'What happened and how it happened, how it was cleared and how long the artery was blocked, the drugs given, the stent, the access site — watch the rhythm and the troponin, and report it as a safety event so the set-up is reviewed.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
-    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. The artery is blocked by gas, not by spasm or clot: nitroglycerin cannot move a bubble, and it drops the pressure that pushes the blood — and the bubbles — through. Hold the pressure up instead.' },
+    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. The artery is blocked by gas, not by spasm or clot: nitroglycerin cannot move a bubble, and it drops the pressure that pushes the blood — and the bubbles — through. Hold the pressure up instead.' },
     { id: 'vasodilator-low-pressure', actions: ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside'], replaces: ['nitroprusside-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'An intracoronary vasodilator with a systolic pressure under 90 mmHg. It drops the pressure further (adenosine and verapamil also slow the heart): air is moved by aspiration and a forceful flush, with the pressure held up while it clears.' },
     { id: 'inject-through-air', actions: INJECTIONS, roles: MD, when: (s) => s.pulse && blocked(s), points: 8, severity: 'major', text: 'Another injection before the guide was aspirated. The air sits in the guide and the manifold: every injection pushes more of it down the artery. Stop injecting, aspirate back through the guide until the blood comes back free of bubbles, then flush.' },
     { id: 'stent-for-air', actions: ['stent-des', 'stent-covered'], roles: MD, when: (s) => blocked(s) && !has(s, 'pci'), points: 10, severity: 'major', text: 'A stent for the "occlusion". The artery is blocked by bubbles, not by plaque or clot: a stent cannot remove air, and the minutes spent on it leave the inferior wall without flow. Aspirate and flush first.' },
@@ -751,10 +752,10 @@ export const cathlabAirEmbolism: Scenario = {
     { id: 'tech-unasked-metal', actions: ['stent-des', 'stent-covered', 'balloon-predil', 'balloon-nc'], roles: TECH, when: unwell, points: 3, severity: 'minor', text: 'A stent or balloon opened that the operator did not ask for, in the middle of the air embolism. The artery is blocked by air, not plaque: metal fixes nothing. Open devices when the operator asks for them.' },
     // with the air still in, the stent for the "occlusion" is the mistake (stent-for-air): one penalty for one act
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: MD, when: (s) => !blocked(s), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], when: unwell, points: 8, severity: 'major', text: 'An IV beta-blocker with a slow rate and a low pressure. It slows the heart and weakens the squeeze further, while the right coronary territory is starved.' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], when: unwell, points: 8, severity: 'major', text: 'A beta-blocker with a slow rate and a low pressure. It slows the heart and weakens the squeeze further, while the right coronary territory is starved.' },
     // the same mistake, and the same penalty, whether or not the nurse was answering the operator's call for the rate
     // (the operator's word on it is the order's own)
-    { id: 'av-blocker-slow', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'amio-infusion', 'adenosine-iv-ffr'], when: (s) => s.pulse && unwell(s) && (s.rhythm.hr < 60 || s.vitals.sbp < 90), points: 8, severity: 'major', text: 'A drug that slows the sinus or AV node and drops the pressure (adenosine, diltiazem, amiodarone), with a slow rate or a low pressure from the air in the right coronary. The slow rate needs atropine (or pacing), not more slowing.' },
+    { id: 'av-blocker-slow', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'diltiazem', 'amio-infusion', 'adenosine-iv-ffr'], when: (s) => s.pulse && unwell(s) && (s.rhythm.hr < 60 || s.vitals.sbp < 90), points: 8, severity: 'major', text: 'A drug that slows the sinus or AV node and drops the pressure (adenosine, diltiazem, amiodarone), with a slow rate or a low pressure from the air in the right coronary. The slow rate needs atropine (or pacing), not more slowing.' },
     { id: 'cocktail-low-pressure', actions: ['radial-cocktail'], when: (s) => s.pulse && unwell(s) && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'The radial cocktail with a systolic pressure under 90 mmHg. Verapamil and nitroglycerin both drop the pressure (verapamil also slows the heart), and there is no spasm to treat: hold the pressure up while the air clears.' },
     { id: 'lidocaine-no-target', actions: ['lidocaine'], when: (s) => s.pulse && unwell(s), points: 3, severity: 'minor', text: 'Lidocaine with no ventricular arrhythmia to treat. Prophylactic lidocaine in an acute coronary occlusion is not recommended, and with a slow rate it can suppress the beats that keep him going.' },
     { id: 'clot-drugs-for-air', actions: ['gp2b3a', 'cangrelor'], when: unwell, points: 4, severity: 'minor', text: 'A drug for clot during an air embolism. The artery is blocked by bubbles, not thrombus: a GP IIb/IIIa or IV P2Y12 inhibitor treats nothing here and adds bleeding risk on top of heparin and two antiplatelet drugs.' },

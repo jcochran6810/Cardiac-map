@@ -472,7 +472,7 @@ export const cocaineField: Scenario = {
     },
     {
       id: 'cool', label: 'Cool him: undress, cold packs, mist and a fan', points: 5, target: { by: 12 }, done: ['cool'],
-      why: 'Undress him, cool the room, cold packs to the neck, armpits and groin, mist and a fan as it rises (rapid external cooling for a life-threatening temperature) — and treat the agitation that makes the heat (2023 AHA).',
+      why: 'Cool him as the temperature climbs: undress him, cool the room, cold packs to the neck, armpits and groin, mist and a fan — rapid external cooling is for a life-threatening temperature (2023 AHA) — and treat the agitation that makes the heat.',
     },
     {
       id: 'calm-approach', label: 'Talk him down first: one calm voice, a quiet space', roles: [1, 2], points: 5, target: { by: 5 }, done: ['calm'],
@@ -512,6 +512,13 @@ export const cocaineField: Scenario = {
     },
   ],
   harms: [
+    {
+      // the case declares severe agitation for the whole case, but he is oriented and only restless until the 'severe'
+      // event (a benzodiazepine before it prevents it), and calm once one takes hold: restraint is right only in between
+      id: 'restraint-not-yet', actions: ['restrain'], when: (s) => s.pulse && (!has(s, 'severe') || calm(s)), points: 5, severity: 'major',
+      replaces: ['restraint-no-indication'],
+      text: 'Restraining him while he is no danger to himself or the crew. Oriented and restless, he can be talked down, and the benzodiazepine treats what the cocaine drives; calmed by it, he needs no straps at all. Restraint is the last resort, for agitation that endangers him or the crew once talking has failed — face up, with the sedation that ends the fight (joint NAEMSP/NASEMSO/NEMSMA/NAEMT/APA position statement, 2021).',
+    },
     {
       // the same id as the built-in rule, in this case's words and weight: the beta-blocker is this case's main trap, weighted
       // as the other field cases weight a Class 3 — Harm drug (it must not leave an otherwise perfect run "Excellent")
@@ -560,7 +567,7 @@ export const cocaineField: Scenario = {
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {
-      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-sinus', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], points: 3, severity: 'minor',
       when: (s) => s.pulse && ['sinus-tachycardia', 'normal-sinus'].includes(s.rhythm.profile),
       text: 'A drug for an arrhythmia, given for a fast sinus rate. The rate is the cocaine and the agitation driving a normal heart: adenosine and the antiarrhythmics treat nothing here. A benzodiazepine brings the rate down by treating its cause.',
     },

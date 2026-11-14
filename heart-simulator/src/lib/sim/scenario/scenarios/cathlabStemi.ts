@@ -359,7 +359,7 @@ export const cathlabStemi: Scenario = {
     askHarm(RN_ASKS[0], 'An intracoronary drug when the operator asked for the radial cocktail.'),
     askHarm(RN_ASKS[2], 'The wrong intracoronary drug when the operator asked for nitroglycerin.'),
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'Fibrinolysis has no place when primary PCI is happening: it only adds bleeding risk.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 6, severity: 'major', text: 'An IV beta-blocker in the acute phase of a large anterior STEMI. It risks cardiogenic shock (COMMIT).' },
+    { id: 'beta-blocker', actions: ['metoprolol', 'esmolol', 'labetalol', 'metoprolol-po'], points: 6, severity: 'major', text: 'A beta-blocker (IV, or a tablet) in the acute phase of a large anterior STEMI. It risks cardiogenic shock (COMMIT).' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
   ],
   timings: [

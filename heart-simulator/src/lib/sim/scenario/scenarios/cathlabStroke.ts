@@ -44,7 +44,9 @@ const MD_CARRY_ON = [...CARRY_ON, 'iabp', 'impella'];
 /** What the tech sets up or opens for the next step of the case */
 const TECH_CARRY_ON = CARRY_ON.filter((id) => id !== 'angio' && id !== 'lvedp');
 /** Drugs that bring the pressure down (the radial cocktail is verapamil and nitroglycerin) */
-const LOWERING = ['nitro', 'nitro-high', 'ic-nitro', 'radial-cocktail', 'metoprolol', 'diltiazem', 'ic-nitroprusside', 'ic-verapamil'];
+const LOWERING = [
+  'nitro', 'nitro-high', 'nitro-iv', 'ic-nitro', 'radial-cocktail', 'metoprolol', 'esmolol', 'labetalol', 'diltiazem', 'nicardipine', 'ic-nitroprusside', 'ic-verapamil',
+];
 /** What brings a pressure that has fallen too low back up */
 const RAISE = ['fluid', 'phenylephrine', 'pressor', 'push-epi', 'legs-up'];
 /** Vasopressors: for a pressure that has fallen, not for one that is already high */
@@ -364,6 +366,11 @@ export const cathlabStroke: Scenario = {
     'nitro-high': (s) => (deficit(s) && s.pulse ? lowers(s, 'Nitroglycerin 0.8 mg sublingual.', -30, -14, ['nitro', 'nitro-high']) : null),
     'radial-cocktail': (s) => (deficit(s) && s.pulse ? lowers(s, 'Radial cocktail through the sheath: verapamil 2.5 mg and nitroglycerin 200 mcg.', -12, -6, ['cocktail']) : null),
     metoprolol: (s) => (deficit(s) && s.pulse ? lowers(s, 'Metoprolol 5 mg IV.', -12, -8, ['beta-blocker'], Math.max(60, s.rhythm.hr - 10)) : null),
+    // the drugs the stroke protocols use to lower a pressure over 185/110 (2019 AHA/ASA) — not one of 174/92
+    esmolol: (s) => (deficit(s) && s.pulse ? lowers(s, 'Esmolol 500 mcg/kg IV, then the infusion.', -12, -8, ['beta-blocker'], Math.max(60, s.rhythm.hr - 10)) : null),
+    labetalol: (s) => (deficit(s) && s.pulse ? lowers(s, 'Labetalol 10 mg IV over 2 minutes.', -16, -10, ['beta-blocker'], Math.max(60, s.rhythm.hr - 8)) : null),
+    nicardipine: (s) => (deficit(s) && s.pulse ? lowers(s, 'Nicardipine infusion at 5 mg/h.', -20, -10, ['vasodilator', 'nicardipine']) : null),
+    'nitro-iv': (s) => (deficit(s) && s.pulse ? lowers(s, 'Nitroglycerin infusion IV.', -16, -8, ['nitro', 'nitro-iv']) : null),
     diltiazem: (s) => (deficit(s) && s.pulse ? lowers(s, 'Diltiazem 20 mg IV.', -16, -10, ['diltiazem']) : null),
     'ic-nitro': (s) => {
       if (!deficit(s) || !s.pulse) return null;
@@ -582,7 +589,7 @@ export const cathlabStroke: Scenario = {
     { id: 'lower-bp-again', actions: LOWERING, when: (s) => s.pulse && deficit(s) && has(s, 'bp-drug') && s.vitals.sbp <= 185 && s.vitals.dbp <= 110, replaces: ['nitro-high-not-hypertensive'], points: 5, severity: 'major', text: 'Lowering his pressure again after a first drug had already brought it down. The monitor showed the fall: each further dose takes more pressure from the brain living on collaterals around the clot. Stop the drugs that lower it, and bring it back if it has fallen well below his usual.' },
     { id: 'lytic-in-lab', actions: ['tnk'], when: deficit, points: 15, severity: 'critical', text: 'A fibrinolytic from the cardiologist, for the stroke. Before a CT has excluded a bleed it can kill; after 5,000 units of heparin (a long ACT) IV thrombolysis is generally not given at all; the stroke dose of tenecteplase is 0.25 mg/kg (25 mg at most), not the STEMI dose; and the decision is the stroke team\'s. A blocked large artery is treated with thrombectomy.' },
     { id: 'more-antithrombotic', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: deficit, points: 5, severity: 'major', text: 'More anticoagulant or antiplatelet drug for the stroke. Before the scan has excluded a bleed, more of it can turn a small bleed into a fatal one; after it, antithrombotic drugs are the stroke team\'s decision — and it all stacks on the 5,000 units of heparin already given.' },
-    { id: 'nothing-by-mouth', actions: ['aspirin', 'p2y12'], when: deficit, points: 5, severity: 'major', text: 'Something by mouth with a new deficit and slurred speech. His swallow may not be safe — nothing by mouth until a swallow screen — and no new antiplatelet drug before the CT has excluded a bleed and the stroke team has decided on thrombolysis (no aspirin within 24 hours of it); he had his aspirin this morning.' },
+    { id: 'nothing-by-mouth', actions: ['aspirin', 'p2y12', 'metoprolol-po'], when: deficit, points: 5, severity: 'major', text: 'Something by mouth with a new deficit and slurred speech. His swallow may not be safe — nothing by mouth until a swallow screen — and no new antiplatelet drug before the CT has excluded a bleed and the stroke team has decided on thrombolysis (no aspirin within 24 hours of it); he had his aspirin this morning.' },
     { id: 'protamine-no-bleed', actions: ['protamine'], when: deficit, points: 3, severity: 'minor', text: 'Protamine for a stroke with no bleed on the scan. Reversing the heparin is for a bleed the CT shows, or on the stroke team\'s advice: most strokes in the lab are embolic, protamine does nothing for a blocked artery, and it can let clot form on the sheath and the catheter.' },
     // one rule for every vasopressor, at the same line as the 'bp-low' item: under 140 bringing it back up is right
     // (the built-in phenylephrine rule, same id: a deliberate exemption — once the deficit is there, 120–139 is a pressure
