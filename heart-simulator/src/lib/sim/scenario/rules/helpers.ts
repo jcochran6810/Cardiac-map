@@ -67,6 +67,17 @@ export const CALCIUM_FOR: Problem[] = ['hyperkalemia', 'hypocalcemia', 'ccb-over
 export const BICARBONATE_FOR: Problem[] = ['hyperkalemia', 'metabolic-acidosis', 'sodium-channel-blocker-overdose'];
 
 /**
+ * The heart lives on its preload: a tamponade not yet drained (the flag 'drained' or 'pericardiocentesis'), a pulmonary
+ * embolism or an RV infarction. Nitrates, diuretics, positive pressure and anything else that drops the preload drop the
+ * pressure with it; fluid helps
+ */
+export const preloadDependent = (s: SimState, sc: Scenario) =>
+  (hasProblem(sc, ['tamponade']) && !has(s, 'drained') && !has(s, 'pericardiocentesis')) || hasProblem(sc, ['pulmonary-embolism', 'rv-infarction']);
+
+/** An outflow obstruction, fixed (severe aortic stenosis) or dynamic (LVOT obstruction) */
+export const outflowObstruction = (sc: Scenario) => hasProblem(sc, ['severe-aortic-stenosis', 'lvot-obstruction']);
+
+/**
  * A long QT: the case says so (Scenario.problems), the monitor shows torsades, or the rhythm on it has a QTc of 500 ms or
  * more (the 'long-qt' profile) — the drug rules read the tracing as well as the case
  */

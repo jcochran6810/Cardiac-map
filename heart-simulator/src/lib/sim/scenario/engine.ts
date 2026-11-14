@@ -994,7 +994,7 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
     if (!h.actions.includes(id)) continue;
     if (h.roles && !h.roles.includes(s.role)) continue;
     if (s.penalties.some((p) => p.id === h.id)) continue;
-    if (h.when && !h.when(s, sc)) continue;
+    if (h.when && !h.when(s, sc, id)) continue;
     s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text });
   }
 }
@@ -1022,7 +1022,9 @@ function isComplete(sc: Scenario, s: SimState) {
 function advance(sc: Scenario, s: SimState) {
   if (s.timers.arrive !== undefined && s.minute >= s.timers.arrive && !has(s, 'arrived')) {
     setFlag(s, 'arrived');
-    say(s, 'hospital', sc.arrival ?? 'You arrive at the hospital; the team meets you at the door.');
+    // the hospital's words can depend on the patient's state on arrival (Scenario.arrival as a function)
+    const arrival = typeof sc.arrival === 'function' ? sc.arrival(s) : sc.arrival;
+    say(s, 'hospital', arrival ?? 'You arrive at the hospital; the team meets you at the door.');
   }
   // emergency department: the cath lab team activated earlier is ready for the patient
   if (s.timers.cathReady !== undefined && s.minute >= s.timers.cathReady && !has(s, 'cath-ready')) {

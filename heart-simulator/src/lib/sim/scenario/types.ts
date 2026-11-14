@@ -40,6 +40,8 @@ export interface Intervention {
   maxTimes?: number;
   /** IV/IO medication or fluid: needs vascular access first */
   needsAccess?: boolean;
+  /** minutes it takes during CPR, when shorter (e.g. a drug pushed between compressions) */
+  arrestMinutes?: number;
 }
 
 export interface Vitals {
@@ -116,7 +118,8 @@ export interface SimState {
   timers: Record<string, number>;
   /** intervention id → times performed */
   counts: Record<string, number>;
-  performed: { id: string; minute: number }[];
+  /** every action performed, in order; `shocked`: a shock was actually delivered (not a SYNC that never fired, not "no shock advised") */
+  performed: { id: string; minute: number; shocked?: true }[];
   log: LogEntry[];
   penalties: Penalty[];
   /** fired event ids */
@@ -170,6 +173,11 @@ export interface Effect {
   read?: Omit<PendingRead, 'minute'>;
   /** a cine run: the view (intervention id and name), and the real angiogram for it when the app has one (a key of CATH_IMAGES) */
   image?: { id?: string; view: string; image?: string };
+  /**
+   * a preventable deterioration the case charges (e.g. the pressure falls because no fluid was given): added to the
+   * penalties once per id, at the minute the effect applies
+   */
+  penalty?: Omit<Penalty, 'minute'>;
 }
 
 /** Scenario-specific response; return null to fall back to the default response */
@@ -203,16 +211,19 @@ export interface Critical {
 export interface Harm {
   id: string;
   actions: string[];
-  /** judged on the state just before the intervention takes effect (and on what the case says the patient has) */
-  when?: (s: SimState, sc: Scenario) => boolean;
+  /**
+   * judged on the state just before the intervention takes effect (and on what the case says the patient has); `id` is
+   * the action being judged (one of `actions`), for a rule that covers several
+   */
+  when?: (s: SimState, sc: Scenario, id: string) => boolean;
   points: number;
   severity: Severity;
   text: string;
   roles?: LearningLevel[];
   /**
-   * Built-in safety rules this scenario rule stands in for, because it already covers the same mistake in its
-   * own words (e.g. nitroglycerin in an RV infarct also covers nitroglycerin with a low pressure): one mistake,
-   * one penalty. A scenario rule with the same id as a built-in one replaces it anyway.
+   * Built-in rules this case rule stands in for while it applies: when its action, role and `when` all match the action
+   * being judged, the listed built-ins are not charged for it (one mistake, one penalty). In any other state the built-ins
+   * still apply. A case rule with the same id as a built-in replaces it always — a deliberate exemption.
    */
   replaces?: string[];
 }
@@ -224,9 +235,13 @@ export interface Harm {
  * stops procainamide in a failing heart — so a case where one of these is right must list the problem behind it.
  */
 export type Problem =
+  /** a high potassium: what calcium, insulin with dextrose, high-dose albuterol and bicarbonate treat */
   | 'hyperkalemia'
+  /** a metabolic acidosis: one of bicarbonate's indications */
   | 'metabolic-acidosis'
+  /** a low calcium: one of calcium's indications */
   | 'hypocalcemia'
+  /** a beta-blocker overdose: glucagon, calcium and high-dose insulin */
   | 'beta-blocker-overdose'
   /** calcium-channel blocker */
   | 'ccb-overdose'
@@ -237,6 +252,7 @@ export type Problem =
    * harmful (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm) and procainamide is to be avoided
    */
   | 'heart-failure'
+  /** a long QT (congenital or from a drug): no QT-prolonging drug */
   | 'long-qt'
   /** fluid on the lungs (e.g. hypertensive acute pulmonary edema): a fluid bolus or raised legs add to it */
   | 'pulmonary-edema'
@@ -244,12 +260,139 @@ export type Problem =
   | 'sympathomimetic-toxicity'
   /** an acute aortic dissection: antithrombotic and fibrinolytic drugs make the tear bleed */
   | 'aortic-dissection'
-  /** major bleeding (e.g. a retroperitoneal bleed): what a transfusion of packed red cells treats */
+  /**
+   * active major bleeding (e.g. a retroperitoneal bleed) or a bleeding diathesis (not menses): what a transfusion of
+   * packed red cells treats; antithrombotics, lytics and GP IIb/IIIa make it worse
+   */
   | 'bleeding'
   /** cardiac tamponade: what a pericardiocentesis treats (in the emergency department the built-in rule reads it) */
   | 'tamponade'
   /** a pulmonary embolism: with a STEMI, the indication for a fibrinolytic in the emergency department (high risk, or in arrest) */
-  | 'pulmonary-embolism';
+  | 'pulmonary-embolism'
+  /**
+   * an acute coronary syndrome (STEMI or NSTE-ACS, or one being ruled in): oxygen only for an SpO₂ under 90 % (2025 ACC/AHA
+   * ACS), and no IV beta-blocker with signs of shock risk
+   */
+  | 'acs'
+  /**
+   * shock from pump failure (infarct-related), even while a pressor holds the systolic over 90: routine IABP brings no
+   * benefit, verapamil is contraindicated, and an LV gram adds contrast and volume
+   */
+  | 'cardiogenic-shock'
+  /**
+   * an inferior MI with right-ventricular involvement (ST elevation in V4R): preload-dependent — no nitrates, positive
+   * pressure or diuretic; fluid helps
+   */
+  | 'rv-infarction'
+  /** fixed outflow obstruction: no nitrates or vasodilators, no Impella, and care with anything that drops the preload */
+  | 'severe-aortic-stenosis'
+  /**
+   * dynamic LV outflow obstruction (obstructive HCM, Takotsubo with SAM, a small hypertrophied ventricle after TAVR): no
+   * catecholamines, inotropes, nitrates or diuretics; fluid and phenylephrine (2024 AHA/ACC HCM)
+   */
+  | 'lvot-obstruction'
+  /**
+   * a PE with cardiopulmonary failure or incipient failure (AHA/ACC 2026 categories D–E: hypotension, a pressor or arrest):
+   * the indication for systemic lysis
+   */
+  | 'pe-high-risk'
+  /**
+   * a PDE-5 inhibitor within its window (avanafil 12 h, sildenafil or vardenafil 24 h, tadalafil 48 h; for erections,
+   * pulmonary hypertension or the prostate), or riociguat: no nitrate or nitroprusside
+   */
+  | 'pde5-inhibitor'
+  /** a true aspirin or NSAID allergy (anaphylaxis, angioedema, urticaria) or aspirin-exacerbated asthma */
+  | 'aspirin-allergy'
+  /** heparin-induced thrombocytopenia, now or before */
+  | 'hit'
+  /** platelets under 100,000 */
+  | 'thrombocytopenia'
+  /** any intracranial hemorrhage, now or ever */
+  | 'intracranial-hemorrhage'
+  /** an ischemic stroke or TIA within 3 months */
+  | 'recent-stroke'
+  /** an ischemic stroke or TIA more than 3 months ago */
+  | 'prior-stroke'
+  /** an intracranial lesion (AVM, aneurysm, tumor); significant head or face trauma within 3 months; or brain or spinal surgery within 2 months */
+  | 'intracranial-risk'
+  /** warfarin or a DOAC on board */
+  | 'oral-anticoagulant'
+  /** major surgery or trauma within 3 weeks (6 weeks for eptifibatide) */
+  | 'recent-surgery'
+  /** internal bleeding within 2–4 weeks, or an active peptic ulcer, not bleeding now */
+  | 'recent-bleeding'
+  /** pregnant, or within a week after delivery */
+  | 'pregnancy'
+  /**
+   * kidney failure on dialysis, little or no urine: furosemide has nothing to work on, eptifibatide is contraindicated,
+   * and magnesium accumulates
+   */
+  | 'dialysis'
+  /**
+   * severe kidney disease not on dialysis (stage 4–5 or AKI): magnesium accumulates, eptifibatide runs at half the
+   * infusion, insulin is 5 units
+   */
+  | 'renal-failure'
+  /** unfractionated heparin given before the case opens: protamine has something to reverse */
+  | 'heparin-on-board'
+  /** enoxaparin within 12 h */
+  | 'lmwh-on-board'
+  /** a low magnesium: what IV magnesium replaces */
+  | 'hypomagnesemia'
+  /** a low potassium (under 4 mEq/L for sotalol) */
+  | 'hypokalemia'
+  /**
+   * a transplanted, denervated heart: atropine does not work and can cause high-grade block (2018 ACC/AHA/HRS: 3 — Harm);
+   * adenosine starts at 3 mg
+   */
+  | 'heart-transplant'
+  /** dipyridamole or carbamazepine on board: adenosine starts at 3 mg */
+  | 'adenosine-potentiator'
+  /**
+   * asthma or another bronchospastic lung disease (history): adenosine (newer labels), labetalol and sotalol are
+   * contraindicated; β1-selective blockers only with caution
+   */
+  | 'asthma'
+  /**
+   * active wheezing now (asthma, COPD, anaphylaxis): what 2.5–5 mg albuterol and a steroid treat, and a contraindication
+   * like 'asthma'
+   */
+  | 'bronchospasm'
+  /** anaphylaxis or an anaphylactoid (e.g. contrast) reaction: IM epinephrine first, then the adjuncts */
+  | 'anaphylaxis'
+  /**
+   * AF or flutter for 48 h or more (or of unknown onset) without 3 weeks of anticoagulation or a TEE: no elective
+   * cardioversion (2023 ACC/AHA/ACCP/HRS AF, COR 1)
+   */
+  | 'af-over-48h'
+  /** digoxin toxicity: no elective cardioversion (VT/VF); digoxin Fab */
+  | 'digoxin-toxicity'
+  /** a pacemaker or ICD: pads at least 8 cm from the generator (or front-and-back); check the device afterwards */
+  | 'implanted-device'
+  /** septal rupture, or papillary-muscle rupture with acute MR, after an MI: an IABP is a bridge to surgery */
+  | 'mechanical-complication'
+  /** moderate or severe aortic regurgitation */
+  | 'aortic-regurgitation'
+  /** a mechanical aortic valve */
+  | 'mechanical-aortic-valve'
+  /** a thrombus in the left ventricle */
+  | 'lv-thrombus'
+  /** a ventricular septal rupture */
+  | 'ventricular-septal-rupture'
+  /** severe iliofemoral disease or an aortofemoral graft */
+  | 'peripheral-artery-disease'
+  /** a heavy thrombus (e.g. stent thrombosis): bail-out aspiration is fair */
+  | 'large-thrombus-burden'
+  /** an acute stroke now (not history) */
+  | 'stroke'
+  /** an earlier allergic-like reaction to iodinated contrast (not shellfish, not "iodine"): premedicate (ACR) */
+  | 'contrast-allergy'
+  /** an earlier reaction to protamine */
+  | 'protamine-allergy'
+  /** NPH or protamine-zinc insulin, an earlier protamine dose, a fish allergy or a vasectomy */
+  | 'protamine-sensitized'
+  /** severe agitation that endangers the patient or the crew (e.g. stimulant toxicity): what restraint and sedation are for */
+  | 'severe-agitation';
 
 export type FactKey =
   | 'opqrst' | 'sample' | 'pde5' | 'lungs' | 'perfusion' | 'neuro' | 'ecg12' | 'ecgRight' | 'ecgPosterior'
@@ -287,6 +430,8 @@ export interface Timing {
   /** goal, minutes from the start (or from `from`) */
   target?: number;
   from?: string;
+  /** count only shocks actually delivered (SimState.performed `shocked`), not a SYNC that never fired or "no shock advised" */
+  shocksOnly?: boolean;
 }
 
 export interface Scenario {
@@ -335,7 +480,15 @@ export interface Scenario {
    * to the cath lab team waits for it
    */
   cathLabMinutes?: number;
-  arrival?: string;
+  /**
+   * emergency department: this department cannot get the patient to PCI within 120 minutes of first medical contact, so a
+   * fibrinolytic is the reperfusion
+   */
+  noTimelyPci?: boolean;
+  /** emergency department: the patient may go home now; without it a discharge is unsafe */
+  dischargeOk?: (s: SimState) => boolean;
+  /** what the hospital says when the ambulance arrives (field): fixed words, or words that depend on the patient's state */
+  arrival?: string | ((s: SimState) => string);
   /** minutes pulseless without ROSC before the patient dies (default 15) */
   deathAfter?: number;
   /** extra condition for finishing, on top of all critical items done */
