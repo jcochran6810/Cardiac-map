@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
-import { NITRATE_CHECKS, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
+import { SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 import { cpapHarmful } from '../rules/support';
 
@@ -543,7 +543,7 @@ export const cocaineField: Scenario = {
     nitrateCaseRule({
       id: 'nitro-high-chest-pain', actions: ['nitro-high'], when: (s) => s.pulse, points: 2, severity: 'minor',
       text: 'High-dose nitroglycerin for chest pain. 0.8 mg is the dose for hypertensive pulmonary edema, and his lungs are clear: for the pain the dose is 0.4 mg every 5 minutes, with the benzodiazepine bringing the pressure down.',
-    }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
+    }, 'nitro-high-not-hypertensive'),
     nitrateCheckRule({
       id: 'nitro-too-soon', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && (sinceLastNitro(s) ?? Infinity) < 5, points: 2, severity: 'minor',
       text: 'Nitroglycerin repeated within 5 minutes. Sublingual nitroglycerin is 0.4 mg every 5 minutes, up to 3 doses: each dose needs its 5 minutes to work, and the pressure is checked before the next.',

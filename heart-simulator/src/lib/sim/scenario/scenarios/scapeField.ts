@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
-import { NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
 import { LIDOCAINE_RULES, PROCAINAMIDE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -699,12 +699,13 @@ export const scapeField: Scenario = {
     nitrateCaseRule({
       id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 100 && s.vitals.sbp < 160, points: 3, severity: 'minor',
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it step down to 0.4 mg — once the surge has passed, each dose drops the pressure far more.',
-    }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
-    {
-      // under 100 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
+    }, 'nitro-high-not-hypertensive'),
+    // under 100 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160. At
+    // the low-pressure rule's rank in the gate, so the case's checks give way to it (one dose, one penalty)
+    nitrateCaseRule({
       id: 'nitro-pressure-fallen', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 100, points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin with a systolic pressure under 100. Hold nitrates once the pressure has fallen (protocols set the line at 90, 100 or 110): CPAP and the nitrate already on board keep lowering it, and a low pressure starves the heart and the brain.',
-    },
+    }, 'nitro-hypotension'),
     {
       // diltiazem in acute pulmonary edema is the built-in diltiazem-heart-failure's (15, critical: 3 — Harm), at its own weight
       id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s, _sc, id) => s.pulse && id !== 'diltiazem', replaces: RATE_RULES, points: 8, severity: 'major',

@@ -2,7 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule, nitrateRulesExcept } from '../rules/acs';
 import { BETA_BLOCKERS, lowPressure } from '../rules/helpers';
 import { LIDOCAINE_RULES, PROCAINAMIDE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
@@ -949,12 +949,13 @@ export const edScape: Scenario = {
       id: 'nitro-high-below-160', actions: ['nitro-high'], points: 3, severity: 'minor',
       when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160,
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
-    }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
-    {
-      // under 120 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
+    }, 'nitro-high-not-hypertensive'),
+    // under 120 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160. At
+    // the low-pressure rule's rank in the gate, so the case's checks give way to it (one dose, one penalty)
+    nitrateCaseRule({
       id: 'nitro-below-target', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 120, points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin with a systolic under 120. The surge has broken and the pressure is falling: hold the sublingual doses and turn the infusion down — a low pressure starves the heart, the brain and the kidneys.',
-    },
+    }, 'nitro-hypotension'),
     ...bothRoles({
       id: 'opioid-air-hunger', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',

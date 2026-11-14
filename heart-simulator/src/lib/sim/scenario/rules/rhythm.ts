@@ -17,7 +17,7 @@ import {
   ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, chargedBefore, did, hasProblem, lastDoneAt, longQt, lowPressure,
   lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
-import { NITRATE_RULES, nitrateCharges } from './acs';
+import { NITRATE_RULES, carryNitrateRank, nitrateCharges } from './acs';
 import { builtInChargedBefore } from './charge';
 import { indicationCovered } from './scope';
 import { pressorBridging } from './support';
@@ -395,6 +395,7 @@ export function yieldToHeavier(harms: Harm[]): Harm[] {
     const own = h.when;
     const w: Harm = { ...h, when: (s, sc, id) => (!own || own(s, sc, id)) && !yieldsTo(s, sc, id, w) };
     YIELDING.add(w);
+    carryNitrateRank(h, w);
     return w;
   });
 }

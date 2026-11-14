@@ -644,10 +644,15 @@ describe('review fixes: the nitrate gate', () => {
     expect(after(patient({ vitals: { sbp: 96, dbp: 60 } }), ['nitro'])).toEqual([]);
   });
 
-  it('the order of the 3- and 5-point ranks: the pressure check over the fast rate, no pain, the interval and the PDE-5 question; the 0.8 mg dose rule over it', () => {
+  it('the order of the 3- and 5-point ranks: the pressure check over the 0.8 mg dose rule, the fast rate, no pain, the interval and the PDE-5 question', () => {
     expect(penaltyIds(patient({ rhythm: { profile: 'sinus-tachycardia', hr: 112 } }), 2, ['ask-pde5', 'nitro'])).toEqual(['nitro-no-bp']);
     expect(penaltyIds(patient({ vitals: { pain: 0 } }), 2, ['ask-pde5', 'nitro'])).toEqual(['nitro-no-bp']);
-    expect(penaltyIds(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['ask-pde5', 'nitro-high'])).toEqual(['nitro-high-not-hypertensive']);
+    // 0.8 mg with no pressure taken: the learner cannot know the pressure is high enough for it — the check (5), never the
+    // 0.8 mg rule (3) alone: the larger dose given blind never costs less than the standard one
+    expect(penaltyIds(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['ask-pde5', 'nitro-high'])).toEqual(['nitro-no-bp']);
+    expect(penaltyIds(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['ask-pde5', 'nitro'])).toEqual(['nitro-no-bp']);
+    // with the pressure taken, the 0.8 mg rule judges the dose
+    expect(penaltyIds(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['vitals', 'ask-pde5', 'nitro-high'])).toEqual(['nitro-high-not-hypertensive']);
     // no indication before the PDE-5 question and the interval
     expect(penaltyIds(patient({ vitals: { pain: 0 } }), 2, ['vitals', 'nitro'])).toEqual(['nitro-no-pain']);
     expect(after(patient(), ['nitro', 'nitro'])).toEqual(['nitro-too-soon']);
@@ -715,7 +720,9 @@ describe('review fixes: a case\'s own nitrate rule keeps the gate\'s order', () 
     expect(noIndication.replaces).toEqual(expect.arrayContaining(['nitro-high-not-hypertensive', 'nitro-tachycardia', 'nitro-no-pain', 'nitro-no-bp', 'nitro-too-soon', 'nitro-no-pde5']));
     expect(noIndication.replaces).not.toContain('nitro-bradycardia');
     const sc = (rhythm = SINUS) => patient({ rhythm, vitals: { pain: 0 }, harms: [noIndication] });
-    expect(penaltyIds(sc(), 2, ['nitro', 'nitro-high'])).toEqual(['case-no-indication']);
+    expect(penaltyIds(sc(), 2, ['vitals', 'nitro', 'nitro-high'])).toEqual(['case-no-indication']);
+    // with no pressure taken it gives way to the pressure check, ranked above it, on the first dose: the second is its own
+    expect(penaltyIds(sc(), 2, ['nitro', 'nitro-high'])).toEqual(['nitro-no-bp', 'case-no-indication']);
     expect(penaltyIds(sc({ profile: 'sinus-bradycardia', hr: 44 }), 2, ['vitals', 'nitro'])).toEqual(['nitro-bradycardia']);
     expect(() => nitrateCaseRule({ ...noIndication, id: 'x' }, 'not-a-rank')).toThrow();
   });
@@ -861,6 +868,43 @@ describe('review round: contraindications that went free, and correct care that 
     expect(runScenario(SCENARIO_BY_ID['scape-ed'], 6, ['iv', 'nitro-iv']).penalties.map((p) => p.id)).toEqual(['rn-without-order-nitro-iv', 'nitro-no-bp']);
     expect(runScenario(SCENARIO_BY_ID['stemi-anterior-field'], 2, ['iv', 'nitro']).penalties.map((p) => p.id)).toEqual(['nitro-no-bp']);
     expect(runScenario(SCENARIO_BY_ID['stemi-anterior-field'], 2, ['iv', 'vitals', 'nitro']).penalties.map((p) => p.id)).toEqual(['nitro-no-pde5']);
+  });
+
+  it('a case check gives way to another of the case\'s nitrate rules ranked above it under its own id (one dose, one penalty)', () => {
+    const nitroPenalties = (id: string, role: LearningLevel, steps: string[]) => {
+      const s = runScenario(SCENARIO_BY_ID[id], role, steps);
+      return s.penalties.filter((p) => p.minute === s.performed.at(-1)!.minute).map((p) => p.id);
+    };
+    // SCAPE (field, EMT): the second assisted dose with no fresh pressure is the case's repeat check alone, not the PDE-5 question beside it
+    expect(nitroPenalties('scape-field', 1, ['monitor', 'cpap', 'nitro-assist', 'cool', 'call-help', 'sample', 'smr', 'nitro-assist'])).toEqual(['nitro-repeat-unsafe']);
+    // SCAPE (ED nurse): 0.8 mg with no order: the missing order and one nitrate rule
+    expect(nitroPenalties('scape-ed', 6, ['iv', 'pulse-check', 'nitro', 'o2-nc', 'nicardipine', 'bvm', 'vagal', 'nitro-high'])).toEqual(['rn-without-order-nitro-high', 'nitro-repeat-unsafe']);
+    // the case's 0.8 mg rules stand at the 0.8 mg rank: the pressure check outranks them, and they outrank the PDE-5 question
+    expect(nitroPenalties('cocaine-chest-pain-field', 2, ['iv', 'ask-pde5', 'midazolam', 'nitro-high'])).toEqual(['nitro-no-bp']);
+    expect(nitroPenalties('cocaine-chest-pain-field', 2, ['iv', 'vitals', 'midazolam', 'nitro-high'])).toEqual(['nitro-high-chest-pain']);
+    // the low-pressure rules the SCAPE cases write in their own words stand at the low-pressure rank: the checks give way to them
+    for (const [id, rule] of [['scape-ed', 'nitro-below-target'], ['scape-field', 'nitro-pressure-fallen']]) {
+      const r = SCENARIO_BY_ID[id].harms.find((h) => h.id === rule)!;
+      const role: LearningLevel = id === 'scape-ed' ? 7 : 2;
+      const low = fixture({ setting: id === 'scape-ed' ? 'ed' : 'field', role, rhythm: SINUS, vitals: { sbp: 96, dbp: 60, pain: 6 }, harms: [r, ...SCENARIO_BY_ID[id].harms.filter((h) => h.id === 'nitro-no-pde5')] });
+      expect(penaltyIds(low, role, ['vitals', 'nitro']), id).toEqual([rule]);
+    }
+  });
+
+  it('0.8 mg with no pressure taken charges the pressure check alone, at its weight: never less than 0.4 mg with none', () => {
+    const onlyNoBp = (id: string, steps: string[]) => {
+      const s = runScenario(SCENARIO_BY_ID[id], 2, steps);
+      expect(s.penalties.map((p) => [p.id, p.points]), `${id} ${steps.join(' ')}`).toEqual([['nitro-no-bp', 5]]);
+    };
+    for (const id of ['stemi-anterior-field', 'posterior-stemi-field']) {
+      onlyNoBp(id, ['iv', 'nitro-high']);
+      onlyNoBp(id, ['iv', 'nitro']);
+    }
+    // stable VT with no chest pain: the case's no-pain rule waits for a pressure, and the 0.8 mg rule ranks under the check
+    onlyNoBp('stable-vt-field', ['iv', 'procainamide', 'fluid', 'transport-pci', 'nitro-high']);
+    // the ideal runs take the pressure first: with it taken, the 0.8 mg rule still judges the dose
+    expect(runScenario(SCENARIO_BY_ID['posterior-stemi-field'], 2, ['primary', 'vitals', 'ask-pde5', 'nitro-high']).penalties.map((p) => p.id))
+      .toEqual(['nitro-high-not-hypertensive']);
   });
 
   it('ED SCAPE: titrating the ordered nitroglycerin infusion under 160 is not the 0.8 mg rule (lead decision 29)', () => {

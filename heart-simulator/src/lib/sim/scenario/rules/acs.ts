@@ -145,18 +145,19 @@ const NITRATE_RANKS: GateRule[] = [
     text: 'Nitroglycerin for an inferior STEMI before a right-sided lead. Up to half of inferior infarcts take in the right ventricle, which lives on its preload: record V4R first — ST elevation there means no nitrates (2025 ACC/AHA ACS).',
   },
   {
+    // ranked over the 0.8 mg dose rule, the fast rate, the interval, the PDE-5 question and no pain (3 points each): without a
+    // pressure the learner cannot know the dose is safe, nor whether the pressure is high enough for 0.8 mg — so the larger
+    // dose given blind never costs less than the standard one. It is a check, not a contraindication: the ER nurse's missing
+    // order does not cover it, and it charges beside it (lead decision 2)
+    id: 'nitro-no-bp', actions: NITRATES_SL, applies: (s, sc) => beforeTheLab(sc) && !has(s, 'bp'), points: 5, severity: 'major',
+    text: 'Nitroglycerin without a blood pressure first. A systolic under 90, or one 30 below the patient\'s usual, rules it out (2025 ACC/AHA ACS), so every protocol takes a pressure before each dose: the monitor\'s cuff, a manual set or a reassessment.',
+  },
+  {
     // with an LVAD a Doppler MAP over 90 is the high pressure, 60 the low one. The IV infusion is dosed by its indication
     // (the high-dose bolus only for hypertensive pulmonary edema at 160 or more; otherwise 10 mcg/min, no bolus): not this rule's
     id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], applies: (s) => !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160),
     points: 3, severity: 'minor',
     text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.',
-  },
-  {
-    // ranked over the fast rate, the interval, the PDE-5 question and no pain (3 points each): without a pressure the learner
-    // cannot know the dose is safe. Under the 0.8 mg dose rule, which the ER nurse's missing order covers (one act, one
-    // penalty) and which the cases' checks have always charged beside
-    id: 'nitro-no-bp', actions: NITRATES_SL, applies: (s, sc) => beforeTheLab(sc) && !has(s, 'bp'), points: 5, severity: 'major',
-    text: 'Nitroglycerin without a blood pressure first. A systolic under 90, or one 30 below the patient\'s usual, rules it out (2025 ACC/AHA ACS), so every protocol takes a pressure before each dose: the monitor\'s cuff, a manual set or a reassessment.',
   },
   {
     // a stimulant's tachycardia is treated with a benzodiazepine and nitroglycerin (2014 AHA/ACC NSTE-ACS)
@@ -205,17 +206,25 @@ export const topNitrate = NITRATE_GATE.top;
 export const NITRATE_CHECKS = NITRATE_CHECK_IDS;
 
 /**
- * The gate's reasons to hold a nitrate dose altogether (its contraindications): the ranks above the 0.8 mg dose rule, and the
- * fast rate. The other ranks judge the size of the dose, the checks before it and whether it is indicated
+ * The gate's reasons to hold a nitrate dose altogether (its contraindications): the ranks above the pressure check and the
+ * 0.8 mg dose rule, and the fast rate. The other ranks judge the checks before the dose, its size and whether it is indicated
  */
 const NITRATE_CONTRAINDICATIONS = [
-  ...NITRATE_RANKS.slice(0, NITRATE_RANKS.findIndex((r) => r.id === 'nitro-high-not-hypertensive')).map((r) => r.id), 'nitro-tachycardia',
+  ...NITRATE_RANKS.slice(0, NITRATE_RANKS.findIndex((r) => r.id === 'nitro-no-bp')).map((r) => r.id), 'nitro-tachycardia',
 ];
 
 
 /** Another case rule (not `selfId`) applies to this dose and lists the built-in `ruleId` in its `replaces`: it speaks in its place */
 const hiddenByCase = (ruleId: string, selfId: string, s: SimState, sc: Scenario, id: string) =>
   sc.harms.some((h) => h.id !== selfId && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id) && !!h.replaces?.includes(ruleId) && (!h.when || h.when(s, sc, id)));
+
+/** The rank in the nitrate gate each case rule built by nitrateCaseRule stands at (its index in NITRATE_RANKS) */
+const RANK_AT = new WeakMap<Harm, number>();
+/** A copy of a case nitrate rule (e.g. rules/rhythm.ts yieldToHeavier's) stands at the rank of the rule it copies */
+export const carryNitrateRank = (from: Harm, to: Harm) => {
+  const r = RANK_AT.get(from);
+  if (r !== undefined) RANK_AT.set(to, r);
+};
 
 /**
  * A case rule that judges a nitrate dose in its own words, kept in the gate's order: one dose, one penalty, the most
@@ -225,10 +234,13 @@ const hiddenByCase = (ruleId: string, selfId: string, s: SimState, sc: Scenario,
  * - It gives way to a contraindication the gate ranks above `rank` that charges this dose instead — the built-in, or the
  *   case's own rule with its id — and in an arrest to the no-role rule. (A contraindication another case rule speaks for in
  *   its `replaces` is that rule's: this one charges beside it, as before the gate.)
+ * - It gives way to a check ranked above `rank` that holds for the dose (the pressure check, ranked over the 0.8 mg dose
+ *   rule and the indication: without a pressure the learner cannot know the dose is safe), and to the ranks in `yieldTo`
+ *   above it — the built-in, the case's own rule with its id, or another of the case's nitrate rules standing at that rank
+ *   under its own id (one check a dose, as the gate's own ranks are).
  * - While it applies it hides the built-in ranks it stands for: the contraindications from `rank` down, and every check,
  *   dose and indication rank.
- * - The ranks in `beside` it neither gives way to nor hides: they charge beside it (NITRATE_CHECKS for a case rule that is
- *   a check itself — the checks are each a mistake of their own).
+ * - The ranks in `beside` it neither gives way to nor hides: they charge beside it.
  * - A rule with a built-in's id stands aside once it has charged, as the gate passes its rank over: a later dose is judged
  *   by the gate again. A rule with another id keeps covering its ranks, so a repeated mistake is charged once.
  */
@@ -237,35 +249,48 @@ export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: stri
   if (at < 0) throw new Error(`nitrateCaseRule: ${rank} is not a rank of the nitrate gate`);
   const above = NITRATE_RANKS.slice(0, at);
   const builtInId = NITRATE_RANKS.some((r) => r.id === harm.id);
+  const yields = [...yieldTo, ...NITRATE_CHECK_IDS.filter((c) => !beside.includes(c))];
+  const roleOk = (h: Harm, s: SimState) => !h.roles || h.roles.includes(s.role);
   const outranked: Check = (s, sc, id) => {
     if (!s.pulse) return true;
     const top = topOf(above, s, sc, id);
     if (top !== null && NITRATE_CONTRAINDICATIONS.includes(top) && !beside.includes(top) && !hiddenByCase(top, harm.id, s, sc, id)) return true;
-    // a rank of `yieldTo` above this one holds for the dose: e.g. a check ranked higher (one check a dose) — the built-in, or
-    // the case's own rule with its id, which may judge an action the built-in does not (a case's IV nitroglycerin). Whoever
+    // a rank it gives way to above this one holds for the dose: e.g. a check ranked higher (one check a dose) — the built-in,
+    // or the case's own rule with its id, which may judge an action the built-in does not (a case's IV nitroglycerin). Whoever
     // charges it (that rule, or a case rule standing in for it), this one gives way. A rank that charged an earlier dose is
     // passed over, as the gate passes it over: a later dose is judged anew
-    return above.filter((r) => yieldTo.includes(r.id) && !chargedBefore(s, r.id)).some((r) => {
-      const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id));
+    if (above.filter((r) => yields.includes(r.id) && !chargedBefore(s, r.id)).some((r) => {
+      const own = sc.harms.filter((h) => h.id === r.id && roleOk(h, s) && h.actions.includes(id));
       return own.length ? own.some((h) => !h.when || h.when(s, sc, id)) : r.actions.includes(id) && r.applies(s, sc, id) && !indicationCovered(r.id, s, sc, id);
+    })) return true;
+    // another of the case's nitrate rules, under its own id, stands at such a rank and charges this dose (its own condition,
+    // its own place in the gate; not charged on an earlier dose): e.g. a case's repeat-dose check at the interval's rank, or
+    // its 0.8 mg rule. Its rank is above this one, so the question never comes back here
+    return sc.harms.some((h) => {
+      const r = RANK_AT.get(h);
+      return r !== undefined && r < at && h.id !== harm.id && yields.includes(NITRATE_RANKS[r].id) && roleOk(h, s) && h.actions.includes(id)
+        && (!h.when || h.when(s, sc, id)) && !chargedBefore(s, h.id);
     });
   };
   const covers = NITRATE_RANKS.map((r) => r.id)
     .filter((id, i) => id === rank || (!beside.includes(id) && (i >= at || !NITRATE_CONTRAINDICATIONS.includes(id))))
     .filter((id) => !harm.replaces?.includes(id));
-  return {
+  const rule: Harm = {
     ...harm,
     when: (s, sc, id) => (!harm.when || harm.when(s, sc, id)) && !outranked(s, sc, id) && !(builtInId && chargedBefore(s, harm.id)),
     replaces: [...(harm.replaces ?? []), ...covers],
   };
+  RANK_AT.set(rule, at);
+  return rule;
 }
 
 /**
  * A case rule that is one of the checks before a sublingual dose (the pressure, the interval, the PDE-5 question), at its
  * rank in the gate, as the built-in check is: one dose, one penalty. It gives way to any rank above it that holds for the
  * dose — a contraindication, the 0.8 mg dose rule, no pain to treat, or a check ranked higher (the pressure, then the
- * interval, then the PDE-5 question): the built-in, or the case's own rule with its id — and hides the built-in ranks
- * below it. (The ER nurse's missing order is no rank of the gate: a check still charges beside it, lead decision 2)
+ * interval, then the PDE-5 question): the built-in, the case's own rule with its id, or another of the case's nitrate rules
+ * standing at that rank — and hides the built-in ranks below it. (The ER nurse's missing order is no rank of the gate: a
+ * check still charges beside it, lead decision 2)
  */
 export const nitrateCheckRule = (harm: Harm, rank: string = harm.id) =>
   nitrateCaseRule(harm, rank, [], NITRATE_RANKS.map((r) => r.id));
