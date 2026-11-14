@@ -30,8 +30,8 @@ import type {
 import { BUILT_IN_HARMS } from './rules';
 import { INDICATION_RULES, RN_ORDER_ONLY, rnWithoutOrderId } from './rules/scope';
 import {
-  cprThisArrest, did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, preexcitedAf, profileShowsStemi, radialSheath, rhythmKind,
-  shockable, slowOrBlocked, tachyarrhythmia,
+  cprThisArrest, did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, outflowObstruction, preexcitedAf, preloadDependent, profileShowsStemi,
+  radialSheath, rhythmKind, shockable, slowOrBlocked, tachyarrhythmia,
 } from './rules/helpers';
 
 const round = (m: number) => Math.round(m * 10) / 10;
@@ -219,15 +219,19 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (!has(s, 'labs') && !did(s, 'labs')) return { blocked: true, say: [['system', 'There is nothing to repeat yet: draw the first set of labs (with the first troponin).']] };
       return { say: [['team', fact('troponin') ?? 'Repeat high-sensitivity troponin drawn and sent; the result is back within the hour.']], flags: ['troponin-repeat'] };
     case 'act':
-      // a low ACT is what guides another heparin bolus (the rule heparin-repeat-unguided reads the timer)
+      // a low ACT is what guides another heparin bolus (the rule heparin-repeat-unguided reads the timer). Bivalirudin
+      // raises the ACT as well: with it running there is nothing low to top up
+      if (has(s, 'bivalirudin')) return { say: [['team', 'ACT 330 s with the bivalirudin running.']], flags: ['act'] };
       return has(s, 'heparin')
         ? { say: [['team', 'ACT 286 s: therapeutic for PCI.']], flags: ['act'] }
         : { say: [['team', 'ACT 128 s: no heparin effect yet.']], flags: ['act'], timers: { actLowAt: s.minute } };
     case 'echo': return { say: [['you', fact('echo') ?? 'Normal biventricular function; no effusion.']], flags: ['echo'] };
     case 'lvedp':
+      if (!s.pulse) return noHemoInArrest;
       if (!has(s, 'access')) return s.role === 5 ? noAccess : noCatheter;
       return { say: [['monitor', fact('lvedp') ?? 'LV 128/10, LVEDP 10 mmHg.']], flags: ['lvedp'] };
     case 'rhc':
+      if (!s.pulse) return noHemoInArrest;
       if (!has(s, 'venous')) return { blocked: true, say: [['system', s.role === 5 ? 'A right heart run needs venous access first.' : 'No venous sheath in yet.']] };
       return { say: [['monitor', fact('rhc') ?? 'RA 6 · RV 26/6 · PA 26/10 (mean 16) · PCWP 10 · CO 5.2 L/min, CI 2.8.']], flags: ['rhc'] };
 
@@ -236,15 +240,17 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       // a mask or a cannula only offers oxygen to someone who breathes: in an arrest, or breathing too little, nothing changes
       const what = id === 'o2-nc' ? 'Cannula on' : 'Mask on';
       if (!s.pulse) return { say: [['you', `${what} — but the patient is not breathing: a mask or a cannula only offers oxygen to someone who breathes. Bag-mask with oxygen.`, 'warn']], flags: ['o2'] };
-      if ((v.rr < 8 || v.gcs <= 8) && !ventilated(s)) {
+      if (v.rr < 8 && !ventilated(s)) {
         return { say: [['you', `${what} — but the patient is barely breathing: a mask or a cannula only offers oxygen to someone who breathes enough. Assist the breaths with the bag-mask and oxygen.`, 'warn']], flags: ['o2'] };
       }
+      // an obtunded patient who breathes at a fair rate does take the oxygen in: the danger is the airway, not the breathing
+      const airway: Line[] = v.gcs <= 8 && !ventilated(s) && !has(s, 'airway') ? [['you', 'GCS 8 or less: the patient cannot protect the airway — position, suction, and prepare to manage it.', 'warn']] : [];
       if (id === 'o2-nc') {
         const spo2 = Math.min(97, v.spo2 + (v.spo2 < 94 ? 4 : 1));
-        return { say: [['monitor', `Nasal cannula on. SpO₂ ${spo2}%.`]], vitals: { spo2 }, flags: ['o2'] };
+        return { say: [['monitor', `Nasal cannula on. SpO₂ ${spo2}%.`], ...airway], vitals: { spo2 }, flags: ['o2'] };
       }
       const spo2 = Math.min(100, v.spo2 + 5);
-      return { say: [['monitor', `Non-rebreather at 15 L/min. SpO₂ ${spo2}%.`]], vitals: { spo2 }, flags: ['o2'] };
+      return { say: [['monitor', `Non-rebreather at 15 L/min. SpO₂ ${spo2}%.`], ...airway], vitals: { spo2 }, flags: ['o2'] };
     }
     case 'bvm':
       // an awake patient who breathes well enough refuses the mask; one who breathes too slowly is assisted, at any GCS
@@ -319,6 +325,11 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'sit-up':
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: compressions move the blood, not the position of the body.']] };
       if (v.gcs <= 8) return { blocked: true, say: [['system', 'Not with a GCS of 8 or less: a patient this drowsy cannot hold the airway sitting up. Keep them on their side or flat, and support the breathing.']] };
+      // a femoral puncture keeps the hip straight — the sheath in, and the bed rest after it comes out: bending it bleeds
+      // into the groin or behind the abdomen, or kinks the sheath
+      if (has(s, 'femoral')) return { blocked: true, say: [['system', 'Not after a femoral puncture: the hip stays straight (the sheath, then the bed rest after it comes out). Raise the head of the bed no more than 30°.']] };
+      // on the cath lab table the legs stay on the table
+      if (sc.setting === 'cathlab') return { say: [['you', 'Head of the table raised as far as it goes, the legs kept on the table.']], flags: ['sat-up'], clear: ['legs-up'] };
       return { say: [['you', 'Sitting upright, the legs hanging down.']], flags: ['sat-up'], clear: ['legs-up'] };
     case 'temp-control':
       if (!s.pulse) return { blocked: true, say: [['system', 'Not during CPR: temperature control is for after ROSC.']] };
@@ -344,17 +355,23 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       // the patient's own tablet or spray, under their own tongue: only for someone awake enough to take it
       if (!s.pulse || !canSwallow(s)) return { blocked: true, say: [['system', 'The patient must be awake enough to take their own nitroglycerin under the tongue.']] };
       if (!fact('ownNitro')) return { blocked: true, say: [['patient', "I don't have any nitroglycerin of my own."]] };
-      const e = nitroEffect(s);
+      const e = nitroEffect(s, sc);
       return did(s, 'nitro-assist') ? { ...e, say: [['you', 'Another of the patient\'s own nitroglycerin under the tongue.'], ...(e.say ?? [])] } : e;
     }
-    case 'nitro': return nitroEffect(s);
-    case 'nitro-high': return nitroEffect(s, true);
+    case 'nitro': return nitroEffect(s, sc);
+    case 'nitro-high': return nitroEffect(s, sc, true);
     case 'nitro-iv': {
-      // the high-dose IV bolus unloads like the 0.8 mg sublingual dose; then the infusion is titrated to the pressure
-      const e = nitroEffect(s, true);
+      // the dose follows the indication: hypertensive pulmonary edema gets the high-dose bolus, which unloads like the 0.8 mg
+      // sublingual dose, then a fast infusion; anything else (ischemic pain that persists, a high pressure) the standard
+      // infusion from 5–10 mcg/min, titrated, with no bolus (2014 AHA/ACC NSTE-ACS; 2025 ACC/AHA ACS)
+      const high = s.pulse && hasProblem(sc, ['pulmonary-edema', 'heart-failure']) && (s.lvad ? mapOf(v) > 90 : v.sbp >= 160);
+      const e = nitroEffect(s, sc, high);
       if (!s.pulse) return e;
-      const given = did(s, 'nitro-iv') ? 'The nitroglycerin infusion titrated up, with the pressure checked every few minutes.' : 'Nitroglycerin 400 mcg IV over 2 minutes, then the infusion at 100 mcg/min.';
-      return { ...e, say: [['you', given], ...(e.say ?? [])], flags: ['nitro', 'nitro-high', 'nitro-iv'] };
+      const again = did(s, 'nitro-iv');
+      const given = high
+        ? again ? 'The nitroglycerin infusion titrated up, with the pressure checked every few minutes.' : 'Nitroglycerin 400 mcg IV over 2 minutes, then the infusion at 100 mcg/min.'
+        : again ? 'The nitroglycerin infusion up by 10 mcg/min, with the pressure checked every few minutes.' : 'Nitroglycerin infusion started at 10 mcg/min, no bolus, to be titrated up 10 mcg/min every 3–5 minutes to the pain and the pressure.';
+      return { ...e, say: [['you', given], ...(e.say ?? [])], flags: high ? ['nitro', 'nitro-high', 'nitro-iv'] : ['nitro', 'nitro-iv'] };
     }
     case 'nicardipine': {
       if (!s.pulse) return noRoleInArrest('Nicardipine', 'nicardipine');
@@ -392,10 +409,14 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'Fentanyl IV given.'], ...ifAwake(s, feels)], vitals: { pain, rr }, flags: ['analgesia'] };
     }
     case 'stop-antithrombotics': {
-      // only something given can be stopped: the drips, and no more boluses
-      const running = [['heparin', 'heparin'], ['bivalirudin', 'bivalirudin'], ['gp2b3a', 'eptifibatide'], ['cangrelor', 'cangrelor']].filter(([f]) => has(s, f)).map(([, name]) => name);
-      if (!running.length) return { blocked: true, say: [['system', 'There is no heparin, bivalirudin, GP IIb/IIIa or cangrelor to stop: none has been given.']] };
-      return { say: [['you', `Stopped: ${running.join(', ')} — off at the pump, no more boluses, and the orders say so.`]], flags: ['antithrombotics-stopped'] };
+      // only something given can be stopped. The lab's heparin is boluses only (no drip to turn off); the emergency
+      // department's runs as an infusion after its bolus, as bivalirudin, eptifibatide and cangrelor always do
+      const given = [['heparin', 'heparin'], ['bivalirudin', 'bivalirudin'], ['gp2b3a', 'eptifibatide'], ['cangrelor', 'cangrelor']].filter(([f]) => has(s, f));
+      if (!given.length) return { blocked: true, say: [['system', 'There is no heparin, bivalirudin, GP IIb/IIIa or cangrelor to stop: none has been given.']] };
+      const labHeparin = sc.setting === 'cathlab' && has(s, 'heparin');
+      const drips = given.filter(([f]) => !(labHeparin && f === 'heparin')).map(([, name]) => name);
+      const parts = [...(drips.length ? [`${drips.join(', ')} off at the pump`] : []), labHeparin ? 'no more heparin boluses' : 'no more boluses'];
+      return { say: [['you', `Stopped: ${parts.join(', ')} — and the orders say so.`]], flags: ['antithrombotics-stopped'] };
     }
     case 'heparin': return { say: [['you', did(s, 'heparin') ? 'Another heparin bolus given (weight-based).' : 'Heparin bolus given (weight-based).']], flags: ['heparin'] };
     case 'metoprolol': {
@@ -1024,6 +1045,7 @@ function historyAnswer(s: SimState, own: string | null, text: string, flag: stri
 }
 
 const noEcgInArrest: Effect = { blocked: true, say: [['system', 'No 12-lead in cardiac arrest: treat the rhythm on the monitor.']] };
+const noHemoInArrest: Effect = { blocked: true, say: [['system', 'Not during CPR: no hemodynamic run in an arrest — the pressures mean nothing without a heartbeat of its own.']] };
 
 /**
  * The sinus node sets the rate, with a pulse. Not in PEA (organized complexes, no output), and not with a high potassium:
@@ -1076,16 +1098,29 @@ function deviceEffect(s: SimState, id: string): Effect {
   return result[id];
 }
 
-/** 0.4 mg sublingual; `high`: 0.8 mg, the pulmonary-edema dose, which unloads the heart (and drops the pressure) about twice as much */
-function nitroEffect(s: SimState, high = false): Effect {
+/**
+ * 0.4 mg sublingual; `high`: 0.8 mg, the pulmonary-edema dose, which unloads the heart (and drops the pressure) about twice
+ * as much. A case without its own nitrate response still gets the crash its contraindications bring: after a PDE-5
+ * inhibitor (or riociguat), in a heart that lives on its preload (an undrained tamponade, a pulmonary embolism, an RV
+ * infarct) or behind an outflow obstruction, the pressure falls profoundly and nothing is relieved
+ */
+function nitroEffect(s: SimState, sc: Scenario, high = false): Effect {
   if (!s.pulse) return noRoleInArrest('Nitroglycerin', 'nitro');
+  const flags = high ? ['nitro', 'nitro-high'] : ['nitro'];
+  if (hasProblem(sc, ['pde5-inhibitor']) || preloadDependent(s, sc) || outflowObstruction(sc)) {
+    const bp = bpAfter(s, high ? -50 : -40, high ? -30 : -24);
+    return {
+      say: [...bpLine(s, bp), ['monitor', 'The pressure keeps falling; the heart rate climbs.', 'bad'], ...ifAwake(s, '"I feel faint… everything is going grey."')],
+      vitals: { ...bp, gcs: Math.min(s.vitals.gcs, 14) }, flags,
+    };
+  }
   const pain = Math.max(0, s.vitals.pain - 2);
   const bp = high ? bpAfter(s, -20, -10) : bpAfter(s, -10, -6);
   // only a patient who has chest pain, and is awake enough to say so, says how it feels
   const feels = s.vitals.pain > 0 ? ifAwake(s, pain <= 4 ? '"The pressure is easing."' : '"Maybe a little better."') : [];
   return {
     say: [...feels, ...bpLine(s, bp)],
-    vitals: { pain, ...bp }, flags: high ? ['nitro', 'nitro-high'] : ['nitro'],
+    vitals: { pain, ...bp }, flags,
   };
 }
 

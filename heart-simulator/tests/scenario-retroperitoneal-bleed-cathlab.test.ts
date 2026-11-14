@@ -364,7 +364,7 @@ describe('retroperitoneal bleed in the cath lab: the traps', () => {
     const left = run(sc, 5, ['perfusion', 'bivalirudin']);
     expect(missed(left)).toContain('Stop the bivalirudin, GP IIb/IIIa or cangrelor drip started in the bleed');
     const stopped = run(sc, 5, ['perfusion', 'bivalirudin', 'stop-antithrombotics']);
-    expect(stopped.log.at(-1)!.text).toMatch(/^Stopped: .*bivalirudin — off at the pump/);
+    expect(stopped.log.at(-1)!.text).toMatch(/^Stopped: .*bivalirudin off at the pump/);
     expect(missed(stopped)).not.toContain('Stop the bivalirudin, GP IIb/IIIa or cangrelor drip started in the bleed');
     // with none started the item never applies (the ideal run stays complete)
     expect(missed(run(sc, 5, ['perfusion']))).not.toContain('Stop the bivalirudin, GP IIb/IIIa or cangrelor drip started in the bleed');

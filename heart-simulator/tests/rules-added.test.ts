@@ -132,6 +132,12 @@ describe('nicardipine: aortic stenosis, a low pressure, no high pressure (in tha
     const dissection = edLine({ vitals: { sbp: 112, dbp: 70 }, problems: ['aortic-dissection'] });
     expect(penaltyIds(dissection, 7, ['nicardipine'])).not.toContain('nicardipine-no-hypertension');
     expect(penaltyIds(dissection, 7, ['esmolol', 'nicardipine'])).toContain('nicardipine-no-hypertension');
+    // a teammate's (or the physician's fallback) beta-blocker counts as well: its flag, with no dose of the learner's
+    expect(penaltyIds(opened('ed', 7, ['iv', 'beta-blocker'], { vitals: { sbp: 112, dbp: 70 }, problems: ['aortic-dissection'] }), 7, ['nicardipine'])).toEqual(['nicardipine-no-hypertension']);
+  });
+
+  it('an exemption of the top rank only: the next rank judges the dose', () => {
+    expect(penaltyIds(edLine({ vitals: LOW, problems: ['severe-aortic-stenosis'], harms: [exempt('nicardipine-aortic-stenosis', ['nicardipine'])] }), 7, ['nicardipine'])).toEqual(['vasodilator-hypotension']);
   });
 
   it('same-id case rules replace them; nothing in an arrest', () => {
@@ -144,32 +150,57 @@ describe('nicardipine: aortic stenosis, a low pressure, no high pressure (in tha
   });
 });
 
-describe('the inotrope: outflow obstruction, a low pressure with no vasopressor, a tachyarrhythmia (in that order)', () => {
+describe('the inotrope: outflow obstruction, a dissection, a low pressure with no vasopressor, a tachyarrhythmia, no low output (in that order)', () => {
+  const SHOCK = ['cardiogenic-shock'] as const;
   it('each fires in its state, and the one before it wins for one dose', () => {
-    expect(penaltyIds(edLine({ vitals: LOW, problems: ['lvot-obstruction'] }), 7, ['inotrope'])).toEqual(['inotrope-lvot-obstruction']);
+    expect(penaltyIds(edLine({ vitals: LOW, problems: ['lvot-obstruction', 'aortic-dissection'] }), 7, ['inotrope'])).toEqual(['inotrope-lvot-obstruction']);
+    expect(penaltyIds(edLine({ vitals: LOW, problems: ['aortic-dissection'] }), 7, ['inotrope'])).toEqual(['inotrope-dissection']);
+    expect(penaltyIds(edLine({ vitals: { sbp: 196, dbp: 100 }, problems: ['aortic-dissection'] }), 7, ['inotrope'])).toEqual(['inotrope-dissection']);
     expect(penaltyIds(edLine({ vitals: LOW, rhythm: { profile: 'svt', hr: 170 } }), 7, ['inotrope'])).toEqual(['inotrope-unsupported-hypotension']);
+    expect(penaltyIds(edLine({ rhythm: { profile: 'afib', hr: 140 }, problems: [...SHOCK] }), 7, ['inotrope'])).toEqual(['inotrope-tachyarrhythmia']);
     expect(penaltyIds(edLine({ rhythm: { profile: 'afib', hr: 140 } }), 7, ['inotrope'])).toEqual(['inotrope-tachyarrhythmia']);
+    // no shock, no failing pump, a pressure that holds: a hypertensive pulmonary edema, an MI without shock
+    expect(penaltyIds(edLine({ vitals: { sbp: 206, dbp: 110 }, problems: ['pulmonary-edema'] }), 7, ['inotrope'])).toEqual(['inotrope-no-indication']);
+    expect(penaltyIds(edLine({ vitals: { sbp: 148, dbp: 86 }, problems: ['acs'] }), 7, ['inotrope'])).toEqual(['inotrope-no-indication']);
   });
 
   it('low output with the pressure held up by a vasopressor: none; it holds the systolic and speeds the sinus rate a little', () => {
-    expect(penaltyIds(edLine({ vitals: LOW }), 7, ['pressor', 'inotrope'])).toEqual([]);
-    const s = run(edLine({ vitals: { sbp: 96, dbp: 60 } }), 7, ['inotrope']);
+    expect(penaltyIds(edLine({ vitals: LOW, problems: [...SHOCK] }), 7, ['pressor', 'inotrope'])).toEqual([]);
+    // the vasopressor running, the pressure still low: not the 'alone' mistake (and no lack of indication with it so low)
+    expect(penaltyIds(opened('ed', 7, ['iv', 'pressor'], { vitals: LOW }), 7, ['inotrope'])).toEqual([]);
+    const s = run(edLine({ vitals: { sbp: 96, dbp: 60 }, problems: ['heart-failure'] }), 7, ['inotrope']);
     expect(s.penalties).toEqual([]);
     expect([s.vitals.sbp, s.vitals.dbp, s.rhythm.hr]).toEqual([98, 56, 86]);
     expect(s.flags.inotrope).toBeDefined();
   });
 
-  it('same-id case rules replace them', () => {
-    const harms = ['inotrope-lvot-obstruction', 'inotrope-unsupported-hypotension', 'inotrope-tachyarrhythmia'].map((id) => exempt(id, ['inotrope']));
+  it('same-id case rules replace them; an exemption of one rank lets the next one judge the dose', () => {
+    const harms = ['inotrope-lvot-obstruction', 'inotrope-dissection', 'inotrope-unsupported-hypotension', 'inotrope-tachyarrhythmia', 'inotrope-no-indication'].map((id) => exempt(id, ['inotrope']));
     expect(penaltyIds(edLine({ vitals: LOW, problems: ['lvot-obstruction'], harms }), 7, ['inotrope'])).toEqual([]);
+    expect(penaltyIds(edLine({ harms }), 7, ['inotrope'])).toEqual([]);
+    // only the top rank exempted: the case has said the outflow is no reason here, not that the dose is right
+    expect(penaltyIds(edLine({ vitals: LOW, problems: ['lvot-obstruction'], harms: [exempt('inotrope-lvot-obstruction', ['inotrope'])] }), 7, ['inotrope'])).toEqual(['inotrope-unsupported-hypotension']);
+  });
+
+  it('the ER nurse without an order is charged the order, not the indication', () => {
+    expect(penaltyIds(opened('ed', 6, ['iv']), 6, ['inotrope'])).toEqual(['rn-without-order-inotrope']);
+    // a contraindication still counts beside the missing order
+    expect(penaltyIds(opened('ed', 6, ['iv'], { problems: ['aortic-dissection'] }), 6, ['inotrope'])).toEqual(['inotrope-dissection', 'rn-without-order-inotrope']);
   });
 });
 
 describe('furosemide: a low pressure, a preload-dependent heart, no urine, no congestion (in that order)', () => {
   it('each fires in its state, and the one before it wins for one dose', () => {
     expect(penaltyIds(edLine({ vitals: LOW, problems: ['tamponade', 'dialysis'] }), 7, ['furosemide'])).toEqual(['furosemide-hypotension']);
-    for (const problems of [['tamponade'], ['pulmonary-embolism'], ['rv-infarction'], ['lvot-obstruction'], ['severe-aortic-stenosis']] as const) {
+    for (const problems of [['tamponade'], ['pulmonary-embolism'], ['rv-infarction']] as const) {
       expect(penaltyIds(edLine({ problems: [...problems, 'dialysis', 'pulmonary-edema'] }), 7, ['furosemide']), problems[0]).toEqual(['furosemide-preload-dependent']);
+    }
+    // an outflow obstruction is preload-dependent when the lungs are dry; with congestion a careful diuretic is the treatment
+    for (const problem of ['lvot-obstruction', 'severe-aortic-stenosis'] as const) {
+      expect(penaltyIds(edLine({ problems: [problem, 'dialysis', 'hyperkalemia'] }), 7, ['furosemide']), problem).toEqual(['furosemide-preload-dependent']);
+      expect(penaltyIds(edLine({ problems: [problem, 'pulmonary-edema'] }), 7, ['furosemide']), problem).toEqual([]);
+      expect(penaltyIds(edLine({ problems: [problem, 'heart-failure', 'dialysis'] }), 7, ['furosemide']), problem).toEqual(['furosemide-anuria']);
+      expect(penaltyIds(edLine({ vitals: LOW, problems: [problem, 'pulmonary-edema'] }), 7, ['furosemide']), problem).toEqual(['furosemide-hypotension']);
     }
     expect(penaltyIds(edLine({ problems: ['dialysis', 'hyperkalemia'] }), 7, ['furosemide'])).toEqual(['furosemide-anuria']);
     expect(penaltyIds(edLine(), 7, ['furosemide'])).toEqual(['furosemide-no-indication']);
@@ -196,8 +227,16 @@ describe('sit-up-low-pressure', () => {
   it('fires for a low pressure without fluid on the lungs; not with it, nor with a normal pressure', () => {
     expect(penaltyIds(fixture({ setting: 'field', role: 1, rhythm: SINUS, vitals: LOW }), 1, ['sit-up'])).toEqual(['sit-up-low-pressure']);
     expect(penaltyIds(fixture({ setting: 'field', role: 1, rhythm: SINUS, vitals: LOW, problems: ['pulmonary-edema'] }), 1, ['sit-up'])).toEqual([]);
+    expect(penaltyIds(fixture({ setting: 'field', role: 1, rhythm: SINUS, vitals: LOW, problems: ['heart-failure'] }), 1, ['sit-up'])).toEqual([]);
     expect(penaltyIds(fixture({ setting: 'field', role: 1, rhythm: SINUS }), 1, ['sit-up'])).toEqual([]);
     expect(penaltyIds(fixture({ setting: 'field', role: 1, rhythm: SINUS, vitals: LOW, harms: [exempt('sit-up-low-pressure', ['sit-up'])] }), 1, ['sit-up'])).toEqual([]);
+  });
+
+  it('not for a tamponade that will not let the patient lie down — until it is drained', () => {
+    expect(penaltyIds(fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: LOW, problems: ['tamponade'] }), 7, ['sit-up'])).toEqual([]);
+    // a tamponade that began mid-case (the flag) counts the same
+    expect(penaltyIds(opened('cathlab', 5, ['tamponade'], { vitals: LOW }), 5, ['sit-up'])).toEqual([]);
+    expect(penaltyIds(opened('ed', 7, ['drained'], { vitals: LOW, problems: ['tamponade'] }), 7, ['sit-up'])).toEqual(['sit-up-low-pressure']);
   });
 
   it('sits the patient up (and the legs come down); refused in an arrest or for a patient too drowsy to hold the airway', () => {
@@ -214,14 +253,58 @@ describe('sit-up-low-pressure', () => {
   });
 });
 
+describe('oral-beta-blocker-shock-risk', () => {
+  const acs = (vitals: Partial<typeof LOW>, hr = 80, problems: Parameters<typeof fixture>[0]['problems'] = ['acs']) =>
+    fixture({ setting: 'ed', role: 7, rhythm: { profile: hr > 100 ? 'sinus-tachycardia' : 'normal-sinus', hr }, vitals, problems });
+
+  it('fires in an ACS with a systolic of 90–99, a rate over 110 or under 60, or heart failure', () => {
+    expect(penaltyIds(acs({ sbp: 96, dbp: 60 }), 7, ['metoprolol-po'])).toEqual(['oral-beta-blocker-shock-risk']);
+    expect(penaltyIds(acs({}, 116), 7, ['metoprolol-po'])).toEqual(['oral-beta-blocker-shock-risk']);
+    expect(penaltyIds(acs({}, 56), 7, ['metoprolol-po'])).toEqual(['oral-beta-blocker-shock-risk']);
+    expect(penaltyIds(acs({}, 80, ['acs', 'heart-failure']), 7, ['metoprolol-po'])).toEqual(['oral-beta-blocker-shock-risk']);
+  });
+
+  it('not for a stable ACS patient, nor outside an ACS; the rhythm rules judge a low pressure, a slow rate and fluid on the lungs', () => {
+    expect(penaltyIds(acs({}), 7, ['metoprolol-po'])).toEqual([]);
+    expect(penaltyIds(acs({ sbp: 96, dbp: 60 }, 80, []), 7, ['metoprolol-po'])).toEqual([]);
+    for (const [vitals, hr, problems] of [[LOW, 80, ['acs']], [{}, 44, ['acs']], [{}, 80, ['acs', 'pulmonary-edema']]] as const) {
+      expect(penaltyIds(acs(vitals, hr, [...problems]), 7, ['metoprolol-po'])).not.toContain('oral-beta-blocker-shock-risk');
+    }
+    const exempted = fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { sbp: 96, dbp: 60 }, problems: ['acs'], harms: [exempt('oral-beta-blocker-shock-risk', ['metoprolol-po'])] });
+    expect(penaltyIds(exempted, 7, ['metoprolol-po'])).toEqual([]);
+  });
+});
+
 describe('IV nitroglycerin and calcium gluconate reach the existing rules', () => {
-  it('IV nitroglycerin: the high-dose effect, repeatable 3 times; with a systolic of 85 the nitrate rule fires', () => {
-    const s = run(edLine({ vitals: { sbp: 200, dbp: 110, pain: 4 } }), 7, ['nitro-iv', 'nitro-iv']);
+  it('IV nitroglycerin: the high-dose effect for hypertensive pulmonary edema, repeatable 3 times; with a systolic of 85 the nitrate rule fires', () => {
+    const s = run(edLine({ vitals: { sbp: 200, dbp: 110, pain: 4 }, problems: ['pulmonary-edema'] }), 7, ['nitro-iv', 'nitro-iv']);
     expect(s.log.filter((l) => /^(Nitroglycerin 400|The nitroglycerin infusion)/.test(l.text)).map((l) => l.text)).toEqual(['Nitroglycerin 400 mcg IV over 2 minutes, then the infusion at 100 mcg/min.', 'The nitroglycerin infusion titrated up, with the pressure checked every few minutes.']);
     expect(s.vitals.sbp).toBe(160);
     expect(s.flags).toMatchObject({ nitro: expect.any(Number), 'nitro-high': expect.any(Number), 'nitro-iv': expect.any(Number) });
     expect(INTERVENTION_BY_ID['nitro-iv']).toMatchObject({ repeatable: true, maxTimes: 3 });
     expect(penaltyIds(edLine({ vitals: { sbp: 85, dbp: 50 } }), 7, ['nitro-iv'])).toContain('nitro-hypotension');
+  });
+
+  it('IV nitroglycerin for ischemic pain or a high pressure without pulmonary edema: the standard infusion, no bolus', () => {
+    const s = run(edLine({ vitals: { sbp: 146, dbp: 90, pain: 6 }, problems: ['acs'] }), 7, ['nitro-iv', 'nitro-iv']);
+    expect(s.log.filter((l) => l.who === 'you' && /^(Nitroglycerin infusion|The nitroglycerin infusion)/.test(l.text)).map((l) => l.text)).toEqual([
+      'Nitroglycerin infusion started at 10 mcg/min, no bolus, to be titrated up 10 mcg/min every 3–5 minutes to the pain and the pressure.',
+      'The nitroglycerin infusion up by 10 mcg/min, with the pressure checked every few minutes.',
+    ]);
+    expect([s.vitals.sbp, s.vitals.pain]).toEqual([126, 2]);
+    expect(s.flags['nitro-high']).toBeUndefined();
+  });
+
+  it('a nitrate where the case gives no answer of its own: a profound fall after a PDE-5 inhibitor, with a preload-dependent heart or an outflow obstruction', () => {
+    for (const problems of [['acs', 'pde5-inhibitor'], ['tamponade'], ['pulmonary-embolism'], ['rv-infarction'], ['severe-aortic-stenosis']] as const) {
+      const s = run(edLine({ vitals: { sbp: 146, dbp: 90, pain: 6 }, problems: [...problems] }), 7, ['nitro-iv']);
+      expect([s.vitals.sbp, s.vitals.dbp, s.vitals.pain], problems.join()).toEqual([106, 66, 6]);
+      expect(s.log.some((l) => l.text === 'The pressure keeps falling; the heart rate climbs.'), problems.join()).toBe(true);
+    }
+    // the sublingual dose too
+    expect(run(edLine({ vitals: { sbp: 146, dbp: 90, pain: 6 }, problems: ['acs', 'pde5-inhibitor'] }), 7, ['nitro']).vitals.sbp).toBe(106);
+    // a tamponade once drained is no longer preload-dependent
+    expect(run(opened('ed', 7, ['iv', 'drained'], { vitals: { sbp: 146, dbp: 90, pain: 6 }, problems: ['tamponade'] }), 7, ['nitro-iv']).vitals.sbp).toBe(136);
   });
 
   it('calcium gluconate: the calcium rule without an indication; none with one; compressions only after CPR', () => {
@@ -264,8 +347,23 @@ describe('the hospital team actions: arterial line, procedure set-up, stopping t
     expect(refused.counts['stop-antithrombotics']).toBeUndefined();
     expect(refused.log.at(-1)!.text).toMatch(/^There is no heparin, bivalirudin, GP IIb\/IIIa or cangrelor to stop/);
     const s = run(edLine(), 7, ['heparin', 'stop-antithrombotics']);
-    expect(s.log.at(-1)!.text).toBe('Stopped: heparin — off at the pump, no more boluses, and the orders say so.');
+    expect(s.log.at(-1)!.text).toBe('Stopped: heparin off at the pump, no more boluses — and the orders say so.');
     expect(s.flags['antithrombotics-stopped']).toBeDefined();
+    // the lab's heparin is boluses only: there is no drip to turn off
+    const lab = opened('cathlab', 5, ['iv'], { problems: ['bleeding'] });
+    expect(run(lab, 5, ['heparin', 'stop-antithrombotics']).log.at(-1)!.text).toBe('Stopped: no more heparin boluses — and the orders say so.');
+    expect(run(lab, 5, ['heparin', 'bivalirudin', 'stop-antithrombotics']).log.at(-1)!.text).toBe('Stopped: bivalirudin off at the pump, no more heparin boluses — and the orders say so.');
+  });
+
+  it('stop-antithrombotics-mid-pci: stopping with a wire in the coronary and nothing bleeding costs 5; after the final angiogram, or for a bleed, a perforation or a SCAD it does not', () => {
+    const wired = (flags: string[], problems: Parameters<typeof fixture>[0]['problems'] = []) => opened('cathlab', 5, ['iv', 'access', 'guide', 'wired', ...flags], { problems });
+    expect(penaltyIds(wired([]), 5, ['heparin', 'stop-antithrombotics'])).toEqual(['stop-antithrombotics-mid-pci']);
+    expect(penaltyIds(wired(['final-angio']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
+    expect(penaltyIds(wired([], ['bleeding']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
+    expect(penaltyIds(wired(['perforation']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
+    expect(penaltyIds(wired(['scad']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
+    expect(penaltyIds(opened('cathlab', 5, ['iv', 'access']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
+    expect(penaltyIds(opened('cathlab', 5, ['iv', 'access', 'guide', 'wired'], { harms: [exempt('stop-antithrombotics-mid-pci', ['stop-antithrombotics'])] }), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
   });
 
   it('temperature control: after ROSC for a patient who does not follow commands; charged without that (3, minor); never during CPR', () => {

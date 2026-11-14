@@ -80,7 +80,7 @@ describe('drugs and devices in cardiac arrest', () => {
     expect(last(run(sc, 7, ['diphenhydramine']))).toBe('Diphenhydramine given — it has no place in cardiac arrest and changes nothing on the monitor.');
   });
 
-  it('a mask or a cannula offers oxygen only to someone who breathes: in an arrest, or breathing too little, the SpO₂ stays', () => {
+  it('a mask or a cannula offers oxygen only to someone who breathes: in an arrest, or breathing too little, the SpO₂ stays; obtunded, the airway is the warning', () => {
     const sc = arrest('field', 2);
     for (const [id, what] of [['o2-nc', 'Cannula on'], ['o2-nrb', 'Mask on']] as const) {
       const s = run(sc, 2, [id]);
@@ -93,8 +93,13 @@ describe('drugs and devices in cardiac arrest', () => {
     expect(last(masked)).toMatch(/^Mask on — but the patient is barely breathing/);
     // once someone breathes for them, the oxygen goes in with the breaths
     expect(run(slow, 2, ['bvm', 'o2-nrb']).vitals.spo2).toBe(89);
+    // obtunded but breathing at a fair rate: the oxygen goes in, and the danger named is the airway
     const drowsy = fixture({ setting: 'field', role: 2, rhythm: SINUS, vitals: { gcs: 8, spo2: 88 } });
-    expect(run(drowsy, 2, ['o2-nc']).vitals.spo2).toBe(88);
+    const cannula = run(drowsy, 2, ['o2-nc']);
+    expect(cannula.vitals.spo2).toBe(92);
+    expect(last(cannula)).toBe('GCS 8 or less: the patient cannot protect the airway — position, suction, and prepare to manage it.');
+    // once the airway is secured that warning is not repeated
+    expect(last(run(fixture({ setting: 'field', role: 2, rhythm: SINUS, vitals: { gcs: 3, spo2: 88, rr: 12 } }), 2, ['airway', 'o2-nrb']))).toBe('Non-rebreather at 15 L/min. SpO₂ 93%.');
     // breathing well: as before
     expect(run(fixture({ setting: 'field', role: 2, rhythm: SINUS, vitals: { spo2: 90 } }), 2, ['o2-nc']).vitals.spo2).toBe(94);
   });
@@ -306,5 +311,42 @@ describe('a reassessment shows the pressure only when its words do', () => {
     expect(run(faint, 2, ['reassess']).flags.bp).toBeUndefined();
     const own = fixture({ setting: 'field', role: 2, rhythm: SINUS, extra: { respond: { reassess: () => ({ say: [['you', 'Right arm BP 152/88 · pulse 80']] }) } } });
     expect(run(own, 2, ['reassess']).flags.bp).toBeDefined();
+  });
+});
+
+describe('the lab defaults: the ACT with bivalirudin, the hemodynamic runs in an arrest, sitting up on the table', () => {
+  const lab = (flags: string[], over: Partial<Parameters<typeof fixture>[0]> = {}) => fixture({
+    setting: 'cathlab', role: 5, rhythm: SINUS, ...over,
+    extra: { events: [{ id: 'setup', when: () => true, effect: () => ({ flags }) }] },
+  });
+
+  it('the ACT reads high with bivalirudin running, and sets no low-ACT timer: a heparin bolus on top of it is unguided', () => {
+    const s = run(lab(['iv']), 5, ['bivalirudin', 'act']);
+    expect(last(s)).toBe('ACT 330 s with the bivalirudin running.');
+    expect(s.timers.actLowAt).toBeUndefined();
+    expect(run(lab(['iv']), 5, ['act']).timers.actLowAt).toBe(0);
+  });
+
+  it('no LVEDP or right heart run during CPR', () => {
+    const vf = lab(['iv', 'access', 'venous'], { rhythm: { profile: 'vf', hr: 0 }, pulse: false });
+    for (const id of ['lvedp', 'rhc']) {
+      const s = perform(vf, start(vf, 5), id);
+      expect(s.counts[id], id).toBeUndefined();
+      expect(last(s), id).toBe('Not during CPR: no hemodynamic run in an arrest — the pressures mean nothing without a heartbeat of its own.');
+    }
+    expect(run(lab(['access', 'venous']), 5, ['lvedp', 'rhc']).flags).toMatchObject({ lvedp: expect.any(Number), rhc: expect.any(Number) });
+  });
+
+  it('sitting up: refused after a femoral puncture (the hip stays straight); on the table the head is raised and the legs stay on it', () => {
+    const femoral = lab(['access', 'femoral']);
+    const refused = perform(femoral, start(femoral, 5), 'sit-up');
+    expect(refused.counts['sit-up']).toBeUndefined();
+    expect(last(refused)).toMatch(/^Not after a femoral puncture: the hip stays straight/);
+    const closed = lab(['access', 'femoral', 'hemostasis']);
+    expect(perform(closed, start(closed, 5), 'sit-up').counts['sit-up']).toBeUndefined();
+    const radial = run(lab(['access']), 5, ['sit-up']);
+    expect(last(radial)).toBe('Head of the table raised as far as it goes, the legs kept on the table.');
+    expect(radial.flags['sat-up']).toBeDefined();
+    expect(last(run(fixture({ setting: 'ed', role: 7, rhythm: SINUS }), 7, ['sit-up']))).toBe('Sitting upright, the legs hanging down.');
   });
 });

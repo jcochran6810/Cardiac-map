@@ -120,24 +120,24 @@ describe('emergency department scope', () => {
     expect(groups.map((g) => g.label)).not.toContain('Other');
   });
 
-  it('gives the heparin and P2Y12 doses the ED uses, and keeps the lab\'s and the field\'s words exactly as they were', () => {
+  it('gives the heparin and P2Y12 doses the ED uses, and keeps the lab\'s and the field\'s own words', () => {
     const ed = Object.fromEntries(interventionsFor(7, 'ed').map((i) => [i.id, i.detail]));
     expect(ed.heparin).toMatch(/^weight-based: 60 U\/kg \(max 4,000 U\)/);
     expect(ed.p2y12).toMatch(/fibrinolytic, clopidogrel 300 mg/);
     expect(ed['ct-urgent']).toMatch(/pulmonary embolism.*leave the department$/);
     expect(ed['call-vad']).toMatch(/advise where the patient should be treated$/);
     expect(Object.fromEntries(interventionsFor(6, 'ed').map((i) => [i.id, i.detail])).heparin).toBe(ed.heparin);
-    // the cath lab nurse and cardiologist, and the field crews, see the words they saw before the ED came
+    // the cath lab nurse and cardiologist see the lab's dose (with its contraindications), and the field crews the words they saw before the ED came
     for (const role of [4, 5] as const) {
       const lab = Object.fromEntries(interventionsFor(role, 'cathlab').map((i) => [i.id, i.detail]));
-      expect(lab.heparin).toBe('70–100 U/kg for primary PCI');
+      expect(lab.heparin).toBe('70–100 U/kg for primary PCI, then to the ACT target; not with heparin-induced thrombocytopenia or active bleeding');
       expect(lab.p2y12).toBe('ticagrelor 180 mg (or prasugrel 60 mg)');
       expect(lab['ct-urgent']).toBe('head CT for a stroke (CT angiography if a clot could be pulled), abdomen and pelvis for a retroperitoneal bleed, chest CT angiography for a dissection — once the patient is stable enough to leave the lab');
     }
     for (const role of [1, 2] as const) {
       expect(interventionsFor(role, 'field').find((i) => i.id === 'call-vad')!.detail).toBe('the implanting center, 24/7: they talk you through the alarms and say where to take the patient');
     }
-    expect(detailFor(INTERVENTION_BY_ID.heparin, 'cathlab')).toBe('70–100 U/kg for primary PCI');
+    expect(detailFor(INTERVENTION_BY_ID.heparin, 'cathlab')).toBe('70–100 U/kg for primary PCI, then to the ACT target; not with heparin-induced thrombocytopenia or active bleeding');
     // the log line of the action says the setting's dose too
     expect(run(edPatient(), 7, ['iv', 'heparin']).log.some((l) => l.who === 'you' && l.text === `Unfractionated heparin IV bolus — ${ed.heparin}`)).toBe(true);
     // midazolam's procedural line names no setting
