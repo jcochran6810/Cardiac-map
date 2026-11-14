@@ -406,8 +406,14 @@ describe('no-sedation', () => {
 
   it('does not fire after sedation or analgesia, or in a patient no longer awake', () => {
     expect(pen(field({ rhythm: AF, vitals: { sbp: 110 } }), ['iv', 'midazolam', 'pads', 'cardiovert'])).toEqual([]);
-    expect(pen(field({ rhythm: AF, vitals: { sbp: 110 } }), ['iv', 'fentanyl', 'pads', 'cardiovert'])).toEqual([]);
+    expect(pen(field({ rhythm: AF, vitals: { sbp: 110 } }), ['iv', 'pads', 'fentanyl', 'cardiovert'])).toEqual([]);
     expect(pen(field({ rhythm: AF, vitals: { sbp: 110, gcs: 12 } }), ['pads', 'cardiovert'])).toEqual([]);
+  });
+
+  it('the analgesia counts for the shock once the pads are on: before them a stable tachycardia is no procedure (rules/acs.ts)', () => {
+    // fentanyl with no pain, for a stable AF with the pads still off, is judged by the opioid gate (opioid-no-pain), and once
+    // given it still covers the cardioversion: one penalty for the order, none for the shock
+    expect(pen(field({ rhythm: AF, vitals: { sbp: 110 } }), ['iv', 'fentanyl', 'pads', 'cardiovert'])).toEqual(['opioid-no-pain']);
   });
 
   it('a case rule with its id replaces it', () => {
@@ -426,12 +432,16 @@ describe('pace-no-analgesia', () => {
   });
 
   it('does not fire after analgesia, nor for a patient who is crashing (a low pressure)', () => {
-    expect(pen(field(awake), ['iv', 'fentanyl', 'pads', 'pace'])).toEqual([]);
+    expect(pen(field(awake), ['iv', 'pads', 'fentanyl', 'pace'])).toEqual([]);
     expect(pen(field({ ...awake, vitals: { sbp: 78, dbp: 48 } }), ['pads', 'pace'])).toEqual([]);
   });
 
   it('a case rule with its id replaces it', () => {
     expect(pen(field({ ...awake, harms: [exempt('pace-no-analgesia', ['pace'])] }), ['pads', 'pace'])).toEqual([]);
+  });
+
+  it('fentanyl before the pads, with no pain, is the opioid gate\'s (rules/acs.ts): one penalty, and the pacing is then covered', () => {
+    expect(pen(field(awake), ['iv', 'fentanyl', 'pads', 'pace'])).toEqual(['opioid-no-pain']);
   });
 });
 
