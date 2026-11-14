@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Vitals } from '../type
 import { atRate, bpAfter, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder } from '../edKit';
-import { ANTITHROMBOTIC_RULES, NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, nitrateCaseRule, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Acute type A aortic dissection in the emergency department. A 63-year-old man whose blood pressure has gone untreated
@@ -727,10 +727,10 @@ export const edDissection: Scenario = {
       replaces: NITRATE_RULES,
       text: 'A vasodilator before the rate is controlled. On its own it makes the heart race (reflex tachycardia) and pump harder against the tear (2022 ACC/AHA: an IV beta-blocker first, to a rate of 60–80; a vasodilator only after it, for a systolic still over 120).',
     },
-    {
-      id: 'vasodilator-below-goal', actions: VASODILATORS, when: (s) => s.pulse && !shock(s) && has(s, 'rate-controlled') && s.vitals.sbp <= 120, points: 3, severity: 'minor', replaces: NITRATE_RULES,
+    nitrateCaseRule({
+      id: 'vasodilator-below-goal', actions: VASODILATORS, when: (s) => s.pulse && !shock(s) && has(s, 'rate-controlled') && s.vitals.sbp <= 120, points: 3, severity: 'minor',
       text: 'More vasodilator with the systolic already at 120 or less. The goal is a systolic under 120, or the lowest pressure that keeps the brain, the kidneys and the gut perfused — not lower: a falling pressure in a torn aorta also hides the bleed into the pericardium.',
-    },
+    }, 'nitro-high-not-hypertensive'),
     {
       // the built-in 0.8 mg rule, same id: a deliberate exemption. This case judges every vasodilator dose itself — before the
       // rate is controlled, in shock, at the goal, and the nurse's 0.8 mg for an ordered 0.4 (the order's own rule); with the

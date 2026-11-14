@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_HARMS, start } from '@/lib/sim/scenario/engine';
 import {
-  ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateRulesExcept, sedationForProcedure, topNitrate,
+  ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule, nitrateRulesExcept,
+  sedationForProcedure, topNitrate,
 } from '@/lib/sim/scenario/rules/acs';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem, Vitals } from '@/lib/sim/scenario/types';
@@ -248,14 +249,33 @@ describe('the opioid and the sedatives', () => {
   const slow = { profile: 'third-degree-avb', hr: 38 };
 
   it('sedationForProcedure: a cardioversion, torsades, the pads pacing or about to pace a slow rate — not a wire, not a slow rate alone', () => {
-    const at = (rhythm: { profile: string; hr: number }, steps: string[] = []) => runScenario(patient({ rhythm }), 2, steps);
-    expect(sedationForProcedure(at({ profile: 'avnrt', hr: 188 }))).toBe(true);
-    expect(sedationForProcedure(at({ profile: 'torsades', hr: 220 }))).toBe(true);
-    expect(sedationForProcedure(at({ profile: 'tcp', hr: 70 }))).toBe(true);
-    expect(sedationForProcedure(at(slow, ['pads']))).toBe(true);
-    expect(sedationForProcedure(at(slow))).toBe(false);
-    expect(sedationForProcedure(at({ profile: 'paced', hr: 70 }, ['pads']))).toBe(false);
-    expect(sedationForProcedure(at(SINUS, ['pads']))).toBe(false);
+    const at = (rhythm: { profile: string; hr: number }, steps: string[] = [], over: Spec = {}) => {
+      const sc = patient({ rhythm, ...over });
+      return sedationForProcedure(runScenario(sc, 2, steps), sc);
+    };
+    // a tachycardia for the shock: unstable (a low pressure), or the pads on for it
+    expect(at({ profile: 'avnrt', hr: 188 }, [], { vitals: { sbp: 84, dbp: 50 } })).toBe(true);
+    expect(at({ profile: 'avnrt', hr: 188 }, ['pads'])).toBe(true);
+    expect(at({ profile: 'torsades', hr: 220 })).toBe(true);
+    expect(at({ profile: 'tcp', hr: 70 })).toBe(true);
+    expect(at(slow, ['pads'])).toBe(true);
+    expect(at(slow)).toBe(false);
+    expect(at({ profile: 'paced', hr: 70 }, ['pads'])).toBe(false);
+    expect(at(SINUS, ['pads'])).toBe(false);
+  });
+
+  it('sedationForProcedure: a stable tachycardia being slowed with drugs is no procedure; in the lab the standing pads say nothing about pacing', () => {
+    const fast = patient({ rhythm: { profile: 'atrial-fibrillation', hr: 148 }, vitals: { pain: 0 } });
+    expect(sedationForProcedure(runScenario(fast, 2, []), fast)).toBe(false);
+    // the fentanyl it brings is judged like any other dose: no pain, no procedure
+    expect(penaltyIds(fast, 2, ['iv', 'fentanyl'])).toEqual(['opioid-no-pain']);
+    const lab = fixture({ setting: 'cathlab', role: 4, rhythm: slow, vitals: { sbp: 84, dbp: 52, pain: 6 }, extra: { events: [{ id: 'pads', when: () => true, effect: () => ({ flags: ['pads', 'monitor'] }) }] } });
+    expect(sedationForProcedure(runScenario(lab, 4, []), lab)).toBe(false);
+    expect(penaltyIds(lab, 4, ['iv', 'fentanyl'])).toEqual(['opioid-hypotension']);
+    // the pads the learner puts on for pacing, or the pacer running, are the procedure there
+    expect(penaltyIds(lab, 4, ['iv', 'pads', 'fentanyl'])).toEqual([]);
+    const paced = fixture({ setting: 'cathlab', role: 4, rhythm: { profile: 'tcp', hr: 70 }, vitals: { sbp: 84, dbp: 52, pain: 6 } });
+    expect(penaltyIds(paced, 4, ['iv', 'fentanyl'])).toEqual([]);
   });
 
   it('opioid-respiratory: breathing under 10, or a GCS of 8 or less with no airway and no procedure', () => {
@@ -276,7 +296,12 @@ describe('the opioid and the sedatives', () => {
 
   it('opioid-no-pain: nothing to treat and no procedure; the ER nurse without an order is the order rule alone', () => {
     expect(penaltyIds(ivPatient({ vitals: { pain: 0 } }), 2, ['iv', 'fentanyl'])).toEqual(['opioid-no-pain']);
-    expect(penaltyIds(ivPatient({ rhythm: { profile: 'avnrt', hr: 180 }, vitals: { pain: 0 } }), 2, ['iv', 'fentanyl'])).toEqual([]);
+    // analgesia for the cardioversion: the pads on for the shock
+    expect(penaltyIds(ivPatient({ rhythm: { profile: 'avnrt', hr: 180 }, vitals: { pain: 0 } }), 2, ['iv', 'pads', 'fentanyl'])).toEqual([]);
+    // after intubation the tube is what it treats (analgesia first for a ventilated patient)
+    const intubated = fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { gcs: 7 } });
+    expect(penaltyIds(intubated, 7, ['iv', 'monitor', 'rsi', 'fentanyl'])).toEqual([]);
+    expect(penaltyIds(fixture({ setting: 'ed', role: 7, rhythm: SINUS }), 7, ['iv', 'fentanyl'])).toEqual(['opioid-no-pain']);
     const ed = fixture({ setting: 'ed', role: 6, rhythm: SINUS });
     expect(penaltyIds(ed, 6, ['iv', 'fentanyl'])).toEqual(['rn-without-order-fentanyl']);
   });
@@ -461,10 +486,12 @@ describe('the antithrombotic gate', () => {
     expect(give(ed(['bleeding']), 'aspirin')).toEqual(['antithrombotic-bleeding']);
   });
 
-  it('heparin-hit: heparin with HIT — and with bleeding too, the bleeding rule alone', () => {
+  it('heparin-hit: heparin with HIT — and with bleeding too, the HIT rule alone (the most serious reason first)', () => {
     expect(give(lab(['hit']), 'heparin')).toEqual(['heparin-hit']);
     expect(give(lab(['hit']), 'bivalirudin')).toEqual([]);
-    expect(give(lab(['hit', 'bleeding']), 'heparin')).toEqual(['antithrombotic-bleeding']);
+    expect(give(lab(['hit', 'bleeding']), 'heparin')).toEqual(['heparin-hit']);
+    // bivalirudin is the anticoagulant for HIT: with bleeding it is the bleeding rule's
+    expect(give(lab(['hit', 'bleeding']), 'bivalirudin')).toEqual(['antithrombotic-bleeding']);
   });
 
   it('aspirin-allergy: aspirin for a true allergy', () => {
@@ -478,10 +505,12 @@ describe('the antithrombotic gate', () => {
     expect(give(ed(['tamponade']), 'aspirin')).toEqual([]);
   });
 
-  it('heparin-thrombocytopenia: heparin and eptifibatide under 100,000 platelets', () => {
-    expect(give(lab(['thrombocytopenia']), 'heparin')).toEqual(['heparin-thrombocytopenia']);
-    expect(give(lab(['thrombocytopenia']), 'gp2b3a')).toEqual(['heparin-thrombocytopenia']);
+  it('gp-thrombocytopenia: eptifibatide under 100,000 platelets (its label); unfractionated heparin is not held for that count', () => {
+    expect(give(lab(['thrombocytopenia']), 'gp2b3a')).toEqual(['gp-thrombocytopenia']);
+    expect(give(lab(['thrombocytopenia']), 'heparin')).toEqual([]);
     expect(give(lab(['thrombocytopenia']), 'cangrelor')).toEqual([]);
+    expect(rule('gp-thrombocytopenia').actions).toEqual(['gp2b3a']);
+    expect(BUILT_IN_HARMS.some((h) => h.id === 'heparin-thrombocytopenia')).toBe(false);
   });
 
   it('gp-contraindicated, gp-after-lytic and gp-hypertension: eptifibatide\'s label', () => {
@@ -506,8 +535,10 @@ describe('the antithrombotic gate', () => {
     expect(give(lab(['lmwh-on-board']), 'bivalirudin')).toEqual([]);
   });
 
-  it('one dose, one penalty: the dissection first, then the bleeding', () => {
-    expect(give(lab(['aortic-dissection', 'bleeding', 'hit', 'thrombocytopenia']), 'heparin')).toEqual(['antithrombotic-dissection']);
+  it('one dose, one penalty: HIT first, then the bleeding, then the dissection', () => {
+    expect(give(lab(['aortic-dissection', 'bleeding', 'hit', 'thrombocytopenia']), 'heparin')).toEqual(['heparin-hit']);
+    expect(give(lab(['aortic-dissection', 'bleeding', 'thrombocytopenia']), 'heparin')).toEqual(['antithrombotic-bleeding']);
+    expect(give(lab(['aortic-dissection', 'tamponade']), 'heparin')).toEqual(['antithrombotic-dissection']);
     expect(give(lab(['bleeding', 'dialysis', 'thrombocytopenia'], { vitals: { sbp: 210, dbp: 120 } }), 'gp2b3a')).toEqual(['antithrombotic-bleeding']);
   });
 
@@ -566,5 +597,174 @@ describe('the protamine gate', () => {
     expect(st.harms.find((h) => h.id === 'protamine-in-thrombosis')!.replaces).toEqual(PROTAMINE_RULES);
     const covers = caseRule({ id: 'case-protamine', actions: ['protamine'], replaces: PROTAMINE_RULES });
     expect(penaltyIds(fixture({ setting: 'cathlab', role: 5, rhythm: SINUS, problems: ['protamine-allergy'], harms: [covers] }), 5, ['iv', 'protamine'])).toEqual(['case-protamine']);
+  });
+});
+
+describe('review fixes: the nitrate gate', () => {
+  const fallFrom = (opening: number, to: number, problems: Problem[] = []) => patient({
+    vitals: { sbp: opening, dbp: 92 }, problems,
+    extra: { events: [{ id: 'fall', when: (s) => s.minute >= 1, effect: () => ({ vitals: { sbp: to, dbp: 70 } }) }] },
+  });
+
+  it('nitro-pressure-fall: not for a pressure that opened high, or a stimulant\'s pressure being brought down', () => {
+    expect(after(fallFrom(150, 118), ['nitro'])).toEqual(['nitro-pressure-fall']);
+    expect(after(fallFrom(178, 140), ['nitro'])).toEqual([]);
+    expect(after(fallFrom(150, 118, ['sympathomimetic-toxicity']), ['nitro'])).toEqual([]);
+    expect(rule('nitro-pressure-fall').text).toMatch(/^Nitroglycerin with the systolic 30 mmHg or more below where it started/);
+  });
+
+  it('the cocaine case: the repeat dose for pain that is left, after midazolam brought the pressure down, costs nothing', () => {
+    const sc = SCENARIO_BY_ID['cocaine-chest-pain-field'];
+    const s = runScenario(sc, 2, ['primary', 'vitals', 'perfusion', 'sample', 'midazolam', 'monitor', 'ecg12', 'opqrst', 'aspirin', 'ask-pde5', 'iv', 'midazolam', 'nitro']);
+    expect(s.penalties.map((p) => p.id)).not.toContain('nitro-pressure-fall');
+    expect(sc.initial.vitals.sbp - s.vitals.sbp).toBeGreaterThanOrEqual(30);
+  });
+
+  it('nitro-volume-depleted: a bleeding patient with a pressure still at 90 or more; under 90 the low-pressure rule', () => {
+    expect(after(withProblems(['bleeding'], { vitals: { sbp: 96, dbp: 60 } }), ['nitro'])).toEqual(['nitro-volume-depleted']);
+    expect(after(withProblems(['bleeding'], { vitals: { sbp: 84, dbp: 50 } }), ['nitro'])).toEqual(['nitro-hypotension']);
+    const lab = fixture({ setting: 'cathlab', role: 5, rhythm: SINUS, problems: ['bleeding'], vitals: { sbp: 104, dbp: 62, pain: 4 } });
+    expect(penaltyIds(lab, 5, ['ic-nitro'])).toEqual(['nitro-volume-depleted']);
+    expect(after(patient({ vitals: { sbp: 96, dbp: 60 } }), ['nitro'])).toEqual([]);
+  });
+
+  it('the order of the 3- and 5-point ranks: the pressure check over the fast rate, no pain, the interval and the PDE-5 question; the 0.8 mg dose rule over it', () => {
+    expect(penaltyIds(patient({ rhythm: { profile: 'sinus-tachycardia', hr: 112 } }), 2, ['ask-pde5', 'nitro'])).toEqual(['nitro-no-bp']);
+    expect(penaltyIds(patient({ vitals: { pain: 0 } }), 2, ['ask-pde5', 'nitro'])).toEqual(['nitro-no-bp']);
+    expect(penaltyIds(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['ask-pde5', 'nitro-high'])).toEqual(['nitro-high-not-hypertensive']);
+    // no indication before the PDE-5 question and the interval
+    expect(penaltyIds(patient({ vitals: { pain: 0 } }), 2, ['vitals', 'nitro'])).toEqual(['nitro-no-pain']);
+    expect(after(patient(), ['nitro', 'nitro'])).toEqual(['nitro-too-soon']);
+  });
+
+  it('a later dose is judged by the next reason that holds: the first reason charged once does not hide the rest', () => {
+    const pde5Low = withProblems(['pde5-inhibitor'], { extra: { events: [{ id: 'fall', when: (s) => s.minute >= 3, effect: () => ({ vitals: { sbp: 84, dbp: 50 } }) }] } });
+    expect(after(pde5Low, ['nitro', 'reassess', 'nitro'])).toEqual(['nitro-pde5', 'nitro-hypotension']);
+    // the walk-in STEMI on sildenafil: the case's PDE-5 rule, then the pressure it crashed
+    const walkIn = SCENARIO_BY_ID['stemi-walk-in-ed'];
+    expect(runScenario(walkIn, 7, ['vitals', 'nitro', 'reassess', 'nitro']).penalties.map((p) => p.id)).toEqual(['nitro-pde5', 'nitro-hypotension']);
+    // two doses, two penalties at most: each one rule
+    expect(after(pde5Low, ['nitro', 'nitro'])).toEqual(['nitro-pde5', 'nitro-too-soon']);
+  });
+
+  it('nitro-too-soon: a teammate\'s dose counts; the learner\'s own dose counts from when it was given', () => {
+    const teammate = patient({ extra: { events: [{ id: 'crew', when: (s) => s.minute >= 1, effect: () => ({ flags: ['nitro'] }) }] } });
+    expect(after(teammate, ['nitro'])).toEqual(['nitro-too-soon']);
+    expect(after(teammate, ['reassess', 'reassess', 'nitro'])).toEqual([]);
+    // 3 minutes after the first dose was given (its effect lands half a minute later): not too soon
+    expect(after(patient(), ['nitro', 'reassess', 'aspirin', 'nitro'])).toEqual([]);
+  });
+});
+
+describe('review fixes: a case\'s own nitrate rule keeps the gate\'s order', () => {
+  const noPde5 = nitrateCheckRule({ id: 'nitro-no-pde5', actions: ['nitro', 'nitro-high'], when: (s) => !('pde5-asked' in s.flags), points: 3, severity: 'minor', text: 'The case\'s PDE-5 question.' });
+  const noBp = nitrateCheckRule({ id: 'nitro-no-bp', actions: ['nitro', 'nitro-high'], when: (s) => !('bp' in s.flags), points: 5, severity: 'major', text: 'The case\'s pressure check.' });
+  const checked = (over: Spec = {}) => patient({ ...over, harms: [noBp, noPde5] });
+
+  it('a check gives way to a contraindication ranked above it: skipping the question is never cheaper than asking it', () => {
+    const slow = { profile: 'sinus-bradycardia', hr: 44 };
+    expect(penaltyIds(checked({ rhythm: slow }), 2, ['vitals', 'nitro'])).toEqual(['nitro-bradycardia']);
+    expect(penaltyIds(checked({ rhythm: slow }), 2, ['vitals', 'ask-pde5', 'nitro'])).toEqual(['nitro-bradycardia']);
+    // the checks are each a mistake of their own, and the low-pressure rule charges beside them as it always has
+    expect(penaltyIds(checked(), 2, ['nitro'])).toEqual(['nitro-no-bp', 'nitro-no-pde5']);
+    expect(penaltyIds(checked({ vitals: { sbp: 84, dbp: 50 } }), 2, ['vitals', 'nitro'])).toEqual(['nitro-hypotension', 'nitro-no-pde5']);
+    // and the 0.8 mg dose rule
+    expect(penaltyIds(checked({ vitals: { sbp: 150, dbp: 90 } }), 2, ['vitals', 'nitro-high'])).toEqual(['nitro-high-not-hypertensive', 'nitro-no-pde5']);
+  });
+
+  it('a check stands aside once it has charged: a later dose is judged by the gate again', () => {
+    const falls = checked({ vitals: { sbp: 150, dbp: 90 }, extra: { events: [{ id: 'fall', when: (s) => s.minute >= 5, effect: () => ({ vitals: { sbp: 112, dbp: 70 } }) }] } });
+    expect(penaltyIds(falls, 2, ['vitals', 'nitro', 'reassess', 'reassess', 'nitro'])).toEqual(['nitro-no-pde5', 'nitro-pressure-fall']);
+  });
+
+  it('in an arrest the no-role rule speaks, not the checks', () => {
+    const arrest = patient({ rhythm: { profile: 'vf', hr: 0 }, pulse: false, harms: [noBp, noPde5] });
+    expect(penaltyIds(arrest, 2, ['nitro'])).toEqual(['no-role-in-arrest']);
+  });
+
+  it('a check charges beside another case rule that stands for the contraindication (as before the gate)', () => {
+    const lowRule: Harm = { id: 'case-low', actions: ['nitro'], when: (s) => s.vitals.sbp < 100, points: 8, severity: 'major', replaces: NITRATE_RULES, text: 'The case\'s low pressure.' };
+    const sc = patient({ rhythm: { profile: 'sinus-bradycardia', hr: 44 }, vitals: { sbp: 96, dbp: 60 }, harms: [lowRule, noPde5] });
+    expect(penaltyIds(sc, 2, ['vitals', 'nitro'])).toEqual(['case-low', 'nitro-no-pde5']);
+  });
+
+  it('a rule with another id stands for its rank and those under it every time, and gives way to a contraindication above', () => {
+    const noIndication = nitrateCaseRule({ id: 'case-no-indication', actions: ['nitro', 'nitro-high'], when: (s) => s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'No chest pain here.' }, 'nitro-high-not-hypertensive');
+    expect(noIndication.replaces).toEqual(expect.arrayContaining(['nitro-high-not-hypertensive', 'nitro-tachycardia', 'nitro-no-pain', 'nitro-no-bp', 'nitro-too-soon', 'nitro-no-pde5']));
+    expect(noIndication.replaces).not.toContain('nitro-bradycardia');
+    const sc = (rhythm = SINUS) => patient({ rhythm, vitals: { pain: 0 }, harms: [noIndication] });
+    expect(penaltyIds(sc(), 2, ['nitro', 'nitro-high'])).toEqual(['case-no-indication']);
+    expect(penaltyIds(sc({ profile: 'sinus-bradycardia', hr: 44 }), 2, ['vitals', 'nitro'])).toEqual(['nitro-bradycardia']);
+    expect(() => nitrateCaseRule({ ...noIndication, id: 'x' }, 'not-a-rank')).toThrow();
+  });
+
+  it('in the cases: the anterior STEMI\'s third dose after the fall is charged whether or not the PDE-5 question was asked', () => {
+    const sc = SCENARIO_BY_ID['stemi-anterior-field'];
+    const doses = ['nitro-high', ...R(3), 'nitro-high', ...R(3), 'nitro-high'];
+    expect(runScenario(sc, 2, ['vitals', ...doses]).penalties.map((p) => p.id)).toEqual(['nitro-high-not-hypertensive', 'nitro-no-pde5', 'nitro-pressure-fall']);
+    expect(runScenario(sc, 2, ['vitals', 'ask-pde5', ...doses]).penalties.map((p) => p.id)).toEqual(['nitro-high-not-hypertensive', 'nitro-pressure-fall']);
+  });
+
+  it('in the cases: nitroglycerin in the vasovagal reaction with a rate under 50 is the bradycardia rule, not the minor no-indication rule', () => {
+    const sc = SCENARIO_BY_ID['vasovagal-sheath-cathlab'];
+    const s = runScenario(sc, 5, ['legs-up', 'fluid', 'fluid', 'nitro']);
+    expect(s.vitals.sbp).toBeGreaterThanOrEqual(88);
+    expect(s.penalties.map((p) => p.id)).toEqual(['nitro-bradycardia']);
+  });
+});
+
+describe('review fixes: the other gates', () => {
+  const STEMI = { profile: 'anterior-stemi', hr: 96 };
+  const ed = ({ vitals, extra, ...over }: Spec = {}) =>
+    fixture({ setting: 'ed', role: 7, rhythm: STEMI, ...over, vitals: { pain: 6, ...vitals }, extra: { noTimelyPci: true, ...extra } });
+  const tnk = (sc: ReturnType<typeof fixture>, before: string[] = ['ecg12']) => penaltyIds(sc, sc.roles[0], [...before, 'iv', 'tnk']);
+
+  it('lytic-absolute: a stroke under way now; lytic-relative: platelets under 100,000', () => {
+    expect(tnk(ed({ problems: ['stroke'] }))).toEqual(['lytic-absolute']);
+    expect(tnk(ed({ problems: ['thrombocytopenia'] }))).toEqual(['lytic-relative']);
+    expect(rule('lytic-relative').text).toMatch(/TNKase label lists any earlier stroke/);
+  });
+
+  it('lytic-uncontrolled-hypertension: still over 180/110 after IV treatment is absolute (15, critical); untreated it is relative', () => {
+    const high = ed({ vitals: { sbp: 196, dbp: 112 } });
+    expect(tnk(high)).toEqual(['lytic-hypertension']);
+    const s = runScenario(high, 7, ['ecg12', 'iv', 'metoprolol', 'tnk']);
+    expect(s.vitals.sbp > 180 || s.vitals.dbp > 110).toBe(true);
+    expect(s.penalties.filter((p) => LYTIC_RULES.includes(p.id))).toMatchObject([{ id: 'lytic-uncontrolled-hypertension', points: 15, severity: 'critical' }]);
+  });
+
+  it('lytic-relative: not counted against the lysis of a pulmonary embolism in shock or in arrest', () => {
+    const pe = (pulse = true) => fixture({ setting: 'ed', role: 7, rhythm: pulse ? SINUS : { profile: 'pea', hr: 40 }, pulse, problems: ['pulmonary-embolism', 'pe-high-risk', 'recent-surgery'] });
+    expect(penaltyIds(pe(), 7, ['iv', 'alteplase'])).toEqual([]);
+    expect(penaltyIds(pe(false), 7, ['io', 'alteplase'])).toEqual([]);
+    // a STEMI with recent surgery still counts
+    expect(tnk(ed({ problems: ['recent-surgery'] }))).toEqual(['lytic-relative']);
+  });
+
+  it('the periprocedural stroke: the case\'s lab rule is the one penalty for the lytic, the stroke under way included', () => {
+    const sc = SCENARIO_BY_ID['periprocedural-stroke-cathlab'];
+    expect(sc.problems).toContain('stroke');
+    expect(runScenario(sc, 5, ['tnk']).penalties.map((p) => p.id)).toEqual(['lytic-in-lab']);
+  });
+
+  it('gp-contraindicated: a stroke under way; protamine for enoxaparin within 12 hours has something to reverse', () => {
+    const lab = (problems: Problem[], flags: string[] = []) => fixture({ setting: 'cathlab', role: 5, rhythm: SINUS, problems, extra: { events: [{ id: 'setup', when: () => true, effect: () => ({ flags }) }] } });
+    expect(penaltyIds(lab(['stroke']), 5, ['iv', 'gp2b3a'])).toEqual(['gp-contraindicated']);
+    expect(penaltyIds(lab(['lmwh-on-board']), 5, ['iv', 'protamine'])).toEqual([]);
+    expect(rule('protamine-no-heparin').text).toMatch(/only partly for enoxaparin/);
+    expect(rule('protamine-sensitized').text).toMatch(/pulmonary hypertension/);
+    expect(rule('aspirin-allergy').text).toMatch(/2014 AHA\/ACC NSTE-ACS/);
+  });
+
+  it('ondansetron-unmonitored: the label\'s patients — a low potassium, magnesium or calcium, or another QT-prolonging drug on board', () => {
+    for (const p of ['hypokalemia', 'hypomagnesemia', 'hypocalcemia'] as Problem[]) expect(penaltyIds(patient({ problems: [p] }), 2, ['iv', 'ondansetron']), p).toEqual(['ondansetron-unmonitored']);
+    expect(penaltyIds(patient(), 2, ['iv', 'procainamide', 'ondansetron'])).toContain('ondansetron-unmonitored');
+    expect(penaltyIds(patient({ problems: ['hypokalemia'] }), 2, ['iv', 'monitor', 'ondansetron'])).toEqual([]);
+  });
+
+  it('the ED hyperkalemia case: analgesia after the intubation is no "opioid with no pain"', () => {
+    const sc = SCENARIO_BY_ID['hyperkalemia-ed'];
+    expect(runScenario(sc, 7, ['monitor', 'iv', 'rsi', 'fentanyl']).penalties.map((p) => p.id)).not.toContain('opioid-no-pain');
+    expect(runScenario(sc, 7, ['monitor', 'iv', 'fentanyl']).penalties.map((p) => p.id)).toContain('opioid-no-pain');
   });
 });

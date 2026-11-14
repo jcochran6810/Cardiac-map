@@ -2,7 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Hypertensive acute pulmonary edema ("sympathetic crashing acute pulmonary edema", SCAPE) arriving in the emergency
@@ -879,17 +879,17 @@ export const edScape: Scenario = {
       id: 'niv-unprotected', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
       text: 'BiPAP for a patient who can no longer protect his airway. A mask supports the breaths a patient takes; it gives none, and a patient this drowsy can vomit into it and inhale it. He needs breaths given — a bag-mask with a PEEP valve — and a tube.',
     },
-    {
-      // with a pulse only: in an arrest a nitrate has no place at all, and these would teach the wrong lesson there
-      id: 'nitro-no-bp', actions: NITRATES, when: (s) => s.pulse && !has(s, 'bp') && !has(s, 'ems-report'), points: 5, severity: 'major', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
+    // with a pulse only: in an arrest a nitrate has no place at all, and these would teach the wrong lesson there
+    nitrateCheckRule({
+      id: 'nitro-no-bp', actions: NITRATES, when: (s) => s.pulse && !has(s, 'bp') && !has(s, 'ems-report'), points: 5, severity: 'major',
       text: 'Nitroglycerin without knowing his blood pressure. The pressure decides the dose — high doses while the systolic is 160 or more, none once it is under 120 here — so measure it (or hear the crew\'s) first.',
-    },
-    {
-      id: 'nitro-no-pde5', actions: NITRATES, when: (s) => s.pulse && !has(s, 'pde5-asked') && !has(s, 'ems-report'), points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
+    }),
+    nitrateCheckRule({
+      id: 'nitro-no-pde5', actions: NITRATES, when: (s) => s.pulse && !has(s, 'pde5-asked') && !has(s, 'ems-report'), points: 3, severity: 'minor',
       text: 'Nitroglycerin without knowing about PDE-5 inhibitors. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil: together they can drop the pressure profoundly. The crew asked; without their report, ask him.',
-    },
-    {
-      id: 'nitro-repeat-unsafe', actions: NITRATES, points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
+    }),
+    nitrateCheckRule({
+      id: 'nitro-repeat-unsafe', actions: NITRATES, points: 3, severity: 'minor',
       // the learner's own repeat dose: less than 3 minutes after the last, or with no pressure taken since it
       when: (s) => {
         const last = s.performed.filter((p) => NITRATES.includes(p.id)).at(-1);
@@ -900,17 +900,17 @@ export const edScape: Scenario = {
         return s.minute - last.minute < 3 || !s.performed.some((p) => BP_CHECKS.includes(p.id) && p.minute > last.minute);
       },
       text: 'A repeat nitroglycerin dose too soon or without a fresh blood pressure. Repeat it every 5 minutes (3 at the least), with the pressure checked before each: the mask and the doses already given keep lowering it.',
-    },
+    }, 'nitro-too-soon'),
     {
       // the built-in interval rule, same id: a deliberate exemption. The rule above judges every repeat dose here, and it lets
       // the ordered 0.8 mg follow straight after a 0.4 mg given in its place (the correction the physician asked for)
       id: 'nitro-too-soon', actions: NITRATES, when: () => false, points: 3, severity: 'minor',
       text: 'Another nitroglycerin less than 3 minutes after the last.',
     },
-    {
-      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: NITRATE_RULES,
+    nitrateCaseRule({
+      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160, points: 3, severity: 'minor',
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
-    },
+    }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
     {
       // under 120 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
       id: 'nitro-below-target', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 120, points: 8, severity: 'major', replaces: NITRATE_RULES,

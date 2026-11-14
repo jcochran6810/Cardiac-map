@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
-import { NITRATE_RULES } from '../rules/acs';
+import { nitrateCaseRule } from '../rules/acs';
 
 /**
  * The version this case teaches: a regular wide-complex tachycardia in a man with an old infarct, whose pressure and
@@ -398,7 +398,7 @@ export const stableVtField: Scenario = {
     { id: 'adenosine-unstable', actions: ['adenosine6', 'adenosine12'], when: (s) => inVt(s) && unstable(s), points: 5, severity: 'major', text: 'Adenosine for a wide-complex tachycardia that had become unstable (2025 AHA: 3 — Harm). Unstable means synchronized cardioversion now; adenosine only delays it, and in a wide-complex tachycardia it can set off VF.' },
     // with a low pressure a pressor is a bridge (the shock is still what he needs), so only a normal pressure makes it a mistake
     { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => inVt(s) && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs drive a ventricular circuit faster and can turn it into VF.' },
-    { id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => inVt(s) && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor', replaces: NITRATE_RULES, text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; in a fast tachycardia it only lowers the pressure the heart is struggling to keep up.' },
+    nitrateCaseRule({ id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => inVt(s) && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; in a fast tachycardia it only lowers the pressure the heart is struggling to keep up.' }, 'nitro-high-not-hypertensive'),
     { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A STEMI alert without ST elevation. His 12-lead shows none: the heart center needs a radio report for its cardiologist and electrophysiology team, not a cath lab activation.' },
     { id: 'cpap-hypotension', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 5, severity: 'major', text: 'CPAP with a systolic pressure under 90. Positive pressure cuts the blood returning to the heart and drops the pressure further: an unstable tachycardia needs synchronized cardioversion.' },
     // after the shock that brought him back, oxygen titrated to 90–98 % is post-arrest care, not a mistake

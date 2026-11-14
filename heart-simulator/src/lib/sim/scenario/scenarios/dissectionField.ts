@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState, Vitals } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, nitrateCaseRule } from '../rules/acs';
 
 /**
  * Acute type A aortic dissection in the field. A hypertensive man who ran out of his pills tears his ascending aorta lifting
@@ -418,11 +418,11 @@ export const dissectionField: Scenario = {
       replaces: NITRATE_RULES,
       text: 'Nitroglycerin on its own for this pain. A vasodilator with nothing slowing the heart makes it race (reflex tachycardia) and pump harder against the tear — the 2022 ACC/AHA aortic guideline starts a vasodilator only after a beta-blocker (or diltiazem), never first — and in shock it takes away the pressure he has left. It does not ease a tearing pain: an opioid is the pain relief here. For an EMT, report the findings instead of helping with his own nitroglycerin.',
     },
-    {
-      // after the beta-blocker the guideline's vasodilator is an IV infusion in the hospital; medical control said no to this one
-      id: 'nitro-against-order', actions: ['nitro'], when: (s) => s.pulse && rateControlled(s) && !shock(s) && has(s, 'nitro-held'), points: 2, severity: 'minor', replaces: NITRATE_RULES,
+    // after the beta-blocker the guideline's vasodilator is an IV infusion in the hospital; medical control said no to this one
+    nitrateCaseRule({
+      id: 'nitro-against-order', actions: ['nitro'], when: (s) => s.pulse && rateControlled(s) && !shock(s) && has(s, 'nitro-held'), points: 2, severity: 'minor',
       text: 'Nitroglycerin after medical control said no. Once the beta-blocker is in, the vasodilator the 2022 ACC/AHA guideline adds is an IV infusion titrated in the hospital (nicardipine, clevidipine or nitroprusside); a sublingual dose drops the pressure by an amount nobody controls, and it does not ease this pain. Follow the order, and let fentanyl treat the pain.',
-    },
+    }, 'nitro-high-not-hypertensive'),
     {
       id: 'nitro-high-dissection', actions: ['nitro-high'], when: (s) => s.pulse && (!rateControlled(s) || shock(s) || s.vitals.sbp < 160 || has(s, 'nitro-held')), points: 5, severity: 'major',
       replaces: NITRATE_RULES,

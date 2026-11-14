@@ -5,7 +5,7 @@ import {
   LEFT_VIEWS, MD, RCA_VIEWS, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Takotsubo syndrome with dynamic LV outflow tract obstruction. A 70-year-old woman comes to the lab as a STEMI alert an hour
@@ -836,7 +836,7 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'nitrate-lvoto', actions: ['nitro', 'nitro-high'], roles: [4, 5], replaces: NITRATE_RULES, when: (s) => s.pulse && has(s, 'obstructed'), points: 10, severity: 'major', text: NITRATE_TEXT },
     { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail'], roles: MD, when: (s) => s.pulse && has(s, 'obstructed'), replaces: NITRATE_RULES, points: 10, severity: 'major', text: NITRATE_TEXT },
     // the built-in rule, kept for the time before the fall (afterwards nitrate-lvoto covers it): one mistake, one penalty
-    { id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !has(s, 'obstructed') && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' },
+    nitrateCaseRule({ id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !has(s, 'obstructed') && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' }),
     { id: 'unasked-ic-drug', actions: ['ic-nitro', 'ic-epinephrine', 'radial-cocktail'], roles: [3, 4], when: (s) => has(s, 'obstructed'), replaces: NITRATE_RULES, points: 3, severity: 'minor', text: 'A vasodilator or a catecholamine drawn up for the catheter without an order, while her pressure was down. The operator gives what the operator asks for — and a nitrate or epinephrine would make the outflow obstruction worse.' },
     { id: 'iabp-lvoto', actions: ['iabp'], roles: MD, points: 15, severity: 'critical', text: 'An intra-aortic balloon pump in Takotsubo with outflow obstruction. Its deflation drops the afterload just as the ventricle ejects: the base empties the ventricle faster, the outflow tract narrows, and the gradient and the pressure get worse. Avoid it whenever there is an outflow gradient; if fluid and phenylephrine fail, the support is an Impella (it carries blood past the obstruction) or VA-ECMO.' },
     { id: 'tech-iabp', actions: ['iabp'], roles: TECH, when: (s) => has(s, 'lvoto-known'), points: 3, severity: 'minor', text: 'The balloon pump readied once the gradient was on the screen. A balloon pump lowers the afterload and makes outflow obstruction worse: open devices when the operator asks for them.' },

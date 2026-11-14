@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
-import { SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_CHECKS, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -489,22 +489,22 @@ export const cocaineField: Scenario = {
       id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90 && !has(s, 'oversedated') && !has(s, 'rosc'), points: 3, severity: 'minor',
       text: 'Oxygen with an SpO₂ of 90 % or more. In a possible acute coronary syndrome oxygen is for an SpO₂ under 90 % (2025 ACC/AHA ACS guideline): his is 97 %, and extra oxygen brings no benefit.',
     },
-    {
-      id: 'nitro-no-bp', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'bp'), points: 5, severity: 'major', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
+    nitrateCheckRule({
+      id: 'nitro-no-bp', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'bp'), points: 5, severity: 'major',
       text: 'Nitroglycerin without a blood pressure. Take it first: nitrates need a systolic of at least 90–100 mmHg (per protocol).',
-    },
-    {
-      id: 'nitro-no-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'pde5-asked'), points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
+    }),
+    nitrateCheckRule({
+      id: 'nitro-no-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && !has(s, 'pde5-asked'), points: 3, severity: 'minor',
       text: 'Nitroglycerin without asking about erectile-dysfunction drugs — often taken with cocaine at parties. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil: together they can cause profound hypotension.',
-    },
-    {
-      id: 'nitro-high-chest-pain', actions: ['nitro-high'], when: (s) => s.pulse, points: 2, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension'),
+    }),
+    nitrateCaseRule({
+      id: 'nitro-high-chest-pain', actions: ['nitro-high'], when: (s) => s.pulse, points: 2, severity: 'minor',
       text: 'High-dose nitroglycerin for chest pain. 0.8 mg is the dose for hypertensive pulmonary edema, and his lungs are clear: for the pain the dose is 0.4 mg every 5 minutes, with the benzodiazepine bringing the pressure down.',
-    },
-    {
-      id: 'nitro-too-soon', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && (sinceLastNitro(s) ?? Infinity) < 5, points: 2, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'),
+    }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
+    nitrateCheckRule({
+      id: 'nitro-too-soon', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && (sinceLastNitro(s) ?? Infinity) < 5, points: 2, severity: 'minor',
       text: 'Nitroglycerin repeated within 5 minutes. Sublingual nitroglycerin is 0.4 mg every 5 minutes, up to 3 doses: each dose needs its 5 minutes to work, and the pressure is checked before the next.',
-    },
+    }),
     // titrated to calm: one unneeded dose is a small mistake (some protocols repeat it for a rate or pressure that stays up);
     // dosing a patient already drowsy from it is a real one
     {

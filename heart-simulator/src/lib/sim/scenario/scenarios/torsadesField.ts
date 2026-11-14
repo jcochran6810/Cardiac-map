@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line, paced } from '../kit';
-import { nitrateRulesExcept } from '../rules/acs';
+import { nitrateCaseRule } from '../rules/acs';
 
 /**
  * Drug-induced long QT with torsades de pointes. A 58-year-old woman who has taken a thiazide for years (it drains potassium
@@ -545,10 +545,10 @@ export const torsadesField: Scenario = {
       id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], points: 5, severity: 'major',
       text: 'IM epinephrine without anaphylaxis. Nothing she has calls for it, and a surge of adrenaline in a long QT can set off torsades.',
     },
-    {
-      id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0, points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension'),
+    nitrateCaseRule({
+      id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0, points: 3, severity: 'minor',
       text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; she has none, and it only lowers her pressure.',
-    },
+    }, 'nitro-high-not-hypertensive'),
   ],
   timings: [
     { label: 'Pads on', actions: PADS, target: 3 },

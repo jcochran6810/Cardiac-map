@@ -1,7 +1,7 @@
 import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../types';
 import { PADS, atRate, bpAfter, count, firstDone, has, line, paced } from '../kit';
 import { MD, TECH, askCritical, askDone, askEvents, askHarm, type LabAsk } from '../labKit';
-import { ANTITHROMBOTIC_RULES, NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule } from '../rules/acs';
 
 /**
  * Complete heart block with a slow wide escape, sent up from the emergency department for a temporary transvenous pacing
@@ -660,8 +660,8 @@ export const cathlabTempWire: Scenario = {
     // Nitroglycerin: before the wire comes through the wall the engine's own two rules stand, in their own words (a case
     // rule with the same id replaces a built-in one, so they are restated here, limited to that time); after it, the case's
     // rule covers it — one mistake, one penalty
-    { id: 'nitro-hypotension', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => !has(s, 'perforated') && s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further, and she has no chest pain for them to treat: hold them, and get her rate up — that is what her pressure needs.' },
-    { id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => !has(s, 'perforated') && s.pulse && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; she has neither.' },
+    nitrateCaseRule({ id: 'nitro-hypotension', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => !has(s, 'perforated') && s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. Nitrates drop the pressure further, and she has no chest pain for them to treat: hold them, and get her rate up — that is what her pressure needs.' }),
+    nitrateCaseRule({ id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => !has(s, 'perforated') && s.pulse && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; she has neither.' }),
     { id: 'nitro-after-wire', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => has(s, 'perforated'), points: 10, severity: 'major', replaces: NITRATE_RULES, text: 'Nitroglycerin for chest pain after a pacing wire. Sharp pain that is worse on breathing in, with hiccups in time with the pacer, is perforation until proven otherwise — not angina: nitrates drop the filling a heart with blood around it depends on. Echo first.' },
     // the pads' pacing needs sedation, the wire's does not: once the wire paces, nothing hurts that needs it, so a falling
     // pressure (the tamponade) makes it a mistake again — this case's words for the built-in sedation rules

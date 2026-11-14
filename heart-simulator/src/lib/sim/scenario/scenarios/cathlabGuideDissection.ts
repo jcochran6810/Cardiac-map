@@ -4,7 +4,7 @@ import { INTERVENTION_BY_ID } from '../interventions';
 import {
   LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, TECH, WIRES, askCritical, askEvents, askHarm, operator, type LabAsk,
 } from '../labKit';
-import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, nitrateCaseRule } from '../rules/acs';
 
 /**
  * A guide catheter tears the RCA ostium. Elective PCI of a proximal RCA narrowing from the right radial: the JR4 kept
@@ -380,7 +380,7 @@ const RN_ASKS: LabAsk[] = [
     thanks: 'Thanks.', fallback: 'I\'ll give the fentanyl myself.', gives: 'pain-treated',
     fallbackEffect: (s) => ({ say: [['operator', 'Fentanyl 25 micrograms IV.']], vitals: { pain: Math.max(0, s.vitals.pain - 3) }, flags: ['analgesia'] }),
     label: 'Fentanyl for the pain', points: 5,
-    why: 'Her pain is ischemia from a closing artery: fentanyl 25–50 mcg IV eases it without dropping the pressure much; the fix is the stent. Nitroglycerin opens nothing here and drops a low pressure further.',
+    why: 'Her pain is ischemia from a closing artery: once the fluid has her pressure coming up, fentanyl 25–50 mcg IV eases it without dropping the pressure much; the fix is the stent. Nitroglycerin opens nothing here and drops a low pressure further.',
   },
 ];
 
@@ -806,7 +806,7 @@ export const cathlabGuideDissection: Scenario = {
     // built-in rule under 90 too. Once the flow is back, only a systolic under 100 still counts
     { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, when: nitroWrong, points: 6, severity: 'major', text: 'Nitroglycerin while the torn RCA was closing (or the pressure low). V4R shows the right ventricle ischemic, and her pressure had fallen far more than 30 below her 136: nitrates are avoided with a right ventricular infarction, a systolic under 90 or a fall of more than 30 (2025 ACC/AHA ACS), because they drop the filling an ischemic right ventricle depends on — and the pressure with it. They open nothing here either: the flap is mechanical, and the fix is a stent. For the pain: fentanyl.' },
     // the built-in rule in its own words, only where the one above does not already apply: one mistake, one penalty
-    { id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !nitroWrong(s) && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' },
+    nitrateCaseRule({ id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !nitroWrong(s) && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' }),
     { id: 'beta-blocker', actions: ['metoprolol'], when: stillSlowOrLow, points: 8, severity: 'major', text: 'An IV beta-blocker with a slow rate and a low pressure from a closing RCA. It slows the rate and weakens the squeeze further.' },
     // once the flow is back: no longer dangerous at once, but nothing to give it for, minutes after a rate of 48 and a pressure of 84
     { id: 'beta-blocker-after', actions: ['metoprolol'], when: (s) => !stillSlowOrLow(s), points: 3, severity: 'minor', text: 'An IV beta-blocker with nothing to treat. Minutes ago the closing RCA gave her a rate of 48 and a pressure of 84: an IV beta-blocker is not routine after a myocardial infarction and is avoided in anyone at risk of a low output (2025 ACC/AHA ACS). An oral one can start on the unit once she is stable.' },

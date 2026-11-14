@@ -384,7 +384,7 @@ describe('a patient on a continuous-flow LVAD', () => {
     expect(ids(run(lvadPain, 2, ['iv', 'doppler-map', 'ask-pde5', 'nitro']))).toEqual([]);
     expect(ids(run(lvad, 2, ['iv', 'midazolam']))).toEqual([]);
     expect(ids(run(lab({ lvad: true, vitals: { sbp: 84, dbp: 72 } }), 5, ['ct-urgent']))).toEqual([]);
-    expect(ids(run(lvad, 2, ['iv', 'nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
+    expect(ids(run(lvad, 2, ['iv', 'doppler-map', 'nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
     // MAP 54: low
     const low = patient({ lvad: true, vitals: { sbp: 60, dbp: 52 } });
     expect(ids(run(low, 2, ['iv', 'nitro']))).toEqual(['nitro-hypotension']);
@@ -624,7 +624,7 @@ describe('new built-in safety rules', () => {
   const rule = (id: string) => BUILT_IN_HARMS.find((h) => h.id === id)!;
 
   it('high-dose nitroglycerin: for a systolic of 160 or more; under 90 it is the general nitrate rule', () => {
-    expect(ids(run(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
+    expect(ids(run(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['vitals', 'nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
     expect(ids(run(patient({ vitals: { sbp: 86, dbp: 54 } }), 2, ['nitro-high']))).toEqual(['nitro-hypotension']);
     expect(ids(run(patient({ vitals: { sbp: 196, dbp: 110 } }), 2, ['vitals', 'ask-pde5', 'nitro-high']))).toEqual([]);
   });

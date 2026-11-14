@@ -716,7 +716,9 @@ export const cathlabRpBleed: Scenario = {
     },
     { id: 'lytic-in-bleeding', actions: ['tnk'], points: 15, severity: 'critical', replaces: LYTIC_RULES, text: 'A fibrinolytic in a patient who is bleeding. It dissolves every clot holding the hole closed.' },
     {
-      id: 'extra-antiplatelet', actions: ['aspirin', 'p2y12'], points: 3, severity: 'minor', replaces: ANTITHROMBOTIC_RULES,
+      // another daily aspirin is the small mistake; a P2Y12 reload in active bleeding is the built-in bleeding rule's (the
+      // ticagrelor, prasugrel and clopidogrel labels: contraindicated with active pathological bleeding)
+      id: 'extra-antiplatelet', actions: ['aspirin', 'p2y12'], when: (_s, _sc, id) => id === 'aspirin', points: 3, severity: 'minor', replaces: ANTITHROMBOTIC_RULES,
       text: 'Another antiplatelet dose for a bleeding patient already on aspirin and ticagrelor. It adds to the bleeding and treats nothing; keep the daily doses for the fresh stent, and add none.',
     },
     {

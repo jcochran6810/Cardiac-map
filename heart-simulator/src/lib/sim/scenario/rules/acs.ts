@@ -25,10 +25,15 @@ type GateRule = Omit<Harm, 'when'> & { applies: Check };
  * gate stops there, so no lower-ranked built-in adds a second penalty); while it does not — a deliberate exemption, or its
  * condition is false — the gate goes on to the next rank: the case has said this reason does not hold here, not that the
  * dose is right. (A case rule that lists the top rule in its `replaces` hides it while it applies: the whole dose is covered.)
+ * A rank that already charged an earlier dose is passed over.
  */
 function topOf(rules: GateRule[], s: SimState, sc: Scenario, id: string): string | null {
   for (const r of rules) {
     if (!r.actions.includes(id)) continue;
+    // a rank that charged an earlier dose is passed over: each rule charges once a case, so a later dose is judged by the
+    // next reason that holds and never goes free because an earlier one was charged (the penalty pushed for this dose has
+    // this minute: every drug the gates judge takes time)
+    if (s.penalties.some((p) => p.id === r.id && p.minute < s.minute)) continue;
     const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)));
     if (own.length) {
       if (own.some((h) => h.actions.includes(id) && (!h.when || h.when(s, sc, id)))) return r.id;
@@ -58,11 +63,26 @@ const rateSlowed = (s: SimState) => has(s, 'beta-blocker') || has(s, 'diltiazem'
 const beforeTheLab = (sc: Scenario) => sc.setting === 'field' || sc.setting === 'ed';
 
 /**
+ * The minute of the latest sublingual nitroglycerin before this dose, or null: the learner's own (s.performed), or one a
+ * teammate gave that the case records with a flag ('nitro' — e.g. the ALS crew's on arrival — or the NSTEMI's
+ * 'nitro-for-pain'). A flag holds the minute it was first set, and the learner's own dose sets it as the dose ends: a flag
+ * set within a minute after one of the learner's doses is that dose, which s.performed already gives
+ */
+const TEAM_NITRO_FLAGS = ['nitro', 'nitro-for-pain'];
+const lastSublingualAt = (s: SimState): number | null => {
+  const own = lastDoneAt(s, NITRATES_SL);
+  const byLearner = (m: number) => s.performed.some((p) => NITRATES_SL.includes(p.id) && p.minute <= m && m - p.minute <= 1);
+  const team = TEAM_NITRO_FLAGS.map((f) => s.flags[f]).filter((m): m is number => m !== undefined && m <= s.minute && !byLearner(m));
+  const all = own === null ? team : [own, ...team];
+  return all.length ? Math.max(...all) : null;
+};
+
+/**
  * The nitrates (and nitroprusside), ranked: the most serious reason to hold the dose first. Only with a pulse (in an arrest
  * the no-role rule speaks). The radial cocktail and intracoronary nitroprusside stop after the preload rule: their
  * low-pressure rules are their own (the cocktail's, and nitroprusside-hypotension, which is ranked here)
  */
-const NITRATE_GATE = gate([
+const NITRATE_RANKS: GateRule[] = [
   {
     id: 'nitro-pde5', actions: NO_DONORS, applies: (_s, sc) => hasProblem(sc, ['pde5-inhibitor']), points: 10, severity: 'major',
     text: 'A nitrate after a PDE-5 inhibitor (or riociguat). Within 12 hours of avanafil, 24 hours of sildenafil or vardenafil or 48 hours of tadalafil — and at any time with riociguat — nitroglycerin or nitroprusside can drop the pressure profoundly and for hours (2025 ACC/AHA ACS guideline; Nitrostat and Nipride labels: contraindicated). Treat the pain without nitrates.',
@@ -80,6 +100,11 @@ const NITRATE_GATE = gate([
     text: 'Nitroglycerin with a systolic pressure under 90 mmHg (with an LVAD, a Doppler MAP under 60). Nitrates drop the pressure further: hold them until it is back up.',
   },
   {
+    // a pressure still at 90 or more in a bleeding patient is held up by tight veins: the nitrate takes that away
+    id: 'nitro-volume-depleted', actions: NITRATES_ACS, applies: (_s, sc) => hasProblem(sc, ['bleeding']), points: 8, severity: 'major',
+    text: 'Nitroglycerin for a patient who is losing blood. Bleeding leaves the heart short of filling, and the pressure is held up by tightened veins: a nitrate opens them and the pressure can fall suddenly (Nitrostat label: caution with volume depletion; hold nitrates in hypotension). Stop the bleeding and replace the volume; treat the pain another way.',
+  },
+  {
     // nicardipine has no other rank here: it is judged on this one alone. The rate drug counts whoever gave it (a teammate's
     // dose sets the same flag)
     id: 'vasodilator-before-rate-control', actions: [...NITRATES_SL, 'nitro-iv', 'nicardipine'],
@@ -92,11 +117,14 @@ const NITRATE_GATE = gate([
     text: 'Nitroglycerin with a heart rate under 50. A slow heart cannot speed up to make good the pressure a nitrate takes away (ACC/AHA STEMI guideline and AHA ACLS: hold nitrates for a rate under 50): treat the slow rate first.',
   },
   {
-    // the case's opening systolic stands in for the patient's usual one; not where lowering the pressure is the goal
+    // the case's opening systolic stands in for the patient's usual one — not where it opened high (a hypertensive or
+    // stimulant-driven pressure is not the patient's usual one), nor where lowering the pressure is the goal: a
+    // benzodiazepine and nitroglycerin bringing a stimulant's pressure down is the treatment (2014 AHA/ACC NSTE-ACS)
     id: 'nitro-pressure-fall', actions: NITRATES_SL,
-    applies: (s, sc) => !s.lvad && sc.initial.pulse !== false && s.vitals.sbp <= sc.initial.vitals.sbp - 30 && !hasProblem(sc, ['pulmonary-edema', 'aortic-dissection']),
+    applies: (s, sc) => !s.lvad && sc.initial.pulse !== false && sc.initial.vitals.sbp < 160 && s.vitals.sbp <= sc.initial.vitals.sbp - 30
+      && !hasProblem(sc, ['pulmonary-edema', 'aortic-dissection', 'sympathomimetic-toxicity']),
     points: 5, severity: 'major',
-    text: 'Another nitrate after the systolic had fallen 30 mmHg or more below where it started. A fall that size is itself a reason to hold nitrates (2025 ACC/AHA ACS): let the pressure come back up before any more.',
+    text: 'Nitroglycerin with the systolic 30 mmHg or more below where it started. A fall that size is itself a reason to hold nitrates (2025 ACC/AHA ACS): let the pressure come back up before any more.',
   },
   {
     // the EMT's assist is left out: an EMT records no V4R (the case's own rule judges it)
@@ -110,6 +138,13 @@ const NITRATE_GATE = gate([
     text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.',
   },
   {
+    // ranked over the fast rate, the interval, the PDE-5 question and no pain (3 points each): without a pressure the learner
+    // cannot know the dose is safe. Under the 0.8 mg dose rule, which the ER nurse's missing order covers (one act, one
+    // penalty) and which the cases' checks have always charged beside
+    id: 'nitro-no-bp', actions: NITRATES_SL, applies: (s, sc) => beforeTheLab(sc) && !has(s, 'bp'), points: 5, severity: 'major',
+    text: 'Nitroglycerin without a blood pressure first. A systolic under 90, or one 30 below the patient\'s usual, rules it out (2025 ACC/AHA ACS), so every protocol takes a pressure before each dose: the monitor\'s cuff, a manual set or a reassessment.',
+  },
+  {
     // a stimulant's tachycardia is treated with a benzodiazepine and nitroglycerin (2014 AHA/ACC NSTE-ACS)
     id: 'nitro-tachycardia', actions: ['nitro', 'nitro-assist'],
     applies: (s, sc) => s.rhythm.hr > 100 && !hasProblem(sc, ['heart-failure', 'pulmonary-edema', 'sympathomimetic-toxicity', 'aortic-dissection']),
@@ -117,24 +152,22 @@ const NITRATE_GATE = gate([
     text: 'Nitroglycerin with a heart rate over 100 and no heart failure to treat. A fast rate is a reason to hold nitrates (ACC/AHA STEMI guideline; AHA ACLS): the reflex speeding they bring adds to the heart\'s oxygen demand. Find out why the heart is racing.',
   },
   {
-    id: 'nitro-too-soon', actions: NITRATES_SL, applies: (s) => { const last = lastDoneAt(s, NITRATES_SL); return last !== null && s.minute - last < 3; },
+    // no indication is ranked over the interval and the PDE-5 question: a dose that should not be given at all teaches that first
+    id: 'nitro-no-pain', actions: ['nitro', 'nitro-assist'], applies: (s, sc) => s.vitals.pain === 0 && !hasProblem(sc, ['pulmonary-edema', 'aortic-dissection']),
     points: 3, severity: 'minor',
-    text: 'Another nitroglycerin less than 3 minutes after the last. The tablet or spray is repeated every 5 minutes, three at most (Nitrostat label; every 3–5 minutes in AHA ACLS), with a blood pressure before each: each dose needs the time to show what it did to the pressure.',
+    text: 'Nitroglycerin with no chest pain to treat. Sublingual nitroglycerin is for ischemic chest pain (and the high pressure of pulmonary edema): without either it only lowers the pressure, and can bring a headache or a faint.',
   },
   {
-    id: 'nitro-no-bp', actions: NITRATES_SL, applies: (s, sc) => beforeTheLab(sc) && !has(s, 'bp'), points: 5, severity: 'major',
-    text: 'Nitroglycerin without a blood pressure first. A systolic under 90, or one 30 below the patient\'s usual, rules it out (2025 ACC/AHA ACS), so every protocol takes a pressure before each dose: the monitor\'s cuff, a manual set or a reassessment.',
+    id: 'nitro-too-soon', actions: NITRATES_SL, applies: (s) => { const last = lastSublingualAt(s); return last !== null && s.minute - last < 3; },
+    points: 3, severity: 'minor',
+    text: 'Another nitroglycerin less than 3 minutes after the last (yours, or one a teammate or the patient took). The tablet or spray is repeated every 5 minutes, three at most (Nitrostat label; every 3–5 minutes in AHA ACLS), with a blood pressure before each: each dose needs the time to show what it did to the pressure.',
   },
   {
     id: 'nitro-no-pde5', actions: NITRATES_SL, applies: (s, sc) => beforeTheLab(sc) && !has(s, 'pde5-asked'), points: 3, severity: 'minor',
     text: 'Nitroglycerin without asking about erectile-dysfunction or pulmonary-hypertension drugs. A PDE-5 inhibitor — avanafil within 12 hours, sildenafil or vardenafil within 24, tadalafil within 48 — or riociguat makes a nitrate drop the pressure profoundly (2025 ACC/AHA ACS): ask before the first dose.',
   },
-  {
-    id: 'nitro-no-pain', actions: ['nitro', 'nitro-assist'], applies: (s, sc) => s.vitals.pain === 0 && !hasProblem(sc, ['pulmonary-edema', 'aortic-dissection']),
-    points: 3, severity: 'minor',
-    text: 'Nitroglycerin with no chest pain to treat. Sublingual nitroglycerin is for ischemic chest pain (and the high pressure of pulmonary edema): without either it only lowers the pressure, and can bring a headache or a faint.',
-  },
-], (s) => s.pulse);
+];
+const NITRATE_GATE = gate(NITRATE_RANKS, (s) => s.pulse);
 
 /**
  * Every built-in nitrate rule, and the rule for a drug with no role in an arrest: a case rule that says a nitrate is wrong
@@ -154,15 +187,87 @@ export const nitrateRulesExcept = (...kept: string[]) => NITRATE_RULES.filter((i
  */
 export const topNitrate = NITRATE_GATE.top;
 
+/** The checks before a sublingual dose — the pressure, the interval, the PDE-5 question: each one a mistake of its own */
+export const NITRATE_CHECKS = ['nitro-no-bp', 'nitro-too-soon', 'nitro-no-pde5'];
+
+/**
+ * The gate's reasons to hold a nitrate dose altogether (its contraindications): the ranks above the 0.8 mg dose rule, and the
+ * fast rate. The other ranks judge the size of the dose, the checks before it and whether it is indicated
+ */
+const NITRATE_CONTRAINDICATIONS = [
+  ...NITRATE_RANKS.slice(0, NITRATE_RANKS.findIndex((r) => r.id === 'nitro-high-not-hypertensive')).map((r) => r.id), 'nitro-tachycardia',
+];
+
+/** The rule charged an earlier action (each rule charges once a case) */
+const chargedBefore = (s: SimState, ruleId: string) => s.penalties.some((p) => p.id === ruleId && p.minute < s.minute);
+
+/** Another case rule (not `selfId`) applies to this dose and lists the built-in `ruleId` in its `replaces`: it speaks in its place */
+const hiddenByCase = (ruleId: string, selfId: string, s: SimState, sc: Scenario, id: string) =>
+  sc.harms.some((h) => h.id !== selfId && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id) && !!h.replaces?.includes(ruleId) && (!h.when || h.when(s, sc, id)));
+
+/**
+ * A case rule that judges a nitrate dose in its own words, kept in the gate's order: one dose, one penalty, the most
+ * serious reason — so skipping a check is never cheaper than making it, and no contraindication hides behind a smaller
+ * rule. `rank` is the most serious built-in rank the rule stands for (by default its own id: a rule with a built-in's id
+ * decides that rank in the built-in's place).
+ * - It gives way to a contraindication the gate ranks above `rank` that charges this dose instead — the built-in, or the
+ *   case's own rule with its id — and in an arrest to the no-role rule. (A contraindication another case rule speaks for in
+ *   its `replaces` is that rule's: this one charges beside it, as before the gate.)
+ * - While it applies it hides the built-in ranks it stands for: the contraindications from `rank` down, and every check,
+ *   dose and indication rank.
+ * - The ranks in `beside` it neither gives way to nor hides: they charge beside it (NITRATE_CHECKS for a case rule that is
+ *   a check itself — the checks are each a mistake of their own).
+ * - A rule with a built-in's id stands aside once it has charged, as the gate passes its rank over: a later dose is judged
+ *   by the gate again. A rule with another id keeps covering its ranks, so a repeated mistake is charged once.
+ */
+export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: string[] = []): Harm {
+  const at = NITRATE_RANKS.findIndex((r) => r.id === rank);
+  if (at < 0) throw new Error(`nitrateCaseRule: ${rank} is not a rank of the nitrate gate`);
+  const above = NITRATE_RANKS.slice(0, at);
+  const builtInId = NITRATE_RANKS.some((r) => r.id === harm.id);
+  const outranked: Check = (s, sc, id) => {
+    if (!s.pulse) return true;
+    const top = topOf(above, s, sc, id);
+    return top !== null && NITRATE_CONTRAINDICATIONS.includes(top) && !beside.includes(top) && !hiddenByCase(top, harm.id, s, sc, id);
+  };
+  const covers = NITRATE_RANKS.map((r) => r.id)
+    .filter((id, i) => id === rank || (!beside.includes(id) && (i >= at || !NITRATE_CONTRAINDICATIONS.includes(id))))
+    .filter((id) => !harm.replaces?.includes(id));
+  return {
+    ...harm,
+    when: (s, sc, id) => (!harm.when || harm.when(s, sc, id)) && !outranked(s, sc, id) && !(builtInId && chargedBefore(s, harm.id)),
+    replaces: [...(harm.replaces ?? []), ...covers],
+  };
+}
+
+/**
+ * A case rule that is one of the checks before a sublingual dose (the pressure, the interval, the PDE-5 question), at its
+ * rank: the other checks, the low-pressure rule and the 0.8 mg dose rule charge beside it — each a mistake of its own, as
+ * they were before the gate — and any other contraindication the gate ranks above it charges the dose in its place
+ */
+export const nitrateCheckRule = (harm: Harm, rank: string = harm.id) =>
+  nitrateCaseRule(harm, rank, [...NITRATE_CHECKS, 'nitro-hypotension', 'nitro-high-not-hypertensive']);
+
 // ─── Fibrinolytics ─────────────────────────────────────────────────────────
 
 /** The minutes of compressions in one CPR cycle: more than 10 minutes of CPR is a relative contraindication to a lytic for a STEMI */
 const CPR_MINUTES_PER_CYCLE = 2;
 
+/** IV drugs that lower a severe pressure before a fibrinolytic (some are actions still to come) */
+const IV_ANTIHYPERTENSIVES = ['metoprolol', 'esmolol', 'labetalol', 'nicardipine', 'clevidipine', 'nitro-iv'];
+
 /**
- * The fibrinolytics (tenecteplase, alteplase), ranked: the dissection, the absolute contraindications, a second dose, the
- * lab, a STEMI that PCI can reach in time, no indication, then the relative contraindications (2013 ACCF/AHA STEMI table,
- * kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels)
+ * A pulmonary embolism with cardiopulmonary failure — in shock (category D or E) or in arrest: the lysis may still be right
+ * with a relative contraindication, weighed against catheter-directed therapy or surgery (2025 AHA ACLS 2a in the arrest;
+ * 2026 AHA/ACC PE), so it is not counted against it
+ */
+const peNeedsLysis = (s: SimState, sc: Scenario) => hasProblem(sc, ['pulmonary-embolism']) && (!s.pulse || hasProblem(sc, ['pe-high-risk']));
+
+/**
+ * The fibrinolytics (tenecteplase, alteplase), ranked: the dissection, the absolute contraindications (with a severe
+ * pressure that emergency treatment did not bring down), a second dose, the lab, a STEMI that PCI can reach in time, no
+ * indication, then the relative contraindications (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline;
+ * TNKase and Activase labels)
  */
 const LYTIC_GATE = gate([
   {
@@ -170,9 +275,17 @@ const LYTIC_GATE = gate([
     text: 'A fibrinolytic in an aortic dissection. It can turn the tear into a fatal hemorrhage: a dissection that blocks a coronary ostium can mimic a STEMI — think of it before any lytic.',
   },
   {
-    id: 'lytic-absolute', actions: LYTICS, applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'intracranial-risk', 'bleeding']),
+    // a stroke under way now: an ischemic stroke within 3 months, and before a CT a bleed is not excluded (the stroke dose of
+    // alteplase or tenecteplase is the stroke team's decision, not a STEMI or PE dose)
+    id: 'lytic-absolute', actions: LYTICS, applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'stroke', 'intracranial-risk', 'bleeding']),
     points: 15, severity: 'critical',
-    text: 'A fibrinolytic with an absolute contraindication: an intracranial hemorrhage ever, an ischemic stroke within 3 months, an intracranial lesion (an AVM, an aneurysm, a tumor), significant head or face trauma within 3 months, brain or spinal surgery within 2 months, or active bleeding or a bleeding disorder (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels). The bleeding risk is prohibitive: primary PCI for a STEMI; for a pulmonary embolism, catheter-directed therapy or surgery.',
+    text: 'A fibrinolytic with an absolute contraindication: an intracranial hemorrhage ever, an ischemic stroke within 3 months or one under way now (before a CT has excluded a bleed), an intracranial lesion (an AVM, an aneurysm, a tumor), significant head or face trauma within 3 months, brain or spinal surgery within 2 months, or active bleeding or a bleeding disorder (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels). The bleeding risk is prohibitive: primary PCI for a STEMI; for a pulmonary embolism, catheter-directed therapy or surgery.',
+  },
+  {
+    id: 'lytic-uncontrolled-hypertension', actions: LYTICS,
+    applies: (s) => s.pulse && (s.vitals.sbp > 180 || s.vitals.dbp > 110) && IV_ANTIHYPERTENSIVES.some((d) => did(s, d)),
+    points: 15, severity: 'critical',
+    text: 'A fibrinolytic with a systolic still over 180 or a diastolic over 110 after IV treatment to bring it down. Severe hypertension that does not respond to emergency treatment is an absolute contraindication (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels: severe uncontrolled hypertension): the intracranial bleeding risk is prohibitive. Primary PCI, even with a longer delay.',
   },
   {
     id: 'second-lytic', actions: LYTICS, applies: (s) => has(s, 'lytic'), points: 15, severity: 'critical',
@@ -195,14 +308,14 @@ const LYTIC_GATE = gate([
   },
   {
     id: 'lytic-hypertension', actions: LYTICS, applies: (s) => s.pulse && (s.vitals.sbp > 180 || s.vitals.dbp > 110), points: 5, severity: 'major',
-    text: 'A fibrinolytic with a systolic over 180 or a diastolic over 110. A severe, uncontrolled pressure is a relative contraindication (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline): the intracranial bleeding risk climbs steeply. Bring the pressure down first, or choose PCI.',
+    text: 'A fibrinolytic with a systolic over 180 or a diastolic over 110. Significant hypertension on presentation is a relative contraindication (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline) — and one that IV treatment does not bring down is an absolute one: the intracranial bleeding risk climbs steeply. Bring the pressure down first, or choose PCI.',
   },
   {
     id: 'lytic-relative', actions: LYTICS,
-    applies: (s, sc) => hasProblem(sc, ['oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy', 'prior-stroke'])
+    applies: (s, sc) => (!peNeedsLysis(s, sc) && hasProblem(sc, ['oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy', 'prior-stroke', 'thrombocytopenia']))
       || (ecgShowsStemi(s) && !hasProblem(sc, ['pulmonary-embolism']) && (s.counts.cpr ?? 0) * CPR_MINUTES_PER_CYCLE > 10),
     points: 5, severity: 'major',
-    text: 'A fibrinolytic with a relative contraindication: an oral anticoagulant, major surgery within 3 weeks, internal bleeding within 2–4 weeks or an active ulcer, pregnancy, a stroke more than 3 months ago or a TIA, or more than 10 minutes of CPR (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline). For a STEMI, PCI is the safer reperfusion; for a pulmonary embolism in shock or arrest the lysis may still be right — weigh the bleeding against catheter-directed therapy or surgery, it is not forbidden.',
+    text: 'A fibrinolytic with a relative contraindication: an oral anticoagulant, major surgery within 3 weeks, internal bleeding within 2–4 weeks or an active ulcer, pregnancy, platelets under 100,000, a stroke more than 3 months ago or a TIA (the TNKase label lists any earlier stroke), or more than 10 minutes of CPR (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline). For a STEMI, PCI is the safer reperfusion. (For a pulmonary embolism in shock or in arrest these are weighed against catheter-directed therapy or surgery, not counted against the lysis.)',
   },
 ]);
 
@@ -215,38 +328,42 @@ export const LYTIC_RULES = LYTIC_GATE.harms.map((h) => h.id);
 const TAMPONADE_ANTITHROMBOTICS = ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12'];
 
 /**
- * The antiplatelet and anticoagulant drugs, ranked: the dissection, active bleeding, heparin with HIT, a true aspirin
- * allergy, a tamponade, a low platelet count, the eptifibatide label's contraindications, then the combinations
+ * The antiplatelet and anticoagulant drugs, ranked: heparin with HIT, active bleeding, the dissection, a true aspirin
+ * allergy, a tamponade, a low platelet count for eptifibatide, the eptifibatide label's other contraindications, then the
+ * combinations
  */
 const ANTITHROMBOTIC_GATE = gate([
   {
-    id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major',
-    text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.',
+    id: 'heparin-hit', actions: ['heparin'], applies: (_s, sc) => hasProblem(sc, ['hit']), points: 15, severity: 'critical',
+    text: 'Heparin for a patient with heparin-induced thrombocytopenia, now or before. It can set off a new fall in the platelets with clots in the arteries and veins (heparin label; ACCP and ASH: no heparin with HIT): anticoagulate with bivalirudin or argatroban.',
   },
   {
     id: 'antithrombotic-bleeding', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['bleeding']), points: 10, severity: 'major',
     text: 'An antiplatelet or anticoagulant with active bleeding. It keeps the bleeding going (the aspirin, P2Y12 inhibitor, heparin, bivalirudin, eptifibatide and cangrelor labels: contraindicated with active pathological bleeding): hold the antithrombotics, stop the bleeding, and reverse what can be reversed.',
   },
   {
-    id: 'heparin-hit', actions: ['heparin'], applies: (_s, sc) => hasProblem(sc, ['hit']), points: 15, severity: 'critical',
-    text: 'Heparin for a patient with heparin-induced thrombocytopenia, now or before. It can set off a new fall in the platelets with clots in the arteries and veins (heparin label; ACCP and ASH: no heparin with HIT): anticoagulate with bivalirudin or argatroban.',
+    id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major',
+    text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.',
   },
   {
     id: 'aspirin-allergy', actions: ['aspirin'], applies: (_s, sc) => hasProblem(sc, ['aspirin-allergy']), points: 10, severity: 'major',
-    text: 'Aspirin for a patient with a true aspirin allergy (anaphylaxis, angioedema, hives) or aspirin-exacerbated asthma. It can set off the same reaction: give clopidogrel instead (2025 ACC/AHA ACS).',
+    text: 'Aspirin for a patient with a true aspirin allergy (anaphylaxis, angioedema, hives) or aspirin-exacerbated asthma. It can set off the same reaction: give clopidogrel instead (2014 AHA/ACC NSTE-ACS, kept in the 2025 ACC/AHA ACS guideline).',
   },
   {
     id: 'antithrombotic-tamponade', actions: TAMPONADE_ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['tamponade']), points: 8, severity: 'major',
     text: 'An anticoagulant or an antiplatelet loading dose in cardiac tamponade. Blood in the pericardium can be the cause (a dissection, a ruptured wall, a perforation), and the needle that drains it needs blood that clots: an antithrombotic keeps the effusion bleeding and makes the drain riskier. Drain it and find the cause first.',
   },
   {
-    id: 'heparin-thrombocytopenia', actions: ['heparin', 'gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['thrombocytopenia']), points: 8, severity: 'major',
-    text: 'Heparin or eptifibatide with platelets under 100,000. Both can drop the platelets further and add to the bleeding (heparin label; Integrilin label: contraindicated under 100,000): find the cause, and choose the anticoagulant with the count in hand.',
+    // heparin is not held for a count under 100,000 (unfractionated heparin is given for ACS and PCI down to about 50,000,
+    // with the dose weighed and the count watched): the 100,000 line is eptifibatide's
+    id: 'gp-thrombocytopenia', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['thrombocytopenia']), points: 8, severity: 'major',
+    text: 'Eptifibatide with platelets under 100,000. It can drop them further and adds to the bleeding (Integrilin label: contraindicated under 100,000): find the cause of the low count, and leave the GP IIb/IIIa inhibitor out.',
   },
   {
-    id: 'gp-contraindicated', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'recent-surgery', 'recent-bleeding', 'dialysis']),
+    // the label's stroke is any within 30 days (a recent stroke here means 3 months, which covers it) or one under way now
+    id: 'gp-contraindicated', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'stroke', 'recent-surgery', 'recent-bleeding', 'dialysis']),
     points: 10, severity: 'major',
-    text: 'Eptifibatide with a contraindication on its label: a bleed in the head ever or a recent stroke, major surgery within 6 weeks, bleeding within 30 days, or dialysis (Integrilin label). It doubles the bleeding risk where it is highest — and on dialysis it is not cleared at all.',
+    text: 'Eptifibatide with a contraindication on its label: a bleed in the head ever, a stroke now or a recent one (the label: within 30 days), major surgery within 6 weeks, bleeding within 30 days, or dialysis (Integrilin label). It doubles the bleeding risk where it is highest — and on dialysis it is not cleared at all.',
   },
   {
     id: 'gp-after-lytic', actions: ['gp2b3a'], applies: (s) => has(s, 'lytic'), points: 8, severity: 'major',
@@ -280,12 +397,14 @@ const PROTAMINE_GATE = gate([
     text: 'Protamine with the wire still across and the PCI not finished. Reversing the heparin with hardware in the artery invites a clot on the wire and in a fresh stent: reverse only after the final angiogram, or for bleeding that threatens life.',
   },
   {
-    id: 'protamine-no-heparin', actions: ['protamine'], applies: (s, sc) => !has(s, 'heparin') && !hasProblem(sc, ['heparin-on-board']), points: 5, severity: 'major',
-    text: 'Protamine with no heparin to reverse. It reverses unfractionated heparin only (not bivalirudin), and on its own it can drop the pressure, set off a reaction and act as an anticoagulant itself (protamine label, boxed warning).',
+    // enoxaparin within 12 hours counts: protamine reverses part of it (2020 ACC expert consensus on bleeding: 1 mg per mg of
+    // enoxaparin within 8 hours, 0.5 mg per mg at 8–12)
+    id: 'protamine-no-heparin', actions: ['protamine'], applies: (s, sc) => !has(s, 'heparin') && !hasProblem(sc, ['heparin-on-board', 'lmwh-on-board']), points: 5, severity: 'major',
+    text: 'Protamine with no heparin to reverse. It reverses heparin — fully for unfractionated heparin, only partly for enoxaparin — and not bivalirudin, cangrelor or eptifibatide; on its own it can drop the pressure, set off a reaction and act as an anticoagulant itself (protamine label, boxed warning).',
   },
   {
     id: 'protamine-sensitized', actions: ['protamine'], applies: (_s, sc) => hasProblem(sc, ['protamine-sensitized']) && !hasProblem(sc, ['bleeding']), points: 5, severity: 'major',
-    text: 'Protamine for a patient sensitized to it — NPH or protamine-zinc insulin, an earlier protamine dose, a fish allergy or a vasectomy — with no bleeding that needs it. These raise the risk of a severe reaction (protamine label, boxed warning): reverse heparin only for real bleeding, slowly (no more than 50 mg over 10 minutes), with epinephrine at hand.',
+    text: 'Protamine for a patient sensitized to it — NPH or protamine-zinc insulin, an earlier protamine dose, a fish allergy or a vasectomy — with no bleeding that needs it. These, like severe left-ventricular dysfunction or pulmonary hypertension, raise the risk of a severe reaction (protamine label, boxed warning): reverse heparin only for real bleeding, with a small test dose first, then slowly (no more than 50 mg over 10 minutes), with epinephrine at hand.',
   },
 ]);
 
@@ -295,12 +414,16 @@ export const PROTAMINE_RULES = PROTAMINE_GATE.harms.map((h) => h.id);
 // ─── Analgesia and sedation ────────────────────────────────────────────────
 
 /**
- * A procedure that needs sedation or analgesia is running or about to start: a cardioversion (a tachyarrhythmia, or torsades
- * to be defibrillated), transcutaneous pacing, or the pads on for a rate under 50 that the pacer is about to take. A heart
- * already paced by a transvenous wire needs none, and a slow rate with no pads on is no procedure yet
+ * A procedure that needs sedation or analgesia is running or about to start: a cardioversion (a tachyarrhythmia that is
+ * unstable — a low pressure — or with the pads already on for the shock; or torsades to be defibrillated), transcutaneous
+ * pacing, or the pads on for a rate under 50 that the pacer is about to take. A heart already paced by a transvenous wire
+ * needs none, a stable tachycardia being slowed with drugs is no procedure, and a slow rate with no pads on is no procedure
+ * yet. In the cath lab the pads are on from the start, so there they say nothing about pacing: only pads the learner puts on
+ * for it, or the pacer running, do
  */
-export const sedationForProcedure = (s: SimState) =>
-  tachyarrhythmia(s) || rhythmKind(s) === 'torsades' || s.rhythm.profile === 'tcp' || (s.rhythm.hr < 50 && !paced(s) && has(s, 'pads'));
+export const sedationForProcedure = (s: SimState, sc: Scenario) =>
+  (tachyarrhythmia(s) && (lowPressure(s) || has(s, 'pads'))) || rhythmKind(s) === 'torsades' || s.rhythm.profile === 'tcp'
+  || (s.rhythm.hr < 50 && !paced(s) && (sc.setting === 'cathlab' ? did(s, 'pads') : has(s, 'pads')));
 
 /**
  * Too unwell to sedate: a low pressure, breathing under 10 a minute, or drowsy (GCS 12 or less) — and no procedure to sedate
@@ -308,22 +431,24 @@ export const sedationForProcedure = (s: SimState) =>
  * one, sedated for the tube on the physician's decision: no mistake there
  */
 export const unsafeToSedate: Check = (s, sc) =>
-  s.pulse && (lowPressure(s) || s.vitals.rr < 10 || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !sedationForProcedure(s);
+  s.pulse && (lowPressure(s) || s.vitals.rr < 10 || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !sedationForProcedure(s, sc);
 
 /** The opioid (fentanyl), ranked: the breathing first, then the pressure, then whether there is pain to treat */
 const OPIOID_GATE = gate([
   {
-    id: 'opioid-respiratory', actions: ['fentanyl'], applies: (s) => s.vitals.rr < 10 || (s.vitals.gcs <= 8 && !has(s, 'airway') && !sedationForProcedure(s)),
+    id: 'opioid-respiratory', actions: ['fentanyl'], applies: (s, sc) => s.vitals.rr < 10 || (s.vitals.gcs <= 8 && !has(s, 'airway') && !sedationForProcedure(s, sc)),
     points: 5, severity: 'major',
     text: 'An opioid for a patient breathing under 10 a minute, or too drowsy to protect the airway (GCS 8 or less, no airway in place). Fentanyl slows the breathing further and can stop it (label boxed warning: life-threatening respiratory depression): support the breathing and the airway first.',
   },
   {
-    id: 'opioid-hypotension', actions: ['fentanyl'], applies: (s) => lowPressure(s) && !sedationForProcedure(s), points: 3, severity: 'minor',
+    id: 'opioid-hypotension', actions: ['fentanyl'], applies: (s, sc) => lowPressure(s) && !sedationForProcedure(s, sc), points: 3, severity: 'minor',
     text: 'An opioid with a systolic under 90 (with an LVAD, a Doppler MAP under 60) and no cardioversion or pacing to give it for. It widens the veins and blunts the drive holding the pressure up (label: severe hypotension): support the pressure first, then small doses, titrated.',
   },
   {
-    id: 'opioid-no-pain', actions: ['fentanyl'], applies: (s) => s.vitals.pain === 0 && !sedationForProcedure(s), points: 3, severity: 'minor',
-    text: 'An opioid with no pain to treat, and no cardioversion or pacing to give it for. Without either it brings only its risks — slower breathing, a lower pressure, nausea — and in an acute coronary syndrome an opioid also slows the oral P2Y12 inhibitor (2025 ACC/AHA ACS).',
+    // an intubated patient (RSI, or a tube after the arrest) feels the tube whatever the pain score says: analgesia first
+    // (SCCM PADIS 2018), and promptly after a long-acting paralytic
+    id: 'opioid-no-pain', actions: ['fentanyl'], applies: (s, sc) => s.vitals.pain === 0 && !has(s, 'airway') && !sedationForProcedure(s, sc), points: 3, severity: 'minor',
+    text: 'An opioid with no pain to treat, and no cardioversion, pacing or breathing tube to give it for. Without one it brings only its risks — slower breathing, a lower pressure, nausea — and in an acute coronary syndrome an opioid also slows the oral P2Y12 inhibitor (2025 ACC/AHA ACS).',
   },
 ], (s) => s.pulse);
 
@@ -336,14 +461,22 @@ export const SEDATIVE_RULES = [...OPIOID_GATE.harms.map((h) => h.id), 'midazolam
 
 // ─── The antiemetic ────────────────────────────────────────────────────────
 
-/** The label's advice to monitor the ECG: a failing heart, a high potassium, a slow rate or AV block */
+/** Drugs on board that lengthen the QT too (amiodarone, procainamide; sotalol is an action still to come) */
+const QT_DRUGS = ['amio-arrest', 'amio-infusion', 'procainamide', 'sotalol'];
+
+/**
+ * The patients ondansetron's label says to monitor (Zofran label, QT prolongation: electrolyte abnormalities such as a low
+ * potassium or magnesium, congestive heart failure, bradyarrhythmias, other QT-prolonging drugs) — a low calcium lengthens
+ * the QT too, and a high potassium belongs on the monitor in its own right
+ */
 const ondansetronRisk = (s: SimState, sc: Scenario) =>
-  hasProblem(sc, ['heart-failure', 'hyperkalemia']) || s.rhythm.hr < 50 || AV_BLOCKS.includes(rhythmKind(s));
+  hasProblem(sc, ['heart-failure', 'hypokalemia', 'hypomagnesemia', 'hypocalcemia', 'hyperkalemia'])
+  || s.rhythm.hr < 50 || AV_BLOCKS.includes(rhythmKind(s)) || QT_DRUGS.some((d) => did(s, d));
 
 export const ACS_RULES: Harm[] = [
   // the emergency department's procedural sedation (ACEP clinical policy: monitoring and capnography)
   { id: 'sedation-unmonitored', actions: ['procedural-sedation'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Procedural sedation without the cardiac monitor on. Sedation can stop the breathing and drop the pressure: the ECG, pulse oximetry, the blood pressure and capnography run from before the first dose until the patient is awake again.' },
-  { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s) => s.pulse && !sedationForProcedure(s), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
+  { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s, sc) => s.pulse && !sedationForProcedure(s, sc), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
   ...LYTIC_GATE.harms,
   ...NITRATE_GATE.harms,
   { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => longQt(s, sc), points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
@@ -357,7 +490,7 @@ export const ACS_RULES: Harm[] = [
     // in the lab the monitor is always on
     id: 'ondansetron-unmonitored', actions: ['ondansetron'],
     when: (s, sc) => s.pulse && sc.setting !== 'cathlab' && !has(s, 'monitor') && !longQt(s, sc) && ondansetronRisk(s, sc), points: 2, severity: 'minor',
-    text: 'Ondansetron without the cardiac monitor on, for a patient with a failing heart, a high potassium, a slow rate or AV block. It lengthens the QT, and its label advises ECG monitoring for exactly these patients: put the monitor on first.',
+    text: 'Ondansetron without the cardiac monitor on, for a patient its label says to monitor: a low potassium, magnesium or calcium, a failing heart, a slow rate or AV block, or another QT-prolonging drug on board (and a high potassium needs the monitor in its own right). It lengthens the QT: put the monitor on first.',
   },
   ...OPIOID_GATE.harms,
   // sedation before a cardioversion or for the pacer is needed even with a low pressure (a smaller dose, titrated): a case
