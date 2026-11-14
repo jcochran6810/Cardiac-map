@@ -4,6 +4,7 @@ import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder } from '../edKit';
 import { ANTITHROMBOTIC_RULES, NITRATE_RULES, nitrateCaseRule, nitrateRulesExcept } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Acute type A aortic dissection in the emergency department. A 63-year-old man whose blood pressure has gone untreated
@@ -757,6 +758,12 @@ export const edDissection: Scenario = {
       text: 'A fluid bolus for a patient whose pressure is already high. More volume raises the pressure and the force on the torn wall. Fluid is for the shock of tamponade or rupture, in small boluses, on the way to the operating room.',
     },
     {
+      // the built-in rule, same id (a deliberate exemption): in the tamponade a bolus can lift the systolic over 90 and he
+      // is still in shock — a pressor then is the bridge to the operating room. The rule below judges the pressure
+      id: 'pressor-no-hypotension', actions: ['push-epi', 'pressor'], when: () => false, points: 3, severity: 'minor',
+      text: 'A vasopressor without a low pressure: in this case the rule for a high pressure judges it.',
+    },
+    {
       id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !shock(s), points: 5, severity: 'major',
       text: 'A vasopressor or push-dose epinephrine with a high blood pressure. It drives the pressure and the heart harder against the tear: the goal is a lower rate and pressure, not a higher one.',
     },
@@ -773,7 +780,8 @@ export const edDissection: Scenario = {
       text: 'Activating the cath lab for a 12-lead without a STEMI, in a patient whose pain tears through to the back. His tracing shows the LVH of years of high blood pressure, and the cath lab brings heparin and antiplatelets — the worst treatment for a torn aorta. Image the aorta and call the surgeon.',
     },
     {
-      id: 'transfer-in-house', actions: ['transfer'], roles: ED_MD, points: 3, severity: 'minor',
+      // the case's own lesson for any transfer (an unstable one too): the surgeon is here — one penalty, not the EMTALA rule's as well
+      id: 'transfer-in-house', actions: ['transfer'], roles: ED_MD, replaces: ['transfer-unstable'], points: 3, severity: 'minor',
       text: 'A transfer request from a high-volume cardiac surgery center. Moving a type A tear to a high-volume aortic center is right from a hospital without cardiac surgery, or one that rarely does these operations (2022 ACC/AHA: a stable patient is considered for that transfer); this hospital is one, with its surgeon on call, and a transfer only adds an hour or more to a tear that kills about 1–2 % of patients an hour in the first day. Call the surgeon here.',
     },
     {
@@ -792,8 +800,9 @@ export const edDissection: Scenario = {
       text: 'A pericardiocentesis without tamponade. The rim of fluid around his heart is not squeezing it: there is nothing to drain, and the needle can puncture the heart or a coronary artery. The torn aorta needs the surgeon.',
     },
     {
-      // with a pulse: once his heart has stopped, a needle in the pericardium is a last try that costs nothing more
-      id: 'pericardiocentesis-before-or', actions: ['pericardiocentesis'], roles: ED_MD, when: (s) => s.pulse && bled(s), points: 8, severity: 'major',
+      // with a pulse: once his heart has stopped, a needle in the pericardium is a last try that costs nothing more. The
+      // built-in rule for it, in this case's words
+      id: 'pericardiocentesis-before-or', actions: ['pericardiocentesis'], roles: ED_MD, when: (s) => s.pulse && bled(s), replaces: ['pericardiocentesis-dissection-tamponade'], points: 8, severity: 'major',
       text: 'A needle drain for the tamponade of a torn aorta while a surgeon can operate. Emptying the sac lets the pressure rise and the bleeding restart, often worse: the operating room is the treatment. A controlled drainage of small amounts is a last resort only when no surgery can happen at once.',
     },
     {
@@ -802,7 +811,9 @@ export const edDissection: Scenario = {
       text: 'Sending him to the CT scanner in shock. With a torn aorta a falling pressure means tamponade or rupture: he goes straight to the operating room, where an echo through the esophagus confirms the tear, not to a scanner where nobody can treat him.',
     },
     {
-      id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      // the lungs are clear: a lighter mistake than CPAP on a low pressure, a heart that lives on its preload or a patient
+      // about to vomit — there (cpapHarmful) the built-in rules speak, at their own weight
+      id: 'cpap-no-distress', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
     // the nurse's answer to an order that is not the order: a medication error, scored once (not also as a drug with no order)

@@ -275,6 +275,42 @@ describe('the ER nurse', () => {
     expect(review(sc, push).percent).toBe(100);
   });
 
+  it('push-dose epinephrine is a bridge: it wears off after a few minutes, pushes in a row hold rather than stack, an infusion takes over', () => {
+    const pushed = md([...MD_START, 'sample', 'push-epi']);
+    expect(pushed.vitals).toMatchObject({ sbp: 96, dbp: 74 });
+    // six minutes on, with no infusion behind it, she slides back to where it found her
+    const worn = until(pushed, (x) => x.fired.includes('push-wears-off-1'));
+    expect(worn.minute - pushed.performed.at(-1)!.minute).toBeGreaterThan(6);
+    expect(worn.vitals).toMatchObject({ sbp: 84, dbp: 68 });
+    expect(said(worn)).toMatch(/The push-dose epinephrine has worn off/);
+    // a second push while the first still acts holds her there, no higher
+    const again = perform(sc, pushed, 'push-epi');
+    expect(again.vitals.sbp).toBe(96);
+    // the infusion holds what it raises: nothing wears off
+    const held = until(perform(sc, pushed, 'pressor'), (x) => x.minute >= pushed.minute + 8, 5);
+    expect(held.fired.some((id) => id.startsWith('push-wears-off'))).toBe(false);
+    // and after the drain there is nothing for it to wear off from
+    const drained = until(md([...MD_TO_DRAIN, 'push-epi', 'pericardiocentesis']), (x) => x.minute >= 20, 8);
+    expect(drained.fired.some((id) => id.startsWith('push-wears-off'))).toBe(false);
+  });
+
+  it('a push-dose bridge never brings the arrest closer: the crash takes her own pressure, and the push\'s share comes off later', () => {
+    const base = ['perfusion', 'lungs', 'sample', 'pocus'];
+    const untreated = md([...base, ...R(9)]);
+    const arrestAt = untreated.flags.arrest;
+    expect(arrestAt).toBeDefined();
+    // a push before the crash (at 14.5, or just before it at 15.5): the crash and the push wearing off have both come by
+    // minute 21, and she still has a pulse — and she arrests no sooner than with no push at all
+    for (const steps of [[...base, 'fluid', ...R(4), 'push-epi'], [...base, ...R(5), 'push-epi']]) {
+      const pushed = md(steps);
+      const at21 = until(pushed, (x) => x.minute >= 21 || !x.pulse);
+      expect(at21.fired, steps.join(' ')).toEqual(expect.arrayContaining(['crash', 'push-wears-off-1']));
+      expect(at21.pulse, steps.join(' ')).toBe(true);
+      const later = until(pushed, (x) => !x.pulse, 12);
+      expect(later.flags.arrest, steps.join(' ')).toBeGreaterThanOrEqual(arrestAt);
+    }
+  });
+
   it('a vasopressor before the order is outside her scope; an unreported slide is missed, and the physician orders it anyway', () => {
     expect(ids(rn(['triage', 'monitor', 'iv', 'pressor']))).toEqual(['rn-without-order-pressor']);
     expect(ids(rn(['triage', 'monitor', 'iv', 'push-epi']))).toEqual(['rn-without-order-push-epi']);

@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
 import { NITRATE_CHECKS, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -525,7 +526,7 @@ export const cocaineField: Scenario = {
       text: 'More midazolam (the sedation protocol) for a patient this drowsy. A benzodiazepine drops the breathing and the pressure further: with a GCS of 12 or less, support the airway and the breathing instead.',
     },
     {
-      id: 'pressor-stimulant', actions: ['push-epi', 'pressor'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'pressor-stimulant', actions: ['push-epi', 'pressor'], when: (s) => s.pulse, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {
@@ -541,7 +542,9 @@ export const cocaineField: Scenario = {
       text: 'IV diltiazem for the fast rate and the high pressure of cocaine. A benzodiazepine treats both at their cause and nitroglycerin the coronary spasm; a calcium-channel blocker is a later option for spasm or a pressure that stays dangerously high after them (AHA statement on cocaine-associated chest pain; 2023 AHA poisoning update) — and in field protocols IV diltiazem is a rate drug for atrial fibrillation or flutter, not for a fast sinus rate.',
     },
     {
-      id: 'cpap-clear-lungs', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      // the lungs are clear: a lighter mistake than CPAP on a low pressure, a heart that lives on its preload or a patient
+      // about to vomit — there (cpapHarmful) the built-in rules speak, at their own weight
+      id: 'cpap-clear-lungs', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; his lungs are clear, and a mask strapped over the face of an agitated patient makes the agitation worse.',
     },
     {

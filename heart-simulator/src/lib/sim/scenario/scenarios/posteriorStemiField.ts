@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, atRate, bpAfter, has, interpret, line } from '../kit';
 import { nitrateCheckRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Posterior STEMI in the field. A 61-year-old woman with diabetes and high blood pressure had to sit down halfway up the
@@ -452,7 +453,7 @@ export const posteriorStemiField: Scenario = {
       text: 'IV metoprolol in the field. Routine IV beta-blockade before primary PCI is not supported (2025 ACC/AHA ACS guideline), and it is no part of US prehospital STEMI protocols: given early it can bring on bradycardia, hypotension and cardiogenic shock (COMMIT). The hospital starts an oral beta-blocker within 24 hours once heart failure, a low output and the risk of shock are excluded.',
     },
     {
-      id: 'adrenergic-mi', actions: ['push-epi', 'pressor', 'epi-im'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 5, severity: 'major',
+      id: 'adrenergic-mi', actions: ['push-epi', 'pressor', 'epi-im'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension', 'epi-im-no-anaphylaxis'], points: 5, severity: 'major',
       text: 'Epinephrine or a vasopressor with a normal pressure in an acute MI. It drives up the rate, the pressure and the oxygen the starving muscle needs, and can set off arrhythmias: her pressure needs no support.',
     },
     {
@@ -460,7 +461,9 @@ export const posteriorStemiField: Scenario = {
       text: 'A drug for an arrhythmia with a regular sinus rate. Her rhythm needs no treatment: adenosine, diltiazem and the antiarrhythmics have nothing to treat and bring only their side effects — a pause, a falling pressure, slower conduction (prophylactic lidocaine in MI was abandoned decades ago). The treatment of her heart is opening the artery.',
     },
     {
-      id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      // the lungs are clear: a lighter mistake than CPAP on a low pressure, a heart that lives on its preload or a patient
+      // about to vomit — there (cpapHarmful) the built-in rules speak, at their own weight
+      id: 'cpap-clear', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; hers are clear, and the pressure in the chest lowers the blood returning to the heart.',
     },
   ]),

@@ -392,10 +392,11 @@ describe('stable VT in the field: fair scoring and physiology (review fixes)', (
     expect(penalties(low)).toEqual(['ccb-wide-complex']);
   });
 
-  it('other care that only lowers the pressure or wastes resources costs points: nitroglycerin with no pain, a STEMI alert, CPAP while hypotensive, adenosine once unstable', () => {
+  it('other care that only lowers the pressure or wastes resources costs points: nitroglycerin with no pain, a STEMI alert, CPAP with no breathing trouble or while hypotensive, adenosine once unstable', () => {
     expect(penalties(run(sc, 2, [...WORKED_UP, 'nitro']))).toEqual(['nitro-no-pain']);
     expect(penalties(run(sc, 2, [...WORKED_UP, 'stemi-alert']))).toEqual(['stemi-alert-no-ste']);
-    expect(penalties(run(sc, 2, [...WORKED_UP, 'cpap']))).toEqual([]);
+    // his breathing is unlabored and his lungs clear: CPAP has nothing to treat
+    expect(penalties(run(sc, 2, [...WORKED_UP, 'cpap']))).toEqual(['cpap-no-indication']);
     expect(penalties(run(sc, 2, [...WORKED_UP, 'diltiazem', 'cpap']))).toEqual(['ccb-wide-complex', 'cpap-hypotension']);
     expect(penalties(run(sc, 2, [...WORKED_UP, ...R(5), 'adenosine6']))).toEqual(['adenosine-unstable']);
     // while he is stable, adenosine is a fair diagnostic try (regular and monomorphic: COR 2b)

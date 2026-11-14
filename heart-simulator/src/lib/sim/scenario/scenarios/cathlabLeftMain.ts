@@ -368,7 +368,7 @@ export const cathlabLeftMain: Scenario = {
     perfusion: (s) => (has(s, 'impella')
       ? `${pumpSide(s) === 'left' ? 'Left' : 'Right'} leg below the large-bore sheath: the foot is pink and warm, with dorsalis pedis and posterior tibial signals on the Doppler; capillary refill 3 seconds. His knees are less mottled than on arrival.`
       : 'Cold, mottled knees; thready pulses; capillary refill 5 seconds; neck veins full.'),
-    labs: 'Lactate 6.1, creatinine 1.8 (1.0 last year), potassium 4.9, hemoglobin 13.4, platelets 228, INR 1.1. High-sensitivity troponin 4,200 ng/L.',
+    labs: 'Lactate 6.1, creatinine 1.8 (1.0 last year), potassium 4.9, hemoglobin 13.4, platelets 228, INR 1.1. High-sensitivity troponin 4,200 ng/L. He takes metformin and his kidneys are struggling: hold it from today (the shock and a lactate of 6 alone rule it out), recheck the creatinine at 48 hours before it restarts, and keep the contrast to the minimum — no LV gram.',
     // the explanation the feedback gives after each 12-lead read: the vector model's ST shifts for the 'nstemi' profile are
     // about 1–1.5 mm down in I, II and V4–V6, less in aVF and V3, and about 1 mm up in aVR (a little in V1)
     ecg12: (s) => {
@@ -846,7 +846,7 @@ export const cathlabLeftMain: Scenario = {
     // the built-in nitroglycerin rule is replaced above for every nitrate: intracoronary nitroglycerin with a low pressure keeps its own
     { id: 'ic-nitro-low-pressure', actions: ['ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: NITRATE_RULES, points: 8, severity: 'major', text: 'Intracoronary nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further.' },
     { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
-    { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing ventricle must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock.' },
+    { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow', 'phenylephrine-heart-failure'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing ventricle must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock.' },
     // a benzodiazepine, named as one, is the bigger mistake; the generic "sedation / analgesia" order is a smaller one
     { id: 'benzodiazepine-in-shock', actions: ['midazolam'], replaces: SEDATIVE_RULES, when: (s) => s.pulse, points: 5, severity: 'major', text: 'Midazolam in a shocked, hypoxic, drowsy patient. A benzodiazepine drops the pressure and the breathing; a small dose of fentanyl eases the pain without either.' },
     { id: 'sedation-in-shock', actions: ['sedation'], when: (s) => s.pulse, points: 3, severity: 'minor', replaces: SEDATIVE_RULES, text: 'Procedural sedation in a shocked, hypoxic, drowsy patient. It drops the pressure and the breathing; a small dose of fentanyl alone eases the pain without either.' },

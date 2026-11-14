@@ -1,5 +1,6 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { bpAfter, has, line } from '../kit';
+import { pressorNotLow } from '../rules/support';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, operator, type LabAsk } from '../labKit';
 import { ANTITHROMBOTIC_RULES, NITRATE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
@@ -219,6 +220,12 @@ export const cathlabPerforation: Scenario = {
     { id: 'beta-blocker', actions: ['metoprolol'], when: (s) => has(s, 'perforation'), replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a covered stent to seal the perforation.'),
     { ...askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5), replaces: RATE_RULES },
+    // The built-in pressor rules, same ids (deliberate exemptions). The hole bleeds into the pericardium: the pressure falls
+    // because the heart is squeezed, not because the circulation is empty, so a vasopressor is a bridge until the drain
+    // (the support ask) with or without fluid first — and while the hole is open the pressure is about to fall, so no
+    // "normal pressure" counts until it is sealed and drained
+    { id: 'pressor-before-volume', actions: ['pressor', 'push-epi', 'phenylephrine'], when: () => false, points: 3, severity: 'minor', text: 'A vasopressor before any volume: in a perforation the falling pressure is a tamponade\'s, and a pressor is a bridge until the drain.' },
+    { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s, sc, id) => pressorNotLow(s, sc, id) && has(s, 'sealed') && has(s, 'drained'), points: 3, severity: 'minor', text: 'A vasopressor or push-dose epinephrine without a low pressure, once the hole is sealed and the pericardium drained. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.' },
   ]),
   timings: [
     { label: 'Balloon up over the hole', actions: ['balloon-tamponade'], flag: 'balloon-up', target: 1, from: 'perforation' },

@@ -919,6 +919,35 @@ describe('cardiogenic shock in the cath lab', () => {
     expect(review(sc, stop(s)).toFix.some((t) => t.kind === 'missed' && /^Oxygen/.test(t.label))).toBe(true);
   });
 
+  it('the LV gram and the LVEDP show the failing ventricle the echo shows; the labs say to hold the metformin', () => {
+    const s = run(sc, 5, ['consent', 'timeout', 'access-femoral', 'lv-gram', 'lvedp', 'labs']);
+    const said = s.log.map((l) => l.text).join('\n');
+    expect(said).toMatch(/LV gram: the anterior wall, the septum and the apex do not move/);
+    expect(said).toMatch(/EF about 20 %/);
+    expect(said).toMatch(/LVEDP 30 mmHg/);
+    expect(said).not.toMatch(/normal wall motion|LVEDP 10/);
+    expect(said).toMatch(/hold it from today \(the shock and a lactate of 5 alone rule it out\), recheck the creatinine at 48 hours/);
+    expect(said).toMatch(/no significant mitral regurgitation/);
+    // the LV gram in shock is itself a minor mistake
+    expect(s.penalties.map((p) => p.id)).toEqual(['lv-gram-in-shock']);
+  });
+
+  it('push-dose epinephrine is a bridge: the norepinephrine infusion is the vasopressor item', () => {
+    const steps = IDEAL['shock-cathlab'][5]!.map((id) => (id === 'pressor' ? 'push-epi' : id));
+    const r = review(sc, run(sc, 5, steps));
+    expect(r.toFix.some((t) => t.kind === 'missed' && t.label === 'A vasopressor early (norepinephrine)')).toBe(true);
+    expect(sc.timings?.find((t) => t.label === 'Pressor running')?.actions).toEqual(['pressor']);
+  });
+
+  it('both groins: the catheters in the right, the left made ready for the pump\'s 14 French sheath, and the Impella goes in there', () => {
+    const md = run(sc, 5, ['consent', 'timeout', 'access-femoral', 'access-venous', 'rhc', 'heparin', 'impella'], undefined, 'correct');
+    const said = md.log.map((l) => l.text).join('\n');
+    expect(said).toMatch(/Right common femoral artery under ultrasound, over the femoral head: a 6 French sheath for the catheters\. The left common femoral artery/);
+    expect(said).toMatch(/Impella CP through the 14 French sheath in the left common femoral artery/);
+    const rn = run(sc, 4, IDEAL['shock-cathlab'][4]!);
+    expect(rn.log.some((l) => l.who === 'operator' && /left common femoral artery .* And the right femoral vein\. PA catheter going in\./.test(l.text))).toBe(true);
+  });
+
   it('when the nurse never starts the pressor, the operator does — and the pressure responds', () => {
     const s = run(sc, 4, ['iv', ...R(5)]);
     expect(s.fired).toContain('pressor-fallback');

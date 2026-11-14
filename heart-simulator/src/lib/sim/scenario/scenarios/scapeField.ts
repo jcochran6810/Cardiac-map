@@ -675,7 +675,7 @@ export const scapeField: Scenario = {
       text: 'An IV before CPAP. The line treats nothing: with an SpO₂ in the low 80s she needs CPAP first, and the nitroglycerin goes under her tongue without a line. Start the IV once she is on CPAP.',
     },
     {
-      id: 'cpap-unable', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
+      id: 'cpap-unable', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 5, severity: 'major',
       text: 'CPAP for a patient who can no longer protect her airway or breathe for herself. CPAP supports breaths a patient takes; it gives none. Unresponsive, with a shallow breath every 8 seconds, she needs breaths given with a bag-mask and a PEEP valve — or an advanced airway.',
     },
     nitrateCheckRule({
@@ -714,14 +714,14 @@ export const scapeField: Scenario = {
       text: 'An antiarrhythmic with no arrhythmia to treat. Her 12-lead shows a sinus rhythm whose speed is her response to the hypoxia: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing she has.',
     },
     {
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 140, points: 8, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 140, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding her lungs: raising it makes the edema worse. She needs the pressure taken off — nitroglycerin and CPAP.',
     },
     {
       // between 90 and 140 (a dip after the nitrates) the pressure is not low enough for a pressor — and in the hypoxic
       // slowing before an arrest an epinephrine push is a fair adjunct of the bradycardia algorithm: the breaths she is not
       // getting are what the review charges there
-      id: 'pressor-not-hypotensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90 && s.vitals.sbp < 140 && !(has(s, 'slowing') && s.rhythm.hr < 60), points: 3, severity: 'minor',
+      id: 'pressor-not-hypotensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90 && s.vitals.sbp < 140 && !(has(s, 'slowing') && s.rhythm.hr < 60), replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
       text: 'A pressor without a low pressure. Her systolic was 90 or more: a dip after nitroglycerin comes back by itself once the nitrates are held, and a pressor only adds afterload to a ventricle that has just stopped flooding her lungs.',
     },
     {
@@ -729,7 +729,7 @@ export const scapeField: Scenario = {
       text: 'IM epinephrine without anaphylaxis. No hives, no swelling, no exposure: her noisy breathing is fluid in the lungs, and epinephrine only drives up the pressure and the rate.',
     },
     {
-      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, replaces: ['albuterol-no-bronchospasm'], points: 3, severity: 'minor',
       text: 'Albuterol for crackles. There is no wheeze for it to open: the noise in her chest is fluid, and a beta-agonist only speeds the heart. CPAP and nitroglycerin clear the lungs.',
     },
     {

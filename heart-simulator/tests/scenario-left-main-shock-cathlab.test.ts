@@ -245,11 +245,12 @@ describe('left main in cardiogenic shock: the patient responds', () => {
     expect(takeHint(sc, s).log.at(-1)!.text).toMatch(/^Hint: Defibrillate VF/);
   });
 
-  it('a balloon pump does far less: the inflation drops him to 58/34 but he holds on, and the support item is missed — with no penalty', () => {
+  it('a balloon pump does far less: the inflation drops him to 58/34 but he holds on, the support item is missed, and a routine balloon pump in shock costs points', () => {
     const s = run(sc, 5, [...MD_TO_ANGIO, 'call-surgery', 'heparin', 'act', 'echo', 'iabp', 'cangrelor', 'guide-ebu', 'wire-workhorse', 'ivus', 'stent-des']);
     expect(s.pulse).toBe(true);
     expect(said(s, /58\/34 despite the balloon pump/)).toBe(true);
-    expect(penalties(s)).toEqual([]);
+    // routine IABP in infarct-related cardiogenic shock: no benefit (IABP-SHOCK II; 2025 ACC/AHA ACS)
+    expect(penalties(s)).toEqual(['iabp-routine-shock']);
     expect(missed(s)).toContain('Mechanical support before the left main is touched (Impella)');
   });
 
@@ -441,7 +442,7 @@ describe('left main in cardiogenic shock: the traps', () => {
     expect(penalties(prot)).toEqual(['protamine-in-pci']);
     expect(said(prot, /protamine reverses it/)).toBe(true);
     expect(penalties(run(sc, 5, ['tnk']))).toEqual(['lytic-in-lab']);
-    expect(penalties(run(sc, 5, ['access-femoral']))).toEqual(['access-no-timeout']);
+    expect(penalties(run(sc, 5, ['consent', 'access-femoral']))).toEqual(['access-no-timeout']);
   });
 
   it('a cardiologist who stents without support, imaging or the surgeon told misses those items, not the stent', () => {
@@ -591,8 +592,8 @@ describe('left main in cardiogenic shock: review fixes', () => {
     expect(penalties(s)).toEqual(['lm-unsupported']);
     expect(r.percent).toBeLessThan(90);
     expect(r.grade).not.toBe('Excellent');
-    // a balloon pump is support, if far less: no penalty, the support item missed
-    expect(penalties(run(sc, 5, MD.map((id) => (id === 'impella' ? 'iabp' : id))))).toEqual([]);
+    // a balloon pump is support, if far less: the support item missed, and a routine balloon pump in shock is a mistake
+    expect(penalties(run(sc, 5, MD.map((id) => (id === 'impella' ? 'iabp' : id))))).toEqual(['iabp-routine-shock']);
   });
 
   it('waiting until the shock runs into VF costs the score as well as the patient', () => {

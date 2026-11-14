@@ -520,7 +520,7 @@ export const torsadesField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['magnesium-sulfate', 'epinephrine', 'lidocaine', 'iv', 'io', 'airway'],
-      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), replaces: ['epi-before-shock'], points: 5, severity: 'major',
+      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), replaces: ['airway-before-shock', 'epi-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Pulseless torsades — or the VF it turns into — needs a shock first: magnesium, IV access, drugs and the airway come after it, during CPR.',
     },
     {
@@ -539,11 +539,11 @@ export const torsadesField: Scenario = {
       text: 'Transcutaneous pacing of an awake patient with no analgesia or sedation. Every paced beat jolts her chest muscles: fentanyl or a small dose of midazolam first, as her pressure allows.',
     },
     {
-      id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 3, severity: 'minor',
+      id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
       text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. Her pressure needs no raising, and a surge of catecholamine in a long QT can set off a run.',
     },
     {
-      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], points: 5, severity: 'major',
+      id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], replaces: ['epi-im-in-arrest'], points: 5, severity: 'major',
       text: 'IM epinephrine without anaphylaxis. Nothing she has calls for it, and a surge of adrenaline in a long QT can set off torsades.',
     },
     nitrateCaseRule({

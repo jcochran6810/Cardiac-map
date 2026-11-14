@@ -914,10 +914,6 @@ export const edVfArrest: Scenario = {
       text: 'An amiodarone infusion in cardiac arrest. 150 mg over 10 minutes is the dose for a tachycardia with a pulse; in VF the dose is a 300 mg push (then 150 mg), given during compressions.',
     },
     {
-      id: 'push-epi-in-arrest', actions: ['push-epi'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
-      text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg every 3–5 minutes.',
-    },
-    {
       id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine in cardiac arrest. It is for a regular narrow-complex tachycardia with a pulse; in VF it treats nothing.',
     },
@@ -942,7 +938,7 @@ export const edVfArrest: Scenario = {
       text: 'Admitting a resuscitated patient without the cath lab. His arrest came from a coronary occlusion: ST elevation after ROSC means emergent coronary angiography, comatose or not (2025 AHA: Class 1). A 12-lead first, then the lab — the ICU comes after.',
     },
     {
-      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), points: 10, severity: 'major',
+      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), replaces: ['transfer-unstable'], points: 10, severity: 'major',
       text: 'Transferring a post-arrest STEMI out of a hospital with its own cath lab. A transfer adds an hour or more to opening the artery: activate your own lab.',
     },
   ]),

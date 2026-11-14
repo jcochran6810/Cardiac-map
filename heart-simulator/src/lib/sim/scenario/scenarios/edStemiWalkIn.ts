@@ -572,11 +572,13 @@ export const edStemiWalkIn: Scenario = {
       text: 'Admitting a STEMI without reperfusion. An occluded LAD needs the cath lab now — every 30 minutes of delay costs heart muscle and lives; a bed upstairs opens nothing.',
     },
     {
-      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), points: 10, severity: 'major',
+      id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), replaces: ['transfer-unstable'], points: 10, severity: 'major',
       text: 'Transferring a STEMI out of a hospital with its own cath lab. A transfer adds an hour or more to the time to the device: activate your own lab.',
     },
     {
-      id: 'ct-delays-reperfusion', actions: ['ct-urgent'], roles: ED_MD, points: 5, severity: 'major',
+      // the built-in rule, same id, in this case's words; like the built-in it leaves a low pressure to ct-unstable (one
+      // act, one penalty)
+      id: 'ct-delays-reperfusion', actions: ['ct-urgent'], roles: ED_MD, when: (s) => !s.pulse || s.vitals.sbp >= 90, points: 5, severity: 'major',
       text: 'A CT scan before the cath lab, with nothing to suggest a dissection or a pulmonary embolism. It takes him out of the department, into a scanner, in the hours VF is most likely, adds a contrast load before the angiogram\'s own, and can delay the artery being opened. A tearing pain to the back, a pressure difference between the arms or a widened mediastinum would be a reason; he has none.',
     },
     {
@@ -601,7 +603,7 @@ export const edStemiWalkIn: Scenario = {
     },
     {
       // a falling pressure (after a nitrate or a blocker) is a reason; a normal one is not
-      id: 'pressor-normal-pressure', actions: ['pressor', 'push-epi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.sbp >= 100, points: 3, severity: 'minor',
+      id: 'pressor-normal-pressure', actions: ['pressor', 'push-epi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.sbp >= 100, replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
       text: 'A vasopressor with a normal blood pressure. It raises the afterload and the oxygen demand of a heart whose artery is shut, and drives the rate; it is for a pressure that has fallen and does not come back with fluid.',
     },
   ]),

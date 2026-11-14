@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Vitals } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
 import { NITRATE_RULES, nitrateCaseRule } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Acute type A aortic dissection in the field. A hypertensive man who ran out of his pills tears his ascending aorta lifting
@@ -430,7 +431,7 @@ export const dissectionField: Scenario = {
       text: 'High-dose nitroglycerin for this patient. 0.8 mg is the dose for hypertensive pulmonary edema. With nothing slowing his heart it makes the heart race and pump harder against the tear (2022 ACC/AHA: a vasodilator only after a beta-blocker); even after one, a sublingual bolus this size drops the pressure by an amount nobody can titrate, and medical control did not order it. His pain needs an opioid.',
     },
     {
-      id: 'stemi-alert-dissection', actions: ['stemi-alert'], points: 5, severity: 'major', replaces: ['stemi-alert-no-ste'],
+      id: 'stemi-alert-dissection', actions: ['stemi-alert'], points: 5, severity: 'major', replaces: ['stemi-alert-no-ste', 'cath-lab-dissection'],
       text: 'A STEMI alert for a 12-lead that does not meet STEMI criteria. His shows the LVH of years of high blood pressure, and the alert sends him toward a cath lab and its heparin and antiplatelets — the worst place for a torn aorta. Transmit the 12-lead and report the tearing pain and the arm pressures.',
     },
     {
@@ -439,7 +440,7 @@ export const dissectionField: Scenario = {
       text: 'A fluid bolus for a patient who is not in shock. He came hypertensive: more volume raises the pressure and the force on the torn wall. Fluid is for the shock of tamponade or rupture, in small boluses.',
     },
     {
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !low(s), points: 5, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !low(s), replaces: ['pressor-no-hypotension'], points: 5, severity: 'major',
       text: 'A vasopressor or push-dose epinephrine without a low blood pressure. It drives the pressure and the heart harder against the tear: the goal is a lower rate and pressure, not a higher one.',
     },
     {
@@ -487,7 +488,9 @@ export const dissectionField: Scenario = {
       text: 'Still on scene when he went into shock. More than 20 minutes on scene with a suspected tear in the ascending aorta: it bled into the sac around his heart while he waited. Nothing in the field relieves it — find it, treat the pain and go; the rest can be done on the way.',
     },
     {
-      id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      // the lungs are clear: a lighter mistake than CPAP on a low pressure, a heart that lives on its preload or a patient
+      // about to vomit — there (cpapHarmful) the built-in rules speak, at their own weight
+      id: 'cpap-no-distress', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; his lungs are clear, and positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
   ]),

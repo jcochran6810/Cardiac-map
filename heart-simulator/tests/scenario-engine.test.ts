@@ -518,7 +518,9 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
   it('calcium, bicarbonate, insulin and high-dose albuterol without the problem they treat cost points; with it they do not', () => {
     const steps = ['iv', 'calcium-chloride', 'sodium-bicarbonate', 'albuterol-hyperk'];
     expect(penalties(run(stemiAnterior, 2, steps))).toEqual(['calcium-no-indication', 'bicarbonate-no-indication', 'albuterol-hyperk-no-indication']);
-    expect(penalties(run(withProblems(stemiAnterior, 'hyperkalemia'), 2, steps))).toEqual([]);
+    // bicarbonate for a high potassium only with a metabolic acidosis (KDIGO 2020)
+    expect(penalties(run(withProblems(stemiAnterior, 'hyperkalemia', 'metabolic-acidosis'), 2, steps))).toEqual([]);
+    expect(penalties(run(withProblems(stemiAnterior, 'hyperkalemia'), 2, steps))).toEqual(['bicarbonate-no-indication']);
     // calcium is also for a calcium- or beta-blocker overdose; bicarbonate for acidosis or a tricyclic overdose
     for (const p of ['beta-blocker-overdose', 'ccb-overdose', 'hypocalcemia'] as const) {
       expect(penalties(run(withProblems(stemiAnterior, p), 2, ['iv', 'calcium-chloride'])), p).toEqual([]);
@@ -527,16 +529,18 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
       expect(penalties(run(withProblems(stemiAnterior, p), 2, ['iv', 'sodium-bicarbonate'])), p).toEqual([]);
     }
     const review_ = review(stemiAnterior, stop(run(stemiAnterior, 2, steps)));
-    expect(review_.toFix.find((t) => t.kind === 'harm' && t.actions?.includes('calcium-chloride'))?.label).toBe('Calcium chloride without an indication.');
+    expect(review_.toFix.find((t) => t.kind === 'harm' && t.actions?.includes('calcium-chloride'))?.label).toBe('Calcium without an indication.');
   });
 
   it('in a hyperkalemic arrest calcium and bicarbonate go in without pausing CPR at no cost; in any other arrest they do not help', () => {
-    const steps = ['cpr', 'io', 'calcium-chloride', 'sodium-bicarbonate'];
+    const steps = ['cpr', 'bvm', 'io', 'calcium-chloride', 'sodium-bicarbonate'];
     const hyperK = run(withProblems(vf, 'hyperkalemia'), 2, steps);
     expect(penalties(hyperK)).toEqual([]);
     expect(hyperK.rhythm).toEqual({ profile: 'vf', hr: 0 });
     expect([hyperK.vitals.sbp, hyperK.vitals.dbp]).toEqual([0, 0]);
     expect(hyperK.log.filter((l) => /compressions go on/.test(l.text))).toHaveLength(2);
+    // with nobody breathing for him, the CO₂ the bicarbonate makes has nowhere to go
+    expect(penalties(run(withProblems(vf, 'hyperkalemia'), 2, steps.filter((id) => id !== 'bvm')))).toEqual(['bicarbonate-unventilated']);
     expect(penalties(run(vf, 2, steps))).toEqual(['calcium-no-indication', 'bicarbonate-no-indication']);
   });
 

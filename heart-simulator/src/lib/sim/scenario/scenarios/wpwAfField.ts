@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
 import { nitrateCaseRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Pre-excited atrial fibrillation (Wolff-Parkinson-White). A 24-year-old man whose heart took off in a pickup basketball
@@ -627,7 +628,7 @@ export const wpwAfField: Scenario = {
     {
       // at any pressure: catecholamines shorten the pathway's refractory period (the EP lab uses isoproterenol to unmask a
       // dangerous pathway), and a low pressure here comes from the rate, which only the shock fixes
-      id: 'adrenergic-preexcited-af', actions: ['push-epi', 'pressor'], when: (s) => inAf(s), points: 3, severity: 'minor',
+      id: 'adrenergic-preexcited-af', actions: ['push-epi', 'pressor'], when: (s) => inAf(s), replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
       text: 'A pressor or push-dose epinephrine in pre-excited atrial fibrillation. Adrenergic drugs make the pathway conduct faster still, and the low pressure of an unstable patient comes from the rate: synchronized cardioversion fixes it, a pressor does not.',
     },
     {
@@ -643,7 +644,8 @@ export const wpwAfField: Scenario = {
       text: 'Aspirin with no suspected acute coronary syndrome. It is for chest pain that may be a heart attack; he is 24, with palpitations and no chest pain — it treats nothing he has.',
     },
     {
-      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      // the built-in's id, in this case's words; with a low pressure (cpapHarmful) the built-in cpap-hypotension speaks instead
+      id: 'cpap-no-indication', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with no breathing problem to treat. His lungs are clear and his oxygen normal; positive pressure cuts the blood returning to the heart and drops a pressure the fast rate is already straining.',
     },
     {
@@ -661,7 +663,7 @@ export const wpwAfField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['iv', 'io', 'epinephrine', 'amio-arrest', 'lidocaine', 'magnesium-sulfate', 'airway'],
-      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), replaces: ['epi-before-shock'], points: 5, severity: 'major',
+      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), replaces: ['airway-before-shock', 'epi-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Witnessed VF needs a shock first: IV access, drugs and the airway come after it, during CPR.',
     },
   ]),

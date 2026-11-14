@@ -234,14 +234,15 @@ describe('emergency department defaults', () => {
     expect(ids(s)).toEqual(['temp-wire-not-slow']);
     expect(last(s).text).toMatch(/set to pace on demand below 50/);
     const lab = { ...edPatient(), id: 'lab-test', setting: 'cathlab' as const, roles: [3, 4, 5] as LearningLevel[] };
-    // a heart that has never slowed: nothing for the wire to back up (one penalty, though the pads are off too)
-    expect(ids(run(lab, 5, ['access-venous', 'temp-wire']))).toEqual(['temp-wire-no-indication']);
-    expect(last(run(lab, 5, ['access-venous', 'temp-wire'])).text).toMatch(/^Temporary wire in the RV apex/);
+    // a heart that has never slowed: nothing for the wire to back up (one penalty, though the pads are off too; consent
+    // first in each run, as access before it is its own mistake)
+    expect(ids(run(lab, 5, ['consent', 'access-venous', 'temp-wire']))).toEqual(['temp-wire-no-indication']);
+    expect(last(run(lab, 5, ['consent', 'access-venous', 'temp-wire'])).text).toMatch(/^Temporary wire in the RV apex/);
     // a slow rate on the monitor, and the pads on: the wire on demand is a fair backup
     const slow = { ...lab, initial: { ...lab.initial, rhythm: { profile: 'sinus-bradycardia', hr: 44 } } };
-    expect(ids(run(slow, 5, ['pads', 'access-venous', 'temp-wire']))).toEqual([]);
+    expect(ids(run(slow, 5, ['pads', 'consent', 'access-venous', 'temp-wire']))).toEqual([]);
     // the pads are the backup while the wire goes in
-    expect(ids(run(slow, 5, ['access-venous', 'temp-wire']))).toEqual(['temp-wire-without-pads']);
+    expect(ids(run(slow, 5, ['consent', 'access-venous', 'temp-wire']))).toEqual(['temp-wire-without-pads']);
   });
 
   it('the ER doctor drains the pericardium under their own ultrasound, and only for tamponade', () => {
@@ -567,7 +568,8 @@ describe('the ER nurse gives a medication on an order', () => {
     expect(ids(run(asked, 6, ['iv', 'reassess', 'p2y12']))).toEqual(['wrong-heparin']);
     // once the order is carried out, the same drug again on her own is no answer to it
     expect(ids(run(asked, 6, ['iv', 'reassess', 'heparin', 'p2y12']))).toEqual(['rn-without-order-p2y12']);
-    const event = edPatient({ events: [{ id: 'orders', when: (s) => s.minute >= 3, effect: () => physicianOrder('Start a norepinephrine drip, please.', ['pressor']) }] });
+    // (a low pressure, so the drip has something to treat: the order is the only thing judged here)
+    const event = edPatient({ vitals: { sbp: 82, dbp: 50 }, events: [{ id: 'orders', when: (s) => s.minute >= 3, effect: () => physicianOrder('Start a norepinephrine drip, please.', ['pressor']) }] });
     const e = run(event, 6, ['iv', 'pressor']);
     expect(ids(e)).toEqual(['rn-without-order-pressor']);
     expect(ids(run(event, 6, ['iv', 'reassess', 'pressor']))).toEqual([]);

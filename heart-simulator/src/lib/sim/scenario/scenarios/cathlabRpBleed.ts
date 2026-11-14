@@ -1,5 +1,6 @@
 import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
+import { pressorNotLow } from '../rules/support';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, type LabAsk } from '../labKit';
 import { ANTITHROMBOTIC_RULES, LYTIC_RULES, SEDATIVE_RULES } from '../rules/acs';
@@ -739,6 +740,13 @@ export const cathlabRpBleed: Scenario = {
       text: 'A vasopressor before any volume in a bleeding patient. It squeezes an empty circulation: fill it first (saline, then blood), and use a pressor only as a bridge while the volume goes in.',
     },
     {
+      // the built-in rule, same id (a deliberate exemption): until the bleeding is controlled, a pressure the volume has
+      // lifted just over 90 is held up by what is running in, and a pressor after the volume is a bridge (the rule above
+      // judges one before it). Once a balloon or a stent stops the bleeding, the built-in line holds
+      id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s, sc, id) => pressorNotLow(s, sc, id) && controlled(s) && (has(s, 'fluid') || has(s, 'transfused')), points: 3, severity: 'minor',
+      text: 'A vasopressor or push-dose epinephrine without a low pressure, once the bleeding is controlled. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.',
+    },
+    {
       id: 'saline-instead-of-blood', actions: ['fluid'], when: (s) => s.pulse && count(s, 'fluid') >= 2 && !has(s, 'transfused'), points: 3, severity: 'minor',
       text: 'A third saline bolus with no blood yet. After the first liter, saline only dilutes the red cells and the clotting factors she has left: a bleeding patient needs blood.',
     },
@@ -748,11 +756,11 @@ export const cathlabRpBleed: Scenario = {
       text: 'Sedation with a systolic under 90 or a drowsy patient. It drops the pressure and the breathing further: local anesthetic at the groin, and only a little analgesia once she is stable.',
     },
     {
-      id: 'pericardiocentesis-no-effusion', actions: ['pericardiocentesis'], roles: MD, points: 15, severity: 'critical',
+      id: 'pericardiocentesis-no-effusion', actions: ['pericardiocentesis'], roles: MD, replaces: ['pericardiocentesis-no-tamponade'], points: 15, severity: 'critical',
       text: 'A pericardiocentesis without an effusion. The needle can puncture the heart, a coronary artery or the liver; the echo shows an empty heart, not a squeezed one.',
     },
     {
-      id: 'pump-in-bleeding', actions: ['iabp', 'impella'], roles: MD, points: 10, severity: 'major',
+      id: 'pump-in-bleeding', actions: ['iabp', 'impella'], roles: MD, replaces: ['mcs-bleeding', 'mcs-no-cardiogenic-shock'], points: 10, severity: 'major',
       text: 'A mechanical pump for a bleeding patient. Her heart squeezes hard and has nothing to pump: a pump needs another large-bore arterial sheath and full anticoagulation, and fixes neither.',
     },
     askHarm(TECH_ASKS[2], 'The wrong device when the operator asked for a covered stent. A coronary stent or balloon neither fits the iliac artery nor seals a hole: read the order back and check the box before you open it.'),

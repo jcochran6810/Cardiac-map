@@ -455,8 +455,12 @@ export const tamponadeField: Scenario = {
       id: 'crash',
       when: (s) => s.pulse && onScene(s) && s.minute >= CRASH_AT,
       effect: (s) => {
-        const sbp = Math.max(ARREST_SBP, Math.min(s.vitals.sbp - 8, 68));
-        const dbp = Math.max(40, Math.min(s.vitals.dbp - 6, sbp - 10, 56));
+        // the squeeze takes the pressure of his own; what a push still adds stays on top and comes off when it wears off,
+        // so a bridge never brings the arrest closer than no push at all
+        const lift = pushLift(s);
+        const own = Math.max(ARREST_SBP, Math.min(s.vitals.sbp - lift.sbp - 8, 68));
+        const sbp = own + lift.sbp;
+        const dbp = Math.max(40, Math.min(s.vitals.dbp - lift.dbp - 6, own - 10, 56)) + lift.dbp;
         const hr = Math.min(150, s.rhythm.hr + 6);
         return {
           say: [['partner', 'He\'s slumping in the chair — he only opens his eyes when I shout his name.', 'bad'], rateLine(s, hr, 'bad')],
@@ -607,7 +611,7 @@ export const tamponadeField: Scenario = {
       text: 'Nitroglycerin for a man whose heart cannot fill. A vasodilator pools the blood in the veins, and a heart squeezed by fluid lives on the blood coming back to it: the pressure crashes. Vasodilators and diuretics are contraindicated in tamponade (2015 ESC pericardial guideline). His chest heaviness is the effusion, not a blocked artery — and even after fluid his pressure has nothing in reserve.',
     },
     {
-      id: 'cpap-tamponade', actions: ['cpap'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'cpap-tamponade', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 8, severity: 'major',
       text: 'CPAP for a man in tamponade. Positive pressure in the chest pushes back against the blood returning to his already squeezed right heart: the output falls and it can bring on PEA. His breathlessness is from a heart that cannot fill, not wet lungs (they are dry): oxygen by cannula or mask, sitting up.',
     },
     {

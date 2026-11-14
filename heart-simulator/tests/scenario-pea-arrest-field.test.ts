@@ -469,10 +469,11 @@ describe('PEA arrest in the field — the traps', () => {
     expect(bicarb.penalties[0].text).toMatch(/CO₂ she could not breathe off/);
   });
 
-  it('a mask, a cannula or CPAP do not ventilate a patient in arrest; CPAP costs points, and none counts as the breaths', () => {
+  it('a mask, a cannula or CPAP do not ventilate a patient in arrest; each costs points, and none counts as the breaths', () => {
     const mask = medic(['cpr', 'o2-nrb', 'o2-nc']);
     expect(mask.flags.ventilated).toBeUndefined();
-    expect(mask.penalties).toEqual([]);
+    // a minor penalty, once for the case
+    expect(penalties(mask)).toEqual(['oxygen-not-breathing']);
     expect(said(mask)).toMatch(/a mask only offers oxygen to someone who is/);
     const c = emt(['cpr', 'cpap']);
     expect(penalties(c)).toEqual(['cpap-not-breathing']);
@@ -591,9 +592,9 @@ describe('PEA arrest in the field — the traps', () => {
     }
   });
 
-  it('push-dose epinephrine in the arrest is not the arrest dose: no cost, but it does not count, and the crew is told the dose', () => {
+  it('push-dose epinephrine in the arrest is not the arrest dose: a minor penalty, it does not count, and the crew is told the dose', () => {
     const s = medic(['cpr', 'iv', 'push-epi']);
-    expect(s.penalties).toEqual([]);
+    expect(s.penalties.map((p) => [p.id, p.points])).toEqual([['push-epi-in-arrest', 3]]);
     expect(s.flags.epi).toBeUndefined();
     expect(s.log.at(-1)!.text).toMatch(/In cardiac arrest the dose is 1 mg/);
     expect(missed(s, /^Epinephrine 1 mg/)).toBe(true);

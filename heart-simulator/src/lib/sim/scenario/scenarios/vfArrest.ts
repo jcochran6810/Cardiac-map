@@ -184,7 +184,7 @@ export const vfArrest: Scenario = {
   ],
   harms: [
     { id: 'epi-before-shock', actions: ['epinephrine'], when: (s) => !s.pulse && shocks(s) === 0, points: 3, severity: 'minor', text: 'In VF, shock first: epinephrine comes after the second shock.' },
-    { id: 'airway-too-early', actions: ['airway'], when: (s) => !s.pulse && cprCycles(s) < 1, points: 3, severity: 'minor', text: 'Don\'t interrupt the first minutes of compressions and the first shock for an advanced airway; a BVM is fine at first.' },
+    { id: 'airway-too-early', actions: ['airway'], when: (s) => !s.pulse && cprCycles(s) < 1, replaces: ['airway-before-shock'], points: 3, severity: 'minor', text: 'Don\'t interrupt the first minutes of compressions and the first shock for an advanced airway; a BVM is fine at first.' },
     { id: 'nearest-ed', actions: ['transport-near'], when: (s) => s.pulse, points: 6, severity: 'major', text: 'A resuscitated STEMI needs a PCI-capable heart center.' },
   ],
   timings: [

@@ -873,11 +873,11 @@ export const edScape: Scenario = {
   ],
   harms: yieldToHeavier([
     {
-      id: 'niv-off', actions: ['o2-nrb', 'o2-nc'], when: (s) => s.pulse && onNiv(s), points: 10, severity: 'major',
+      id: 'niv-off', actions: ['o2-nrb', 'o2-nc'], when: (s) => s.pulse && onNiv(s), replaces: ['oxygen-not-breathing', 'oxygen-normoxic'], points: 10, severity: 'major',
       text: 'Taking him off positive pressure for an oxygen mask. CPAP and BiPAP hold his flooded air sacs open and take over much of the work of breathing; a non-rebreather or a cannula gives oxygen but no pressure, and within a minute his saturation falls and his breathing climbs. Keep the mask on his face from the ambulance stretcher to the ICU — swap the crew\'s CPAP for the department\'s machine in one move, never with a gap.',
     },
     {
-      id: 'niv-unprotected', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
+      id: 'niv-unprotected', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy', 'cpap-no-indication'], points: 5, severity: 'major',
       text: 'BiPAP for a patient who can no longer protect his airway. A mask supports the breaths a patient takes; it gives none, and a patient this drowsy can vomit into it and inhale it. He needs breaths given — a bag-mask with a PEEP valve — and a tube.',
     },
     // with a pulse only: in an arrest a nitrate has no place at all, and these would teach the wrong lesson there
@@ -926,7 +926,7 @@ export const edScape: Scenario = {
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
     }, NO_ORDER, ['rn-without-order-metoprolol', 'rn-without-order-diltiazem']),
     ...bothRoles({
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 8, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding his lungs: raising it makes the edema worse. He needs the pressure taken off — nitroglycerin and positive pressure.',
     }, NO_ORDER, ['rn-without-order-pressor', 'rn-without-order-push-epi']),
     ...bothRoles({
@@ -946,7 +946,7 @@ export const edScape: Scenario = {
       text: 'IM epinephrine without anaphylaxis. No hives, no swelling, no exposure: his noisy breathing is fluid in the lungs, and epinephrine only drives up the pressure and the rate.',
     },
     {
-      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, replaces: ['albuterol-no-bronchospasm'], points: 3, severity: 'minor',
       text: 'Albuterol for crackles. There is no wheeze for it to open: the noise in his chest is fluid, and a beta-agonist only speeds the heart. Positive pressure and nitroglycerin clear the lungs.',
     },
     {
@@ -979,7 +979,7 @@ export const edScape: Scenario = {
       text: 'Activating the cath lab for a strain pattern. ST depression and T-wave inversion in the lateral leads of a thick, pressure-loaded ventricle are not ST elevation: no STEMI, no cath lab. A troponin a little above the limit in a hypertensive emergency is usually strain — the repeat, the clinical course and cardiology decide whether an infarct is part of it.',
     },
     {
-      id: 'transfer-unneeded', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'transfer-unneeded', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse, replaces: ['transfer-unstable'], points: 5, severity: 'major',
       text: 'Transferring a patient this hospital can care for. He needs an ICU bed, BiPAP and a nitroglycerin infusion — all here; a transfer moves a patient in respiratory failure for nothing another hospital can add. Admit him.',
     },
     ...RN_ORDERS.map((a) => ({ ...askHarm(a, 'The wrong dose after the physician\'s order: 0.4 mg instead of 0.8 mg. Read the order back (closed loop) and give what was ordered — the chest pain dose barely touches a pressure like his.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') })),

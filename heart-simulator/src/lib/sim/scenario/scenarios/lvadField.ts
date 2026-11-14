@@ -625,12 +625,12 @@ export const lvadField: Scenario = {
       text: 'Chest compressions on a man who is awake and talking to you. A continuous-flow pump leaves no pulse to feel, and the cuff and the oximeter cannot read him: being awake is the sign that the pump is perfusing his brain (2025 AHA durable LVAD algorithm). Compressions hurt him and, on warfarin, bleed; they are for an LVAD patient who is unresponsive with inadequate perfusion — a Doppler MAP of 50 or less — and then without delay.',
     },
     {
-      id: 'cpap-dry-pump', actions: ['cpap'], when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'cpap-dry-pump', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-no-indication', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 5, severity: 'major',
       text: 'CPAP for an SpO₂ that cannot be trusted. Over a continuous-flow pump the oximeter has almost no pulse to read; his lips are pink, his lungs clear and he breathes easily. Positive pressure in the chest cuts the blood returning to the heart, and a dry pump needs every drop: judge oxygenation by the patient, not the number.',
     },
     {
       // fluid first; once the MAP is back over 65 nothing calls for one
-      id: 'pressor-dry-pump', actions: ['pressor', 'push-epi'], roles: [2], when: (s) => s.pulse && (!has(s, 'fluid') || mapOf(s.vitals) >= 65), points: 5, severity: 'major',
+      id: 'pressor-dry-pump', actions: ['pressor', 'push-epi'], roles: [2], when: (s) => s.pulse && (!has(s, 'fluid') || mapOf(s.vitals) >= 65), replaces: ['pressor-no-hypotension'], points: 5, severity: 'major',
       text: 'A vasopressor for a pump that is running dry. A continuous-flow LVAD is sensitive to afterload: squeezing the vessels raises the MAP a little and cuts the pump\'s flow further. A low-flow alarm from vomiting and diarrhea needs volume — a fluid bolus, then recheck — and a vasopressor only if the MAP stays low after it, with the VAD team.',
     },
     {
@@ -665,7 +665,7 @@ export const lvadField: Scenario = {
       text: 'Magnesium without torsades or a long QT. His monitor shows a sinus rhythm with nothing for it to treat, and it drops a pressure that is already low; his electrolytes are the hospital\'s to check and replace.',
     },
     {
-      id: 'beta-agonist-antihistamine-no-indication', actions: ['albuterol', 'diphenhydramine'], roles: [2], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'beta-agonist-antihistamine-no-indication', actions: ['albuterol', 'diphenhydramine'], roles: [2], when: (s) => s.pulse, replaces: ['albuterol-no-bronchospasm', 'antihistamine-no-indication'], points: 3, severity: 'minor',
       text: 'Albuterol or diphenhydramine with nothing to treat: no wheeze and no allergic reaction. Albuterol speeds a heart already racing for its volume; IV diphenhydramine drops the pressure and clouds the mental status that is your best sign of his perfusion.',
     },
     // The built-in rules for these say "with a pulse", and the learner has just found no pulse to feel: the case says the

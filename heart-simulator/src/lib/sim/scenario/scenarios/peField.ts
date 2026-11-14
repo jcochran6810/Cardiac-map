@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
 import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { pressorNotLow } from '../rules/support';
 
 /**
  * Pulmonary embolism with obstructive shock, in the field. A 45-year-old woman ten days after a plate and screws for a
@@ -600,6 +601,13 @@ export const peField: Scenario = {
   ],
   harms: yieldToHeavier([
     {
+      // the built-in rule, same id (a deliberate exemption): a pressure that the infusion or a push in the last few minutes
+      // is holding up is still obstructive shock — she falls back when it wears off — so keeping the pushes going is right
+      // (a push on top of the running infusion too). Otherwise the built-in's own line
+      id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s, sc, id) => pressorNotLow(s, sc, id) && !supported(s), points: 3, severity: 'minor',
+      text: 'A vasopressor or push-dose epinephrine without a low pressure. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.',
+    },
+    {
       // one small bolus is tolerated; a second is beyond the 500 mL that cautious volume loading allows
       id: 'fluid-loading-pe', actions: ['fluid'], when: (s) => s.pulse && count(s, 'fluid') >= 1, points: 10, severity: 'major',
       text: 'More than 500 mL of fluid for a failing right ventricle. Full neck veins with clear lungs say her right heart is already overfilled: more volume stretches it further, pushes the septum into the left ventricle and empties it, and the pressure falls. One small bolus at most; support the pressure with a vasopressor (norepinephrine).',
@@ -610,7 +618,7 @@ export const peField: Scenario = {
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic, and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {
-      id: 'cpap-pe', actions: ['cpap'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'cpap-pe', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 8, severity: 'major',
       text: 'CPAP with clear lungs and a low pressure. Positive pressure cuts the blood returning to the heart and raises the resistance the right ventricle pumps against: her pressure falls, and her saturation does not improve, because her lungs are not wet — the clot is the problem. High-flow oxygen, and keep her breathing on her own.',
     },
     {
@@ -633,7 +641,7 @@ export const peField: Scenario = {
       text: 'Fentanyl with a systolic under 90. An opioid blunts the drive that is holding her pressure up: support the pressure first, then a small dose for the pleuritic pain if she needs it.',
     },
     {
-      id: 'epi-im-pe', actions: ['epi-im'], points: 3, severity: 'minor',
+      id: 'epi-im-pe', actions: ['epi-im'], replaces: ['epi-im-no-anaphylaxis', 'epi-im-in-arrest'], points: 3, severity: 'minor',
       text: 'IM epinephrine without anaphylaxis. 0.3–0.5 mg IM is the anaphylaxis dose: it lifts the pressure for a few minutes and treats nothing she has. In the arrest the dose is 1 mg IV/IO, from ALS.',
     },
     {

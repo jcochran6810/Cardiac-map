@@ -35,6 +35,11 @@ const MD_TO_WIRE = MD.slice(0, MD.indexOf('wire-workhorse') + 1);
 const MD_FINISH = MD.slice(MD.indexOf('final-angio'));
 /** The cardiologist's first steps: stop injecting, back the guide out, the rate and the pressure */
 const MD_FIRST = MD.slice(0, MD.indexOf('wire-workhorse'));
+/**
+ * The same run with push-dose epinephrine for the pressure (while it is still low) and pacing for the rate, in place of
+ * atropine and fluid
+ */
+const pushThenPace = (steps: string[]) => steps.flatMap((id) => (id === 'atropine' ? ['push-epi', 'pace'] : id === 'fluid' ? [] : [id]));
 
 const giveaway = /STEMI|fibrillation|heart block|AV block|sinus|tachycardia|bradycardia|SVT|AVNRT|escape|ventricular|capture/i;
 /** Words that name what happened (nobody says them before the learner has read it) */
@@ -206,8 +211,11 @@ describe('guide-catheter dissection: what works', () => {
   });
 
   it('pacing for the rate, push-dose epinephrine for the pressure: correct care too, full marks', () => {
-    const steps = MD.map((id) => (id === 'atropine' ? 'pace' : id === 'fluid' ? 'push-epi' : id));
-    expectFullMarks(run(sc, 5, steps));
+    expectFullMarks(run(sc, 5, pushThenPace(MD)));
+    // once the pacer has brought the pressure back over 90, a push has no low pressure left to treat
+    const paced = run(sc, 5, ['stop-contrast', 'reposition', 'pace']);
+    expect(paced.vitals.sbp).toBeGreaterThanOrEqual(90);
+    expect(penalties(perform(sc, paced, 'push-epi'))).toEqual(['pressor-no-hypotension']);
   });
 
   it('cardiac surgery on standby, a guide exchange over the wire, IVUS after the stent and a flared ostium cost nothing', () => {
@@ -538,7 +546,7 @@ describe('guide-catheter dissection: the tech and the nurse', () => {
   });
 
   it('pacing for the rate and push-dose epinephrine for the pressure count for the nurse too', () => {
-    const s = run(sc, 4, RN.map((id) => (id === 'atropine' ? 'pace' : id === 'fluid' ? 'push-epi' : id)));
+    const s = run(sc, 4, pushThenPace(RN));
     expectFullMarks(s);
   });
 
@@ -572,7 +580,8 @@ describe('guide-catheter dissection: review fixes (correct care in another order
   });
 
   it('nitroglycerin before the entry is sealed is wrong even with the pressure pushed over 100: the right ventricle is ischemic', () => {
-    const lifted = ['stop-contrast', 'reposition', 'atropine', 'fluid', 'push-epi'];
+    // (the push while the pressure is still low: over 90 it would have nothing to treat)
+    const lifted = ['stop-contrast', 'reposition', 'atropine', 'push-epi', 'fluid'];
     const s = run(sc, 5, lifted);
     expect(s.vitals.sbp).toBeGreaterThanOrEqual(100);
     expect(penalties(run(sc, 5, [...lifted, 'nitro']))).toEqual(['nitro-low-pressure']);
@@ -604,7 +613,7 @@ describe('guide-catheter dissection: review fixes (correct care in another order
   });
 
   it('the review names what the nurse did for the rate and the pressure, pacing and epinephrine included', () => {
-    const s = run(sc, 4, RN.map((id) => (id === 'atropine' ? 'pace' : id === 'fluid' ? 'push-epi' : id)));
+    const s = run(sc, 4, pushThenPace(RN));
     const labels = review(sc, s).wentWell.map((w) => w.label);
     expect(labels).toEqual(expect.arrayContaining(['Something for the slow rate: atropine (or pacing)', 'Something for the low pressure: fluid first']));
   });

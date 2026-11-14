@@ -882,8 +882,15 @@ export const edUnstableAf: Scenario = {
       text: 'Rapid sequence intubation for a low pressure that comes from a fast rate. She protects her airway and oxygenates; the induction drug and positive pressure drop the pressure further and can arrest a heart that cannot fill. Fix the rate (a sedated synchronized shock) first.',
     },
     {
-      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 5, severity: 'major',
       text: 'CPAP without breathing trouble. Her lungs are clear and her oxygen is fine; the positive pressure cuts the blood returning to a heart that already cannot fill, and with a systolic of 78 it deepens the shock.',
+    },
+    {
+      // the built-in rule, same id (a deliberate exemption): here the bag-mask is readied at the head of the bed for the
+      // sedation (the nurse's set-up item), not squeezed into an awake patient — its responder says so, before the shock and
+      // after it alike (a late set-up is the rn-prep item's to miss), so no breaths are ever forced in to judge
+      id: 'bvm-breathing', actions: ['bvm'], when: () => false, points: 3, severity: 'minor',
+      text: 'Bag-mask ventilation for a patient who is breathing well: in this case the bag-mask is readied for the sedation.',
     },
   ]),
   timings: [
