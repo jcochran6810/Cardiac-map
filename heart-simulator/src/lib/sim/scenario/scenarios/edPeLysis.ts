@@ -1013,13 +1013,13 @@ export const edPeLysis: Scenario = {
     },
     {
       // the nurse's version also stands for the missing order, at the order's weight, and says so
-      id: 'antiarrhythmic-pea-rn', actions: ['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
+      id: 'antiarrhythmic-pea-rn', actions: ['amio-infusion', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem'],
       roles: ED_RN, when: (s) => !s.pulse, points: 5, severity: 'major',
       replaces: [
-        'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
+        'procainamide-in-arrest', ...noOrder(['amio-infusion', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem']),
         ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
       ],
-      text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, metoprolol and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the clot, and a lytic for it.',
+      text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, a beta-blocker and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the clot, and a lytic for it.',
     },
   ]),
   timings: [

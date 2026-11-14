@@ -980,10 +980,10 @@ export const edTamponade: Scenario = {
       text: 'Nitroglycerin with nothing to treat. Her chest heaviness was the effusion, now drained: nitroglycerin is for coronary ischemia (and 0.8 mg, which no standing order covers, for hypertensive pulmonary edema), and here it only takes preload from a heart that has just started to fill again.',
     },
     {
-      // the nurse's 0.8 mg also stands for the missing order, at the order's weight, and says so
-      id: 'nitro-no-indication-rn', actions: ['nitro-high'], roles: ED_RN, when: (s) => s.pulse && drained(s), points: 5, severity: 'major',
-      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
-      text: 'High-dose nitroglycerin with no order, and nothing to treat. Her chest heaviness was the tamponade, now drained: nitroglycerin is for coronary ischemia, and 0.8 mg — for hypertensive pulmonary edema — is on no standing order. Here it only takes preload from a heart that has just started to fill again. Tell the physician what you see instead.',
+      // the nurse's 0.8 mg (and IV nitroglycerin) also stands for the missing order, at the order's weight, and says so
+      id: 'nitro-no-indication-rn', actions: ['nitro-high', 'nitro-iv'], roles: ED_RN, when: (s) => s.pulse && drained(s), points: 5, severity: 'major',
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high', 'nitro-iv'])],
+      text: 'High-dose or IV nitroglycerin with no order, and nothing to treat. Her chest heaviness was the tamponade, now drained: nitroglycerin is for coronary ischemia, and neither 0.8 mg (for hypertensive pulmonary edema) nor an infusion is on a standing order. Here it only takes preload from a heart that has just started to fill again. Tell the physician what you see instead.',
     },
     {
       id: 'cpap-tamponade', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), replaces: ['cpap-hypotension', 'cpap-preload-dependent', 'cpap-vomiting', 'cpap-drowsy', 'cpap-no-indication'], points: 8, severity: 'major',
@@ -1121,13 +1121,13 @@ export const edTamponade: Scenario = {
     },
     {
       // the nurse's version also stands for the missing order, at the order's weight, and says so
-      id: 'antiarrhythmic-pea-rn', actions: ['amio-infusion', 'procainamide', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem'],
+      id: 'antiarrhythmic-pea-rn', actions: ['amio-infusion', 'procainamide', ...ADENOSINE_PUSH, ...BETA_BLOCKERS, 'diltiazem'],
       roles: ED_RN, when: (s) => !s.pulse, points: 5, severity: 'major',
       replaces: [
-        'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
+        'procainamide-in-arrest', ...noOrder(['amio-infusion', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem']),
         ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
       ],
-      text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, metoprolol and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
+      text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, a beta-blocker and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },
   ]),
   timings: [

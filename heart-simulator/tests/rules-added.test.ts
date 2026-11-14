@@ -360,7 +360,8 @@ describe('the hospital team actions: arterial line, procedure set-up, stopping t
     const wired = (flags: string[], problems: Parameters<typeof fixture>[0]['problems'] = []) => opened('cathlab', 5, ['iv', 'access', 'guide', 'wired', ...flags], { problems });
     expect(penaltyIds(wired([]), 5, ['heparin', 'stop-antithrombotics'])).toEqual(['stop-antithrombotics-mid-pci']);
     expect(penaltyIds(wired(['final-angio']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
-    expect(penaltyIds(wired([], ['bleeding']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
+    // (with active bleeding the heparin itself is the antithrombotic gate's mistake, rules/acs.ts; stopping it costs nothing)
+    expect(penaltyIds(wired([], ['bleeding']), 5, ['heparin', 'stop-antithrombotics'])).toEqual(['antithrombotic-bleeding']);
     expect(penaltyIds(wired(['perforation']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
     expect(penaltyIds(wired(['scad']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);
     expect(penaltyIds(opened('cathlab', 5, ['iv', 'access']), 5, ['heparin', 'stop-antithrombotics'])).toEqual([]);

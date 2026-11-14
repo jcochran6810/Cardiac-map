@@ -79,6 +79,9 @@ const SAME_ID_ALLOWED: Record<string, Record<string, string>> = Object.fromEntri
   ['aortic-dissection-ed', 'takotsubo-lvot-cathlab', 'heart-block-temp-wire-cathlab', 'guide-dissection-cathlab'].map((id) => [id, {
     // IV nitroglycerin is dosed by its indication: the high-dose bolus only for pulmonary edema, which none of these has
     'nitro-high-not-hypertensive': 'IV nitroglycerin here is the standard infusion, not the high dose: the 0.8 mg rule has nothing to say about it',
+    // the rhythm package's built-in also judges adenosine; this case's rule of that id names only the amiodarone infusion and
+    // procainamide, and every adenosine dose (3, 6 and 12 mg) is its nodal-blocker-no-tachycardia rule's, which lists RATE_RULES
+    ...(id === 'guide-dissection-cathlab' ? { 'antiarrhythmic-no-arrhythmia': 'adenosine is the case\'s nodal-blocker-no-tachycardia rule\'s, at every dose' } : {}),
   }]),
 );
 

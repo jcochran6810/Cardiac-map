@@ -594,7 +594,7 @@ export const edStemiWalkIn: Scenario = {
       // with his own sinus rhythm there is nothing for an antiarrhythmic to treat; after the VF and the shock it is no mistake
       // (an antiarrhythmic to hold the rhythm), but adenosine still has nothing to treat. The same id as the built-in rule,
       // which it hides for every action: so it says adenosine too
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide', 'adenosine6', 'adenosine12'], roles: ED_MD,
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide', 'adenosine3', 'adenosine6', 'adenosine12'], roles: ED_MD,
       when: (s, _sc, id) => s.pulse && (!has(s, 'rosc') || id.startsWith('adenosine')), replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. Prophylactic lidocaine in an acute MI prevents some VF without saving lives, amiodarone or procainamide only drop the pressure of a failing heart, and adenosine only pauses a sinus rhythm: the protection against VF is the monitor and the pads, a shock the moment it comes, and the artery opened.',
     },

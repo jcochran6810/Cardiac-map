@@ -249,7 +249,7 @@ export const cathlabContrast: Scenario = {
     // read her bronchospasm are said here, timed to the reaction (the same ids: they replace the built-ins), each leaving
     // to the built-in ranking what outranks it (a slow rate, an arrest)
     {
-      id: 'adenosine-asthma', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse && has(s, 'reaction') && !slowOrBlocked(s), points: 8, severity: 'major',
+      id: 'adenosine-asthma', actions: ['adenosine3', 'adenosine6', 'adenosine12'], when: (s) => s.pulse && has(s, 'reaction') && !slowOrBlocked(s), points: 8, severity: 'major',
       text: 'Adenosine during an anaphylactic reaction with bronchospasm. It can tighten the airways further (adenosine labels: avoid it in bronchoconstrictive or bronchospastic lung disease), and her fast rate is the reaction\'s, not a rhythm through the AV node: epinephrine, fluid and oxygen treat it.',
     },
     {

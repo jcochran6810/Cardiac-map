@@ -42,7 +42,8 @@ describe('the nitrate gate', () => {
     const lab = withProblems(['pde5-inhibitor'], { setting: 'cathlab', role: 5 });
     expect(penaltyIds(lab, 5, ['ic-nitro'])).toEqual(['nitro-pde5']);
     expect(penaltyIds(lab, 5, ['ic-nitroprusside'])).toEqual(['nitro-pde5']);
-    expect(penaltyIds(lab, 5, ['radial-cocktail'])).toEqual(['nitro-pde5']);
+    // (the cocktail goes down a radial sheath, placed after consent)
+    expect(penaltyIds(lab, 5, ['consent', 'access', 'radial-cocktail'])).toEqual(['nitro-pde5']);
     expect(rule('nitro-pde5').actions).toEqual(expect.arrayContaining(['nitro', 'nitro-high', 'nitro-assist', 'ic-nitro', 'nitro-iv', 'radial-cocktail', 'ic-nitroprusside']));
   });
 
@@ -56,7 +57,7 @@ describe('the nitrate gate', () => {
     const drained = withProblems(['tamponade'], { extra: { events: [{ id: 'drain', when: () => true, effect: () => ({ flags: ['drained'] }) }] } });
     expect(after(drained, ['nitro'])).toEqual([]);
     // the radial cocktail carries nitroglycerin too
-    expect(penaltyIds(withProblems(['rv-infarction'], { setting: 'cathlab', role: 5 }), 5, ['radial-cocktail'])).toEqual(['nitro-preload-dependent']);
+    expect(penaltyIds(withProblems(['rv-infarction'], { setting: 'cathlab', role: 5 }), 5, ['consent', 'access', 'radial-cocktail'])).toEqual(['nitro-preload-dependent']);
   });
 
   it('one dose, one penalty: nitroglycerin at 85 in an RV infarct is the preload rule only', () => {
@@ -216,8 +217,9 @@ describe('the nitrate rules in the cases', () => {
   it('the ER nurse\'s 0.8 mg after the tamponade is drained: her own rule, at the weight of the missing order', () => {
     const sc = SCENARIO_BY_ID['tamponade-ed'];
     const rn = sc.harms.find((h) => h.id === 'nitro-no-indication-rn')!;
-    expect(rn).toMatchObject({ actions: ['nitro-high'], roles: [6], points: 5, severity: 'major' });
-    expect(rn.replaces).toEqual(expect.arrayContaining([...NITRATE_RULES, 'rn-without-order-nitro-high']));
+    expect(rn).toMatchObject({ actions: ['nitro-high', 'nitro-iv'], roles: [6], points: 5, severity: 'major' });
+    // (and her IV nitroglycerin, which needs an order too: the team rule judges only her 0.4 mg)
+    expect(rn.replaces).toEqual(expect.arrayContaining([...NITRATE_RULES, 'rn-without-order-nitro-high', 'rn-without-order-nitro-iv']));
     expect(rn.text).toMatch(/tamponade/);
     expect(rn.text).toMatch(/no order/);
     const doctorDrained = ['perfusion', 'lungs', 'sample', 'pocus', 'fluid', 'pericardiocentesis'];
@@ -643,8 +645,10 @@ describe('review fixes: the nitrate gate', () => {
     // the walk-in STEMI on sildenafil: the case's PDE-5 rule, then the pressure it crashed
     const walkIn = SCENARIO_BY_ID['stemi-walk-in-ed'];
     expect(runScenario(walkIn, 7, ['vitals', 'nitro', 'reassess', 'nitro']).penalties.map((p) => p.id)).toEqual(['nitro-pde5', 'nitro-hypotension']);
-    // two doses, two penalties at most: each one rule
-    expect(after(pde5Low, ['nitro', 'nitro'])).toEqual(['nitro-pde5', 'nitro-too-soon']);
+    // two doses, two penalties at most: each one rule. The first dose on top of the PDE-5 inhibitor crashes the pressure (the
+    // nitrate default's response), so the second, though too soon as well, is judged by the low pressure, the higher rank
+    expect(after(pde5Low, ['nitro', 'nitro'])).toEqual(['nitro-pde5', 'nitro-hypotension']);
+    expect(after(patient(), ['nitro', 'nitro'])).toEqual(['nitro-too-soon']);
   });
 
   it('nitro-too-soon: a teammate\'s dose counts; the learner\'s own dose counts from when it was given', () => {
