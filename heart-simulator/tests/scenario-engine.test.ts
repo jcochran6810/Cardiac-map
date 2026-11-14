@@ -1009,6 +1009,9 @@ describe('default responses follow the patient in front of them', () => {
 
 describe('rechecks and call-backs, the far destination, and a repeat 12-lead after a change of rate', () => {
   const lastText = (s: SimState) => s.log.at(-1)!.text;
+  /** What the hospital says on arrival after the crew chose this destination (the flag 'dest-pci' or 'dest-near') */
+  const arrivalFor = (sc: Scenario, dest: string) =>
+    (typeof sc.arrival === 'function' ? sc.arrival({ ...start(sc, sc.roles[0]), flags: { arrived: 1, [dest]: 0 } }) : sc.arrival ?? '');
 
   it('the glucose can be rechecked after dextrose or glucagon, and the case reads the new value', () => {
     const bb = SCENARIO_BY_ID['beta-blocker-overdose-field'];
@@ -1050,7 +1053,9 @@ describe('rechecks and call-backs, the far destination, and a repeat 12-lead aft
       // the unstable SVT names only the nearest emergency department
       if (sc.id !== 'svt-unstable-field') expect(briefings.join(' '), sc.id).toMatch(/heart center/i);
       // the briefing, the arrival, the critical steps (the hint quotes their labels) and the harms all name it the same way
-      const texts = [JSON.stringify(sc.briefing), sc.arrival ?? '', ...sc.critical.flatMap((c) => [c.label, c.why]), ...sc.harms.map((h) => h.text)];
+      // an arrival that names the destination chosen is read for both: the heart center and the nearest department
+      const arrivals = ['dest-pci', 'dest-near'].map((dest) => arrivalFor(sc, dest));
+      const texts = [JSON.stringify(sc.briefing), ...arrivals, ...sc.critical.flatMap((c) => [c.label, c.why]), ...sc.harms.map((h) => h.text)];
       for (const t of texts) expect(t, sc.id).not.toMatch(/cardiac center/i);
       // a critical step names no button that does not exist, and the action search finds the button by what it calls the hospital
       for (const c of sc.critical) {
@@ -1058,7 +1063,15 @@ describe('rechecks and call-backs, the far destination, and a repeat 12-lead aft
         for (const name of ['PCI-capable', 'regional heart center']) if (c.label.includes(name)) expect(searchable, `${sc.id}: ${c.label}`).toContain(name.toLowerCase());
       }
     }
-    expect(SCENARIO_BY_ID['complete-heart-block-field'].arrival).toBe('You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.');
+    // the arrival names the destination the crew chose: the heart center, or the nearest department that has to transfer
+    const block = SCENARIO_BY_ID['complete-heart-block-field'];
+    const arrived = (steps: string[]) => run(block, 2, [...steps, UNTIL_ARRIVED]).log.find((l) => l.who === 'hospital' && /^You arrive/.test(l.text))!.text;
+    expect(arrived(['primary', 'transport-pci'])).toBe('You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.');
+    expect(arrived(['primary', 'transport-near'])).toMatch(/^You arrive at the nearest emergency department: it cannot place a transvenous pacing wire/);
+    for (const id of ['complete-heart-block-field', 'vf-arrest-field', 'stemi-anterior-field', 'stable-vt-field']) {
+      expect(arrivalFor(SCENARIO_BY_ID[id], 'dest-near'), id).toMatch(/^You arrive at the nearest emergency department/);
+      expect(arrivalFor(SCENARIO_BY_ID[id], 'dest-pci'), id).toMatch(/^You arrive at the (regional )?heart center/);
+    }
   });
 
   it('the bag-mask in cardiac arrest is 30:2; 1 breath every 6 seconds only through an advanced airway, or with a pulse', () => {

@@ -189,13 +189,16 @@ export const vfArrest: Scenario = {
   ],
   timings: [
     { label: 'CPR taken over', actions: ['cpr'], target: 1.5 },
-    { label: 'First shock', actions: ['defib', 'aed'], target: 3 },
+    { label: 'First shock', actions: ['defib', 'aed'], target: 3, shocksOnly: true },
     { label: 'First epinephrine', actions: ['epinephrine'] },
     { label: '12-lead after ROSC', actions: ['ecg12', 'ecg12-repeat'], from: 'rosc' },
   ],
   transportMinutes: 11,
   nearestMinutes: 5,
-  arrival: 'You arrive at the heart center; the cath lab team takes him straight in.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it has no cath lab — the emergency physician takes over and calls the heart center to transfer him.'
+    : 'You arrive at the heart center; the cath lab team takes him straight in.'),
   deathAfter: 22,
   completeWhen: (s) => has(s, 'rosc'),
   teaching: [

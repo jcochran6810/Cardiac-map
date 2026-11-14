@@ -140,7 +140,10 @@ export const heartBlock: Scenario = {
   ],
   transportMinutes: 14,
   nearestMinutes: 7,
-  arrival: 'You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it cannot place a transvenous pacing wire — the emergency physician takes over and arranges a transfer to the regional heart center.'
+    : 'You arrive at the regional heart center; the cath lab is setting up for a transvenous pacing wire.'),
   teaching: [
     'Unstable bradycardia (hypotension, altered mental status, shock, ischemic chest pain, acute heart failure) needs treatment now.',
     'Atropine 1 mg IV every 3–5 minutes (max 3 mg) is first-line, but it is unlikely to work in infranodal (wide-escape) block. After a heart transplant do not use it: it may cause paradoxical high-grade block.',

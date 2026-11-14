@@ -366,7 +366,7 @@ export const cathlabStemi: Scenario = {
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     { label: 'Artery open (arrival to device)', actions: ['stent-des'], flag: 'pci', target: 30 },
     { label: 'Damped waveform dealt with', actions: ['callout', 'reposition'], target: 1, from: 'damped' },
-    { label: 'Shock after VF began', actions: ['defib', 'aed'], target: 1, from: 'arrest' },
+    { label: 'Shock after VF began', actions: ['defib', 'aed'], target: 1, from: 'arrest', shocksOnly: true },
   ],
   deathAfter: 8,
   completeWhen: (s) => has(s, 'pci') && has(s, 'final-angio'),

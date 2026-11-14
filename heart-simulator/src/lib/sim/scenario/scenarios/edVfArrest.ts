@@ -316,7 +316,7 @@ const TIMINGS: Timing[] = [
   { label: 'Code called', actions: ['call-help', 'notify-physician'], flag: 'help', target: 1 },
   // the in-hospital benchmark is a first shock within 2 minutes of the collapse: one 2-minute cycle of compressions while
   // the pads go on, then the shock at the first rhythm check
-  { label: 'First shock', actions: ['defib', 'aed'], flag: 'shock-1', target: 2.5 },
+  { label: 'First shock', actions: ['defib', 'aed'], flag: 'shock-1', target: 2.5, shocksOnly: true },
   { label: 'First epinephrine (after the second shock)', actions: ['epinephrine'], flag: 'epi', from: 'arrest' },
   { label: 'ROSC', actions: [], flag: 'rosc' },
   { label: 'MAP 65 or more after ROSC', actions: ['pressor', 'fluid', 'push-epi'], flag: 'pressor-running', from: 'rosc', target: 5 },

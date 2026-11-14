@@ -134,7 +134,7 @@ export const INTERVENTIONS: Intervention[] = [
   // emergency department imaging: a portable film (the nurse on the chest pain standing order, or the physician's order)
   // and the physician's own bedside ultrasound
   { id: 'cxr', label: 'Portable chest X-ray', category: 'imaging', roles: ED_TEAM, settings: ED, minutes: 3, detail: 'at the bedside: heart size, the lungs (edema, a pneumothorax), the mediastinum, and where the lines and tubes sit' },
-  { id: 'pocus', label: 'Point-of-care ultrasound: heart, lungs, IVC and aorta', category: 'imaging', roles: ED_MD, settings: ED, minutes: 3, repeatable: true, maxTimes: 3, detail: 'the physician\'s bedside scan: pericardial effusion, how the ventricles squeeze, a large RV, B-lines, the IVC and the aortic root' },
+  { id: 'pocus', label: 'Point-of-care ultrasound: heart, lungs, IVC and aorta', category: 'imaging', roles: ED_MD, settings: ED, minutes: 3, repeatable: true, maxTimes: 3, detail: 'the physician\'s bedside scan: pericardial effusion, how the ventricles squeeze, a large RV, B-lines, the IVC and the aortic root', arrestMinutes: 0.2 },
 
   // Airway & breathing
   { id: 'o2-nc', label: 'Oxygen by nasal cannula', category: 'airway', roles: ALL, minutes: 0.5, detail: '2–4 L/min' },

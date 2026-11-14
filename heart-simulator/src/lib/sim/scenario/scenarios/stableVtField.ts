@@ -410,11 +410,14 @@ export const stableVtField: Scenario = {
     { label: 'First 12-lead', actions: ['ecg12'], target: 8 },
     { label: 'Antiarrhythmic (or a sedated cardioversion) started', actions: [...ANTIARRHYTHMICS, 'cardiovert'], target: 12 },
     { label: 'Synchronized cardioversion once unstable', actions: ['cardiovert'], target: 3, from: 'unstable' },
-    { label: 'First shock once pulseless', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+    { label: 'First shock once pulseless', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   ],
   transportMinutes: 15,
   nearestMinutes: 8,
-  arrival: 'You arrive at the heart center; the emergency physician and the cardiologist on call meet you.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department; the emergency physician meets you.'
+    : 'You arrive at the heart center; the emergency physician and the cardiologist on call meet you.'),
   teaching: [
     'A regular wide-complex tachycardia is VT until proven otherwise — after a myocardial infarction nearly all of them are. A normal blood pressure does not make it SVT: stable VT is still VT.',
     'Stable or unstable? Hypotension, an acute change in mental status, signs of shock, ischemic chest discomfort or acute heart failure make a tachycardia unstable (2025 AHA).',

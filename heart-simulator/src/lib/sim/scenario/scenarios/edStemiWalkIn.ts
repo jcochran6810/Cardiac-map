@@ -192,7 +192,7 @@ const TIMINGS: Timing[] = [
   DOOR_TO_ECG,
   { ...ECG_TO_ACTIVATION, target: 10 },
   { label: 'Door to aspirin', actions: ['aspirin'], target: 10 },
-  { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+  { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   // the device itself is the lab's: the department's share is everything up to handing him over
   { label: 'Door to the cath lab team (goal: a device within 90 minutes of arrival)', actions: ['handoff'] },
 ];

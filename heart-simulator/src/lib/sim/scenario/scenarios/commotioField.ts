@@ -624,7 +624,7 @@ export const commotioField: Scenario = {
     },
   ],
   timings: [
-    { label: 'First shock', actions: ['aed', 'defib'], target: 2 },
+    { label: 'First shock', actions: ['aed', 'defib'], target: 2, shocksOnly: true },
     { label: 'Compressions after the first shock', actions: ['cpr'], from: 'shocked', target: 0.5 },
     { label: 'ROSC', actions: [], flag: 'rosc' },
     // an airway placed in the arrest has his breaths in hand from ROSC: the flag says so when no bag or airway follows

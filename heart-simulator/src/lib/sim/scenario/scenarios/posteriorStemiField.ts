@@ -469,7 +469,7 @@ export const posteriorStemiField: Scenario = {
     { label: 'Aspirin', actions: ['aspirin'], target: 15 },
     { label: 'Cath lab activated', actions: [], flag: 'alert', target: 15 },
     { label: 'Left the scene', actions: ['transport-pci', 'transport-near'], target: 15 },
-    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   ],
   transportMinutes: 16,
   nearestMinutes: 7,

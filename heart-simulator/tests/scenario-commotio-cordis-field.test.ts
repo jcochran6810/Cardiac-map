@@ -197,7 +197,7 @@ describe('commotio cordis in the field — what brings him back', () => {
     expect(medic(['cpr', 'defib']).rhythm.profile).toBe('pea');
     // a line and an airway first: the shock at minute 5 does not
     const s = medic(LATE_SHOCK);
-    expect(s.performed.at(-1)).toEqual({ id: 'defib', minute: 5 });
+    expect(s.performed.at(-1)).toEqual({ id: 'defib', minute: 5, shocked: true });
     expect(s.rhythm.profile).toBe('vf');
     expect(s.flags.refractory).toBeDefined();
     expect(s.flags.converted).toBeUndefined();

@@ -785,7 +785,7 @@ export const cathlabScad: Scenario = {
     // from the damping to the catheter backed out, whoever did it (a call-out, the back-out, the operator alone or the VF)
     { label: 'Damped pressure dealt with', actions: [], flag: 'repositioned', target: 1, from: 'damped' },
     { label: 'Arrival to the diagnostic run', actions: [], flag: 'scad', target: 15 },
-    { label: 'Shock after VF began', actions: ['defib', 'aed'], target: 1, from: 'arrest' },
+    { label: 'Shock after VF began', actions: ['defib', 'aed'], target: 1, from: 'arrest', shocksOnly: true },
   ],
   deathAfter: 8,
   completeWhen: (s) => has(s, 'scad') && (s.role === 5 || has(s, 'proc-over')),

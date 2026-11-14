@@ -553,7 +553,7 @@ export const torsadesField: Scenario = {
     { label: 'Pads on', actions: PADS, target: 3 },
     // the EMT's medics give it: the flag counts theirs
     { label: 'Magnesium', actions: ['magnesium-sulfate'], flag: 'magnesium' },
-    { label: 'First shock once pulseless', actions: ['defib', 'aed'], from: 'arrest', target: 2 },
+    { label: 'First shock once pulseless', actions: ['defib', 'aed'], from: 'arrest', target: 2, shocksOnly: true },
     { label: 'CPR after the shock', actions: ['cpr'], from: 'converted', target: 1 },
     { label: 'ROSC', actions: [], flag: 'rosc' },
   ],

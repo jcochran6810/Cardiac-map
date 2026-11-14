@@ -1,4 +1,4 @@
-import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../types';
+import type { Effect, Line, PendingRead, Penalty, Scenario, SimState, Speaker } from '../types';
 import { PADS, atRate, bpAfter, count, firstDone, has, line, paced } from '../kit';
 import { MD, TECH, askCritical, askDone, askEvents, askHarm, type LabAsk } from '../labKit';
 
@@ -53,6 +53,15 @@ function doneWhile(s: SimState, ids: string[], from: string, until: string): num
 
 /** Analgesia or sedation for the pads pacing: given before it starts (premedication) or after, it is the same care */
 const COMFORT = ['fentanyl', 'midazolam', 'sedation'];
+
+/**
+ * The tamponade left until her heart stopped: a preventable deterioration, charged once when it happens (draining it during
+ * CPR earns the rescue's items, so without this charge letting it reach PEA would score like preventing it)
+ */
+const TAMPONADE_ARREST: Omit<Penalty, 'minute'> = {
+  id: 'tamponade-to-arrest', points: 10, severity: 'major',
+  text: 'The tamponade was left until her heart stopped. A perforation that fills the pericardium is drained as soon as the echo shows it squeezing the heart — the tray open, the needle in under echo — not during CPR: this arrest was preventable.',
+};
 
 const TECH_WIRE = 'Bipolar pacing catheter (5 Fr, balloon-tipped) opened, flushed and handed up; the pacing box checked with a fresh battery and set: rate 70, output 5 mA, demand mode; the bridging cable ready, distal to negative, proximal to positive. Fluoroscopy over the heart.';
 const THRESHOLD_WORDS = 'Output down from 5 mA a step at a time… she paces down to 0.8 mA and loses it at 0.7 — straight back up. Threshold 0.8 mA. Output set to 3 mA, about four times the threshold; rate 70, demand mode. Sensitivity left at 2 mV: she has too little rhythm of her own to test it safely.';
@@ -580,7 +589,7 @@ export const cathlabTempWire: Scenario = {
     {
       // left undrained, the squeezed heart stops filling: electrical activity, no output
       id: 'pea', when: (s) => s.pulse && squeezed(s) && s.minute >= s.flags.tamponade + 5,
-      effect: () => ({ say: [['monitor', 'No pressure on the cuff and no pleth; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.', 'bad']], pulse: false, flags: ['pea'] }),
+      effect: () => ({ say: [['monitor', 'No pressure on the cuff and no pleth; the monitor still shows complexes.', 'bad'], ['patient', 'She is unresponsive.', 'bad']], pulse: false, flags: ['pea'], penalty: TAMPONADE_ARREST }),
     },
   ],
   critical: [

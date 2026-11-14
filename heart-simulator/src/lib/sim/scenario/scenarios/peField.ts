@@ -497,7 +497,7 @@ export const peField: Scenario = {
         || (!supported(s) && s.minute >= s.flags['rv-failing'] + ARREST_UNSUPPORTED)),
       effect: (s) => ({
         say: [['partner', 'She\'s gone limp — not responding, not breathing normally!', 'bad'], ...onMonitor(s, 'Monitor alarm.', 'bad')],
-        rhythm: { profile: 'pea', hr: 120 }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0, etco2: 8 }, flags: ['pe-arrest'],
+        rhythm: { profile: 'pea', hr: 120 }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['pe-arrest'],
       }),
     },
     {

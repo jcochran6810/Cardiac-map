@@ -1,4 +1,4 @@
-import type { Effect, Line, Scenario, SimState } from '../types';
+import type { Effect, Line, Penalty, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
 
 /**
@@ -87,6 +87,16 @@ function toVf(s: SimState, lead: Line[] = []): Effect {
     say: [...lead, line('partner', 'He has gone limp — he is not responding!', 'bad'), ...onMonitor(s, 'Monitor alarm!', 'bad')],
     rhythm: { profile: 'vf', hr: 0 }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 },
     clear: ['pathway-driven'], flags: ['vf'],
+  };
+}
+
+/** The arrest that waiting brought: what would have prevented it, for the EMT and for the paramedic */
+function delayedArrest(s: SimState): Omit<Penalty, 'minute'> {
+  return {
+    id: 'preventable-arrest', points: 10, severity: 'major',
+    text: s.role === 1
+      ? `He arrested after the fast rhythm was left untreated. Requested at once, the paramedic intercept arrives ${ALS_MINUTES} minutes later — in time to stop it with a drug or a sedated shock before he becomes unstable; called late (or not at all), it comes after the arrest.`
+      : 'He arrested after the fast rhythm was left untreated. Stable pre-excited AF is stopped while it is stable (a sedated synchronized cardioversion, or procainamide), and an unstable one is shocked at once: waiting let it break down into VF.',
   };
 }
 
@@ -453,10 +463,12 @@ export const wpwAfField: Scenario = {
       }),
     },
     {
-      // unstable and not shocked: the rhythm breaks down and he loses his pulse
+      // unstable and not shocked: the rhythm breaks down and he loses his pulse. When the instability came from waiting
+      // (no treatment, no paramedics in time) the arrest was preventable: charged once, so a well-run resuscitation of an
+      // arrest the delay caused does not score like preventing it
       id: 'vf-unstable',
       when: (s) => inAf(s) && has(s, 'unstable') && s.minute >= s.flags.unstable + VF_AFTER_UNSTABLE,
-      effect: (s) => toVf(s),
+      effect: (s) => ({ ...toVf(s), ...(s.fired.includes('unstable-delay') ? { penalty: delayedArrest(s) } : {}) }),
     },
     {
       // the heart beats again after the shock but gives no pulse: it needs compressions
@@ -672,7 +684,7 @@ export const wpwAfField: Scenario = {
     { label: 'Transport started', actions: ['transport-pci', 'transport-near'], target: 15 },
     // the EMT's paramedic intercept gives it: the flag counts theirs
     { label: 'Synchronized cardioversion once unstable', actions: ['cardiovert'], flag: 'cardioverted', target: 3, from: 'unstable' },
-    { label: 'First shock once pulseless', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+    { label: 'First shock once pulseless', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   ],
   transportMinutes: 15,
   nearestMinutes: 8,

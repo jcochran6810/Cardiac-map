@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CONDITIONS } from '@/data/content';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { resolveProfile } from '@/lib/ecg/profiles';
-import { BUILT_IN_HARMS, criticalsFor, perform, review, stop, takeHint } from '@/lib/sim/scenario/engine';
+import { BUILT_IN_HARMS, answerRead, criticalsFor, perform, review, stop, takeHint } from '@/lib/sim/scenario/engine';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { READ_OPTION_BY_ID } from '@/lib/sim/scenario/reads';
 import { cathlabTakotsubo as sc } from '@/lib/sim/scenario/scenarios/cathlabTakotsubo';
@@ -469,11 +469,12 @@ describe('the nurse', () => {
   });
 
   it('a slow nurse: the fall goes on, one round is not enough, and the operator asks for more phenylephrine', () => {
-    const s = run(sc, 4, [...RN_TO_DROP, 'callout', 'reassess', 'reassess', 'reassess', 'phenylephrine', 'phenylephrine']);
+    // she never calls out the fall: the operator measures it only 2 minutes later, and the fluid comes too late to stop it
+    const s = run(sc, 4, [...RN_TO_DROP, 'reassess', 'reassess', 'reassess', 'phenylephrine', 'phenylephrine']);
     expect(s.fired).toEqual(expect.arrayContaining(['worse', 'rn-fluid-fallback', 'rn-vaso-got', 'rn-more-ask', 'rn-more-got']));
     expect(s.flags.relieved).toBeDefined();
     expect(s.penalties).toEqual([]);
-    expect(missed(s)).toContain('Fluid bolus for the obstruction, as ordered');
+    expect(missed(s)).toEqual(expect.arrayContaining(['Call out the falling pressure at once', 'Fluid bolus for the obstruction, as ordered']));
   });
 
   it('when the nurse never answers, the team gives the fluid and the phenylephrine — and the procedure still ends', () => {
@@ -502,17 +503,22 @@ describe('the tech', () => {
   });
 
   it('the operator names the obstruction and orders the treatment only once the tech has read the pullback', () => {
-    const read = run(sc, 3, readAfter(readAfter(TECH.slice(0, TECH.indexOf('lvedp') + 1), 'cath-tiger', 'angio-normal'), 'lvedp', 'hemo-lvoto'), undefined, 'manual');
-    expect(read.fired).not.toContain('rn-treats-for-tech');
-    expect(perform(sc, read, 'callout').fired).toContain('rn-treats-for-tech');
+    const waiting = run(sc, 3, readAfter(TECH.slice(0, TECH.indexOf('lvedp') + 1), 'cath-tiger', 'angio-normal'), undefined, 'manual');
+    expect(waiting.pendingRead).toMatchObject({ answer: 'hemo-lvoto' });
+    expect(waiting.fired).not.toContain('rn-treats-for-tech');
+    // the read given: the order comes with it, with no case time passing
+    const read = answerRead(sc, waiting, 'hemo-lvoto');
+    expect(read.fired).toContain('rn-treats-for-tech');
+    expect(read.minute).toBe(waiting.minute);
   });
 
   it('a tech who skips the gradient call-out misses only that; the LV gram waits for the operator\'s call', () => {
     const toPullback = TECH.slice(0, TECH.indexOf('lvedp') + 1);
-    // contrast into a ventricle in shock, unasked: the operator stops it, and no time passes
-    const early = run(sc, 3, [...toPullback, 'lv-gram']);
+    // contrast into a ventricle in shock, unasked (the pigtail in, the pullback not yet recorded): the operator stops it,
+    // and no time passes
+    const early = run(sc, 3, [...TECH.slice(0, TECH.indexOf('cath-pigtail') + 1), 'lv-gram']);
     expect(early.counts['lv-gram']).toBeUndefined();
-    expect(early.log.at(-1)).toMatchObject({ who: 'operator', text: expect.stringMatching(/^Not while she's this low/) });
+    expect(early.log.at(-1)).toMatchObject({ who: 'operator', text: expect.stringMatching(/^Not yet — pressures first/) });
     const s = run(sc, 3, [...toPullback, 'reassess', 'lv-gram', 'ecg12', 'hemostasis']);
     // the call-out still waits to be made (it counts late), so the case goes on
     expect(s.ended).toBeNull();

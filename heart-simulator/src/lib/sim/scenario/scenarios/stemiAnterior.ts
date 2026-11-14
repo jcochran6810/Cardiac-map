@@ -117,10 +117,13 @@ export const stemiAnterior: Scenario = {
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     { label: 'Aspirin', actions: ['aspirin'], target: 15 },
     { label: 'Cath lab activated', actions: ['stemi-alert', 'ecg-transmit'], target: 15 },
-    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest' },
+    { label: 'First shock after VF began', actions: ['defib', 'aed'], target: 2, from: 'arrest', shocksOnly: true },
   ],
   transportMinutes: 15,
-  arrival: 'You arrive at the heart center; the cath lab team meets you at the door.',
+  // the hospital names the destination the crew chose
+  arrival: (s) => (has(s, 'dest-near')
+    ? 'You arrive at the nearest emergency department: it has no cath lab — the emergency physician calls the heart center to transfer him for PCI.'
+    : 'You arrive at the heart center; the cath lab team meets you at the door.'),
   teaching: [
     'Anterior STEMI is a proximal LAD occlusion: a large territory with a high risk of VF and cardiogenic shock in the first hours. Pads on early.',
     '12-lead within 10 minutes of first contact; transmit it and activate the cath lab from the field.',

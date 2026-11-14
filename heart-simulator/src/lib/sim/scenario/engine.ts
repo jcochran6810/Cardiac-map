@@ -173,7 +173,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? (s.pulse ? `Pain ${v.pain}/10.` : 'Unresponsive.')]] };
 
     case 'monitor': return { say: [['monitor', monitorLine(s)]], flags: ['monitor'] };
-    case 'pads': return { say: [['you', 'Pads on: anterior–lateral.']], flags: ['pads', 'monitor'] };
+    case 'pads': return { say: [['you', 'Pads on: anterior–lateral.']], flags: padsOn(s) };
     case 'ecg12':
     case 'ecg12-repeat':
       if (!s.pulse) return noEcgInArrest;
@@ -508,12 +508,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       if (lvadPerfusing(s)) return { blocked: true, say: [['system', 'Not while the pump is perfusing: an AED is only for a patient who is unresponsive, not breathing normally and without circulation. A continuous-flow LVAD leaves no pulse to feel even when it is working: judge perfusion by responsiveness, skin color, capillary refill and the Doppler MAP (over 50), and listen for the pump hum.']] };
       // an unresponsive LVAD patient who is not perfusing gets BLS/ALS: the AED reads the rhythm alone, as it always does
       if (s.pulse && s.lvad) {
-        if (['vf', 'vt', 'torsades'].includes(rhythmKind(s))) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
-        return { say: [['monitor', 'AED: "No shock advised. Start CPR."']], flags: ['pads', 'monitor'] };
+        if (['vf', 'vt', 'torsades'].includes(rhythmKind(s))) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: [...padsOn(s), 'shocked'] };
+        return { say: [['monitor', 'AED: "No shock advised. Start CPR."']], flags: padsOn(s) };
       }
       if (s.pulse) return { blocked: true, say: [['system', 'Not with a pulse: an AED is only for a patient who is unresponsive, not breathing normally and has no pulse. It reads the rhythm alone — it cannot feel a pulse — and would advise a shock for a fast VT. Keep assessing; if the pulse is lost, start CPR and analyze.']] };
-      if (shockable(s)) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: ['pads', 'monitor', 'shocked'] };
-      return { say: [['monitor', 'AED: "No shock advised. Start CPR."']], flags: ['pads', 'monitor'] };
+      if (shockable(s)) return { say: [['monitor', 'AED: "Shock advised." Shock delivered. Resume CPR.']], flags: [...padsOn(s), 'shocked'] };
+      return { say: [['monitor', 'AED: "No shock advised. Start CPR."']], flags: padsOn(s) };
     case 'defib':
       if (shockable(s)) return { say: [['monitor', 'Shock delivered: 200 J. Resume CPR immediately.']], flags: ['pads', 'monitor', 'shocked'] };
       return { say: [['monitor', 'Shock delivered: 200 J.']], flags: ['pads', 'monitor'] };
@@ -814,6 +814,12 @@ function edHandoff(s: SimState): Effect {
  * an IV/IO drug (that is how epinephrine and amiodarone work during CPR) — this one simply has nothing to treat there.
  */
 const noRoleInArrest = (what: string, flag: string): Effect => ({ say: [['you', `${what} given — it has no place in cardiac arrest and changes nothing on the monitor.`]], flags: [flag] });
+
+/**
+ * The flags pads on the chest set: a monitor for everyone with a manual defibrillator; for the EMT an AED's pads only (an
+ * AED shows no rhythm and no numbers to read)
+ */
+const padsOn = (s: SimState): string[] => (s.role === 1 ? ['pads'] : ['pads', 'monitor']);
 
 /** The crew member or teammate who speaks up beside the learner */
 const teammate = (sc: Scenario): Speaker => (sc.setting === 'field' ? 'partner' : 'team');
@@ -1145,19 +1151,23 @@ export function ecgChanged(last: SimState['lastEcg'], rhythm: SimState['rhythm']
   return rateBand(last.hr) !== rateBand(rhythm.hr) || Math.abs(last.hr - rhythm.hr) > ECG_RATE_CHANGE;
 }
 
-/** A new 12-lead tracing waits for the learner's read (EMTs acquire and transmit; they do not interpret) */
-function requestRead(sc: Scenario, s: SimState) {
-  if (s.ended || !s.pulse) return;
+/**
+ * A new 12-lead tracing waits for the learner's read (EMTs acquire and transmit; they do not interpret). `printed`: the
+ * rhythm on a tracing that finished printing before the patient arrested (perform: the arrest came during the recording)
+ */
+function requestRead(sc: Scenario, s: SimState, printed?: SimState['rhythm']) {
+  if (s.ended || (!s.pulse && !printed)) return;
+  const rhythm = printed ?? s.rhythm;
   const prev = s.lastEcg;
-  const unchanged = !ecgChanged(prev, s.rhythm);
+  const unchanged = !ecgChanged(prev, rhythm);
   // an unchanged repeat is the tracing already read: it keeps that one's rate, so a slow drift still adds up to a change
-  s.lastEcg = { minute: s.minute, profile: s.rhythm.profile, hr: unchanged && prev ? prev.hr : s.rhythm.hr };
+  s.lastEcg = { minute: s.minute, profile: rhythm.profile, hr: unchanged && prev ? prev.hr : rhythm.hr };
   // remembered for good, for every role: the STEMI alert rests on the tracing that showed it
-  if (profileShowsStemi(s.rhythm.profile)) setFlag(s, 'ecg-stemi');
+  if (profileShowsStemi(rhythm.profile)) setFlag(s, 'ecg-stemi');
   if (s.role === 1) return;
   if (unchanged) say(s, 'monitor', 'Unchanged from the previous 12-lead.');
   else {
-    const profile = s.rhythm.profile;
+    const profile = rhythm.profile;
     askRead(s, { kind: 'ecg', minute: s.minute, answer: answerFor(profile).id, partial: partialFor(profile), explain: ecgExplanation(sc, s, profile) });
   }
 }
@@ -1182,6 +1192,8 @@ export function answerRead(sc: Scenario, prev: SimState, optionId: string): SimS
       text: `${capitalize(READ_KIND_NAME[r.kind])} at ${clockText(r.minute)}: you read “${choice.label}”; it was ${answer.label}.`,
     });
   }
+  // what waits on the read happens now (an event that needs the read given), not after the next action; no time passes
+  advance(sc, s);
   finish(sc, s);
   return s;
 }
@@ -1244,10 +1256,17 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
   say(s, 'you', detail ? `${iv.label} — ${detail}` : iv.label);
   s.counts[id] = (s.counts[id] ?? 0) + 1;
   s.performed.push({ id, minute: s.minute });
-  s.minute = round(s.minute + iv.minutes);
+  // a few actions take less time during CPR (e.g. an ultrasound done within the 10-second pulse check)
+  s.minute = round(s.minute + (!s.pulse && iv.arrestMinutes !== undefined ? iv.arrestMinutes : iv.minutes));
   applyEffect(s, shown);
+  // a shock actually delivered (not a SYNC that never fired, not "no shock advised"): the review's first-shock timings count it
+  if (shown.flags?.includes('shocked')) s.performed[s.performed.length - 1].shocked = true;
+  // the 12-lead takes its minutes: what happens in them with the pulse kept is on the tracing (a run that stops, the pain
+  // coming back). An arrest in them is not: the tracing printed before it, and a STEMI it showed still counts
+  const recording = id === 'ecg12' || id === 'ecg12-repeat';
+  const before = recording && s.pulse ? { ...s.rhythm } : null;
   if (!s.ended) advance(sc, s);
-  if (id === 'ecg12' || id === 'ecg12-repeat') requestRead(sc, s);
+  if (recording) requestRead(sc, s, before && !s.pulse ? before : undefined);
   finish(sc, s);
   return s;
 }
@@ -1373,7 +1392,8 @@ export function review(sc: Scenario, s: SimState): Review {
   for (const t of sc.timings ?? []) {
     const from = t.from ? s.flags[t.from] : 0;
     if (from === undefined) continue; // the event it is timed from never happened
-    const hit = s.performed.find((p) => t.actions.includes(p.id) && p.minute >= from);
+    // a first-shock timing counts a shock only when one was delivered (not a SYNC that never fired, not "no shock advised")
+    const hit = s.performed.find((p) => t.actions.includes(p.id) && p.minute >= from && (!t.shocksOnly || p.shocked));
     const at = hit ? hit.minute : t.flag !== undefined && s.flags[t.flag] !== undefined ? s.flags[t.flag] : null;
     const minute = at !== null ? round(at - from) : null;
     timings.push({ label: t.label, minute, target: t.target, met: t.target === undefined ? null : minute !== null && minute <= t.target });
