@@ -12,7 +12,7 @@ import type { Harm, Scenario, SimState } from '../types';
 import { NITRATE_CHECK_IDS, builtInChargedBefore } from './charge';
 import { indicationCovered } from './scope';
 import {
-  ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, ecgShowsStemi, hasProblem, lastDoneAt,
+  ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, chargedBefore, did, ecgShowsStemi, hasProblem, lastDoneAt,
   longQt, lowPressure, outflowObstruction, preloadDependent, rhythmKind, tachyarrhythmia,
 } from './helpers';
 
@@ -212,8 +212,6 @@ const NITRATE_CONTRAINDICATIONS = [
   ...NITRATE_RANKS.slice(0, NITRATE_RANKS.findIndex((r) => r.id === 'nitro-high-not-hypertensive')).map((r) => r.id), 'nitro-tachycardia',
 ];
 
-/** The rule charged an earlier action (each rule charges once a case) */
-const chargedBefore = (s: SimState, ruleId: string) => s.penalties.some((p) => p.id === ruleId && p.minute < s.minute);
 
 /** Another case rule (not `selfId`) applies to this dose and lists the built-in `ruleId` in its `replaces`: it speaks in its place */
 const hiddenByCase = (ruleId: string, selfId: string, s: SimState, sc: Scenario, id: string) =>

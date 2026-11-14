@@ -14,7 +14,7 @@ import { resolveProfile } from '@/lib/ecg/profiles';
 import { has, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
 import {
-  ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, did, hasProblem, lastDoneAt, longQt, lowPressure,
+  ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, chargedBefore, did, hasProblem, lastDoneAt, longQt, lowPressure,
   lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
 import { NITRATE_RULES, nitrateCharges } from './acs';
@@ -82,15 +82,6 @@ const minutesSince = (s: SimState, t: number) => Math.round((s.minute - t) * 100
  */
 const cprCycleAfterShock = (s: SimState) =>
   shockedThisArrest(s) && minutesSince(s, s.timers.lastShockAt!) < 2 && lastDoneAt(s, ['pulse-check'], s.timers.lastShockAt) === null;
-/**
- * This rule was charged on an earlier act. Every act takes at least a tenth of a minute, and the engine judges an act
- * before its clock moves, so a penalty of this act carries the current minute: a condition that reads it does not change
- * while the engine charges the act's rules one after the other (harmsFor calls each `when` again as it goes)
- */
-function chargedBefore(s: SimState, ruleId: string): boolean {
-  return s.penalties.some((p) => p.id === ruleId && p.minute < s.minute);
-}
-
 /** The rules as written, each with its own condition; the gate (LADDERS) is added below */
 const RULES: Harm[] = [
   // ─── Shocks and cardioversion ──────────────────────────────────────────────

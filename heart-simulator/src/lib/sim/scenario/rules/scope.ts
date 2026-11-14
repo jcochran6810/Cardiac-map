@@ -5,6 +5,7 @@
 import { has, orderedFlag } from '../kit';
 import { answeringWrong } from '../labKit';
 import type { Harm, Scenario, SimState } from '../types';
+import { chargedBefore } from './helpers';
 
 /**
  * The drugs the ER nurse gives in the emergency department only on the ED physician's order (state Nurse Practice Act,
@@ -84,8 +85,7 @@ export function missingOrderCovers(s: SimState, sc: Scenario, id: string): boole
   if (!rule || !roleOk(rule, s)) return false;
   const caseOwn = sc.harms.some((h) => h.id === rule.id && roleOk(h, s) && h.actions.includes(id));
   // the act being judged is not yet on the clock: a penalty with this minute is this act's own
-  const chargedBefore = s.penalties.some((p) => p.id === rule.id && p.minute < s.minute);
-  if (!caseOwn && !chargedBefore && appliesTo(rule, s, sc, id)) return true;
+  if (!caseOwn && !chargedBefore(s, rule.id) && appliesTo(rule, s, sc, id)) return true;
   return sc.harms.some((h) => (h.id === rule.id || !!h.replaces?.includes(rule.id)) && appliesTo(h, s, sc, id));
 }
 
