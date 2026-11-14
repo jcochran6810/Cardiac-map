@@ -1731,7 +1731,14 @@ const nitroglycerin: MedDef = {
     if (['aortic-stenosis', 'hcm', 'takotsubo-lvoto'].includes(prof.id)) return { verdict: bad('Dangerous: a preload-dependent heart (aortic stenosis, obstructive HCM, Takotsubo with LV outflow obstruction) — nitrates can cause collapse.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
     if (lowBP(p, prof)) return { verdict: bad('Contraindicated: the patient is hypotensive (SBP < 90) — nitrates drop the pressure further.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling further.', tone: 'warn' }] };
     if (prof.hemo === 'tamponade' || prof.hemo === 'pe') return { verdict: bad(`Dangerous: ${prof.hemo === 'tamponade' ? 'a tamponade' : 'a PE straining the right ventricle'} makes the heart preload-dependent — a nitrate drops the filling and the pressure.`), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
-    if (prof.id === DISSECTION) return { verdict: caution('Aortic dissection: vasodilators lower the BP only after β-blockade — alone they cause a reflex tachycardia that increases the shear on the aortic wall.'), steps: [reflex, ...drop] };
+    if (prof.id === DISSECTION) {
+      // 2022 ACC/AHA aortic disease: the rate first (an IV β-blocker, or a non-dihydropyridine calcium-channel blocker when
+      // one cannot be used), then a vasodilator for a systolic still over 120 — as the simulator's vasodilator-before-rate-control
+      const rateFirst = (['metoprolol', 'esmolol', 'diltiazem'] as MedId[]).some((d) => dosesOf(p, d).length);
+      return rateFirst
+        ? { verdict: caution('Aortic dissection with the rate slowed: a vasodilator may now bring the systolic toward 120 — titrate, and keep the heart rate at 60–80.'), steps: [reflex, ...drop] }
+        : { verdict: bad('Not before the rate is slowed: in an aortic dissection a vasodilator alone causes a reflex tachycardia that increases the shear on the aortic wall (2022 ACC/AHA aortic disease: an IV β-blocker first, to a rate of 60–80).'), steps: [reflex, ...drop] };
+    }
     // ACC/AHA (STEMI guideline; AHA ACLS ACS): no nitrates with marked bradycardia (< 50/min) — the heart cannot speed
     // up to make up for the fall in preload — or with tachycardia (> 100/min) without heart failure, which can mean low
     // volume or a large infarct heading for shock, and which the reflex tachycardia only makes worse
@@ -2124,6 +2131,7 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   // an intracranial hemorrhage at any time: absolute for lysis (2013 ACCF/AHA STEMI, kept in 2025), a label contraindication
   // for ticagrelor (history of ICH) and prasugrel (prior stroke); for aspirin, clopidogrel and heparin it is the bleed now
   // (Plavix: active pathological bleeding such as ICH) that rules them out, and an old, healed one only raises the risk
+  { problems: ['acute-intracranial-hemorrhage'], drugs: ['aspirin', 'ticagrelor', 'clopidogrel', 'prasugrel', 'heparin', 'tenecteplase'], tone: 'bad', text: () => 'Not with a bleed in the head now: an antiplatelet, an anticoagulant or a fibrinolytic can make it grow (aspirin, P2Y12 inhibitor and heparin labels: active bleeding; TNKase: any intracranial hemorrhage). Reverse what is on board, and decide the heart\'s treatment with neurosurgery.' },
   { problems: ['intracranial-hemorrhage'], drugs: ['tenecteplase'], tone: 'bad', text: () => 'Absolutely contraindicated: any prior intracranial hemorrhage (2013 ACCF/AHA STEMI, kept in 2025; label) — however long ago. Transfer for primary PCI.' },
   { problems: ['intracranial-hemorrhage'], drugs: ['ticagrelor'], tone: 'bad', text: () => 'Contraindicated (label): a history of intracranial hemorrhage — ticagrelor raised intracranial bleeding (PLATO). Clopidogrel, once the bleed is old and healed.' },
   { problems: ['intracranial-hemorrhage'], drugs: ['aspirin', 'clopidogrel', 'heparin'], tone: 'caution', text: () => 'A prior intracranial hemorrhage raises the bleeding risk; a recent or active one rules this drug out — ask when, and give the ACS antithrombotics if it is old and healed.' },
@@ -2142,6 +2150,9 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   { problems: ['thrombocytopenia'], drugs: ['tenecteplase'], tone: 'bad', text: () => 'Platelets under 100,000: a bleeding diathesis — an absolute contraindication to fibrinolysis (2013 ACCF/AHA STEMI, kept in 2025; TNKase label). Primary PCI.' },
   { problems: ['thrombocytopenia'], drugs: ['aspirin', 'ticagrelor', 'clopidogrel', 'prasugrel'], tone: 'caution', text: () => 'Platelets under 100,000: an antiplatelet adds to the bleeding risk — weigh the count and find the cause; under about 50,000 avoid it.' },
   // the brain: raised intracranial pressure is a nitroglycerin label contraindication; neurosurgery a relative one for heparin
+  // bleeding: the pressure is held up by tightened veins (the simulator's nitro-volume-depleted)
+  { problems: ['bleeding'], drugs: ['nitroglycerin'], tone: 'bad', text: () => 'Not with active bleeding: the pressure is held up by tightened veins, and a nitrate opens them — it can fall suddenly (nitroglycerin labels: severe anemia; hypotension or uncorrected hypovolemia). Stop the bleeding and restore the volume; an opioid in small doses for the pain.' },
+  { problems: ['acute-intracranial-hemorrhage'], drugs: ['nitroglycerin'], tone: 'bad', text: () => 'Not with a bleed in the head now: a nitrate opens the cerebral vessels and raises the intracranial pressure (label: increased intracranial pressure). For the pressure, nicardipine or labetalol.' },
   { problems: ['intracranial-hemorrhage', 'intracranial-risk'], drugs: ['nitroglycerin'], tone: 'caution', text: () => 'Raised intracranial pressure is a label contraindication: no nitrate with an acute intracranial bleed or a recent head injury (an old, healed lesion is no bar).' },
   { problems: ['intracranial-risk'], drugs: ['heparin'], tone: 'caution', text: () => 'An intracranial lesion, or recent brain or spine surgery or head trauma: full anticoagulation is a relative contraindication (label: hemorrhage after surgery of the brain or spinal cord) — weigh it, with the neurosurgeon.' },
   // a preload-dependent heart: a nitrate drops the filling and the pressure
@@ -2167,7 +2178,9 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   { problems: ['pulmonary-edema'], drugs: ['diltiazem'], tone: 'bad', text: () => 'Not in decompensated heart failure (2023 ACC/AHA/ACCP/HRS AF: IV non-dihydropyridine calcium-channel blockers — 3: Harm): a negative inotrope can tip it into shock. Amiodarone, or synchronized cardioversion.' },
   { problems: ['pulmonary-edema'], drugs: ['procainamide'], tone: 'bad', text: () => 'Avoid in acute heart failure (AHA; label): procainamide depresses the heart and drops the pressure. Amiodarone, or synchronized cardioversion.' },
   // a pheochromocytoma: no β-blocker before α-blockade
-  { problems: ['pheochromocytoma'], drugs: ['metoprolol', 'esmolol'], tone: 'bad', text: () => 'Not with an untreated pheochromocytoma (labels): a β-blocker before α-blockade leaves the α effect unopposed — the pressure climbs further. α-blockade (phentolamine in a crisis) first.' },
+  { problems: ['pheochromocytoma'], drugs: ['metoprolol', 'esmolol', 'sotalol'], tone: 'bad', text: () => 'Not with an untreated pheochromocytoma (labels): a β-blocker before α-blockade leaves the α effect unopposed — the pressure climbs further. α-blockade (phentolamine in a crisis) first.' },
+  // pregnancy: amiodarone's fetal toxicity (label warning); in a maternal cardiac arrest it is given as usual (2025 AHA)
+  { problems: ['pregnancy'], drugs: ['amiodarone'], tone: 'caution', text: (_p, c) => (c === 'arrest' ? null : 'Pregnancy: amiodarone can harm the fetus (label: neonatal hypothyroidism or hyperthyroidism, bradycardia, growth restriction) — only for a life-threatening arrhythmia when other drugs fail or cannot be used (2015 ACC/AHA/HRS SVT: 2b); synchronized cardioversion is safe in pregnancy.') },
   // the electrolytes
   { problems: ['hypomagnesemia'], drugs: ['sotalol'], tone: 'caution', text: () => 'A low magnesium: correct it first (label) — with sotalol it adds to the torsades risk.' },
   { problems: ['hypomagnesemia'], drugs: ['digoxin'], tone: 'caution', text: () => 'A low magnesium makes digoxin toxicity more likely: correct it.' },
@@ -2211,6 +2224,7 @@ export const HISTORY: readonly { id: Problem; label: string }[] = [
   { id: 'sympathomimetic-toxicity', label: 'Cocaine / meth now' },
   { id: 'aspirin-allergy', label: 'Aspirin allergy' },
   { id: 'bleeding', label: 'Active bleeding' },
+  { id: 'acute-intracranial-hemorrhage', label: 'Brain bleed now' },
   { id: 'intracranial-hemorrhage', label: 'Brain bleed (ever)' },
   { id: 'recent-stroke', label: 'Ischemic stroke < 3 months' },
   { id: 'prior-stroke', label: 'TIA, or stroke > 3 months' },

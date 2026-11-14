@@ -49,7 +49,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Active significant bleeding (e.g. GI hemorrhage) or recent intracranial hemorrhage — absolute',
       'Suspected aortic dissection — withhold until excluded',
       'Known bleeding disorder (hemophilia, von Willebrand disease) or platelets under 50,000 (relative)',
-      'Aspirin-exacerbated respiratory disease (asthma with nasal polyps) — relative',
+      'The syndrome of asthma, rhinitis and nasal polyps (aspirin-exacerbated respiratory disease) — contraindicated (professional labeling): clopidogrel instead, or desensitization with an allergist',
       'Children and teenagers with viral illness (Reye syndrome)',
     ],
     adverseEffects: [
@@ -710,7 +710,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Ischemic stroke within 3 months (unless treating acute stroke in window)',
       'Known structural cerebrovascular lesion or malignant intracranial neoplasm',
       'Suspected aortic dissection',
-      'Active bleeding or bleeding diathesis (excluding menses)',
+      'Active bleeding or a bleeding diathesis, including platelets under 100,000 (excluding menses)',
       'Significant closed-head or facial trauma within 3 months; intracranial/intraspinal surgery within 2 months',
       'Severe uncontrolled hypertension unresponsive to emergency therapy',
       'Pulmonary embolism without cardiopulmonary failure (AHA/ACC 2026 categories A1–C2) — systemic lysis must not be used',
@@ -1289,6 +1289,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Long QT or torsades de pointes',
       'Pre-excited AF (WPW) — IV amiodarone is potentially harmful; use procainamide or cardioversion',
       'Known hypersensitivity to amiodarone or its components, including iodine (label) — a seafood "allergy" is not one, and none stands in a shock-refractory arrest',
+      'Pregnancy — fetal toxicity (label warning: neonatal thyroid disease, bradycardia, growth restriction): only for a life-threatening arrhythmia when others fail or cannot be used; cardioversion is safe, and in a maternal cardiac arrest amiodarone is given as usual (2025 AHA)',
     ],
     adverseEffects: [
       'IV: hypotension, bradycardia and phlebitis (central line or in-line filter for infusions)',
@@ -3033,6 +3034,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Asthma or bronchospasm (nonselective β-blocker)',
       'Severe kidney impairment (for AF: a creatinine clearance below 40 mL/min)',
       'Potassium below 4 mEq/L (label) or a low magnesium — correct first',
+      'Untreated pheochromocytoma — a nonselective β-blocker before α-blockade leaves the α effect unopposed (class effect, as for metoprolol and labetalol)',
     ],
     adverseEffects: [
       'Torsades de pointes, rising with the dose and with kidney failure',
@@ -3178,7 +3180,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Any prior intracranial hemorrhage, or an ischemic stroke within 3 months (for stroke treatment, its own criteria)',
       'Intracranial or intraspinal surgery, or serious head trauma, within 3 months',
       'An intracranial neoplasm, arteriovenous malformation or aneurysm',
-      'A known bleeding diathesis',
+      'A known bleeding diathesis, including platelets under 100,000',
       'Severe uncontrolled hypertension',
       'Suspected aortic dissection',
       'Pulmonary embolism without cardiopulmonary failure (AHA/ACC 2026 categories A1–C2) — systemic lysis must not be used',
@@ -3663,6 +3665,8 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Compensatory hypertension (an arteriovenous shunt or coarctation) (label)',
       'Acute heart failure with a low systemic vascular resistance (label)',
       'Congenital (Leber) optic atrophy or tobacco amblyopia (label)',
+      'A preload-dependent heart or an outflow obstruction — RV infarction, tamponade, a massive PE, dynamic LVOT obstruction (in severe aortic stenosis only with invasive monitoring): it drops the filling and the pressure',
+      'Uncorrected hypovolemia or active bleeding — the pressure can fall suddenly',
       'Hypotension (relative)',
     ],
     adverseEffects: [
@@ -3856,6 +3860,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     contraindications: [
       'Advanced aortic stenosis — the afterload falls and the heart cannot raise its output (label)',
+      'Dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO) — an arterial vasodilator raises the gradient (2024 AHA/ACC HCM)',
       'Hypersensitivity',
       'Clevidipine: allergy to soy or eggs, or defective lipid metabolism (pathologic hyperlipidemia, lipoid nephrosis, acute pancreatitis with hyperlipidemia) (label)',
       'Aortic dissection without a β-blocker first — the reflex tachycardia raises the shear on the wall (2022 ACC/AHA aortic)',

@@ -2112,3 +2112,37 @@ describe('review round: Give meds says the contraindication the simulator and th
     expect(tone('metoprolol', withProblems('atrial-fibrillation', 150, ['asthma']), 5)).toBe('caution');
   });
 });
+
+describe('repair round: Give meds says what the simulator charges', () => {
+  const p = (profileId: string, hr: number, problems: Problem[], extra: Partial<Patient> = {}) => patient(profileId, hr, { sbp: 130, problems, ...extra });
+
+  it('a bleed in the head now rules out every antithrombotic, the lytic and the nitrate; an old one only some (the chip "Brain bleed now")', () => {
+    expect(HISTORY.find((h) => h.id === 'acute-intracranial-hemorrhage')?.label).toBe('Brain bleed now');
+    for (const [id, d] of [['aspirin', 325], ['ticagrelor', 180], ['clopidogrel', 600], ['prasugrel', 60], ['heparin', 4000], ['tenecteplase', 45]] as [MedId, number][]) {
+      expect(planDose(id, p('anterior-stemi', 92, ['acute-intracranial-hemorrhage']), d).verdict, id).toMatchObject({ tone: 'bad', text: expect.stringMatching(/Not with a bleed in the head now/) });
+    }
+    expect(planDose('nitroglycerin', p('nstemi', 84, ['acute-intracranial-hemorrhage']), 0.4).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/increased intracranial pressure/) });
+    // an old, healed bleed: aspirin with care, as before
+    expect(planDose('aspirin', p('anterior-stemi', 92, ['intracranial-hemorrhage']), 325).verdict.tone).toBe('caution');
+  });
+
+  it('nitroglycerin with active bleeding is "bad", as the simulator\'s nitro-volume-depleted (8, major) charges it', () => {
+    expect(planDose('nitroglycerin', p('anterior-stemi', 90, ['bleeding']), 0.4).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Not with active bleeding: the pressure is held up by tightened veins/) });
+  });
+
+  it('nitroglycerin in an aortic dissection: "bad" before the rate is slowed, a caution after it (2022 ACC/AHA aortic)', () => {
+    const dissection = p('aortic-dissection', 100, [], { sbp: 190 });
+    expect(planDose('nitroglycerin', dissection, 0.4).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Not before the rate is slowed/) });
+    const slowed = { ...dissection, given: [{ id: 'esmolol' as MedId, dose: 40, at: 0 }] };
+    expect(planDose('nitroglycerin', slowed, 0.4).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/with the rate slowed/) });
+  });
+
+  it('sotalol with an untreated pheochromocytoma is "bad", like every other β-blocker', () => {
+    expect(planDose('sotalol', p('atrial-fibrillation', 140, ['pheochromocytoma'], { sbp: 150 }), 80).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/pheochromocytoma/) });
+  });
+
+  it('amiodarone in pregnancy: a caution for the fetus with a pulse; in a maternal arrest it is given as usual', () => {
+    expect(planDose('amiodarone', p('atrial-fibrillation', 140, ['pregnancy'], { sbp: 120 }), 150).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/Pregnancy: amiodarone can harm the fetus/) });
+    expect(planDose('amiodarone', p('vf', 0, ['pregnancy'], { sbp: 0 }), 300).verdict.text).not.toMatch(/fetus/);
+  });
+});

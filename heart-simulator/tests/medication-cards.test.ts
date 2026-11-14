@@ -385,6 +385,15 @@ describe('review round: card lines for label contraindications and dangerous int
     ['protamine', 'dosing', /A bolus: 1 mg per 100 units of heparin given in the last 30 min/],
     ['aspirin', 'dosing', /650–1000 mg every 8 h for 1–2 weeks, then taper \(2025 ACC; 750–1000 mg in ESC guidance\)/],
     ['glucagon', 'dosing', /3–5 min to limit vomiting/],
+    // repair round: the cards say what the simulator and Give meds say
+    ['aspirin', 'contraindications', /asthma, rhinitis and nasal polyps \(aspirin-exacerbated respiratory disease\) — contraindicated \(professional labeling\)/],
+    ['sotalol', 'contraindications', /Untreated pheochromocytoma/],
+    ['amiodarone', 'contraindications', /Pregnancy — fetal toxicity \(label warning/],
+    ['nitroprusside', 'contraindications', /A preload-dependent heart or an outflow obstruction — RV infarction, tamponade, a massive PE, dynamic LVOT obstruction/],
+    ['nitroprusside', 'contraindications', /Uncorrected hypovolemia or active bleeding/],
+    ['nicardipine', 'contraindications', /Dynamic LV outflow obstruction \(obstructive HCM, Takotsubo with LVOTO\)/],
+    ['tenecteplase', 'contraindications', /bleeding diathesis, including platelets under 100,000/],
+    ['alteplase', 'contraindications', /bleeding diathesis, including platelets under 100,000/],
   ])('%s %s', (id, field, re) => {
     expect((card(id) as unknown as Record<string, string[]>)[field].join('\n')).toMatch(re);
   });
