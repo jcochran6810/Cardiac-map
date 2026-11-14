@@ -1125,7 +1125,7 @@ export const edTamponade: Scenario = {
       roles: ED_RN, when: (s) => !s.pulse, points: 5, severity: 'major',
       replaces: [
         'procainamide-in-arrest', ...noOrder(['amio-infusion', ...ADENOSINE_PUSH, 'procainamide', ...BETA_BLOCKERS, 'diltiazem']),
-        ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
+        ...LIDOCAINE_RULES, ...RATE_RULES,
       ],
       text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, a beta-blocker and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },

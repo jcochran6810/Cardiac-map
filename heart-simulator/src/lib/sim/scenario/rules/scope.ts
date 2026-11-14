@@ -39,7 +39,7 @@ export const RN_ORDER_CRITICAL = ['alteplase'];
  * contraindication rules still apply: a gate (rules/rhythm.ts, rules/acs.ts, rules/added.ts) passes a dose on from a
  * covered indication rank to the next reason that holds. The checks the nurse makes whether or not there is an order (a
  * pressure before nitroglycerin, the PDE-5 question, the interval between doses) are not indication rules: they charge
- * beside the missing order. Some ids are rules still to come.
+ * beside the missing order. Every id names a built-in rule (tests/rule-ids.test.ts).
  */
 export const INDICATION_RULES = [
   'atropine-fast', 'calcium-no-indication', 'bicarbonate-no-indication', 'insulin-no-indication', 'albuterol-hyperk-no-indication',

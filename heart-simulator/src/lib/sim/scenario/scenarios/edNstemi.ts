@@ -614,9 +614,9 @@ export const edNstemi: Scenario = {
       text: 'Discharging a woman with an NSTE-ACS. Diffuse ST depression with aVR up, recurring pain, diabetes and a first troponin above the women\'s limit make her high risk: one troponin rules nothing out — the chest pain pathway repeats the high-sensitivity troponin at 1–3 hours (2021 AHA/ACC chest pain guideline), and her picture needs admission, antithrombotic treatment and an early invasive strategy (2025 ACC/AHA ACS guideline).',
     },
     {
-      // one penalty for one fibrinolytic: it stands in for the built-in rule (and, for the nurse, the built-in 'no order')
+      // one penalty for one fibrinolytic: it stands in for the built-in rules (the nurse's version below also for her 'no order')
       id: 'lytic-st-depression', actions: ['tnk', 'alteplase'], roles: ED_MD, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',
-      replaces: [...LYTIC_RULES, 'rn-without-order-alteplase'],
+      replaces: LYTIC_RULES,
       text: 'A fibrinolytic for ST depression. In an acute coronary syndrome without ST elevation the clot does not close the artery: a fibrinolytic opens nothing, and it adds bleeding — in the brain too — and more infarcts (TIMI IIIB). It is harmful in NSTE-ACS; the only ST depression it treats is the mirror image of a posterior STEMI, confirmed on V7–V9. Aspirin, heparin and angiography are the treatment.',
     },
     {
