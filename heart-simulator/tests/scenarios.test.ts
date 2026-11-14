@@ -972,3 +972,56 @@ describe('the problems a case declares agree with what the patient says and show
     });
   }
 });
+
+describe('review round: correct alternatives score full marks', () => {
+  const full = (id: string, role: LearningLevel, steps: string[]) => {
+    const sc = SCENARIO_BY_ID[id];
+    const s = run(sc, role, steps);
+    const r = review(sc, s);
+    return { s, r };
+  };
+  const swap = (steps: string[], from: string, to: string) => steps.map((x) => (x === from ? to : x));
+
+  it('bivalirudin for heparin: the ACT item is still met in both STEMI labs (one anticoagulant either way)', () => {
+    for (const id of ['stemi-cathlab', 'stemi-inferior-cathlab']) {
+      const { s, r } = full(id, 4, swap(IDEAL[id]![4]!, 'heparin', 'bivalirudin'));
+      expect(s.ended?.reason, id).toBe('complete');
+      expect(r.toFix, id).toEqual([]);
+      expect(r.percent, id).toBe(100);
+    }
+  });
+
+  it('FFR by femoral access: no radial spasm, no cocktail asked, full marks', () => {
+    const steps = IDEAL['ffr-cathlab'][5]!.filter((x) => x !== 'radial-cocktail').map((x) => (x === 'access' ? 'access-femoral' : x));
+    const { s, r } = full('ffr-cathlab', 5, steps);
+    expect(s.flags.spasm).toBeUndefined();
+    expect(s.log.some((l) => /wrist is burning/.test(l.text))).toBe(false);
+    expect(s.ended?.reason).toBe('complete');
+    expect(r.toFix).toEqual([]);
+    expect(r.percent).toBe(100);
+    // and the radial cocktail into a femoral sheath is refused, not given
+    const femoral = run(SCENARIO_BY_ID['ffr-cathlab'], 5, ['consent', 'timeout', 'access-femoral', 'cath-tiger', 'angio', 'radial-cocktail']);
+    expect(femoral.counts['radial-cocktail']).toBeUndefined();
+  });
+
+  it('FFR: oxygen by cannula for the sedated patient costs nothing', () => {
+    const steps = IDEAL['ffr-cathlab'][4]!;
+    const i = steps.indexOf('sedation') + 1;
+    const { r } = full('ffr-cathlab', 4, [...steps.slice(0, i), 'o2-nc', ...steps.slice(i)]);
+    expect(r.toFix.filter((t) => t.kind === 'harm')).toEqual([]);
+  });
+
+  it('complete heart block in the field: pacing at once for the wide escape earns the atropine item', () => {
+    const { r } = full('complete-heart-block-field', 2, IDEAL['complete-heart-block-field'][2]!.filter((x) => x !== 'atropine'));
+    expect(r.toFix).toEqual([]);
+    expect(r.percent).toBe(100);
+  });
+
+  it('no-reflow: bivalirudin for the heparin top-up closes the order with a word; no heparin is pushed on top of it', () => {
+    const steps = IDEAL['no-reflow-cathlab'][4]!;
+    const s = run(SCENARIO_BY_ID['no-reflow-cathlab'], 4, [...steps.slice(0, steps.indexOf('heparin')), 'bivalirudin', ...R(4)]);
+    expect(s.penalties.map((p) => p.id)).toEqual(['wrong-rn-heparin']);
+    expect(s.log.some((l) => /Heparin 3,000 units/.test(l.text))).toBe(false);
+    expect(s.log.some((l) => l.who === 'operator' && /no heparin on top of it/.test(l.text))).toBe(true);
+  });
+});

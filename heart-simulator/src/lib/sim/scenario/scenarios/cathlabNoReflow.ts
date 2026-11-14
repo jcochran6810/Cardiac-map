@@ -249,7 +249,10 @@ const RN_ASKS: LabAsk[] = [
     accept: ['heparin'], wrong: ['protamine'],
     wrongSay: 'No — protamine reverses it! Heparin: he needs more anticoagulation, not less.',
     thanks: 'Thanks. Stent going in.', fallback: 'I\'ll give the heparin myself.', gives: 'heparin-given',
-    fallbackEffect: () => ({ say: [['team', 'Heparin 3,000 units IV.']], flags: ['heparin-topup'] }),
+    // bivalirudin given instead closes the order (respond.bivalirudin); one already running is never stacked with heparin
+    fallbackEffect: (s) => (has(s, 'bivalirudin')
+      ? { say: [['operator', 'Bivalirudin is running — no heparin on top of it. ACT in five minutes.']] }
+      : { say: [['team', 'Heparin 3,000 units IV.']], flags: ['heparin-topup'] }),
     label: 'Heparin top-up for a low ACT',
     why: 'A 2,000–3,000 unit bolus brings the ACT back to 250–300 s; with it low, clot forms on the wire and the stent — and in the small vessels beyond.',
   },
@@ -345,6 +348,18 @@ export const cathlabNoReflow: Scenario = {
   respond: {
     act: (s) => act(s, 'you'),
     heparin: () => ({ say: [['you', 'Heparin 3,000 units IV, flushed.']], flags: ['heparin', 'heparin-topup'] }),
+    bivalirudin: (s) => {
+      const bival: Line = ['you', 'Bivalirudin 0.75 mg/kg IV bolus, then 1.75 mg/kg/h running — no more heparin.'];
+      // the nurse's answer to the heparin order: the operator lets it stand rather than stack heparin on top of it, and the
+      // order is closed (2025 ACC/AHA ACS; bivalirudin label: one anticoagulant)
+      if (s.role === 4 && has(s, 'asked-rn-heparin') && !has(s, 'heparin-given')) {
+        return {
+          say: [bival, ['operator', 'Bivalirudin? I asked for heparin. It\'s in now, so no heparin on top of it — ACT in five minutes. Check an order with me before you switch his anticoagulant.', 'warn']],
+          flags: ['bivalirudin', 'anticoagulated', 'heparin-given'],
+        };
+      }
+      return { say: [bival], flags: ['bivalirudin', 'anticoagulated'] };
+    },
     'stent-des': (s) => {
       if (has(s, 'no-reflow')) return moreMetal(s, 'Another drug-eluting stent');
       return s.role === 5 ? { say: [['you', 'Drug-eluting stent, 3.5 × 28, deployed at 14 atmospheres.']], flags: ['stented', 'pci'] } : null;
@@ -612,6 +627,7 @@ export const cathlabNoReflow: Scenario = {
     { ...askHarm(TECH_ASKS[2], 'Adenosine when the operator asked for epinephrine with a pressure of 86. Adenosine lowers the pressure, it does not hold it up. Read the order back and check the syringe label before you hand it up.'), actions: ['ic-adenosine'], replaces: RATE_RULES },
     // the wrong answer is the order's own mistake: one penalty, not the epinephrine rule's as well
     { ...askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive', 'nitroprusside-hypotension'), ...RATE_RULES, 'ic-epi-no-indication'] },
+    { id: 'wrong-rn-heparin', actions: ['bivalirudin'], roles: [4], when: (s) => has(s, 'asked-rn-heparin') && !has(s, 'heparin-given'), points: 3, severity: 'minor', text: 'Bivalirudin when the operator asked for a heparin top-up. Switching the anticoagulant is the operator\'s decision, with its own dosing: give what was ordered, or ask first.' },
     { ...askHarm(RN_ASKS[2], 'Adenosine when the operator asked for an intracoronary drug that brings a pressure of 86 up. Adenosine is a vasodilator: of the intracoronary drugs only epinephrine raises the pressure.'), actions: ['ic-adenosine'], replaces: RATE_RULES },
     { ...askHarm(RN_ASKS[3], 'An IV dose of adenosine when the operator asked for 200 micrograms into the coronary. The 6–12 mg rapid push is the SVT dose and the IV infusion is for FFR — neither is what was ordered for the microvessels.'), replaces: [...RATE_RULES, 'ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'] },
   ]),

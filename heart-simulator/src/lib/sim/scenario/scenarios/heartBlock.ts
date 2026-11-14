@@ -121,7 +121,9 @@ export const heartBlock: Scenario = {
     { id: 'ecg', label: '12-lead ECG', why: 'Confirms complete heart block (and rules out an inferior STEMI as the cause).', done: ['ecg12'], points: 5, target: { by: 12 } },
     { id: 'meds', label: 'Medication history (SAMPLE)', why: 'Beta-blockers, calcium-channel blockers and digoxin cause or worsen AV block — he takes metoprolol.', done: ['sample'], points: 5 },
     { id: 'iv', label: 'IV access', why: 'For atropine, a pressor and analgesia.', done: ['iv', 'io'], points: 5 },
-    { id: 'atropine', label: 'Atropine 1 mg first, without delaying pacing', why: 'Atropine is first-line for symptomatic bradycardia — but expect it to fail in a wide-escape (infranodal) block.', done: ['atropine'], points: 5 },
+    // pacing at once for this wide escape is right too: an infranodal block is unlikely to answer atropine (2018 ACC/AHA/HRS
+    // bradycardia; 2025 AHA: do not delay pacing)
+    { id: 'atropine', label: 'Atropine 1 mg first, without delaying pacing (or pace at once)', why: 'Atropine is first-line for symptomatic bradycardia — but expect it to fail in a wide-escape (infranodal) block, where going straight to pacing is just as right.', done: ['atropine', 'pace'], points: 5 },
     { id: 'rate', label: 'Raise the rate: transcutaneous pacing or a pressor infusion', why: 'Atropine-resistant unstable bradycardia needs pacing or an epinephrine/dopamine infusion now.', done: (s) => [s.flags.paced, s.flags.pressor].filter((m): m is number => m !== undefined).sort((a, b) => a - b)[0] ?? null, points: 20, target: { by: 10 } },
     { id: 'capture', label: 'Confirm mechanical capture with a pulse', why: 'Electrical capture on the screen is not enough: feel a femoral pulse at the paced rate (or check the BP).', done: ['pulse-check', 'nibp', 'vitals'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },
     { id: 'analgesia', label: 'Analgesia or sedation for pacing', why: 'Transcutaneous pacing is painful: give analgesia (and sedation if needed) once the patient is perfusing.', done: ['fentanyl', 'sedation', 'midazolam'], after: 'paced', points: 5, applies: (s) => has(s, 'paced') },

@@ -5,6 +5,7 @@ import {
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
 import { ANTITHROMBOTIC_RULES, PROTAMINE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { radialSheath } from '../rules/helpers';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
@@ -321,7 +322,8 @@ export const cathlabFfr: Scenario = {
       effect: () => ({ say: [['team', 'Nurse: heparin 70 units per kilo in, on the cardiologist\'s order.']], flags: ['heparin'] }),
     },
     {
-      id: 'spasm', when: (s) => has(s, 'angio'),
+      // a complication of the radial sheath: femoral access has no radial artery to spasm
+      id: 'spasm', when: (s) => has(s, 'angio') && radialSheath(s),
       effect: (s) => ({
         say: [
           [operator(s), 'Pulling the Tiger out… it is gripping.'],
@@ -415,7 +417,8 @@ export const cathlabFfr: Scenario = {
     { ...askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), ...RATE_RULES] },
     { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive'), ...RATE_RULES] },
     { ...askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'), replaces: RATE_RULES },
-    { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
+    // (no oxygen rule: an elective study with no ACS, and a sedated patient — supplemental oxygen during moderate sedation is
+    // standard, ASA 2018)
   ]),
   timings: [
     { label: 'Spasm treated', actions: ['radial-cocktail', 'sedation', 'fentanyl', 'midazolam'], target: 2, from: 'spasm' },

@@ -327,7 +327,11 @@ export const cathlabStemi: Scenario = {
     { id: 'heparin', label: 'Anticoagulation before PCI (heparin 70–100 U/kg)', why: 'Primary PCI needs full anticoagulation to prevent catheter, wire and stent thrombosis (bivalirudin is the alternative).', done: ['heparin', 'bivalirudin'], roles: [4, 5], points: 10, target: { by: 10 } },
     { id: 'p2y12', label: 'P2Y12 loading dose', why: 'Ticagrelor 180 mg or prasugrel 60 mg as early as possible for primary PCI (cangrelor IV if he cannot swallow).', done: ['p2y12', 'cangrelor'], roles: [4, 5], points: 5 },
     { id: 'analgesia', label: 'Treat the pain', why: 'Ischemic pain drives catecholamines and heart rate: fentanyl 25–50 mcg IV, titrated.', done: ['fentanyl', 'sedation'], roles: [4, 5], points: 5, target: { by: 8 } },
-    { id: 'act', label: 'Check the ACT', why: 'ACT about 250–300 s with heparin alone before the wire crosses.', done: ['act'], after: 'heparin', roles: [3, 4], points: 5 },
+    // after either anticoagulant the anticoagulation item accepts: heparin, or bivalirudin (which sets 'anticoagulated')
+    {
+      id: 'act', label: 'Check the ACT', why: 'ACT about 250–300 s on heparin alone (over 300 s on bivalirudin) before the wire crosses.', roles: [3, 4], points: 5, uses: ['act'],
+      done: (s) => doneAfter(s, ['act'], 'heparin') ?? doneAfter(s, ['act'], 'anticoagulated'),
+    },
     { id: 'access', label: 'Radial arterial access', why: 'Radial access cuts bleeding and mortality in STEMI (RIVAL, MATRIX).', done: ['access', 'access-femoral'], roles: MD, points: 5, target: { by: 12 } },
     { id: 'angio', label: 'Diagnostic angiography: find the culprit', why: 'Identify the occluded artery before choosing a guide.', done: ['angio'], roles: MD, points: 5 },
     { id: 'guide', label: 'A left guide with back-up for the LAD (EBU / XB)', why: 'The guide must sit in the left main and give support down the LAD; right-coronary shapes (JR4, AL1) will not.', done: ['guide-ebu'], roles: MD, points: 10 },
