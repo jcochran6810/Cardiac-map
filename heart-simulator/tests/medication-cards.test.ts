@@ -213,8 +213,10 @@ describe('new cards for the drugs the simulator gives', () => {
   const ask = (q: string) => answerQuestion(q, lib, { level: 7, profileId: 'normal-sinus', selectedStructureId: null, selectedConditionId: null, selectedProcedureId: null, selectedMedicationId: null } as TutorContext);
 
   const HIGH = ['alteplase', 'verapamil', 'eptifibatide', 'cangrelor', 'protamine', 'midazolam', 'ondansetron', 'nitroprusside', 'glucagon', 'labetalol', 'nicardipine'];
+  const MEDIUM = ['dextrose', 'diphenhydramine', 'methylprednisolone', 'ketamine', 'etomidate', 'propofol', 'rocuronium', 'succinylcholine'];
+  const LOW = ['naloxone', 'morphine'];
 
-  it.each(HIGH)('%s: in the Library, in US English, and the tutor answers "contraindications to …" from it', (id) => {
+  it.each([...HIGH, ...MEDIUM, ...LOW])('%s: in the Library, in US English, and the tutor answers "contraindications to …" from it', (id) => {
     const m = card(id);
     expect(m, id).toBeDefined();
     expect(MEDICATION_IDS as readonly string[]).toContain(id);
@@ -222,8 +224,8 @@ describe('new cards for the drugs the simulator gives', () => {
     for (const f of ['mechanism', 'indications', 'dosing', 'adverseEffects', 'ecgEffects', 'hemodynamics', 'monitoring', 'interactions', 'teaching'] as const) {
       expect(m[f].length, `${id} ${f}`).toBeGreaterThan(0);
     }
-    // ("angioedema" is the US spelling; the pattern would catch its "oedema")
-    expect(JSON.stringify(m).replace(/angioedema/gi, '')).not.toMatch(BRITISH);
+    // ("angioedema" and the noun "paralysis" are US spellings too; the pattern would catch their "oedema" and "paralys")
+    expect(JSON.stringify(m).replace(/angioedema|paralysis/gi, '')).not.toMatch(BRITISH);
     const a = ask(`What are the contraindications to ${m.name}?`);
     expect(a.title).toBe(`${m.name} — contraindications`);
     expect(a.bullets[0]).toBe(m.contraindications[0]);
@@ -262,6 +264,26 @@ describe('new cards for the drugs the simulator gives', () => {
     expect(contra('nicardipine')).toMatch(/Advanced aortic stenosis[\s\S]*soy or eggs, or defective lipid metabolism/);
     // the tutor finds clevidipine on the nicardipine card
     expect(ask('contraindications to clevidipine').title).toBe('Nicardipine — contraindications');
+  });
+
+  it('glucose, allergy, airway and reversal cards: what each must not be given with', () => {
+    expect(contra('dextrose')).toMatch(/^Check the glucose first/);
+    expect(contra('dextrose')).toMatch(/Oral glucose: no gag reflex/);
+    expect(contra('dextrose')).toMatch(/D10 is preferred \(relative\)/);
+    expect(contra('diphenhydramine')).toMatch(/Never instead of epinephrine in anaphylaxis/);
+    expect(contra('methylprednisolone')).toMatch(/an adjunct, and it does not prevent biphasic reactions/);
+    expect(contra('ketamine')).toMatch(/^Where a significant rise in blood pressure would be a serious hazard \(label\)/);
+    expect(contra('propofol')).toMatch(/Allergy to eggs, egg products, soybeans or soy products \(label\)/);
+    expect(contra('propofol')).toMatch(/Hypotension or shock \(relative/);
+    const sux = contra('succinylcholine');
+    for (const re of [/malignant hyperthermia/, /myopathies/, /burns, multiple trauma, extensive denervation or upper motor neuron injury/, /Hyperkalemia/]) expect(sux).toMatch(re);
+    expect(card('rocuronium').dosing.join(' ')).toMatch(/sugammadex 16 mg\/kg/);
+    expect(card('naloxone').levelNotes[6]).toMatch(/2025 AHA, COR 1/);
+    expect(contra('naloxone')).toMatch(/pulmonary edema, VT\/VF/);
+    expect(contra('morphine')).toMatch(/histamine release drops the pressure/);
+    expect(card('morphine').interactions.join(' ')).toMatch(/Delays and lowers the absorption and effect of oral P2Y12 inhibitors/);
+    // "insulin + dextrose" questions still go to the hyperkalemia card
+    expect(ask('insulin dextrose dose').title).toMatch(/^Insulin/);
   });
 
   it('fibrinolytic questions still go to tenecteplase, the STEMI lytic', () => {

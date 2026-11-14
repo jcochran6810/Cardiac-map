@@ -327,6 +327,9 @@ export const MEDICATION_IDS = [
   // drugs the simulator gives: lytic, rate, lab, sedation, antidotes, vasodilators
   'alteplase', 'verapamil', 'eptifibatide', 'cangrelor', 'protamine', 'midazolam', 'ondansetron', 'nitroprusside', 'glucagon',
   'labetalol', 'nicardipine',
+  // glucose, allergy, airway, reversal, analgesia
+  'dextrose', 'diphenhydramine', 'methylprednisolone', 'ketamine', 'etomidate', 'propofol', 'rocuronium', 'succinylcholine',
+  'naloxone', 'morphine',
 ] as const;
 
 /**

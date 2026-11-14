@@ -3866,4 +3866,624 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     relatedConditions: ['aortic-dissection', 'aortic-stenosis'],
   },
+
+  // ─── Drugs the simulator gives: glucose, allergy, airway, reversal, analgesia ───
+  dextrose: {
+    id: 'dextrose',
+    name: 'Dextrose (IV) and oral glucose',
+    brandNames: ['D10', 'D50', 'Oral glucose gel'],
+    drugClass: 'Carbohydrate (glucose)',
+    summary:
+      'Glucose to treat a low blood sugar: by mouth when the patient is awake and can swallow, IV (D10, or D50 through a large vein) when not. Also given with insulin for hyperkalemia. Check the glucose first.',
+    levelNotes: [
+      'Check the glucose first. Oral glucose (15–20 g gel or tablets) only if the patient is awake, can swallow and protect the airway; recheck in 15 min. Unconscious: nothing by mouth — ALS for IV dextrose or glucagon.',
+      'Check the glucose first: below about 60–70 mg/dL with symptoms, D10 in 50–100 mL steps (or D50 25 g through a large, secure vein), rechecking to effect. Glucagon IM if there is no IV.',
+      'In the lab, check the glucose of diabetic patients kept fasting, especially after insulin. Report sweating, confusion or a slow response at once — it may be hypoglycemia, not sedation or a stroke.',
+      'Check the glucose before and 15 min after. Give D50 slowly through a large, secure vein (it injures the tissue if it leaks); D10 is gentler. With insulin for hyperkalemia, check the glucose hourly for 6 h.',
+      'Hypoglycemia mimics a stroke, a seizure and the post-arrest state: check it in every altered patient. With insulin for hyperkalemia, 25 g of dextrose unless the glucose is already 250 mg/dL or more.',
+      'Point-of-care glucose first; on order D50 25 g slowly into a large vein or D10 in steps, then recheck in 15 min. With insulin for hyperkalemia: hourly glucose for 6 h, more dextrose for a low.',
+      'Treat a documented low (below about 70 mg/dL with symptoms) — dextrose does not belong in a normal or high glucose. Find the cause (insulin, a sulfonylurea — admit, it recurs). In a stroke work-up, check the glucose first.',
+    ],
+    mechanism: [
+      'Raises the blood glucose within minutes (IV) or 10–15 min (by mouth)',
+      'With insulin, prevents hypoglycemia while potassium is driven into the cells',
+    ],
+    indications: [
+      'Hypoglycemia (below about 60–70 mg/dL with symptoms)',
+      'With insulin for hyperkalemia',
+    ],
+    dosing: [
+      'IV: D10 50–100 mL (5–10 g) at a time, repeated to effect; or D50 25 g (50 mL) through a large vein',
+      'Oral glucose: 15–20 g (gel or tablets) if awake and able to swallow; recheck in 15 min',
+      'With insulin for hyperkalemia: 25 g (50 mL of D50), unless the glucose is 250 mg/dL or more',
+    ],
+    contraindications: [
+      'Check the glucose first: no dextrose for a normal or high glucose (except with insulin for hyperkalemia)',
+      'Oral glucose: no gag reflex, or unable to swallow and protect the airway',
+      'D50 through a small or insecure vein: it injures the tissue if it leaks — D10 is preferred (relative)',
+    ],
+    adverseEffects: [
+      'Hyperglycemia',
+      'Tissue injury if D50 extravasates',
+      'Phlebitis',
+      'Aspiration (oral glucose in a drowsy patient)',
+    ],
+    ecgEffects: [
+      'No direct ECG effect; with insulin, the peaked T waves of hyperkalemia shrink',
+    ],
+    hemodynamics: [
+      'No direct hemodynamic effect',
+    ],
+    monitoring: [
+      'Glucose before and 15 min after each dose',
+      'The IV site (extravasation)',
+      'Hourly glucose for 6 h after insulin for hyperkalemia',
+    ],
+    interactions: [
+      'Insulin and sulfonylureas: hypoglycemia recurs — observe, and admit after a sulfonylurea',
+    ],
+    teaching: [
+      'Check before you treat: a glucometer takes seconds',
+      'D10 works as well as D50 with less overshoot and less tissue injury',
+    ],
+    relatedConditions: ['hyperkalemia'],
+  },
+
+  diphenhydramine: {
+    id: 'diphenhydramine',
+    name: 'Diphenhydramine',
+    brandNames: ['Benadryl'],
+    drugClass: 'H1 antihistamine (first generation)',
+    summary:
+      'Blocks histamine H1 receptors: relieves itching and hives. In anaphylaxis it is an adjunct after epinephrine, never instead of it. Sedating and anticholinergic.',
+    levelNotes: [
+      'For an allergic reaction, epinephrine comes first when there is any breathing or circulation problem; diphenhydramine only eases the itch and hives. Watch for drowsiness.',
+      '25–50 mg IV/IM per protocol, after epinephrine in anaphylaxis — never instead of it. It makes the patient drowsy; give it slowly IV.',
+      'Used in the lab for a mild contrast reaction (hives) and in premedication. Record the dose and time; watch for drowsiness and a falling pressure.',
+      'For hives after contrast: 25–50 mg IV slowly or IM, as ordered. Watch for sedation, hypotension and urinary retention in the elderly; anaphylaxis gets epinephrine first.',
+      'Adjunct for urticaria and contrast premedication (ACR, with a steroid). It does nothing for airway swelling or shock — epinephrine does.',
+      'On order: 25–50 mg IV slowly or IM, after epinephrine in anaphylaxis. Sedation is expected: side rails up, no driving, and watch the elderly for confusion and retention.',
+      'Second line in anaphylaxis — for itch and hives once epinephrine has been given. Avoid in the frail elderly where possible (delirium, retention).',
+    ],
+    mechanism: [
+      'Blocks H1 receptors: less itching, hives and flushing',
+      'Anticholinergic and sedating (crosses into the brain)',
+    ],
+    indications: [
+      'Urticaria and itching (allergic and contrast reactions)',
+      'Adjunct in anaphylaxis, after epinephrine',
+      'Contrast premedication (with a steroid, ACR)',
+    ],
+    dosing: [
+      '25–50 mg IV (slowly) or IM; 25–50 mg by mouth',
+      'Contrast premedication (ACR): 50 mg IV, IM or by mouth 1 h before',
+    ],
+    contraindications: [
+      'Hypersensitivity to diphenhydramine',
+      'Newborns and premature infants, and breastfeeding (label)',
+      'Narrow-angle glaucoma, urinary retention or prostatic hypertrophy (relative — anticholinergic)',
+      'Never instead of epinephrine in anaphylaxis — an adjunct only, after it',
+    ],
+    adverseEffects: [
+      'Sedation',
+      'Dry mouth, urinary retention, confusion in the elderly',
+      'Hypotension with a fast IV push',
+    ],
+    ecgEffects: [
+      'QT prolongation and a wide QRS in overdose',
+    ],
+    hemodynamics: [
+      'A fall in pressure with a fast IV push',
+    ],
+    monitoring: [
+      'Sedation and the airway',
+      'Blood pressure',
+      'The skin signs it was given for',
+    ],
+    interactions: [
+      'Other sedatives, opioids and alcohol: additive sedation',
+      'Other anticholinergic drugs: additive effects',
+    ],
+    teaching: [
+      'Antihistamines treat the skin, epinephrine treats the anaphylaxis',
+      'Sedating: a drowsy patient after it may still be a patient with a worsening reaction',
+    ],
+    relatedConditions: [],
+  },
+
+  methylprednisolone: {
+    id: 'methylprednisolone',
+    name: 'Methylprednisolone',
+    brandNames: ['Solu-Medrol', 'Medrol'],
+    drugClass: 'Corticosteroid (glucocorticoid)',
+    summary:
+      'A glucocorticoid that damps the inflammatory response over hours. In anaphylaxis and contrast reactions it is an adjunct after epinephrine; it is used to premedicate patients with an earlier contrast reaction.',
+    levelNotes: [
+      'Steroids are not an EMT drug. In anaphylaxis, epinephrine is what saves the patient — help give it early.',
+      '125 mg IV per protocol in anaphylaxis or severe asthma, after epinephrine (and albuterol for wheeze). It acts over hours, not minutes.',
+      'Part of contrast premedication for patients with an earlier allergic-like reaction. Check that it was given at the right times before the case and record it.',
+      'Check the premedication timing (by mouth 12 h and 2 h before, or the IV schedule) and the glucose in diabetics. In a reaction, epinephrine first; the steroid is an adjunct.',
+      'Premedication for an earlier contrast reaction (ACR). In anaphylaxis an adjunct only — it does not prevent biphasic reactions. Raises the glucose.',
+      'On order: 125 mg IV after epinephrine in anaphylaxis, or the premedication schedule before contrast. Check the glucose in diabetics.',
+      'An adjunct in anaphylaxis and severe asthma — never a reason to delay epinephrine, and not a reason to discharge early (it does not prevent biphasic reactions).',
+    ],
+    mechanism: [
+      'Glucocorticoid: suppresses inflammatory mediators and immune activation',
+      'Onset over 4–6 h',
+    ],
+    indications: [
+      'Adjunct in anaphylaxis and contrast reactions',
+      'Contrast premedication after an earlier allergic-like reaction (ACR)',
+      'Severe asthma or COPD exacerbation',
+    ],
+    dosing: [
+      'Anaphylaxis or a severe contrast reaction (adjunct): 125 mg IV (1–2 mg/kg)',
+      'Contrast premedication (ACR): 32 mg by mouth 12 h and 2 h before (or prednisone 50 mg 13, 7 and 1 h before), with diphenhydramine 50 mg 1 h before',
+      'Accelerated IV premedication (ACR): 40 mg IV (or hydrocortisone 200 mg) 5 h and 1 h before, with diphenhydramine 50 mg IV 1 h before',
+    ],
+    contraindications: [
+      'Systemic fungal infection (label)',
+      'Hypersensitivity to methylprednisolone or its components',
+      'Live or live-attenuated vaccines at immunosuppressive doses (label)',
+      'Never instead of epinephrine in anaphylaxis — an adjunct, and it does not prevent biphasic reactions',
+    ],
+    adverseEffects: [
+      'Hyperglycemia',
+      'Agitation or psychosis',
+      'Fluid retention and hypertension',
+      'Infection risk with prolonged use',
+    ],
+    ecgEffects: [
+      'No direct ECG effect',
+    ],
+    hemodynamics: [
+      'Fluid retention with repeated doses',
+    ],
+    monitoring: [
+      'Glucose (especially in diabetes)',
+      'Blood pressure',
+      'Mental status',
+    ],
+    interactions: [
+      'Insulin and oral hypoglycemics: the glucose rises',
+      'NSAIDs: more GI bleeding',
+    ],
+    teaching: [
+      'Steroids take hours: in anaphylaxis, epinephrine is the drug that works in minutes',
+      'Premedication lowers, but does not remove, the risk of a repeat contrast reaction',
+    ],
+    relatedConditions: [],
+  },
+
+  ketamine: {
+    id: 'ketamine',
+    name: 'Ketamine',
+    brandNames: ['Ketalar'],
+    drugClass: 'Dissociative anesthetic (NMDA antagonist)',
+    summary:
+      'A dissociative anesthetic that keeps the airway reflexes and the breathing, and usually raises the pressure and the heart rate. Used for induction, procedural sedation, analgesia and severe agitation. The rise in pressure is the hazard.',
+    levelNotes: [
+      'Ketamine is an ALS drug. After it, the patient may look awake but be disconnected; protect them, watch the breathing and report vomiting.',
+      'Per protocol for pain, agitation or induction: it raises the pressure and the rate. Not where a pressure rise would be a hazard (dissection, a hypertensive emergency); emergence reactions are common.',
+      'Occasionally used for sedation in the lab. Record the dose and time and watch the pressure, the rate and the airway (secretions, laryngospasm).',
+      'Give it slowly as ordered, with the monitor, oxygen and suction ready. Expect a rise in pressure and rate, nystagmus and secretions; a quiet room helps emergence.',
+      'Induction in shock or asthma, procedural sedation. Not where a rise in pressure is a hazard (label): aortic dissection, a hypertensive emergency, severe ischemia. In catecholamine-depleted shock it can still drop the pressure.',
+      'On order: give it slowly, with the airway equipment, suction and capnography ready. Watch for a rising pressure and rate, vomiting, laryngospasm and emergence agitation; a calm environment for waking.',
+      'Good for induction with a low pressure or bronchospasm (half the dose in shock). Avoid it where the pressure must not rise — dissection, a hypertensive emergency, an active intracranial bleed — and in active psychosis.',
+    ],
+    mechanism: [
+      'Blocks NMDA receptors: dissociation, analgesia and amnesia',
+      'Releases catecholamines: ↑HR and BP; a direct myocardial depressant when the catecholamines are spent',
+      'Bronchodilator; airway reflexes and breathing largely preserved',
+    ],
+    indications: [
+      'Induction for intubation (especially with hypotension or bronchospasm)',
+      'Procedural sedation',
+      'Analgesia at low dose',
+      'Severe agitation',
+    ],
+    dosing: [
+      'Induction: 1–2 mg/kg IV (0.5–1 mg/kg in shock)',
+      'Procedural sedation: 1 mg/kg IV, then 0.5 mg/kg as needed',
+      'Analgesia: 0.1–0.3 mg/kg IV',
+    ],
+    contraindications: [
+      'Where a significant rise in blood pressure would be a serious hazard (label) — aortic dissection, a hypertensive emergency, severe coronary ischemia',
+      'Hypersensitivity to ketamine',
+      'Schizophrenia or active psychosis (relative)',
+    ],
+    adverseEffects: [
+      'Hypertension and tachycardia',
+      'Emergence reactions (vivid dreams, agitation)',
+      'Hypersalivation and laryngospasm',
+      'Vomiting',
+    ],
+    ecgEffects: [
+      'Sinus tachycardia',
+    ],
+    hemodynamics: [
+      '↑HR, ↑BP and ↑myocardial oxygen demand (catecholamine release)',
+      'Can drop the pressure in catecholamine-depleted shock',
+    ],
+    monitoring: [
+      'Blood pressure and heart rate',
+      'Airway and capnography',
+      'Emergence behavior',
+    ],
+    interactions: [
+      'Benzodiazepines lessen emergence reactions (and add sedation)',
+      'Sympathomimetics: additive hypertension',
+    ],
+    teaching: [
+      'The induction agent that keeps the pressure up — which is exactly why it is wrong in a dissection',
+      'In shock, lower the dose: even ketamine can tip a depleted heart',
+    ],
+    relatedConditions: ['aortic-dissection', 'cardiogenic-shock'],
+  },
+
+  etomidate: {
+    id: 'etomidate',
+    name: 'Etomidate',
+    brandNames: ['Amidate'],
+    drugClass: 'Imidazole sedative-hypnotic (induction agent)',
+    summary:
+      'A short-acting induction agent with little effect on the blood pressure, used for intubation and cardioversion in unstable patients. A single dose briefly suppresses cortisol production.',
+    levelNotes: [
+      'Etomidate is an ALS induction drug. Help by preparing suction and the bag-mask, and watch for muscle twitching (myoclonus) — it is expected.',
+      'For RSI per protocol: 0.3 mg/kg IV over 30–60 s with a paralytic. It holds the pressure better than most; myoclonus is common and not a seizure.',
+      'Rarely used in the lab (cardioversion under sedation). Record the dose and time; prepare suction and airway equipment.',
+      'Give the ordered dose over 30–60 s with the airway team ready. Expect myoclonus and pain at the injection site; it lasts only 3–5 min, so sedation must follow intubation.',
+      'Hemodynamically neutral induction for unstable patients and cardioversion. One dose suppresses adrenal cortisol for hours (debated in sepsis); no repeated doses or infusions.',
+      'On order for RSI or cardioversion: 0.3 mg/kg IV over 30–60 s. Prepare the post-intubation sedation — etomidate wears off in minutes.',
+      'Induction when the pressure is fragile. Avoid repeated doses or infusions (adrenal suppression); in septic shock a single dose is acceptable but debated. Follow it at once with sedation.',
+    ],
+    mechanism: [
+      'Enhances GABA-A receptors: hypnosis in 30–60 s, lasting 3–5 min',
+      'Little effect on the pressure or contraction',
+      'Inhibits adrenal 11β-hydroxylase: cortisol falls for 6–24 h',
+    ],
+    indications: [
+      'Rapid sequence intubation, especially with a low or fragile pressure',
+      'Sedation for cardioversion',
+    ],
+    dosing: [
+      'RSI: 0.3 mg/kg IV (about 20 mg) over 30–60 s',
+    ],
+    contraindications: [
+      'Hypersensitivity to etomidate (label)',
+      'Repeated doses or infusions — adrenal suppression (relative)',
+      'Septic shock — a single dose suppresses cortisol for 6–24 h (relative, debated)',
+    ],
+    adverseEffects: [
+      'Myoclonus (not a seizure)',
+      'Pain at the injection site',
+      'Nausea and vomiting',
+      'Adrenal suppression',
+    ],
+    ecgEffects: [
+      'No direct ECG effect',
+    ],
+    hemodynamics: [
+      'Minimal change in pressure or heart rate',
+    ],
+    monitoring: [
+      'Airway and oxygenation',
+      'Blood pressure after intubation',
+    ],
+    interactions: [
+      'Other sedatives and opioids: additive sedation',
+    ],
+    teaching: [
+      'Hemodynamically kind, but short: plan the sedation after intubation',
+      'Myoclonus is expected and is not a seizure',
+    ],
+    relatedConditions: ['cardiogenic-shock'],
+  },
+
+  propofol: {
+    id: 'propofol',
+    name: 'Propofol',
+    brandNames: ['Diprivan'],
+    drugClass: 'Sedative-hypnotic (GABA-A; in a lipid emulsion)',
+    summary:
+      'A fast-on, fast-off sedative and anesthetic in a lipid emulsion. Smooth to titrate, but it drops the blood pressure and stops the breathing at higher doses. Used for procedural sedation, induction and ICU sedation.',
+    levelNotes: [
+      'Propofol is a hospital drug. A patient on a propofol infusion needs their airway protected and the infusion running; report a falling pressure at once.',
+      'On a critical-care transfer, keep the infusion at the ordered rate and watch the pressure — it falls with higher rates. It is white (a lipid emulsion); change the tubing as directed.',
+      'Used for deeper sedation in some labs (EP, TEE, structural cases) with an anesthesia provider. Record the times and doses; watch the pressure and the capnography.',
+      'Given by trained providers only, with capnography, oxygen, suction and a bag-mask. Expect a fall in pressure and apnea with boluses; strict aseptic handling (lipid emulsion supports bacteria).',
+      'Procedural sedation and anesthesia by trained staff; avoid or reduce the dose with a low pressure or poor LV function. The label lists egg and soy allergy, though most egg-allergic patients tolerate it.',
+      'On order: small boluses or an infusion with a provider at the airway, capnography and the pressure every few minutes. Expect hypotension and apnea; check the triglycerides on long infusions.',
+      'Excellent procedural sedation when the pressure allows. With a low pressure use a smaller dose, ketamine or etomidate. The label contraindicates it with egg or soy allergy; watch for propofol infusion syndrome on long, high-dose infusions.',
+    ],
+    mechanism: [
+      'Enhances GABA-A receptors: sedation and anesthesia within 30–40 s, wearing off in 5–10 min',
+      'Vasodilation and myocardial depression: the pressure falls',
+    ],
+    indications: [
+      'Procedural sedation',
+      'Induction of anesthesia',
+      'ICU sedation of intubated patients',
+    ],
+    dosing: [
+      'Procedural sedation: 0.5–1 mg/kg IV, then 0.5 mg/kg every few minutes to effect',
+      'Induction: 1.5–2.5 mg/kg IV (less in the elderly or with a low pressure)',
+      'ICU sedation: 5–50 mcg/kg/min',
+    ],
+    contraindications: [
+      'Hypersensitivity to propofol or its components',
+      'Allergy to eggs, egg products, soybeans or soy products (label) — most egg-allergic patients tolerate it (practice)',
+      'Hypotension or shock (relative — it drops the pressure; a smaller dose or another agent)',
+    ],
+    adverseEffects: [
+      'Hypotension',
+      'Apnea and respiratory depression',
+      'Pain on injection',
+      'Propofol infusion syndrome (high doses for days)',
+    ],
+    ecgEffects: [
+      'Bradycardia (rare)',
+      'Propofol infusion syndrome: arrhythmias, a Brugada-like pattern',
+    ],
+    hemodynamics: [
+      '↓SVR and ↓contractility: a dose-dependent fall in pressure',
+    ],
+    monitoring: [
+      'Capnography and oxygen saturation',
+      'Blood pressure every few minutes',
+      'Triglycerides on long infusions',
+    ],
+    interactions: [
+      'Opioids and benzodiazepines: additive respiratory depression and hypotension',
+    ],
+    teaching: [
+      'The deeper sedative: it stops the breathing — have the airway team and equipment ready',
+      'Choose the sedative for the pressure: propofol drops it the most',
+    ],
+    relatedConditions: ['atrial-fibrillation'],
+  },
+
+  rocuronium: {
+    id: 'rocuronium',
+    name: 'Rocuronium',
+    brandNames: ['Zemuron'],
+    drugClass: 'Non-depolarizing neuromuscular blocker (aminosteroid)',
+    summary:
+      'A paralytic for rapid sequence intubation that works within a minute at 1–1.2 mg/kg and lasts about 45–70 min. Unlike succinylcholine it does not raise the potassium; sugammadex reverses it.',
+    levelNotes: [
+      'Paralytics are given only by those trained in airway management. A paralyzed patient cannot breathe or tell you they are awake: ventilate, and make sure sedation continues.',
+      'For RSI per protocol: 1–1.2 mg/kg IV after the induction agent. The patient cannot breathe for about an hour — have the airway plan, the backup and post-intubation sedation ready.',
+      'Rarely used in the lab outside general anesthesia. If given, the patient is paralyzed: ventilation and sedation must continue.',
+      'Check the dose and the post-intubation sedation; a paralyzed patient may be awake. Monitor with a nerve stimulator if repeated, and know where sugammadex is.',
+      'Preferred paralytic with hyperkalemia, burns, neuromuscular disease or a malignant hyperthermia history. Long duration: a failed airway needs a rescue plan (sugammadex 16 mg/kg).',
+      'On order for RSI: 1–1.2 mg/kg IV right after the induction agent. Start sedation at once after intubation, since the paralysis outlasts the induction drug; keep sugammadex at hand.',
+      'The RSI paralytic when succinylcholine is contraindicated (high potassium, burns or immobility after 24–72 h, myopathy, MH). It lasts about an hour: be sure of the airway plan and have sugammadex.',
+    ],
+    mechanism: [
+      'Competitively blocks acetylcholine at the neuromuscular junction',
+      'Onset 45–60 s at 1–1.2 mg/kg; duration about 45–70 min',
+    ],
+    indications: [
+      'Rapid sequence intubation',
+      'Paralysis for ventilation',
+    ],
+    dosing: [
+      'RSI: 1–1.2 mg/kg IV',
+      'Reversal: sugammadex 16 mg/kg IV for immediate reversal',
+    ],
+    contraindications: [
+      'Hypersensitivity, including anaphylaxis to neuromuscular blockers (label)',
+      'No airway plan, no ventilation or no sedation — never on its own (practice)',
+    ],
+    adverseEffects: [
+      'Prolonged paralysis (awareness if sedation lapses)',
+      'Anaphylaxis (rare)',
+    ],
+    ecgEffects: [
+      'No direct ECG effect',
+    ],
+    hemodynamics: [
+      'Minimal change in pressure or heart rate',
+    ],
+    monitoring: [
+      'Ventilation and end-tidal CO₂',
+      'Sedation depth (the paralyzed patient cannot show distress)',
+      'Train-of-four with repeated doses',
+    ],
+    interactions: [
+      'Magnesium and aminoglycosides prolong the block',
+      'Sugammadex reverses it',
+    ],
+    teaching: [
+      'Paralysis is not sedation: keep the patient asleep',
+      'Choose rocuronium when the potassium is high or may rise',
+    ],
+    relatedConditions: ['hyperkalemia'],
+  },
+
+  succinylcholine: {
+    id: 'succinylcholine',
+    name: 'Succinylcholine',
+    brandNames: ['Anectine', 'Quelicin'],
+    drugClass: 'Depolarizing neuromuscular blocker',
+    summary:
+      'The fastest paralytic for rapid sequence intubation, lasting only 6–10 min. It raises the potassium by about 0.5 mEq/L — much more after burns, crush injury, immobility or nerve injury — and can trigger malignant hyperthermia.',
+    levelNotes: [
+      'Paralytics are given only by those trained in airway management. A paralyzed patient cannot breathe: ventilate and keep them sedated.',
+      'For RSI per protocol: 1.5 mg/kg IV. Not with a high potassium (dialysis, missed dialysis), burns or crush injury after 24 h, neuromuscular disease, or a history of malignant hyperthermia.',
+      'Rarely used in the lab outside general anesthesia. If given, watch the monitor for peaked T waves or arrhythmias (a potassium rise).',
+      'Check for hyperkalemia risk (dialysis, burns, crush, prolonged immobility) before it is given; watch the ECG for peaked T waves and arrhythmias, and the temperature and CO₂ (malignant hyperthermia).',
+      'Contraindicated with hyperkalemia, after the acute phase of burns, trauma or denervation, in myopathies and with malignant hyperthermia; rocuronium instead. Bradycardia with repeated doses.',
+      'On order for RSI: 1.5 mg/kg IV. Ask about dialysis, burns, neuromuscular disease and a family history of anesthesia problems first; watch the ECG and the end-tidal CO₂ and temperature after.',
+      'Fast and short — but a lethal potassium rise in hyperkalemia, burns or immobility after 24–72 h, denervation and myopathies, and it triggers malignant hyperthermia. Rocuronium is the alternative.',
+    ],
+    mechanism: [
+      'Depolarizes the motor end plate (fasciculations), then blocks it',
+      'Onset 45–60 s; duration 6–10 min (broken down by plasma cholinesterase)',
+      'Releases potassium from muscle (about 0.5 mEq/L; much more with upregulated receptors)',
+    ],
+    indications: [
+      'Rapid sequence intubation when a short paralysis is wanted',
+    ],
+    dosing: [
+      'RSI: 1.5 mg/kg IV',
+    ],
+    contraindications: [
+      'A personal or family history of malignant hyperthermia (label)',
+      'Skeletal muscle myopathies (label)',
+      'After the acute phase of major burns, multiple trauma, extensive denervation or upper motor neuron injury (from about 24–72 h) — a lethal potassium rise (label)',
+      'Hyperkalemia, or a high risk of it (dialysis, a missed dialysis) (practice)',
+      'Hypersensitivity (label)',
+    ],
+    adverseEffects: [
+      'Hyperkalemia and cardiac arrest',
+      'Malignant hyperthermia',
+      'Bradycardia (repeat doses, children)',
+      'Fasciculations and muscle pain',
+    ],
+    ecgEffects: [
+      'Peaked T waves and arrhythmias with a potassium rise',
+      'Bradycardia',
+    ],
+    hemodynamics: [
+      'Bradycardia with repeated doses',
+    ],
+    monitoring: [
+      'ECG (T waves, rhythm)',
+      'End-tidal CO₂ and temperature (malignant hyperthermia)',
+      'Potassium in patients at risk',
+    ],
+    interactions: [
+      'Neostigmine and other cholinesterase inhibitors prolong it',
+    ],
+    teaching: [
+      'Ask "can the potassium rise?" before every dose',
+      'Malignant hyperthermia: a rising end-tidal CO₂, rigidity and fever — dantrolene',
+    ],
+    relatedConditions: ['hyperkalemia'],
+  },
+
+  naloxone: {
+    id: 'naloxone',
+    name: 'Naloxone',
+    brandNames: ['Narcan'],
+    drugClass: 'Opioid antagonist',
+    summary:
+      'Reverses opioids within minutes. For a suspected opioid overdose with slow or absent breathing it is given alongside ventilation. Reversed abruptly, it brings withdrawal, and in cardiac patients pulmonary edema and arrhythmias.',
+    levelNotes: [
+      'Suspected opioid overdose: open the airway and ventilate with the bag-mask first, give naloxone (intranasal or IM) per protocol, and start CPR if there is no pulse.',
+      'Titrate to breathing, not to waking: 0.04–0.4 mg IV in small steps (or 2–4 mg intranasal, 0.4 mg IM) while ventilating. Abrupt reversal brings vomiting, agitation and, in cardiac patients, pulmonary edema or VT/VF.',
+      'In the lab it reverses an opioid given for sedation. Record the dose and time and watch for re-sedation: naloxone wears off before many opioids.',
+      'For opioid-induced respiratory depression after sedation: dilute 0.4 mg in 10 mL and give 0.04–0.08 mg at a time to restore breathing, not full alertness. Re-sedation can follow in 30–90 min.',
+      'Small titrated doses in cardiac patients: a full reversal releases catecholamines (hypertension, pulmonary edema, VT/VF). In a cardiac arrest, CPR and standard ALS care come first; naloxone does not replace them.',
+      'On order or protocol: small IV doses titrated to the breathing while ventilating, and watch for withdrawal and re-sedation (repeat doses or an infusion).',
+      'For opioid respiratory arrest with a pulse: ventilate and give naloxone (2025 AHA, COR 1). Titrate in cardiac patients; observe for re-sedation, longer after methadone or fentanyl analogs.',
+    ],
+    mechanism: [
+      'Competitively displaces opioids from the μ receptor',
+      'Onset 1–2 min IV, 2–5 min IM or intranasal; lasts 30–90 min',
+    ],
+    indications: [
+      'Opioid overdose with respiratory depression',
+      'Reversal of opioid sedation',
+    ],
+    dosing: [
+      'IV: 0.04–0.4 mg titrated to breathing, repeated every 2–3 min',
+      'Intranasal 2–4 mg, or IM 0.4 mg, in the field',
+      'Infusion for long-acting opioids: two-thirds of the effective bolus dose per hour',
+    ],
+    contraindications: [
+      'Hypersensitivity to naloxone (label)',
+      'Opioid dependence — abrupt reversal brings withdrawal; in cardiac patients pulmonary edema, VT/VF and hypertension (relative: titrate small doses)',
+    ],
+    adverseEffects: [
+      'Opioid withdrawal (agitation, vomiting)',
+      'Pulmonary edema',
+      'Hypertension, tachycardia, VT/VF',
+    ],
+    ecgEffects: [
+      'Sinus tachycardia; ventricular arrhythmias with abrupt reversal',
+    ],
+    hemodynamics: [
+      'A catecholamine surge with abrupt reversal',
+    ],
+    monitoring: [
+      'Breathing and oxygen saturation',
+      'Re-sedation for at least 2 h after the last dose',
+      'Blood pressure and rhythm',
+    ],
+    interactions: [
+      'Reverses opioid analgesia as well as opioid depression',
+    ],
+    teaching: [
+      'Ventilation first: naloxone takes minutes, hypoxia does not wait',
+      'Titrate to breathing — the goal is not a fully awake, withdrawing patient',
+    ],
+    relatedConditions: [],
+  },
+
+  morphine: {
+    id: 'morphine',
+    name: 'Morphine',
+    brandNames: ['Duramorph', 'Infumorph'],
+    drugClass: 'Opioid agonist (μ)',
+    summary:
+      'An opioid analgesic that also dilates the veins. In ACS it is kept for pain that nitrates do not relieve: it releases histamine, can drop the pressure, and delays the absorption of the oral P2Y12 inhibitors.',
+    levelNotes: [
+      'Morphine is an ALS drug. Watch the breathing and the pressure after it is given, and have the bag-mask ready.',
+      'For chest pain not relieved by nitrates, per protocol: 2–4 mg IV, repeated. It drops the pressure (histamine) and delays oral antiplatelets; fentanyl is often preferred.',
+      'Rarely used in the lab (fentanyl is the lab opioid). If given, record the dose and time and watch the pressure and the breathing.',
+      'Give 2–4 mg IV slowly as ordered; check the pressure and breathing after each dose, watch for itching and nausea, and have naloxone ready.',
+      'Only for refractory ischemic pain (2025 ACC/AHA ACS): it delays the oral P2Y12 load and can drop the pressure. Avoid with hypotension, RV infarction and in decompensated states that depend on preload.',
+      'On order: 2–4 mg IV slowly, with the pressure and breathing checked after each dose and naloxone at hand. Report hypotension, itching, vomiting or slow breathing.',
+      'Pain in ACS despite nitrates: small doses, after the P2Y12 decision (it delays oral absorption). Not with a low pressure, RV infarction or respiratory depression; fentanyl causes less hypotension.',
+    ],
+    mechanism: [
+      'μ-opioid agonist: analgesia and sedation',
+      'Venodilation (↓preload) and histamine release',
+    ],
+    indications: [
+      'Ischemic chest pain not relieved by nitrates',
+      'Severe pain',
+    ],
+    dosing: [
+      'ACS: 2–4 mg IV, repeated 2–8 mg every 5–15 min as needed (only for pain that persists despite nitrates)',
+    ],
+    contraindications: [
+      'Significant respiratory depression (label)',
+      'Acute or severe asthma in an unmonitored setting (label)',
+      'Known or suspected GI obstruction, including paralytic ileus (label)',
+      'Hypersensitivity (label)',
+      'MAOI within 14 days (label)',
+      'Hypotension or shock — histamine release drops the pressure more than fentanyl does (relative)',
+      'RV infarction or another preload-dependent state (relative)',
+    ],
+    adverseEffects: [
+      'Hypotension',
+      'Respiratory depression',
+      'Nausea, vomiting and itching (histamine)',
+      'Bradycardia',
+    ],
+    ecgEffects: [
+      'Sinus bradycardia (vagal)',
+    ],
+    hemodynamics: [
+      '↓preload and ↓BP (venodilation, histamine)',
+    ],
+    monitoring: [
+      'Breathing and sedation',
+      'Blood pressure',
+      'Pain score',
+    ],
+    interactions: [
+      'Delays and lowers the absorption and effect of oral P2Y12 inhibitors (clopidogrel, ticagrelor, prasugrel) in ACS',
+      'Benzodiazepines (boxed): profound sedation and respiratory depression',
+      'MAOIs: not within 14 days',
+    ],
+    teaching: [
+      'Morphine relieves pain, not ischemia: reperfusion does that',
+      'In ACS it can hide ongoing ischemia and slow the antiplatelet load — use it sparingly',
+    ],
+    relatedConditions: ['anterior-stemi', 'nstemi'],
+  },
 };
