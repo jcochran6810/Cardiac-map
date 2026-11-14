@@ -566,7 +566,8 @@ describe('left main in cardiogenic shock: review fixes', () => {
 
   it('his ejection fraction is about 25 %: diltiazem and procainamide are caught by the built-in rules', () => {
     expect(penalties(run(sc, 5, ['diltiazem']))).toEqual(['diltiazem-heart-failure']);
-    expect(penalties(run(sc, 4, ['iv', 'procainamide']))).toEqual(expect.arrayContaining(['procainamide-heart-failure']));
+    // one dose, one penalty: in shock the low pressure outranks the failing heart
+    expect(penalties(run(sc, 4, ['iv', 'procainamide']))).toEqual(['procainamide-hypotension']);
   });
 
   it('no FFR at the culprit (refused), and IV adenosine in shock costs and drops the pressure', () => {

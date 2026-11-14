@@ -570,8 +570,8 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
 
   it('procainamide: its stop rules and contraindications are built in', () => {
     expect(penalties(run(stemiAnterior, 2, ['iv', 'procainamide']))).toEqual([]);
-    // 74/42 with complete heart block at 34
-    expect(penalties(run(block, 2, ['iv', 'procainamide']))).toEqual(['procainamide-hypotension', 'procainamide-slow']);
+    // 74/42 with complete heart block at 34: one dose, one penalty — the block outranks the low pressure
+    expect(penalties(run(block, 2, ['iv', 'procainamide']))).toEqual(['procainamide-slow']);
     // a pacer protects against the block it would deepen
     expect(penalties(run(block, 2, ['pads', 'iv', 'pace', 'procainamide']))).not.toContain('procainamide-slow');
     expect(penalties(run(withProblems(stemiAnterior, 'heart-failure'), 2, ['iv', 'procainamide']))).toEqual(['procainamide-heart-failure']);
@@ -754,7 +754,7 @@ describe('default responses follow the patient in front of them', () => {
     // the anterior STEMI at 96: a faster rate only adds to the oxygen demand of the ischemic heart
     const stemi = perform(stemiAnterior, medic(), 'atropine');
     expect(penalties(stemi)).toEqual(['atropine-fast']);
-    expect(stemi.penalties[0].text).toMatch(/^Atropine with no slow pulse to treat\./);
+    expect(stemi.penalties[0].text).toMatch(/^Atropine with no slow heart rate to treat\./);
     // VT does not speed up with it, and the rule does not say it does
     const vt = perform(stemiAnterior, medic({ profile: 'vt', hr: 170 }), 'atropine');
     expect(vt.log.at(-1)!.text).toBe('No change in heart rate.');

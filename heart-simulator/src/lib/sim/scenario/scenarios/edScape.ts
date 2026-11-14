@@ -914,7 +914,7 @@ export const edScape: Scenario = {
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
-      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure'], points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
     }, NO_ORDER, ['rn-without-order-metoprolol', 'rn-without-order-diltiazem']),
     ...bothRoles({

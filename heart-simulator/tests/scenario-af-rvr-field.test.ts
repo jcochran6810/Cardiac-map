@@ -208,12 +208,13 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(ids(s)).toEqual(['metoprolol-decompensated', 'procainamide-heart-failure']);
   });
 
-  it('procainamide in heart failure is a major error; given once he is unstable it costs once for the low pressure, not twice', () => {
+  it('procainamide in heart failure is a major error; given once he is unstable it costs once, in the case\'s words, not twice', () => {
     const s = run(sc, 2, [...READY, 'procainamide']);
     expect(ids(s)).toEqual(['procainamide-heart-failure']);
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([94, 64]);
     const unstable = run(sc, 2, [...READY, 'diltiazem', 'procainamide']);
-    expect(ids(unstable)).toEqual(['diltiazem-hfref', 'procainamide-heart-failure', 'antiarrhythmic-unstable']);
+    // one dose, one penalty: the low pressure outranks the failing heart, and the case's rule speaks for that
+    expect(ids(unstable)).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable']);
     expect(ids(unstable)).not.toContain('procainamide-hypotension');
   });
 
