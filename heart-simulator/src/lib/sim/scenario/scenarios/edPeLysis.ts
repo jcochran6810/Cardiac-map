@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo, physicianOrder } from '../edKit';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -892,7 +893,7 @@ export const edPeLysis: Scenario = {
     },
     {
       id: 'nitro-pe', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse, points: 15, severity: 'critical',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic — the chest pain standing order does not cover it — and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {
@@ -943,11 +944,11 @@ export const edPeLysis: Scenario = {
       text: 'Adenosine or lidocaine with no order, for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break — and with a pulse neither drug is on a standing order. Tell the physician what you see instead.',
     },
     {
-      id: 'sedation-pe', actions: ['midazolam', 'procedural-sedation'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['midazolam-unsafe', 'sedation-no-procedure'],
+      id: 'sedation-pe', actions: ['midazolam', 'procedural-sedation'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major', replaces: [...SEDATIVE_RULES, 'sedation-no-procedure'],
       text: 'Sedation for a patient in obstructive shock. Her fear and fast breathing come from the shock and the low oxygen: a sedative takes away the adrenaline that is holding her pressure up and slows her breathing (2026 AHA/ACC: no deep sedation unless clinically indicated — 3: Harm). Oxygen, a vasopressor and calm reassurance.',
     },
     {
-      id: 'sedation-pe-rn', actions: ['midazolam'], roles: ED_RN, points: 5, severity: 'major', replaces: [...noOrder(['midazolam']), 'midazolam-unsafe'],
+      id: 'sedation-pe-rn', actions: ['midazolam'], roles: ED_RN, points: 5, severity: 'major', replaces: [...SEDATIVE_RULES, ...noOrder(['midazolam'])],
       text: 'Midazolam with no order, for a patient in obstructive shock. Her fear and fast breathing come from the shock and the low oxygen: a sedative takes away the adrenaline that is holding her pressure up and slows her breathing. Oxygen, reassurance — and the physician, if you think she needs more.',
     },
     {

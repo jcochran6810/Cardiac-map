@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
+import { NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -662,7 +663,7 @@ export const scapeField: Scenario = {
   harms: yieldToHeavier([
     {
       // a fluid bolus and raised legs are the built-in rules ('fluid-pulmonary-edema', 'legs-up-pulmonary-edema'); these are the case's own
-      id: 'opioid-dyspnea', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'opioid-dyspnea', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid for her breathlessness. She has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, adds nausea and vomiting under a CPAP mask, and in acute cardiogenic pulmonary edema morphine has been linked to more ventilation, ICU admissions and deaths. CPAP and nitroglycerin relieve the air hunger.',
     },
     {
@@ -677,15 +678,15 @@ export const scapeField: Scenario = {
       id: 'cpap-unable', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
       text: 'CPAP for a patient who can no longer protect her airway or breathe for herself. CPAP supports breaths a patient takes; it gives none. Unresponsive, with a shallow breath every 8 seconds, she needs breaths given with a bag-mask and a PEEP valve — or an advanced airway.',
     },
-    {
+    nitrateCheckRule({
       id: 'nitro-no-bp', actions: NITRATES, when: (s) => !pressureTaken(s), points: 5, severity: 'major',
       text: 'Nitroglycerin without a blood pressure. The pressure decides the dose — 0.8 mg at 160 or more, 0.4 mg below that, none under 100 — so measure it first.',
-    },
-    {
+    }),
+    nitrateCheckRule({
       id: 'nitro-no-pde5', actions: NITRATES, when: (s) => !has(s, 'pde5-asked'), points: 3, severity: 'minor',
       text: 'Nitroglycerin without asking about PDE-5 inhibitors. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil: together they can cause profound hypotension. Ask women too — sildenafil and tadalafil are also prescribed for pulmonary hypertension.',
-    },
-    {
+    }),
+    nitrateCheckRule({
       id: 'nitro-repeat-unsafe', actions: NITRATES, points: 3, severity: 'minor',
       // the learner's own repeat dose: less than 3 minutes after the last, or with no pressure taken since it
       when: (s) => {
@@ -694,14 +695,14 @@ export const scapeField: Scenario = {
         return s.minute - last.minute < 3 || !s.performed.some((p) => BP_CHECKS.includes(p.id) && p.minute > last.minute);
       },
       text: 'A repeat nitroglycerin dose too soon or without a fresh blood pressure. Doses go every 5 minutes (3 at the least), with the pressure checked before each: CPAP and the doses already given keep lowering it.',
-    },
-    {
-      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 100 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
+    }, 'nitro-too-soon'),
+    nitrateCaseRule({
+      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 100 && s.vitals.sbp < 160, points: 3, severity: 'minor',
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it step down to 0.4 mg — once the surge has passed, each dose drops the pressure far more.',
-    },
+    }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
     {
       // under 100 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
-      id: 'nitro-pressure-fallen', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 100, points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      id: 'nitro-pressure-fallen', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 100, points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin with a systolic pressure under 100. Hold nitrates once the pressure has fallen (protocols set the line at 90, 100 or 110): CPAP and the nitrate already on board keep lowering it, and a low pressure starves the heart and the brain.',
     },
     {
@@ -734,7 +735,7 @@ export const scapeField: Scenario = {
     {
       // the benzodiazepine for the panic of the mask is a fair choice once she is on CPAP and awake; before that, or once she is
       // drowsy, it only blunts the breathing she has left
-      id: 'sedative-unsupported', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && (!onCpap(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-unsupported', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && (!onCpap(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'A sedative before CPAP, or for a patient who is tiring. Her panic is air hunger, which CPAP and nitroglycerin treat; a benzodiazepine without that support blunts the breathing she has left. A small dose is for a patient on CPAP who is awake and fighting the mask.',
     },
   ]),

@@ -250,9 +250,12 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
   });
 
   it('fentanyl before the shock counts as analgesia: no "without sedation or analgesia" penalty, and no talk of pain he does not have', () => {
-    const s = run(sc, 2, [...READY, 'fentanyl', 'cardiovert']);
+    // the pads on first, as for any cardioversion: the opioid is then the premedication for the shock
+    const s = run(sc, 2, [...READY, 'pads', 'fentanyl', 'cardiovert']);
     expect(ids(s)).toEqual(['cardiovert-stable']);
     expect(s.log.some((l) => /takes the edge off/.test(l.text))).toBe(false);
+    // with no pads on, no low pressure and no pain, nothing says a shock is coming: the opioid has nothing to treat
+    expect(ids(run(sc, 2, [...READY, 'fentanyl', 'cardiovert']))).toEqual(['opioid-no-pain', 'cardiovert-stable']);
   });
 
   it('an unsynchronized shock with a pulse causes VF; the next shock brings him back, but it does not count as rate control', () => {
@@ -350,7 +353,7 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
   });
 
   it('nitroglycerin unloads his lungs a little and lowers the pressure; he never talks of chest pressure he does not have', () => {
-    const s = run(sc, 2, [...READY, 'nitro']);
+    const s = run(sc, 2, [...READY, 'ask-pde5', 'nitro']);
     expect(ids(s)).toEqual([]);
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([102, 68]);
     expect(s.log.some((l) => /pressure is easing/.test(l.text))).toBe(false);

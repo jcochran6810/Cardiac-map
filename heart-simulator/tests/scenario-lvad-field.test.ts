@@ -310,10 +310,11 @@ describe('LVAD in the field — the fluid and what delay does', () => {
     expect(s.penalties).toEqual([]);
   });
 
-  it('ondansetron for his nausea is good care and costs nothing', () => {
-    const s = medic(['iv', 'ondansetron']);
+  it('ondansetron for his nausea is good care and costs nothing — on the monitor, as its label asks in heart failure', () => {
+    const s = medic(['iv', 'monitor', 'ondansetron']);
     expect(last(s)).toBe('"The sick feeling is settling."');
     expect(s.penalties).toEqual([]);
+    expect(medic(['iv', 'ondansetron']).penalties.map((p) => p.id)).toEqual(['ondansetron-unmonitored']);
   });
 
   it('the EMT\'s intercept arrives 6 minutes after the call — on scene, or on the way — and asks about the VAD team', () => {

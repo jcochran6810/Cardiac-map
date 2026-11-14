@@ -2,6 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule, nitrateRulesExcept } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -879,16 +880,16 @@ export const edScape: Scenario = {
       id: 'niv-unprotected', actions: ['cpap'], when: (s) => !s.pulse || s.vitals.gcs <= 8, points: 5, severity: 'major',
       text: 'BiPAP for a patient who can no longer protect his airway. A mask supports the breaths a patient takes; it gives none, and a patient this drowsy can vomit into it and inhale it. He needs breaths given — a bag-mask with a PEEP valve — and a tube.',
     },
-    {
-      // with a pulse only: in an arrest a nitrate has no place at all, and these would teach the wrong lesson there
+    // with a pulse only: in an arrest a nitrate has no place at all, and these would teach the wrong lesson there
+    nitrateCheckRule({
       id: 'nitro-no-bp', actions: NITRATES, when: (s) => s.pulse && !has(s, 'bp') && !has(s, 'ems-report'), points: 5, severity: 'major',
       text: 'Nitroglycerin without knowing his blood pressure. The pressure decides the dose — high doses while the systolic is 160 or more, none once it is under 120 here — so measure it (or hear the crew\'s) first.',
-    },
-    {
+    }),
+    nitrateCheckRule({
       id: 'nitro-no-pde5', actions: NITRATES, when: (s) => s.pulse && !has(s, 'pde5-asked') && !has(s, 'ems-report'), points: 3, severity: 'minor',
       text: 'Nitroglycerin without knowing about PDE-5 inhibitors. No nitrate within 12 h of avanafil, 24 h of sildenafil or vardenafil, or 48 h of tadalafil: together they can drop the pressure profoundly. The crew asked; without their report, ask him.',
-    },
-    {
+    }),
+    nitrateCheckRule({
       id: 'nitro-repeat-unsafe', actions: NITRATES, points: 3, severity: 'minor',
       // the learner's own repeat dose: less than 3 minutes after the last, or with no pressure taken since it
       when: (s) => {
@@ -900,18 +901,24 @@ export const edScape: Scenario = {
         return s.minute - last.minute < 3 || !s.performed.some((p) => BP_CHECKS.includes(p.id) && p.minute > last.minute);
       },
       text: 'A repeat nitroglycerin dose too soon or without a fresh blood pressure. Repeat it every 5 minutes (3 at the least), with the pressure checked before each: the mask and the doses already given keep lowering it.',
-    },
+    }, 'nitro-too-soon'),
     {
-      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
-      text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
+      // the built-in interval rule, same id: a deliberate exemption. The rule above judges every repeat dose here, and it lets
+      // the ordered 0.8 mg follow straight after a 0.4 mg given in its place (the correction the physician asked for)
+      id: 'nitro-too-soon', actions: NITRATES, when: () => false, points: 3, severity: 'minor',
+      text: 'Another nitroglycerin less than 3 minutes after the last.',
     },
+    nitrateCaseRule({
+      id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160, points: 3, severity: 'minor',
+      text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
+    }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
     {
       // under 120 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
-      id: 'nitro-below-target', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 120, points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      id: 'nitro-below-target', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 120, points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin with a systolic under 120. The surge has broken and the pressure is falling: hold the sublingual doses and turn the infusion down — a low pressure starves the heart, the brain and the kidneys.',
     },
     ...bothRoles({
-      id: 'opioid-air-hunger', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'opioid-air-hunger', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
@@ -927,11 +934,11 @@ export const edScape: Scenario = {
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
     }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {
-      id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'A sedative off the mask, or for a patient who is tiring. His panic is air hunger, which positive pressure and nitroglycerin treat; a benzodiazepine without that support blunts the breathing he has left. A small dose is for a patient on the mask who is awake and fighting it.',
     },
     {
-      id: 'rn-sedative-no-order', actions: ['midazolam'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['rn-without-order-midazolam', 'midazolam-unsafe'],
+      id: 'rn-sedative-no-order', actions: ['midazolam'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major', replaces: [...SEDATIVE_RULES, 'rn-without-order-midazolam'],
       text: 'Midazolam without an order. A sedative in a patient this tired can blunt the breathing he has left, and the ER nurse gives it only on the physician\'s order: if he is fighting the mask, tell the physician — positive pressure and nitroglycerin usually settle the panic.',
     },
     {
@@ -975,7 +982,7 @@ export const edScape: Scenario = {
       id: 'transfer-unneeded', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major',
       text: 'Transferring a patient this hospital can care for. He needs an ICU bed, BiPAP and a nitroglycerin infusion — all here; a transfer moves a patient in respiratory failure for nothing another hospital can add. Admit him.',
     },
-    ...RN_ORDERS.map((a) => askHarm(a, 'The wrong dose after the physician\'s order: 0.4 mg instead of 0.8 mg. Read the order back (closed loop) and give what was ordered — the chest pain dose barely touches a pressure like his.')),
+    ...RN_ORDERS.map((a) => ({ ...askHarm(a, 'The wrong dose after the physician\'s order: 0.4 mg instead of 0.8 mg. Read the order back (closed loop) and give what was ordered — the chest pain dose barely touches a pressure like his.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') })),
   ]),
   timings: [
     DOOR_TO_ECG,

@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { allOf, atRate, bpAfter, count, firstDone, flagAt, has, mapOf } from '../kit';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -634,7 +635,7 @@ export const lvadField: Scenario = {
     },
     {
       id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: [2], when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      replaces: NITRATE_RULES,
       text: 'Nitroglycerin for a man with no chest pain and a pump short of blood. It pools blood in the veins and cuts what comes back to the pump, his MAP is already low, and he takes sildenafil, which no nitrate may follow within 24 hours.',
     },
     {
@@ -682,7 +683,7 @@ export const lvadField: Scenario = {
       text: 'A 300 mg amiodarone push, the cardiac-arrest dose, for a man who is awake on his pump. No pulse to feel is normal with a continuous-flow LVAD, and the monitor shows a sinus rhythm: there is no arrhythmia to treat at any dose, and amiodarone drops a pressure that is already low.',
     },
     {
-      id: 'sedative-no-indication', actions: ['fentanyl', 'midazolam', 'sedation'], roles: [2], when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-no-indication', actions: ['fentanyl', 'midazolam', 'sedation'], roles: [2], when: (s) => s.pulse, points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid or a sedative with no pain or agitation to treat. Both lower the pressure and the breathing of a man whose pump is already short of blood, and they cloud the mental status that is your best sign of his perfusion.',
     },
     {

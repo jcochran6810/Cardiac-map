@@ -592,10 +592,15 @@ describe('guide-catheter dissection: review fixes (correct care in another order
     expectFullMarks(run(sc, 4, ['callout', 'atropine', 'fluid', 'hemostasis', 'fentanyl', 'ecg12', 'reassess', 'ecg12-repeat', 'hemostasis', 'handoff']));
   });
 
-  it('a nurse who eases the pain before the operator asks has answered the ask', () => {
+  it('a nurse who eases the pain before the operator asks has answered the ask — but before the fluid, the low pressure costs points', () => {
     const s = run(sc, 4, ['callout', 'fentanyl', 'atropine', 'fluid', 'ecg12', 'reassess', 'ecg12-repeat', 'hemostasis', 'handoff']);
-    expectFullMarks(s);
+    expect(s.ended?.reason).toBe('complete');
     expect(s.fired).not.toContain('rn-pain-fallback');
+    expect(missed(s)).toEqual([]);
+    // the fentanyl went in at 84/52 with the lab's standing pads and no pacing planned: support the pressure first
+    expect(s.penalties).toMatchObject([{ id: 'opioid-hypotension', points: 3, severity: 'minor' }]);
+    // the ask's own words: once the fluid has the pressure coming up
+    expect(JSON.stringify(sc.critical)).toMatch(/once the fluid has her pressure coming up, fentanyl/);
   });
 
   it('the review names what the nurse did for the rate and the pressure, pacing and epinephrine included', () => {

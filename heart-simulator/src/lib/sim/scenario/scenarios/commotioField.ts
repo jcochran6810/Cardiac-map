@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { ARREST_ETCO2, arrestEtco2, bpAfter, firstDone, has, interpret, line, mapOf, ventilated } from '../kit';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -597,7 +598,7 @@ export const commotioField: Scenario = {
     },
     {
       // the default nitroglycerin rule only fires under a systolic of 90: after a bolus he has no reason for it either
-      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, roles: [2], points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      id: 'nitro-post-rosc', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, roles: [2], points: 8, severity: 'major', replaces: NITRATE_RULES,
       text: 'Nitroglycerin after ROSC. He has no chest pain and no ST elevation, and his pressure is low or only just held up by treatment: nitrates drop it further.',
     },
     {
@@ -612,7 +613,7 @@ export const commotioField: Scenario = {
       text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem, procainamide and the 150 mg amiodarone infusion are not arrest drugs: VF needs shocks, CPR, epinephrine and, if it persists, amiodarone 300 mg or lidocaine.',
     },
     {
-      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, roles: [2], points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, roles: [2], points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid or a sedative for a patient who is unresponsive. With a GCS of 6 he shows no pain or agitation to treat: it slows the breathing he has left and lowers his pressure.',
     },
     {

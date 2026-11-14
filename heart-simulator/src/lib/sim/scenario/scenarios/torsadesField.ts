@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line, paced } from '../kit';
+import { nitrateCaseRule } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -482,7 +483,7 @@ export const torsadesField: Scenario = {
     },
     {
       // the built-in long-QT rule is replaced by the one above whatever the pulse: in the arrest it is this one
-      id: 'ondansetron-in-arrest', actions: ['ondansetron'], when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'ondansetron-in-arrest', actions: ['ondansetron'], when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['no-role-in-arrest'],
       text: 'Ondansetron in cardiac arrest. It treats nausea and has no place in an arrest — and it lengthens her QT further, for after ROSC.',
     },
     {
@@ -545,10 +546,10 @@ export const torsadesField: Scenario = {
       id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], points: 5, severity: 'major',
       text: 'IM epinephrine without anaphylaxis. Nothing she has calls for it, and a surge of adrenaline in a long QT can set off torsades.',
     },
-    {
-      id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
+    nitrateCaseRule({
+      id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0, points: 3, severity: 'minor',
       text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; she has none, and it only lowers her pressure.',
-    },
+    }, 'nitro-high-not-hypertensive'),
   ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 3 },

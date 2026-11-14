@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { arrestEtco2, bpAfter, count, firstDone, has, mapOf, ventilated } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { LYTIC_RULES, NITRATE_RULES } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -923,7 +924,7 @@ export const edVfArrest: Scenario = {
     {
       // in the arrest it has no role; after ROSC he is comatose, hypotensive or pressor-dependent, with no pain to report
       id: 'nitrate', actions: ['nitro', 'nitro-high'], points: 8, severity: 'major',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', 'rn-without-order-nitro-high'],
+      replaces: [...NITRATE_RULES, 'rn-without-order-nitro-high'],
       text: 'Nitroglycerin in the arrest or after ROSC. In the arrest it has no role; after ROSC his pressure is low, or held up only by norepinephrine, and nitrates drop it further. The ischemia is treated by opening the artery in the cath lab.',
     },
     {
@@ -933,7 +934,7 @@ export const edVfArrest: Scenario = {
     },
     {
       id: 'lytic-pci-here', actions: ['tnk', 'alteplase'], points: 15, severity: 'critical',
-      replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],
+      replaces: [...LYTIC_RULES, 'rn-without-order-alteplase'],
       text: 'A fibrinolytic in a hospital whose own cath lab can open the artery. During CPR routine fibrinolysis does not improve survival (TROICA); after ROSC, primary PCI opens more arteries with fewer bleeds — and after minutes of compressions a fibrinolytic adds a real risk of bleeding into the chest and the brain.',
     },
     {

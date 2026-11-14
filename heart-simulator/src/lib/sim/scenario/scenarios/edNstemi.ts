@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Timing } from '../types';
 import { allOf, bpAfter, canSwallow, firstDone, has, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { LYTIC_RULES } from '../rules/acs';
 
 /**
  * An acute coronary syndrome without ST elevation, in a PCI-capable emergency department on a weekday afternoon. A
@@ -234,7 +235,9 @@ export const edNstemi: Scenario = {
     ],
   },
   initial: {
-    rhythm: { profile: 'nstemi', hr: 92 },
+    // pain-free at rest; with the pain back her rate climbs to 96 — a new tracing to read (more than 20/min faster) that
+    // still leaves room for nitroglycerin (none with a rate over 100 and no heart failure)
+    rhythm: { profile: 'nstemi', hr: 74 },
     vitals: { sbp: 138, dbp: 80, spo2: 97, rr: 18, etco2: 36, pain: 0, gcs: 15, glucose: 212, temp: 36.9 },
   },
   // what the built-in safety rules read (types.ts Problem)
@@ -464,12 +467,13 @@ export const edNstemi: Scenario = {
       id: 'pain-back', when: (s) => s.pulse && s.minute >= PAIN_MINUTE,
       effect: (s) => ({
         say: doctorRun(s)
-          ? [['nurse', 'Doctor — bed 7: her chest pressure is back, 6 out of 10, up into her jaw, and she\'s clammy. Heart rate 104, pressure 152 over 88.', 'warn']]
-          : [['patient', '"It\'s back — the same pressure, up into my jaw… and I feel sick."', 'warn'], ['monitor', 'Heart rate 104. BP 152/88.']],
-        rhythm: { profile: s.rhythm.profile, hr: 104 }, vitals: { sbp: 152, dbp: 88, pain: 6, rr: 20 },
+          ? [['nurse', 'Doctor — bed 7: her chest pressure is back, 6 out of 10, up into her jaw, and she\'s clammy. Heart rate 96, pressure 152 over 88.', 'warn']]
+          : [['patient', '"It\'s back — the same pressure, up into my jaw… and I feel sick."', 'warn'], ['monitor', 'Heart rate 96. BP 152/88.']],
+        rhythm: { profile: s.rhythm.profile, hr: 96 }, vitals: { sbp: 152, dbp: 88, pain: 6, rr: 20 },
         // the learner's 12-lead was being recorded as it came back (it is the action that just ended): the tracing, read
         // next, is the one with the pain
-        flags: ['pain-back', ...(ECGS.includes(s.performed.at(-1)?.id ?? '') ? ['ecg-at-pain'] : [])],
+        // the monitor's cuff reads the pressure as it comes back: that is the pressure taken before her nitroglycerin
+        flags: ['pain-back', 'bp', ...(ECGS.includes(s.performed.at(-1)?.id ?? '') ? ['ecg-at-pain'] : [])],
       }),
     },
     {
@@ -601,12 +605,12 @@ export const edNstemi: Scenario = {
     {
       // one penalty for one fibrinolytic: it stands in for the built-in rule (and, for the nurse, the built-in 'no order')
       id: 'lytic-st-depression', actions: ['tnk', 'alteplase'], roles: ED_MD, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',
-      replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],
+      replaces: [...LYTIC_RULES, 'rn-without-order-alteplase'],
       text: 'A fibrinolytic for ST depression. In an acute coronary syndrome without ST elevation the clot does not close the artery: a fibrinolytic opens nothing, and it adds bleeding — in the brain too — and more infarcts (TIMI IIIB). It is harmful in NSTE-ACS; the only ST depression it treats is the mirror image of a posterior STEMI, confirmed on V7–V9. Aspirin, heparin and angiography are the treatment.',
     },
     {
       id: 'rn-lytic-st-depression', actions: ['alteplase'], roles: ED_RN, when: (s) => !has(s, 'ecg-stemi'), points: 15, severity: 'critical',
-      replaces: ['lytic-no-indication', 'rn-without-order-alteplase'],
+      replaces: [...LYTIC_RULES, 'rn-without-order-alteplase'],
       text: 'A fibrinolytic with no order, for ST depression. The ER nurse gives a fibrinolytic only on the physician\'s order, and none is indicated here. In an acute coronary syndrome without ST elevation the clot does not close the artery: a fibrinolytic opens nothing, and it adds bleeding — in the brain too — and more infarcts (TIMI IIIB). It is harmful in NSTE-ACS; the only ST depression it treats is the mirror image of a posterior STEMI, confirmed on V7–V9. Aspirin, heparin and angiography are the treatment.',
     },
     {

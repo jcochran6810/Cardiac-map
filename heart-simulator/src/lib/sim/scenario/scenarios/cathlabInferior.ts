@@ -4,6 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine,
   doneAfter, nextStep, type LabAsk,
 } from '../labKit';
+import { NITRATE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
@@ -380,7 +381,7 @@ export const cathlabInferior: Scenario = {
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the reflex and its treatment, the RV infarct (no nitrates) and the groin.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: yieldToHeavier([
-    { id: 'nitro-rv', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
+    { id: 'nitro-rv', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in a patient who can give them.' },

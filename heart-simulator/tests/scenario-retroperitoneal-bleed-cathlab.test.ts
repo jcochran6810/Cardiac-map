@@ -411,7 +411,9 @@ describe('retroperitoneal bleed in the cath lab: the traps', () => {
     // one penalty for sedation, not the built-in midazolam rule as well
     expect(penalties(run(sc, 5, ['perfusion', 'midazolam']))).toEqual(['sedation-in-shock']);
     expect(penalties(run(sc, 4, ['perfusion', 'sedation']))).toEqual(['sedation-in-shock']);
-    expect(penalties(run(sc, 5, ['perfusion', 'p2y12']))).toEqual(['extra-antiplatelet']);
+    // another daily aspirin is the case's small mistake; a P2Y12 reload in active bleeding is the label's contraindication
+    expect(penalties(run(sc, 5, ['perfusion', 'aspirin']))).toEqual(['extra-antiplatelet']);
+    expect(penalties(run(sc, 5, ['perfusion', 'p2y12']))).toEqual(['antithrombotic-bleeding']);
   });
 
   it('a needle in the pericardium or a pump finds nothing to fix: the cardiologist pays, the tech who opens the tray does not', () => {

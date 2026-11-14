@@ -25,16 +25,17 @@ const timing = (s: SimState, label: string) => review(sc, s.ended ? s : stop(s))
 /** A correct run for each role (the lead copies these into tests/scenarios.test.ts) */
 const IDEAL: Record<6 | 7, string[]> = {
   // the ER nurse: triage, the 12-lead and straight to the physician, the ordered posterior leads, the first troponin, the
-  // monitor, aspirin on the standing order, a line and the ordered heparin, the history; when the pain comes back a new
-  // 12-lead, nitroglycerin and a report; the repeat troponin at the 1-hour mark, its rise reported, and the hand-off once
-  // the step-down bed is ready
-  6: ['triage', 'ecg12', 'notify-physician', 'ecg-posterior', 'labs', 'monitor', 'aspirin', 'iv', 'heparin', 'sample', 'opqrst', ...R(10),
+  // monitor, aspirin on the standing order, a line and the ordered heparin, the history (the PDE-5 question with it); when
+  // the pain comes back a new 12-lead, nitroglycerin and a report; the repeat troponin at the 1-hour mark, its rise
+  // reported, and the hand-off once the step-down bed is ready
+  6: ['triage', 'ecg12', 'notify-physician', 'ecg-posterior', 'labs', 'monitor', 'aspirin', 'iv', 'heparin', 'sample', 'ask-pde5', 'opqrst', ...R(10),
     'ecg12-repeat', 'nitro', 'notify-physician', ...R(16), 'troponin-repeat', ...R(4), 'notify-physician', 'handoff'],
   // the ER doctor: the history, the nurse's 12-lead read, V7–V9, aspirin, heparin and the serial troponin ordered at once;
   // cardiology once the first troponin is back (the P2Y12 held for the anatomy) and the admission; when the pain comes back
-  // a new 12-lead, nitroglycerin and cardiology told; the hand-off once the bed is ready and the repeat troponin is back
+  // a new 12-lead, the PDE-5 question and nitroglycerin, and cardiology told; the hand-off once the bed is ready and the
+  // repeat troponin is back
   7: ['opqrst', 'sample', 'ecg-posterior', 'aspirin', 'heparin', 'troponin-repeat', ...R(4), 'consult-cardiology', 'admit', ...R(8),
-    'ecg12-repeat', 'nitro', 'consult-cardiology', ...R(19), 'handoff'],
+    'ecg12-repeat', 'ask-pde5', 'nitro', 'consult-cardiology', ...R(19), 'handoff'],
 };
 const ROLES = [6, 7] as const;
 const RN = IDEAL[6];
@@ -178,7 +179,7 @@ describe('NSTE-ACS in the ED: ideal runs end by themselves with full marks', () 
     for (const role of ROLES) {
       const s = run(sc, role, IDEAL[role]);
       expect(s.reads[1].minute).toBeGreaterThanOrEqual(s.flags['pain-back']);
-      expect(s.lastEcg).toMatchObject({ profile: 'nstemi', hr: 104 });
+      expect(s.lastEcg).toMatchObject({ profile: 'nstemi', hr: 96 });
       expect(s.log.some((l) => l.who === 'feedback' && /Recorded with the pain back/.test(l.text))).toBe(true);
     }
   });
@@ -266,7 +267,9 @@ describe('NSTE-ACS in the ED: the traps', () => {
 
   it('heparin needs the physician\'s order; aspirin, nitroglycerin and the troponins are on the standing order', () => {
     expect(ids(run(sc, 6, ['triage', 'ecg12', 'iv', 'heparin']))).toEqual(['rn-without-order-heparin']);
-    expect(ids(run(sc, 6, ['triage', 'ecg12', 'aspirin', 'iv', 'labs', 'nitro']))).toEqual([]);
+    expect(ids(run(sc, 6, ['triage', 'ecg12', 'aspirin', 'iv', 'labs']))).toEqual([]);
+    // nitroglycerin for the returning pain, after the pressure and the PDE-5 question: no order needed
+    expect(ids(run(sc, 6, [...RN_TO_PAIN, 'ecg12-repeat', 'nitro']))).toEqual([]);
     // the order comes as an ask in the physician's voice, once there is a line for it
     const s = run(sc, 6, RN.slice(0, RN.indexOf('heparin') + 1));
     expect(s.flags['asked-heparin']).toBe(s.flags.iv);

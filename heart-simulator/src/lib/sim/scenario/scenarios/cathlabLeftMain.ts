@@ -3,6 +3,7 @@ import { PADS, bpAfter, firstDone, has, line, mapOf } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -841,14 +842,14 @@ export const cathlabLeftMain: Scenario = {
   ],
   harms: yieldToHeavier([
     { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a failing left ventricle. An overfilled ventricle cannot use more volume: it goes to the lungs, and the oxygen falls.' },
-    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'Nitroglycerin in cardiogenic shock. It drops a pressure that is already too low to perfuse the heart and the brain; the chest pain is treated by opening the artery.' },
+    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high'], replaces: NITRATE_RULES, when: (s) => s.pulse, points: 8, severity: 'major', text: 'Nitroglycerin in cardiogenic shock. It drops a pressure that is already too low to perfuse the heart and the brain; the chest pain is treated by opening the artery.' },
     // the built-in nitroglycerin rule is replaced above for every nitrate: intracoronary nitroglycerin with a low pressure keeps its own
-    { id: 'ic-nitro-low-pressure', actions: ['ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: ['nitro-hypotension'], points: 8, severity: 'major', text: 'Intracoronary nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further.' },
+    { id: 'ic-nitro-low-pressure', actions: ['ic-nitro'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: NITRATE_RULES, points: 8, severity: 'major', text: 'Intracoronary nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further.' },
     { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing ventricle must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock.' },
     // a benzodiazepine, named as one, is the bigger mistake; the generic "sedation / analgesia" order is a smaller one
-    { id: 'benzodiazepine-in-shock', actions: ['midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse, points: 5, severity: 'major', text: 'Midazolam in a shocked, hypoxic, drowsy patient. A benzodiazepine drops the pressure and the breathing; a small dose of fentanyl eases the pain without either.' },
-    { id: 'sedation-in-shock', actions: ['sedation'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Procedural sedation in a shocked, hypoxic, drowsy patient. It drops the pressure and the breathing; a small dose of fentanyl alone eases the pain without either.' },
+    { id: 'benzodiazepine-in-shock', actions: ['midazolam'], replaces: SEDATIVE_RULES, when: (s) => s.pulse, points: 5, severity: 'major', text: 'Midazolam in a shocked, hypoxic, drowsy patient. A benzodiazepine drops the pressure and the breathing; a small dose of fentanyl eases the pain without either.' },
+    { id: 'sedation-in-shock', actions: ['sedation'], when: (s) => s.pulse, points: 3, severity: 'minor', replaces: SEDATIVE_RULES, text: 'Procedural sedation in a shocked, hypoxic, drowsy patient. It drops the pressure and the breathing; a small dose of fentanyl alone eases the pain without either.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'impella'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A pump or a coronary wire without anticoagulation. Both clot without heparin.' },
     { id: 'right-guide-for-lm', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio') && !has(s, 'pci'), points: 5, severity: 'minor', text: 'A right-coronary guide while the left main is still shut. The culprit is on the left: a left guide with back-up (EBU).' },
     // judged when the RCA is wired or treated (PCI starts with the wire): a guide alone treats nothing
@@ -857,7 +858,7 @@ export const cathlabLeftMain: Scenario = {
     { id: 'aspiration-ostial-lm', actions: ['aspiration'], roles: MD, when: (s) => !has(s, 'on-rca'), points: 3, severity: 'minor', text: 'Aspiration thrombectomy at the left main ostium. Routine aspiration brings no benefit (TASTE, TOTAL — and more strokes in TOTAL), and at the ostium the catheter can drag clot out into the aorta. Stent it; a GP IIb/IIIa inhibitor is the bail-out for a heavy thrombus burden.' },
     { id: 'lv-gram-in-shock', actions: ['lv-gram'], roles: [3, 5], points: 3, severity: 'minor', text: 'A left ventriculogram in cardiogenic shock. 30–40 mL of contrast at high speed into a failing ventricle with an LVEDP over 30: more volume for wet lungs and more contrast for failing kidneys, for what the echo shows at the bedside.' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },
-    { id: 'protamine-in-pci', actions: ['protamine'], when: (s) => !has(s, 'final-angio'), points: 10, severity: 'major', text: 'Protamine in the middle of a thrombotic left main PCI with a pump in. Reversing the heparin lets clot form on the wire, in the fresh stent and in the pump.' },
+    { id: 'protamine-in-pci', actions: ['protamine'], when: (s) => !has(s, 'final-angio'), points: 10, severity: 'major', replaces: PROTAMINE_RULES, text: 'Protamine in the middle of a thrombotic left main PCI with a pump in. Reversing the heparin lets clot form on the wire, in the fresh stent and in the pump.' },
     // the main trap: a balloon in the left main of a failing ventricle with nothing to carry the circulation (it brings VF here).
     // A balloon pump is support, if far less: no penalty for it (the support item is missed instead)
     {
@@ -885,7 +886,7 @@ export const cathlabLeftMain: Scenario = {
     askHarm(TECH_ASKS[4], 'OCT when the operator asked for IVUS. The OCT flush cannot clear an ostial left main with the guide sitting in it, and it costs contrast a shocked patient\'s kidneys cannot spare.', 2),
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[6], 'The wrong balloon when the operator asked for a non-compliant one. A compliant balloon at high pressure over-stretches the vessel at the stent edges instead of expanding the stent.'),
-    askHarm(RN_ASKS[4], 'Oral P2Y12 tablets when the operator asked for the IV drug. In shock they are absorbed poorly and a drowsy patient may aspirate them; if the surgeon has to take him, a ticagrelor load means days of bleeding risk.'),
+    { ...askHarm(RN_ASKS[4], 'Oral P2Y12 tablets when the operator asked for the IV drug. In shock they are absorbed poorly and a drowsy patient may aspirate them; if the surgeon has to take him, a ticagrelor load means days of bleeding risk.'), replaces: ANTITHROMBOTIC_RULES },
   ]),
   timings: [
     { label: 'Pressor running', actions: ['pressor'], flag: 'pressor', target: 6 },

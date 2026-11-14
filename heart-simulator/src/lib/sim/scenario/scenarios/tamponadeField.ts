@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, ScenarioEvent, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -602,7 +603,7 @@ export const tamponadeField: Scenario = {
     {
       id: 'nitro-tamponade', actions: ['nitro', 'nitro-assist', 'nitro-high'], when: (s) => s.pulse, points: 10, severity: 'major',
       // whatever his pressure: after a bolus his systolic can be over 90, and nitroglycerin is still wrong for him
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      replaces: NITRATE_RULES,
       text: 'Nitroglycerin for a man whose heart cannot fill. A vasodilator pools the blood in the veins, and a heart squeezed by fluid lives on the blood coming back to it: the pressure crashes. Vasodilators and diuretics are contraindicated in tamponade (2015 ESC pericardial guideline). His chest heaviness is the effusion, not a blocked artery — and even after fluid his pressure has nothing in reserve.',
     },
     {
@@ -626,7 +627,7 @@ export const tamponadeField: Scenario = {
       text: 'Adenosine for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for him.',
     },
     {
-      id: 'sedative-tamponade', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-tamponade', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid or a sedative in obstructive shock. His heaviness is the effusion, not pain that needs an opioid, and his own adrenaline is what keeps his vessels tight and his pressure up: an opioid or a sedative blunts it and slows his breathing.',
     },
     {

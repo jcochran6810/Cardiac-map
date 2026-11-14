@@ -2,6 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
+import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -878,15 +879,22 @@ export const edTamponade: Scenario = {
     {
       id: 'nitro-tamponade', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
       // whatever her pressure: after a bolus her systolic can be over 90, and nitroglycerin is still wrong for her
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
       text: 'Nitroglycerin for a woman whose heart cannot fill. A vasodilator pools the blood in the veins, and a heart squeezed by fluid lives on the blood coming back to it: the pressure crashes. Vasodilators and diuretics are not recommended in tamponade (2015 ESC pericardial guideline) and can tip a large effusion into it. Her chest heaviness is the effusion, not a blocked artery — and the chest pain standing order excludes a systolic under 90 anyway.',
     },
     {
       // after the drain the crash is gone, but there is still nothing for it to treat. Like the one above, it stands in for the
-      // built-in nitrate rules (and the 0.8 mg the nurse has no order for), which its words cover: one dose, one penalty
-      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 3, severity: 'minor',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
+      // built-in nitrate rules, which its words cover: one dose, one penalty. The nurse's 0.4 mg needs no order; her 0.8 mg is
+      // the rule below
+      id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s, _sc, id) => s.pulse && drained(s) && (s.role !== 6 || id === 'nitro'),
+      points: 3, severity: 'minor', replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
       text: 'Nitroglycerin with nothing to treat. Her chest heaviness was the effusion, now drained: nitroglycerin is for coronary ischemia (and 0.8 mg, which no standing order covers, for hypertensive pulmonary edema), and here it only takes preload from a heart that has just started to fill again.',
+    },
+    {
+      // the nurse's 0.8 mg also stands for the missing order, at the order's weight, and says so
+      id: 'nitro-no-indication-rn', actions: ['nitro-high'], roles: ED_RN, when: (s) => s.pulse && drained(s), points: 5, severity: 'major',
+      replaces: [...NITRATE_RULES, ...noOrder(['nitro-high'])],
+      text: 'High-dose nitroglycerin with no order, and nothing to treat. Her chest heaviness was the tamponade, now drained: nitroglycerin is for coronary ischemia, and 0.8 mg — for hypertensive pulmonary edema — is on no standing order. Here it only takes preload from a heart that has just started to fill again. Tell the physician what you see instead.',
     },
     {
       id: 'cpap-tamponade', actions: ['cpap'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 8, severity: 'major',
@@ -948,7 +956,7 @@ export const edTamponade: Scenario = {
       text: 'Adenosine with no order, for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for her — and with a pulse it is on no standing order.',
     },
     {
-      id: 'sedative-tamponade', actions: ['midazolam', 'fentanyl'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-tamponade', actions: ['midazolam', 'fentanyl'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid or a sedative in obstructive shock. Her distress is the effusion, not pain that needs an opioid, and her own adrenaline is what keeps her vessels tight and her pressure up: an opioid or a sedative blunts it and slows her breathing. The needle needs only local anesthetic.',
     },
     {
@@ -957,7 +965,7 @@ export const edTamponade: Scenario = {
     },
     {
       id: 'sedative-tamponade-rn', actions: ['midazolam', 'fentanyl'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
-      replaces: [...noOrder(['midazolam', 'fentanyl']), 'midazolam-unsafe'],
+      replaces: [...SEDATIVE_RULES, ...noOrder(['midazolam', 'fentanyl'])],
       text: 'Midazolam or fentanyl with no order. Before the drain her distress is the effusion, and her own adrenaline is what holds her pressure up: a sedative or an opioid blunts it and slows her breathing. Reassure her, keep her sitting up — and tell the physician if you think she needs more.',
     },
     {
@@ -973,11 +981,11 @@ export const edTamponade: Scenario = {
       text: 'An anticoagulant or antiplatelet loading dose for a patient with a large, blood-stained effusion and a needle going into her pericardium (or a fresh drain in it). There is no acute coronary syndrome to treat: it only adds bleeding into the sac and from the needle track.',
     },
     {
-      id: 'antithrombotic-tamponade-rn', actions: ['heparin', 'p2y12'], roles: ED_RN, points: 8, severity: 'major', replaces: noOrder(['heparin', 'p2y12']),
+      id: 'antithrombotic-tamponade-rn', actions: ['heparin', 'p2y12'], roles: ED_RN, points: 8, severity: 'major', replaces: [...noOrder(['heparin', 'p2y12']), ...ANTITHROMBOTIC_RULES],
       text: 'Heparin or a P2Y12 loading dose with no order, for a patient with a large effusion and a needle going into her pericardium (or a fresh drain in it). Neither is on the chest pain standing order, and there is no coronary syndrome to treat: it only adds bleeding into the sac.',
     },
     {
-      id: 'lytic-tamponade', actions: ['tnk', 'alteplase'], roles: ED_TEAM, points: 15, severity: 'critical', replaces: ['lytic-no-indication', ...noOrder(['alteplase'])],
+      id: 'lytic-tamponade', actions: ['tnk', 'alteplase'], roles: ED_TEAM, points: 15, severity: 'critical', replaces: [...LYTIC_RULES, ...noOrder(['alteplase'])],
       text: 'A fibrinolytic for a patient with a large pericardial effusion. There is no STEMI and no pulmonary embolism to dissolve: a lytic can turn the effusion into a hemorrhage around the heart, and the needle track into a bleed.',
     },
     {

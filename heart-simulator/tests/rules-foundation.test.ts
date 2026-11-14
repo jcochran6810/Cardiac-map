@@ -16,9 +16,11 @@ import { UNTIL_ARRIVED, runScenario } from './helpers';
 
 const ids = (s: SimState) => s.penalties.map((p) => p.id);
 const SINUS = { profile: 'normal-sinus', hr: 80 };
-/** An ED patient with a low pressure: the built-in nitrate rule fires on nitroglycerin */
+/** An ED patient with chest pain and a low pressure: the built-in nitrate rule fires on nitroglycerin */
 const lowEd = (role: 6 | 7, harms: Harm[] = [], extra: Partial<Scenario> = {}) =>
-  fixture({ setting: 'ed', role, rhythm: SINUS, vitals: { sbp: 82, dbp: 50 }, harms, extra });
+  fixture({ setting: 'ed', role, rhythm: SINUS, vitals: { sbp: 82, dbp: 50, pain: 5 }, harms, extra });
+/** The pressure taken and the PDE-5 question asked: the nitrate checklist the other nitrate rules read */
+const CHECKED = ['vitals', 'ask-pde5'];
 const caseRule = (over: Partial<Harm>): Harm => ({ id: 'case-nitro', actions: ['nitro'], points: 8, severity: 'major', text: 'The case\'s own words.', ...over });
 
 describe('the built-in rules', () => {
@@ -60,17 +62,17 @@ describe('a case rule stands in for a built-in only while it applies', () => {
 
   it('a case rule with the same id as a built-in replaces it always — for the roles it is written for', () => {
     const exempt = caseRule({ id: 'nitro-hypotension', when: () => false });
-    expect(penaltyIds(lowEd(7, [exempt]), 7, ['nitro'])).toEqual([]);
+    expect(penaltyIds(lowEd(7, [exempt]), 7, [...CHECKED, 'nitro'])).toEqual([]);
     const doctorsOnly = { ...exempt, roles: [7 as const] };
-    expect(penaltyIds(lowEd(7, [doctorsOnly]), 7, ['nitro'])).toEqual([]);
+    expect(penaltyIds(lowEd(7, [doctorsOnly]), 7, [...CHECKED, 'nitro'])).toEqual([]);
     expect(penaltyIds(lowEd(6, [doctorsOnly]), 6, ['nitro'])).toEqual(['nitro-hypotension']);
   });
 
   it('Harm.when receives the action being judged', () => {
     const seen: string[] = [];
     const harms = [caseRule({ id: 'by-action', actions: ['nitro', 'aspirin'], when: (_s, _sc, id) => { seen.push(id); return id === 'aspirin'; } })];
-    const sc = fixture({ setting: 'ed', role: 7, rhythm: SINUS, harms });
-    expect(penaltyIds(sc, 7, ['nitro', 'aspirin'])).toEqual(['by-action']);
+    const sc = fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { pain: 5 }, harms });
+    expect(penaltyIds(sc, 7, [...CHECKED, 'nitro', 'aspirin'])).toEqual(['by-action']);
     // (the engine may ask a rule more than once per action: whether it applies, then whether it charges)
     expect(seen.filter((id, i) => seen.indexOf(id) === i)).toEqual(['nitro', 'aspirin']);
   });
@@ -154,8 +156,8 @@ describe('the flags and effects the engine adds', () => {
   it('a case that answers the reassessment itself sets bp too, so a pressure-before-nitroglycerin rule agrees', () => {
     const shared = { say: [['you', 'BP 132/80, heart rate 88.']] } as Effect;
     const noBp: Harm = { id: 'nitro-no-bp', actions: ['nitro'], when: (s) => !('bp' in s.flags), points: 5, severity: 'major', text: 'Nitroglycerin without a pressure.' };
-    const sc = fixture({ setting: 'field', role: 2, rhythm: SINUS, harms: [noBp], extra: { respond: { reassess: () => shared } } });
-    const s = runScenario(sc, 2, ['reassess', 'nitro']);
+    const sc = fixture({ setting: 'field', role: 2, rhythm: SINUS, vitals: { pain: 5 }, harms: [noBp], extra: { respond: { reassess: () => shared } } });
+    const s = runScenario(sc, 2, ['reassess', 'ask-pde5', 'nitro']);
     expect(s.flags.bp).toBeDefined();
     expect(ids(s)).toEqual([]);
     expect(penaltyIds(sc, 2, ['nitro'])).toEqual(['nitro-no-bp']);
@@ -359,7 +361,8 @@ describe('in the cases: one dose, one penalty in every state a case rule speaks 
     expect(lastStep('tamponade-ed', 7, ['perfusion', 'lungs', 'sample', 'pocus', 'fluid', 'pericardiocentesis', 'nitro-high'])).toEqual(['nitro-no-indication']);
     const nurseDrained = ['triage', 'monitor', 'o2-nc', 'vitals', 'perfusion', 'lungs', 'notify-physician', 'iv', 'labs', 'ecg12', 'sample', 'fluid', 'pads',
       'notify-physician', 'pressor', 'reassess', 'notify-physician', 'vitals', 'reassess'];
-    expect(lastStep('tamponade-ed', 6, [...nurseDrained, 'nitro-high'])).toEqual(['nitro-no-indication']);
+    // the nurse's 0.8 mg: the case's nurse rule, which also stands for the missing order
+    expect(lastStep('tamponade-ed', 6, [...nurseDrained, 'nitro-high'])).toEqual(['nitro-no-indication-rn']);
   });
 
   it('tamponade (ED): if she arrests before the pads are on, the team puts them on (the set-up order is not held)', () => {
@@ -380,10 +383,11 @@ describe('in the cases: one dose, one penalty in every state a case rule speaks 
       'albuterol', 'cardiovert', 'adenosine12', 'nitro', 'push-epi', 'ecg12-repeat', 'read:nsr', 'diltiazem', 'nitro-high'], 'manual')).toEqual(['nitro-repeat-unsafe', 'nitro-pressure-fallen']);
   });
 
-  it('aortic dissection (ED): the case judges every 0.8 mg dose itself', () => {
+  it('aortic dissection (ED): the case judges the 0.8 mg dose before rate control and below the goal; otherwise the gate (here the interval rule)', () => {
     const rateControlled = ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro'];
-    // rate controlled, systolic 144: a vasodilator toward the goal of under 120 is allowed here
-    expect(lastStep('aortic-dissection-ed', 7, [...rateControlled, 'nitro-high'])).toEqual([]);
+    // rate controlled, systolic 144: a vasodilator toward the goal of under 120 is allowed here — the case's exemption hides
+    // only the 0.8 mg rule, so the other nitrate rules still judge the dose: straight after the 0.4 mg, the interval rule
+    expect(lastStep('aortic-dissection-ed', 7, [...rateControlled, 'nitro-high'])).toEqual(['nitro-too-soon']);
     expect(lastStep('aortic-dissection-ed', 7, ['opqrst', 'read:lvh', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro', 'ct-urgent', 'nitro-high'], 'manual'))
       .toEqual(['vasodilator-below-goal']);
     // before the rate is controlled

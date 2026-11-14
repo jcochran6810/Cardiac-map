@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
+import { nitrateCaseRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -633,10 +634,10 @@ export const wpwAfField: Scenario = {
       id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], when: (s) => s.pulse, points: 5, severity: 'major',
       text: 'IM epinephrine without anaphylaxis. Nothing he has calls for it, and adrenaline makes the pathway conduct faster still.',
     },
-    {
+    nitrateCaseRule({
       id: 'nitro-no-pain', actions: ['nitro'], when: (s) => s.pulse && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor',
       text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; he has none, and it only lowers a pressure the fast rate is already straining.',
-    },
+    }, 'nitro-high-not-hypertensive'),
     {
       id: 'aspirin-no-acs', actions: ['aspirin'], points: 2, severity: 'minor',
       text: 'Aspirin with no suspected acute coronary syndrome. It is for chest pain that may be a heart attack; he is 24, with palpitations and no chest pain — it treats nothing he has.',

@@ -3,6 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
+import { ANTITHROMBOTIC_RULES, LYTIC_RULES, SEDATIVE_RULES, nitrateCaseRule } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -686,17 +687,18 @@ export const cathlabVasovagal: Scenario = {
       id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: RN_MD, replaces: LIDOCAINE_RULES, points: 3, severity: 'minor',
       text: 'Lidocaine with no ventricular arrhythmia to treat. It is for VF, pulseless VT or a stable monomorphic VT; with a slow sinus rhythm it treats nothing and brings only its side effects.',
     },
-    {
-      // the built-in rule scores nitroglycerin with a systolic under 90; this one the rest of the time
+    // the built-in rule scores nitroglycerin with a systolic under 90; this one the rest of the time (and the 0.8 mg dose), giving
+    // way to a reason to hold it that is worth more — a rate under 50 in the reaction, or a pressure fallen 30 below where it started
+    nitrateCaseRule({
       id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: RN_MD, when: (s) => s.vitals.sbp >= 90, points: 3, severity: 'minor',
       text: 'Nitroglycerin with no chest pain to treat. It is for ischemic chest pain (or a high pressure in pulmonary edema); here it only opens the vessels and drops the pressure — and nitrates during a sheath pull are a known trigger of this reaction.',
-    },
+    }, 'nitro-high-not-hypertensive'),
     {
       id: 'vagal-maneuver-slow', actions: ['vagal'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60, replaces: ['vagal-slow'], points: 3, severity: 'minor',
       text: 'A vagal maneuver with a slow pulse. It adds to the vagal surge that is slowing the heart: it is for a narrow-complex tachycardia.',
     },
     {
-      id: 'sedative-in-reaction', actions: ['fentanyl', 'midazolam', 'sedation'], roles: RN_MD, replaces: ['midazolam-unsafe'], when: (s) => reacting(s), points: 4, severity: 'minor',
+      id: 'sedative-in-reaction', actions: ['fentanyl', 'midazolam', 'sedation'], roles: RN_MD, replaces: SEDATIVE_RULES, when: (s) => reacting(s), points: 4, severity: 'minor',
       text: 'An opioid or a sedative in the middle of the reaction. They drop the pressure further and dull a patient you need awake (fentanyl can slow the heart too): treat the reaction first. Analgesia belongs before the sheath comes out — next time, IV fentanyl (with a little midazolam if needed) before the pull.',
     },
     {
@@ -704,11 +706,11 @@ export const cathlabVasovagal: Scenario = {
       text: 'Protamine with no heparin to reverse. No heparin was given for this diagnostic study, so it can only do harm: protamine itself can drop the pressure, slow the heart and cause an anaphylactoid reaction.',
     },
     {
-      id: 'thinner-fresh-puncture', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12'], roles: RN_MD, points: 6, severity: 'major',
+      id: 'thinner-fresh-puncture', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12'], roles: RN_MD, points: 6, severity: 'major', replaces: ANTITHROMBOTIC_RULES,
       text: 'An anticoagulant or a P2Y12 inhibitor with nothing to treat, minutes after the femoral sheath came out. There is no ACS and no stent — only mild non-obstructive disease — and it keeps the puncture oozing and raises the risk of a hematoma or a retroperitoneal bleed.',
     },
     {
-      id: 'lytic-no-indication', actions: ['tnk'], roles: MD, points: 15, severity: 'critical',
+      id: 'lytic-no-indication', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', replaces: LYTIC_RULES,
       text: 'A fibrinolytic with no indication, minutes after a femoral artery puncture. Tenecteplase is for a STEMI when PCI cannot be done in time; here it can turn the groin into a major or retroperitoneal bleed.',
     },
   ]),

@@ -4,6 +4,7 @@ import { INTERVENTION_BY_ID } from '../interventions';
 import {
   LEFT_VIEWS, MD, NO_REFLOW_VASODILATORS, TECH, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
+import { NITRATE_RULES, PROTAMINE_RULES, nitrateRulesExcept } from '../rules/acs';
 import { slowOrBlocked } from '../rules/helpers';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
@@ -584,7 +585,7 @@ export const cathlabNoReflow: Scenario = {
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'The no-reflow, every drug and dose and when, the final flow, the ACT and the heparin, the access site — and that the infarct is likely bigger than it looked: watch for heart failure and arrhythmias.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: yieldToHeavier([
-    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
+    { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. It drops the pressure further and does not treat no-reflow: it widens the big artery, which is already open, not the small vessels beyond it. Support the pressure and use intracoronary epinephrine.' },
     // the case's own choice (same id: it hides the built-in rule): 200 mcg of adenosine down the culprit acts for seconds,
     // and its dip comes straight back, so at the no-reflow pressure (86) it is a fair no-reflow drug. The operator's request
     // decides between it and epinephrine, and a wrong answer to that request is scored (askHarm). Lower than that — after
@@ -602,13 +603,13 @@ export const cathlabNoReflow: Scenario = {
     { id: 'stent-act-low', actions: ['stent-des'], roles: MD, when: (s) => !has(s, 'pci') && !has(s, 'heparin-topup') && !has(s, 'bivalirudin') && !has(s, 'gp2b3a'), points: 3, severity: 'minor', text: 'The stent went in with the ACT below range (212 s, 50 minutes after the heparin bolus). Check the ACT before more devices go in and top up the heparin when it is under 250 s: with it low, clot forms on the wire, in the stent and in the small vessels beyond.' },
     { id: 'epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse && !stalled(s), points: 3, severity: 'minor', text: 'Intracoronary epinephrine with the flow and the pressure normal. It is for no-reflow, above all with a low pressure; without it, it only speeds the heart and raises the pressure and the oxygen need of an infarcting heart.' },
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
-    { id: 'protamine-in-thrombus', actions: ['protamine'], points: 10, severity: 'major', text: 'Protamine in the middle of a thrombotic PCI. Reversing the heparin lets clot form on the wire, in the fresh stent and in the small vessels: no-reflow needs full anticoagulation (ACT 250–300 s).' },
+    { id: 'protamine-in-thrombus', actions: ['protamine'], points: 10, severity: 'major', replaces: PROTAMINE_RULES, text: 'Protamine in the middle of a thrombotic PCI. Reversing the heparin lets clot form on the wire, in the fresh stent and in the small vessels: no-reflow needs full anticoagulation (ACT 250–300 s).' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. On top of heparin and two antiplatelet drugs it adds major bleeding risk; no-reflow is treated with intracoronary drugs.' },
     { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker in a large anterior STEMI with crackles at both lung bases. With heart failure signs, a low output or a falling pressure it takes away output the heart needs and risks cardiogenic shock (COMMIT); IV beta-blockers are not routine in STEMI.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     { ...askHarm(TECH_ASKS[2], 'Adenosine when the operator asked for epinephrine with a pressure of 86. Adenosine lowers the pressure, it does not hold it up. Read the order back and check the syringe label before you hand it up.'), actions: ['ic-adenosine'], replaces: RATE_RULES },
-    { ...askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'), replaces: RATE_RULES },
+    { ...askHarm(TECH_ASKS[4], 'The wrong intracoronary drug when the operator asked for adenosine. Read the order back and check the syringe label before you hand it up.'), replaces: [...nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive', 'nitroprusside-hypotension'), ...RATE_RULES] },
     { ...askHarm(RN_ASKS[2], 'Adenosine when the operator asked for an intracoronary drug that brings a pressure of 86 up. Adenosine is a vasodilator: of the intracoronary drugs only epinephrine raises the pressure.'), actions: ['ic-adenosine'], replaces: RATE_RULES },
     { ...askHarm(RN_ASKS[3], 'An IV dose of adenosine when the operator asked for 200 micrograms into the coronary. The 6–12 mg rapid push is the SVT dose and the IV infusion is for FFR — neither is what was ordered for the microvessels.'), replaces: [...RATE_RULES, 'ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'] },
   ]),

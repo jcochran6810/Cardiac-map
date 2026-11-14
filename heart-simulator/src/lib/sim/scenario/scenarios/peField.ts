@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -605,7 +606,7 @@ export const peField: Scenario = {
     },
     {
       id: 'nitro-pe', actions: ['nitro', 'nitro-high', 'nitro-assist'], when: (s) => s.pulse, points: 15, severity: 'critical',
-      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
+      replaces: NITRATE_RULES,
       text: 'Nitroglycerin for a patient in obstructive shock. Her chest pain is pleuritic, not ischemic, and a pressure-overloaded right ventricle lives on its preload: a venodilator takes it away and the pressure crashes, as it does in an RV infarct. No nitrates.',
     },
     {
@@ -624,7 +625,7 @@ export const peField: Scenario = {
       text: 'A vagal maneuver, adenosine, lidocaine or magnesium for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down, a pause or a vasodilating drug cuts the output she has left.',
     },
     {
-      id: 'sedation-pe', actions: ['sedation', 'midazolam'], when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedation-pe', actions: ['sedation', 'midazolam'], when: (s) => s.pulse, points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'Sedation for a patient in obstructive shock. Her fear and fast breathing come from the shock and the low oxygen: a sedative takes away the adrenaline that is holding her pressure up and slows her breathing. Oxygen, a vasopressor and calm reassurance.',
     },
     {

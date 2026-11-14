@@ -379,10 +379,12 @@ describe('a patient on a continuous-flow LVAD', () => {
 
   it('the pressure rules read the Doppler MAP, not the systolic, over an LVAD', () => {
     // MAP 76 with a systolic of 84: a normal LVAD pressure — nitrates and midazolam are no "hypotension" mistake
-    expect(ids(run(lvad, 2, ['iv', 'nitro']))).toEqual([]);
+    // (with chest pain, the Doppler MAP taken and the PDE-5 question asked: nothing else to hold the nitroglycerin for)
+    const lvadPain = patient({ lvad: true, vitals: { sbp: 84, dbp: 72, spo2: 95, pain: 5 } });
+    expect(ids(run(lvadPain, 2, ['iv', 'doppler-map', 'ask-pde5', 'nitro']))).toEqual([]);
     expect(ids(run(lvad, 2, ['iv', 'midazolam']))).toEqual([]);
     expect(ids(run(lab({ lvad: true, vitals: { sbp: 84, dbp: 72 } }), 5, ['ct-urgent']))).toEqual([]);
-    expect(ids(run(lvad, 2, ['iv', 'nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
+    expect(ids(run(lvad, 2, ['iv', 'doppler-map', 'nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
     // MAP 54: low
     const low = patient({ lvad: true, vitals: { sbp: 60, dbp: 52 } });
     expect(ids(run(low, 2, ['iv', 'nitro']))).toEqual(['nitro-hypotension']);
@@ -391,7 +393,7 @@ describe('a patient on a continuous-flow LVAD', () => {
     expect(ids(run({ ...low, setting: 'cathlab' }, 5, ['iv', 'phenylephrine']))).toEqual([]);
     // MAP 100: hypertensive over an LVAD — the high nitrate dose fits; phenylephrine does not
     const high = patient({ lvad: true, vitals: { sbp: 104, dbp: 98 } });
-    expect(ids(run(high, 2, ['iv', 'nitro-high']))).toEqual([]);
+    expect(ids(run(high, 2, ['iv', 'doppler-map', 'ask-pde5', 'nitro-high']))).toEqual([]);
     expect(ids(run({ ...lvad, setting: 'cathlab' }, 5, ['iv', 'phenylephrine']))).toEqual(['phenylephrine-no-hypotension']);
     // without an LVAD the systolic still decides
     expect(ids(run(patient({ vitals: { sbp: 84, dbp: 72 } }), 2, ['iv', 'nitro']))).toEqual(['nitro-hypotension']);
@@ -538,7 +540,7 @@ describe('new actions: default effects', () => {
     const low = run(scape, 2, ['nitro']);
     expect(low.vitals.sbp).toBe(200);
     expect(unavailableReason(scape, run(scape, 2, ['nitro-high', 'nitro-high', 'nitro-high']), 'nitro-high')).toBe('Maximum 3 doses');
-    expect(ids(run(scape, 2, ['nitro-high']))).toEqual([]);
+    expect(ids(run(scape, 2, ['vitals', 'ask-pde5', 'nitro-high']))).toEqual([]);
   });
 
   it('midazolam: IM without a line, IV with one; each dose a little drowsier (not below 12), the pressure and breathing a little lower', () => {
@@ -622,9 +624,9 @@ describe('new built-in safety rules', () => {
   const rule = (id: string) => BUILT_IN_HARMS.find((h) => h.id === id)!;
 
   it('high-dose nitroglycerin: for a systolic of 160 or more; under 90 it is the general nitrate rule', () => {
-    expect(ids(run(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
+    expect(ids(run(patient({ vitals: { sbp: 150, dbp: 90 } }), 2, ['vitals', 'nitro-high']))).toEqual(['nitro-high-not-hypertensive']);
     expect(ids(run(patient({ vitals: { sbp: 86, dbp: 54 } }), 2, ['nitro-high']))).toEqual(['nitro-hypotension']);
-    expect(ids(run(patient({ vitals: { sbp: 196, dbp: 110 } }), 2, ['nitro-high']))).toEqual([]);
+    expect(ids(run(patient({ vitals: { sbp: 196, dbp: 110 } }), 2, ['vitals', 'ask-pde5', 'nitro-high']))).toEqual([]);
   });
 
   it('midazolam with a low pressure or a drowsy patient', () => {
@@ -650,9 +652,9 @@ describe('new built-in safety rules', () => {
   });
 
   it('a beta-blocker in stimulant toxicity; antithrombotics and a lytic in an aortic dissection', () => {
-    const cocaine = withProblems(patient({ profile: 'sinus-tachycardia', hr: 128, vitals: { sbp: 184, dbp: 108 } }), 'sympathomimetic-toxicity');
+    const cocaine = withProblems(patient({ profile: 'sinus-tachycardia', hr: 128, vitals: { sbp: 184, dbp: 108, pain: 6 } }), 'sympathomimetic-toxicity');
     expect(ids(run(cocaine, 2, ['iv', 'metoprolol']))).toEqual(['beta-blocker-stimulant']);
-    expect(ids(run(cocaine, 2, ['iv', 'midazolam', 'nitro']))).toEqual([]);
+    expect(ids(run(cocaine, 2, ['iv', 'midazolam', 'vitals', 'ask-pde5', 'nitro']))).toEqual([]);
     const dissection = withProblems(patient({ vitals: { sbp: 176, dbp: 98 } }), 'aortic-dissection');
     expect(ids(run(dissection, 1, ['aspirin']))).toEqual(['antithrombotic-dissection']);
     expect(rule('antithrombotic-dissection').actions).toEqual(expect.arrayContaining(['aspirin', 'heparin', 'p2y12', 'bivalirudin', 'gp2b3a', 'cangrelor']));

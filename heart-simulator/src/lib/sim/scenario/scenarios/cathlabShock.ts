@@ -3,6 +3,7 @@ import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES } from '../rules/acs';
 import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
@@ -323,10 +324,10 @@ export const cathlabShock: Scenario = {
   ],
   harms: yieldToHeavier([
     { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
-    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
+    { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: NITRATE_RULES, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing LV must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock (with an inotrope if the output stays low).' },
     { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
-    { id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], replaces: ['midazolam-unsafe'], points: 3, severity: 'minor', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },
+    { id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], replaces: SEDATIVE_RULES, points: 3, severity: 'minor', text: 'Sedation in a shocked, drowsy patient. It drops the pressure and the breathing.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'impella'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A pump or a coronary wire without anticoagulation. Both clot without heparin.' },
     { id: 'right-guide-for-lad', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio'), points: 5, severity: 'minor', text: 'A right-coronary guide for an LAD culprit. Use a left guide with back-up (EBU).' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },
@@ -335,8 +336,8 @@ export const cathlabShock: Scenario = {
     askHarm(TECH_ASKS[1], 'A balloon pump when the operator asked for the Impella. In STEMI shock an IABP does not improve survival (IABP-SHOCK II).'),
     askHarm(TECH_ASKS[2], 'A right-coronary guide when the operator asked for a left guide.'),
     askHarm(TECH_ASKS[3], 'The wrong device when the operator asked for a drug-eluting stent.'),
-    askHarm(RN_ASKS[1], 'Protamine when the operator asked for heparin.', 5),
-    askHarm(RN_ASKS[2], 'Oral P2Y12 tablets for a drowsy, shocked patient when the operator asked for the IV drug.'),
+    { ...askHarm(RN_ASKS[1], 'Protamine when the operator asked for heparin.', 5), replaces: PROTAMINE_RULES },
+    { ...askHarm(RN_ASKS[2], 'Oral P2Y12 tablets for a drowsy, shocked patient when the operator asked for the IV drug.'), replaces: ANTITHROMBOTIC_RULES },
   ]),
   timings: [
     { label: 'Pressor running', actions: ['pressor', 'push-epi'], flag: 'pressor', target: 6 },
