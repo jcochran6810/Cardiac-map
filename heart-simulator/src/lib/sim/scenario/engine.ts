@@ -7,7 +7,7 @@
  *   review(scenario, state) → score, timings, what went well, what to fix
  *
  * Each intervention has a default response here; a scenario overrides the ones that matter for its
- * patient (scenario.respond). Built-in safety rules apply to every scenario on top of the scenario's
+ * patient (scenario.respond). Built-in safety rules (rules/) apply to every scenario on top of the scenario's
  * own harms; the drug rules also read what the case says the patient has (scenario.problems: high
  * potassium, an overdose, heart failure, a long QT). The scenario ends by itself once every critical
  * intervention for the learner's role is done and the patient has a pulse (plus any scenario-specific condition).
@@ -21,14 +21,17 @@
 import type { LearningLevel } from '@/store/useAppStore';
 import { resolveProfile, stLevel } from '@/lib/ecg/profiles';
 import { INTERVENTION_BY_ID, detailFor, interventionsFor } from './interventions';
-import { READ_KIND_NAME, READ_OPTIONS, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
-import { angioGate, answeringWrong } from './labKit';
-import {
-  LOW_GLUCOSE, LVAD_MIN_PULSE_PRESSURE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, mapOf, orderedFlag, paced, ventilated,
-} from './kit';
+import { READ_KIND_NAME, READ_OPTION_BY_ID, answerFor, partialFor } from './reads';
+import { angioGate } from './labKit';
+import { LVAD_MIN_PULSE_PRESSURE, PERFUSING_FLOOR, arrestEtco2, atRate, bpAfter, canSwallow, mapOf, paced, ventilated } from './kit';
 import type {
-  Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
+  Critical, Effect, FactKey, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
+import { BUILT_IN_HARMS } from './rules';
+import { RN_ORDER_ONLY } from './rules/scope';
+import {
+  did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, preexcitedAf, profileShowsStemi, rhythmKind, shockable, tachyarrhythmia,
+} from './rules/helpers';
 
 const round = (m: number) => Math.round(m * 10) / 10;
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -39,24 +42,10 @@ export const clockText = (minute: number) => {
 
 // ─── State helpers ─────────────────────────────────────────────────────────
 
-export function rhythmKind(s: SimState) {
-  return resolveProfile(s.rhythm.profile).rhythm;
-}
-
-/** Pulseless VF / VT / torsades */
-export function shockable(s: SimState): boolean {
-  const k = rhythmKind(s);
-  return !s.pulse && (k === 'vf' || k === 'vt' || k === 'torsades');
-}
-
-/** Rhythms synchronized cardioversion treats (with a pulse and a fast rate): SVT, atrial fibrillation or flutter, monomorphic VT */
-const CARDIOVERTIBLE = ['svt', 'af', 'flutter', 'vt'];
-export function tachyarrhythmia(s: SimState): boolean {
-  return s.pulse && CARDIOVERTIBLE.includes(rhythmKind(s)) && s.rhythm.hr >= 100;
-}
+// these live with the built-in safety rules (rules/helpers.ts), which never import the engine; re-exported for the callers
+export { did, lowPressure, lvadPerfusing, rhythmKind, shockable, tachyarrhythmia };
 
 export const has = (s: SimState, flag: string) => flag in s.flags;
-export const did = (s: SimState, id: string) => (s.counts[id] ?? 0) > 0;
 export const bpText = (s: SimState) => `${s.vitals.sbp}/${s.vitals.dbp}`;
 
 function say(s: SimState, who: Speaker, text: string, tone?: Tone) {
@@ -860,26 +849,6 @@ function syncEnergy(s: SimState): string {
   return k === 'af' || k === 'flutter' ? '200 J' : '100 J';
 }
 
-/**
- * 12-lead patterns whose ST elevation meets STEMI criteria, so the cath lab is activated (a Takotsubo pattern looks the
- * same until the angiogram shows open arteries). A posterior STEMI is a STEMI equivalent: its ST elevation is in V7–V9,
- * and the mirror image in V1–V3 already calls for emergent reperfusion (2022 ACC chest pain pathway; 2025 ACC/AHA ACS)
- */
-const STEMI_READS = ['stemi-anterior', 'stemi-inferior', 'stemi-lateral', 'stemi-inferior-chb', 'stemi-posterior', 'takotsubo'];
-
-/** A tracing of this rhythm meets STEMI criteria */
-function profileShowsStemi(profile: string): boolean {
-  const read = READ_OPTIONS.find((o) => o.profiles?.includes(profile));
-  return !!read && STEMI_READS.includes(read.id);
-}
-
-/**
- * A 12-lead recorded so far showed a STEMI (flag 'ecg-stemi', set as each tracing is recorded). The diagnostic tracing
- * decides: a later one that hides the ST elevation (paced beats, a new bundle branch block) does not open the artery,
- * so the patient still needs primary PCI (2025 ACC/AHA ACS guideline).
- */
-const ecgShowsStemi = (s: SimState) => has(s, 'ecg-stemi');
-
 /** The tech opens, prepares and hands a device; the cardiologist uses it */
 function deviceEffect(s: SimState, id: string): Effect {
   const label = INTERVENTION_BY_ID[id].label.split(' — ')[0];
@@ -945,42 +914,10 @@ export function posteriorLeads(s: Pick<SimState, 'rhythm'>): string {
   return `V7–V9: ST elevation ${up.map(([l, mm]) => `${mm} mm in ${l}`).join(', ')}.`;
 }
 
-// ─── Built-in safety rules (every scenario) ────────────────────────────────
+// ─── Built-in safety rules (every scenario): see rules/ ─────────────────────
 
-/** The case says the patient has at least one of these problems */
-function hasProblem(sc: Scenario, problems: Problem[]): boolean {
-  return problems.some((p) => sc.problems?.includes(p));
-}
-const CALCIUM_FOR: Problem[] = ['hyperkalemia', 'hypocalcemia', 'ccb-overdose', 'beta-blocker-overdose'];
 /** The poisonings a case can list: the poison center has something to say about them */
 const OVERDOSES: Problem[] = ['beta-blocker-overdose', 'ccb-overdose', 'sodium-channel-blocker-overdose'];
-const BICARBONATE_FOR: Problem[] = ['hyperkalemia', 'metabolic-acidosis', 'sodium-channel-blocker-overdose'];
-/** Second- and third-degree AV block */
-const AV_BLOCKS = ['wenckebach', 'mobitz2', 'chb'];
-
-/**
- * A long QT: the case says so (Scenario.problems), the monitor shows torsades, or the rhythm on it has a QTc of 500 ms or
- * more (the 'long-qt' profile) — the drug rules read the tracing as well as the case
- */
-function longQt(s: SimState, sc: Scenario): boolean {
-  return hasProblem(sc, ['long-qt']) || rhythmKind(s) === 'torsades' || resolveProfile(s.rhythm.profile).qtc >= 500;
-}
-
-/**
- * An LVAD patient whose pump is perfusing (2025 AHA durable LVAD algorithm): no pulse to feel, so perfusion is judged — awake
- * (GCS 9 or more), or a Doppler MAP over 50. An unresponsive LVAD patient with a MAP of 50 or less is not perfusing: CPR and
- * BLS/ALS, the AED included, while the pump is checked. (Skin color, capillary refill and EtCO₂ are the case's to describe.)
- */
-export const lvadPerfusing = (s: SimState) => s.pulse && !!s.lvad && (s.vitals.gcs >= 9 || mapOf(s.vitals) > 50);
-
-/**
- * A low pressure for the drug and transport rules: a systolic under 90 — or, over a continuous-flow LVAD, whose systolic
- * means little, a Doppler MAP under 60 (the pump's low-flow range)
- */
-export const lowPressure = (s: SimState) => (s.lvad ? mapOf(s.vitals) < 60 : s.vitals.sbp < 90);
-
-/** Atrial fibrillation conducted down an accessory pathway is on the monitor (the 'af-wpw' profile) */
-const preexcitedAf = (s: SimState) => s.pulse && !!resolveProfile(s.rhythm.profile).pathway;
 
 /**
  * An AV-nodal blocker in pre-excited AF (the default; a case can answer it in its own words): with the node blocked,
@@ -990,137 +927,7 @@ const preexcitedAf = (s: SimState) => s.pulse && !!resolveProfile(s.rhythm.profi
 const fasterDownPathway = (s: SimState) => atRate(s, Math.min(250, Math.round(s.rhythm.hr * 1.12)));
 const pathwayFaster: Line = ['monitor', 'The complexes come faster and wider.', 'bad'];
 
-/** Drugs that slow or block the AV node: in pre-excited AF they send every impulse down the pathway */
-const AV_NODAL_BLOCKERS = ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion'];
-/** Antiplatelet, anticoagulant and fibrinolytic drugs (an aortic dissection bleeds with them) */
-const ANTITHROMBOTICS = ['aspirin', 'heparin', 'p2y12', 'bivalirudin', 'gp2b3a', 'cangrelor'];
-
-/**
- * The drugs the ER nurse gives in the emergency department only on the ED physician's order (state Nurse Practice Act,
- * ENA scope and standards, facility policy), with the name the review gives each. None is on the chest pain standing
- * order (aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs, the chest film) or the ACLS arrest protocol
- * (epinephrine, amiodarone, lidocaine, the shocks); the glucose, antiemetic, anaphylaxis and bronchospasm drugs are left
- * to the department's protocols. Given with no order — the flag `ordered:<id>` (kit's orderedFlag, set by edKit's
- * edOrder, physicianOrder, physicianDispo or standingOrders) — each costs points once ('rn-without-order-<id>')
- */
-export const RN_ORDER_ONLY: Record<string, string> = {
-  heparin: 'Heparin', p2y12: 'A P2Y12 loading dose', metoprolol: 'IV metoprolol', diltiazem: 'IV diltiazem', procainamide: 'Procainamide',
-  'amio-infusion': 'An amiodarone infusion', pressor: 'A vasopressor infusion', 'push-epi': 'Push-dose epinephrine',
-  'insulin-dextrose': 'Insulin and dextrose', transfuse: 'A blood transfusion', steroid: 'IV methylprednisolone', glucagon: 'Glucagon',
-  'albuterol-hyperk': 'High-dose albuterol', midazolam: 'Midazolam', fentanyl: 'IV fentanyl', 'nitro-high': 'High-dose nitroglycerin',
-  atropine: 'Atropine', adenosine6: 'Adenosine', adenosine12: 'Adenosine',
-  'calcium-chloride': 'Calcium chloride', 'sodium-bicarbonate': 'Sodium bicarbonate', 'magnesium-sulfate': 'Magnesium sulfate',
-  alteplase: 'Alteplase',
-};
-/** …of these, only with a pulse: in an arrest the code leader directs them, and the drug rules score the choice */
-const RN_ORDER_WITH_A_PULSE = ['calcium-chloride', 'sodium-bicarbonate', 'magnesium-sulfate', 'atropine'];
-
-const rnWithoutOrder = ([id, name]: [string, string]): Harm => ({
-  id: `rn-without-order-${id}`, actions: [id], roles: [6], points: 5, severity: 'major',
-  // a wrong answer to an open order is the order's own harm (labKit askHarm): one mistake, one penalty
-  when: (s, sc) => sc.setting === 'ed' && !has(s, orderedFlag(id)) && !answeringWrong(s, id) && (s.pulse || !RN_ORDER_WITH_A_PULSE.includes(id)),
-  text: `${name} without an order. The ER nurse gives a medication on a provider's order or an approved standing order or protocol (the state Nurse Practice Act, ENA scope and standards, facility policy), and this one is on neither: the chest pain standing order covers aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs and the chest film, and the ACLS protocol the arrest drugs. Tell the ED physician what you see and what you think it needs (SBAR, closed loop), and give it once it is ordered.`,
-});
-
-export const BUILT_IN_HARMS: Harm[] = [
-  { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse && !s.lvad, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
-  // the LVAD patient whose pump is perfusing has no pulse to check: the mistake is a different one, and so is the lesson
-  { id: 'cpr-lvad-perfusing', actions: ['cpr'], when: (s) => lvadPerfusing(s), points: 10, severity: 'major', text: 'Chest compressions on an LVAD patient whose pump is perfusing. A continuous-flow pump leaves no pulse to feel: judge perfusion instead — responsiveness, skin color and temperature, capillary refill, a Doppler MAP over 50 (2025 AHA durable LVAD algorithm). An unresponsive LVAD patient whose perfusion is inadequate gets compressions without delay, pump or no pump; one who is perfusing needs the cause of the problem found, not CPR.' },
-  // a manual shock fires whatever the rhythm; an AED is not applied to a patient with a pulse (the default refuses it). Two
-  // shocks with a pulse are right: sustained polymorphic VT (torsades) is defibrillated, pulse or not (2025 AHA), and an
-  // LVAD can keep a patient perfused through VF
-  { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse && rhythmKind(s) !== 'torsades' && !(s.lvad && (rhythmKind(s) === 'vf' || (rhythmKind(s) === 'vt' && !lvadPerfusing(s)))), points: 15, severity: 'critical', text: 'Unsynchronized shock to a patient with a pulse: it can land on the T wave and cause VF. Unstable tachycardia with a pulse needs synchronized cardioversion.' },
-  { id: 'shock-nonshockable', actions: ['defib', 'cardiovert'], when: (s) => !s.pulse && !shockable(s), points: 10, severity: 'major', text: 'Asystole and PEA are not shockable: shocking them interrupts CPR and does not help. Give CPR and epinephrine and look for reversible causes.' },
-  { id: 'sync-in-arrest', actions: ['cardiovert'], when: (s) => shockable(s), points: 8, severity: 'major', text: 'Synchronized mode needs R waves; in VF or pulseless VT it may never fire. Defibrillate unsynchronized.' },
-  { id: 'sync-polymorphic', actions: ['cardiovert'], when: (s) => s.pulse && rhythmKind(s) === 'torsades', points: 5, severity: 'major', text: 'Synchronized cardioversion for polymorphic VT. The device cannot lock onto the R waves of a twisting rhythm and may never fire: sustained torsades is defibrillated, unsynchronized, pulse or not (2025 AHA) — then IV magnesium.' },
-  { id: 'cardiovert-no-tachycardia', actions: ['cardiovert'], when: (s) => s.pulse && !tachyarrhythmia(s) && rhythmKind(s) !== 'torsades', points: 8, severity: 'major', text: 'Synchronized cardioversion without a tachyarrhythmia to treat. It is for an unstable SVT, atrial fibrillation or flutter, or monomorphic VT; on any other rhythm the shock cannot help, and it hurts an awake patient.' },
-  { id: 'arrest-epi-with-pulse', actions: ['epinephrine'], when: (s) => s.pulse, points: 15, severity: 'critical', text: '1 mg IV epinephrine is the cardiac-arrest dose. With a pulse it causes severe hypertension, arrhythmias and ischemia; use push-dose epinephrine or an infusion.' },
-  { id: 'arrest-amio-with-pulse', actions: ['amio-arrest'], when: (s) => s.pulse, points: 10, severity: 'major', text: 'A 300 mg amiodarone push is for cardiac arrest. With a pulse, give 150 mg over 10 minutes.' },
-  // on-scene resuscitation until a sustained ROSC, for most adults (2025 AHA Systems of Care). Only the loading is judged:
-  // an arrest that begins en route is worked in the ambulance, and that is no mistake
-  { id: 'transport-in-arrest', actions: ['transport-near', 'transport-pci'], when: (s, sc) => sc.setting === 'field' && !s.pulse, points: 6, severity: 'major', text: 'Loading the patient for transport during cardiac arrest. Compressions on a stretcher and in a moving ambulance are poorer and keep being interrupted, and what the arrest needs — high-quality CPR, a shock for VF or pulseless VT, epinephrine and the reversible causes — works right here. For most adults, work the arrest on scene until there is a sustained ROSC, then transport (2025 AHA).' },
-  { id: 'airway-awake', actions: ['airway'], when: (s) => s.pulse && s.vitals.gcs > 8, points: 10, severity: 'major', text: 'An advanced airway is not indicated in a patient who is awake and protecting their own airway.' },
-  // the emergency department's drug-assisted airway and procedural sedation (ACEP clinical policy: monitoring and capnography)
-  { id: 'rsi-no-indication', actions: ['rsi'], when: (s) => s.pulse && s.vitals.gcs >= 13 && s.vitals.spo2 >= 92 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && !lowPressure(s), points: 10, severity: 'major', text: 'Rapid sequence intubation without an indication. A tube is for a patient who cannot protect the airway, cannot oxygenate or ventilate, or whose expected course will soon take one of those away; an awake patient breathing well, with a normal oxygen saturation and pressure, gets only its risks — a failed airway, aspiration, a falling pressure and the ventilator.' },
-  { id: 'rsi-unmonitored', actions: ['rsi'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Rapid sequence intubation without the cardiac monitor on. The induction drug, the paralytic and positive-pressure ventilation can drop the pressure, the oxygen saturation and the heart rate within a minute: the ECG, pulse oximetry, the blood pressure and waveform capnography run before the first drug goes in.' },
-  { id: 'rsi-unresuscitated', actions: ['rsi'], when: (s) => s.pulse && lowPressure(s) && !has(s, 'pressor') && !has(s, 'push-epi'), points: 8, severity: 'major', text: 'Rapid sequence intubation with a low blood pressure and nothing to hold it up. The induction drug and positive-pressure ventilation drop the pressure further, and the patient can arrest around the tube: resuscitate before you intubate — fluids or blood, push-dose epinephrine or an infusion running — and give a reduced dose of the most stable induction drug.' },
-  { id: 'sedation-unmonitored', actions: ['procedural-sedation'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Procedural sedation without the cardiac monitor on. Sedation can stop the breathing and drop the pressure: the ECG, pulse oximetry, the blood pressure and capnography run from before the first dose until the patient is awake again.' },
-  { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s) => s.pulse && !tachyarrhythmia(s) && rhythmKind(s) !== 'torsades' && !(s.rhythm.hr < 50 || paced(s)), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
-  // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
-  { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
-  { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
-  // the emergency physician's invasive procedures need their indication (the cath lab's cases score their own). In the lab
-  // a transvenous wire can be a backup on demand, so the rate rule is the department's only
-  { id: 'temp-wire-not-slow', actions: ['temp-wire'], when: (s, sc) => sc.setting === 'ed' && s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'A transvenous pacing wire without a slow heart rate to treat. It is for bradycardia (usually under 50/min) that drugs and the transcutaneous pacer cannot hold; with a faster rate it brings only its risks — a perforated ventricle, arrhythmias, a pneumothorax, bleeding and infection.' },
-  { id: 'pericardiocentesis-no-tamponade', actions: ['pericardiocentesis'], when: (_s, sc) => sc.setting === 'ed' && !hasProblem(sc, ['tamponade']), points: 15, severity: 'critical', text: 'A pericardiocentesis without tamponade. The needle can puncture the heart, a coronary artery or the lung: it is for an effusion that is squeezing the heart (a low pressure, distended neck veins, the right heart collapsing in diastole on the ultrasound). Find the real cause of the shock instead.' },
-  { id: 'lytic-no-indication', actions: ['tnk', 'alteplase'], when: (s, sc) => sc.setting === 'ed' && !has(s, 'ecg-stemi') && !hasProblem(sc, ['pulmonary-embolism', 'aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic without an indication. In the emergency department it is for a STEMI on the 12-lead when PCI cannot happen within 120 minutes of first medical contact (then within 30 minutes of arrival), or a high-risk pulmonary embolism; any other patient gets only its bleeding — intracranial in about 1 in 100.' },
-  { id: 'nitro-hypotension', actions: ['nitro', 'nitro-assist', 'nitro-high', 'ic-nitro'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg (with an LVAD, a Doppler MAP under 60). Nitrates drop the pressure further: hold them until it is back up.' },
-  { id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Intracoronary nitroprusside with a systolic pressure under 90 mmHg. It drops the pressure further, and a low perfusion pressure makes no-reflow worse: support the pressure first, or use intracoronary epinephrine.' },
-  // atropine is for symptomatic bradycardia. With a pulse: a rate of 60 or more has nothing for it to treat (over a pacer,
-  // whose 70 hides a slow rate of the heart's own, it is still a fair try). In arrest: out of the algorithm since 2010
-  { id: 'atropine-fast', actions: ['atropine'], when: (s) => s.pulse && s.rhythm.hr >= 60 && !paced(s), points: 3, severity: 'minor', text: 'Atropine with no slow pulse to treat. It is for symptomatic bradycardia: with a normal or fast rate it has nothing to treat, and any speeding only adds to the heart\'s oxygen demand — in an acute MI that can worsen the ischemia.' },
-  { id: 'atropine-in-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in cardiac arrest. It has not been part of the cardiac arrest algorithm since 2010: routine atropine does not help PEA or asystole, and it does nothing for VF. CPR, epinephrine, a shock for VF or pulseless VT, and the reversible causes.' },
-  // the physician stands the cath lab down (the default response); a case can say it in its own words
-  { id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => !ecgShowsStemi(s), points: 3, severity: 'minor', text: 'A STEMI alert for a 12-lead that does not meet STEMI criteria. The alert calls the cath lab team in for an artery that is not known to be blocked (pericarditis, a bundle branch block, a thick heart muscle or a high potassium can raise the ST segments too). Transmit the 12-lead or give a radio report, and let the hospital decide.' },
-  // the emergency department's activation, in its own words (the interventional cardiologist declines it: the default)
-  { id: 'cath-lab-no-ste', actions: ['cath-lab-activate'], when: (s) => !ecgShowsStemi(s), points: 3, severity: 'minor', text: 'Activating the cath lab for a 12-lead that does not meet STEMI criteria. It calls the team in for an artery that is not known to be blocked (pericarditis, a bundle branch block, a thick heart muscle or a high potassium can raise the ST segments too). Repeat the 12-lead every 15–30 minutes while the pain goes on, add the posterior leads, send a troponin and consult cardiology.' },
-  // diltiazem's contraindications (verapamil is the same drug class; the simulator offers it only intracoronary)
-  { id: 'diltiazem-heart-failure', actions: ['diltiazem'], when: (s, sc) => s.pulse && hasProblem(sc, ['heart-failure']), points: 15, severity: 'critical', text: 'Diltiazem in a patient with heart failure. Calcium-channel blockers weaken the squeeze and open the vessels: with a reduced ejection fraction (40 % or less), with or without decompensated heart failure, IV diltiazem and verapamil must not be given (2023 ACC/AHA/ACCP/HRS AF guideline: 3 — Harm). Control the rate with amiodarone, or a beta-blocker if the lungs are not congested; an unstable patient needs synchronized cardioversion.' },
-  { id: 'diltiazem-vt', actions: ['diltiazem'], when: (s) => s.pulse && ['vt', 'torsades'].includes(rhythmKind(s)), points: 15, severity: 'critical', text: 'Diltiazem for ventricular tachycardia. Treat a wide-complex tachycardia as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest (2025 AHA: 3 — Harm). A stable monomorphic VT gets procainamide or amiodarone; an unstable one, synchronized cardioversion.' },
-  { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => longQt(s, sc), points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
-
-  // Drugs for a specific problem: without it they cannot help and only bring their risks. The case lists what the patient
-  // has (Scenario.problems); "not well established" in a hyperkalemic arrest (2025 AHA) is never penalized.
-  // calcium also reverses part of the low pressure IV diltiazem causes: for that low pressure (a pulse, a systolic under 90)
-  // it is a fair answer. Not routinely in a later arrest, and not once the pressure is back: one therapeutic dose is no overdose
-  { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (s, sc) => !hasProblem(sc, CALCIUM_FOR) && !(has(s, 'diltiazem') && s.pulse && lowPressure(s)), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose (or the low pressure IV diltiazem causes) or a low calcium; otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
-  { id: 'bicarbonate-no-indication', actions: ['sodium-bicarbonate'], when: (_s, sc) => !hasProblem(sc, BICARBONATE_FOR), points: 3, severity: 'minor', text: 'Sodium bicarbonate without an indication. It is for hyperkalemia, metabolic acidosis or a sodium-channel-blocker (e.g. tricyclic) overdose; routine bicarbonate in cardiac arrest has no benefit (2025 AHA), and it adds a sodium load and CO₂ the lungs must clear.' },
-  { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s) => s.vitals.glucose < LOW_GLUCOSE, points: 10, severity: 'major', text: 'Insulin with a blood glucose under 70 mg/dL. Treat the low glucose first: insulin drives it lower, and the worst lows come 1–3 hours later.' },
-  // 10 units is the potassium dose; a beta- or calcium-channel-blocker overdose needs far more, so it is too little there, not a mistake
-  { id: 'insulin-no-indication', actions: ['insulin-dextrose'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 5, severity: 'minor', text: 'Insulin and dextrose without hyperkalemia. They shift potassium into the cells; with no high potassium they only risk a low glucose.' },
-  { id: 'albuterol-hyperk-no-indication', actions: ['albuterol-hyperk'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia']), points: 3, severity: 'minor', text: 'High-dose albuterol (10–20 mg) without hyperkalemia. That dose is for shifting potassium and it races the heart; for wheezing the dose is 2.5–5 mg.' },
-  { id: 'magnesium-routine-arrest', actions: ['magnesium-sulfate'], when: (s, sc) => !s.pulse && !longQt(s, sc), points: 3, severity: 'minor', text: 'Magnesium in a cardiac arrest without torsades. Routine magnesium does not help VF, pulseless VT, PEA or asystole; it is for torsades de pointes.' },
-
-  // Procainamide: the stop rules and contraindications on its drug card (2025 AHA tachycardia algorithm)
-  { id: 'procainamide-in-arrest', actions: ['procainamide'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Procainamide in cardiac arrest. It is a slow infusion (20–50 mg/min), not an arrest drug: amiodarone 300 mg or lidocaine is.' },
-  { id: 'procainamide-hypotension', actions: ['procainamide'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one: an unstable tachycardia needs synchronized cardioversion.' },
-  // a pacer (pads or a wire) protects against the block it would deepen
-  { id: 'procainamide-slow', actions: ['procainamide'], when: (s) => s.pulse && !paced(s) && (AV_BLOCKS.includes(rhythmKind(s)) || s.rhythm.hr < 50), points: 10, severity: 'major', text: 'Procainamide with AV block or a slow heart rate. It slows conduction further and can stop the heart; it is a drug for tachycardia.' },
-  { id: 'procainamide-heart-failure', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['heart-failure']), points: 8, severity: 'major', text: 'Procainamide in a patient with heart failure. It weakens the squeeze and drops the pressure: in heart failure use amiodarone, or synchronized cardioversion.' },
-  { id: 'procainamide-long-qt', actions: ['procainamide'], when: (s, sc) => longQt(s, sc), points: 10, severity: 'major', text: 'Procainamide with a long QT. It lengthens the QT further and can set off torsades de pointes.' },
-  // when one antiarrhythmic has not worked, the next step is a shock or expert advice, not a second drug on top
-  { id: 'procainamide-after-amiodarone', actions: ['procainamide'], when: (s) => s.pulse && has(s, 'amiodarone'), points: 5, severity: 'minor', text: 'Procainamide on top of amiodarone. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
-  { id: 'amiodarone-after-procainamide', actions: ['amio-infusion'], when: (s) => s.pulse && has(s, 'procainamide'), points: 5, severity: 'minor', text: 'Amiodarone on top of procainamide. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
-
-  // Glucose: judged on the patient's real glucose, checked or not
-  { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE, points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
-  { id: 'oral-glucose-cannot-swallow', actions: ['oral-glucose'], when: (s) => !canSwallow(s), points: 8, severity: 'major', text: 'Oral glucose for a patient too drowsy to swallow. It can be inhaled into the lungs: by mouth only if awake enough to swallow and protect the airway — otherwise IV dextrose (ALS).' },
-
-  // The second batch of actions: the high nitrate dose, a benzodiazepine, phenylephrine, the legs, blood and the scanner
-  // (with an LVAD: a Doppler MAP over 90 is the high pressure, 60 the low one)
-  { id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160), points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.' },
-  // sedation before a cardioversion or for the pacer is needed even with a low pressure (a smaller dose, titrated): a case
-  // with its own sedation rule says so in its own words
-  // in the emergency department a drowsy patient with an advanced airway (RSI, or a tube after the arrest) is a ventilated
-  // one, sedated for the tube on the physician's decision: no mistake there. The field and the lab score it as before
-  { id: 'midazolam-unsafe', actions: ['midazolam'], when: (s, sc) => s.pulse && (lowPressure(s) || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !tachyarrhythmia(s) && !(s.rhythm.hr < 50 || paced(s)), points: 5, severity: 'major', text: 'Midazolam with a low pressure or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further: it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
-  { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && (s.lvad ? mapOf(s.vitals) >= 70 : s.vitals.sbp >= 120), points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension (sedation, a vasovagal drop, LV outflow obstruction); with a normal pressure it only adds afterload (which cuts an LVAD\'s flow) and slows the heart.' },
-  { id: 'phenylephrine-slow', actions: ['phenylephrine'], when: (s) => s.pulse && s.rhythm.hr < 50 && !paced(s), points: 3, severity: 'minor', text: 'Phenylephrine with a slow heart rate. The reflex slowing it brings makes the bradycardia worse: treat the rate first (atropine, pacing), or support the pressure with a drug that also speeds the heart (epinephrine).' },
-  { id: 'legs-up-pulmonary-edema', actions: ['legs-up'], when: (_s, sc) => hasProblem(sc, ['pulmonary-edema']), points: 5, severity: 'major', text: 'Raising the legs of a patient with fluid on the lungs. It pours more blood back into a heart that is already backing up into the lungs: sit them up with the legs down.' },
-  { id: 'fluid-pulmonary-edema', actions: ['fluid'], when: (s, sc) => s.pulse && hasProblem(sc, ['pulmonary-edema']), points: 8, severity: 'major', text: 'A fluid bolus in pulmonary edema. The lungs are already flooded: more volume worsens the breathing and the oxygen. Sit the patient up, CPAP, and nitroglycerin for a high pressure.' },
-  { id: 'transfuse-no-bleeding', actions: ['transfuse'], when: (_s, sc) => !hasProblem(sc, ['bleeding']), points: 3, severity: 'minor', text: 'Packed red cells with no bleeding to treat. Blood is for hemorrhage or a low hemoglobin; otherwise it adds volume, reaction and infection risks for nothing.' },
-  { id: 'ct-unstable', actions: ['ct-urgent'], when: (s) => s.pulse && lowPressure(s), points: 5, severity: 'major', text: 'Sending an unstable patient to the CT scanner. A systolic under 90 (with an LVAD, a Doppler MAP under 60) needs treatment here first (fluids, blood, pressors, the bleeding stopped): the scanner is no place to deteriorate.' },
-
-  // Problems the case lists, and a rhythm on the monitor, that make a usual drug dangerous
-  { id: 'beta-blocker-stimulant', actions: ['metoprolol'], when: (_s, sc) => hasProblem(sc, ['sympathomimetic-toxicity']), points: 8, severity: 'major', text: 'A beta-blocker in acute cocaine or stimulant toxicity. With the beta receptors blocked, the stimulant\'s alpha effect goes unopposed: worse coronary spasm and a higher pressure (2014 ACC/AHA NSTE-ACS guideline: no beta-blocker with signs of acute intoxication). A benzodiazepine first, then nitroglycerin for the chest pain and the pressure.' },
-  { id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major', text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.' },
-  { id: 'lytic-dissection', actions: ['tnk', 'alteplase'], when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic in an aortic dissection. It can turn the tear into a fatal hemorrhage: a dissection that blocks a coronary ostium can mimic a STEMI — think of it before any lytic.' },
-  { id: 'av-blocker-preexcited-af', actions: AV_NODAL_BLOCKERS, when: (s) => preexcitedAf(s), points: 15, severity: 'critical', text: 'An AV-nodal blocker in pre-excited atrial fibrillation. Blocking the node sends every impulse down the accessory pathway: the rate climbs and it can turn into VF (2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem, verapamil, digoxin and IV amiodarone are harmful; beta-blockers too, 2015 SVT guideline). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.' },
-  { id: 'amiodarone-long-qt', actions: ['amio-infusion'], when: (s, sc) => s.pulse && longQt(s, sc), points: 5, severity: 'major', text: 'Amiodarone with a long QT. It lengthens the QT further and can set off (or keep up) torsades de pointes: magnesium, potassium, a faster heart rate and stopping the QT-prolonging drugs are the treatment.' },
-
-  // the ER nurse's scope: a drug that needs the physician's order, given without one (see RN_ORDER_ONLY)
-  ...Object.entries(RN_ORDER_ONLY).map(rnWithoutOrder),
-];
+export { BUILT_IN_HARMS, RN_ORDER_ONLY };
 
 // ─── Engine ────────────────────────────────────────────────────────────────
 
