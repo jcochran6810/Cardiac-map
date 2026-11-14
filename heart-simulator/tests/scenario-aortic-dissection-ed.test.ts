@@ -697,18 +697,35 @@ describe('aortic dissection in the emergency department — the review\'s fixes'
     expect(s.flags['rate-controlled']).toBeDefined();
   });
 
-  it('the vasodilator after the rate: sublingual nitroglycerin bridges to a nicardipine infusion, which holds the goal', () => {
+  it('the vasodilator after the rate: the nicardipine infusion (or a first sublingual nitroglycerin, then the infusion) holds the goal', () => {
     const md = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'nitro', ...R(2)]);
-    expect(saidBy(md, 'nurse')).toMatch(/Nitroglycerin 0\.4 mg sublingual, while pharmacy mixes the nicardipine infusion that takes over from it — in, on your order\./);
+    expect(saidBy(md, 'nurse')).toMatch(/Nitroglycerin 0\.4 mg sublingual — in, on your order\./);
     expect(saidBy(md, 'nurse')).toMatch(/The nicardipine infusion is up from pharmacy and running at 5 milligrams an hour/);
     expect(bp(md)).toEqual([116, 70]);
+    // the infusion itself, as the vasodilator: the same goal, at no cost
+    const drip = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'nicardipine', ...R(2)]);
+    expect(saidBy(drip, 'nurse')).toMatch(/Nicardipine infusion at 5 mg\/h, titrated up 2\.5 mg\/h every 5–15 minutes/);
+    expect(saidBy(drip, 'nurse')).toMatch(/The nicardipine infusion titrated to the systolic goal\./);
+    expect(bp(drip)).toEqual([116, 70]);
+    expect(penalties(drip)).toEqual([]);
     // without the opioid the pain holds the pressure over the goal, and the nurse says why
     const noPain = doctor([...MD_ASSESSED, 'metoprolol', 'nitro', ...R(2)]);
     expect(saidBy(noPain, 'nurse')).toMatch(/His pain is still 10 out of 10, and it holds his pressure up\./);
     // before the rate is controlled there is no bridge: the nitroglycerin alone races his heart
     expect(said(doctor([...MD_ASSESSED, 'nitro']))).not.toMatch(/nicardipine/);
     // the nurse's order names the infusion too
-    expect(saidBy(nurse([...RN_ORDERED, 'metoprolol']), 'physician')).toMatch(/nitroglycerin 0\.4 milligrams sublingual while pharmacy mixes a nicardipine infusion/);
+    expect(saidBy(nurse([...RN_ORDERED, 'metoprolol']), 'physician')).toMatch(/a nicardipine infusion at 5 milligrams an hour, or nitroglycerin 0\.4 milligrams sublingual/);
+  });
+
+  it('esmolol or labetalol is the IV beta-blocker as well as metoprolol; nicardipine before it races his heart, one penalty', () => {
+    for (const id of ['esmolol', 'labetalol']) {
+      const s = doctor([...MD_ASSESSED, id]);
+      expect(s.flags['rate-controlled'], id).toBeDefined();
+      expect(penalties(s), id).toEqual([]);
+    }
+    const early = doctor([...MD_ASSESSED, 'nicardipine']);
+    expect(penalties(early)).toEqual(['vasodilator-before-rate-md']);
+    expect(early.flags.reflex).toBeDefined();
   });
 
   it('admitting him to the ICU without the surgeon costs 10 points on top of the missed call; after the call, admitting costs nothing', () => {

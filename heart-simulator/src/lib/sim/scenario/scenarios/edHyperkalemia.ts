@@ -80,7 +80,10 @@ const kWithMdAt = (s: SimState) => s.flags['k-reported'] ?? s.flags['k-md-found'
 const calciumRunning = (s: SimState) => s.timers.calciumUntil !== undefined && s.minute < s.timers.calciumUntil;
 
 /** Grams of calcium given so far, by anyone (the learner's doses, and the physician's when the order was not carried out) */
-const calciumDoses = (s: SimState) => count(s, 'calcium-chloride') + (has(s, 'md-calcium') ? 1 : 0);
+const calciumDoses = (s: SimState) => count(s, 'calcium-chloride') + count(s, 'calcium-gluconate') + (has(s, 'md-calcium') ? 1 : 0);
+
+/** Calcium chloride 1 g, or calcium gluconate 3 g (the same calcium, gentler on a peripheral vein): either answers */
+const CALCIUMS = ['calcium-chloride', 'calcium-gluconate'];
 
 /**
  * The potassium now, for the recheck: insulin moves about 0.8 into the cells within 20 minutes, albuterol about 0.6 within
@@ -106,11 +109,14 @@ const orderUsedUp = (s: SimState, id: string): string[] => (s.role === 6 ? [orde
  * off in 30–60 minutes. Calcium chloride (three times the calcium of the gluconate) for a patient this unstable, through a
  * large vein, slowly: the line is busy until it is in
  */
-function calcium(s: SimState, who: Speaker): Effect {
-  const given = line(who, 'Calcium chloride 1 g IV through the right antecubital line, going in slowly over 5 minutes; the site watched for a leak.');
-  const clear = orderUsedUp(s, 'calcium-chloride');
+function calcium(s: SimState, who: Speaker, gluconate = false): Effect {
+  const given = line(who, gluconate
+    ? 'Calcium gluconate 3 g IV through the right antecubital line, over 5–10 minutes; the site watched.'
+    : 'Calcium chloride 1 g IV through the right antecubital line, going in slowly over 5 minutes; the site watched for a leak.');
+  // one order covers either salt: a dose of one uses it up for both
+  const clear = CALCIUMS.flatMap((id) => orderUsedUp(s, id));
   // in an arrest it is pushed and flushed while the compressions go on
-  if (!s.pulse) return { say: [line(who, 'Calcium chloride 1 g pushed and flushed; compressions go on.')], flags: ['calcium'], clear };
+  if (!s.pulse) return { say: [line(who, `${gluconate ? 'Calcium gluconate 3 g' : 'Calcium chloride 1 g'} pushed and flushed; compressions go on.`)], flags: ['calcium'], clear };
   const timers = { calciumUntil: s.minute + CALCIUM_RUNS, calciumLast: s.minute };
   if (s.rhythm.profile !== HYPERK) return { say: [given], flags: ['calcium'], timers, clear };
   // the first dose (or one after it has worn off) does most; a repeat lifts the rate a little more
@@ -120,7 +126,7 @@ function calcium(s: SimState, who: Speaker): Effect {
   const eyes: Speaker = s.role === 7 ? 'nurse' : 'you';
   const qrs = first ? 'On the monitor the rate is up — but the complexes are still wide, the T waves still tall.' : 'On the monitor the rate comes up a little more; the complexes are still wide.';
   return {
-    say: [given, ...ifAwake(s, '"That burns going up my arm."'), ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'good'], [eyes, qrs]],
+    say: [given, ...(gluconate ? [] : ifAwake(s, '"That burns going up my arm."')), ['monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, 'good'], [eyes, qrs]],
     rhythm: { profile: HYPERK, hr }, vitals: { ...bp, ...(first && comesRound(s) ? { gcs: 15 } : {}) },
     flags: first ? ['calcium'] : ['calcium', 'calcium-2'], timers, clear,
   };
@@ -222,7 +228,8 @@ const CALCIUM: LabAsk = {
   id: 'calcium', role: 6, speaker: 'physician',
   when: (s) => s.pulse && mdHere(s) && has(s, 'ecg-shown') && ecgSeen(s),
   ask: '"Look at those T waves, and that wide QRS at this rate — with his kidneys and his pills. Calcium chloride 1 gram IV now, slowly, through a big vein. We are not waiting for the lab."',
-  accept: ['calcium-chloride'],
+  // calcium gluconate 3 g is the same calcium (what a peripheral line takes more kindly)
+  accept: CALCIUMS,
   wrong: ['atropine'],
   wrongSay: '"Not atropine — it will not touch a rate this slow from this cause. Calcium, please, now."',
   thanks: '"Good. Watch the rate, the QRS and the IV site: calcium chloride burns if it leaks."',
@@ -277,7 +284,7 @@ const CALCIUM_AGAIN: LabAsk = {
   id: 'calcium-again', role: 6, speaker: 'physician',
   when: (s) => s.pulse && kWithMd(s) && has(s, 'calcium') && calciumDoses(s) < 2 && s.minute >= s.flags.calcium + 4,
   ask: '"7.8 — and the QRS on the monitor is still wide. A second gram of calcium chloride now."',
-  accept: ['calcium-chloride'],
+  accept: CALCIUMS,
   thanks: '"Good."',
   fallback: '"I will give the second gram myself."',
   fallbackEffect: (s) => {
@@ -429,7 +436,12 @@ export const edHyperkalemia: Scenario = {
     },
 
     'calcium-chloride': (s) => (s.pulse ? calcium(s, edNurse(s)) : null), // in arrest: pushed and flushed while compressions go on
+    'calcium-gluconate': (s) => (s.pulse ? calcium(s, edNurse(s), true) : null),
     'insulin-dextrose': (s) => insulin(s, edNurse(s)),
+    // an add-on only: he still makes some urine, so it moves a little potassium out over hours — dialysis is what takes it out
+    furosemide: (s) => (s.pulse
+      ? { say: [line(edNurse(s), 'Furosemide 40 mg IV.'), line(s.role === 7 ? 'you' : 'physician', 'It moves a little potassium out over the next hours, while he still makes urine — an add-on, never instead of calcium, the shift and dialysis.')], vitals: bpAfter(s, -4, -2), flags: ['diuretic'] }
+      : null),
     'albuterol-hyperk': (s) => albuterol(s, edNurse(s)),
     // the wheezing dose: a quarter to an eighth of what moves potassium. Before anyone has read the 12-lead the teammate
     // only notes that he is not wheezing (naming the potassium then would give the tracing away)
@@ -799,7 +811,7 @@ export const edHyperkalemia: Scenario = {
     {
       id: 'md-post-rosc',
       when: (s) => s.role === 6 && s.pulse && has(s, 'rosc'),
-      effect: () => physicianOrder('"He is back. Bag him while I set up for the tube. Epinephrine infusion at 2 micrograms a minute, titrated to a MAP of 65, push-dose epinephrine if he drops — and another gram of calcium."', ['pressor', 'push-epi', 'calcium-chloride']),
+      effect: () => physicianOrder('"He is back. Bag him while I set up for the tube. Epinephrine infusion at 2 micrograms a minute, titrated to a MAP of 65, push-dose epinephrine if he drops — and another gram of calcium."', ['pressor', 'push-epi', ...CALCIUMS]),
     },
     {
       id: 'md-intubates',
@@ -866,7 +878,7 @@ export const edHyperkalemia: Scenario = {
     {
       id: 'post-bp', label: 'After ROSC: treat the low pressure (MAP under 65)', roles: ED_TEAM, points: 5, applies: (s) => has(s, 'rosc'),
       why: 'After ROSC avoid hypotension: keep the MAP at 65 mmHg or more (2025 AHA). Here calcium again (the potassium is still high), an epinephrine infusion or push-dose epinephrine.',
-      done: ['calcium-chloride', 'pressor', 'push-epi'], after: 'rosc',
+      done: [...CALCIUMS, 'pressor', 'push-epi'], after: 'rosc',
     },
 
     // ─── The ER nurse ──────────────────────────────────────────────────────
@@ -922,12 +934,12 @@ export const edHyperkalemia: Scenario = {
     {
       id: 'md-calcium', label: 'IV calcium at once for the 12-lead changes — before the lab', roles: ED_MD, points: 20,
       // the same 5 minutes as the "12-lead to calcium" timing
-      done: ['calcium-chloride'], target: { within: { flag: 'ecg12', minutes: 5 } },
+      done: CALCIUMS, target: { within: { flag: 'ecg12', minutes: 5 } },
       why: 'Peaked T waves, a wide QRS and a slow rate with a low pressure: calcium steadies the heart within minutes, and the lab result changes nothing about that. Calcium chloride 1 g through a large vein for a patient this unstable (or calcium gluconate 3 g, safer in a small vein), slowly.',
     },
     {
       id: 'md-calcium-again', label: 'A second gram of calcium while the QRS stays wide', roles: ED_MD, points: 5,
-      done: (s) => s.performed.filter((p) => p.id === 'calcium-chloride')[1]?.minute ?? null, uses: ['calcium-chloride'],
+      done: (s) => s.performed.filter((p) => CALCIUMS.includes(p.id))[1]?.minute ?? null, uses: CALCIUMS,
       target: { within: { flag: 'calcium', minutes: 15 } },
       why: 'Repeat calcium when the ECG changes persist 5–10 minutes after the first dose: here the QRS is still wide after the first gram.',
     },
@@ -978,7 +990,7 @@ export const edHyperkalemia: Scenario = {
   harms: [
     // the trap: the 12-lead already shows it, and the calcium waited for the lab
     {
-      id: 'calcium-waited-for-lab', actions: ['calcium-chloride'], roles: ED_MD, points: 8, severity: 'major',
+      id: 'calcium-waited-for-lab', actions: CALCIUMS, roles: ED_MD, points: 8, severity: 'major',
       when: (s) => s.pulse && !has(s, 'calcium') && has(s, 'k-known') && has(s, 'ecg12') && s.flags.ecg12 < s.flags['k-known'],
       text: 'Calcium only once the potassium came back from the lab. The 12-lead had already shown it — peaked T waves, a wide QRS, a slow rate with a low pressure — and those changes call for IV calcium at once: it steadies the heart within minutes, and the lab result changes nothing about that. Every minute spent waiting, the QRS widened and the rate fell.',
     },
@@ -1049,7 +1061,7 @@ export const edHyperkalemia: Scenario = {
   ],
   timings: [
     DOOR_TO_ECG,
-    { label: '12-lead to calcium', actions: ['calcium-chloride'], flag: 'calcium', from: 'ecg12', target: 5 },
+    { label: '12-lead to calcium', actions: CALCIUMS, flag: 'calcium', from: 'ecg12', target: 5 },
     { label: 'Insulin with dextrose', actions: ['insulin-dextrose'], flag: 'insulin', target: 15 },
     { label: 'Glucose rechecked after the insulin', actions: [], flag: 'glucose-rechecked', from: 'insulin', target: 60 },
   ],

@@ -695,3 +695,15 @@ describe('the ER doctor', () => {
     expect(late(slow, /^Point-of-care ultrasound/)).toBe(true);
   });
 });
+
+describe('a diuretic in the tamponade', () => {
+  it('takes away the filling her squeezed heart lives on: the pressure falls, and one built-in rule charges it', () => {
+    const before = md(['perfusion', 'lungs', 'sample', 'pocus']);
+    const s = perform(sc, before, 'furosemide');
+    expect(s.vitals.sbp).toBeLessThan(before.vitals.sbp);
+    const charged = ids(s).filter((id) => id.startsWith('furosemide-'));
+    expect(charged).toHaveLength(1);
+    expect(['furosemide-hypotension', 'furosemide-preload-dependent']).toContain(charged[0]);
+    expect(said(s)).toMatch(/Her pressure is drifting down/);
+  });
+});

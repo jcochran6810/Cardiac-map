@@ -591,3 +591,18 @@ describe('SCAPE in the ED: the independent review\'s fixes', () => {
     expect(text).toMatch(/2026 meta-analysis/);
   });
 });
+
+describe('the IV nitroglycerin and the diuretic in the SCAPE case', () => {
+  it('the IV high-dose bolus is the early high dose, with the infusion running from it: no second infusion is hung', () => {
+    const s = md(['ems-handoff', 'cpap', 'lungs', 'iv', 'nitro-iv', 'sample', 'pocus', 'reassess', 'admit', 'handoff']);
+    expect(s.flags.drip).toBeDefined();
+    expect(s.fired).not.toContain('drip-on');
+    expect(said(s, 'nurse')).toContain('Nitroglycerin 400 micrograms IV over 2 minutes, then the infusion at 100 micrograms a minute.');
+    expect(missed(s)).not.toContain(criticalsFor(sc, 7).find((c) => c.id === 'md-nitro')!.label);
+  });
+
+  it('furosemide for a man who is not carrying extra fluid costs a little, once', () => {
+    const s = md(['ems-handoff', 'cpap', 'lungs', 'nitro-high', 'iv', 'furosemide']);
+    expect(ids(s).filter((id) => /furosemide|diuretic/.test(id))).toEqual(['diuretic-not-overloaded']);
+  });
+});

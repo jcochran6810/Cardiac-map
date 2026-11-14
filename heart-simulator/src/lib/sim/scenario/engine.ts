@@ -290,6 +290,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       const bp = bpAfter(s, 10, 6);
       return { say: [['you', `Unit ${(s.counts.transfuse ?? 0) + 1} of packed red cells checked at the bedside and running through the warmer.`], ...bpLine(s, bp)], vitals: bp, flags: ['transfused'] };
     }
+    case 'sit-up':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: compressions move the blood, not the position of the body.']] };
+      if (v.gcs <= 8) return { blocked: true, say: [['system', 'Not with a GCS of 8 or less: a patient this drowsy cannot hold the airway sitting up. Keep them on their side or flat, and support the breathing.']] };
+      return { say: [['you', 'Sitting upright, the legs hanging down.']], flags: ['sat-up'], clear: ['legs-up'] };
     case 'legs-up': {
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: compressions move the blood, not the position of the legs.']] };
       // about 300 mL of blood comes back from the legs for a few minutes
@@ -316,6 +320,39 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     }
     case 'nitro': return nitroEffect(s);
     case 'nitro-high': return nitroEffect(s, true);
+    case 'nitro-iv': {
+      // the high-dose IV bolus unloads like the 0.8 mg sublingual dose; then the infusion is titrated to the pressure
+      const e = nitroEffect(s, true);
+      if (!s.pulse) return e;
+      const given = did(s, 'nitro-iv') ? 'The nitroglycerin infusion titrated up, with the pressure checked every few minutes.' : 'Nitroglycerin 400 mcg IV over 2 minutes, then the infusion at 100 mcg/min.';
+      return { ...e, say: [['you', given], ...(e.say ?? [])], flags: ['nitro', 'nitro-high', 'nitro-iv'] };
+    }
+    case 'nicardipine': {
+      if (!s.pulse) return noRoleInArrest('Nicardipine', 'nicardipine');
+      // an arterial vasodilator: the pressure falls and the sinus node speeds a little (the reflex)
+      const bp = bpAfter(s, -20, -10);
+      const hr = sinusFaster(s, 6);
+      return {
+        say: [['you', 'Nicardipine infusion running at 5 mg/h, to be titrated up 2.5 mg/h every 5–15 minutes.'], ...bpLine(s, bp), ...(hr ? [['monitor', `Heart rate ${hr}.`] as Line] : [])],
+        vitals: bp, ...(hr ? { rhythm: atRate(s, hr) } : {}), flags: ['vasodilator', 'nicardipine'],
+      };
+    }
+    case 'inotrope': {
+      if (!s.pulse) return noRoleInArrest('The inotrope', 'inotrope');
+      // a stronger squeeze and some vasodilation: the systolic holds, the diastolic falls, the sinus node speeds a little
+      const bp = bpAfter(s, 2, -4);
+      const hr = sinusFaster(s, 6);
+      return {
+        say: [['you', 'Dobutamine infusion running at 2.5 mcg/kg/min, to be titrated to the output.'], ...bpLine(s, bp), ...(hr ? [['monitor', `Heart rate ${hr}.`] as Line] : [])],
+        vitals: bp, ...(hr ? { rhythm: atRate(s, hr) } : {}), flags: ['inotrope'],
+      };
+    }
+    case 'furosemide': {
+      if (!s.pulse) return noRoleInArrest('Furosemide', 'diuretic');
+      // the diuresis comes over the next hour: the pressure eases a little now
+      const bp = bpAfter(s, -4, -2);
+      return { say: [['you', 'Furosemide 40 mg IV; a urinary catheter and the hourly output to follow.'], ...bpLine(s, bp)], vitals: bp, flags: ['diuretic'] };
+    }
     case 'fentanyl': {
       // no flag 'analgesia' in arrest: nothing was relieved, and it must not count as analgesia for a later shock
       if (!s.pulse) return noRoleInArrest('Fentanyl', 'fentanyl');
@@ -334,6 +371,25 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       const hr = Math.min(s.rhythm.hr, Math.max(40, s.rhythm.hr - 10));
       return { say: bpLine(s, bp, 'Metoprolol given.'), vitals: bp, ...(paced(s) ? {} : { rhythm: atRate(s, hr) }), flags: ['beta-blocker'] };
     }
+    case 'esmolol':
+    case 'labetalol': {
+      // as metoprolol: labetalol blocks the alpha receptors too, so the pressure falls further
+      const name = id === 'esmolol' ? 'Esmolol' : 'Labetalol';
+      if (!s.pulse) return noRoleInArrest(name, 'beta-blocker');
+      const bp = id === 'esmolol' ? bpAfter(s, -10, -6) : bpAfter(s, -16, -10);
+      const given = id === 'esmolol'
+        ? 'Esmolol 500 mcg/kg over 1 minute; the infusion running at 50 mcg/kg/min.'
+        : (s.counts.labetalol ?? 0) === 0 ? 'Labetalol 20 mg IV over 2 minutes.' : 'Another labetalol dose: 40 mg IV over 2 minutes.';
+      if (preexcitedAf(s)) return { say: [['you', given], ...bpLine(s, bp), pathwayFaster], vitals: bp, rhythm: fasterDownPathway(s), flags: ['beta-blocker', id] };
+      // only the heart's own rate slows (a pacer holds its own), not below 40, and never up to 40 from a slower one
+      const hr = Math.min(s.rhythm.hr, Math.max(40, s.rhythm.hr - (id === 'esmolol' ? 10 : 8)));
+      return { say: [['you', given], ...bpLine(s, bp)], vitals: bp, ...(paced(s) ? {} : { rhythm: atRate(s, hr) }), flags: ['beta-blocker', id] };
+    }
+    case 'metoprolol-po':
+      // a tablet: nothing by mouth in an arrest or for a patient too drowsy to swallow; no change in the next minutes
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: a tablet goes by mouth, and nothing goes in the mouth of a patient who cannot swallow.']] };
+      if (!canSwallow(s)) return { blocked: true, say: [['system', 'Metoprolol by mouth needs a patient awake enough to swallow safely: nothing by mouth until then.']] };
+      return { say: [['you', 'Metoprolol tartrate 25 mg by mouth; the next dose in 12 hours.'], ...ifAwake(s, 'Swallows the tablet with a sip of water.')], flags: ['beta-blocker', 'metoprolol-po'] };
     case 'atropine': {
       if (!s.pulse) return noRoleInArrest('Atropine', 'atropine');
       // it blocks the vagus at the sinus node: a slow sinus rate comes up to 74, a faster one climbs a little. A rhythm
@@ -484,6 +540,9 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
 
     // Electrolytes, antidotes and glucose: by themselves they change no rhythm (only the case knows whether the
     // patient's potassium, overdose or glucose is what they treat), so a case that uses them writes its own response
+    case 'calcium-gluconate':
+      if (!s.pulse) return { say: [['you', `Calcium gluconate 3 g pushed and flushed${compressionsGoOn(s)}.`]], flags: ['calcium'] };
+      return { say: [['you', 'Calcium gluconate 3 g IV over 5–10 minutes; line flushed.']], flags: ['calcium'] };
     case 'calcium-chloride':
       // given slowly with a pulse, as the label says, so no bradycardia from a fast push; it burns going in
       if (!s.pulse) return { say: [['you', `Calcium chloride 1 g pushed and flushed${compressionsGoOn(s)}.`]], flags: ['calcium'] };

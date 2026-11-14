@@ -328,6 +328,26 @@ describe('the traps: wrong care does what it would, and costs points', () => {
     expect(nurse.log.some((l) => l.who === 'operator' && /Turn it off/.test(l.text))).toBe(true);
   });
 
+  it('an inotrope drives the base harder: the gradient climbs, and the case\'s rule alone charges it (one dose, one penalty)', () => {
+    const s = run(sc, 5, [...MD_TO_GRADIENT, 'inotrope']);
+    expect(s.vitals.sbp).toBeLessThan(79);
+    expect(penalties(s)).toEqual(['inotrope-lvoto']);
+    expect(s.log.some((l) => /Dobutamine started/.test(l.text))).toBe(true);
+    const nurse = run(sc, 4, [...RN_TO_DROP, 'callout', 'inotrope']);
+    expect(penalties(nurse)).toEqual(['inotrope-lvoto']);
+    expect(nurse.log.some((l) => l.who === 'operator' && /Stop the dobutamine/.test(l.text))).toBe(true);
+  });
+
+  it('a diuretic during the obstruction empties the ventricle: the gradient climbs; once it is relieved the built-in rules judge it', () => {
+    const s = run(sc, 5, [...MD_TO_GRADIENT, 'furosemide']);
+    expect(s.vitals.sbp).toBeLessThan(79);
+    expect(penalties(s)).toEqual(['diuretic-lvoto']);
+    // relieved, with a pressure that holds: no fluid overload declared, so only the built-in "no indication"
+    const relieved = run(sc, 5, [...MD.slice(0, MD.indexOf('phenylephrine') + 1), 'furosemide']);
+    expect(relieved.flags.relieved).toBeDefined();
+    expect(penalties(relieved)).toEqual(['furosemide-no-indication']);
+  });
+
   it('1 mg of epinephrine with a pulse is the built-in critical error, scored once', () => {
     const s = run(sc, 5, [...MD_TO_GRADIENT, 'epinephrine']);
     expect(penalties(s)).toEqual(['arrest-epi-with-pulse']);

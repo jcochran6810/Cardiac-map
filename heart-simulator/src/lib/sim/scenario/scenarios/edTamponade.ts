@@ -498,6 +498,15 @@ export const edTamponade: Scenario = {
     },
     nitro: (s) => nitroCrash(s, false),
     'nitro-high': (s) => nitroCrash(s, true),
+    // a diuretic takes away the filling her squeezed heart lives on (the built-in rules charge it: a preload-dependent heart)
+    furosemide: (s) => {
+      if (!s.pulse || drained(s)) return null;
+      const { bp, hr } = drop(s, 10, 6, 6);
+      return {
+        say: [...given(s, 'Furosemide 40 mg IV.', 'Furosemide 40 mg IV in.'), rateBp(hr, bp, 'bad'), [helper(s), 'Her pressure is drifting down, and she is paler.', 'bad']],
+        vitals: bp, rhythm: atRate(s, hr), flags: ['diuretic'],
+      };
+    },
     // positive pressure in the chest pushes back against the blood trying to reach her squeezed right heart
     cpap: (s) => {
       if (!s.pulse || drained(s)) return null;

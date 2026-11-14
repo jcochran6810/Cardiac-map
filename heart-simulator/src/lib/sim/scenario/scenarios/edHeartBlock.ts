@@ -140,10 +140,13 @@ function wireIn(s: SimState, who: Speaker): Effect {
   };
 }
 
+/** Calcium chloride 1 g, or calcium gluconate 3 g (the same calcium, gentler on a peripheral vein): either answers */
+const CALCIUMS = ['calcium-chloride', 'calcium-gluconate'];
+
 /** Calcium: the membrane steadied within minutes — a pacer whose threshold had climbed brings every beat again */
-function calcium(s: SimState, who: Speaker): Effect {
-  const given = line(who, 'Calcium chloride 1 g IV, in slowly over a few minutes; the line flushed.');
-  const burns: Line[] = s.vitals.gcs >= 13 ? [['patient', '"That burns going up my arm."']] : [];
+function calcium(s: SimState, who: Speaker, gluconate = false): Effect {
+  const given = line(who, gluconate ? 'Calcium gluconate 3 g IV over 5–10 minutes; the line flushed.' : 'Calcium chloride 1 g IV, in slowly over a few minutes; the line flushed.');
+  const burns: Line[] = s.vitals.gcs >= 13 && !gluconate ? [['patient', '"That burns going up my arm."']] : [];
   if (has(s, 'lost-capture')) {
     const bp = atLeast(s, 96, 58);
     return {
@@ -252,7 +255,8 @@ const CALCIUM: LabAsk = {
   id: 'calcium', role: 6, speaker: 'physician',
   when: (s) => kWithMd(s) && !has(s, 'calcium'),
   ask: 'Calcium chloride 1 gram IV, slowly over a few minutes — now.',
-  accept: ['calcium-chloride'],
+  // calcium gluconate 3 g is the same calcium (what a peripheral line takes more kindly)
+  accept: CALCIUMS,
   thanks: 'Thank you. That buys us time while the potassium comes down.',
   fallback: 'I will push the calcium myself.',
   fallbackEffect: (s) => calcium(s, 'physician'),
@@ -410,6 +414,7 @@ export const edHeartBlock: Scenario = {
       };
     },
     'calcium-chloride': (s) => (s.pulse ? calcium(s, edNurse(s)) : null),
+    'calcium-gluconate': (s) => (s.pulse ? calcium(s, edNurse(s), true) : null),
     'insulin-dextrose': (s) => insulin(s, edNurse(s)),
     // epinephrine (or dopamine) speeds the escape a little and squeezes harder: a bridge, not the answer
     pressor: (s) => {
@@ -747,10 +752,10 @@ export const edHeartBlock: Scenario = {
       // calcium given only after the potassium stopped the pacer (never measured, or known and left) is not "at once"
       id: 'md-calcium', label: 'Potassium 6.9 with a conduction block: IV calcium at once', roles: ED_MD, points: 10,
       done: (s) => {
-        const m = firstDone(s, ['calcium-chloride']);
+        const m = firstDone(s, CALCIUMS);
         return m !== null && kLeftToFail(s) && m >= s.flags['k-rising'] ? null : m;
       },
-      uses: ['calcium-chloride'],
+      uses: CALCIUMS,
       target: { within: { flag: 'k-known', minutes: 4 } }, applies: kNeeded,
       why: 'Calcium steadies the heart\'s membranes within minutes (it does not lower the potassium): calcium chloride 1 g through a good vein, or calcium gluconate, repeated if the ECG does not improve. A high potassium also raises the pacing threshold.',
     },
@@ -833,7 +838,7 @@ export const edHeartBlock: Scenario = {
     DOOR_TO_ECG,
     { label: 'Pads on', actions: [], flag: 'pads', target: 4 },
     { label: 'Pacing (or an infusion) started', actions: ['pace', 'pressor'], flag: 'paced', target: 8 },
-    { label: 'Critical potassium to calcium', actions: ['calcium-chloride'], flag: 'calcium', from: 'k-known', target: 4 },
+    { label: 'Critical potassium to calcium', actions: CALCIUMS, flag: 'calcium', from: 'k-known', target: 4 },
     { label: 'Transvenous wire in', actions: ['temp-wire'], flag: 'wire-in' },
   ],
   teaching: [

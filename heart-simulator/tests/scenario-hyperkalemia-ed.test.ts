@@ -626,3 +626,23 @@ describe('review fixes: the story, the orders and the rechecks', () => {
     expect(said(md(['primary', 'capno']))).toMatch(/EtCO₂ 24 mmHg/);
   });
 });
+
+describe('the new hospital drugs in the hyperkalemia case', () => {
+  const gluconate = (steps: string[]) => steps.map((id) => (id === 'calcium-chloride' ? 'calcium-gluconate' : id));
+
+  it('calcium gluconate 3 g answers every calcium order and item, as the chloride does: full marks', () => {
+    for (const role of [6, 7] as const) {
+      const s = runScenario(sc, role, gluconate(IDEAL[role]));
+      expect(s.penalties, `role ${role}`).toEqual([]);
+      expect(review(sc, s).percent, `role ${role}`).toBe(100);
+      expect(said(s)).toMatch(/Calcium gluconate 3 g IV through the right antecubital line/);
+    }
+  });
+
+  it('furosemide is an add-on while he still makes urine: said so, at no cost once his pressure holds', () => {
+    const s = md(['primary', 'opqrst', 'calcium-chloride', 'furosemide']);
+    expect(ids(s)).toEqual([]);
+    expect(said(s)).toMatch(/an add-on, never instead of calcium, the shift and dialysis/);
+    expect(has(s, 'diuretic')).toBe(true);
+  });
+});

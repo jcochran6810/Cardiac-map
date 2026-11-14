@@ -420,6 +420,27 @@ export const edScape: Scenario = {
     // the nitrates: the ER nurse gives them in person; in the ER doctor's run the computer nurse gives them on the doctor's order
     nitro: (s) => nitrate(s, 'standard', edNurse(s)),
     'nitro-high': (s) => nitrate(s, 'high', edNurse(s)),
+    // the IV high dose: the bolus the sublingual 0.8 mg stands in for, and the infusion behind it (the 'drip')
+    'nitro-iv': (s) => {
+      if (!s.pulse) return null;
+      const better = has(s, 'better');
+      const bp = bpAfter(s, better ? -34 : -28, better ? -18 : -12, CEILING);
+      const easing = !better && onNiv(s);
+      const spo2 = easing ? Math.min(96, s.vitals.spo2 + 2) : s.vitals.spo2;
+      const rr = easing ? Math.max(20, s.vitals.rr - 2) : s.vitals.rr;
+      const what = has(s, 'drip') ? 'The nitroglycerin infusion titrated up, his pressure checked every few minutes.' : 'Nitroglycerin 400 micrograms IV over 2 minutes, then the infusion at 100 micrograms a minute.';
+      const low = bp.sbp < 110;
+      return {
+        say: [[edNurse(s), what], line('monitor', `BP ${bp.sbp}/${bp.dbp}.`, low ? 'bad' : undefined), ...(low ? says(s, '"I feel… light-headed."', 'bad') : [])],
+        vitals: { ...bp, spo2, rr }, flags: ['nitro', 'nitro-high', 'nitro-iv', 'drip'],
+      };
+    },
+    // he is not carrying extra fluid (a steady weight, no leg swelling, an IVC that narrows): the diuretic only dries him out
+    furosemide: (s) => {
+      if (!s.pulse) return null;
+      const bp = bpAfter(s, -4, -2);
+      return { say: [[edNurse(s), 'Furosemide 40 mg IV.'], line('monitor', `BP ${bp.sbp}/${bp.dbp}.`)], vitals: bp, flags: ['diuretic'] };
+    },
     // the traps: more volume, laid flat, an opioid, a negative inotrope, a pressor
     fluid: (s) => {
       if (!s.pulse) return null;
@@ -577,7 +598,8 @@ export const edScape: Scenario = {
     {
       // the infusion the physician ordered with the high dose: it needs a line (and, in the nurse's run, the physician's order)
       id: 'drip-on',
-      when: (s) => s.pulse && highDose(s) && has(s, 'iv') && !has(s, 'airway') && (doctorRun(s) || has(s, 'md-here')) && s.minute >= s.flags['nitro-high'] + DRIP_DELAY,
+      // (not when the IV bolus already started it)
+      when: (s) => s.pulse && highDose(s) && !has(s, 'drip') && has(s, 'iv') && !has(s, 'airway') && (doctorRun(s) || has(s, 'md-here')) && s.minute >= s.flags['nitro-high'] + DRIP_DELAY,
       effect: (s) => {
         const bp = bpAfter(s, -10, -6);
         return {
@@ -844,7 +866,7 @@ export const edScape: Scenario = {
       why: 'Crackles to the apices with froth and no wheeze: fluid in the lungs, not asthma or COPD — what tells you positive pressure and nitrates will help, and fluid and albuterol will not.',
     },
     {
-      id: 'md-nitro', label: 'High-dose nitroglycerin early: 0.8 mg sublingual now, an infusion to follow', roles: ED_MD, points: 20, target: { by: 6 }, done: ['nitro-high'],
+      id: 'md-nitro', label: 'High-dose nitroglycerin early: 0.8 mg sublingual now, an infusion to follow', roles: ED_MD, points: 20, target: { by: 6 }, done: ['nitro-high', 'nitro-iv'],
       why: 'His pressure is what floods his lungs: high-dose nitroglycerin takes it off within minutes (the ACEP 2022 clinical policy: an option to consider for acute heart failure with a high pressure, Level C). 0.8 mg under the tongue or an IV bolus at once, then an infusion at 100 micrograms a minute or more, titrated down as the pressure falls. The 0.4 mg doses the crew gave are a chest pain dose; low doses alone leave him tiring.',
     },
     {
@@ -899,6 +921,11 @@ export const edScape: Scenario = {
         return s.minute - last.minute < 3 || !s.performed.some((p) => BP_CHECKS.includes(p.id) && p.minute > last.minute);
       },
       text: 'A repeat nitroglycerin dose too soon or without a fresh blood pressure. Repeat it every 5 minutes (3 at the least), with the pressure checked before each: the mask and the doses already given keep lowering it.',
+    },
+    {
+      id: 'diuretic-not-overloaded', actions: ['furosemide'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      replaces: ['furosemide-hypotension', 'furosemide-preload-dependent', 'furosemide-anuria', 'furosemide-no-indication'],
+      text: 'IV furosemide for a man who is not carrying extra fluid. In this pressure surge the fluid has moved into his lungs, not onto his body (a steady weight, no leg swelling, an IVC that still narrows): positive pressure and high-dose nitrates move it back. A loop diuretic is for signs of volume overload, once the pressure is controlled (2022 AHA/ACC/HFSA heart failure guideline).',
     },
     {
       id: 'nitro-high-below-160', actions: ['nitro-high'], when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
@@ -980,7 +1007,7 @@ export const edScape: Scenario = {
     DOOR_TO_ECG,
     { label: 'On the department\'s BiPAP, without a gap', actions: ['cpap'], target: 3 },
     // the physician's own dose (the nurse's run, if the nurse never gave it) counts by its flag
-    { label: 'First high-dose nitroglycerin', actions: ['nitro-high'], flag: 'nitro-high', target: 6 },
+    { label: 'First high-dose nitroglycerin', actions: ['nitro-high', 'nitro-iv'], flag: 'nitro-high', target: 6 },
     { label: 'Breathing easier (SpO₂ in the mid-90s, full sentences)', actions: [], flag: 'better' },
   ],
   teaching: [

@@ -731,9 +731,13 @@ export const cathlabScad: Scenario = {
     askCritical(TECH_ASKS[1]),
     askCritical(RN_ASKS[1]),
     askCritical(RN_ASKS[2]),
-    // no beta-blocker item for the cardiologist: IV metoprolol in the lab is reasonable here, but starting it by mouth on the
-    // unit is just as right (AHA 2018: "should be considered"), and the simulator has no oral beta-blocker to give — the
-    // hand-off and the teaching carry it instead. The nurse gives it because the operator orders it
+    // the cardiologist's beta-blocker: IV metoprolol in the lab or metoprolol by mouth are both right (AHA 2018: "should be
+    // considered"). The nurse gives it because the operator orders it
+    {
+      id: 'md-bb', label: 'A beta-blocker once the SCAD is seen: IV metoprolol, or by mouth', roles: MD, points: 5, applies: (s) => has(s, 'scad'),
+      why: 'A beta-blocker brings down the rate and the force of each beat, and with them the stress on the torn wall; it is part of the care after SCAD (2018 AHA scientific statement: it should be considered). IV metoprolol in the lab or metoprolol by mouth are both right — not with a low pressure, a slow rate or a failing ventricle.',
+      done: (s) => firstDone(s, ['metoprolol', 'metoprolol-po'], 'scad'), uses: ['metoprolol', 'metoprolol-po'],
+    },
     askCritical(RN_ASKS[3]),
     askCritical(TECH_ASKS[2]),
     { id: 'md-pain', label: 'Treat the ache — not with a stent', why: 'Pain after SCAD can come from the torn wall itself. Treat it (fentanyl, or nitroglycerin), repeat the 12-lead, and go back in only for new ischemia on the ECG, an arrhythmia or failing flow: chest pain alone is no reason to intervene.', done: PAIN_RELIEF, after: 'ache', roles: MD, points: 5, target: { within: { flag: 'ache', minutes: 5 } }, applies: (s) => has(s, 'ache') },

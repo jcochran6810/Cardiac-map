@@ -262,7 +262,7 @@ function handoffText(s: SimState): string {
   const gave = listOf([has(s, 'fluid') && 'saline', has(s, 'phenylephrine') && 'phenylephrine', has(s, 'beta-blocker') && 'metoprolol', has(s, 'impella') && 'an Impella']
     .filter((x): x is string => !!x));
   const worse = listOf([
-    has(s, 'catecholamine') && 'a catecholamine', has(s, 'nitrate') && 'a nitrate', has(s, 'iabp') && 'a balloon pump',
+    has(s, 'catecholamine') && 'a catecholamine', has(s, 'nitrate') && 'a nitrate', has(s, 'diuretic') && 'a diuretic', has(s, 'iabp') && 'a balloon pump',
     has(s, 'diltiazem') && 'diltiazem', (has(s, 'benzodiazepine') || has(s, 'sedation-worse')) && 'sedation',
   ].filter((x): x is string => !!x));
   const site = has(s, 'femoral') ? 'the femoral sheath is out, with pressure held' : 'the radial band is on';
@@ -551,6 +551,20 @@ export const cathlabTakotsubo: Scenario = {
         : line('operator', 'She\'s worse on it — the base is whipping harder. Turn it off!', 'warn')];
       return withGradient(s, gradientOf(s) + 15, { lead: [['you', 'Norepinephrine started at 0.1 mcg/kg/min.']], after, flags: ['pressor', 'catecholamine'] });
     },
+    // dobutamine is a catecholamine, and milrinone drives the squeeze the same way: the base whips harder
+    inotrope: (s) => {
+      if (!s.pulse) return null;
+      const after: Line[] = [s.role === 5
+        ? line('team', 'Nurse: "Doctor — she\'s lower on it, and that murmur is louder. I\'m stopping it."', 'warn')
+        : line('operator', 'She\'s worse on it — the base is squeezing harder. Stop the dobutamine!', 'warn')];
+      return withGradient(s, gradientOf(s) + 15, { lead: [['you', 'Dobutamine started at 2.5 mcg/kg/min.']], after, flags: ['inotrope', 'catecholamine'] });
+    },
+    // a diuretic empties the ventricle that needs filling to hold its outflow tract open (with the gradient down the
+    // built-in rules judge it: a cautious dose for volume overload with a pressure that holds may be considered)
+    furosemide: (s) => {
+      if (!s.pulse || !obstructing(s)) return null;
+      return withGradient(s, gradientOf(s) + 10, { lead: [['you', 'Furosemide 40 mg IV.']], after: [nurse(s, 'Her pressure is drifting down again.', 'warn')], flags: ['diuretic'] });
+    },
     'push-epi': (s) => {
       if (!s.pulse) return null;
       return withGradient(s, gradientOf(s) + 20, { lead: [['you', 'Push-dose epinephrine 20 mcg IV.']], after: [nurse(s, 'The murmur is roaring now.', 'bad')], flags: ['push-epi', 'catecholamine'] });
@@ -832,6 +846,17 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi'], roles: [4, 5], when: (s) => s.pulse, points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
     { id: 'catecholamine-lvoto-ic', actions: ['ic-epinephrine'], roles: MD, when: (s) => s.pulse, points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
+    // the case's own obstruction (a flag, not a Problem: it begins on the table): it stands in for every built-in inotrope rule
+    {
+      id: 'inotrope-lvoto', actions: ['inotrope'], roles: [4, 5], when: (s) => s.pulse, points: 10, severity: 'major',
+      replaces: ['inotrope-lvot-obstruction', 'inotrope-unsupported-hypotension', 'inotrope-tachyarrhythmia'],
+      text: 'An inotrope in Takotsubo syndrome with outflow obstruction. Dobutamine (a catecholamine) and milrinone both push the contractility up: the hyperdynamic base squeezes harder, the outflow tract narrows, the gradient climbs and the pressure falls (dobutamine and milrinone labels: obstructive subaortic disease; 2024 AHA/ACC HCM guideline). For a low pressure with outflow obstruction: fluid, then phenylephrine; if those fail, mechanical support.',
+    },
+    {
+      id: 'diuretic-lvoto', actions: ['furosemide'], roles: [4, 5], when: (s) => s.pulse && obstructing(s), points: 8, severity: 'major',
+      replaces: ['furosemide-hypotension', 'furosemide-preload-dependent', 'furosemide-anuria', 'furosemide-no-indication'],
+      text: 'A diuretic during the outflow obstruction. A ventricle that obstructs needs filling to hold its outflow tract open: taking volume off narrows it further, and the gradient climbs as the pressure falls (2024 AHA/ACC HCM guideline: no diuretics in hypotension with obstruction). Fluid and phenylephrine instead.',
+    },
     { id: 'nitrate-lvoto', actions: ['nitro', 'nitro-high'], roles: [4, 5], replaces: ['nitro-hypotension'], when: (s) => s.pulse && has(s, 'obstructed'), points: 10, severity: 'major', text: NITRATE_TEXT },
     { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail'], roles: MD, when: (s) => s.pulse && has(s, 'obstructed'), replaces: ['nitro-hypotension'], points: 10, severity: 'major', text: NITRATE_TEXT },
     // the built-in rule, kept for the time before the fall (afterwards nitrate-lvoto covers it): one mistake, one penalty

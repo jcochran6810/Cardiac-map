@@ -160,12 +160,21 @@ export const INTERVENTIONS: Intervention[] = [
   // hypertensive acute pulmonary edema (SCAPE): the sublingual high dose most US EMS protocols carry (IV infusions are not
   // carried by most services), with CPAP
   { id: 'nitro-high', label: 'Nitroglycerin 0.8 mg sublingual (high dose, pulmonary edema)', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'two 0.4 mg tablets or sprays every 5 min while the systolic stays 160 or more (1.2 mg over 200 in some protocols), with CPAP; step down to 0.4 mg below 160', repeatable: true, maxTimes: 3 },
+  // hypertensive pulmonary edema in hospital: the IV bolus and infusion the sublingual high dose stands in for in the field
+  { id: 'nitro-iv', label: 'Nitroglycerin IV: high-dose bolus, then an infusion', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 1, repeatable: true, maxTimes: 3, needsAccess: true, detail: 'hypertensive pulmonary edema: 400–1,000 mcg over 1–2 min, then 100–400 mcg/min titrated; hold under systolic 90; never within 24 h of sildenafil or vardenafil (48 h tadalafil) or with riociguat, and not with an RV infarct, tamponade or outflow obstruction' },
   { id: 'fentanyl', label: 'Fentanyl IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '25–50 mcg (0.5–1 mcg/kg)', repeatable: true, maxTimes: 3, needsAccess: true },
   // the dose depends on where it is given: the lab the PCI dose, the ED the ACS (or fibrinolytic) bolus and infusion
   { id: 'heparin', label: 'Unfractionated heparin IV bolus', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, detail: '70–100 U/kg for primary PCI', detailBySetting: { ed: 'weight-based: 60 U/kg (max 4,000 U), then 12 U/kg/h (max 1,000 U/h) for ACS; for a pulmonary embolism 80 U/kg, then 18 U/kg/h; the cath lab tops it up for PCI — not with heparin-induced thrombocytopenia, active bleeding or a possible aortic dissection' }, repeatable: true, maxTimes: 3, needsAccess: true },
   { id: 'p2y12', label: 'P2Y12 loading dose', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, detail: 'ticagrelor 180 mg (or prasugrel 60 mg)', detailBySetting: { ed: 'by mouth: ticagrelor 180 mg (prasugrel 60 mg only once the anatomy is known); with a fibrinolytic, clopidogrel 300 mg (75 mg over age 75)' } },
   { id: 'metoprolol', label: 'Metoprolol IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '5 mg', needsAccess: true },
+  // the titratable IV beta-blockers in hospital (a dissection's anti-impulse therapy, a rate to bring down for minutes),
+  // and the oral one started on the unit
+  { id: 'esmolol', label: 'Esmolol IV: 500 mcg/kg over 1 min, then an infusion', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 1, needsAccess: true, detail: 'then 50–300 mcg/kg/min, titrated to a heart rate of 60–80; not with a rate under 50, AV block beyond the first degree, cardiogenic shock, decompensated heart failure, pulmonary hypertension, or IV diltiazem/verapamil' },
+  { id: 'labetalol', label: 'Labetalol IV: 20 mg over 2 min (repeat 40–80 mg every 10 min)', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 2, repeatable: true, maxTimes: 3, needsAccess: true, detail: 'an alpha and beta blocker, to a heart rate of 60–80 and a lower pressure; not with asthma, heart failure, AV block, a slow rate or shock' },
+  { id: 'metoprolol-po', label: 'Metoprolol by mouth', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.3, detail: 'metoprolol tartrate 25 mg, then twice daily — hold for heart-failure signs, a systolic under 100, a rate under 60, AV block, bronchospasm or cocaine' },
   { id: 'atropine', label: 'Atropine IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '1 mg, every 3–5 min, max 3 mg', repeatable: true, maxTimes: 3, needsAccess: true },
+  // the first dose with a central line, a transplanted heart, dipyridamole or carbamazepine (they make adenosine stronger)
+  { id: 'adenosine3', label: 'Adenosine 3 mg rapid IV push (central line, transplanted heart, dipyridamole or carbamazepine)', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'with a 20 mL flush', needsAccess: true },
   { id: 'adenosine6', label: 'Adenosine 6 mg rapid IV push', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'with a 20 mL flush', needsAccess: true },
   { id: 'adenosine12', label: 'Adenosine 12 mg rapid IV push', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'with a 20 mL flush', repeatable: true, maxTimes: 2, needsAccess: true },
   { id: 'diltiazem', label: 'Diltiazem IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '0.25 mg/kg over 2 min', needsAccess: true },
@@ -173,6 +182,11 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'amio-arrest', label: 'Amiodarone IV/IO push (cardiac arrest)', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '300 mg, then 150 mg', repeatable: true, maxTimes: 2, needsAccess: true },
   { id: 'amio-infusion', label: 'Amiodarone 150 mg IV over 10 min', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'tachycardia with a pulse', needsAccess: true },
   { id: 'lidocaine', label: 'Lidocaine IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '1–1.5 mg/kg', needsAccess: true },
+  // the infusions of the hospital: a vasodilator for a high pressure, an inotrope for low output, a loop diuretic for congestion
+  // (prehospital furosemide is no longer in US EMS protocols)
+  { id: 'nicardipine', label: 'Nicardipine infusion IV (or clevidipine)', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 1, needsAccess: true, detail: '5 mg/h, up 2.5 mg/h every 5–15 min to 15 mg/h (clevidipine 1–2 mg/h, doubled every 90 s); in a dissection only after the beta-blocker; not with severe aortic stenosis or a low pressure (clevidipine: not with a soy or egg allergy)' },
+  { id: 'inotrope', label: 'Inotrope infusion (dobutamine or milrinone)', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 1, needsAccess: true, detail: 'dobutamine 2.5–10 mcg/kg/min (or milrinone 0.125–0.75 mcg/kg/min, no routine bolus, a lower dose with kidney disease); for low output with an adequate pressure — never with LV outflow obstruction' },
+  { id: 'furosemide', label: 'Furosemide IV (loop diuretic)', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, needsAccess: true, detail: '40 mg IV, or 1–2.5 times the home oral dose IV; not with a low pressure, a dry patient, a preload-dependent heart (tamponade, RV infarct, outflow obstruction) or no urine' },
   { id: 'push-epi', label: 'Push-dose epinephrine', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '10–20 mcg IV, repeat as needed', repeatable: true, needsAccess: true },
   { id: 'pressor', label: 'Vasopressor infusion', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'norepinephrine, epinephrine or dopamine, titrated to MAP ≥ 65', needsAccess: true },
   // the ER nurse gives midazolam and fentanyl on the physician's order; the ER doctor's procedural sedation is its own action
@@ -207,6 +221,8 @@ export const INTERVENTIONS: Intervention[] = [
 
   // Electrolytes, antidotes and glucose: offered in the field and in the lab alike (oral glucose in the field only)
   { id: 'calcium-chloride', label: 'Calcium chloride 1 g IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: '10 mL of 10 %, over 2–5 min with a pulse (a push in arrest); flush the line', repeatable: true, maxTimes: 3, needsAccess: true },
+  // the peripheral-line calcium (calcium chloride is a vesicant: a central line is preferred for it)
+  { id: 'calcium-gluconate', label: 'Calcium gluconate 3 g IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 1, repeatable: true, maxTimes: 3, needsAccess: true, detail: '30 mL of 10 % over 5–10 min (a push in arrest); safer through a peripheral line; repeat if the ECG changes persist; not in the bicarbonate line' },
   { id: 'sodium-bicarbonate', label: 'Sodium bicarbonate 50 mEq IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '50 mL of 8.4 % (about 1 mEq/kg); flush before and after calcium', repeatable: true, maxTimes: 3, needsAccess: true },
   { id: 'insulin-dextrose', label: 'Insulin 10 units IV with dextrose 25 g', category: 'meds', roles: HOSPITAL_RN_MD, minutes: 0.5, detail: 'regular insulin push, then D50 50 mL; recheck the glucose every hour', needsAccess: true },
   { id: 'magnesium-sulfate', label: 'Magnesium sulfate 2 g IV/IO', category: 'meds', roles: ALS_RN_MD, minutes: 1, detail: 'diluted, over about 15 min with a pulse (a push in pulseless torsades)', repeatable: true, maxTimes: 2, needsAccess: true },
@@ -224,6 +240,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'pace', label: 'Transcutaneous pacing', category: 'resus', roles: MANUAL, minutes: 1, repeatable: true, detail: 'rate 70, raise mA until capture' },
   { id: 'vagal', label: 'Vagal maneuver (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5 },
   { id: 'hs-ts', label: 'Look for reversible causes (Hs and Ts)', category: 'resus', roles: ALS_RN_MD, minutes: 0.5 },
+  { id: 'sit-up', label: 'Sit the patient up, legs down', category: 'resus', roles: ALL, minutes: 0.2, detail: 'upright, the legs hanging down: less blood returns to a heart that is backing up into the lungs, and the breathing is easier' },
   { id: 'legs-up', label: 'Lay flat and raise the legs', category: 'resus', roles: ALL, minutes: 0.3, detail: 'about 45°: blood from the legs returns to the heart for a few minutes' },
 
   // Procedures (cath lab; the ER doctor drains the pericardium at the bedside)

@@ -410,13 +410,17 @@ describe('SCAD in the cath lab: the independent review', () => {
   const TO_ENGAGE = MD.slice(0, MD.indexOf('cath-jl4') + 1);
   const handoff = (s: SimState) => s.log.find((l) => /^SBAR hand-off/.test(l.text))!.text;
 
-  it('a beta-blocker is not required in the lab: starting it by mouth on the unit is right too, and the hand-off says so', () => {
-    expect(criticalsFor(sc, 5).map((c) => c.id)).not.toContain('md-bb');
-    const s = run(sc, 5, MD.filter((id) => id !== 'metoprolol'));
-    expectFullMarks(s);
-    expect(handoff(s)).toMatch(/Metoprolol by mouth to start on the unit/);
+  it('the beta-blocker can be IV in the lab or by mouth: either counts, and the hand-off says it was started', () => {
+    expect(criticalsFor(sc, 5).find((c) => c.id === 'md-bb')).toMatchObject({ points: 5, uses: ['metoprolol', 'metoprolol-po'] });
+    const oral = run(sc, 5, MD.map((id) => (id === 'metoprolol' ? 'metoprolol-po' : id)));
+    expectFullMarks(oral);
+    expect(handoff(oral)).toMatch(/Metoprolol started/);
     // and IV metoprolol in the stable patient costs nothing (the ideal run gives it)
     expect(handoff(run(sc, 5, MD))).toMatch(/Metoprolol started/);
+    // none at all: the item is missed, and the hand-off leaves it for the unit
+    const none = run(sc, 5, MD.filter((id) => id !== 'metoprolol'));
+    expect(missed(none)).toEqual(['A beta-blocker once the SCAD is seen: IV metoprolol, or by mouth']);
+    expect(handoff(none)).toMatch(/Metoprolol by mouth to start on the unit/);
   });
 
   it('IV metoprolol once the spread hematoma has made the wall ischemic again (rate over 110, pressure falling) is a major error', () => {
