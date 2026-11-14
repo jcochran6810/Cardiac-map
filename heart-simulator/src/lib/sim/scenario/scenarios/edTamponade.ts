@@ -1004,15 +1004,25 @@ export const edTamponade: Scenario = {
       text: 'Sending her out of the department with the fluid still on. Tamponade with shock is drained where she is, now: she can arrest in the elevator, in the CCU before anyone is ready, or in an ambulance far from a needle — and the cardiologist is tied up for the next 45 minutes.',
     },
     {
-      // one penalty for the drug that has no place in PEA: for the nurse it also stands for the missing order of those that
-      // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
+      // one penalty for the drug that has no place in PEA. The ER nurse's lidocaine and arrest dose of amiodarone need no
+      // order in an arrest (they are the code leader's): her other drugs are the twin below, which also stands for the order
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'procainamide', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem'],
-      roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      roles: ED_TEAM, when: (s, _sc, id) => !s.pulse && (s.role !== 6 || ['amio-arrest', 'lidocaine'].includes(id)), points: 3, severity: 'minor',
       replaces: [
         'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
         ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
       ],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
+    },
+    {
+      // the nurse's version also stands for the missing order, at the order's weight, and says so
+      id: 'antiarrhythmic-pea-rn', actions: ['amio-infusion', 'procainamide', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem'],
+      roles: ED_RN, when: (s) => !s.pulse, points: 5, severity: 'major',
+      replaces: [
+        'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
+        ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
+      ],
+      text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, metoprolol and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },
   ],
   timings: [
