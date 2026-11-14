@@ -1,4 +1,4 @@
-import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../types';
+import type { Critical, Effect, Line, Scenario, ScenarioEvent, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
@@ -39,6 +39,10 @@ const ARREST_SBP = 62;
 
 /** Minutes a push of push-dose epinephrine holds the pressure: a bridge to the infusion */
 const PUSH_LASTS = 6;
+/** What one push adds; a push while the last one still acts brings the pressure back to where that one held it, no higher */
+const PUSH_LIFT = { sbp: 12, dbp: 6 };
+/** Pushes the case follows as each wears off (one event per push, since an event fires once): more than any team gives */
+const MAX_PUSHES = 12;
 
 /** The ER nurse's run: the physician comes by himself at this minute if nobody calls him, and scans for this long */
 const MD_COMES_BY = 6;
@@ -90,11 +94,45 @@ const numbers = (s: SimState) => `BP ${s.vitals.sbp}/${s.vitals.dbp} · pulse ${
 /** The monitor line after something moves the rate and the pressure: numbers only, never the rhythm's name */
 const rateBp = (hr: number, bp: { sbp: number; dbp: number }, tone?: Line[2]): Line => line('monitor', `Heart rate ${hr}. BP ${bp.sbp}/${bp.dbp}.`, tone);
 
+/** The latest push of push-dose epinephrine, if any (in a responder: the one before the push being given) */
+const lastPush = (s: SimState) => s.performed.filter((p) => p.id === 'push-epi').at(-1);
+
 /** A vasopressor is holding her pressure up: the infusion, or a push of push-dose epinephrine in the last few minutes */
 function supported(s: SimState): boolean {
   if (has(s, 'pressor')) return true;
-  const push = s.performed.filter((p) => p.id === 'push-epi').at(-1);
+  const push = lastPush(s);
   return push !== undefined && s.minute - push.minute <= PUSH_LASTS;
+}
+
+/**
+ * mmHg the pushes still acting have added (kept in timers, the only numbers a case can store): it comes off when they wear
+ * off. It can be more than one push's worth: a slide under a push that still acts is lost again when the push wears off
+ */
+const pushLift = (s: SimState) => ({ sbp: s.timers.pushLiftSbp ?? 0, dbp: s.timers.pushLiftDbp ?? 0 });
+
+/** A push in the last few minutes still holds the pressure up (an infusion, once running, holds it instead) */
+function pushActing(s: SimState): boolean {
+  const push = lastPush(s);
+  return !has(s, 'pressor') && push !== undefined && s.minute - push.minute <= PUSH_LASTS && pushLift(s).sbp > 0;
+}
+
+/** The push-dose epinephrine has worn off with no infusion behind it (and no drain): what it added comes off again */
+function pushWearsOff(n: number): ScenarioEvent {
+  return {
+    id: `push-wears-off-${n}`,
+    when: (s) => {
+      const push = lastPush(s);
+      return s.pulse && !drained(s) && count(s, 'push-epi') === n && !has(s, 'pressor') && push !== undefined && s.minute - push.minute > PUSH_LASTS && pushLift(s).sbp > 0;
+    },
+    effect: (s) => {
+      const lift = pushLift(s);
+      const bp = bpAfter(s, -lift.sbp, -lift.dbp);
+      return {
+        say: [[helper(s), 'The push-dose epinephrine has worn off: she is graying again, and her pulse is fading at the wrist.', 'warn'], line('monitor', `BP ${bp.sbp}/${bp.dbp}.`, 'warn')],
+        vitals: bp, timers: { pushLiftSbp: 0, pushLiftDbp: 0 },
+      };
+    },
+  };
 }
 
 /**
@@ -193,7 +231,8 @@ function bolus(s: SimState, lead: Line[]): Effect {
 function pressorEffect(s: SimState, lead: Line[]): Effect {
   const bp = bpAfter(s, 14, 8);
   const hr = Math.min(150, s.rhythm.hr + 4);
-  return { say: [...lead, rateBp(hr, bp)], vitals: bp, rhythm: atRate(s, hr), flags: ['pressor'] };
+  // the infusion holds what it raises, and takes over from a push still acting
+  return { say: [...lead, rateBp(hr, bp)], vitals: bp, rhythm: atRate(s, hr), flags: ['pressor'], timers: { pushLiftSbp: 0, pushLiftDbp: 0 } };
 }
 
 /**
@@ -489,12 +528,34 @@ export const edTamponade: Scenario = {
       if (has(s, 'pressor')) return { say: [['you', 'The norepinephrine is already running: titrated up to a MAP of 65.']], flags: ['pressor'] };
       return pressorEffect(s, given(s, 'Norepinephrine: start at 0.05 mcg/kg/min, titrate to a MAP of 65.', 'Norepinephrine running at 0.05 mcg/kg/min on a pump, through the right antecubital 18 G; titrating to a MAP of 65.'));
     },
+    // a bridge: it lasts a few minutes (PUSH_LASTS) unless an infusion takes over or the drain makes it needless, and pushes in
+    // a row hold the pressure rather than stack it
     'push-epi': (s) => {
       // 10–20 mcg is a dose for a low pressure with a pulse: in the arrest it is not the 1 mg the algorithm calls for
       if (!s.pulse) return { say: [['you', 'Push-dose epinephrine, 10–20 mcg — a dose for a low pressure with a pulse. In cardiac arrest the dose is 1 mg.', 'warn']], flags: ['push-epi-arrest'] };
-      const bp = bpAfter(s, 12, 6);
-      const hr = Math.min(150, s.rhythm.hr + 6);
-      return { say: [...given(s, 'Push-dose epinephrine 20 mcg IV.', 'Push-dose epinephrine 20 mcg IV, flushed.'), rateBp(hr, bp), [helper(s), 'That buys a few minutes: an infusion keeps it there.']], vitals: bp, rhythm: atRate(s, hr), flags: ['push-epi'] };
+      const acting = pushActing(s);
+      const raised = bpAfter(s, PUSH_LIFT.sbp, PUSH_LIFT.dbp);
+      const peak = { sbp: s.timers.pushPeakSbp ?? raised.sbp, dbp: s.timers.pushPeakDbp ?? raised.dbp };
+      const bp = acting
+        ? { sbp: Math.max(s.vitals.sbp, Math.min(raised.sbp, peak.sbp)), dbp: Math.max(s.vitals.dbp, Math.min(raised.dbp, peak.dbp)) }
+        : raised;
+      const hr = Math.min(150, s.rhythm.hr + (bp.sbp > s.vitals.sbp ? 6 : 2));
+      const before = acting ? pushLift(s) : { sbp: 0, dbp: 0 };
+      // with the infusion running (or the fluid off) it holds whatever the push adds; otherwise the push's share comes off
+      // when it wears off
+      const timers = has(s, 'pressor') || drained(s)
+        ? undefined
+        : {
+          pushLiftSbp: before.sbp + bp.sbp - s.vitals.sbp, pushLiftDbp: before.dbp + bp.dbp - s.vitals.dbp,
+          pushPeakSbp: acting ? peak.sbp : bp.sbp, pushPeakDbp: acting ? peak.dbp : bp.dbp,
+        };
+      const holds: Line = has(s, 'pressor')
+        ? [helper(s), 'The infusion will hold that.']
+        : [helper(s), bp.sbp > s.vitals.sbp ? 'That buys a few minutes — it wears off: an infusion keeps it there.' : 'No higher than the last push got her: it only holds her there for a few minutes.'];
+      return {
+        say: [...given(s, 'Push-dose epinephrine 20 mcg IV.', 'Push-dose epinephrine 20 mcg IV, flushed.'), rateBp(hr, bp), holds],
+        vitals: bp, rhythm: atRate(s, hr), flags: ['push-epi'], ...(timers ? { timers } : {}),
+      };
     },
     nitro: (s) => nitroCrash(s, false),
     'nitro-high': (s) => nitroCrash(s, true),
@@ -762,6 +823,8 @@ export const edTamponade: Scenario = {
         };
       },
     },
+    // each push of push-dose epinephrine wears off after a few minutes unless an infusion has taken over
+    ...Array.from({ length: MAX_PUSHES }, (_, i) => pushWearsOff(i + 1)),
     {
       // the heart can no longer fill: left undrained, or tipped over by something that took her last reserve of pressure
       id: 'arrest',
