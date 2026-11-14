@@ -258,8 +258,13 @@ export const RATE_RULES = RATE_LADDER.filter((id) => ![
 ].includes(id));
 /** Every rule on lidocaine: a case rule that says lidocaine is wrong for its patient lists them in its `replaces` */
 export const LIDOCAINE_RULES = LADDERS.lidocaine;
-/** Every rule on procainamide: a case rule that says procainamide is wrong for its patient lists them in its `replaces` */
-export const PROCAINAMIDE_RULES = LADDERS.procainamide;
+/**
+ * The rules on procainamide but the older procainamide-after-amiodarone (as RATE_RULES leaves out its mirror,
+ * amiodarone-after-procainamide): a case rule that says procainamide is wrong for its patient lists them in its
+ * `replaces`. The second antiarrhythmic stays a mistake of its own, charged beside the case rule (or after it was charged
+ * on the first drug)
+ */
+export const PROCAINAMIDE_RULES = LADDERS.procainamide.filter((id) => id !== 'procainamide-after-amiodarone');
 
 const BY_ID = new Map(RULES.map((r) => [r.id, r]));
 const roleOk = (h: Harm, s: SimState) => !h.roles || h.roles.includes(s.role);

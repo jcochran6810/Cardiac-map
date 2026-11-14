@@ -922,10 +922,14 @@ describe('in the cases: one dose, one penalty, at the right weight', () => {
       const s = runScenario(SCENARIO_BY_ID[id], role, steps);
       return s.penalties.filter((p) => p.minute === s.performed.at(-1)!.minute).map((p) => p.id);
     };
-    // the ER nurse's procainamide after amiodarone in SCAPE: the case's no-arrhythmia rule alone (P0 also charged the built-in)
+    // SCAPE, procainamide at a slow rate: the label's procainamide-slow alone (the case's minor no-arrhythmia rule steps aside)
+    expect(lastDose('scape-field', 2, ['iv', 'atropine', 'transport-pci', 'sample', 'opqrst', 'lvad-check', 'hs-ts', 'magnesium-sulfate', 'neuro',
+      'o2-nc', 'diphenhydramine', 'airway', 'notify', 'perfusion', 'fentanyl', 'cool', 'transport-near', 'magnesium-sulfate', 'calcium-gluconate', 'procainamide']))
+      .toEqual(['procainamide-slow']);
+    // …while a second antiarrhythmic stays a mistake of its own, as amiodarone after procainamide does (PROCAINAMIDE_RULES)
     expect(lastDose('scape-ed', 6, ['iv', 'dextrose', 'perfusion', 'nibp', 'labetalol', 'diltiazem', 'atropine', 'sit-up', 'opqrst', 'temp', 'glucose',
       'cpr', 'pulse-check', 'transfuse', 'labs', 'stop-antithrombotics', 'amio-arrest', 'ondansetron', 'observe', 'handoff', 'capno', 'procainamide']))
-      .toEqual(['rn-antiarrhythmic-no-arrhythmia']);
+      .toEqual(['procainamide-after-amiodarone', 'rn-antiarrhythmic-no-arrhythmia']);
     // af-rvr unstable: procainamide is the case's unstable-patient rule alone, diltiazem the HFrEF rule alone
     expect(lastDose('af-rvr-field', 2, ['vitals', 'smr', 'cpap', 'push-epi', 'ecg-posterior', 'temp', 'vitals', 'lvad-check', 'notify', 'io', 'capno',
       'amio-arrest', 'ecg12-repeat', 'lvad-check', 'poison-control', 'sodium-bicarbonate', 'fluid', 'atropine', 'atropine', 'procainamide']))
