@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { perform, start } from '@/lib/sim/scenario/engine';
 import { PACED_PROFILES, paced, wirePaced } from '@/lib/sim/scenario/kit';
+import { sameTracing } from '@/lib/ecg/profiles';
 import { answerFor } from '@/lib/sim/scenario/reads';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { SimState } from '@/lib/sim/scenario/types';
@@ -71,7 +72,7 @@ describe('hyperkalemia: the tracing moves with the potassium', () => {
 });
 
 describe('Takotsubo: the obstructed heart once the base closes the outflow tract', () => {
-  it('the tracing stays the Takotsubo one; the heart behind it changes at the fall, and stays so', () => {
+  it('the tracing stays the Takotsubo one; the heart behind it is the obstructed one while the obstruction holds', () => {
     const sc = SCENARIO_BY_ID['takotsubo-lvot-cathlab'];
     const steps = ['consent', 'heparin', 'timeout', 'access', 'cath-tiger', 'angio', 'cath-pigtail', 'lvedp', 'fluid', 'phenylephrine', 'lv-gram', 'ecg12'];
     let s = start(sc, 5);
@@ -79,10 +80,21 @@ describe('Takotsubo: the obstructed heart once the base closes the outflow tract
     s = runScenario(sc, 5, steps.slice(0, steps.indexOf('angio') + 1));
     expect(s.flags.obstructed).toBeDefined();
     expect(s.rhythm.profile).toBe('takotsubo-lvoto');
-    // relieved by fluid and phenylephrine, the outflow tract is still the narrow one: the heart stays the obstructed one
+    // relieved by fluid and phenylephrine (the case's gradient at or under 35): the pressure panel and the stethoscope no
+    // longer show the obstructed heart's 60 mmHg gradient and harsh murmur
     s = runScenario(sc, 5, steps);
     expect(s.flags.relieved).toBeDefined();
+    expect(s.timers.gradient).toBeLessThanOrEqual(35);
+    expect(s.rhythm.profile).toBe('takotsubo');
+    // driven hard again (push-dose epinephrine twice), the obstruction is back, and so is the obstructed heart
+    s = runScenario(sc, 5, [...steps, 'push-epi', 'push-epi']);
+    expect(s.flags.relieved).toBeUndefined();
     expect(s.rhythm.profile).toBe('takotsubo-lvoto');
+    // one tracing throughout: the same read, and a repeat 12-lead across the switch is the tracing already read
     expect(answerFor('takotsubo-lvoto').id).toBe(answerFor('takotsubo').id);
+    expect(sameTracing('takotsubo', 'takotsubo-lvoto')).toBe(true);
+    expect(sameTracing('takotsubo-lvoto', 'takotsubo-lvoto')).toBe(true);
+    expect(sameTracing('takotsubo', 'anterior-stemi')).toBe(false);
+    expect(sameTracing('hyperkalemia', 'hyperkalemia-severe')).toBe(false);
   });
 });

@@ -51,6 +51,9 @@ const pressureFor = (g: number) => ({ sbp: Math.round(130 - 0.6 * g), dbp: Math.
 /** The rate climbs as the output falls (102 at rest, 120 at the worst); a beta-blocker shifts it down */
 const rateFor = (g: number, shift: number) => Math.round(86 + 0.4 * g + shift);
 
+/** Her heart's two profiles: the same 12-lead, with or without the outflow obstruction behind the pressures */
+const TAKOTSUBO_PROFILES = ['takotsubo', 'takotsubo-lvoto'];
+
 /** The pressure has fallen with the obstruction and nothing has brought it back yet */
 const obstructing = (s: SimState) => has(s, 'obstructed') && !has(s, 'relieved');
 
@@ -123,12 +126,16 @@ function withGradient(s: SimState, next: number, c: Change = {}): Effect {
     clear.push('relieved');
     say.push(nurse(s, 'That murmur is loud again — and she\'s gray.', 'bad'), ...awake(s, 'Oh… it\'s going dark again…'));
   }
+  // while the base holds the outflow tract closed, the heart behind the pressures and the murmur is the obstructed one; once
+  // fluid and the afterload have relieved it, the plain Takotsubo heart again (and back on a relapse). The 12-lead is the same
+  const after = (f: string) => (has(s, f) || flags.includes(f)) && !clear.includes(f);
+  const profile = TAKOTSUBO_PROFILES.includes(s.rhythm.profile)
+    ? (after('obstructed') && !after('relieved') ? 'takotsubo-lvoto' : 'takotsubo')
+    : s.rhythm.profile;
   return {
     say,
     vitals: { ...bp, ...c.vitals, ...(pain !== undefined ? { pain } : {}) },
-    // once the base has closed the outflow tract, the heart behind the pressures and the murmur is the obstructed one
-    // (the 12-lead does not change)
-    rhythm: { profile: s.rhythm.profile === 'takotsubo' && (has(s, 'obstructed') || flags.includes('obstructed')) ? 'takotsubo-lvoto' : s.rhythm.profile, hr },
+    rhythm: { profile, hr },
     timers: {
       gradient: g, hrShift: shift, peak: Math.max(s.timers.peak ?? before, g),
       ...(has(s, 'obstructed') && g < before ? { lastHelp: s.minute } : {}), ...c.timers,

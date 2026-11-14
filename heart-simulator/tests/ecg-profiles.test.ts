@@ -158,7 +158,14 @@ describe('the case simulator\'s added profiles', () => {
     expect(qrs('hyperkalemia')).toBeGreaterThan(qrs('hyperkalemia-moderate'));
     expect(qrs('hyperkalemia-severe')).toBeGreaterThan(200);
     expect(ECG_PROFILES['hyperkalemia-moderate'].t!.mag).toBeLessThan(ECG_PROFILES.hyperkalemia.t!.mag);
-    expect(ECG_PROFILES['hyperkalemia-severe'].p).toBe('flat');
+    // no P waves at all in the sine wave (its findings and both cases' reads say so): an atrial template with nothing to
+    // draw, where the earlier stages keep their flattened (or small) P waves
+    expect(ECG_PROFILES['hyperkalemia-severe'].p).toBe('absent');
+    expect(P_TEMPLATES.absent.pulses).toEqual([]);
+    const severe = beats('hyperkalemia-severe').atrial;
+    expect(severe.length).toBeGreaterThan(2);
+    for (const a of severe) expect(a.template.pulses).toEqual([]);
+    for (const a of beats('hyperkalemia').atrial) expect(a.template.pulses.length).toBeGreaterThan(0);
     // the sine wave: the T wave begins before the wide QRS has ended
     const v = beats('hyperkalemia-severe').vent[0];
     expect(v.tw.tp - 2 * v.tw.rise).toBeLessThan(v.qrsDur);

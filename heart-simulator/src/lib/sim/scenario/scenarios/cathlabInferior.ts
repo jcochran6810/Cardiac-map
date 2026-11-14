@@ -48,7 +48,9 @@ const fluid = (s: SimState): Effect | null => {
 };
 /**
  * Pacing in the reflex: the rate comes back to 70, but her vessels stay dilated, so the pressure only partly recovers
- * (fluid does the rest). Outside the reflex, the default response applies.
+ * (fluid does the rest). A single RV wire (VVI) also paces without the atria, and her infarcted RV loses its atrial kick
+ * (2013 ACCF/AHA STEMI: keep AV synchrony in an RV infarct; AV sequential pacing if the pressure stays low). Outside the
+ * reflex, the default response applies.
  */
 function paceReflex(s: SimState, how: Line[], profile: 'tcp' | 'paced-vvi', flags: string[]): Effect | null {
   // a wire already pacing on demand at 50 is still too slow for her: pacing at 70 takes over from it
@@ -211,7 +213,7 @@ export const cathlabInferior: Scenario = {
       : s.rhythm.profile === 'tcp'
         ? 'Transcutaneous pacing at 70: a wide QRS after every pacing spike (electrical capture). The paced beats hide the inferior ST elevation.'
         : s.rhythm.profile === 'paced-vvi'
-          ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS. The paced beats hide the inferior ST elevation.`
+          ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS, her own P waves marching through unrelated to it. A single RV wire paces without the atria, and an infarcted RV needs its atrial kick: fluid, and AV sequential pacing if the pressure stays low. The paced beats hide the inferior ST elevation.`
           : `Sinus rhythm ${s.rhythm.hr}: ST elevation in II, III and aVF (III more than II), reciprocal depression in I and aVL — an inferior STEMI from the right coronary.`,
     // her RV infarct, as the field ECG showed it (without this the right-sided leads would say "no ST elevation")
     ecgRight: (s) => (s.rhythm.profile === 'inferior-stemi-reperfused'

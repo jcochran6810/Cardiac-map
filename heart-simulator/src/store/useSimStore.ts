@@ -107,7 +107,7 @@ export function attached(s: SimState) {
 /**
  * A pacer that fires without capturing (the case flag 'pacer-no-capture': a wire out of the ventricle, a threshold a high
  * potassium has pushed out of reach): its spikes are drawn at the set rate over the patient's own rhythm, which is what the
- * 12-lead is read as. The rate is the case's timer 'pacer-rate', or 70.
+ * 12-lead is read as. Every case that sets the flag paces at 70.
  */
 export const NO_CAPTURE_FLAG = 'pacer-no-capture';
 export const NO_CAPTURE_RATE = 70;
@@ -140,7 +140,7 @@ export const noCaptureSpans = () => noCapture.map((p) => ({ ...p }));
 /** Start or stop the spikes as the case says the pacer fires without capture, at its rate */
 function syncNoCapture(s: SimState) {
   const on = NO_CAPTURE_FLAG in s.flags;
-  const period = 60000 / (s.timers['pacer-rate'] ?? NO_CAPTURE_RATE);
+  const period = 60000 / NO_CAPTURE_RATE;
   const last = noCapture[noCapture.length - 1];
   const open = !!last && last.end === Infinity;
   if (open && (!on || last.period !== period)) last.end = sim.time;

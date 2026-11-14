@@ -65,6 +65,9 @@ export const P_TEMPLATES: Record<string, PTemplate> = {
     duration: 110,
     pulses: [pulse(34, 15, [0.15, -0.45, -0.9], 0.04), pulse(70, 15, [0.8, 0.55, -0.3], 0.03)],
   },
+  // no atrial wave at all: the sine wave of severe hyperkalemia, where the sinus node still sets the rate but the atria no
+  // longer depolarize visibly
+  absent: { duration: 100, pulses: [] },
 };
 
 // ─── QRS templates (anchor = QRS onset) ────────────────────────────────────
@@ -330,6 +333,11 @@ export interface ECGProfile {
    * one — the shorter the cycle before it, the more of it the pathway activates (wider, with more delta wave)
    */
   pathway?: { shortestRR: number };
+  /**
+   * This profile draws exactly the 12-lead of another and differs only in the heart behind the pressures (Takotsubo with
+   * outflow obstruction is the Takotsubo tracing): a repeat 12-lead after a switch between them shows no change (sameTracing)
+   */
+  sameTracingAs?: string;
   /** Rhythm 'pvc': one PVC in every this many beats (default 4, quadrigeminy) */
   pvcEvery?: number;
 }
@@ -625,7 +633,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   // (a dynamic gradient and its murmur over a stunned apex), the ECG does not
   'takotsubo-lvoto': {
     id: 'takotsubo-lvoto', name: 'Takotsubo with LV Outflow Obstruction', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 110, ...STD,
-    pr: 150, p: 'normal', qrs: 'normal', qtc: 480, hemo: 'takotsubo-lvoto',
+    pr: 150, p: 'normal', qrs: 'normal', qtc: 480, hemo: 'takotsubo-lvoto', sameTracingAs: 'takotsubo',
     injury: scale(norm([0.8, -0.5, -0.3]), 0.18),
     headline: 'Anterior ST elevation without reciprocal change; outflow obstruction',
     findings: ['ST elevation in V2–V6 (± inferior leads) mimicking anterior STEMI', 'Usually NO reciprocal inferior ST depression; ST depression in aVR and little or no STE in V1 favor takotsubo', 'Outflow obstruction does not show on the ECG: the falling pressure, a harsh systolic murmur, the pullback gradient and the echo show it', 'Cannot be reliably distinguished from STEMI by ECG — needs angiography'],
@@ -750,7 +758,7 @@ export const ECG_PROFILES: Record<string, ECGProfile> = {
   // the last stage before the heart stops: no P waves, and a QRS so wide it runs into the T wave
   'hyperkalemia-severe': {
     id: 'hyperkalemia-severe', name: 'Hyperkalemia (severe: sine wave)', rhythm: 'sinus', rateControl: 'sinus', defaultHR: 40, minHR: 20, maxHR: 120,
-    pr: 260, p: 'flat', qrs: 'normal', qrsWiden: 2.5, qtc: 400, hemo: 'normal',
+    pr: 260, p: 'absent', qrs: 'normal', qrsWiden: 2.5, qtc: 400, hemo: 'normal',
     t: { dir: [0.5, -0.55, -0.65], mag: 0.8, rise: 0.2, fall: 0.1 },
     headline: 'Sine-wave pattern: a very wide QRS merging into the T wave',
     findings: ['No P waves to be seen', 'The QRS widened to over 200 ms and running straight into the T wave: a sine wave', 'Minutes from VF, asystole or PEA: IV calcium at once, then the potassium shifted and removed', 'Never wait for the lab when the tracing looks like this'],
@@ -847,6 +855,15 @@ export const PROFILE_ALIASES: Record<string, string> = {
   'paced-rhythm-ddd': 'paced',
   lvh: 'hfpef',
 };
+
+/**
+ * Two profiles draw the same 12-lead: the same id, or one declared the other's tracing (sameTracingAs). A repeat 12-lead
+ * across such a switch is the tracing already read, not a new one to read again
+ */
+export function sameTracing(a: string, b: string): boolean {
+  const tracing = (id: string) => ECG_PROFILES[id]?.sameTracingAs ?? id;
+  return tracing(a) === tracing(b);
+}
 
 export function resolveProfile(id: string | null | undefined): ECGProfile {
   if (!id) return ECG_PROFILES['normal-sinus'];
