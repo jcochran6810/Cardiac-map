@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { ECGEngine } from '@/lib/ecg/engine';
 import { ECG_PROFILES } from '@/lib/ecg/profiles';
 import { applyMods, combineMods, describeMods, modsKey } from '@/lib/ecg/mods';
-import { MEDS, MED_BY_ID, category, classifyDose, describeDose, planDose, type MedId, type Patient } from '@/lib/sim/meds';
+import { HISTORY, MEDS, MED_BY_ID, category, classifyDose, describeDose, planDose, type MedId, type Patient } from '@/lib/sim/meds';
+import type { Problem } from '@/lib/sim/scenario/types';
 import { sim } from '@/lib/sim/simulation';
 import { setRhythm, showRhythm } from '@/lib/rhythm';
 import { SCENARIOS, loadScenario, useDefibStore } from '@/lib/sim/defib';
@@ -1551,5 +1552,242 @@ describe('GM43: the dosing guide says what each drug is not given with', () => {
     ['nitroglycerin', /riociguat or raised intracranial pressure/],
   ] as [MedId, RegExp][])('%s', (id, re) => {
     expect(MED_BY_ID[id].guide).toMatch(re);
+  });
+});
+
+describe('GM42: the patient\'s history and age', () => {
+  const h = (profileId: string, hr: number, problems: Problem[], extra: Partial<Patient> = {}) => patient(profileId, hr, { sbp: 120, problems, ...extra });
+  const tone = (id: MedId, p: Patient, d: number) => planDose(id, p, d).verdict.tone;
+
+  it('asthma or wheezing: adenosine and sotalol refused, a β1-selective blocker only with care', () => {
+    for (const x of ['asthma', 'bronchospasm'] as Problem[]) {
+      expect(tone('adenosine', h('avnrt', 180, []), 6)).toBe('good');
+      expect(planDose('adenosine', h('avnrt', 180, [x]), 6).verdict.text).toMatch(/^Not with asthma or bronchospastic lung disease: adenosine can bring on severe bronchospasm \(label\)/);
+      expect(tone('sotalol', h('vt', 160, [x]), 120)).toBe('bad');
+      expect(tone('metoprolol', h('atrial-fibrillation', 150, []), 5)).toBe('good');
+      expect(tone('metoprolol', h('atrial-fibrillation', 150, [x]), 5)).toBe('caution');
+      expect(tone('esmolol', h('atrial-fibrillation', 150, [x]), 40)).toBe('caution');
+    }
+  });
+
+  it('a transplanted heart: no atropine (3 — Harm), and adenosine starts at 3 mg — as with dipyridamole or carbamazepine', () => {
+    expect(tone('atropine', h('sinus-bradycardia', 40, []), 1)).toBe('good');
+    expect(planDose('atropine', h('sinus-bradycardia', 40, ['heart-transplant']), 1).verdict.text).toMatch(/^Not after a heart transplant \(2018 ACC\/AHA\/HRS bradycardia: 3 — Harm\)/);
+    for (const x of ['heart-transplant', 'adenosine-potentiator'] as Problem[]) {
+      const p = h('avnrt', 180, [x]);
+      expect(MED_BY_ID.adenosine.usual(p)).toEqual({ low: 3, high: 3 });
+      const three = planDose('adenosine', p, 3);
+      expect(three.doseClass).toBe('usual');
+      expect(three.verdict.tone).toBe('good');
+      expect(three.steps.some((s) => s.profile === 'normal-sinus')).toBe(true);
+      expect(planDose('adenosine', p, 6).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/start at 3 mg \(label\)/) });
+      // after the 3 mg dose the regimen goes on as usual
+      expect(MED_BY_ID.adenosine.usual({ ...p, given: [{ id: 'adenosine', dose: 3, at: 0 }] })).toEqual({ low: 6, high: 12 });
+      expect(planDose('adenosine', { ...p, given: [{ id: 'adenosine', dose: 3, at: 0 }] }, 6).verdict.tone).toBe('good');
+    }
+  });
+
+  it('a PDE-5 inhibitor and nitroglycerin; cocaine and the β-blockers; a true aspirin allergy', () => {
+    expect(tone('nitroglycerin', h('nstemi', 84, []), 0.4)).toBe('good');
+    expect(planDose('nitroglycerin', h('nstemi', 84, ['pde5-inhibitor']), 0.4).verdict.text).toMatch(/^Contraindicated \(label\): a PDE-5 inhibitor/);
+    for (const id of ['metoprolol', 'esmolol', 'sotalol'] as MedId[]) {
+      expect(planDose(id, h('atrial-fibrillation', 150, ['sympathomimetic-toxicity']), MED_BY_ID[id].usual(patient('atrial-fibrillation', 150)).low).verdict.text, id).toMatch(/^Not in acute cocaine or methamphetamine intoxication \(2025 ACC\/AHA ACS: 3 — Harm\)/);
+    }
+    expect(tone('aspirin', h('anterior-stemi', 92, []), 325)).toBe('good');
+    expect(planDose('aspirin', h('anterior-stemi', 92, ['aspirin-allergy']), 325).verdict.text).toMatch(/^Not with a true aspirin allergy.*P2Y12 inhibitor alone/);
+  });
+
+  it('bleeding: no antiplatelet, heparin or lytic; a stroke: no lytic within 3 months (absolute), relative after — and no prasugrel after any', () => {
+    const stemi = (problems: Problem[]) => h('anterior-stemi', 92, problems, { kg: 85 });
+    for (const x of ['bleeding', 'intracranial-hemorrhage'] as Problem[]) {
+      for (const [id, d] of [['aspirin', 325], ['ticagrelor', 180], ['clopidogrel', 600], ['prasugrel', 60], ['heparin', 4000], ['tenecteplase', 45]] as [MedId, number][]) {
+        expect(tone(id, stemi([x]), d), `${id} ${x}`).toBe('bad');
+      }
+    }
+    expect(tone('tenecteplase', stemi([]), 45)).toBe('good');
+    // an ischemic stroke within 3 months, or an intracranial lesion, trauma or neurosurgery: absolute
+    expect(planDose('tenecteplase', stemi(['recent-stroke']), 45).verdict.text).toMatch(/^Absolutely contraindicated: an ischemic stroke within 3 months/);
+    expect(tone('tenecteplase', stemi(['intracranial-risk']), 45)).toBe('bad');
+    // a TIA or a stroke more than 3 months ago: relative only (2013 ACCF/AHA, kept in 2025)
+    const prior = planDose('tenecteplase', stemi(['prior-stroke']), 45);
+    expect(prior.verdict.tone).toBe('caution');
+    expect(prior.verdict.text).toMatch(/^A relative contraindication \(2013 ACCF\/AHA STEMI, kept in 2025\): a TIA or a stroke more than 3 months ago/);
+    for (const x of ['recent-stroke', 'prior-stroke'] as Problem[]) expect(planDose('prasugrel', stemi([x]), 60).verdict.text).toMatch(/^Contraindicated after any stroke or TIA \(label, boxed\)/);
+    // the other relative contraindications to lysis, together in one sentence
+    const rel = planDose('tenecteplase', stemi(['oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy']), 45);
+    expect(rel.verdict.tone).toBe('caution');
+    expect(rel.verdict.text).toMatch(/an oral anticoagulant, major surgery within 3 weeks, internal bleeding within 2–4 weeks or an active ulcer, pregnancy\./);
+    // an oral anticoagulant: the P2Y12 inhibitor is clopidogrel
+    expect(planDose('ticagrelor', stemi(['oral-anticoagulant']), 180).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/is clopidogrel/) });
+    expect(tone('prasugrel', stemi(['oral-anticoagulant']), 60)).toBe('caution');
+    expect(planDose('clopidogrel', stemi(['oral-anticoagulant']), 600).verdict.text).not.toMatch(/oral anticoagulant on board/);
+    for (const x of ['hit', 'thrombocytopenia'] as Problem[]) expect(tone('heparin', stemi([x]), 4000), x).toBe('bad');
+  });
+
+  it('HFrEF: diltiazem refused for AF, flutter and SVT (3 — Harm), procainamide and sotalol refused, a β-blocker only if compensated', () => {
+    const hf: Problem[] = ['heart-failure'];
+    for (const [prof, hr] of [['atrial-fibrillation', 150], ['atrial-flutter', 150], ['avnrt', 180]] as const) {
+      expect(planDose('diltiazem', h(prof, hr, hf), 20).verdict.text, prof).toMatch(/^Not with HFrEF \(2023 ACC\/AHA\/ACCP\/HRS AF: IV non-dihydropyridine calcium-channel blockers — 3: Harm\)/);
+    }
+    expect(tone('procainamide', h('vt', 160, []), 1000)).toBe('good');
+    expect(tone('procainamide', h('vt', 160, hf), 1000)).toBe('bad');
+    expect(tone('sotalol', h('vt', 160, hf), 120)).toBe('bad');
+    expect(planDose('metoprolol', h('atrial-fibrillation', 150, hf), 5).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/only while the failure is compensated/) });
+  });
+
+  it('kidney failure and a low potassium', () => {
+    for (const x of ['renal-failure', 'dialysis'] as Problem[]) {
+      expect(planDose('magnesium-sulfate', h('torsades', 230, [x]), 2).verdict.text).toMatch(/accumulates — a lower dose, and check the level/);
+      expect(tone('digoxin', h('atrial-fibrillation', 150, [x]), 0.25)).toBe('caution');
+      expect(planDose('procainamide', h('vt', 160, [x]), 1000).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/NAPA accumulates/) });
+      expect(tone('sotalol', h('vt', 160, [x]), 120)).toBe('bad');
+      const k = h('hyperkalemia', 64, [x]);
+      expect(MED_BY_ID['insulin-dextrose'].usual(k)).toEqual({ low: 5, high: 5 });
+      expect(planDose('insulin-dextrose', k, 5).verdict.tone).toBe('good');
+      expect(planDose('insulin-dextrose', k, 10).verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^Kidney failure: 5 units, not 10/) });
+    }
+    expect(planDose('insulin-dextrose', h('hyperkalemia', 64, []), 10).verdict.tone).toBe('good');
+    expect(tone('sotalol', h('vt', 160, ['hypokalemia']), 120)).toBe('bad');
+    expect(planDose('digoxin', h('atrial-fibrillation', 150, ['hypokalemia']), 0.25).verdict.text).toMatch(/low potassium makes digoxin toxicity more likely/);
+  });
+
+  it('a long QT in the history: no QT-prolonging antiarrhythmic — sotalol in AF included (GM49)', () => {
+    for (const [id, d] of [['amiodarone', 150], ['procainamide', 1000], ['sotalol', 120]] as [MedId, number][]) {
+      expect(tone(id, h('vt', 160, ['long-qt']), d), id).toBe('bad');
+    }
+    expect(tone('sotalol', h('atrial-fibrillation', 150, []), 120)).toBe('caution');
+    const af = planDose('sotalol', h('atrial-fibrillation', 150, ['long-qt']), 120);
+    expect(af.verdict.tone).toBe('bad');
+    expect(af.steps.some((s) => s.profile === 'torsades')).toBe(true);
+  });
+
+  it('75 or older: half-dose tenecteplase, clopidogrel 75 mg after lysis (over 75), no prasugrel, half the opioid', () => {
+    const tnk = MED_BY_ID.tenecteplase;
+    const old = h('anterior-stemi', 92, [], { kg: 85, age: 80 });
+    expect(tnk.usual(old)).toEqual({ low: 22.5, high: 22.5 });
+    const half = planDose('tenecteplase', old, 22.5);
+    expect(half.doseClass).toBe('usual');
+    expect(half.verdict.text).toMatch(/At 80, half the weight-band dose is considered \(STREAM-2; ESC\) — not in the US label/);
+    const full = planDose('tenecteplase', old, 45);
+    expect(full.doseClass).toBe('high');
+    expect(full.steps.some((s) => /The full weight-band dose at 80/.test(s.note))).toBe(true);
+    expect(full.steps.some((s) => /Above the weight band/.test(s.note))).toBe(false);
+    expect(tnk.usual({ ...old, age: 74 })).toEqual({ low: 45, high: 45 });
+    // clopidogrel after lysis
+    const lysed = (age: number) => h('anterior-stemi', 92, [], { age, given: [{ id: 'tenecteplase', dose: 45, at: 0 }] });
+    expect(classifyDose(MED_BY_ID.clopidogrel, lysed(80), 75)).toBe('usual');
+    expect(planDose('clopidogrel', lysed(80), 75).verdict.text).toMatch(/At 80: 75 mg, no load\./);
+    expect(planDose('clopidogrel', lysed(80), 300).verdict.text).toMatch(/300 mg is more than the dose after lysis at 80 \(75 mg, no load\)/);
+    expect(classifyDose(MED_BY_ID.clopidogrel, lysed(75), 300)).toBe('usual');
+    expect(planDose('clopidogrel', lysed(70), 300).verdict.text).toMatch(/At 70: the 300 mg load\./);
+    expect(planDose('clopidogrel', lysed(70), 300).verdict.text).not.toMatch(/age is not set/);
+    // prasugrel and the opioid dose
+    expect(planDose('prasugrel', h('anterior-stemi', 92, [], { age: 78 }), 60).verdict.text).toMatch(/ At 78: prasugrel is generally not recommended from 75 \(boxed warning/);
+    // where prasugrel would otherwise be the right choice, the age makes it "with care" and leads
+    expect(planDose('prasugrel', h('anterior-stemi', 92, ['oral-anticoagulant'], { age: 78 }), 60).verdict.tone).toBe('caution');
+    expect(tone('prasugrel', h('anterior-stemi', 92, [], { age: 60 }), 60)).toBe('caution');
+    expect(planDose('prasugrel', h('anterior-stemi', 92, [], { age: 60 }), 60).verdict.text).not.toMatch(/At 60/);
+    expect(MED_BY_ID.fentanyl.usual(h('anterior-stemi', 92, [], { age: 80 }))).toEqual({ low: 20, high: 40 });
+    expect(classifyDose(MED_BY_ID.fentanyl, h('anterior-stemi', 92, [], { age: 80 }), 80)).toBe('high');
+    expect(classifyDose(MED_BY_ID.fentanyl, h('anterior-stemi', 92, [], { age: 60 }), 80)).toBe('usual');
+  });
+
+  it('every history item the page offers changes some verdict or usual dose', () => {
+    const rhythms: [string, number][] = [['avnrt', 180], ['atrial-fibrillation', 150], ['vt', 160], ['sinus-bradycardia', 40], ['anterior-stemi', 92], ['nstemi', 84], ['hyperkalemia', 64], ['torsades', 230]];
+    const read = (p: Patient) => MEDS.flatMap((m) => {
+      const plan = planDose(m.id, p, m.usual(p).high);
+      return [plan.verdict.tone, plan.verdict.text, plan.doseClass, JSON.stringify(m.usual(p))];
+    }).join('|');
+    for (const item of HISTORY) {
+      const changes = rhythms.some(([prof, hr]) => read(h(prof, hr, [])) !== read(h(prof, hr, [item.id])));
+      expect(changes, item.id).toBe(true);
+    }
+    // the ids are the case simulator's words, each offered once
+    expect(new Set(HISTORY.map((x) => x.id)).size).toBe(HISTORY.length);
+  });
+});
+
+describe('GM44: the session keeps the history, the age and the drug clock', () => {
+  beforeEach(() => {
+    useAppStore.getState().setMode('learn');
+    useMedStore.getState().reset('other-condition');
+    useMedStore.getState().reset('avnrt');
+    sim.time = 100_000;
+    setRhythm('avnrt', 180);
+    sim.engine.setRhythm('avnrt', 180, sim.time, null);
+  });
+  function run(ms: number, dt = 16) {
+    for (let t = 0; t < ms; t += dt) {
+      const ecg = useECGStore.getState();
+      sim.engine.setRhythm(ecg.activeProfileId, useTimelineStore.getState().heartRate, sim.time, useMedStore.getState().mods);
+      sim.time += dt;
+      sim.engine.ensure(sim.time + 4000);
+      tickMeds(sim.time);
+    }
+  }
+
+  it('the history and the age the learner sets are what the dose is judged on', () => {
+    run(6_000);
+    useMedStore.getState().toggleProblem('asthma');
+    expect(useMedStore.getState().problems).toEqual(['asthma']);
+    expect(useMedStore.getState().give('adenosine', 6).verdict.text).toMatch(/^Not with asthma/);
+    useMedStore.getState().toggleProblem('asthma');
+    expect(useMedStore.getState().problems).toEqual([]);
+    // an age is a whole adult age
+    useMedStore.getState().setAge(82.4);
+    expect(useMedStore.getState().age).toBe(82);
+    useMedStore.getState().setAge(5);
+    expect(useMedStore.getState().age).toBe(18);
+    useMedStore.getState().setAge(null);
+    expect(useMedStore.getState().age).toBeNull();
+  });
+
+  it('"Reset patient" keeps the history and the age (the same patient); another condition clears them; the drug clock restarts either way', () => {
+    useMedStore.getState().toggleProblem('bleeding');
+    useMedStore.getState().setAge(80);
+    useMedStore.setState({ skipped: 60_000 });
+    useMedStore.getState().reset('avnrt');
+    expect(useMedStore.getState()).toMatchObject({ problems: ['bleeding'], age: 80, skipped: 0 });
+    useMedStore.getState().reset();
+    expect(useMedStore.getState()).toMatchObject({ problems: ['bleeding'], age: 80 });
+    useMedStore.getState().reset('atrial-fibrillation');
+    expect(useMedStore.getState()).toMatchObject({ problems: [], age: null, skipped: 0 });
+  });
+
+  it('skip ahead moves the drug clock: a dose is timed in drug time, so a repeat after a skip is not called "too soon"', () => {
+    setRhythm('atrial-fibrillation', 150);
+    sim.engine.setRhythm('atrial-fibrillation', 150, sim.time, null);
+    run(6_000);
+    const t0 = sim.time;
+    useMedStore.getState().give('diltiazem', 20);
+    expect(useMedStore.getState().given[0].at).toBe(t0);
+    useMedStore.getState().skipAhead();
+    const skipped = useMedStore.getState().skipped;
+    expect(skipped).toBeGreaterThan(60_000);
+    run(2_000);
+    // a second bolus straight after the skip: the drugs have had about two minutes, not two seconds
+    const second = useMedStore.getState().give('diltiazem', 25);
+    const at = useMedStore.getState().given[1].at;
+    expect(at).toBe(sim.time + skipped);
+    expect(second.verdict.text).toMatch(/Too soon: the last bolus was 2 min ago/);
+    // once the drugs have had 15 minutes, the repeat is on time
+    useMedStore.getState().reset('avnrt');
+    setRhythm('atrial-fibrillation', 150);
+    run(6_000);
+    useMedStore.getState().give('diltiazem', 20);
+    useMedStore.setState({ skipped: 16 * 60_000 });
+    expect(useMedStore.getState().give('diltiazem', 25).verdict.text).not.toMatch(/Too soon/);
+  });
+
+  it('epinephrine in an arrest: every 3–5 min of drug time', () => {
+    setRhythm('vf', 0);
+    sim.engine.setRhythm('vf', 0, sim.time, null);
+    run(1_000, 50);
+    expect(useMedStore.getState().give('epinephrine', 1).verdict.tone).toBe('good');
+    run(60_000, 100);
+    const soon = useMedStore.getState().give('epinephrine', 1);
+    expect(soon.verdict).toMatchObject({ tone: 'caution', text: expect.stringMatching(/^Too soon: the last epinephrine was 1 min ago/) });
+    useMedStore.setState({ skipped: useMedStore.getState().skipped + 4 * 60_000 });
+    expect(useMedStore.getState().give('epinephrine', 1).verdict.tone).toBe('good');
   });
 });

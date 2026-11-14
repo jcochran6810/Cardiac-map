@@ -5,7 +5,13 @@
  * The plan for each dose comes from `src/lib/sim/meds.ts`. Its steps fire in simulation time from
  * SimulationDriver (`tickMeds`): rhythm and rate changes go through `setRhythm`, interval changes (PR, QRS,
  * QT, …) are combined across drugs and handed to the ECG engine as modifiers. Skip ahead brings the next
- * step forward in drug time instead of jumping the clock, so the tracing keeps running in real time.
+ * step forward in drug time instead of jumping the clock, so the tracing keeps running in real time. The store keeps what
+ * skip-ahead has brought forward (`skipped`): a dose's time (`Given.at`) and the push's `now` are in drug time, sim time
+ * plus that, so the interval between two doses is the time the drugs have really had.
+ *
+ * The learner can also say what the patient has that the monitor cannot show — a history (`problems`, in the case
+ * simulator's words) and an age — and the drugs are judged on it too. They belong to the patient: another condition
+ * clears them; "Reset patient" (the same patient, untreated again) keeps them, as it keeps the weight.
  *
  * A session belongs to one patient. It ends when another patient is shown (`showRhythm`: a condition, a case, a
  * quiz strip, a lesson step, a defibrillator scenario) and when the case simulator takes the monitor. The main menu
@@ -24,6 +30,7 @@ import { standardPlacement } from '@/lib/ecg/placement';
 import { CONDITION_TO_PROFILE, resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
 import { setBaseline, useDefibStore } from '@/lib/sim/defib';
 import { MED_BY_ID, fmtDose, planDose, type DosePlan, type EffectStep, type Given, type MedId } from '@/lib/sim/meds';
+import type { Problem } from '@/lib/sim/scenario/types';
 import { useECGStore } from '@/store/useECGStore';
 import { useTimelineStore } from '@/store/useTimelineStore';
 import { useAppStore } from '@/store/useAppStore';
@@ -100,11 +107,21 @@ interface MedState {
   next: { fireAt: number; since: number; drug: MedId } | null;
   /** the last dose and how it was judged */
   last: { drug: MedId; dose: number; plan: DosePlan } | null;
+  /** what the patient has that the monitor cannot show (the history the learner sets) */
+  problems: Problem[];
+  /** age in years (null: not set — the doses are those for an adult under 75) */
+  age: number | null;
+  /** drug time that skip-ahead has brought forward (ms): drug time = sim time + this */
+  skipped: number;
 
   setKg: (kg: number) => void;
   /** choose how the VT presents, and put the heart that goes with it behind the monitor */
   setVt: (vt: VtPresentation) => void;
   give: (drug: MedId, dose: number) => DosePlan;
+  /** add or remove one item of the history */
+  toggleProblem: (problem: Problem) => void;
+  /** set the age (null clears it) */
+  setAge: (age: number | null) => void;
   skipAhead: () => void;
   reset: (conditionId?: string | null) => void;
 }
@@ -121,6 +138,9 @@ export const useMedStore = create<MedState>((set, get) => ({
   mods: null,
   next: null,
   last: null,
+  problems: [],
+  age: null,
+  skipped: 0,
 
   setKg: (kg) => set({ kg: Math.max(40, Math.min(200, Math.round(kg))) }),
 
@@ -136,15 +156,17 @@ export const useMedStore = create<MedState>((set, get) => ({
     const s = get();
     const before = onMonitor();
     if (!s.given.length) untreated = before;
+    // drug time: the sim clock plus what skip-ahead has brought forward
+    const now = t + s.skipped;
     // the blood pressure on the monitor decides, e.g., whether VT is stable and whether nitrates are safe
-    const plan = planDose(drug, { ...before, kg: s.kg, given: s.given, sbp: sim.hemo.summary(t).sbp }, dose);
+    const plan = planDose(drug, { ...before, kg: s.kg, given: s.given, sbp: sim.hemo.summary(t).sbp, now, age: s.age ?? undefined, problems: s.problems }, dose);
     const pushed: Dose = { drug, before, own: null };
     for (const step of plan.steps) pending.push({ fireAt: t + step.at, step, dose: pushed });
     pending.sort((a, b) => a.fireAt - b.fireAt);
     const def = MED_BY_ID[drug];
     const label = `${def.name} ${fmtDose(dose)} ${def.unit}`;
     set({
-      given: [...s.given, { id: drug, dose, at: t }],
+      given: [...s.given, { id: drug, dose, at: now }],
       log: [...s.log, { t, since: 0, drug, text: `${label} — ${def.route}`, tone: 'push' as const }].slice(-60),
       marks: [...s.marks, { t, label }].slice(-30),
       last: { drug, dose, plan },
@@ -160,19 +182,31 @@ export const useMedStore = create<MedState>((set, get) => ({
     return plan;
   },
 
+  toggleProblem: (problem) => {
+    const { problems } = get();
+    set({ problems: problems.includes(problem) ? problems.filter((x) => x !== problem) : [...problems, problem] });
+  },
+
+  setAge: (age) => set({ age: age === null || !Number.isFinite(age) ? null : Math.max(18, Math.min(110, Math.round(age))) }),
+
   skipAhead: () => {
     if (!pending.length) return;
     const lead = pending[0].fireAt - sim.time - 1500;
     if (lead <= 0) return;
     for (const p of pending) p.fireAt -= lead;
-    set({ next: nextOf() });
+    set({ next: nextOf(), skipped: get().skipped + lead });
   },
 
   reset: (conditionId) => {
     pending.length = 0;
     modsByDrug.clear();
     untreated = null;
-    set({ conditionId: conditionId === undefined ? get().conditionId : conditionId, given: [], log: [], marks: [], mods: null, next: null, last: null });
+    // another condition is another patient: its history and age are not this one's
+    const other = conditionId !== undefined && conditionId !== get().conditionId;
+    set({
+      conditionId: conditionId === undefined ? get().conditionId : conditionId, given: [], log: [], marks: [], mods: null, next: null, last: null, skipped: 0,
+      ...(other ? { problems: [], age: null } : {}),
+    });
   },
 }));
 
