@@ -210,10 +210,13 @@ export function askCritical(a: LabAsk): Critical {
   };
 }
 
-/** Handing the wrong thing after the operator asked */
+/**
+ * Handing the wrong thing after the operator asked. A wrong answer (Harm.wrongAnswer): when a drug or device rule charges
+ * the same act, the heavier of the two charges alone (engine harmsFor; a tie keeps these words)
+ */
 export function askHarm(a: LabAsk, text: string, points = 3): Harm {
   return {
-    id: `wrong-${a.id}`, actions: a.wrong ?? [], roles: [askedRole(a)], points, severity: 'minor', text,
+    id: `wrong-${a.id}`, actions: a.wrong ?? [], roles: [askedRole(a)], points, severity: 'minor', text, wrongAnswer: true,
     when: (s) => has(s, `asked-${a.id}`) && !has(s, a.gives),
   };
 }

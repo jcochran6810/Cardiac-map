@@ -364,7 +364,8 @@ describe('no-reflow in the cath lab: the tech and the nurse', () => {
 
   it('the tech who opens the wrong device for the stent costs points', () => {
     const s = run(sc, 3, ['act', 'stent-covered']);
-    expect(penalties(s)).toEqual(expect.arrayContaining(['wrong-stent', 'covered-no-perforation']));
+    // one device, one penalty: a covered stent with no perforation (4) outweighs the wrong answer to the ask (3)
+    expect(penalties(s)).toEqual(['covered-no-perforation']);
   });
 
   it('a tech who never calls out the change loses those points', () => {

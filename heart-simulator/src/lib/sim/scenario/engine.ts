@@ -28,7 +28,7 @@ import type {
   Critical, Effect, FactKey, Harm, Intervention, Line, PendingRead, Problem, Review, ReviewItem, Scenario, SimState, Speaker, Tone,
 } from './types';
 import { BUILT_IN_HARMS } from './rules';
-import { sedationForProcedure } from './rules/acs';
+import { NITRATE_CHECKS, sedationForProcedure } from './rules/acs';
 import { INDICATION_RULES, RN_ORDER_ONLY, missingOrderCovers } from './rules/scope';
 import {
   cprThisArrest, did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, outflowObstruction, preexcitedAf, preloadDependent, profileShowsStemi,
@@ -1251,10 +1251,30 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
   ]);
   const builtIn = BUILT_IN_HARMS.filter((b) => !own.has(b.id));
   const orderCovers = missingOrderCovers(s, sc, id);
+  const from = s.penalties.length;
+  const chargedNow: Harm[] = [];
   for (const h of [...builtIn.filter((b) => !(orderCovers && INDICATION_RULES.includes(b.id))), ...sc.harms]) {
     if (!applies(h) || charged(h)) continue;
     s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text });
+    chargedNow.push(h);
   }
+  oneAnswerOnePenalty(s, from, chargedNow);
+}
+
+const SEVERITY_RANK: Record<Harm['severity'], number> = { minor: 1, major: 2, critical: 3 };
+/**
+ * A wrong answer to a team request (Harm.wrongAnswer, labKit askHarm) and a rule that judges the same drug or device on the
+ * same act: one dose, one penalty, the heavier (points, then severity) — on a tie the wrong answer, in the case's words.
+ * The checks before a nitrate (a pressure, the PDE-5 question, the interval) are mistakes of their own: they charge beside
+ * it, as they do beside a missing order
+ */
+function oneAnswerOnePenalty(s: SimState, from: number, chargedNow: Harm[]) {
+  const wrong = chargedNow.filter((h) => h.wrongAnswer);
+  const judged = chargedNow.filter((h) => !h.wrongAnswer && !NITRATE_CHECKS.includes(h.id));
+  if (!wrong.length || !judged.length) return;
+  const weight = (hs: Harm[]) => Math.max(...hs.map((h) => h.points * 10 + SEVERITY_RANK[h.severity]));
+  const drop = new Set((weight(judged) > weight(wrong) ? wrong : judged).map((h) => h.id));
+  s.penalties = [...s.penalties.slice(0, from), ...s.penalties.slice(from).filter((p) => !drop.has(p.id))];
 }
 
 export function criticalsFor(sc: Scenario, role: LearningLevel): Critical[] {

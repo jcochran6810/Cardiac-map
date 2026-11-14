@@ -223,9 +223,15 @@ export interface Harm {
   /**
    * Built-in rules this case rule stands in for while it applies: when its action, role and `when` all match the action
    * being judged, the listed built-ins are not charged for it (one mistake, one penalty). In any other state the built-ins
-   * still apply. A case rule with the same id as a built-in replaces it always — a deliberate exemption.
+   * still apply. A case rule with the same id as a built-in replaces it for the actions it lists — a deliberate exemption.
    */
   replaces?: string[];
+  /**
+   * A wrong answer to a team request (labKit askHarm): when it charges an act together with another rule that judges the
+   * same drug or device, only the heavier of them charges — on a tie, the wrong answer (the case's words). The checks
+   * before a nitrate are mistakes of their own and charge beside it (engine harmsFor)
+   */
+  wrongAnswer?: true;
 }
 
 /**

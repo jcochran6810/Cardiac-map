@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_HARMS, RN_ORDER_ONLY, perform, review, start } from '@/lib/sim/scenario/engine';
-import { askCritical, askEvents, type LabAsk } from '@/lib/sim/scenario/labKit';
+import { askCritical, askEvents, askHarm, type LabAsk } from '@/lib/sim/scenario/labKit';
 import { edOrder, standingOrders } from '@/lib/sim/scenario/edKit';
 import { INDICATION_RULES, RN_ORDER_CRITICAL, SCOPE_RULES } from '@/lib/sim/scenario/rules/scope';
 import { lastDoneAt, outflowObstruction, preloadDependent, slowOrBlocked } from '@/lib/sim/scenario/rules/helpers';
@@ -331,6 +331,29 @@ describe('team requests (labKit and edKit)', () => {
     expect(late.fired).toContain('heparin-fallback');
     expect(late.fired).not.toContain('heparin-got');
     expect(missed(late)).toEqual(['Heparin on request']);
+  });
+
+  it('a wrong answer and a drug rule on one dose: the heavier charges alone; a tie keeps the wrong answer; a nitrate check charges beside', () => {
+    // the nurse asked for heparin hands nitroglycerin instead (a wrong answer worth 3)
+    const WRONG: LabAsk = { ...HEPARIN, wrong: ['nitro', 'nitro-high', 'atropine'] };
+    const asked = (vitals: Partial<SimState['vitals']>, rhythm = SINUS) => fixture({
+      setting: 'cathlab', role: 4, rhythm, vitals: { pain: 5, ...vitals },
+      harms: [askHarm(WRONG, 'Not what the operator asked for.')], extra: { events: askEvents(WRONG) },
+    });
+    expect(askHarm(WRONG, 'x').wrongAnswer).toBe(true);
+    // a low pressure: nitro-hypotension (8) outweighs it — the contraindication alone
+    expect(penaltyIds(asked({ sbp: 82, dbp: 50 }), 4, ['iv', 'reassess', 'nitro'])).toEqual(['nitro-hypotension']);
+    // a tie (3 and 3): atropine with a normal rate — the wrong answer alone, in the case's words
+    expect(penaltyIds(asked({}), 4, ['iv', 'reassess', 'atropine'])).toEqual(['wrong-heparin']);
+    // nothing else wrong with the drug: the wrong answer
+    expect(penaltyIds(asked({}), 4, ['iv', 'reassess', 'nitro'])).toEqual(['wrong-heparin']);
+    // in the department the checks before a nitrate are each a mistake of their own: they charge beside the wrong answer
+    const pain: LabAsk = edOrder({
+      id: 'fentanyl', when: () => true, ask: 'Fentanyl 50 micrograms, please.', accept: ['fentanyl'], wrong: ['nitro'], thanks: 'Thanks.',
+      fallback: 'I will give it.', gives: 'fentanyl-given', label: 'Fentanyl on the order', why: '…', wait: 3,
+    });
+    const ed = fixture({ setting: 'ed', role: 6, rhythm: SINUS, vitals: { pain: 7 }, harms: [askHarm(pain, 'Not the drug ordered.')], extra: { events: askEvents(pain) } });
+    expect(penaltyIds(ed, 6, ['nitro'])).toEqual(['nitro-no-bp', 'wrong-fentanyl']);
   });
 
   /** An ED patient who arrests at minute 1 and comes back at minute 5 */

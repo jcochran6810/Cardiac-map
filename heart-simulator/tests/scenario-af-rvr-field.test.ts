@@ -217,6 +217,8 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     // one dose, one penalty: the low pressure outranks the failing heart, and the case's rule speaks for that
     expect(ids(unstable)).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable']);
     expect(ids(unstable)).not.toContain('procainamide-hypotension');
+    // metoprolol once he is unstable: the case's unstable-patient rule alone, not also its decompensation rule
+    expect(ids(run(sc, 2, [...READY, 'diltiazem', 'metoprolol']))).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable']);
   });
 
   it('adenosine does not convert it: the same rhythm comes straight back, and it costs once', () => {

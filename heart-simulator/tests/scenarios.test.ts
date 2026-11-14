@@ -598,7 +598,8 @@ describe('FFR-guided PCI', () => {
   it('the nurse who pushes the SVT dose of adenosine for hyperaemia is corrected', () => {
     const steps = IDEAL['ffr-cathlab'][4]!;
     const s = run(sc, 4, [...steps.slice(0, steps.indexOf('adenosine-iv-ffr')), 'adenosine6']);
-    expect(s.penalties.map((p) => p.id)).toEqual(expect.arrayContaining(['svt-adenosine', 'wrong-hyperemia']));
+    // one dose, one penalty: the wrong answer to the order, in the case's words (the SVT-dose rule says the same mistake)
+    expect(s.penalties.map((p) => p.id)).toEqual(['wrong-hyperemia']);
     expect(s.log.some((l) => /Not the SVT dose/.test(l.text))).toBe(true);
   });
 
