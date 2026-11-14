@@ -124,7 +124,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     contraindications: [
       'Active pathological bleeding (e.g. peptic ulcer, intracranial hemorrhage)',
       'Hypersensitivity to clopidogrel',
-      'Hold ~5 days before elective CABG or major surgery when feasible',
+      'Planned CABG or major surgery: stop 5 days before when possible (timing, not a contraindication)',
+      'Suspected aortic dissection — no antithrombotic until it is excluded',
+      'CYP2C19 poor metabolizer (boxed warning): little effect — use ticagrelor or prasugrel',
     ],
     adverseEffects: [
       'Bleeding (GI, access site, intracranial)',
@@ -148,6 +150,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Strong CYP2C19 inhibitors (e.g. fluconazole, fluvoxamine) reduce effect',
       'Opioids slow gut absorption and delay onset in ACS',
       'Raises repaglinide levels markedly (CYP2C8 inhibition)',
+      'Cangrelor: give clopidogrel only after the infusion stops — it cannot bind while cangrelor occupies P2Y12 (Kengreal label)',
     ],
     teaching: [
       'CYP2C19 poor metabolizers (more common in East Asian populations) get less protection',
@@ -194,9 +197,13 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     contraindications: [
       'History of intracranial hemorrhage',
       'Active pathological bleeding',
-      'Severe hepatic impairment',
+      'Severe hepatic impairment — avoid (label warning; not studied)',
       'Strong CYP3A inhibitors (ketoconazole, clarithromycin, ritonavir) — avoid; contraindicated in EU labeling',
       'Strong CYP3A inducers (rifampin, carbamazepine, phenytoin) — avoid',
+      'Hypersensitivity (angioedema)',
+      'Planned urgent CABG — do not start (boxed warning)',
+      'Suspected aortic dissection — no antithrombotic until it is excluded',
+      'Within 24 h of a fibrinolytic — use clopidogrel (2025 ACC/AHA ACS)',
     ],
     adverseEffects: [
       'Dyspnea (~14% in PLATO), usually mild and often self-limited',
@@ -272,6 +279,10 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Active pathological bleeding',
       'Likely urgent CABG — hold ≥ 7 days before elective CABG',
       'Pretreatment before coronary anatomy is known in NSTE-ACS (more bleeding, no benefit)',
+      'With or within 24 h of a fibrinolytic — not studied; use clopidogrel',
+      'Age 75 or older — generally not recommended (boxed warning), except with diabetes or a prior MI',
+      'Hypersensitivity (angioedema)',
+      'Suspected aortic dissection — no antithrombotic until it is excluded',
     ],
     adverseEffects: [
       'Bleeding — more major and fatal bleeding than clopidogrel',
@@ -289,6 +300,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Additive bleeding with anticoagulants, NSAIDs and fibrinolytics',
       'Opioids delay absorption in ACS',
       'Generally avoided in triple therapy with oral anticoagulants (clopidogrel preferred)',
+      'Cangrelor: give prasugrel only after the infusion stops — it cannot bind while cangrelor occupies P2Y12 (Kengreal label)',
     ],
     teaching: [
       'Three groups do poorly on prasugrel: prior stroke/TIA, age ≥ 75 y, weight < 60 kg',
@@ -338,6 +350,10 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Current or prior heparin-induced thrombocytopenia (HIT)',
       'Severe thrombocytopenia',
       'Recent intracranial hemorrhage or neurosurgery (relative)',
+      'Known hypersensitivity to heparin or pork products (label)',
+      'Suspected aortic dissection — no anticoagulant until it is excluded',
+      'Acute pericarditis, a pericardial effusion or tamponade — bleeding into the pericardium (relative)',
+      'SCAD without a stent — stop it once SCAD is diagnosed (the hematoma can extend; relative)',
     ],
     adverseEffects: [
       'Bleeding',
@@ -360,6 +376,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Additive bleeding with antiplatelets, fibrinolytics and other anticoagulants',
       'Do not switch between UFH and enoxaparin during the same ACS episode',
       'Potassium-sparing drugs add to hyperkalemia risk',
+      'Not with a bivalirudin infusion (double anticoagulation)',
     ],
     teaching: [
       'SYNERGY: crossing over between UFH and enoxaparin increased bleeding',
@@ -410,7 +427,10 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Current or prior HIT (cross-reactivity)',
       'Active major bleeding',
       'Neuraxial anesthesia without appropriate timing (spinal/epidural hematoma — boxed warning)',
-      'Dialysis or severe renal failure — UFH generally preferred',
+      'Dialysis or severe renal failure — UFH generally preferred (relative)',
+      'Hypersensitivity to enoxaparin, heparin or pork products, or to benzyl alcohol (multiple-dose vial) — label',
+      'Suspected aortic dissection — no anticoagulant until it is excluded',
+      'Mechanical heart valve (especially in pregnancy) — not adequately studied; valve thrombosis reported (label warning)',
     ],
     adverseEffects: [
       'Bleeding and injection-site hematoma',
@@ -473,7 +493,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'CrCl < 30 mL/min: infusion reduced to 1 mg/kg/h; dialysis 0.25 mg/kg/h (label)',
       'Check ACT ~5 min after bolus; give an extra 0.3 mg/kg if needed',
     ],
-    contraindications: ['Active major bleeding', 'Hypersensitivity to bivalirudin'],
+    contraindications: [
+      'Active major bleeding',
+      'Hypersensitivity to bivalirudin',
+      'Suspected aortic dissection — no anticoagulant until it is excluded',
+    ],
     adverseEffects: [
       'Bleeding (generally less than UFH plus GP IIb/IIIa)',
       'Acute stent thrombosis if stopped abruptly after primary PCI (HORIZONS-AMI)',
@@ -490,6 +514,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     interactions: [
       'Additive bleeding with antiplatelets and other anticoagulants',
       'Falsely elevates INR — complicates transition to warfarin',
+      'Not on top of a full heparin bolus — choose one anticoagulant (double anticoagulation)',
     ],
     teaching: [
       'No specific reversal agent — rely on its short half-life; hemodialysis removes some drug',
@@ -539,6 +564,8 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Active pathological bleeding',
       'Triple-positive antiphospholipid syndrome (warfarin preferred)',
       'Strong combined CYP3A4/P-gp inducers (e.g. rifampin)',
+      'Neuraxial anesthesia or spinal puncture — timing (boxed warning: spinal or epidural hematoma)',
+      'Severe hypersensitivity (label)',
     ],
     adverseEffects: [
       'Bleeding (less major and intracranial bleeding than warfarin)',
@@ -557,6 +584,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Strong CYP3A4/P-gp inhibitors (e.g. ketoconazole, ritonavir) increase levels',
       'Strong inducers (rifampin, carbamazepine, phenytoin, St John\'s wort) decrease levels',
       'Additive bleeding with antiplatelets and NSAIDs',
+      'A fibrinolytic: an oral anticoagulant is a relative contraindication to STEMI and PE lysis (a DOAC within 48 h bars stroke lysis) — record the last dose',
     ],
     teaching: [
       'ARISTOTLE: fewer strokes, less major bleeding and lower mortality than warfarin',
@@ -603,10 +631,15 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Acute VTE: overlap with parenteral anticoagulant ≥ 5 days and until INR ≥ 2 for 24 h',
     ],
     contraindications: [
-      'Active major bleeding',
-      'Pregnancy (embryopathy) — mechanical-valve patients need specialist planning',
-      'Recent CNS surgery or hemorrhage',
-      'Inability to monitor INR reliably',
+      'Active major bleeding, or a bleeding tendency or blood dyscrasia',
+      'Pregnancy (embryopathy) — mechanical-valve patients need specialist planning; threatened abortion, eclampsia, pre-eclampsia',
+      'Intracranial hemorrhage, a cerebral aneurysm, or recent or planned brain, spine or eye surgery',
+      'Inability to take or monitor it reliably',
+      'Aortic dissection',
+      'Pericarditis or a pericardial effusion',
+      'Bacterial endocarditis',
+      'Malignant hypertension',
+      'Spinal puncture, or major regional or lumbar block anesthesia',
     ],
     adverseEffects: [
       'Bleeding, including intracranial',
@@ -628,6 +661,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Rifampin, carbamazepine and St John\'s wort lower INR',
       'Changes in dietary vitamin K alter effect — keep intake consistent',
       'Antiplatelets and NSAIDs add bleeding risk',
+      'Fibrinolytics: an oral anticoagulant is a relative contraindication to STEMI and PE lysis; an INR above 1.7 bars stroke lysis',
     ],
     teaching: [
       'Vitamin K–dependent factors: 2, 7, 9, 10 plus proteins C and S',
@@ -650,7 +684,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Give only where the EMS system protocol authorizes prehospital lysis: complete the contraindication checklist and aim for drug within ~30 min of first contact when PCI cannot occur within 120 min. Otherwise transmit the 12-lead and activate the STEMI system.',
       'Lysed patients may arrive for rescue or pharmacoinvasive PCI; record the lytic drug and time for the case log. Bleeding risk is high, so report access-site oozing, hematoma or neurologic change to the operator immediately.',
       'On transfer from a non-PCI hospital, confirm drug, dose and time, and check neuro status often (headache, falling GCS, new deficit). Avoid non-compressible punctures and IM injections, and report bleeding or reperfusion arrhythmias at once.',
-      'Give within 30 min of arrival when primary PCI cannot be achieved within 120 min of FMC: weight-band bolus, half dose if ≥ 75 y. Transfer all lysed patients; rescue PCI if < 50% ST resolution at 60–90 min, otherwise angiography at 2–24 h (STREAM).',
+      'Give within 30 min of arrival when primary PCI cannot be achieved within 120 min of FMC: weight-band bolus (consider half dose at 75 or over: STREAM-2, ESC — not in the US label). Transfer all lysed patients; rescue PCI if < 50% ST resolution at 60–90 min, otherwise angiography at 2–24 h (STREAM).',
       'Once the physician decides on lysis, place two IVs and draw labs first, then give the weight-band bolus over ~5 s on order through a saline-flushed line (it precipitates with dextrose). Check neuro status and puncture sites often; repeat the 12-lead at 60–90 min.',
       'Without on-site PCI the lysis call is yours: STEMI < 12 h with PCI > 120 min from first contact gets it within 30 min of arrival once absolute contraindications are excluded (prior ICH, recent stroke, dissection). Transfer every lysed patient at once; failed reperfusion means rescue PCI.',
     ],
@@ -667,7 +701,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     dosing: [
       'STEMI: single IV bolus, ~0.5 mg/kg, 30–50 mg by weight',
       'Weight bands: < 60 kg 30 mg; 60–69 kg 35 mg; 70–79 kg 40 mg; 80–89 kg 45 mg; ≥ 90 kg 50 mg',
-      'Age ≥ 75 y: half dose (adopted mid-STREAM after excess ICH; ESC-endorsed; STREAM-2 used half dose in patients ≥ 60 y)',
+      'Age ≥ 75: consider half dose (STREAM-2; ESC) — not in the US label or confirmed in the 2025 ACC/AHA table',
       'Adjuncts: aspirin, clopidogrel (300 mg, or 75 mg if > 75 y) and enoxaparin or UFH',
     ],
     contraindications: [
@@ -678,6 +712,15 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Active bleeding or bleeding diathesis (excluding menses)',
       'Significant closed-head or facial trauma within 3 months; intracranial/intraspinal surgery within 2 months',
       'Severe uncontrolled hypertension unresponsive to emergency therapy',
+      'Pulmonary embolism without cardiopulmonary failure (AHA/ACC 2026 categories A1–C2) — systemic lysis must not be used',
+      'Systolic above 180 or diastolic above 110 mmHg (relative — lower it first; absolute if it cannot be controlled)',
+      'A TIA, or an ischemic stroke more than 3 months ago (relative)',
+      'Dementia or other intracranial disease not listed above (relative)',
+      'An oral anticoagulant (relative)',
+      'Major surgery within 3 weeks, or traumatic or prolonged CPR (more than 10 min) (relative)',
+      'Internal bleeding within 2–4 weeks, or an active peptic ulcer (relative)',
+      'Non-compressible vascular punctures (relative)',
+      'Pregnancy (relative)',
     ],
     adverseEffects: [
       'Intracranial hemorrhage (~0.5–1%; higher in elderly, women and low body weight)',
@@ -750,12 +793,12 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Long-acting oral/transdermal nitrates need a daily nitrate-free interval',
     ],
     contraindications: [
-      'PDE5 inhibitors: avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h',
-      'Hypotension (SBP < 90 mmHg or ≥ 30 mmHg below baseline)',
+      'PDE5 inhibitors (avanafil within 12 h, sildenafil or vardenafil within 24 h, tadalafil within 48 h) or riociguat',
+      'Hypotension (SBP < 90 mmHg or ≥ 30 mmHg below baseline), shock or hypovolemia',
       'Marked bradycardia (< 50/min), or tachycardia (> 100/min) without heart failure',
-      'Suspected RV infarction — avoid or use with great caution',
-      'Severe aortic stenosis or obstructive HCM (preload-dependent)',
-      'Riociguat therapy',
+      'A preload-dependent heart: suspected RV infarction (avoid, or great caution); cardiac tamponade, constrictive pericarditis or restrictive cardiomyopathy (IV label); a massive PE with a failing right ventricle',
+      'Severe aortic stenosis, or dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO)',
+      'Raised intracranial pressure — suspected intracranial bleeding or head injury — or severe anemia (label); cardiac arrest: no role',
     ],
     adverseEffects: [
       'Headache (very common)',
@@ -831,10 +874,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Intranasal route used in some EMS systems (protocol-dependent dosing)',
     ],
     contraindications: [
-      'Respiratory depression or unprotected airway without ventilatory support',
-      'Hypotension or shock (relative — titrate cautiously)',
+      'Respiratory depression or an unprotected airway without ventilatory support (a practice limit; the label lists only hypersensitivity)',
+      'Hypotension or shock (relative — a practice limit: titrate cautiously)',
       'Known hypersensitivity',
-      'MAOI use within 14 days',
+      'MAOI within 14 days — not recommended (label interaction: serotonin syndrome or opioid toxicity)',
+      'Cardiac arrest: no role',
     ],
     adverseEffects: [
       'Respiratory depression and apnea',
@@ -915,6 +959,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Symptomatic bradycardia or sick sinus syndrome',
       'Pre-excited AF (WPW)',
       'Severe active bronchospasm (relative)',
+      'Acute cocaine or methamphetamine intoxication — a β-blocker leaves the α effect unopposed (2025 ACC/AHA ACS: 3 — Harm)',
+      'IV diltiazem or verapamil within a few hours (additive AV block, bradycardia and hypotension)',
+      'In acute MI (label): heart rate below 45/min, PR 0.24 s or longer, or systolic below 100 mmHg',
+      'Risk factors for cardiogenic shock in STEMI — age over 70, systolic under 120, heart rate over 110 or under 60, late presentation (COMMIT; 2013 ACCF/AHA): no IV dose',
+      'Untreated pheochromocytoma (label)',
     ],
     adverseEffects: [
       'Bradycardia and AV block',
@@ -992,7 +1041,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Sinus bradycardia, sick sinus or AV block above first degree without a pacemaker',
       'Cardiogenic shock or decompensated heart failure',
       'Pre-excited AF (WPW)',
-      'RV failure with pulmonary hypertension (relative)',
+      'Pulmonary hypertension with RV failure (label)',
+      'IV calcium-channel blockers (verapamil, diltiazem) while their effect lasts — fatal cardiac arrests reported (label)',
+      'Acute cocaine or methamphetamine intoxication — unopposed α (2025 ACC/AHA ACS: 3 — Harm)',
     ],
     adverseEffects: [
       'Hypotension (most common, dose-related)',
@@ -1060,12 +1111,14 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'If no conversion in 1–2 min: 12 mg rapid IV push',
       'Consider a lower first dose (e.g. 3 mg) via central line, in heart transplant, or with dipyridamole/carbamazepine',
       'Stress imaging: 140 mcg/kg/min infusion over ~4–6 min',
+      'FFR hyperemia: 140 mcg/kg/min IV through a large vein, or an intracoronary bolus',
     ],
     contraindications: [
       'Pre-excited (irregular) AF — may accelerate pathway conduction → VF',
-      'Irregular or polymorphic wide-complex tachycardia',
+      'Irregular or polymorphic wide-complex tachycardia, or an unstable wide-complex tachycardia (2025 AHA: 3 — Harm)',
       'Second- or third-degree AV block or sick sinus without a pacemaker',
-      'Asthma or active bronchospasm — avoid or use with caution (can provoke bronchospasm)',
+      'Asthma or bronchospastic lung disease: contraindicated for the IV infusion (stress imaging, FFR hyperemia — Adenoscan label); avoid the 6/12 mg push as well',
+      'Severe hypotension (the infusion)',
     ],
     adverseEffects: [
       'Flushing, chest pressure, dyspnea and a sense of doom (seconds)',
@@ -1144,6 +1197,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Hypotension or cardiogenic shock',
       'Sick sinus or second/third-degree AV block without a pacemaker',
       'Wide-complex tachycardia of uncertain origin (may be VT)',
+      'An IV β-blocker given together or within a few hours (label) — profound bradycardia, AV block, asystole',
+      'Compensatory sinus tachycardia (tamponade, PE, bleeding, sepsis) — treat the cause, never slow it (relative)',
+      'Hypersensitivity to diltiazem',
     ],
     adverseEffects: [
       'Hypotension',
@@ -1170,7 +1226,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Interacting drugs with chronic use',
     ],
     interactions: [
-      'Beta-blockers → additive bradycardia, AV block and hypotension (avoid IV combination)',
+      'Oral β-blockers → additive bradycardia, AV block and hypotension (an IV β-blocker: see contraindications)',
       'Raises levels of simvastatin, lovastatin, DOACs, cyclosporine and tacrolimus (CYP3A4)',
       'Raises digoxin levels',
       'Strong CYP3A4 inhibitors raise diltiazem levels',
@@ -1224,7 +1280,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Marked sinus bradycardia, sick sinus or second/third-degree AV block without a pacemaker',
       'Long QT or torsades de pointes',
       'Pre-excited AF (WPW) — IV amiodarone is potentially harmful; use procainamide or cardioversion',
-      'Iodine hypersensitivity (relative)',
+      'Known hypersensitivity to amiodarone or its components, including iodine (label) — a seafood "allergy" is not one, and none stands in a shock-refractory arrest',
     ],
     adverseEffects: [
       'IV: hypotension, bradycardia and phlebitis (central line or in-line filter for infusions)',
@@ -1305,6 +1361,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Second- or third-degree AV block without a pacemaker',
       'Systemic lupus erythematosus',
       'HFrEF (negative inotropy) — use caution',
+      'Tricyclic or other sodium-channel-blocker overdose (a class IA drug deepens the block)',
+      'Hypersensitivity to procainamide or procaine (cross-sensitivity)',
+      'Myasthenia gravis (label precaution: it can worsen the weakness)',
     ],
     adverseEffects: [
       'Hypotension, especially with rapid infusion',
@@ -1381,6 +1440,8 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Ventricular escape rhythm in complete heart block — may abolish the only rhythm',
       'High-grade AV block or severe SA disease without a pacemaker',
       'Prophylaxis in AMI without arrhythmia',
+      'Wolff-Parkinson-White syndrome or pre-excited AF (label)',
+      'Stokes-Adams attacks (label)',
     ],
     adverseEffects: [
       'CNS toxicity: perioral numbness, tinnitus, confusion, slurred speech, seizures',
@@ -1454,6 +1515,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Obstructive hypertrophic cardiomyopathy',
       'Ventricular fibrillation',
       'Uncorrected hypokalemia (increases toxicity)',
+      'Elective electrical cardioversion while digoxin-toxic (VT/VF) — wait until the toxicity resolves',
     ],
     adverseEffects: [
       'Anorexia, nausea and vomiting',
@@ -1532,7 +1594,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Hypermagnesemia',
       'Severe renal failure (accumulation) — caution',
       'Myasthenia gravis (may worsen weakness)',
-      'High-grade AV block (caution)',
+      'Heart block or myocardial damage (label contraindication for parenteral magnesium; in torsades the indication decides, with pacing ready)',
     ],
     adverseEffects: [
       'Flushing, warmth and hypotension with rapid infusion',
@@ -1605,10 +1667,12 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Organophosphate poisoning: escalating doses titrated to drying of secretions',
     ],
     contraindications: [
+      'The US label lists no contraindications; these are guideline limits',
       'Mobitz II or third-degree block with wide QRS — likely ineffective; pace instead',
       'Heart transplant recipients',
       'Tachyarrhythmias',
       'Angle-closure glaucoma (relative)',
+      'Acute MI or ischemia — use cautiously: a faster rate raises oxygen demand and can provoke VT/VF (AHA ACLS)',
     ],
     adverseEffects: [
       'Tachycardia and ↑myocardial O2 demand (can worsen ischemia)',
@@ -1684,6 +1748,8 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Caution in tachyarrhythmias and ACS (↑O2 demand)',
       'Caution in cocaine or sympathomimetic toxicity',
       'Uncorrected hypovolemia in shock',
+      'Dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO): catecholamines worsen it — fluid and phenylephrine',
+      'IM is for anaphylaxis — never the route in cardiac arrest',
     ],
     adverseEffects: [
       'Tachycardia and tachyarrhythmias, including VF',
@@ -1760,9 +1826,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Septic shock: add vasopressin as doses rise (~0.25–0.5 mcg/kg/min)',
     ],
     contraindications: [
+      'The current US label lists no contraindications; the cautions below are practice',
       'Uncorrected hypovolemia (relative — restore volume too)',
       'Mesenteric or peripheral vascular thrombosis (relative)',
       'Sulfite hypersensitivity (some formulations)',
+      'Dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO): catecholamines worsen it — fluid and phenylephrine',
     ],
     adverseEffects: [
       'Peripheral, digital and mesenteric ischemia',
@@ -1903,9 +1971,11 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Infusion: start ~10–35 mcg/min, titrate (usual max ~200 mcg/min)',
     ],
     contraindications: [
+      'The current US label lists no contraindications; its warnings are angina, heart failure and pulmonary arterial hypertension',
       'Severe bradycardia or high-grade AV block',
       'Low-output cardiogenic shock (relative — ↑afterload)',
       'Severe hypertension',
+      'Pulmonary arterial hypertension — raises pulmonary vascular resistance (label warning)',
     ],
     adverseEffects: [
       'Reflex bradycardia',
@@ -1977,6 +2047,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Pheochromocytoma',
       'Uncorrected tachyarrhythmias or VF',
       'Uncorrected hypovolemia (relative)',
+      'Dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO): catecholamines worsen it — fluid and phenylephrine',
     ],
     adverseEffects: [
       'Tachyarrhythmias (sinus tachycardia, AF, VT)',
@@ -2047,7 +2118,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Stress echo: stepwise up to ~40 mcg/kg/min ± atropine',
     ],
     contraindications: [
-      'Obstructive HCM (worsens LVOT obstruction)',
+      'Dynamic LV outflow obstruction — obstructive HCM, Takotsubo with LVOTO (worsens the obstruction)',
       'Uncontrolled tachyarrhythmias',
       'Hypotension without vasopressor support (relative)',
       'Sulfite hypersensitivity (some formulations)',
@@ -2120,14 +2191,15 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     dosing: [
       'Infusion: 0.125–0.75 mcg/kg/min (often started at 0.125–0.25)',
-      'Label loading dose 50 mcg/kg over 10 min is often omitted because of hypotension',
-      'Reduce infusion rate in renal impairment',
+      'No routine loading bolus — the label\'s 50 mcg/kg over 10 min drops the pressure',
+      'A lower rate with kidney disease (label: dose-adjust for creatinine clearance)',
     ],
     contraindications: [
       'Severe obstructive aortic or pulmonic valve disease',
-      'Obstructive HCM',
+      'Dynamic LV outflow obstruction — obstructive HCM, Takotsubo with LVOTO',
       'Significant hypotension without vasopressor support',
       'Hypersensitivity',
+      'Acute phase of MI — not recommended (label)',
     ],
     adverseEffects: [
       'Hypotension',
@@ -2206,6 +2278,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Severe hypovolemia or dehydration',
       'Severe uncorrected hypokalemia or hyponatremia',
       'Hepatic coma',
+      'Hypotension or shock — restore perfusion first (relative)',
+      'Preload-dependent states — tamponade, RV infarction, dynamic LV outflow obstruction (relative)',
+      'Sulfonamide allergy — low cross-reactivity; give with care (relative)',
     ],
     adverseEffects: [
       'Hypokalemia and hypomagnesemia (arrhythmia risk)',
@@ -2283,8 +2358,10 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'History of angioedema',
       'Pregnancy (fetotoxic)',
       'Within 36 h of sacubitril/valsartan',
-      'Bilateral renal artery stenosis',
+      'Bilateral renal artery stenosis (relative)',
       'Hyperkalemia or SBP < 90 mmHg (relative)',
+      'Hereditary or idiopathic angioedema',
+      'Aliskiren in diabetes',
     ],
     adverseEffects: [
       'Dry cough (~5–20%)',
@@ -2360,7 +2437,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Within 36 h of an ACE inhibitor',
       'History of angioedema',
       'Pregnancy',
-      'Severe hepatic impairment (Child-Pugh C)',
+      'Severe hepatic impairment (Child-Pugh C) — not recommended (label)',
       'Aliskiren co-therapy in diabetes',
     ],
     adverseEffects: [
@@ -2442,6 +2519,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'eGFR ≤ 30 mL/min/1.73 m² (for HF initiation)',
       'Addison disease',
       'Anuria',
+      'Eplerenone together (label)',
     ],
     adverseEffects: [
       'Hyperkalemia',
@@ -2513,8 +2591,8 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'HF/CKD initiation not recommended if eGFR < 20 mL/min/1.73 m²; glucose lowering fades at low eGFR',
     ],
     contraindications: [
-      'Dialysis',
-      'Type 1 diabetes (DKA risk)',
+      'Dialysis (not recommended — label)',
+      'Type 1 diabetes (not recommended — label; DKA risk)',
       'Prior DKA (caution)',
       'Hypersensitivity',
     ],
@@ -2584,10 +2662,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'No renal dose adjustment needed',
     ],
     contraindications: [
-      'Active liver disease or unexplained persistent transaminase elevation',
-      'Pregnancy (usually stopped) and breastfeeding',
+      'Acute liver failure or decompensated cirrhosis',
       'Hypersensitivity',
-      'Prior statin-associated rhabdomyolysis',
+      'Prior statin-associated rhabdomyolysis (practice)',
     ],
     adverseEffects: [
       'Statin-associated muscle symptoms (myalgia)',
@@ -2606,6 +2683,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Baseline ALT; recheck if symptoms',
       'CK only if muscle symptoms',
       'Glucose/HbA1c in at-risk patients',
+      'Pregnancy: no longer a label contraindication (FDA 2021) — stop it in most pregnant patients; breastfeeding not recommended',
     ],
     interactions: [
       'Strong CYP3A4 inhibitors (clarithromycin, itraconazole, HIV protease inhibitors) → myopathy',
@@ -2657,10 +2735,10 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Arrest with suspected hyperkalemia: 1 g IV/IO push',
       'Equivalent: ~3 g calcium gluconate ≈ 1 g calcium chloride',
       'CCB toxicity: repeated boluses or infusion per toxicology guidance',
+      'Calcium gluconate 10%: 3 g (30 mL) IV over 2–5 min through a peripheral line — about the same calcium as 1 g of chloride, gentler on the vein',
     ],
     contraindications: [
       'Hypercalcemia',
-      'Suspected digoxin toxicity (traditional caution; digoxin Fab preferred)',
       'Routine use in cardiac arrest without a specific indication',
       'Never mix with sodium bicarbonate (precipitates)',
     ],
@@ -2686,7 +2764,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     interactions: [
       'Precipitates with sodium bicarbonate and phosphate — flush lines between',
-      'May potentiate digoxin effects',
+      'Digoxin: give calcium slowly (label). Digoxin toxicity is no longer considered a contraindication (Levine 2011) — its hyperkalemia is treated with digoxin Fab (2023 AHA, COR 1)',
       'Antagonizes calcium channel blockers and magnesium',
     ],
     teaching: [
@@ -2922,7 +3000,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Excreted unchanged by the kidneys: the dose depends on the creatinine clearance',
     ],
     indications: [
-      'Stable monomorphic VT (IV)',
+      'Stable monomorphic VT (IV) — no longer in the 2025 AHA tachycardia algorithm, which lists procainamide and amiodarone',
       'Keeping AF or atrial flutter in sinus rhythm (by mouth, or started with an IV load)',
       'Preventing recurrent ventricular arrhythmias (by mouth)',
     ],
@@ -2937,7 +3015,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Cardiogenic shock or decompensated heart failure',
       'Asthma or bronchospasm (nonselective β-blocker)',
       'Severe kidney impairment (for AF: a creatinine clearance below 40 mL/min)',
-      'Hypokalemia or hypomagnesemia (correct them first)',
+      'Potassium below 4 mEq/L (label) or a low magnesium — correct first',
     ],
     adverseEffects: [
       'Torsades de pointes, rising with the dose and with kidney failure',
@@ -3007,8 +3085,8 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Reduce dose or avoid with renal/hepatic impairment and CYP3A4/P-gp inhibitors',
     ],
     contraindications: [
-      'Strong CYP3A4 or P-gp inhibitors in patients with renal or hepatic impairment',
-      'Severe renal impairment (for the CV indication)',
+      'Strong CYP3A4 or P-gp inhibitors (clarithromycin, ketoconazole, ritonavir, cyclosporine): contraindicated with the 0.5 mg cardiovascular dose in everyone, and with any dose in renal or hepatic impairment',
+      'Creatinine clearance under 15 mL/min or dialysis (cardiovascular dose)',
       'Severe hepatic impairment',
       'Pre-existing blood dyscrasias',
     ],
