@@ -50,6 +50,11 @@ export interface Patient {
   age?: number;
   /** what the patient has, in the case simulator's Problem words (without it: nothing known beyond the monitor) */
   problems?: readonly Problem[];
+  /**
+   * the library page the patient belongs to, when it says more than the tracing: SCAD draws an anterior STEMI, but a tear in
+   * the artery wall is no clot to lyse
+   */
+  conditionId?: string;
 }
 
 export interface EffectStep {
@@ -140,6 +145,12 @@ const DISSECTION_TARGET = 'target heart rate 60–80/min and systolic BP below 1
 const dissectionAtTarget = (hr: number): Verdict =>
   caution(`Acute aortic dissection with the heart rate already ${hr}/min — inside the 60–80/min target. If the systolic pressure is still above 120 mmHg, add a vasodilator now (nicardipine, clevidipine or nitroprusside); more β-blocker mainly adds bradycardia.`);
 
+/**
+ * A dynamic LV outflow obstruction on the page: obstructive HCM, or Takotsubo with LV outflow obstruction (its own heart,
+ * the same 12-lead as Takotsubo). Nitrates, catecholamines and inotropes worsen it; fluid and phenylephrine help
+ */
+const outflowObstructed = (p: ECGProfile) => p.hemo === 'hcm' || p.hemo === 'takotsubo-lvoto';
+
 /** below this rate the heart is slow, whatever the rhythm is called */
 const SLOW = 60;
 /** the bradycardia algorithm is for rates typically below this: from here to SLOW the rate alone seldom explains symptoms */
@@ -152,7 +163,8 @@ const BRADY_ALGORITHM = 50;
 export function category(p: ECGProfile, hr?: number): Category {
   if (p.rhythm === 'torsades') return 'torsades';
   if (p.hemo === 'no-output') return 'arrest';
-  if (p.id === 'hyperkalemia') return 'hyperk';
+  // every stage of a high potassium (the peaked T waves, the moderate and the sine-wave tracings)
+  if (p.id.startsWith('hyperkalemia')) return 'hyperk';
   if (STEMI.has(p.id) && p.rhythm !== 'chb') return 'stemi';
   switch (p.rhythm) {
     case 'svt': return 'svt';
@@ -1110,10 +1122,11 @@ const epinephrine: MedDef = {
     }
     // the bradycardia branch is for a slow rate, not for the name of a block: first-degree block at 180 is no bradycardia
     const slowNow = (isBrady(c) && p.hr > 0 && p.hr < SLOW) || slowSinus(c, p);
-    // obstructive HCM: a catecholamine makes the ventricle squeeze harder and faster, and the outflow obstruction worse
-    if (prof.hemo === 'hcm' && cls !== 'toxic') {
+    // obstructive HCM (and Takotsubo with LV outflow obstruction): a catecholamine makes the ventricle squeeze harder and
+    // faster, and the outflow obstruction worse
+    if (outflowObstructed(prof) && cls !== 'toxic') {
       return {
-        verdict: bad('Not in obstructive HCM: epinephrine makes the ventricle squeeze harder and faster, and the outflow obstruction worse — the pressure falls further. Fluid and phenylephrine (2024 AHA/ACC HCM).'),
+        verdict: bad(`Not in ${prof.hemo === 'hcm' ? 'obstructive HCM' : 'Takotsubo with LV outflow obstruction'}: epinephrine makes the ventricle squeeze harder and faster, and the outflow obstruction worse — the pressure falls further. Fluid and phenylephrine (2024 AHA/ACC HCM).`),
         steps: [{ at: 30 * S, hr: rate(p.hr, 1.2, 30, 200), note: 'The rate rises — and the outflow gradient with it.', tone: 'warn', mark: 'rate ↑' }, { at: 7 * MIN, restore: true, note: 'Wears off.', tone: 'info' }],
       };
     }
@@ -1551,6 +1564,9 @@ const tenecteplase: MedDef = {
     if (dosesOf(p, 'tenecteplase').length) {
       return { verdict: bad('Tenecteplase has already been given: it is one bolus. A failed lysis (less than 50% ST resolution at 60–90 min) goes for rescue PCI — repeat fibrinolysis did no better than none and worse than rescue PCI (REACT), and it adds bleeding.'), steps: [...noEcg(10 * MIN, 'No further reperfusion — only more bleeding risk.'), ...bleed] };
     }
+    if (p.conditionId === 'scad') {
+      return { verdict: bad('Not in spontaneous coronary artery dissection: the artery is closed by blood in its wall, not by a clot. A fibrinolytic can extend the bleed into the wall and the dissection, and SCAD is treated conservatively where the flow allows (2018 AHA scientific statement on SCAD). The angiogram, not the 12-lead, tells SCAD from a clot: for a STEMI that is the cath lab.'), steps: [...noEcg(10 * MIN, 'No reperfusion — the wall hematoma can grow.'), ...bleed] };
+    }
     if (prof.id === DISSECTION) {
       return { verdict: bad('Absolutely contraindicated: aortic dissection — fibrinolysis can cause fatal bleeding into the dissection (it can mimic an MI: check before lysis).'), steps: [...noEcg(10 * MIN, 'No benefit — and catastrophic bleeding risk.'), ...bleed] };
     }
@@ -1659,7 +1675,7 @@ const nitroglycerin: MedDef = {
     const reflex: EffectStep = { at: 2 * MIN, hr: rate(p.hr, 1.08, 30, 180), note: 'Reflex tachycardia as the blood pressure falls a little.', tone: 'effect' };
     const drop: EffectStep[] = cls === 'high' || cls === 'toxic' ? [{ at: 3 * MIN, note: 'A large dose: headache and hypotension.', tone: 'warn' }] : [];
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in arrest.'), steps: noEcg(2 * MIN, 'No change.') };
-    if (['aortic-stenosis', 'hcm'].includes(prof.id)) return { verdict: bad('Dangerous: a preload-dependent heart (aortic stenosis, obstructive HCM) — nitrates can cause collapse.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
+    if (['aortic-stenosis', 'hcm', 'takotsubo-lvoto'].includes(prof.id)) return { verdict: bad('Dangerous: a preload-dependent heart (aortic stenosis, obstructive HCM, Takotsubo with LV outflow obstruction) — nitrates can cause collapse.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
     if (lowBP(p, prof)) return { verdict: bad('Contraindicated: the patient is hypotensive (SBP < 90) — nitrates drop the pressure further.'), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling further.', tone: 'warn' }] };
     if (prof.hemo === 'tamponade' || prof.hemo === 'pe') return { verdict: bad(`Dangerous: ${prof.hemo === 'tamponade' ? 'a tamponade' : 'a PE straining the right ventricle'} makes the heart preload-dependent — a nitrate drops the filling and the pressure.`), steps: [reflex, { at: 3 * MIN, note: 'Blood pressure falling.', tone: 'warn' }] };
     if (prof.id === DISSECTION) return { verdict: caution('Aortic dissection: vasodilators lower the BP only after β-blockade — alone they cause a reflex tachycardia that increases the shear on the aortic wall.'), steps: [reflex, ...drop] };
@@ -1759,7 +1775,7 @@ const phenylephrine: MedDef = {
     return {
       verdict: isBrady(c) || slowSinus(c, p) ? bad('Avoid in bradycardia: the reflex slowing makes it worse.')
         : !low ? bad('No low pressure to treat: phenylephrine only adds afterload and slows the heart.')
-          : prof.hemo === 'hcm' || prof.hemo === 'aortic-stenosis' || hasProblem(p, 'lvot-obstruction', 'severe-aortic-stenosis') ? good('Hypotension with outflow obstruction (obstructive HCM, Takotsubo with LV outflow obstruction) or severe aortic stenosis: a vasoconstrictor without inotropy is the drug, after fluid (2024 AHA/ACC HCM).')
+          : outflowObstructed(prof) || prof.hemo === 'aortic-stenosis' || hasProblem(p, 'lvot-obstruction', 'severe-aortic-stenosis') ? good('Hypotension with outflow obstruction (obstructive HCM, Takotsubo with LV outflow obstruction) or severe aortic stenosis: a vasoconstrictor without inotropy is the drug, after fluid (2024 AHA/ACC HCM).')
             : prof.hemo === 'tamponade' ? caution('Tamponade: the output depends on the fast rate, and phenylephrine slows it (reflex). Drain the pericardium; fluid meanwhile.')
               : prof.hemo === 'hfref' || prof.hemo === 'shock' || isAcs(prof) ? caution('Raises the afterload of a failing ventricle: norepinephrine is the usual first pressor in cardiogenic shock.')
                 : caution('A vasopressor for hypotension from vasodilation (e.g. anesthesia) — not for a rhythm problem. Note the reflex slowing.'),
@@ -2067,14 +2083,14 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   { problems: ['intracranial-hemorrhage', 'intracranial-risk'], drugs: ['nitroglycerin'], tone: 'caution', text: () => 'Raised intracranial pressure is a label contraindication: no nitrate with an acute intracranial bleed or a recent head injury (an old, healed lesion is no bar).' },
   { problems: ['intracranial-risk'], drugs: ['heparin'], tone: 'caution', text: () => 'An intracranial lesion, or recent brain or spine surgery or head trauma: full anticoagulation is a relative contraindication (label: hemorrhage after surgery of the brain or spinal cord) — weigh it, with the neurosurgeon.' },
   // a preload-dependent heart: a nitrate drops the filling and the pressure
-  { problems: ['rv-infarction', 'severe-aortic-stenosis', 'lvot-obstruction'], drugs: ['nitroglycerin'], tone: 'bad', text: (p) => (['aortic-stenosis', 'hcm'].includes(p.profileId) ? null : `Not with ${[
+  { problems: ['rv-infarction', 'severe-aortic-stenosis', 'lvot-obstruction'], drugs: ['nitroglycerin'], tone: 'bad', text: (p) => (['aortic-stenosis', 'hcm', 'takotsubo-lvoto'].includes(p.profileId) ? null : `Not with ${[
     hasProblem(p, 'rv-infarction') && 'an RV infarction (2025 ACC/AHA ACS)',
     hasProblem(p, 'severe-aortic-stenosis') && 'severe aortic stenosis (2020 ACC/AHA valve)',
     hasProblem(p, 'lvot-obstruction') && 'dynamic LV outflow obstruction (2024 AHA/ACC HCM)',
   ].filter(Boolean).join(' or ')}: a preload-dependent heart — a nitrate drops the filling, and the pressure can collapse. Fluid if the pressure is low; an opioid in small doses for the pain.`) },
   { problems: ['rv-infarction'], drugs: ['fentanyl'], tone: 'caution', text: (p) => (lowBP(p, resolveProfile(p.profileId)) ? null : 'RV infarction: a preload-dependent heart — an opioid can drop the pressure. Small titrated doses, with fluid ready.') },
   // dynamic LV outflow obstruction: a catecholamine worsens it (in an arrest epinephrine is still the arrest drug)
-  { problems: ['lvot-obstruction'], drugs: ['epinephrine'], tone: 'bad', text: (p, c) => (c === 'arrest' || c === 'torsades' || resolveProfile(p.profileId).hemo === 'hcm' ? null : 'Not with dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO): epinephrine makes the ventricle squeeze harder and faster, and the obstruction worse — the pressure falls further. Fluid and phenylephrine (2024 AHA/ACC HCM).') },
+  { problems: ['lvot-obstruction'], drugs: ['epinephrine'], tone: 'bad', text: (p, c) => (c === 'arrest' || c === 'torsades' || outflowObstructed(resolveProfile(p.profileId)) ? null : 'Not with dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO): epinephrine makes the ventricle squeeze harder and faster, and the obstruction worse — the pressure falls further. Fluid and phenylephrine (2024 AHA/ACC HCM).') },
   // digoxin toxicity
   { problems: ['digoxin-toxicity'], drugs: ['digoxin'], tone: 'bad', text: () => 'Not with digoxin toxicity: more digoxin feeds it (label). Digoxin Fab is the treatment for a dangerous arrhythmia or a high potassium (2023 AHA); correct the potassium and magnesium.' },
   { problems: ['digoxin-toxicity'], drugs: ['calcium-chloride'], tone: 'caution', text: () => 'Digoxin toxicity: digoxin Fab treats its hyperkalemia (2023 AHA). The calcium label still lists digitalis toxicity; the evidence (Levine 2011) found no harm — if calcium is needed, give it slowly.' },
@@ -2082,6 +2098,7 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   { problems: ['heart-failure'], drugs: ['diltiazem'], tone: 'bad', text: (_, c) => (['af', 'flutter', 'svt'].includes(c) ? 'Not with HFrEF (2023 ACC/AHA/ACCP/HRS AF: IV non-dihydropyridine calcium-channel blockers — 3: Harm): a negative inotrope can tip the failing ventricle into shock. A β-blocker if compensated, amiodarone or digoxin; cardiovert if unstable.' : null) },
   { problems: ['heart-failure'], drugs: ['diltiazem'], tone: 'caution', text: (_, c) => (['af', 'flutter', 'svt'].includes(c) ? null : 'HFrEF: diltiazem is a negative inotrope — avoided in a failing ventricle.') },
   { problems: ['heart-failure'], drugs: ['procainamide'], tone: 'bad', text: () => 'Avoid in heart failure (AHA): procainamide depresses the heart and drops the pressure. Amiodarone, or synchronized cardioversion.' },
+  { problems: ['lupus'], drugs: ['procainamide'], tone: 'bad', text: () => 'Contraindicated (label): systemic lupus erythematosus — procainamide can worsen it (drug-induced lupus). Amiodarone, or synchronized cardioversion.' },
   { problems: ['heart-failure'], drugs: ['sotalol'], tone: 'bad', text: () => 'Not with heart failure (label: decompensated failure, cardiogenic shock): sotalol is a β-blocker that lengthens the QT.' },
   { problems: ['heart-failure'], drugs: ['metoprolol', 'esmolol'], tone: 'caution', text: () => 'HFrEF: a β-blocker only while the failure is compensated (no wet lungs, no low output) — never in decompensated failure or shock.' },
   // the kidneys and the potassium
@@ -2128,6 +2145,7 @@ export const HISTORY: readonly { id: Problem; label: string }[] = [
   { id: 'severe-aortic-stenosis', label: 'Severe aortic stenosis' },
   { id: 'lvot-obstruction', label: 'LV outflow obstruction (HCM, Takotsubo)' },
   { id: 'digoxin-toxicity', label: 'Digoxin toxicity' },
+  { id: 'lupus', label: 'Lupus (SLE)' },
 ];
 
 function historyCaveats(id: MedId, p: Patient, dose: number, plan: Plan): Plan {

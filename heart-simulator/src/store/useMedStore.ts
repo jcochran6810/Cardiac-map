@@ -159,7 +159,10 @@ export const useMedStore = create<MedState>((set, get) => ({
     // drug time: the sim clock plus what skip-ahead has brought forward
     const now = t + s.skipped;
     // the blood pressure on the monitor decides, e.g., whether VT is stable and whether nitrates are safe
-    const plan = planDose(drug, { ...before, kg: s.kg, given: s.given, sbp: sim.hemo.summary(t).sbp, now, age: s.age ?? undefined, problems: s.problems }, dose);
+    const plan = planDose(drug, {
+      ...before, kg: s.kg, given: s.given, sbp: sim.hemo.summary(t).sbp, now, age: s.age ?? undefined, problems: s.problems,
+      conditionId: s.conditionId ?? undefined,
+    }, dose);
     const pushed: Dose = { drug, before, own: null };
     for (const step of plan.steps) pending.push({ fireAt: t + step.at, step, dose: pushed });
     pending.sort((a, b) => a.fireAt - b.fireAt);

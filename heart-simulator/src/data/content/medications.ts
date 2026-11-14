@@ -1443,6 +1443,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Prophylaxis in AMI without arrhythmia',
       'Wolff-Parkinson-White syndrome or pre-excited AF (label)',
       'Stokes-Adams attacks (label)',
+      'Hyperkalemia with a wide QRS (caution): its sodium-channel block adds to the conduction slowing the potassium causes — calcium first',
     ],
     adverseEffects: [
       'CNS toxicity: perioral numbness, tinnitus, confusion, slurred speech, seizures',
@@ -2121,6 +2122,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     contraindications: [
       'Dynamic LV outflow obstruction — obstructive HCM, Takotsubo with LVOTO (worsens the obstruction)',
+      'Acute aortic dissection — a harder, faster squeeze drives the tear on (2022 ACC/AHA aortic: lower the force of each beat)',
       'Uncontrolled tachyarrhythmias',
       'Hypotension without vasopressor support (relative)',
       'Sulfite hypersensitivity (some formulations)',
@@ -2199,6 +2201,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     contraindications: [
       'Severe obstructive aortic or pulmonic valve disease',
       'Dynamic LV outflow obstruction — obstructive HCM, Takotsubo with LVOTO',
+      'Acute aortic dissection — a harder squeeze drives the tear on (2022 ACC/AHA aortic: lower the force of each beat)',
       'Significant hypotension without vasopressor support',
       'Hypersensitivity',
       'Acute phase of MI — not recommended (label)',

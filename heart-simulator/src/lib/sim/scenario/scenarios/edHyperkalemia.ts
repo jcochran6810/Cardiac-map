@@ -161,7 +161,7 @@ function calcium(s: SimState, who: Speaker, gluconate = false): Effect {
  * to recheck — ordering the rechecks is the doctor's decision
  */
 function insulin(s: SimState, who: Speaker): Effect {
-  const given = 'Regular insulin 10 units IV — the dose checked by a second nurse — with dextrose 25 g (D50 50 mL) straight behind it.';
+  const given = 'Regular insulin 5 units IV — the kidney-failure dose, fewer lows — checked by a second nurse, with dextrose 25 g (D50 50 mL) straight behind it.';
   return {
     say: [[who, s.role === 7 ? `${given} "His glucose was ${s.vitals.glucose} before it. When do you want it rechecked?"` : `${given} Glucose rechecked in about 30 minutes, then every hour.`]],
     vitals: { glucose: Math.max(s.vitals.glucose, 212) }, flags: ['insulin'],
@@ -273,7 +273,7 @@ const CALCIUM: LabAsk = {
 const SHIFT: LabAsk = {
   id: 'shift', role: 6, speaker: 'physician',
   when: (s) => s.pulse && has(s, 'calcium'),
-  ask: '"Next, shift it into the cells: check his glucose first, then dextrose 25 grams and regular insulin 10 units IV — and a glucose in 30 minutes and every hour after that."',
+  ask: '"Next, shift it into the cells: check his glucose first, then dextrose 25 grams and regular insulin 5 units IV — his kidneys clear it slowly — and a glucose in 30 minutes and every hour after that."',
   accept: ['insulin-dextrose'],
   thanks: '"Thank you. Keep the glucose checks going: his kidneys clear insulin slowly, and the low can come hours from now."',
   fallback: '"I will give the dextrose and insulin myself."',
@@ -975,7 +975,7 @@ export const edHyperkalemia: Scenario = {
     { id: 'md-labs', label: 'Labs now: a STAT chemistry with potassium and a venous gas', roles: ED_MD, done: ['labs'], points: 5, target: { by: 6 }, why: 'The potassium, the kidneys and the acid–base balance: they confirm the cause and decide the bicarbonate and the dialysis — but the calcium does not wait for them.' },
     {
       id: 'md-shift', label: 'Shift the potassium: insulin with dextrose', roles: ED_MD, done: ['insulin-dextrose'], points: 10, target: { by: 15 },
-      why: 'Regular insulin 10 units IV (5 units in some protocols for failing kidneys) with dextrose 25 g moves potassium into the cells within 15–30 minutes, by about 0.6–1 mEq/L.',
+      why: 'Regular insulin 5 units IV with failing kidneys (10 units otherwise: the lower dose shifts nearly as much with fewer lows) with dextrose 25 g moves potassium into the cells within 15–30 minutes, by about 0.6–1 mEq/L.',
     },
     {
       id: 'md-albuterol', label: 'And high-dose albuterol: 10–20 mg nebulized', roles: ED_MD, done: ['albuterol-hyperk'], points: 5, target: { by: 20 },
@@ -1098,7 +1098,7 @@ export const edHyperkalemia: Scenario = {
     'Think of a high potassium in anyone with kidney disease who is weak, nauseated or slow — more so on an ACE inhibitor or ARB, spironolactone or another potassium-sparing diuretic, NSAIDs, trimethoprim or a potassium salt substitute. Weakness, tingling and a slow pulse are its signs; the heart is what kills.',
     'Its ECG signs: tall, narrow, peaked T waves; flattened or lost P waves and a long PR; a widening QRS; then a slow wave of merging complexes, PEA, VF or asystole. The changes do not always come in order, and a normal-looking ECG does not rule a high potassium out (2021 ACEP-sponsored ED consensus).',
     'With ECG changes, IV calcium comes first, at once — without waiting for the lab: it steadies the heart within minutes, lasts 30–60 minutes and lowers no potassium. Calcium gluconate (1–3 g, safer in a small peripheral vein) or, for an unstable patient, calcium chloride 1 g (three times the calcium) through a large vein, slowly. Repeat it if the changes persist after 5–10 minutes.',
-    'Then shift the potassium into the cells: regular insulin 10 units IV (5 units in some protocols for kidney failure) with dextrose 25 g given with it, so insulin never goes in alone (the dextrose is left out only when the glucose is already 250 mg/dL or more) — and nebulized albuterol 10–20 mg, four to eight times the wheezing dose. Each lowers it by roughly 0.5–1 mEq/L within 30–60 minutes.',
+    'Then shift the potassium into the cells: regular insulin IV — 5 units with kidney failure, as here (fewer lows, nearly the same shift), 10 units otherwise — with dextrose 25 g given with it, so insulin never goes in alone (the dextrose is left out only when the glucose is already 250 mg/dL or more) — and nebulized albuterol 10–20 mg, four to eight times the wheezing dose. Each lowers it by roughly 0.5–1 mEq/L within 30–60 minutes.',
     'Insulin lowers the glucose as well: check it before the dose, at 30 minutes and every hour for at least 4–6 hours — failing kidneys clear insulin slowly, and lows come hours later. Treat a low at once with dextrose.',
     'Sodium bicarbonate is not a potassium drug on its own: give it only for a metabolic acidosis, and never through a line the calcium is running in — the two form a calcium carbonate precipitate. Flush with saline between them, or use a second line.',
     'Then remove it. Dialysis is the fast way when the kidneys have failed (an emergency dialysis catheter if there is no access); a loop diuretic is an add-on only, never on its own, and only while the patient makes urine and is not dry; a binder (sodium zirconium cyclosilicate 10 g three times a day, or patiromer) works over hours. Sodium polystyrene sulfonate is no longer favored. Stop every drug and supplement that raised it.',

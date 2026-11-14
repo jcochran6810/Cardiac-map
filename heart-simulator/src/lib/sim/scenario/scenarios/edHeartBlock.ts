@@ -181,7 +181,7 @@ function insulin(s: SimState, who: Speaker): Effect {
   const slow: Line[] = has(s, 'lost-capture')
     ? [line(edNurse(s), 'It takes 15 to 30 minutes to bring the potassium down: the pacer still brings only an occasional beat.', 'warn')]
     : [];
-  return { say: [[who, 'Dextrose 25 g (D50 50 mL), then regular insulin 10 units IV — the dose double-checked; glucose rechecked at 30 minutes, then every hour.'], ...slow], flags: ['insulin'] };
+  return { say: [[who, 'Dextrose 25 g (D50 50 mL), then regular insulin 5 units IV — the kidney-failure dose, fewer lows — double-checked; glucose rechecked at 30 minutes, then every hour.'], ...slow], flags: ['insulin'] };
 }
 
 /** A drug that suppresses the escape: the only thing keeping her alive slows to 22 — unless a pacer holds the rate */
@@ -273,7 +273,7 @@ const CALCIUM: LabAsk = {
 const SHIFT: LabAsk = {
   id: 'shift', role: 6, speaker: 'physician',
   when: (s) => kWithMd(s) && !has(s, 'insulin'),
-  ask: 'Then dextrose 25 grams and regular insulin 10 units IV, and her glucose at 30 minutes and every hour after. Hold her metoprolol, lisinopril and spironolactone.',
+  ask: 'Then dextrose 25 grams and regular insulin 5 units IV — her kidneys clear it slowly — and her glucose at 30 minutes and every hour after. Hold her metoprolol, lisinopril and spironolactone.',
   accept: ['insulin-dextrose'],
   thanks: 'Thank you.',
   fallback: 'I will give the dextrose and insulin myself.',

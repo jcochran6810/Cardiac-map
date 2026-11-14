@@ -915,7 +915,18 @@ export const CONDITION_TO_PROFILE: Record<string, string> = {
   'aortic-dissection': 'aortic-dissection',
   hyperkalemia: 'hyperkalemia',
   'paced-rhythm': 'paced',
+  // the tracing of another page: SCAD most often presents as an anterior STEMI (the Give meds tool judges a lytic on the
+  // SCAD page as harmful: no clot to lyse). PAGE_OF_PROFILE keeps the anterior STEMI's own page for that tracing
+  scad: 'anterior-stemi',
 };
+
+/**
+ * The library page each tracing belongs to (the reverse of CONDITION_TO_PROFILE): the first condition that maps to it, so
+ * a page that borrows another's tracing (SCAD's anterior STEMI) never takes that tracing's own page over
+ */
+export const PAGE_OF_PROFILE: Record<string, string> = Object.entries(CONDITION_TO_PROFILE).reduce<Record<string, string>>(
+  (pages, [condition, profile]) => (profile in pages ? pages : { ...pages, [profile]: condition }), {},
+);
 
 /** Fridericia-corrected QT for a given RR (ms) */
 export function qtForRR(qtc: number, rrMs: number): number {

@@ -6,7 +6,7 @@ import { useECGStore } from '@/store/useECGStore';
 import { useAppStore } from '@/store/useAppStore';
 import { DRILL_SETS, DRILL_SET_BY_ID, MASTERED, labelOf, mastery, statKey } from '@/lib/drill';
 import { closeTrainer, leaveSet, nextTracing, startSet } from '@/lib/drillRun';
-import { CONDITION_TO_PROFILE, ECG_PROFILES } from '@/lib/ecg/profiles';
+import { ECG_PROFILES, PAGE_OF_PROFILE } from '@/lib/ecg/profiles';
 import { openById } from '@/lib/actions';
 import { backOutOfTrainer } from '@/lib/backNav';
 import { IconBack, IconCheck, IconChevron, IconClose, IconPlay } from '@/components/ui/icons';
@@ -14,7 +14,6 @@ import { IconBack, IconCheck, IconChevron, IconClose, IconPlay } from '@/compone
 /** phones (three columns): how many cells "I am not sure" takes, by the number of answers modulo 3 — whatever the last row leaves free */
 const UNSURE_SPAN = ['phone:col-span-3', 'phone:col-span-2', 'phone:col-span-1'];
 
-const PAGE_OF: Record<string, string> = Object.fromEntries(Object.entries(CONDITION_TO_PROFILE).map(([condition, profile]) => [profile, condition]));
 
 /**
  * Leave for the main menu. When the trainer was opened from it, that is Back over the trainer's pages (from a set in
@@ -100,7 +99,7 @@ export default function RhythmTrainer({ style, side = false }: { style?: React.C
   const right = answered && d.picked === q.profile;
   const m = mastery(set, d.stats);
   const profile = ECG_PROFILES[q.profile];
-  const page = PAGE_OF[q.profile];
+  const page = PAGE_OF_PROFILE[q.profile];
   const box = d.stats[statKey(set.id, q.profile)]?.box ?? 0;
 
   return (

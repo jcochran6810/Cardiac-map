@@ -606,9 +606,12 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'Calcium chloride 1 g in slowly over a few minutes; line flushed.'], ...ifAwake(s, '"That burns going up my arm."')], flags: ['calcium'] };
     case 'sodium-bicarbonate':
       return { say: [['you', s.pulse ? 'Sodium bicarbonate 50 mEq IV; line flushed.' : `Sodium bicarbonate 50 mEq pushed and flushed${compressionsGoOn(s)}.`]], flags: ['bicarbonate'] };
-    case 'insulin-dextrose':
-      // the dextrose covers the insulin for now; the low glucose it can bring comes hours later, after most cases end
-      return { say: [['you', 'Regular insulin 10 units IV (dose double-checked), then dextrose 25 g (D50 50 mL).']], flags: ['insulin'] };
+    case 'insulin-dextrose': {
+      // the dextrose covers the insulin for now; the low glucose it can bring comes hours later, after most cases end. Failing
+      // kidneys clear insulin slowly: 5 units, nearly the same shift with fewer lows
+      const units = hasProblem(sc, ['renal-failure', 'dialysis']) ? 5 : 10;
+      return { say: [['you', `Regular insulin ${units} units IV (dose double-checked), then dextrose 25 g (D50 50 mL).`]], flags: ['insulin'] };
+    }
     case 'albuterol-hyperk': {
       // a nebulizer needs someone breathing, and albuterol has no proven benefit in arrest (2025 AHA)
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: a nebulizer needs a patient who is breathing, and albuterol has no proven benefit in arrest (2025 AHA).']] };

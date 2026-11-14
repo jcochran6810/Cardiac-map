@@ -312,7 +312,7 @@ describe('complete heart block in the ED: the potassium', () => {
     expect(ids(run(sc, 6, [...NURSE_TO_PACE, 'insulin-dextrose']))).toEqual(['rn-without-order-insulin-dextrose']);
     const ordered = run(sc, 6, [...NURSE_TO_PACE, 'pulse-check', 'nibp', 'notify-physician', 'fentanyl', 'notify-physician', 'calcium-chloride', 'insulin-dextrose']);
     expect(ids(ordered)).toEqual([]);
-    expect(said(ordered, 'physician', /^Then dextrose 25 grams and regular insulin 10 units IV/)).toBe(true);
+    expect(said(ordered, 'physician', /^Then dextrose 25 grams and regular insulin 5 units IV/)).toBe(true);
   });
 
   it('the nurse who never sends blood is asked for it', () => {
@@ -477,7 +477,7 @@ describe('complete heart block in the ED: what the independent review fixed', ()
     expect(s.counts['calcium-chloride']).toBe(1);
     expect(said(s, 'physician', /^Calcium chloride 1 gram IV/)).toBe(false);
     expect(said(s, 'physician', /push the calcium myself/)).toBe(false);
-    expect(said(s, 'physician', /^Then dextrose 25 grams and regular insulin 10 units IV, and her glucose at 30 minutes/)).toBe(true);
+    expect(said(s, 'physician', /^Then dextrose 25 grams and regular insulin 5 units IV — her kidneys clear it slowly — and her glucose at 30 minutes/)).toBe(true);
   });
 
   it('the call that brings the physician carries the report: the pacer already on, the pain, a potassium in hand', () => {

@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { MEDICATIONS } from '@/data/content/medications';
+import { MED_GROUPS } from '@/data/medicationGroups';
 import { MEDICATION_IDS } from '@/types/content';
 import { answerQuestion, type TutorContext } from '@/lib/tutor';
 import { loadContent, useContentStore, type ContentLibrary } from '@/lib/content';
@@ -64,6 +65,31 @@ describe('rhythm and rate cards', () => {
     expect(c).toMatch(/An IV β-blocker given together or within a few hours \(label\)/);
     expect(c).toMatch(/Compensatory sinus tachycardia.*\(relative\)/);
     expect(c).toMatch(/Hypersensitivity/);
+  });
+
+  it('the situations the tutor\'s safety answers name: pregnancy (tenecteplase), tamponade (nitroglycerin), hyperkalemia (lidocaine), cocaine (metoprolol)', () => {
+    expect(contra('tenecteplase')).toMatch(/Pregnancy \(relative\)/);
+    expect(contra('nitroglycerin')).toMatch(/cardiac tamponade/);
+    expect(contra('lidocaine')).toMatch(/Hyperkalemia with a wide QRS \(caution\)/);
+    expect(contra('metoprolol')).toMatch(/Acute cocaine or methamphetamine intoxication/);
+  });
+
+  it('the library\'s medication list offers every card, each in exactly one group', () => {
+    const listed = MED_GROUPS.flatMap((g) => g.ids);
+    expect(new Set(listed).size).toBe(listed.length);
+    expect([...listed].sort()).toEqual([...MEDICATION_IDS].sort());
+    expect(listed).toEqual(expect.arrayContaining(['sotalol', 'alteplase', 'eptifibatide', 'midazolam', 'nitroprusside', 'naloxone']));
+  });
+
+  it('the drugs the simulator added carry the contraindications its rules charge: the inotropes in a dissection and outflow obstruction', () => {
+    for (const id of ['dobutamine', 'milrinone']) {
+      expect(contra(id), id).toMatch(/Acute aortic dissection/);
+      expect(contra(id), id).toMatch(/Dynamic LV outflow obstruction/);
+    }
+    expect(contra('nicardipine')).toMatch(/Advanced aortic stenosis[\s\S]*Aortic dissection without a β-blocker first/);
+    expect(contra('furosemide')).toMatch(/Anuria[\s\S]*Preload-dependent states/);
+    expect(contra('labetalol')).toMatch(/Bronchial asthma/);
+    expect(contra('esmolol')).toMatch(/Cardiogenic shock or decompensated heart failure/);
   });
 
   it('lidocaine, magnesium, procainamide, adenosine, digoxin, atropine, amiodarone and sotalol', () => {

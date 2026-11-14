@@ -338,6 +338,38 @@ describe('classic responses', () => {
     expect(category(ECG_PROFILES.avnrt, 50)).toBe('svt');
   });
 
+  it('the newer tracings: a narrow PEA is an arrest, every stage of hyperkalemia is hyperkalemia, a temporary wire is paced', () => {
+    expect(category(ECG_PROFILES['pea-narrow'], 110)).toBe('arrest');
+    expect(category(ECG_PROFILES['pea-narrow'])).toBe(category(ECG_PROFILES.pea));
+    for (const id of ['hyperkalemia', 'hyperkalemia-moderate', 'hyperkalemia-severe']) expect(category(ECG_PROFILES[id], 70), id).toBe('hyperk');
+    expect(category(ECG_PROFILES['paced-vvi'], 70)).toBe('paced');
+    expect(category(ECG_PROFILES['paced-vvi'], 70)).toBe(category(ECG_PROFILES.tcp, 70));
+    // calcium is the drug for the sine wave
+    expect(planDose('calcium-chloride', patient('hyperkalemia-severe', 60), 1).verdict.tone).toBe('good');
+  });
+
+  it('Takotsubo with LV outflow obstruction is judged like obstructive HCM: no nitrate, no epinephrine; phenylephrine for the low pressure', () => {
+    const lvoto = (extra: Partial<Patient> = {}) => patient('takotsubo-lvoto', 118, { sbp: 82, ...extra });
+    expect(planDose('nitroglycerin', lvoto({ sbp: 110 }), 0.4).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/Takotsubo with LV outflow obstruction/) });
+    expect(planDose('epinephrine', lvoto(), 0.02).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/^Not in Takotsubo with LV outflow obstruction/) });
+    expect(planDose('phenylephrine', lvoto(), 0.1).verdict.tone).toBe('good');
+    // the plain Takotsubo heart is not obstructed
+    expect(planDose('epinephrine', patient('takotsubo', 102, { sbp: 82 }), 0.02).verdict.text).not.toMatch(/outflow obstruction/);
+  });
+
+  it('lupus: procainamide is contraindicated (label), and the history offers the chip', () => {
+    expect(HISTORY.find((h) => h.id === 'lupus')?.label).toBe('Lupus (SLE)');
+    const vt = (problems: Problem[]) => patient('vt', 160, { sbp: 120, problems });
+    expect(planDose('procainamide', vt(['lupus']), 1000).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/lupus/) });
+    expect(planDose('procainamide', vt([]), 1000).verdict.text).not.toMatch(/lupus/);
+  });
+
+  it('the SCAD page draws an anterior STEMI, but a lytic there is harmful: no clot to lyse', () => {
+    const scad = patient('anterior-stemi', 92, { sbp: 128, conditionId: 'scad' });
+    expect(planDose('tenecteplase', scad, 45).verdict).toMatchObject({ tone: 'bad', text: expect.stringMatching(/spontaneous coronary artery dissection/) });
+    expect(planDose('tenecteplase', patient('anterior-stemi', 92, { sbp: 128 }), 45).verdict.tone).toBe('good');
+  });
+
   it('magnesium is the drug for torsades, but pulseless torsades still needs the shock', () => {
     const mg = planDose('magnesium-sulfate', patient('torsades', 230), 2);
     expect(mg.verdict.tone).toBe('good');

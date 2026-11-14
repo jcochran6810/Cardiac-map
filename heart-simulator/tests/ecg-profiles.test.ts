@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONDITION_TO_PROFILE, ECG_PROFILES, PROFILE_ALIASES, P_TEMPLATES, QRS_TEMPLATES, prForRate, qtForRR, resolveProfile, stLevel } from '@/lib/ecg/profiles';
+import { CONDITION_TO_PROFILE, ECG_PROFILES, PAGE_OF_PROFILE, PROFILE_ALIASES, P_TEMPLATES, QRS_TEMPLATES, prForRate, qtForRR, resolveProfile, stLevel } from '@/lib/ecg/profiles';
 import { ECGEngine } from '@/lib/ecg/engine';
 import { HEMO_PROFILES, HemoModel } from '@/lib/physiology/hemodynamics';
 import { soundsHeard } from '@/lib/physiology/heartSounds';
@@ -63,6 +63,16 @@ describe('rhythm profiles', () => {
     for (const [condition, target] of Object.entries(CONDITION_TO_PROFILE)) {
       expect(ECG_PROFILES[target], `${condition} → ${target}`).toBeDefined();
     }
+  });
+
+  it('a page that borrows another\'s tracing (SCAD: an anterior STEMI) never takes that tracing\'s own page over', () => {
+    expect(CONDITION_TO_PROFILE.scad).toBe('anterior-stemi');
+    expect(PAGE_OF_PROFILE['anterior-stemi']).toBe('anterior-stemi');
+    // every tracing a page maps to finds a page, its own where it has one
+    for (const [condition, target] of Object.entries(CONDITION_TO_PROFILE)) {
+      expect(CONDITION_TO_PROFILE[PAGE_OF_PROFILE[target]], condition).toBe(target);
+    }
+    expect(PAGE_OF_PROFILE.wpw).toBe('wpw-syndrome');
   });
 
   it.each(profiles)('%s is internally consistent', (key, p) => {

@@ -17,6 +17,7 @@ import { LANDMARK_BY_ID } from '@/lib/anatomy/landmarks';
 import { CONDUCTION_IDS, CORONARY_IDS } from '@/lib/anatomy/categories';
 import { IconCheck, IconChevron, IconSearch } from '@/components/ui/icons';
 import { CATEGORY_BY_VALUE } from '@/lib/categories';
+import { MED_GROUPS } from '@/data/medicationGroups';
 
 const ANATOMY_GROUPS: { label: string; group: string }[] = [
   { label: 'Chambers', group: 'chambers' },
@@ -29,15 +30,6 @@ const ANATOMY_GROUPS: { label: string; group: string }[] = [
 
 const LEFT_CORONARY = ['lmca', 'lad-proximal', 'lad-mid', 'lad-distal', 'd1', 'd2', 'septal-perforators', 'ramus-intermedius', 'lcx-proximal', 'lcx-distal', 'om1', 'om2'];
 const RIGHT_CORONARY = CORONARY_IDS.filter((id) => !LEFT_CORONARY.includes(id));
-
-const MED_GROUPS: { label: string; ids: string[] }[] = [
-  { label: 'Antiplatelet, anticoagulant & lytic', ids: ['aspirin', 'clopidogrel', 'ticagrelor', 'prasugrel', 'heparin', 'enoxaparin', 'bivalirudin', 'apixaban', 'warfarin', 'tenecteplase'] },
-  { label: 'Anti-ischemic & analgesia', ids: ['nitroglycerin', 'fentanyl', 'metoprolol', 'esmolol'] },
-  { label: 'Antiarrhythmic & rate control', ids: ['adenosine', 'diltiazem', 'amiodarone', 'procainamide', 'lidocaine', 'digoxin', 'magnesium-sulfate'] },
-  { label: 'ACLS, pressors & inotropes', ids: ['atropine', 'epinephrine', 'norepinephrine', 'vasopressin', 'phenylephrine', 'dopamine', 'dobutamine', 'milrinone'] },
-  { label: 'Heart failure & prevention', ids: ['furosemide', 'lisinopril', 'sacubitril-valsartan', 'spironolactone', 'empagliflozin', 'atorvastatin'] },
-  { label: 'Electrolytes & other', ids: ['calcium-chloride', 'insulin-dextrose', 'albuterol', 'sodium-bicarbonate', 'colchicine'] },
-];
 
 const DIFF_STYLE: Record<string, string> = {
   beginner: 'text-emerald-400 bg-emerald-500/10',
