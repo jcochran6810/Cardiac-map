@@ -155,10 +155,10 @@ and the dose (low, usual, high, overdose) with the reason. **Details** on the ba
 meds section back into view. The model is deterministic and shows the classic response (notes say where real patients differ);
 doses follow the drug cards and current guidelines, adult only.
 
-**The patient's history and age** (`Patient.problems`, `Patient.age`): an age box and a **Patient history** row of 34
+**The patient's history and age** (`Patient.problems`, `Patient.age`): an age box and a **Patient history** row of 35
 chips (`HISTORY` in `meds.ts` — asthma or wheezing now, HFrEF, kidney failure or dialysis, a low potassium, a low glucose,
 a long QT, a heart transplant, a PDE-5 inhibitor, cocaine, the bleeding and stroke history, pregnancy, HIT, low
-platelets, RV infarction, aortic stenosis, outflow obstruction, digoxin toxicity, lupus …) in the case simulator's
+platelets, a brain bleed now or ever, RV infarction, aortic stenosis, outflow obstruction, digoxin toxicity, lupus …) in the case simulator's
 `Problem` words. A low glucose makes insulin + dextrose a label contraindication (dextrose first, then recheck) and
 dextrose the treatment; without it, dextrose says to check the glucose first.
 Each dose's verdict is built in this order — the drug's plan, `rhythmCaveats` (pre-excited AF, long QT), `repeatCaveats`
@@ -293,36 +293,45 @@ library section or tool also resets the speed to real time and closes the electr
 `tests/rules-*.test.ts`, with `fixture()` and `penaltyIds()` from `tests/ruleFixture.ts`
 
 Every action is judged on the state just before it takes effect, by the case's own rules (`Scenario.harms`) and by the
-254 built-in rules every case shares (`BUILT_IN_HARMS` in `rules/index.ts`). Each rule charges once a case, except a
+255 built-in rules every case shares (`BUILT_IN_HARMS` in `rules/index.ts`). Each rule charges once a case, except a
 drug contraindication, which charges once for each drug given into it (`rules/charge.ts`) — a major or critical built-in
-one, and a case rule that stands in for one alike (`caseChargesPerDrug`: major or critical, judging a medication, no
-indication rule and no check before a nitrate, with the id of a built-in drug contraindication on that drug or one in
-its `replaces`). A second, different drug into the same contraindication is a mistake of its own, in the case's words if
-the case speaks for it, while the same drug again — at another dose or by another route (`DRUGS_OF`: sublingual and IV
-nitroglycerin, adenosine 6 and 12 mg, midazolam and the procedure's sedation …) — costs nothing more from that rule.
-Minor case rules, indication rules and rules on anything that is not a drug keep charging once a case.
+one, and a case rule that stands in for one alike (`caseChargesPerDrug`: major or critical, no indication rule and no
+check before a nitrate, with the id of a built-in drug contraindication on one of its drugs or one in its `replaces` — or
+marked `Harm.perDrug`, a drug contraindication of the case's own on several drugs, such as a pressor into a stimulant's
+high pressure). Whether a rule charges per drug is decided for the rule, not the action, so the order of the drugs never
+changes the count. A second, different drug into the same contraindication is a mistake of its own, in the case's words
+if the case speaks for it, while the same drug again — at another dose or by another route (`DRUGS_OF`: sublingual and
+IV nitroglycerin, adenosine 6 and 12 mg …) — costs nothing more from that rule. An act is a repeat for a rule when it
+brings no drug the rule judges that the rule has charged already (`judgedDrugs`: the procedure's sedation after fentanyl
+brings midazolam; the radial cocktail after intracoronary verapamil brings no new drug for a rate rule). Minor case rules,
+indication rules and rules on anything that is not a drug keep charging once a case. `charge.ts` throws if the built-in
+rules were never registered (the engine imports `rules/index.ts`).
 **One dose, one penalty:** where several rules judge one action they are ranked, and only the highest-ranked rule that
 holds charges — the most serious reason first. **One repeat policy for every gate** (the rhythm ladders, the ACS gates,
-the added gates, a case's nitrate rules; `chargedBeforeAs` in `rules/charge.ts`): a rank already charged against this
-dose — on the same drug, or once a case — is passed over. A later dose of a different drug is judged anew; a repeat of
-the same drug is not charged again by the rule already charged on it, but by the next reason that holds (epinephrine
-again within 3 minutes, a repeat atropine the block does not answer, the nitrate interval) — it never goes free because
-an earlier one was charged.
+the added gates, a case's nitrate rules; `passedOver` in `rules/charge.ts`): a later dose of a different drug is judged
+anew. Each penalty records the reasons that held for its act (`Penalty.held`: the built-ins whose own condition held,
+and the rank a case rule stood at). A repeat of the same drug is not charged again by the rule already charged on it,
+nor for a reason that held when it was charged (`coveredBefore`) — that was the mistake already charged, so a built-in
+never re-charges a case stand-in's reason in its own words. It is charged for what is new: a reason that did not hold
+then (the pressure the first nitrate crashed, epinephrine again within 3 minutes, a repeat atropine the block does not
+answer) and the checks every dose owes (a pressure, the interval, the PDE-5 question), which are never covered. The ER
+nurse's missing order speaks only for its own act: a second unordered dose meets the indication rule.
 
 | File | What it holds |
 | --- | --- |
-| `rhythm.ts` | Shocks and cardioversion, pacing and the transvenous wire, atropine, magnesium, the arrest drugs, lidocaine, procainamide and the rate and AV-nodal drugs (adenosine 3, 6 and 12 mg, the beta-blockers, diltiazem, the amiodarone infusion; in the lab the radial cocktail, intracoronary adenosine and verapamil, the FFR adenosine infusion). `LADDERS` ranks each drug's rules and `topRhythmRule` picks the one that charges. Rate drugs: pre-excited AF → diltiazem in VT or HFrEF → an arrest → a slow or blocked rhythm → hyperkalemia → … → asthma → the full adenosine dose after a transplant → … → no arrhythmia; a beta-blocker with a stimulant or a pheochromocytoma (`beta-blocker-pheochromocytoma`) is ranked just above the low-pressure reasons. A vagal maneuver: a slow pulse → nothing it can treat (it ends only a re-entry through the AV node: `vagal-no-indication`). Procainamide: an arrest → slow → long QT → low pressure → heart failure → lupus → after amiodarone → … The second antiarrhythmic on top of the first (`SECOND_ANTIARRHYTHMIC`) and a case rule on the same dose: the heavier charges alone, the case's words on a tie (engine `harmsFor`). |
-| `acs.ts` | Gates (`*_GATE`, each rule asking whether it is the top one). Nitrates and nitroprusside: a PDE-5 inhibitor or riociguat → a preload-dependent heart (RV infarct, PE, an undrained tamponade) or outflow obstruction → low pressure → bleeding → a dissection before rate control → HR under 50 → a fall of 30 → an inferior STEMI before V4R → no pressure taken → 0.8 mg below 160 → HR over 100 → no pain → under 3 min since the last → the PDE-5 question not asked. Fibrinolytics: a dissection → absolute contraindications → a pressure still over 180/110 after treatment → a second dose → in the cath lab → PCI in time (`Scenario.noTimelyPci` for a department that cannot) → no indication (a PE needs cardiopulmonary failure) → over 180/110 → relative contraindications. Antithrombotics: HIT → a bleed in the head or a stroke not yet scanned (`antithrombotic-intracranial`) → bleeding → a dissection → aspirin allergy → tamponade → platelets under 100,000 → eptifibatide's label, after a lytic, over 200/110 → heparin on bivalirudin or after enoxaparin → no indication outside the lab (`antithrombotic-no-indication`: no ACS, PE or AF, unless the case declares `anticoagulation-indicated`). Protamine: allergy → mid-PCI → no heparin → sensitized. Fentanyl: breathing → pressure → no pain; then midazolam and sedation (acute narrow-angle glaucoma for midazolam, `midazolam-glaucoma`; low pressure, slow breathing or drowsy with no procedure coming). Ondansetron off the monitor; drugs with no role in an arrest. A case's own nitrate rule takes a rank in the nitrate gate (`nitrateCaseRule`; a check, `nitrateCheckRule`): it gives way to a reason ranked above it that holds — the built-in, or another of the case's nitrate rules — so one dose earns one nitrate penalty. |
+| `rhythm.ts` | Shocks and cardioversion, pacing and the transvenous wire, atropine, magnesium, the arrest drugs, lidocaine, procainamide and the rate and AV-nodal drugs (adenosine 3, 6 and 12 mg, the beta-blockers, diltiazem, the amiodarone infusion; in the lab the radial cocktail, intracoronary adenosine and verapamil, the FFR adenosine infusion). `LADDERS` ranks each drug's rules and `topRhythmRule` picks the one that charges. Rate drugs: pre-excited AF → diltiazem in VT or HFrEF → an arrest → a slow or blocked rhythm → hyperkalemia → … → asthma → the full adenosine dose after a transplant → … → no arrhythmia; a beta-blocker with a stimulant or a pheochromocytoma (`beta-blocker-pheochromocytoma`) is ranked just above the low-pressure reasons. A vagal maneuver: a slow pulse → nothing it can treat (it ends only a re-entry through the AV node: `vagal-no-indication`). Procainamide: an arrest → slow → long QT → low pressure → heart failure → lupus → after amiodarone → … Lidocaine: slow or blocked → pre-excited AF (`lidocaine-preexcited-af`, its label's WPW contraindication) → hyperkalemia → a rhythm that cannot be shocked → no ventricular arrhythmia. The second antiarrhythmic on top of the first (`SECOND_ANTIARRHYTHMIC`) and any case rule on the same dose: the heavier charges alone, the case's words on a tie (engine `harmsFor`: one act, one penalty). |
+| `acs.ts` | Gates (`*_GATE`, each rule asking whether it is the top one). Nitrates and nitroprusside: a PDE-5 inhibitor or riociguat → a preload-dependent heart (RV infarct, PE, an undrained tamponade) or outflow obstruction → low pressure → bleeding → a dissection before rate control → HR under 50 → a fall of 30 → an inferior STEMI before V4R → no pressure taken → 0.8 mg below 160 → HR over 100 → no pain → under 3 min since the last → the PDE-5 question not asked. Fibrinolytics: a dissection → absolute contraindications (platelets under 100,000 among them: a bleeding diathesis) → a pressure still over 180/110 after treatment → a second dose → in the cath lab → PCI in time (`Scenario.noTimelyPci` for a department that cannot) → no indication (a PE needs cardiopulmonary failure) → over 180/110 → relative contraindications. Antithrombotics: HIT → a bleed in the head now (`acute-intracranial-hemorrhage`; an old, healed one only rules out the lytic, eptifibatide, ticagrelor and prasugrel) or a stroke not yet scanned (`antithrombotic-intracranial`) → bleeding → a dissection → aspirin allergy → tamponade → platelets under 100,000 → eptifibatide's label, after a lytic, over 200/110 → heparin on bivalirudin or after enoxaparin → no indication outside the lab (`antithrombotic-no-indication`: no ACS, PE or AF, unless the case declares `anticoagulation-indicated`). Protamine: allergy → mid-PCI → no heparin → sensitized. Fentanyl: breathing → pressure → no pain; then midazolam and sedation (acute narrow-angle glaucoma for midazolam, `midazolam-glaucoma`; low pressure, slow breathing or drowsy with no procedure coming). Ondansetron off the monitor; drugs with no role in an arrest. A case's own nitrate rule takes a rank in the nitrate gate (`nitrateCaseRule`; a check, `nitrateCheckRule`): it gives way to a reason ranked above it that holds — the built-in, or another of the case's nitrate rules — so one dose earns one nitrate penalty. |
 | `support.ts` | Vasopressors and push-dose epinephrine (not for the low pressure of an unstable tachyarrhythmia, which needs the shock: `pressor-unstable-tachyarrhythmia`), intracoronary epinephrine, phenylephrine; oxygen, CPAP (a pneumothorax or facial trauma first: `cpap-pneumothorax-or-facial`), the bag-mask, the airway and RSI; fluids, raised legs and blood; bicarbonate (with a pulse only for a metabolic acidosis or a sodium-channel-blocker overdose — `BICARBONATE_WITH_A_PULSE_FOR` and `BICARBONATE_IN_ARREST_FOR` in `helpers.ts`), calcium, insulin, albuterol, glucagon; IM epinephrine, antihistamine and steroid for anaphylaxis only, epinephrine first. Each group's gate order is written above it. |
 | `procedures.ts` | Transport in an arrest, the pericardiocentesis, the STEMI alert and cath lab activation, the scanner, the central line, the transfer; in the lab consent, heparin, the pumps (IABP, Impella: `rv-failure`, `lv-rupture`, a dissection, aortic regurgitation …), the sheath, crossing the aortic valve, the LV gram in shock, routine aspiration, the covered stent, contrast after a reaction. |
-| `added.ts` | The audit's new actions, in gate order: the heparin top-up, nicardipine, the inotrope, furosemide, sitting up, temperature control and cooling with no fever (`cool-no-hyperthermia`), discharge (`Scenario.dischargeOk`), restraint (face down is critical) and spinal motion restriction in an arrest. |
+| `added.ts` | The audit's new actions, in gate order: the heparin top-up, nicardipine (an outflow obstruction, fixed or dynamic, first: `nicardipine-outflow-obstruction`), the inotrope, furosemide, sitting up, temperature control and cooling with no fever (`cool-no-hyperthermia`), discharge (`Scenario.dischargeOk`), restraint (face down is critical) and spinal motion restriction in an arrest. |
 | `scope.ts` | The ER nurse's scope (below). |
 | `helpers.ts` | What the rules read (`rhythmKind`, `lowPressure`, `preloadDependent`, `hasProblem` …) and the shared drug groups (`BETA_BLOCKERS`, `ADENOSINE_PUSH`, `NITRATES_ALL`, `LYTICS`, `ANTITHROMBOTICS`, `CALCIUMS` …). It never imports `engine.ts`. |
 
 - **Problems** (`Problem` in `types.ts`, `Scenario.problems`): what the patient has that a rule cannot read from the
-  monitor or the vitals — 70 words, each explained in a doc comment: overdoses and electrolytes (hyperkalemia,
-  `metabolic-acidosis`, `hypoglycemia` (insulin's label contraindication), `ccb-overdose` …), heart and vessels (`heart-failure`, `long-qt`, `rv-infarction`,
+  monitor or the vitals — 71 words, each explained in a doc comment: overdoses and electrolytes (hyperkalemia,
+  `metabolic-acidosis`, `hypoglycemia` (insulin's label contraindication, until glucose is given), `ccb-overdose` …), heart and vessels (`heart-failure`, `long-qt`, `rv-infarction`,
   `lvot-obstruction`, `aortic-dissection`, `tamponade`, `heart-transplant` …), bleeding and lysis (`bleeding`, `hit`,
+  `intracranial-hemorrhage` (ever) and `acute-intracranial-hemorrhage` (now: every antithrombotic is out),
   `thrombocytopenia`, `recent-stroke` and `prior-stroke`, `intracranial-risk`, `recent-surgery`,
   `surgery-within-6-weeks`, `pregnancy` …), drugs on board (`pde5-inhibitor`, `heparin-on-board`, `oral-anticoagulant`
   …), allergies (`aspirin-allergy`, `contrast-allergy`, `protamine-allergy`), the kidneys (`renal-failure`, `dialysis`)
@@ -335,7 +344,7 @@ an earlier one was charged.
   family lists `RATE_RULES`, `LIDOCAINE_RULES`, `PROCAINAMIDE_RULES`, `NITRATE_RULES`, `LYTIC_RULES`,
   `ANTITHROMBOTIC_RULES`, `PROTAMINE_RULES` or `SEDATIVE_RULES`. Standing in for a drug contraindication, it charges once
   for each drug, like the built-in (above); once charged against a dose it is passed over as the gates pass a charged
-  rank over.
+  rank over, and a repeat of that drug is not charged for the reasons it spoke for (`Penalty.held`).
 - **A case rule with a built-in's id** is a deliberate exemption, or the case's own words: it hides that built-in only
   for the actions and roles the case rule lists. Inside a gate it decides that rank: while it applies the gate stops
   there; while it does not, the dose goes on to the next rank (the case has said that one reason does not hold here).
@@ -351,8 +360,10 @@ an earlier one was charged.
   the wrong answer.
   `tests/case-rule-reach.test.ts` checks every case rule that can yield still charges somewhere.
 - **The ER nurse** (`scope.ts`): a drug in `RN_ORDER_ONLY` given with no order (`ordered:<id>`) costs 5 points
-  (`rn-without-order-<id>`; alteplase 15, critical); calcium, bicarbonate, magnesium, atropine and lidocaine need one
-  with a pulse, not in an arrest. While the missing order is charged, the indication rules (`INDICATION_RULES`: no
+  (`rn-without-order-<id>`; alteplase 15, critical) — once for a drug: another dose, salt or route of it is not charged
+  again (`DRUGS_OF`). One order covers the doses of one drug by one route (adenosine 3, 6 and 12 mg) and either IV
+  calcium salt; another route (IV or oral metoprolol, sublingual or IV nitroglycerin) needs its own. Calcium,
+  bicarbonate, magnesium, atropine and lidocaine need one with a pulse, not in an arrest. While the missing order is charged, the indication rules (`INDICATION_RULES`: no
   arrhythmia, no hypotension, no role in an arrest, PCI available …) stand aside — the indication is the physician's
   to decide — but every contraindication still charges, and so do the checks she owes with or without an order
   (`NITRATE_CHECKS`: a pressure, the PDE-5 question and the interval before nitroglycerin).
