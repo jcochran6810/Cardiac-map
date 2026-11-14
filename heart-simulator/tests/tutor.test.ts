@@ -405,6 +405,27 @@ describe('drug safety questions get the drug card\'s whole list of contraindicat
     if (/viagra|cialis|adempas|sildenafil/i.test(q)) expect(a.text ?? '').not.toMatch(/Closest match/);
   });
 
+  // the drugs the contraindication audit gave cards (alteplase, ondansetron, glucagon, nitroprusside), and calcium gluconate,
+  // which the calcium card covers (its gluconate dose, and the labels' lines that hold for both salts)
+  it.each([
+    ['contraindications to alteplase', 'alteplase', /Suspected aortic dissection[\s\S]*Pulmonary embolism without cardiopulmonary failure/],
+    ['contraindications to ondansetron', 'ondansetron', /^Apomorphine[\s\S]*Congenital long QT syndrome/],
+    ['contraindications to glucagon', 'glucagon', /^Pheochromocytoma[\s\S]*Insulinoma/],
+    ['Can I give nitroprusside after sildenafil?', 'nitroprusside', /^A PDE-5 inhibitor \(sildenafil, tadalafil, vardenafil\) or riociguat/],
+    ['contraindications to calcium gluconate', 'calcium-chloride', /^Hypercalcemia[\s\S]*sodium bicarbonate[\s\S]*ceftriaxone/],
+  ])('"%s" gets the whole list of contraindications from the %s card', (q, id, lines) => {
+    const a = ask(q);
+    const card = lib.medications[id].contraindications;
+    expect(a.title).toBe(contraOf(id));
+    expect(a.bullets.slice(0, card.length)).toEqual(card);
+    expect(a.bullets.slice(0, card.length).join('\n')).toMatch(lines);
+    expect(a.text ?? '').not.toMatch(/Closest match/);
+  });
+
+  it('calcium gluconate: the calcium card says which salt it answers for', () => {
+    expect(ask('contraindications to calcium gluconate').text).toMatch(/calcium gluconate/);
+  });
+
   it('the drug named wins over the page that is open ("is it safe…" names the drug, not "it")', () => {
     expect(ask('Is it safe to give adenosine in asthma?', { selectedConditionId: 'atrial-fibrillation' }).title).toBe(contraOf('adenosine'));
   });

@@ -2750,6 +2750,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Hypercalcemia',
       'Routine use in cardiac arrest without a specific indication (older US labels: VF during resuscitation)',
       'Never mix with sodium bicarbonate (precipitates)',
+      'Neonates (28 days or younger) on IV ceftriaxone — fatal calcium–ceftriaxone precipitates in the lungs and kidneys (ceftriaxone and calcium gluconate labels)',
     ],
     adverseEffects: [
       'Severe tissue necrosis with extravasation (prefer central or large vein)',
@@ -2773,6 +2774,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     interactions: [
       'Precipitates with sodium bicarbonate and phosphate — flush lines between',
+      'Ceftriaxone (e.g. for Lyme carditis): never mixed or run through the same line at once — after the newborn period give them one after the other, flushing between (label)',
       'Digoxin: give calcium slowly (label). Digoxin toxicity is no longer considered a contraindication (Levine 2011) — its hyperkalemia is treated with digoxin Fab (2023 AHA, COR 1). Some US calcium chloride labels still list it (with VF during resuscitation): the evidence found no harm, but Fab comes first and calcium goes in slowly',
       'Antagonizes calcium channel blockers and magnesium',
     ],
