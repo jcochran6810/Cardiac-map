@@ -69,7 +69,7 @@ describe('rhythm and rate cards', () => {
 
   it('the situations the tutor\'s safety answers name: pregnancy (tenecteplase), tamponade (nitroglycerin), hyperkalemia (lidocaine), cocaine (metoprolol)', () => {
     expect(contra('tenecteplase')).toMatch(/Pregnancy \(relative\)/);
-    expect(contra('nitroglycerin')).toMatch(/cardiac tamponade/);
+    expect(contra('nitroglycerin')).toMatch(/Cardiac tamponade/);
     expect(contra('lidocaine')).toMatch(/Hyperkalemia with a wide QRS \(caution\)/);
     expect(contra('metoprolol')).toMatch(/Acute cocaine or methamphetamine intoxication/);
   });
@@ -183,11 +183,14 @@ describe('antithrombotic, lytic and nitrate cards', () => {
     const c = contra('nitroglycerin');
     expect(c).toMatch(/riociguat/);
     expect(c).toMatch(/shock or hypovolemia/);
-    expect(c).toMatch(/cardiac tamponade, constrictive pericarditis or restrictive cardiomyopathy \(IV label\)/);
-    expect(c).toMatch(/a massive PE with a failing right ventricle/);
+    expect(c).toMatch(/Cardiac tamponade, constrictive pericarditis or restrictive cardiomyopathy — the heart cannot fill \(IV label\)/);
+    expect(c).toMatch(/A massive PE with a failing right ventricle/);
     expect(c).toMatch(/dynamic LV outflow obstruction \(obstructive HCM, Takotsubo with LVOTO\)/);
-    expect(c).toMatch(/Raised intracranial pressure.*severe anemia \(label\)/);
-    expect(c).toMatch(/cardiac arrest: no role/);
+    expect(c).toMatch(/Raised intracranial pressure — suspected intracranial bleeding or head injury \(label\)/);
+    expect(c).toMatch(/Severe anemia \(label\)/);
+    expect(c).toMatch(/Cardiac arrest: no role/);
+    // one situation a line, now that the tutor shows every line (no list is cut at six)
+    expect(card('nitroglycerin').contraindications).toHaveLength(10);
   });
 
   it('fentanyl: the MAOI line is the label\'s "not recommended", the rest are practice limits', () => {

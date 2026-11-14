@@ -516,3 +516,24 @@ describe('heparin-repeat-unguided in the cases: a case rule that charges the rep
     expect(given).toContain('Once the SCAD is seen: stop the heparin — no top-up, no drip');
   });
 });
+
+describe('the new drugs meet the rules the other packages wrote (plan P4 item 56)', () => {
+  const ed = (over: Partial<Parameters<typeof fixture>[0]> = {}) => fixture({ setting: 'ed', role: 7, rhythm: SINUS, ...over });
+  it('esmolol at a rate of 40, labetalol with asthma, oral metoprolol with fluid on the lungs', () => {
+    expect(penaltyIds(ed({ rhythm: { profile: 'sinus-bradycardia', hr: 40 } }), 7, ['iv', 'esmolol'])).toEqual(['nodal-blocker-slow']);
+    expect(penaltyIds(ed({ rhythm: { profile: 'atrial-fibrillation', hr: 130 }, problems: ['asthma'] }), 7, ['iv', 'labetalol'])).toEqual(['labetalol-asthma']);
+    expect(penaltyIds(ed({ rhythm: { profile: 'atrial-fibrillation', hr: 130 }, problems: ['pulmonary-edema'] }), 7, ['metoprolol-po'])).toEqual(['beta-blocker-pulmonary-edema']);
+  });
+
+  it('adenosine 3 mg for a transplanted heart is the right first dose; 6 mg is not', () => {
+    const transplant = ed({ rhythm: { profile: 'avnrt', hr: 180 }, problems: ['heart-transplant'] });
+    expect(penaltyIds(transplant, 7, ['iv', 'adenosine3'])).toEqual([]);
+    expect(penaltyIds(transplant, 7, ['iv', 'adenosine6'])).toEqual(['adenosine-full-dose']);
+  });
+
+  it('IV nitroglycerin after a PDE-5 inhibitor, and nicardipine in a dissection before the beta-blocker', () => {
+    expect(penaltyIds(ed({ problems: ['pde5-inhibitor', 'acs'], vitals: { pain: 6 } }), 7, ['iv', 'nitro-iv'])).toEqual(['nitro-pde5']);
+    expect(penaltyIds(ed({ problems: ['aortic-dissection'], vitals: { sbp: 176, dbp: 96 } }), 7, ['iv', 'nicardipine'])).toEqual(['vasodilator-before-rate-control']);
+    expect(penaltyIds(ed({ problems: ['aortic-dissection'], vitals: { sbp: 176, dbp: 96 } }), 7, ['iv', 'esmolol', 'nicardipine'])).toEqual([]);
+  });
+});
