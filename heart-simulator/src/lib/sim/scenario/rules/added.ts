@@ -111,6 +111,23 @@ export const ADDED_RULES: Harm[] = [
     text: 'Discharging a patient who still needs the hospital. Home is for a patient whose workup has ruled out what could kill them and who is safe to go: this one needs admission, the cath lab or a transfer. A discharge that sends a heart attack, a dissection or an arrhythmia home is how patients die after leaving the department.',
   },
 
+  // The field's agitated patient (the joint NAEMSP/NASEMSO/NEMSMA/NAEMT/APA statement on restraint, Kupas et al., Prehosp
+  // Emerg Care 2021): face down is never right; restraint at all only for agitation that endangers the patient or the crew
+  {
+    id: 'prone-restraint', actions: ['restrain-prone'], points: 15, severity: 'critical',
+    text: 'Holding a patient face down. Prone restraint — more so with weight on the back, the hands tied behind, or a board on top — stops the chest from moving: positional asphyxia, a rising acid in the blood and cardiac arrest (joint NAEMSP/NASEMSO/NEMSMA/NAEMT/APA position statement, 2021). Restrain only face up or on the side, sedate a patient who keeps fighting, and watch the breathing without a break.',
+  },
+  {
+    id: 'restraint-no-indication', actions: ['restrain', 'restrain-prone'], when: (_s, sc, id) => id === 'restrain' && !hasProblem(sc, ['severe-agitation']), points: 5, severity: 'major',
+    text: 'Restraining a patient who is not a danger to himself or the crew. Restraint is the last resort for severe agitation, after talking him down (joint NAEMSP/NASEMSO/NEMSMA/NAEMT/APA position statement, 2021): on anyone else it is an assault that frightens and injures, and it hides what is wrong.',
+  },
+
+  // Spinal motion restriction: never ahead of the resuscitation
+  {
+    id: 'smr-in-arrest', actions: ['smr'], when: (s) => !s.pulse, points: 5, severity: 'major',
+    text: 'A collar and a scoop stretcher in cardiac arrest. SMR never delays compressions or the shock (2018 ACS-COT/ACEP/NAEMSP joint position statement): run the arrest first, and restrict the spine after ROSC if the injury calls for it.',
+  },
+
   // Sitting up: for the breathless patient with fluid on the lungs; with a low pressure it pools the blood in the legs
   {
     id: 'sit-up-low-pressure', actions: ['sit-up'], when: (s, sc) => s.pulse && lowPressure(s) && !hasProblem(sc, ['pulmonary-edema']), points: 5, severity: 'major',

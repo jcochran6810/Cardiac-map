@@ -311,3 +311,44 @@ describe('the hospital team actions: arterial line, procedure set-up, stopping t
     expect(perform(pulseless, start(pulseless, 7), 'observe').counts.observe).toBeUndefined();
   });
 });
+
+describe('the field\'s new actions: temperature and cooling, spinal motion restriction, talking down and restraint', () => {
+  const field = (over: Partial<Parameters<typeof fixture>[0]> = {}) => fixture({ setting: 'field', role: 2, rhythm: SINUS, ...over });
+  const VF_ARREST = { rhythm: { profile: 'vf', hr: 0 }, pulse: false as const };
+
+  it('the thermometer reads the temperature; cooling takes 0.3 °C off, twice at most, and never during CPR', () => {
+    const hot = field({ vitals: { temp: 39.4 } });
+    expect(run(hot, 2, ['temp']).log.at(-1)!.text).toBe('Temperature 39.4 °C.');
+    const cooled = run(hot, 2, ['cool', 'cool']);
+    expect(cooled.vitals.temp).toBe(38.8);
+    expect(cooled.flags.cooling).toBeDefined();
+    expect(INTERVENTION_BY_ID.cool).toMatchObject({ repeatable: true, maxTimes: 2, roles: [1, 2, 4, 5, 6, 7] });
+    const vf = field(VF_ARREST);
+    expect(perform(vf, start(vf, 2), 'cool').counts.cool).toBeUndefined();
+  });
+
+  it('smr-in-arrest: a collar in cardiac arrest costs 5; with a pulse it is the crew\'s judgment', () => {
+    expect(penaltyIds(field(VF_ARREST), 2, ['smr'])).toEqual(['smr-in-arrest']);
+    expect(penaltyIds(field(), 2, ['smr'])).toEqual([]);
+    expect(run(field(), 2, ['smr']).flags.smr).toBeDefined();
+    expect(penaltyIds(field({ ...VF_ARREST, harms: [exempt('smr-in-arrest', ['smr'])] }), 2, ['smr'])).toEqual([]);
+  });
+
+  it('prone-restraint is critical in every case; restraint-no-indication charges soft restraints without severe agitation (one dose, one penalty)', () => {
+    expect(penaltyIds(field(), 2, ['restrain-prone'])).toEqual(['prone-restraint']);
+    expect(penaltyIds(field({ problems: ['severe-agitation'] }), 2, ['restrain-prone'])).toEqual(['prone-restraint']);
+    expect(penaltyIds(field(), 2, ['restrain'])).toEqual(['restraint-no-indication']);
+    expect(penaltyIds(field({ problems: ['severe-agitation'] }), 2, ['restrain'])).toEqual([]);
+    expect(penaltyIds(field({ harms: [exempt('prone-restraint', ['restrain-prone'])] }), 2, ['restrain-prone'])).toEqual([]);
+    expect(penaltyIds(field({ harms: [exempt('restraint-no-indication', ['restrain'])] }), 2, ['restrain'])).toEqual([]);
+  });
+
+  it('talking down, restraining: flags of their own, and nothing to do in an arrest', () => {
+    expect(run(field(), 1, ['calm']).flags['de-escalated']).toBeDefined();
+    expect(run(field({ problems: ['severe-agitation'] }), 2, ['restrain']).flags.restrained).toBeDefined();
+    expect(run(field(), 2, ['restrain-prone']).flags['restrained-prone']).toBeDefined();
+    const vf = field(VF_ARREST);
+    for (const id of ['calm', 'restrain', 'restrain-prone']) expect(perform(vf, start(vf, 2), id).counts[id], id).toBeUndefined();
+    for (const id of ['calm', 'restrain', 'restrain-prone', 'smr']) expect(INTERVENTION_BY_ID[id], id).toMatchObject({ roles: [1, 2], settings: ['field'] });
+  });
+});

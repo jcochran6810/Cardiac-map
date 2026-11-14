@@ -101,9 +101,9 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
       'transport-pci', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
   },
   'cocaine-chest-pain-field': {
-    1: ['primary', 'als', 'vitals', 'opqrst', 'sample', 'aspirin', 'perfusion', 'ecg12', 'ecg-transmit', 'glucose', 'transport-pci',
+    1: ['primary', 'calm', 'als', 'vitals', 'opqrst', 'sample', 'aspirin', 'perfusion', 'temp', 'cool', 'ecg12', 'ecg-transmit', 'glucose', 'transport-pci',
       'notify', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
-    2: ['primary', 'vitals', 'perfusion', 'sample', 'midazolam', 'monitor', 'ecg12', 'opqrst', 'aspirin', 'ask-pde5', 'iv', 'nitro',
+    2: ['primary', 'calm', 'vitals', 'perfusion', 'temp', 'sample', 'midazolam', 'cool', 'monitor', 'ecg12', 'opqrst', 'aspirin', 'ask-pde5', 'iv', 'nitro',
       'glucose', 'transport-pci', 'notify', 'ecg12-repeat', UNTIL_ARRIVED, 'handoff'],
   },
   'aortic-dissection-field': {

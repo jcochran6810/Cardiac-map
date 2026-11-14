@@ -90,6 +90,9 @@ export const INTERVENTIONS: Intervention[] = [
   // repeatable: a glucose is rechecked after dextrose, oral glucose or glucagon
   { id: 'glucose', label: 'Blood glucose', category: 'assess', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5, repeatable: true },
   { id: 'neuro', label: 'Neuro check: GCS and stroke screen', category: 'assess', roles: ALL, minutes: 0.5, repeatable: true },
+  { id: 'temp', label: 'Temperature', category: 'assess', roles: ALL, minutes: 0.5, repeatable: true },
+  // the field's agitated patient: talk first; restraint only to protect the patient and the crew, never face down
+  { id: 'calm', label: 'Verbal de-escalation: one calm voice, a quiet space, explain each step', category: 'assess', roles: [1, 2], settings: FIELD, minutes: 0.5 },
   { id: 'reassess', label: 'Reassess the patient (2 min)', category: 'assess', roles: ALL, minutes: 2, repeatable: true },
   // the department's watchful wait: the clock runs a minute at a time and stops as soon as something happens
   { id: 'observe', label: 'Observe on the monitor (up to 15 min)', category: 'assess', roles: ED_TEAM, settings: ED, minutes: 0, repeatable: true, detail: 'the monitor on, a nurse in the room: the clock stops at the first change' },
@@ -145,6 +148,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'bvm', label: 'Bag-valve-mask ventilation', category: 'airway', roles: ALL, minutes: 0.5, repeatable: true },
   // the ER nurse's set-up for the physician's sedation or bedside procedure: airway equipment ready, not used
   { id: 'procedure-setup', label: 'Set up for the physician\'s procedure: suction, bag-mask on oxygen, airway adjuncts, the crash cart open', category: 'airway', roles: ED_RN, settings: ED, minutes: 0.5 },
+  { id: 'smr', label: 'Spinal motion restriction: cervical collar and scoop stretcher', category: 'airway', roles: [1, 2], settings: FIELD, minutes: 2, detail: 'blunt trauma with altered consciousness, midline neck pain or tenderness, a deficit or a deformity — never ahead of CPR or the shock' },
   { id: 'cpap', label: 'CPAP', category: 'airway', roles: [1, 2, 6, 7], settings: FIELD_ED, minutes: 1 },
   { id: 'airway', label: 'Advanced airway (supraglottic or intubation)', category: 'airway', roles: [2, 5, 7], minutes: 3 },
   // the ER doctor intubates a patient with a pulse who still breathes and guards the airway: induction drug and paralytic
@@ -247,6 +251,9 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'pace', label: 'Transcutaneous pacing', category: 'resus', roles: MANUAL, minutes: 1, repeatable: true, detail: 'rate 70, raise mA until capture' },
   { id: 'vagal', label: 'Vagal maneuver (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5 },
   { id: 'hs-ts', label: 'Look for reversible causes (Hs and Ts)', category: 'resus', roles: ALS_RN_MD, minutes: 0.5 },
+  { id: 'cool', label: 'Active cooling: undress, cold packs to neck, armpits and groin, mist and fan', category: 'resus', roles: [1, 2, 4, 5, 6, 7], minutes: 1, repeatable: true, maxTimes: 2 },
+  { id: 'restrain', label: 'Soft restraints: four points, face up (or on the side), with continuous monitoring', category: 'resus', roles: [1, 2], settings: FIELD, minutes: 1 },
+  { id: 'restrain-prone', label: 'Hold the patient face down on the stretcher until calm', category: 'resus', roles: [1, 2], settings: FIELD, minutes: 1 },
   { id: 'sit-up', label: 'Sit the patient up, legs down', category: 'resus', roles: ALL, minutes: 0.2, detail: 'upright, the legs hanging down: less blood returns to a heart that is backing up into the lungs, and the breathing is easier' },
   { id: 'temp-control', label: 'Temperature control after ROSC (32–37.5 °C)', category: 'resus', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 1, detail: 'for a patient who does not follow commands after ROSC: a feedback device, the chosen target held at least 36 hours, fever prevented; no rapid cold IV fluids (2025 AHA)' },
   { id: 'legs-up', label: 'Lay flat and raise the legs', category: 'resus', roles: ALL, minutes: 0.3, detail: 'about 45°: blood from the legs returns to the heart for a few minutes' },

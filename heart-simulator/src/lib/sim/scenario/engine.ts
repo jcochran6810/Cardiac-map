@@ -170,6 +170,10 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'neuro':
       if (!s.pulse) return { blocked: true, say: [['system', 'Not during CPR: with no pulse there is nothing for a neuro exam to find. Check it once there is a pulse.']] };
       return { say: [['you', `GCS ${v.gcs}. ${fact('neuro') ?? 'No focal deficit.'}`]] };
+    case 'temp': return { say: [['you', `Temperature ${v.temp.toFixed(1)} °C.`]], flags: ['temp'] };
+    case 'calm':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: there is no one to talk down. CPR and the rhythm.']] };
+      return { say: [['you', 'One calm voice, the room quieted, each step explained before it is done.']], flags: ['de-escalated'] };
     case 'reassess':
       // the line prints the pressure: perform() sets the flag 'bp' after any reassessment, this one or a case's own
       return { say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? (s.pulse ? `Pain ${v.pain}/10.` : 'Unresponsive.')]] };
@@ -259,6 +263,8 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       return { say: [['you', 'Ventilating 1 breath every 6 seconds; chest rising.']], flags: ['ventilated'] };
     case 'procedure-setup':
       return { say: [['you', 'Suction on and tested, the bag-mask on oxygen at the head of the bed, oral and nasal airways laid out, the crash cart open beside the bed.']], flags: ['procedure-setup', 'airway-ready'] };
+    case 'smr':
+      return { say: [['you', 'Cervical collar on; head, neck and torso kept in line on a scoop stretcher.']], flags: ['smr'] };
     case 'cpap':
       // a mask that pushes air in helps only a patient who breathes on their own and can guard the airway
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: CPAP needs a patient who breathes on their own. Ventilate with the bag-mask.']] };
@@ -301,6 +307,15 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
       const bp = bpAfter(s, 10, 6);
       return { say: [['you', `Unit ${(s.counts.transfuse ?? 0) + 1} of packed red cells checked at the bedside and running through the warmer.`], ...bpLine(s, bp)], vitals: bp, flags: ['transfused'] };
     }
+    case 'cool':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: CPR and the rhythm first; temperature control comes after ROSC.']] };
+      return { say: [['you', 'Clothes off, cold packs to the neck, armpits and groin, mist and a fan on the skin.']], vitals: { temp: Math.round((v.temp - 0.3) * 10) / 10 }, flags: ['cooling'] };
+    case 'restrain':
+    case 'restrain-prone':
+      if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: there is nobody to restrain. CPR and the rhythm.']] };
+      return id === 'restrain'
+        ? { say: [['you', 'Soft restraints on all four limbs, face up, the monitor on and someone watching the breathing.']], flags: ['restrained'] }
+        : { say: [['you', 'Held face down on the stretcher, a knee across the back.'], [teammate(sc), 'He is fighting for breath like that — get him on his back!', 'bad']], flags: ['restrained-prone'] };
     case 'sit-up':
       if (!s.pulse) return { blocked: true, say: [['system', 'Not in cardiac arrest: compressions move the blood, not the position of the body.']] };
       if (v.gcs <= 8) return { blocked: true, say: [['system', 'Not with a GCS of 8 or less: a patient this drowsy cannot hold the airway sitting up. Keep them on their side or flat, and support the breathing.']] };
