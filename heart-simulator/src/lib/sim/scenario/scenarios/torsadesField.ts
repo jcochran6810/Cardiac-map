@@ -549,7 +549,8 @@ export const torsadesField: Scenario = {
       text: 'IM epinephrine without anaphylaxis. Nothing she has calls for it, and a surge of adrenaline in a long QT can set off torsades.',
     },
     nitrateCaseRule({
-      id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0, points: 3, severity: 'minor',
+      // with no pressure taken, the built-in nitro-no-bp outranks it (one dose, one penalty, the heavier)
+      id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0 && has(s, 'bp'), points: 3, severity: 'minor',
       text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; she has none, and it only lowers her pressure.',
     }, 'nitro-high-not-hypertensive'),
   ]),

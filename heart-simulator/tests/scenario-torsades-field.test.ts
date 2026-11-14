@@ -403,8 +403,10 @@ describe('torsades in the field — the traps', () => {
   it('pushers and IM epinephrine with a normal pressure, and nitroglycerin with no pain, cost points', () => {
     expect(penalties(medic(['pads', 'iv', 'push-epi']))).toEqual(['pressor-not-low']);
     expect(penalties(emt(['pads', 'epi-im']))).toEqual(['epi-im-no-anaphylaxis']);
-    expect(penalties(medic(['pads', 'nitro']))).toEqual(['nitro-no-pain']);
-    expect(penalties(medic(['pads', 'nitro-high']))).toEqual(['nitro-no-pain']);
+    // with a pressure taken: no pain to treat; without one, the pressure check is the heavier mistake (one dose, one penalty)
+    expect(penalties(medic(['pads', 'nibp', 'nitro']))).toEqual(['nitro-no-pain']);
+    expect(penalties(medic(['pads', 'nibp', 'nitro-high']))).toEqual(['nitro-no-pain']);
+    expect(penalties(medic(['pads', 'nitro']))).toEqual(['nitro-no-bp']);
   });
 
   it('a learner who caused the arrest and then ran it well never scores as high as the ideal run', () => {

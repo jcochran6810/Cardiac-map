@@ -142,7 +142,6 @@ export function lastDoneAt(s: SimState, ids: string[], since = -Infinity): numbe
 }
 
 // ─── Drug groups ───────────────────────────────────────────────────────────
-// Some ids are actions still to come (an action no case offers yet): a rule that lists them is ready for it.
 
 /** Adenosine by rapid IV push (3 mg is the first dose with a transplanted heart, dipyridamole or carbamazepine) */
 export const ADENOSINE_PUSH = ['adenosine3', 'adenosine6', 'adenosine12'];
