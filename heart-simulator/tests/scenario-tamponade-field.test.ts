@@ -263,7 +263,7 @@ describe('tamponade in the field — what each treatment does', () => {
     const s = medic([...steps, ...R(5)]);
     expect(s.fired).toEqual(expect.arrayContaining(['worse', 'worse-dry', 'arrest']));
     expect(s.pulse).toBe(false);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     // an infusion alone keeps him alive, but the fluid he needed is still missing
     const pressorOnly = medic([...steps, 'reassess', 'pressor', UNTIL_ARRIVED, 'handoff']);
     expect(pressorOnly.fired).toContain('worse-dry');
@@ -306,7 +306,7 @@ describe('tamponade in the field — what each treatment does', () => {
     let s = medic([...ASSESSED, 'o2-nc', 'ecg12', 'iv', 'fluid', ...R(8)]);
     expect(s.fired).toEqual(expect.arrayContaining(['worse', 'crash', 'arrest']));
     expect(s.pulse).toBe(false);
-    expect(s.rhythm).toEqual({ profile: 'pea', hr: 104 });
+    expect(s.rhythm).toEqual({ profile: 'pea-narrow', hr: 104 });
     expect(s.log.some((l) => l.who === 'monitor' && l.text === 'Monitor alarm.')).toBe(true);
     for (let i = 0; i < 12 && !s.ended; i++) s = perform(sc, s, i === 1 || i === 4 ? 'epinephrine' : 'cpr');
     expect(s.ended?.reason).toBe('death');

@@ -35,7 +35,7 @@ export const READ_OPTIONS: ReadOption[] = [
   { id: 'torsades', label: 'Polymorphic VT (torsades de pointes)', group: 'Rhythm', profiles: ['torsades'] },
   { id: 'vf', label: 'Ventricular fibrillation', group: 'Rhythm', profiles: ['vf'] },
   { id: 'asystole', label: 'Asystole', group: 'Rhythm', profiles: ['asystole'] },
-  { id: 'paced', label: 'Paced rhythm (pacemaker or pacing wire)', group: 'Rhythm', profiles: ['paced'] },
+  { id: 'paced', label: 'Paced rhythm (pacemaker or pacing wire)', group: 'Rhythm', profiles: ['paced', 'paced-vvi'] },
   { id: 'tcp', label: 'Transcutaneous pacing with capture', group: 'Rhythm', profiles: ['tcp'] },
   { id: 'aivr', label: 'Accelerated idioventricular rhythm (AIVR)', group: 'Rhythm', profiles: ['aivr'] },
 
@@ -58,10 +58,10 @@ export const READ_OPTIONS: ReadOption[] = [
   { id: 'reperfused-inferior', label: 'Inferior MI after reperfusion (ST elevation resolving)', group: 'Ischemia and infarction', profiles: ['inferior-stemi-reperfused'] },
   { id: 'ischaemia', label: 'Diffuse ST depression with ST elevation in aVR (subendocardial ischemia)', group: 'Ischemia and infarction', profiles: ['nstemi'] },
   { id: 'wellens', label: 'Wellens pattern (deep T-wave inversion V2–V3)', group: 'Ischemia and infarction', profiles: ['wellens'] },
-  { id: 'takotsubo', label: 'Anterior ST elevation without reciprocal change (Takotsubo pattern)', group: 'Ischemia and infarction', profiles: ['takotsubo'] },
+  { id: 'takotsubo', label: 'Anterior ST elevation without reciprocal change (Takotsubo pattern)', group: 'Ischemia and infarction', profiles: ['takotsubo', 'takotsubo-lvoto'] },
 
   { id: 'pericarditis', label: 'Acute pericarditis (diffuse ST elevation, PR depression)', group: 'Other patterns', profiles: ['pericarditis'] },
-  { id: 'hyperkalaemia', label: 'Hyperkalemia (peaked T waves, wide QRS)', group: 'Other patterns', profiles: ['hyperkalemia'] },
+  { id: 'hyperkalaemia', label: 'Hyperkalemia (peaked T waves, wide QRS)', group: 'Other patterns', profiles: ['hyperkalemia', 'hyperkalemia-moderate', 'hyperkalemia-severe'] },
   { id: 'long-qt', label: 'Long QT interval with PVCs', group: 'Other patterns', profiles: ['long-qt'] },
   { id: 'right-strain', label: 'Right heart strain (S1Q3T3)', group: 'Other patterns', profiles: ['pulmonary-embolism'] },
   { id: 'lvh', label: 'Left ventricular hypertrophy with strain', group: 'Other patterns', profiles: ['aortic-stenosis', 'hfpef', 'aortic-dissection'] },
@@ -183,10 +183,21 @@ const PARTIAL: Record<string, string[]> = {
   'cardiogenic-shock': ['sinus-tach'],
   tcp: ['paced'],
   paced: ['tcp'],
+  'paced-vvi': ['tcp'],
   // the rhythm or the pathway alone: half of the read — and the half that leads to an AV-nodal blocker
   'af-wpw': ['afib', 'wpw'],
   // the PVCs without the QT that makes them dangerous
   'long-qt': ['pvcs'],
+  // the rhythm under the pattern: right, but not the finding that names the cause (sinus tachycardia is the commonest
+  // ECG finding of a PE, and an incomplete RBBB is drawn on its tracing)
+  'aortic-dissection': ['nsr', 'sinus-tach'],
+  'aortic-stenosis': ['nsr'],
+  hfpef: ['nsr', 'sinus-tach'],
+  'pulmonary-embolism': ['sinus-tach', 'incomplete-rbbb'],
+  tamponade: ['sinus-tach'],
+  // before the angiogram the anterior STEMI read is the safe one: the ECG alone cannot tell them apart (InterTAK 2018)
+  takotsubo: ['stemi-anterior'],
+  'takotsubo-lvoto': ['stemi-anterior'],
 };
 
 /** The correct read for an ECG profile */

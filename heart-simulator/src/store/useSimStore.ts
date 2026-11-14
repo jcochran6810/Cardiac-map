@@ -13,6 +13,7 @@ import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Review, SimState } from '@/lib/sim/scenario/types';
 import { resetCode, setBaseline, setNibpReading, setScriptedVitals, useDefibStore, type ScriptedVitals } from '@/lib/sim/defib';
 import { resolveProfile, type HemoProfile } from '@/lib/ecg/profiles';
+import type { AnyLead } from '@/lib/ecg/vector';
 import { scrubTo, sim } from '@/lib/sim/simulation';
 import type { LearningLevel } from '@/store/useAppStore';
 import { useECGStore, type ECGLayout, type ECGLead } from '@/store/useECGStore';
@@ -103,6 +104,61 @@ export function attached(s: SimState) {
 
 // ─── Side effects on the shared monitor ─────────────────────────────────────
 
+/**
+ * A pacer that fires without capturing (the case flag 'pacer-no-capture': a wire out of the ventricle, a threshold a high
+ * potassium has pushed out of reach): its spikes are drawn at the set rate over the patient's own rhythm, which is what the
+ * 12-lead is read as. Every case that sets the flag paces at 70.
+ */
+export const NO_CAPTURE_FLAG = 'pacer-no-capture';
+export const NO_CAPTURE_RATE = 70;
+
+/** Spans of monitor time with spikes that bring no beat: one spike every `period` ms from `start` until `end` */
+const noCapture: { start: number; end: number; period: number }[] = [];
+/** What the recording carried before the case's spikes were laid over it (the defibrillator's artefacts), put back after */
+let beneath: ((t: number, lead: AnyLead) => number) | null = null;
+
+/** The leads in which a spike from the right ventricle points down (as the defibrillator draws its pacer spikes) */
+const SPIKE_DOWN: ReadonlySet<string> = new Set(['aVR', 'aVL']);
+
+/** The recording's extra signals: whatever was there, and the case's non-capturing pacer spikes */
+export function caseArtefacts(t: number, lead: AnyLead): number {
+  let v = beneath ? beneath(t, lead) : 0;
+  for (let i = noCapture.length - 1; i >= 0; i--) {
+    const p = noCapture[i];
+    if (t < p.start) continue;
+    if (t >= p.end) break;
+    const dt = (t - p.start) % p.period;
+    v += (SPIKE_DOWN.has(lead) ? -1 : 1) * (2.2 * Math.exp(-Math.pow(dt / 1.4, 2)) + 0.25 * Math.exp(-dt / 35) * (dt > 2 ? 1 : 0));
+    break;
+  }
+  return v;
+}
+
+/** The spans of non-capturing spikes on the monitor now (for the tests) */
+export const noCaptureSpans = () => noCapture.map((p) => ({ ...p }));
+
+/** Start or stop the spikes as the case says the pacer fires without capture, at its rate */
+function syncNoCapture(s: SimState) {
+  const on = NO_CAPTURE_FLAG in s.flags;
+  const period = 60000 / NO_CAPTURE_RATE;
+  const last = noCapture[noCapture.length - 1];
+  const open = !!last && last.end === Infinity;
+  if (open && (!on || last.period !== period)) last.end = sim.time;
+  if (on && !(open && last.period === period)) noCapture.push({ start: sim.time, end: Infinity, period });
+  // laid over whatever else the recording carries, and kept on top if that was installed after it
+  if (noCapture.length && sim.engine.external !== caseArtefacts) {
+    beneath = sim.engine.external;
+    sim.engine.external = caseArtefacts;
+  }
+}
+
+/** No case spikes on the monitor any more: the recording gets back what it carried before */
+function clearNoCapture() {
+  noCapture.length = 0;
+  if (sim.engine.external === caseArtefacts) sim.engine.external = beneath;
+  beneath = null;
+}
+
 let saved: null | {
   profile: string; hr: number; layout: ECGLayout; keyLeads: boolean; inspect: ECGLead | null;
   playing: boolean; speed: number;
@@ -114,12 +170,16 @@ let etco2Stale = false;
 /** Show this patient on the monitor and the 12-lead */
 function show(s: SimState, prev: SimState | null) {
   // a new (or resumed) case fills the monitor with the patient's rhythm; changes during the case sweep in, as on a real monitor
-  if (!prev) showRhythm(s.rhythm.profile, s.rhythm.hr);
+  if (!prev) {
+    clearNoCapture();
+    showRhythm(s.rhythm.profile, s.rhythm.hr);
+  }
   else if (prev.rhythm.profile !== s.rhythm.profile || prev.rhythm.hr !== s.rhythm.hr) setRhythm(s.rhythm.profile, s.rhythm.hr);
   // after the rhythm: showing a new patient's rhythm drops any baseline, so the case's is set again here
   const baseline = caseBaseline(s);
   if (sim.hemo.baseline !== baseline) setBaseline(baseline);
   setScriptedVitals(monitorVitals(s, etco2Stale));
+  syncNoCapture(s);
   const newLines = prev ? s.log.slice(prev.log.length) : [];
   const last = s.performed.at(-1);
   if (prev && last && s.performed.length > prev.performed.length) {
@@ -168,6 +228,7 @@ export function enterSimulator() {
 export function leaveSimulator() {
   setScriptedVitals(null);
   setNibpReading(null);
+  clearNoCapture();
   if (!saved) return;
   const ecg = useECGStore.getState();
   const tl = useTimelineStore.getState();
@@ -243,6 +304,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     closeScenario: () => {
       setScriptedVitals(null);
       setNibpReading(null);
+      clearNoCapture();
       etco2Stale = false;
       if (sim.hemo.baseline !== null) setBaseline(null);
       set({ scenarioId: null, state: null, review: null, reviewOpen: false, sheetOpen: false });

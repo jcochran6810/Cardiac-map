@@ -480,7 +480,7 @@ export const tamponadeField: Scenario = {
       when: (s) => s.pulse && (s.vitals.sbp < ARREST_SBP || (onScene(s) && s.minute >= ARREST_AT)),
       effect: (s) => ({
         say: [['partner', 'He\'s gone limp — not responding, not breathing normally!', 'bad'], ...(ecgOn(s) ? [line('monitor', 'Monitor alarm.', 'bad')] : [])],
-        rhythm: { profile: 'pea', hr: 104 }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['arrested'],
+        rhythm: { profile: 'pea-narrow', hr: 104 }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['arrested'],
       }),
     },
     {

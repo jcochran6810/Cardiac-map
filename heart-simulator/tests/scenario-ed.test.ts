@@ -124,15 +124,15 @@ describe('emergency department scope', () => {
     const ed = Object.fromEntries(interventionsFor(7, 'ed').map((i) => [i.id, i.detail]));
     expect(ed.heparin).toMatch(/^weight-based: 60 U\/kg \(max 4,000 U\)/);
     expect(ed.p2y12).toMatch(/fibrinolytic, clopidogrel 300 mg/);
-    expect(ed['ct-urgent']).toMatch(/pulmonary embolism.*leave the department$/);
+    expect(ed['ct-urgent']).toMatch(/pulmonary embolism.*leave the department; an earlier contrast reaction needs premedication \(an accelerated regimen — never delaying a scan for a life threat\)$/);
     expect(ed['call-vad']).toMatch(/advise where the patient should be treated$/);
     expect(Object.fromEntries(interventionsFor(6, 'ed').map((i) => [i.id, i.detail])).heparin).toBe(ed.heparin);
     // the cath lab nurse and cardiologist see the lab's dose (with its contraindications), and the field crews the words they saw before the ED came
     for (const role of [4, 5] as const) {
       const lab = Object.fromEntries(interventionsFor(role, 'cathlab').map((i) => [i.id, i.detail]));
       expect(lab.heparin).toBe('70–100 U/kg for primary PCI, then to the ACT target; not with heparin-induced thrombocytopenia or active bleeding');
-      expect(lab.p2y12).toBe('ticagrelor 180 mg (or prasugrel 60 mg)');
-      expect(lab['ct-urgent']).toBe('head CT for a stroke (CT angiography if a clot could be pulled), abdomen and pelvis for a retroperitoneal bleed, chest CT angiography for a dissection — once the patient is stable enough to leave the lab');
+      expect(lab.p2y12).toBe('ticagrelor 180 mg (or prasugrel 60 mg: not after a stroke or TIA, not usually at 75 or over, and not during a cangrelor infusion); not with active bleeding or a possible aortic dissection; ticagrelor not after an intracranial bleed');
+      expect(lab['ct-urgent']).toBe('head CT for a stroke (CT angiography if a clot could be pulled), abdomen and pelvis for a retroperitoneal bleed, chest CT angiography for a dissection — once the patient is stable enough to leave the lab; not before the culprit artery is open in a STEMI; an earlier contrast reaction needs premedication (an accelerated regimen — never delaying a scan for a life threat)');
     }
     for (const role of [1, 2] as const) {
       expect(interventionsFor(role, 'field').find((i) => i.id === 'call-vad')!.detail).toBe('the implanting center, 24/7: they talk you through the alarms and say where to take the patient');
@@ -223,7 +223,7 @@ describe('emergency department defaults', () => {
     expect(s.log.some((l) => /from every port/.test(l.text))).toBe(false);
     expect(s.log.some((l) => /^Balloon-tipped pacing wire floated through the introducer sheath/.test(l.text))).toBe(true);
     expect(s.counts.atropine).toBe(1);
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     expect(s.minute).toBeCloseTo(8 + 0.5 + 0.5 + 3, 5);
     expect(ids(s)).toEqual([]);
     expect(INTERVENTION_BY_ID['central-line'].detail).toMatch(/introducer sheath \(6 Fr, with a side port for drugs\)/);

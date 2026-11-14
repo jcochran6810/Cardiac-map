@@ -1,5 +1,5 @@
 import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Speaker } from '../types';
-import { atRate, bpAfter, firstDone, has, line, paced } from '../kit';
+import { atRate, bpAfter, firstDone, has, line, paced, wirePaced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LAD_VIEWS, MD, RCA_VIEWS, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { ANTITHROMBOTIC_RULES, NITRATE_RULES } from '../rules/acs';
@@ -357,7 +357,7 @@ export const cathlabAirEmbolism: Scenario = {
       const hr = s.rhythm.hr;
       if (s.rhythm.profile === 'inferior-stemi') return `Sinus rhythm ${hr}: ST elevation in II, III and aVF with reciprocal depression in I and aVL — the inferior wall, the right coronary's territory, is ischemic.`;
       if (s.rhythm.profile === 'tcp') return 'Transcutaneous pacing at 70: a wide QRS after every pacing spike. The paced beats hide the inferior ST segments.';
-      if (s.rhythm.profile === 'paced') return `Ventricular pacing at ${hr} from the temporary wire: a small spike before every wide QRS. The paced beats hide the inferior ST segments.`;
+      if (wirePaced(s)) return `Ventricular pacing at ${hr} from the temporary wire: a small spike before every wide QRS. The paced beats hide the inferior ST segments.`;
       return `Sinus rhythm ${hr}: the inferior ST segments are back at baseline — the right coronary is perfusing the inferior wall again.`;
     },
     echo: (s) => (unwell(s)

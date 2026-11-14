@@ -663,7 +663,7 @@ export const edDissection: Scenario = {
       id: 'arrest', when: (s) => s.pulse && inDepartment(s) && bled(s) && s.minute >= s.flags.tamponade + ARREST_AFTER,
       effect: (s) => ({
         say: [['team', 'He has gone limp — not responding, not breathing normally!', 'bad'], ...(has(s, 'monitor') ? [line('monitor', 'Monitor alarm.', 'bad')] : [])],
-        rhythm: { profile: 'pea', hr: Math.min(140, s.rhythm.hr) }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['tamponade-arrest'],
+        rhythm: { profile: 'pea-narrow', hr: Math.min(140, s.rhythm.hr) }, pulse: false, phase: 'arrest', vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['tamponade-arrest'],
       }),
     },
   ],

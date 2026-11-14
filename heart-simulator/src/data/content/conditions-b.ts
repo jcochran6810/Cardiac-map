@@ -1066,7 +1066,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     id: 'lateral-stemi',
     name: 'Lateral STEMI',
     category: 'Ischemia / MI',
-    synonyms: ['Lateral wall MI', 'High lateral STEMI (I, aVL)', 'Low lateral STEMI (V5–V6)', 'Circumflex occlusion MI', 'Posterolateral MI (with posterior extension)'],
+    synonyms: ['Lateral wall MI', 'High lateral STEMI (I, aVL)', 'Low lateral STEMI (V5–V6)', 'Circumflex occlusion MI', 'Posterolateral MI (with posterior extension)', 'Posterior STEMI', 'Isolated posterior MI (anterior ST depression)'],
     summary:
       'A lateral STEMI is a heart attack affecting the side wall of the left ventricle, usually from blockage of the circumflex artery, an obtuse marginal branch or the first diagonal branch of the LAD. ECG changes can be subtle, so it is easily missed.',
     levelNotes: [
@@ -1393,5 +1393,122 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     affectedStructures: ['lad-proximal', 'lad-mid', 'septal-perforators', 'd1', 'interventricular-septum', 'left-ventricle', 'apex'],
     relatedProcedures: ['coronary-angiography', 'pci-stent', 'ivus-oct', 'cabg'],
     relatedMedications: ['aspirin', 'heparin', 'enoxaparin', 'ticagrelor', 'nitroglycerin', 'metoprolol', 'atorvastatin'],
+  },
+
+  // Sources: AHA scientific statement on SCAD (Hayes et al., Circulation 2018;137:e523–e557, doi 10.1161/CIR.0000000000000564)
+  // for the conservative care, the heparin, the GP IIb/IIIa line, the beta-blocker, the 3–5 days of monitoring and the
+  // pregnancy warnings (renin-angiotensin blockers are teratogenic; atenolol and statins are avoided in pregnancy); the ESC
+  // position paper on SCAD (Adlam et al., Eur Heart J 2018;39:3353–3368, doi 10.1093/eurheartj/ehy080) for avoiding
+  // fibrinolysis — the AHA statement does not address lysis
+  scad: {
+    id: 'scad',
+    name: 'Spontaneous Coronary Artery Dissection (SCAD)',
+    category: 'Ischemia / MI',
+    synonyms: ['SCAD', 'Spontaneous coronary dissection', 'Intramural hematoma of a coronary artery', 'Pregnancy-associated MI', 'Postpartum heart attack'],
+    summary:
+      'A tear or a bleed inside the wall of a coronary artery, with no atherosclerosis, trauma or catheter to cause it. The blood in the wall squeezes the channel shut and causes a heart attack, usually in a woman under 60 with few risk factors, often after childbirth or a great physical or emotional stress. Most heal on their own, so it is treated differently from an ordinary heart attack: no clot-busting drug, no stent unless the artery is closing, and the heparin stopped once it is seen.',
+    levelNotes: [
+      'A young, healthy woman with chest pain — after a delivery, hard exercise or bad news — can be having a heart attack: treat it as one. Acquire and transmit the 12-lead, give aspirin per protocol, and take her to a PCI-capable center; tell the team about a recent pregnancy.',
+      'Treat SCAD as any ACS: 12-lead, aspirin, a STEMI alert for ST elevation, and transport to a PCI-capable center (the diagnosis needs an angiogram). Do not let her age or sex lower your suspicion, and report a pregnancy in the last months, breastfeeding, or a trigger.',
+      'Expect a long smooth narrowing of a mid or distal artery, not a plaque: keep the views and the catheter gentle (catheter dissection is more common in these arteries), avoid forceful injections and deep engagement, and have IVUS or OCT ready if the operator wants to confirm it.',
+      'Give heparin and antiplatelets as ordered before the angiogram, then be ready for the operator to stop the heparin once SCAD is seen. Watch her on telemetry: chest pain that comes back needs a 12-lead at once, because a dissection can extend in the first days.',
+      'Diagnose SCAD on the angiogram (intracoronary imaging only when it is unclear, gently). With flow preserved and a stable patient, manage it conservatively: no stent, heparin stopped, aspirin and a beta-blocker, 3–5 days of monitoring. Stent or bypass only for ongoing ischemia, instability or a left main dissection; screen for fibromuscular dysplasia.',
+      'Chest pain in a young woman — especially in the months after a delivery — gets the same triage as anyone else: a 12-lead within 10 minutes shown to the physician, aspirin on order or standing order, and the pads on. Record a recent pregnancy, breastfeeding and any trigger, and report recurring pain or a new rhythm at once.',
+      'A STEMI in a young woman with few risk factors may be SCAD, which only the angiogram shows: activate the cath lab rather than giving a fibrinolytic, which can extend the bleed in the wall. Give aspirin and heparin as for any STEMI and tell the lab about a recent pregnancy.',
+    ],
+    overview: [
+      'A dissection of an epicardial coronary artery that is not caused by atherosclerosis, trauma or a catheter',
+      'Up to 1–4 % of all acute coronary syndromes, and up to a third of heart attacks in women aged 50 or younger',
+      'Most patients are women in their 40s and 50s with few conventional risk factors; the most common cause of a heart attack around pregnancy (most in the first weeks after delivery)',
+      'Often follows a trigger: intense emotional stress, or intense physical effort (heavy lifting, isometric exercise), more often in men',
+      'Associated with fibromuscular dysplasia of other arteries (17–86 % of patients, depending on how they are screened), and rarely with connective tissue disorders',
+      'Recurrence is common over the following years, so it is a long-term condition, not a one-off event',
+    ],
+    anatomy: [
+      'The LAD and its branches are affected most often (about half of cases); the circumflex and the right coronary less often; several arteries in some',
+      'Usually the mid and distal segments, where the artery is smaller and smoother',
+      'The dissection plane is in the outer media: the blood in the wall (an intramural hematoma) bulges inward and narrows the true lumen',
+    ],
+    pathophysiology: [
+      'Either a tear in the inner lining lets blood into the wall, or a small vessel bleeds into the wall first; most cases show no tear at all',
+      'The hematoma compresses the true lumen from outside — there is little or no clot inside the artery to dissolve',
+      'Sex hormones, pregnancy, arteriopathies such as fibromuscular dysplasia and a sudden surge of catecholamines are thought to weaken the wall',
+      'Most dissections heal on their own over weeks to months (the artery looks normal again in 70–97 % of those restudied)',
+    ],
+    symptoms: [
+      'Chest pain like any heart attack, sometimes with arm, neck or back pain, nausea and sweating',
+      'Shortness of breath, palpitations, or fainting',
+      'Sudden cardiac arrest from VF in some',
+      'Often in a young, fit woman with no history of heart disease, after childbirth or a great stress',
+    ],
+    ecg: [
+      'The ECG of any acute coronary syndrome: STEMI, NSTEMI or no ST change',
+      'The territory of the dissected artery — most often anterior (the LAD)',
+      'Repeat the 12-lead with any new chest pain in the first days: an extending dissection causes new ischemia',
+    ],
+    imaging: [
+      'Coronary angiography is the first test: a long, smooth narrowing in a mid or distal segment (type 2, the most common), a double lumen with contrast in the wall (type 1), or a short narrowing that looks like a plaque (type 3)',
+      'Intravascular ultrasound or OCT shows the intramural hematoma when the angiogram is unclear; it carries a small risk of extending the tear, so it is used only when it changes management',
+      'CT or MR angiography from the head to the pelvis looks for fibromuscular dysplasia and aneurysms elsewhere',
+      'Echo for the left ventricle\'s function; cardiac MRI can show the infarct when the diagnosis is uncertain',
+    ],
+    medications: [
+      'Aspirin, as in any acute coronary syndrome, usually continued long term',
+      'Heparin is often started before the angiogram; once SCAD is diagnosed and no stent is placed, stopping it is appropriate (it may feed the bleed in the wall)',
+      'Avoid fibrinolysis (ESC position paper 2018): there is no clot to dissolve, and lysis can extend the hematoma — a young woman with a STEMI goes to the cath lab',
+      'GP IIb/IIIa inhibitors: no evidence of benefit and a theoretical risk of extending the dissection',
+      'A beta-blocker is reasonable: it was linked to fewer recurrences in a large Vancouver series',
+      'Dual antiplatelet therapy after a stent as usual; without a stent its role is uncertain',
+      'Nitrates or calcium-channel blockers for the chest pain many patients have afterward',
+      'ACE inhibitors and ARBs only with LV dysfunction or hypertension, never in pregnancy (fetal toxicity); atenolol and statins are avoided in pregnancy (AHA 2018)',
+    ],
+    fieldCare: [
+      'Treat as ACS: 12-lead and transmission, aspirin per protocol, and a STEMI alert for ST elevation',
+      'Transport to a PCI-capable center; a fibrinolytic is not the answer when SCAD is possible',
+      'Ask about a recent pregnancy or delivery, breastfeeding, a recent stress or heavy effort, and hormones',
+      'Be ready for VF: pads on and the defibrillator ready',
+    ],
+    hospitalCare: [
+      'Early angiography for every acute coronary syndrome, as usual: SCAD is diagnosed on the angiogram',
+      'Stable with preserved flow: conservative care, without a stent',
+      'Stop the heparin once SCAD is diagnosed, unless a stent or another indication needs it',
+      'Telemetry for 3–5 days: an extending dissection (5–10 % in the first week) causes new pain and ST change and may need emergency revascularization',
+      'Iodinated contrast is no reason to stop breastfeeding',
+    ],
+    cardiologyCare: [
+      'Revascularization only for ongoing ischemia, hemodynamic instability, a left main dissection or a closing artery — PCI in SCAD fails or extends the tear more often than in plaque',
+      'When a stent is needed: long stents well beyond both ends of the hematoma, direct stenting or a small balloon, and minimal injections',
+      'Aspirin, a beta-blocker, and medicines for the chest pain; an ACE inhibitor or ARB with a reduced ejection fraction — never in pregnancy (fetal toxicity: stop it before a planned pregnancy); while breastfeeding, enalapril or captopril',
+      'Screen for fibromuscular dysplasia once, head to pelvis',
+      'Cardiac rehabilitation, with heavy lifting and extreme effort avoided',
+      'Counseling about future pregnancy and hormone therapy, and attention to anxiety and depression, which are common afterward',
+    ],
+    procedure: [
+      'Coronary angiography with gentle catheter technique and careful views',
+      'Intravascular imaging (IVUS or OCT) only when the angiogram leaves the diagnosis unclear',
+      'PCI or bypass surgery reserved for the high-risk patient; most heal without them',
+    ],
+    complications: [
+      'Extension of the dissection in the first week, with new infarction',
+      'Recurrent SCAD in another segment or artery over the years',
+      'VF and sudden death in the acute phase',
+      'Heart failure after a large infarct',
+      'Iatrogenic dissection during angiography, more likely in these fragile arteries',
+    ],
+    teaching: [
+      'A heart attack in a young woman after childbirth is SCAD until the angiogram says otherwise',
+      'There is no clot to bust: fibrinolysis can make it worse',
+      'Most SCAD heals by itself — the best stent is often no stent',
+      'Chest pain after SCAD is common and often not new ischemia, but a new 12-lead is how you tell',
+    ],
+    redFlags: [
+      'Chest pain returning with new ST changes in the first days',
+      'VF or ventricular tachycardia',
+      'A left main or multivessel dissection',
+      'Hypotension or heart failure',
+    ],
+    affectedStructures: ['lad-mid', 'lad-distal', 'd1', 'om1', 'rca-distal', 'myocardium', 'left-ventricle'],
+    relatedProcedures: ['coronary-angiography', 'ivus-oct', 'pci-stent', 'cabg'],
+    relatedMedications: ['aspirin', 'heparin', 'metoprolol', 'nitroglycerin', 'clopidogrel', 'lisinopril'],
   },
 };

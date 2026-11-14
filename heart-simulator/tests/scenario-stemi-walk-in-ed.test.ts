@@ -476,9 +476,9 @@ describe('walk-in STEMI in the ED: the physician\'s orders are fair to a nurse w
 });
 
 describe('walk-in STEMI in the ED: the review says what happened', () => {
-  it('asking about the erectile-dysfunction drugs only after the nitrate is no screen: the item drops out and the harm says it', () => {
+  it('asking about the PDE-5 inhibitors only after the nitrate is no screen: the item drops out and the harm says it', () => {
     for (const role of ROLES) {
-      const label = role === 6 ? 'Ask about erectile-dysfunction drugs before any nitrate — by name' : 'Ask about erectile-dysfunction drugs before any nitrate';
+      const label = role === 6 ? 'Ask about PDE-5 inhibitors and riociguat before any nitrate — by name' : 'Ask about PDE-5 inhibitors and riociguat before any nitrate';
       const pre = role === 6 ? ['triage', 'ecg12', 'notify-physician'] : MD_TO_ALERT;
       const after = run(sc, role, [...pre, 'nitro', 'ask-pde5']);
       expect(ids(after), `role ${role}`).toEqual(['nitro-pde5']);

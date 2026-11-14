@@ -23,6 +23,9 @@ const IMAGES: Partial<Record<string, string>> = { 'wire-position': 'temp-pacing-
 /** Her own rhythm: complete heart block with a slow wide escape */
 const BLOCK = 'third-degree-avb';
 
+/** The temporary wire's rhythm: a single RV wire paces the ventricles at 70 while her P waves march on (VVI) */
+const WIRE = 'paced-vvi';
+
 /** The patient's own escape is driving the heart (no pacer, no wire capturing) */
 const ownRhythm = (s: SimState) => s.pulse && s.rhythm.profile === BLOCK;
 
@@ -121,7 +124,7 @@ function wireIn(s: SimState, who: Speaker): Effect {
     ];
   return {
     say: [...words, ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`], ...awake(s, '"I feel more awake… and it doesn\'t thump any more."')],
-    rhythm: { profile: 'paced', hr: 70 }, vitals: { ...bp, gcs: Math.max(s.vitals.gcs, has(s, 'rosc') ? 13 : 15), pain: Math.min(s.vitals.pain, 1) },
+    rhythm: { profile: WIRE, hr: 70 }, vitals: { ...bp, gcs: Math.max(s.vitals.gcs, has(s, 'rosc') ? 13 : 15), pain: Math.min(s.vitals.pain, 1) },
     image: { id: 'wire-position', view: 'Fluoroscopy: a temporary wire with its tip at the RV apex (a real frame, another patient)', image: IMAGES['wire-position'] },
     flags: ['temp-wire', 'paced', 'wire-paced', 'rate-support'],
   };
@@ -136,7 +139,7 @@ function rewire(s: SimState, who: Speaker): Effect {
       ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`],
       ...(has(s, 'tcp-again') ? [line('team', 'Pads pacer back to standby; the pads stay on.')] : []),
     ],
-    rhythm: { profile: 'paced', hr: 70 }, vitals: { ...bp, pain: Math.min(s.vitals.pain, 3) }, flags: ['paced', 'recaptured'],
+    rhythm: { profile: WIRE, hr: 70 }, vitals: { ...bp, pain: Math.min(s.vitals.pain, 3) }, flags: ['paced', 'recaptured'], clear: ['pacer-no-capture'],
   };
 }
 
@@ -298,8 +301,9 @@ export const cathlabTempWire: Scenario = {
     neuro: (s) => (s.vitals.gcs >= 15 ? 'Oriented and answering promptly.' : 'Slow to answer but oriented; no focal deficit.'),
     ecg12: (s) => {
       if (s.rhythm.profile === 'tcp') return 'Transcutaneous pacing at 70: a large pacing spike before every wide QRS — electrical capture. The P waves march on at their own rate underneath.';
-      if (s.rhythm.profile === 'paced') return 'Pacing from the wire at 70: a small spike before every wide QRS, shaped like a left bundle branch block with a left (superior) axis — the tip is in the RV apex, and every spike captures.';
-      // the profile draws the block alone: a bipolar wire's small spikes, firing on with nothing after them, are easy to miss
+      if (s.rhythm.profile === WIRE) return 'Pacing from the wire at 70: a small spike before every wide QRS, shaped like a left bundle branch block with a left (superior) axis — the tip is in the RV apex, and every spike captures.';
+      // the block, with the box's spikes laid over it on the monitor ('pacer-no-capture'): a bipolar wire's small spikes,
+      // firing on with nothing after them, are easy to miss
       if (wireOut(s)) return `No paced QRS complexes: the block is back, with its wide escape at ${s.rhythm.hr}, while the box still fires at 70 — the wire has lost capture (a bipolar wire's small spikes are easy to miss).`;
       return `Complete heart block: P waves at about 76/min march through on their own; a wide-complex escape at ${s.rhythm.hr}/min has no relationship to them. No ST elevation. A wide escape means the block is below the AV node (her old ECG showed a bundle branch block): atropine is unlikely to help, and the escape can stop.`;
     },
@@ -314,7 +318,7 @@ export const cathlabTempWire: Scenario = {
     if (wireOut(s) && s.rhythm.profile === BLOCK) return '"Everything\'s going gray…"';
     if (has(s, 'perforated') && !has(s, 'recaptured')) return '"Hic — it hurts when I breathe in — hic…"';
     if (s.rhythm.profile === 'tcp') return has(s, 'analgesia') || has(s, 'sedation') ? '"It thumps, but I can bear it."' : '"Ow — that thumping hurts!"';
-    if (s.rhythm.profile === 'paced') return '"I feel much more awake."';
+    if (s.rhythm.profile === WIRE) return '"I feel much more awake."';
     return '"I feel like I\'m going to pass out."';
   },
   respond: {
@@ -341,8 +345,8 @@ export const cathlabTempWire: Scenario = {
       if (!s.pulse) return null;
       if (s.rhythm.profile === 'tcp') return { say: [['you', 'Femoral pulse at 70, matching the pacer: mechanical capture.', 'good']] };
       // with blood around the heart the pulse is weak and fades as she breathes in (pulsus paradoxus): a finding, not a name
-      if (s.rhythm.profile === 'paced' && squeezed(s)) return { say: [['you', 'Femoral pulse at 70 with every paced beat — weak, and it fades each time she breathes in.', 'warn']] };
-      if (s.rhythm.profile === 'paced') return { say: [['you', 'Femoral pulse at 70, one with every paced beat.', 'good']] };
+      if (s.rhythm.profile === WIRE && squeezed(s)) return { say: [['you', 'Femoral pulse at 70 with every paced beat — weak, and it fades each time she breathes in.', 'warn']] };
+      if (s.rhythm.profile === WIRE) return { say: [['you', 'Femoral pulse at 70, one with every paced beat.', 'good']] };
       return null;
     },
     nibp: (s) => (s.pulse && paced(s)
@@ -547,7 +551,7 @@ export const cathlabTempWire: Scenario = {
             ...(s.role === 5 ? [line('team', `Nurse: "Doctor — she's dropped to 30, pressure ${sbp}!"`, 'warn')] : []),
           ],
           rhythm: { profile: BLOCK, hr: 30 }, vitals: { sbp, dbp, gcs: Math.min(s.vitals.gcs, 13), pain: Math.max(s.vitals.pain, 4) },
-          flags: ['perforated', 'capture-lost'],
+          flags: ['perforated', 'capture-lost', 'pacer-no-capture'],
         };
       },
     },
@@ -681,7 +685,7 @@ export const cathlabTempWire: Scenario = {
     { id: 'nitro-after-wire', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro'], when: (s) => has(s, 'perforated'), points: 10, severity: 'major', replaces: NITRATE_RULES, text: 'Nitroglycerin for chest pain after a pacing wire. Sharp pain that is worse on breathing in, with hiccups in time with the pacer, is perforation until proven otherwise — not angina: nitrates drop the filling a heart with blood around it depends on. Echo first.' },
     // the pads' pacing needs sedation, the wire's does not: once the wire paces, nothing hurts that needs it, so a falling
     // pressure (the tamponade) makes it a mistake again — this case's words for the built-in sedation rules
-    { id: 'sedation-low-pressure', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && s.rhythm.profile === 'paced' && s.vitals.sbp < 90, points: 5, severity: 'major', replaces: SEDATIVE_RULES, text: 'Sedation with a falling pressure once the wire is pacing. The wire needs no sedation (only the pads pacing hurts), and a benzodiazepine drops the pressure and the breathing further: support the pressure and find out why it is falling.' },
+    { id: 'sedation-low-pressure', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && s.rhythm.profile === WIRE && s.vitals.sbp < 90, points: 5, severity: 'major', replaces: SEDATIVE_RULES, text: 'Sedation with a falling pressure once the wire is pacing. The wire needs no sedation (only the pads pacing hurts), and a benzodiazepine drops the pressure and the breathing further: support the pressure and find out why it is falling.' },
     // the built-in rule, same id, in this case's words (a lighter charge): the needle is refused until the echo has shown the
     // new effusion, so what is left to judge is a drain before it squeezes the heart — a judgement call on a growing
     // iatrogenic effusion (the tray is open for it), not the critical needle with no effusion at all

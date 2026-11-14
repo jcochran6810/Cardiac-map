@@ -364,7 +364,7 @@ describe('the ER nurse', () => {
     expect(one.vitals).toMatchObject({ sbp: 70, dbp: 60 });
     const arrested = rn(RN_NITRO_ARREST);
     expect(arrested.pulse).toBe(false);
-    expect(arrested.rhythm.profile).toBe('pea');
+    expect(arrested.rhythm.profile).toBe('pea-narrow');
     expect(arrested.log.some((l) => l.who === 'physician' && /start compressions!.*I'm going in with the needle now/.test(l.text))).toBe(true);
     const back = rn([...RN_NITRO_ARREST, 'cpr']);
     expect(back.pulse).toBe(true);
@@ -580,7 +580,7 @@ describe('the ER doctor', () => {
     expect(s.flags['worse-dry']).toBeGreaterThanOrEqual(15);
     expect(s.flags.crashing).toBeGreaterThanOrEqual(19);
     expect(s.flags.arrest).toBeGreaterThanOrEqual(23);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     expect(missed(s, /^Drain it now/)).toBe(true);
     expect(missed(s, /^When the pressure falls again/)).toBe(true);
     // the bolus spares her the second slide

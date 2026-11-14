@@ -278,7 +278,7 @@ export const CONDITION_IDS = [
   // ventricular
   'pvcs', 'monomorphic-vt', 'ventricular-fibrillation', 'torsades-de-pointes',
   // ischemia
-  'anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'nstemi', 'wellens-pattern',
+  'anterior-stemi', 'inferior-stemi', 'lateral-stemi', 'nstemi', 'wellens-pattern', 'scad',
   // cardiomyopathy
   'dilated-cardiomyopathy', 'hcm', 'takotsubo',
   // heart failure
@@ -342,6 +342,7 @@ export const ECG_PROFILE_IDS = [
   'pulmonary-embolism', 'aortic-dissection', 'hyperkalemia', 'paced', 'pea', 'pvt', 'tcp',
   'inferior-stemi-chb', 'anterior-stemi-reperfused', 'inferior-stemi-reperfused', 'aivr',
   'af-wpw', 'posterior-stemi', 'long-qt',
+  'pea-narrow', 'paced-vvi', 'takotsubo-lvoto', 'hyperkalemia-moderate', 'hyperkalemia-severe',
 ] as const;
 
 export type StructureId = (typeof STRUCTURE_IDS)[number];

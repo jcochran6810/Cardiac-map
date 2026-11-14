@@ -500,7 +500,7 @@ describe('new actions: scope and settings', () => {
   it('the regional heart center now names cardiac surgery (the label the search and the cases use is unchanged)', () => {
     const t = INTERVENTION_BY_ID['transport-pci'];
     expect(t.label).toBe('Transport to the regional heart center (PCI, pacing, dialysis)');
-    expect(t.detail).toBe('PCI-capable: a cath lab, cardiac surgery, transvenous pacing, emergency dialysis and an ICU');
+    expect(t.detail).toBe('PCI-capable: a cath lab, cardiac surgery, transvenous pacing, emergency dialysis and an ICU — the region\'s cardiac arrest center, with ECMO, a PE response team and the VAD program');
   });
 
   it('every new cath lab action is taught by a catalog item', () => {

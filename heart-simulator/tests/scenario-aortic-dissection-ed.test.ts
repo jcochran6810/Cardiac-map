@@ -609,7 +609,7 @@ describe('aortic dissection in the emergency department — delay matters', () =
     let s = doctor(R(25));
     expect(s.fired).toContain('arrest');
     expect(s.pulse).toBe(false);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     for (let i = 0; i < 10 && !s.ended; i++) s = perform(sc, s, 'cpr');
     expect(s.ended?.reason).toBe('death');
     expect(review(sc, s).percent).toBeLessThanOrEqual(40);

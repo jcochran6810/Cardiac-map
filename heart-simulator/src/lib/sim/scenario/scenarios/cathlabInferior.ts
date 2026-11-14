@@ -50,9 +50,11 @@ const fluid = (s: SimState): Effect | null => {
 };
 /**
  * Pacing in the reflex: the rate comes back to 70, but her vessels stay dilated, so the pressure only partly recovers
- * (fluid does the rest). Outside the reflex, the default response applies.
+ * (fluid does the rest). A single RV wire (VVI) also paces without the atria, and her infarcted RV loses its atrial kick
+ * (2013 ACCF/AHA STEMI: keep AV synchrony in an RV infarct; AV sequential pacing if the pressure stays low). Outside the
+ * reflex, the default response applies.
  */
-function paceReflex(s: SimState, how: Line[], profile: 'tcp' | 'paced', flags: string[]): Effect | null {
+function paceReflex(s: SimState, how: Line[], profile: 'tcp' | 'paced-vvi', flags: string[]): Effect | null {
   // a wire already pacing on demand at 50 is still too slow for her: pacing at 70 takes over from it
   if (!has(s, 'bezold') || has(s, 'recovered') || !s.pulse || s.rhythm.hr >= (paced(s) ? 70 : 50)) return null;
   const bp = bpAfter(s, 12, 8);
@@ -212,13 +214,13 @@ export const cathlabInferior: Scenario = {
       ? 'Sinus rhythm: ST elevation in II, III and aVF settling, early Q waves — the inferior infarct after reperfusion.'
       : s.rhythm.profile === 'tcp'
         ? 'Transcutaneous pacing at 70: a wide QRS after every pacing spike (electrical capture). The paced beats hide the inferior ST elevation.'
-        : s.rhythm.profile === 'paced'
-          ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS. The paced beats hide the inferior ST elevation.`
+        : s.rhythm.profile === 'paced-vvi'
+          ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS, her own P waves marching through unrelated to it. A single RV wire paces without the atria, and an infarcted RV needs its atrial kick: fluid, and AV sequential pacing if the pressure stays low. The paced beats hide the inferior ST elevation.`
           : `Sinus rhythm ${s.rhythm.hr}: ST elevation in II, III and aVF (III more than II), reciprocal depression in I and aVL — an inferior STEMI from the right coronary.`,
     // her RV infarct, as the field ECG showed it (without this the right-sided leads would say "no ST elevation")
     ecgRight: (s) => (s.rhythm.profile === 'inferior-stemi-reperfused'
       ? 'V4R: the ST elevation (1.5 mm on the field ECG) is settling after reperfusion.'
-      : s.rhythm.profile === 'tcp' || s.rhythm.profile === 'paced'
+      : paced(s)
         ? 'V4R: paced beats — the ST segments cannot be read.'
         : 'V4R: 1.5 mm ST elevation — the right ventricle is involved.'),
     echo: 'Inferior hypokinesis, LVEF about 50 %; the RV is dilated and hypokinetic. No effusion.',
@@ -237,7 +239,7 @@ export const cathlabInferior: Scenario = {
     fluid,
     pace: (s) => paceReflex(s, [['monitor', 'Pacer on: rate 70, output turned up to 80 mA.'], ['patient', '"Ow — what is that thumping?"']], 'tcp', ['pads', 'monitor']),
     'temp-wire': (s) => (s.role === 5 && has(s, 'venous')
-      ? paceReflex(s, [['you', 'Temporary wire in the RV apex: threshold 0.6 mA; pacing at 70, output 3 mA.']], 'paced', ['temp-wire'])
+      ? paceReflex(s, [['you', 'Temporary wire in the RV apex: threshold 0.6 mA; pacing at 70, output 3 mA.']], 'paced-vvi', ['temp-wire'])
       : null),
     nitro: nitroCrash,
     'nitro-high': nitroCrash,
@@ -304,7 +306,7 @@ export const cathlabInferior: Scenario = {
             ['patient', '"I feel sick… and so dizzy." She yawns and goes gray.'],
             ...(s.role === 5 ? [line('team', `Nurse: "Doctor — her rate's ${hr} and the pressure is ${bp.sbp}!"`, 'warn')] : []),
           ],
-          rhythm: wire ? { profile: 'paced', hr } : { ...s.rhythm, hr }, vitals: bp, flags: ['bezold', ...(wire ? ['paced'] : [])], read: reflexRead,
+          rhythm: wire ? { profile: 'paced-vvi', hr } : { ...s.rhythm, hr }, vitals: bp, flags: ['bezold', ...(wire ? ['paced'] : [])], read: reflexRead,
         };
       },
     },

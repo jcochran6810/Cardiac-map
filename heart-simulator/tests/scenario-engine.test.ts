@@ -205,7 +205,7 @@ describe('built-in safety rules judge what the action really did', () => {
   it('cardioverting PEA is a shock to a non-shockable rhythm, not a sync problem; in VF it is', () => {
     const per = SCENARIO_BY_ID['perforation-cathlab'];
     let s = run(per, 5, ['balloon-tamponade', 'reassess', 'reassess', 'reassess', 'reassess']);
-    expect(s.rhythm.profile).toBe('pea');
+    expect(s.rhythm.profile).toBe('pea-narrow');
     s = perform(per, s, 'cardiovert');
     expect(s.penalties.map((p) => p.id)).toContain('shock-nonshockable');
     expect(s.penalties.map((p) => p.id)).not.toContain('sync-in-arrest');
@@ -408,7 +408,8 @@ describe('12-lead reads, checked at once', () => {
     expect(new Set(READ_OPTIONS.map((o) => o.id)).size).toBe(READ_OPTIONS.length);
     for (const o of READ_OPTIONS) for (const p of o.profiles ?? []) expect(ECG_PROFILES[p], `${o.id}: ${p}`).toBeDefined();
     for (const p of Object.values(ECG_PROFILES)) {
-      if (p.id === 'pea') continue;
+      // PEA is diagnosed at the pulse check: no 12-lead is read in an arrest
+      if (p.id === 'pea' || p.id === 'pea-narrow') continue;
       expect(READ_OPTIONS.filter((o) => (o.profiles ?? []).includes(p.id)), p.id).toHaveLength(1);
       expect(judgeRead(p.id, answerFor(p.id).id)).toBe('correct');
     }
@@ -458,7 +459,7 @@ describe('electrolytes, antidotes, glucose and the no-reflow drugs', () => {
     const label = (id: string) => INTERVENTION_BY_ID[id].label;
     expect(label('calcium-chloride')).toBe('Calcium chloride 1 g IV/IO');
     expect(label('sodium-bicarbonate')).toBe('Sodium bicarbonate 50 mEq IV/IO');
-    expect(label('insulin-dextrose')).toBe('Insulin 10 units IV with dextrose 25 g');
+    expect(label('insulin-dextrose')).toBe('Insulin 5–10 units IV with dextrose 25 g');
     expect(label('magnesium-sulfate')).toBe('Magnesium sulfate 2 g IV/IO');
     expect(label('procainamide')).toBe('Procainamide 20–50 mg/min IV');
     expect(INTERVENTION_BY_ID.procainamide.detail).toMatch(/hypotension.*50 %.*17 mg\/kg.*heart failure.*long QT/);
@@ -805,7 +806,7 @@ describe('default responses follow the patient in front of them', () => {
     expect(energy('atrial-flutter', 150)).toMatch(/200 J/);
     expect(energy('avnrt', 190)).toMatch(/100 J/);
     expect(energy('vt', 170)).toMatch(/100 J/);
-    expect(INTERVENTION_BY_ID.cardiovert.detail).toBe('100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J)');
+    expect(INTERVENTION_BY_ID.cardiovert.detail).toBe('100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J); sedate an awake patient; AF over 48 h without anticoagulation only if unstable; not in digoxin toxicity');
   });
 
   it('12: the cath lab is activated only for a 12-lead that shows a STEMI; a false alert is stood down and costs points', () => {

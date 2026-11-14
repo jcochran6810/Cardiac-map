@@ -549,7 +549,8 @@ function stopCPR(silent: boolean) {
   // it does not make the outcome
   const id = useECGStore.getState().activeProfileId;
   const odds = id === 'pea' && s.scenario?.id === 'pea' ? (s.calciumGiven ? 0.3 : 0.1) : 0.25;
-  if (!silent && dur >= 110000 && (id === 'pea' || id === 'asystole') && s.lastEpi !== null && now() - s.lastEpi < 300000 && Math.random() < odds) {
+  // PEA of either width (the narrow, fast PEA of a mechanical cause too) and asystole
+  if (!silent && dur >= 110000 && (id === 'pea' || id === 'pea-narrow' || id === 'asystole') && s.lastEpi !== null && now() - s.lastEpi < 300000 && Math.random() < odds) {
     roscNow('Pulse check: palpable pulse — ROSC');
   }
 }
@@ -652,8 +653,8 @@ export function giveDrug(id: string, authority?: string) {
         });
       } else if (kind === 'wenckebach' || ((pid === 'first-degree-avb' || kind === 'junctional') && slow)) {
         respond(20000, () => { if (Math.random() < 0.7) changeRhythm('normal-sinus', 78, 'Improved AV-nodal conduction after atropine'); else log('Little response to atropine', 'rhythm'); });
-      } else if (pid === 'hyperkalemia' && slow) {
-        // the potassium, not vagal tone, is slowing this heart
+      } else if (pid.startsWith('hyperkalemia') && slow) {
+        // the potassium, not vagal tone, is slowing this heart (at every stage: 'hyperkalemia', '-moderate', '-severe')
         respond(20000, () => log('Little response to atropine: in hyperkalemia the potassium, not vagal tone, slows the heart — calcium first, then insulin + dextrose and a β-agonist; be ready to pace', 'rhythm'));
       } else if ((kind === 'sinus' || kind === 'pvc') && slow) {
         // the "sinus bradycardia" rhythm becomes normal sinus rhythm; any other keeps its own QRS and ST segments
@@ -679,7 +680,7 @@ export function giveDrug(id: string, authority?: string) {
     case 'calcium': {
       set({ calciumGiven: true });
       if (!pulse) log('Calcium in arrest: only for suspected hyperkalemia (or hypocalcemia, calcium-channel-blocker overdose), and even then its benefit is not well established — give it without pausing CPR or shocks', 'info');
-      else if (pid === 'hyperkalemia') log('Calcium stabilizes the myocardium within minutes but does not lower K⁺ — add insulin/glucose, β-agonist and K⁺ removal (dialysis)', 'info');
+      else if (pid.startsWith('hyperkalemia')) log('Calcium stabilizes the myocardium within minutes but does not lower K⁺ — add insulin/glucose, β-agonist and K⁺ removal (dialysis)', 'info');
       break;
     }
   }

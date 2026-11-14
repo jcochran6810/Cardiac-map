@@ -196,6 +196,14 @@ const ALIASES: [RegExp, string][] = [
   [/\bwidow ?maker\b/g, 'lad'],
   [/\bpacer\b/g, 'pacemaker'],
   [/\bbypass\b/g, 'cabg'],
+  // the brand names patients say for the drugs that rule out a nitrate (nitroglycerin label): PDE-5 inhibitors and riociguat
+  // (the final s is optional: a search also tries each word without it, "cialis" as "ciali")
+  [/\b(?:viagra|revatio)\b/g, 'sildenafil'],
+  [/\b(?:cialis?|adcirca)\b/g, 'tadalafil'],
+  [/\blevitra\b/g, 'vardenafil'],
+  [/\bstendra\b/g, 'avanafil'],
+  [/\badempas?\b/g, 'riociguat'],
+  [/\b(?:coke|crack)\b/g, 'cocaine'],
 ];
 
 /** The query with everyday words swapped for the library's own (null when nothing changes) */

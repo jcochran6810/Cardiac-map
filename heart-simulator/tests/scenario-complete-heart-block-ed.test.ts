@@ -182,7 +182,7 @@ describe('complete heart block in the ED: atropine and pacing', () => {
     const s = run(sc, 7, ['ems-handoff', 'sample', 'labs', 'perfusion', 'pressor', 'lungs', 'nibp', 'calcium-chloride', 'insulin-dextrose', 'consult-cardiology',
       'central-line', 'temp-wire', 'cxr', 'admit', 'handoff']);
     expect(s.log.some((l) => l.who === 'monitor' && l.text === 'Heart rate 44. BP 94/56.')).toBe(true);
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     expectFullMarks(s);
   });
 
@@ -277,7 +277,7 @@ describe('complete heart block in the ED: the potassium', () => {
     const wire = perform(sc, perform(sc, s, 'central-line'), 'temp-wire');
     expect(wire.rhythm.profile).toBe('third-degree-avb');
     expect(last(wire).text).toMatch(/threshold is far too high/);
-    expect(perform(sc, wire, 'calcium-chloride').rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(perform(sc, wire, 'calcium-chloride').rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
   });
 
   it('calcium steadies the conduction a little before the pacer, and empiric calcium before the result counts', () => {
@@ -347,7 +347,7 @@ describe('complete heart block in the ED: the nurse works on the physician\'s or
     let s = run(sc, 6, IDEAL[6].slice(0, IDEAL[6].indexOf('sample') + 1));
     expect(said(s, 'physician', /floating a transvenous wire now/)).toBe(true);
     s = until(s, 'md-wire-in');
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     s = until(s, 'md-dispo');
     expect(s.flags.dispo).toBeDefined();
     const skipped = perform(sc, s, 'handoff');
@@ -408,7 +408,7 @@ describe('complete heart block in the ED: the wire, cardiology and the CCU', () 
     const noLine = perform(sc, run(sc, 7, DOCTOR_TO_PACE), 'temp-wire');
     expect(last(noLine).text).toMatch(/place a central venous line first/);
     const s = run(sc, 7, [...DOCTOR_TO_PACE, 'pulse-check', 'nibp', 'fentanyl', 'calcium-chloride', 'central-line', 'temp-wire']);
-    expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
+    expect(s.rhythm).toEqual({ profile: 'paced-vvi', hr: 70 });
     expect(said(s, 'you', /transcutaneous pacer goes to standby; the pads stay on/)).toBe(true);
     expect(ids(s)).toEqual([]);
     expect(last(perform(sc, s, 'cxr')).text).toMatch(/right ventricular apex; no pneumothorax/);

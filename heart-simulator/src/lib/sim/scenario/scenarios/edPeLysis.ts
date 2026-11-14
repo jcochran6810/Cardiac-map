@@ -172,7 +172,7 @@ function arrest(s: SimState, why: string, provoked: boolean): Effect {
   const lapsed = [RN_HEPARIN, RN_PRESSOR, RN_ALTEPLASE].filter((a) => has(s, `asked-${a.id}`) && !has(s, a.gives)).map((a) => a.gives);
   return {
     say: [[helper(s), why, 'bad'], ['monitor', 'Monitor alarm.', 'bad']],
-    rhythm: { profile: 'pea', hr: 118 }, pulse: false, phase: 'arrest',
+    rhythm: { profile: 'pea-narrow', hr: 118 }, pulse: false, phase: 'arrest',
     vitals: { sbp: 0, dbp: 0, gcs: 3, rr: 0 }, flags: ['pe-arrest', ...(provoked ? ['provoked-arrest'] : []), ...lapsed],
   };
 }

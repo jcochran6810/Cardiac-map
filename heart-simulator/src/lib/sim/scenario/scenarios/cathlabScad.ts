@@ -402,7 +402,7 @@ export const cathlabScad: Scenario = {
   setting: 'cathlab',
   roles: [3, 4, 5],
   difficulty: 'advanced',
-  conditionId: 'anterior-stemi',
+  conditionId: 'scad',
   briefing: {
     default: [
       ['team', 'STEMI alert from the field: 42-year-old woman, eight weeks after an uncomplicated vaginal delivery, breastfeeding. Crushing central chest pain into the left arm and jaw since 5:40 this morning, after a night up with the baby. The field 12-lead showed 3 mm of ST elevation in V2–V4.'],

@@ -216,7 +216,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'The mix is diluted with about 10 mL or more of blood drawn back into the syringe and given slowly through the side arm to ease the burning.',
       'Warn the patient: a warm or burning feeling up the arm for a few seconds is expected.',
       'Verapamil can lower the pressure and heart rate and slow AV conduction: caution with hypotension, bradycardia, AV block, severe aortic stenosis or decompensated heart failure.',
-      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor in the last 12 hours (avanafil), 24 hours (sildenafil, vardenafil) or 48 hours (tadalafil).',
+      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor in the last 12 hours (avanafil), 24 hours (sildenafil, vardenafil) or 48 hours (tadalafil), and with riociguat at any time.',
     ],
     roles: {
       tech: 'Makes sure the cocktail syringe on the sterile field is clearly labeled, watches the pressure and heart rate after it goes in, and calls out any drop or vagal reaction.',
@@ -667,13 +667,13 @@ export const CATHLAB_C: CathLabItem[] = [
       'Triggers: pain, anxiety, local anesthetic and sheath insertion, sheath removal and femoral compression, a full bladder, and dehydration after fasting.',
       'Looks like: bradycardia with hypotension, pallor, sweating, nausea, yawning, and the patient saying they feel faint or "not right".',
       'Most dangerous during femoral sheath removal, when the hypotension can be deep and prolonged in an older or dry patient.',
-      'Treat: ease the trigger (lighten the pressure briefly if bleeding allows), lay the patient flat and raise the legs, give a fluid bolus and atropine 1 mg IV.',
+      'Treat: ease the trigger (lighten the pressure briefly if bleeding allows), lay the patient flat with the legs above the heart (after a femoral puncture, tilt the whole bed head-down so the punctured hip stays straight), give a fluid bolus and atropine 1 mg IV.',
       'If the pressure stays low, a push-dose pressor bridges while the reflex settles.',
       'When recovery is slow, rule out look-alikes: a retroperitoneal bleed, tamponade, a contrast reaction or AV block.',
-      'Prevention: good local anesthetic and analgesia, calm explanation, short fasting, and IV access in place before sheath removal.',
+      'Prevention: radial access where it suits (or a closure device); real analgesia before a femoral sheath pull — in a 611-patient randomized trial (Int J Cardiol 2007) IV fentanyl and midazolam gave less pain than local lidocaine around the sheath alone; a calm explanation, a short fast, and IV access in place before sheath removal.',
     ],
     roles: {
-      tech: 'Watches the monitor during sheath insertion and removal, calls out a falling heart rate or pressure, and helps lay the patient flat and raise the legs.',
+      tech: 'Watches the monitor during sheath insertion and removal, calls out a falling heart rate or pressure, and helps lay the patient flat with the legs raised (the whole bed tilted head-down after a femoral puncture).',
       rn: 'Recognizes the reaction and gives fluids and atropine on order or protocol; positions the patient, keeps IV access in place before sheath removal and checks the site for hidden bleeding.',
       md: 'Orders treatment, looks for bleeding, tamponade, a contrast reaction or AV block when the response is atypical or slow, and adjusts analgesia and sedation.',
     },
@@ -757,7 +757,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'A damped or ventricularized pressure before an injection is a warning — do not inject until the catheter is repositioned.',
       'Contrast that hangs in the wall after the dye clears (a cap or stain) means type C or worse.',
     ],
-    image: { keys: ['lad-dissection'], want: 'A real angiogram frame of a spiral (type D) coronary dissection with a contrast-filled false lumen, ideally with the matching IVUS frame showing the true and false lumens.' },
+    image: { keys: ['lad-dissection', 'amplatz-left-guide-rca'], want: 'A real angiogram frame of a spiral (type D) coronary dissection with a contrast-filled false lumen, ideally with the matching IVUS frame showing the true and false lumens.' },
     related: ['cl-stent-des', 'cl-ivus', 'cl-cath-jr4', 'cl-damped', 'aortic-dissection', 'cabg'],
   },
 
@@ -915,7 +915,7 @@ export const CATHLAB_C: CathLabItem[] = [
     details: [
       'Cause: a high puncture above the inguinal ligament (or through the back wall) where the artery cannot be pressed against the femoral head.',
       'Looks like: back, flank or lower abdominal pain, unexplained hypotension and tachycardia, and a falling hemoglobin — the groin often looks normal.',
-      'Confirm with a non-contrast CT of the abdomen and pelvis, but do not delay treating an unstable patient for the scan.',
+      'Confirm with a CT of the abdomen and pelvis (without contrast it shows the hematoma; CT angiography also shows whether it is still bleeding), but do not delay treating an unstable patient for the scan.',
       'Treat: fluids and blood, stop or reverse anticoagulation, bed rest; if bleeding continues, a balloon or covered stent from the other groin, or surgery.',
       'Hematoma: a firm swelling at the site — firm manual pressure just above the puncture, mark its edges and watch it.',
       'Pseudoaneurysm: a pulsatile mass with a bruit — duplex ultrasound; small ones may close alone, larger ones get ultrasound-guided thrombin injection.',

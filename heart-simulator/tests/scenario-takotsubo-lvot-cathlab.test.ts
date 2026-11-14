@@ -129,7 +129,7 @@ describe('the clean coronaries and the fall', () => {
     expect(s.reads.at(-1)).toMatchObject({ kind: 'angio', answer: 'angio-normal', verdict: 'correct' });
     expect(s.flags.obstructed).toBe(s.flags['normal-coronaries']);
     expect(bp(s)).toEqual([79, 53]);
-    expect(s.rhythm).toEqual({ profile: 'takotsubo', hr: 120 });
+    expect(s.rhythm).toEqual({ profile: 'takotsubo-lvoto', hr: 120 });
     // a gradient's murmur rises and falls through systole; a holosystolic one there would mean a septal rupture
     expect(said(s, /new murmur: loud and harsh, rising and falling in systole/)).toBe(true);
     expect(said(s, /all through systole|holosystolic/)).toBe(false);

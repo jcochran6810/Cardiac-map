@@ -783,7 +783,7 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
         const bp = { sbp: Math.max(v.sbp, 100), dbp: Math.max(v.dbp, 62) };
         return {
           say: [['you', `${wire}: threshold 0.6 mA; pacing at 70, output 3 mA.`], ['monitor', `Heart rate 70. BP ${bp.sbp}/${bp.dbp}.`, 'good']],
-          rhythm: { profile: 'paced', hr: 70 }, vitals: bp, flags: ['temp-wire', 'paced'],
+          rhythm: { profile: 'paced-vvi', hr: 70 }, vitals: bp, flags: ['temp-wire', 'paced'],
         };
       }
       const faster = paced(s) ? `The heart is already paced at ${s.rhythm.hr}` : `The heart's own rate of ${s.rhythm.hr} is faster`;
@@ -1048,10 +1048,10 @@ const noEcgInArrest: Effect = { blocked: true, say: [['system', 'No 12-lead in c
 const noHemoInArrest: Effect = { blocked: true, say: [['system', 'Not during CPR: no hemodynamic run in an arrest — the pressures mean nothing without a heartbeat of its own.']] };
 
 /**
- * The sinus node sets the rate, with a pulse. Not in PEA (organized complexes, no output), and not with a high potassium:
- * its slow rate comes from the potassium, which neither the vagus nor an adrenergic drug undoes — the case says what helps.
+ * The sinus node sets the rate, with a pulse. Not in PEA (organized complexes, no output), and not with a high potassium
+ * at any stage ('hyperkalemia', '-moderate', '-severe'): its slow rate comes from the potassium, which neither the vagus nor an adrenergic drug undoes — the case says what helps.
  */
-const sinusNode = (s: SimState) => s.pulse && rhythmKind(s) === 'sinus' && s.rhythm.profile !== 'hyperkalemia';
+const sinusNode = (s: SimState) => s.pulse && rhythmKind(s) === 'sinus' && !s.rhythm.profile.startsWith('hyperkalemia');
 
 /**
  * The heart rate after an adrenergic or vagolytic drug speeds the sinus node (up to `cap`), or null: other rhythms are left
