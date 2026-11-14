@@ -751,11 +751,11 @@ export const cathlabRpBleed: Scenario = {
       text: 'Sedation with a systolic under 90 or a drowsy patient. It drops the pressure and the breathing further: local anesthetic at the groin, and only a little analgesia once she is stable.',
     },
     {
-      id: 'pericardiocentesis-no-effusion', actions: ['pericardiocentesis'], roles: MD, points: 15, severity: 'critical',
+      id: 'pericardiocentesis-no-effusion', actions: ['pericardiocentesis'], roles: MD, replaces: ['pericardiocentesis-no-tamponade'], points: 15, severity: 'critical',
       text: 'A pericardiocentesis without an effusion. The needle can puncture the heart, a coronary artery or the liver; the echo shows an empty heart, not a squeezed one.',
     },
     {
-      id: 'pump-in-bleeding', actions: ['iabp', 'impella'], roles: MD, points: 10, severity: 'major',
+      id: 'pump-in-bleeding', actions: ['iabp', 'impella'], roles: MD, replaces: ['mcs-bleeding', 'mcs-no-cardiogenic-shock'], points: 10, severity: 'major',
       text: 'A mechanical pump for a bleeding patient. Her heart squeezes hard and has nothing to pump: a pump needs another large-bore arterial sheath and full anticoagulation, and fixes neither.',
     },
     askHarm(TECH_ASKS[2], 'The wrong device when the operator asked for a covered stent. A coronary stent or balloon neither fits the iliac artery nor seals a hole: read the order back and check the box before you open it.'),

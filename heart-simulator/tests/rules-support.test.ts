@@ -380,6 +380,8 @@ describe('anaphylaxis: IM epinephrine first, then the adjuncts', () => {
     expect(ids(7, withProblems('bronchospasm'), ['iv', 'steroid'])).toEqual([]);
     expect(ids(7, withProblems('bronchospasm'), ['iv', 'diphenhydramine'])).toEqual(['antihistamine-no-indication']);
     expect(ids(7, { harms: [exempt('steroid-no-indication', ['steroid'])] }, ['iv', 'steroid'])).toEqual([]);
+    // the premedication before contrast after an earlier contrast reaction (ACR)
+    expect(ids(5, withProblems('contrast-allergy'), ['iv', 'steroid', 'diphenhydramine'])).toEqual([]);
     // the ER nurse with no order: the missing order covers the indication — one penalty
     expect(ids(6, {}, ['iv', 'steroid'])).toEqual(['rn-without-order-steroid']);
   });

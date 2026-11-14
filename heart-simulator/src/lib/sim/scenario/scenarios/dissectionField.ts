@@ -428,7 +428,7 @@ export const dissectionField: Scenario = {
       text: 'High-dose nitroglycerin for this patient. 0.8 mg is the dose for hypertensive pulmonary edema. With nothing slowing his heart it makes the heart race and pump harder against the tear (2022 ACC/AHA: a vasodilator only after a beta-blocker); even after one, a sublingual bolus this size drops the pressure by an amount nobody can titrate, and medical control did not order it. His pain needs an opioid.',
     },
     {
-      id: 'stemi-alert-dissection', actions: ['stemi-alert'], points: 5, severity: 'major', replaces: ['stemi-alert-no-ste'],
+      id: 'stemi-alert-dissection', actions: ['stemi-alert'], points: 5, severity: 'major', replaces: ['stemi-alert-no-ste', 'cath-lab-dissection'],
       text: 'A STEMI alert for a 12-lead that does not meet STEMI criteria. His shows the LVH of years of high blood pressure, and the alert sends him toward a cath lab and its heparin and antiplatelets — the worst place for a torn aorta. Transmit the 12-lead and report the tearing pain and the arm pressures.',
     },
     {

@@ -233,7 +233,8 @@ describe('temporary wire: the wire', () => {
   });
 
   it('a wire with no pads on is the trap', () => {
-    const s = run(sc, 5, ['pressor', 'access-venous', 'temp-wire']);
+    // (consent first: access before it is its own mistake)
+    const s = run(sc, 5, ['pressor', 'consent', 'access-venous', 'temp-wire']);
     expect(penalties(s)).toEqual(['wire-without-pads']);
     expect(missed(s)).toContain('Pads on at once');
   });

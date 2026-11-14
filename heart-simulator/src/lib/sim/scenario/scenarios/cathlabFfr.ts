@@ -395,7 +395,7 @@ export const cathlabFfr: Scenario = {
     { id: 'handoff', label: 'Hand-off to recovery', why: 'Report the FFR, the stent, the spasm, the drugs given and the band.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
   harms: [
-    { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
+    { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), replaces: ['pci-no-heparin'], points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
     { id: 'stent-before-ffr', actions: ['stent-des', 'balloon-predil'], roles: MD, when: (s) => !has(s, 'ffr-done'), points: 10, severity: 'major', text: 'Treating a borderline narrowing without showing it is significant. Intermediate lesions need physiology first: about two-thirds of them do not limit flow (FAME).' },
     { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },

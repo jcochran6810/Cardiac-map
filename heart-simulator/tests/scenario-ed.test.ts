@@ -234,8 +234,9 @@ describe('emergency department defaults', () => {
     expect(ids(s)).toEqual(['temp-wire-not-slow']);
     expect(last(s).text).toMatch(/set to pace on demand below 50/);
     const lab = { ...edPatient(), id: 'lab-test', setting: 'cathlab' as const, roles: [3, 4, 5] as LearningLevel[] };
-    expect(ids(run(lab, 5, ['access-venous', 'temp-wire']))).toEqual([]);
-    expect(last(run(lab, 5, ['access-venous', 'temp-wire'])).text).toMatch(/^Temporary wire in the RV apex/);
+    // (consent first: access before it is its own mistake)
+    expect(ids(run(lab, 5, ['consent', 'access-venous', 'temp-wire']))).toEqual([]);
+    expect(last(run(lab, 5, ['consent', 'access-venous', 'temp-wire'])).text).toMatch(/^Temporary wire in the RV apex/);
   });
 
   it('the ER doctor drains the pericardium under their own ultrasound, and only for tamponade', () => {
