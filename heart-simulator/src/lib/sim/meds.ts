@@ -218,11 +218,14 @@ const TORSADES = 'Sustained torsades is defibrillated at once — unsynchronized
 /**
  * An IV β-blocker in acute MI: the metoprolol label rules it out with a systolic below 100 mmHg (and a heart rate below 45,
  * a PR of 0.24 s or more, AV block beyond the first degree, moderate or severe failure); ACC/AHA calls it harmful with a
- * raised risk of cardiogenic shock — a heart rate above 110 is one of those risks (2013 STEMI, COMMIT)
+ * raised risk of cardiogenic shock — age over 70, a systolic under 120, a heart rate over 110 (or under 60, which the
+ * slow-rate branches already refuse) and a late presentation (2013 ACCF/AHA STEMI, after COMMIT; 2025 ACC/AHA ACS)
  */
 function miBetaRisk(p: Patient): string | null {
   if (p.sbp !== undefined && p.sbp < 100) return `Contraindicated here: a systolic of ${p.sbp} mmHg in an acute MI — the metoprolol injection label rules out IV use below 100 mmHg, and a β-blocker can tip a borderline pressure into cardiogenic shock (COMMIT).`;
   if (p.hr > 110) return `Harmful here: a heart rate of ${p.hr}/min in an acute MI is a risk factor for cardiogenic shock (the fast rate is often holding up the output) — no IV β-blocker (2013 ACCF/AHA STEMI guideline, after COMMIT). Find the cause; oral β-blockade later once stable.`;
+  if (p.sbp !== undefined && p.sbp < 120) return `Harmful here: a systolic of ${p.sbp} mmHg (under 120) is a risk factor for cardiogenic shock in an acute MI — no IV β-blocker (2013 ACCF/AHA STEMI guideline, after COMMIT; 2025 ACC/AHA ACS). Oral β-blockade later once stable.`;
+  if (p.age !== undefined && p.age > 70) return `Harmful here: an age over 70 (${p.age}) is a risk factor for cardiogenic shock in an acute MI — no IV β-blocker (2013 ACCF/AHA STEMI guideline, after COMMIT; 2025 ACC/AHA ACS). Oral β-blockade later once stable.`;
   return null;
 }
 
@@ -827,7 +830,7 @@ const sotalol: MedDef = {
             steps: [{ at: 3 * MIN, mods, note: 'The blood pressure falls further while the VT carries on.', tone: 'warn' }],
           };
         }
-        if (cls === 'low') return { verdict: good(`Stable monomorphic VT — but the dose is 1.5 mg/kg.${qtWarn}`), steps: [{ at: 5 * MIN, hr: rate(p.hr, 0.9), mods, note: 'VT slows slightly but carries on.', tone: 'warn' }, ...torsades] };
+        if (cls === 'low') return { verdict: longQt ? bad(`Not with a long QT.${qtWarn} Procainamide lengthens it too: lidocaine (no effect on the QT) or synchronized cardioversion.`) : good('Stable monomorphic VT — but the dose is 1.5 mg/kg.'), steps: [{ at: 5 * MIN, hr: rate(p.hr, 0.9), mods, note: 'VT slows slightly but carries on.', tone: 'warn' }, ...torsades] };
         return {
           verdict: longQt
             ? bad(`Not with a long QT.${qtWarn} Procainamide lengthens it too: lidocaine (no effect on the QT) or synchronized cardioversion.`)
@@ -846,7 +849,7 @@ const sotalol: MedDef = {
           steps: [{ at: 8 * MIN, hr: rate(p.hr, 0.82, 35), mods, note: 'The ventricular rate falls (β-blockade); the QT lengthens.', tone: 'effect', mark: 'rate ↓' }, ...torsades],
         };
       case 'svt':
-        return { verdict: caution('Not a first-line SVT drug: vagal maneuvers, adenosine, then a calcium-channel blocker or β-blocker.'), steps: [{ at: 8 * MIN, profile: 'normal-sinus', hr: 76, mods, note: 'SVT terminated: sinus rhythm, with a longer QT.', tone: 'good', mark: 'sinus' }, ...torsades] };
+        return { verdict: longQt ? bad(`Not with a long QT.${qtWarn} For the SVT: vagal maneuvers, adenosine, then a calcium-channel blocker or β-blocker.`) : caution('Not a first-line SVT drug: vagal maneuvers, adenosine, then a calcium-channel blocker or β-blocker.'), steps: [{ at: 8 * MIN, profile: 'normal-sinus', hr: 76, mods, note: 'SVT terminated: sinus rhythm, with a longer QT.', tone: 'good', mark: 'sinus' }, ...torsades] };
       case 'aivr': {
         const s = suppressesAivr('sotalol', 8 * MIN);
         return { verdict: s.verdict, steps: [{ ...s.steps[0], mods }] };
@@ -1010,7 +1013,6 @@ const atropine: MedDef = {
     }
     const tachy: EffectStep[] = [
       ...(cls === 'high' || cls === 'toxic' ? [{ at: 2 * MIN, note: 'More than 1 mg at once: tachycardia, confusion, urinary retention, hot dry skin.', tone: 'warn' as const }] : []),
-      ...(before + dose > 3 + 1e-6 ? [{ at: 2 * MIN, note: `${fmtDose(before + dose)} mg in total — past the 3 mg maximum (full vagal block): more only adds anticholinergic toxicity.`, tone: 'warn' as const }] : []),
     ];
     if (sinusBrady) {
       const why = c !== 'stemi' ? 'Symptomatic sinus bradycardia'
@@ -1150,10 +1152,13 @@ const epinephrine: MedDef = {
         steps: [up, { at: 7 * MIN, restore: true, note: 'The push-dose wears off in 5–10 min: start an infusion or pace.', tone: 'info' }],
       };
     }
-    // a low pressure behind a compensating sinus tachycardia (shock, PE, tamponade): push-dose epinephrine is a bridge
-    if (lowBP(p, prof) && COMPENSATORY.has(prof.id)) {
+    // a low pressure (behind a compensating sinus tachycardia — shock, PE, tamponade — or any other): push-dose epinephrine
+    // is a bridge, as the above-usual dose already says (the high-dose branch is "with care" for any low pressure too)
+    if (lowBP(p, prof)) {
       return {
-        verdict: caution('A bridge for a low pressure while the cause is treated (a pump that is failing, a clot, a tamponade): push-dose epinephrine buys minutes — norepinephrine is the usual infusion, and the cause is what has to be fixed.'),
+        verdict: caution(COMPENSATORY.has(prof.id)
+          ? 'A bridge for a low pressure while the cause is treated (a pump that is failing, a clot, a tamponade): push-dose epinephrine buys minutes — norepinephrine is the usual infusion, and the cause is what has to be fixed.'
+          : 'A bridge for a low pressure while its cause is found and treated: push-dose epinephrine buys minutes — norepinephrine is the usual infusion.'),
         steps: [{ at: 30 * S, hr: rate(p.hr, 1.1, 30, 200), note: 'The pressure rises for a few minutes, and the rate a little.', tone: 'effect', mark: 'BP ↑' }, { at: 7 * MIN, restore: true, note: 'The push-dose wears off in 5–10 min.', tone: 'info' }],
       };
     }
@@ -1238,9 +1243,17 @@ const calcium: MedDef = {
       };
     }
     if (c === 'arrest') return { verdict: caution(`Not routine in arrest (no benefit): only when hyperkalemia, hypocalcemia or a calcium-channel-blocker overdose is suspected. ${ARREST_K}`), steps: noEcg(60 * S, 'No change.') };
-    const ccbToxic = dosesOf(p, 'diltiazem').length > 0 && (lowBP(p, prof) || totalOf(p, 'diltiazem') > 0.45 * p.kg);
-    const mgToxic = totalOf(p, 'magnesium-sulfate') > 4;
-    if (ccbToxic || mgToxic) return { verdict: good(`${ccbToxic ? 'Too much calcium-channel blocker (diltiazem)' : 'Too much magnesium'}: IV calcium is the antidote — 1 g of calcium chloride (or 3 g of gluconate), repeated as needed, with fluids; pace a slow rate.`), steps: [p.hr < 100 ? { at: 3 * MIN, hr: rate(p.hr, 1.1, 30, 120), note: 'The blood pressure and the rate recover a little.', tone: 'good' } : { at: 3 * MIN, note: 'The blood pressure recovers a little.', tone: 'good' }, ...toxic] };
+    // too much diltiazem: a single bolus above its 0.45 mg/kg maximum, more than the two-bolus regimen at its top (0.3 + 0.4
+    // mg/kg, with the syringe's rounding), or a pressure it has dropped — the usual 0.25 + 0.35 mg/kg is not an overdose
+    const dilt = dosesOf(p, 'diltiazem');
+    const ccbToxic = dilt.length > 0 && (lowBP(p, prof) || dilt.some((g) => g.dose > 0.45 * p.kg + 1e-6) || totalOf(p, 'diltiazem') > 0.8 * p.kg + 1e-6);
+    // too much magnesium shows as a low pressure, a slow rate or heart block (and weakness, slow breathing): calcium treats those
+    const mgOver = totalOf(p, 'magnesium-sulfate') > 4 + 1e-6;
+    const mgSigns = lowBP(p, prof) || isBrady(c) || slowSinus(c, p);
+    const mgToxic = mgOver && mgSigns;
+    const back: EffectStep = p.hr < 100 ? { at: 3 * MIN, hr: rate(p.hr, 1.1, 30, 120), note: 'The blood pressure and the rate recover a little.', tone: 'good' } : { at: 3 * MIN, note: 'The blood pressure recovers a little.', tone: 'good' };
+    if (ccbToxic || mgToxic) return { verdict: good(`${ccbToxic ? 'Too much calcium-channel blocker (diltiazem)' : 'Too much magnesium'}: IV calcium is the antidote — 1 g of calcium chloride (or 3 g of gluconate), repeated as needed, with fluids; pace a slow rate.`), steps: [back, ...toxic] };
+    if (mgOver) return { verdict: caution(`${fmtDose(totalOf(p, 'magnesium-sulfate'))} g of magnesium in all: calcium is its antidote, but for the signs of too much — a low pressure, a slow rate or heart block, lost reflexes, slow breathing. None shows yet: check the magnesium level and stop the magnesium.`), steps: [...noEcg(2 * MIN, 'No visible change.'), ...toxic] };
     // a slow rhythm: calcium helps only when its cause is one calcium reverses
     if (isBrady(c) || slowSinus(c, p)) return { verdict: caution('Only when a calcium-channel-blocker or β-blocker overdose, hyperkalemia or a low calcium causes the slow rate — then 1 g, repeated as needed. Otherwise it does nothing for a bradycardia: atropine, pacing, epinephrine.'), steps: [...noEcg(2 * MIN, 'No change in the rate: nothing here for calcium to reverse.'), ...toxic] };
     return { verdict: bad('No indication: calcium has no useful ECG effect at a normal potassium.'), steps: [...noEcg(2 * MIN, 'No visible change.'), ...toxic] };
@@ -1336,9 +1349,12 @@ const albuterol: MedDef = {
       };
     }
     const fast = ['svt', 'vt', 'sinus-tach'].includes(c) || ((c === 'af' || c === 'flutter') && p.hr >= 100);
+    // a long QT on the monitor (QTc 500 ms or more), or one the history names
+    const longQt = prof.qtc >= 500 || hasProblem(p, 'long-qt');
+    const qtWords = prof.qtc >= 500 ? `a long QT (QTc about ${prof.qtc} ms)` : 'a long QT';
     // wheezing now (the history the learner set): albuterol is the treatment, with care where the heart objects
     if (hasProblem(p, 'bronchospasm')) {
-      const care = fast ? 'the rate is already fast and it speeds the heart' : prof.qtc >= 500 ? `with a long QT (QTc about ${prof.qtc} ms) it lowers the potassium` : isAcs(prof) ? 'a faster rate raises the oxygen demand of an ischemic heart' : null;
+      const care = fast ? 'the rate is already fast and it speeds the heart' : longQt ? `with ${qtWords} it lowers the potassium` : isAcs(prof) ? 'a faster rate raises the oxygen demand of an ischemic heart' : null;
       return {
         verdict: care
           ? caution(`Wheezing: albuterol 2.5–5 mg nebulized treats it — but ${care}. The smallest dose that works, and watch the monitor.`)
@@ -1350,7 +1366,7 @@ const albuterol: MedDef = {
       return { verdict: bad('Avoid: it speeds the heart and can provoke arrhythmias — the rate is already fast.'), steps: [tachy] };
     }
     if (isAcs(prof)) return { verdict: caution('Only for real bronchospasm: the faster rate raises the oxygen demand of an ischemic heart.'), steps: [tachy] };
-    if (prof.qtc >= 500) return { verdict: caution(`Only for real bronchospasm: with a long QT (QTc about ${prof.qtc} ms) a β-agonist lowers the potassium and adds adrenergic drive — both make torsades more likely. Avoid it unless the patient is wheezing.`), steps: [tachy] };
+    if (longQt) return { verdict: caution(`Only for real bronchospasm: with ${qtWords} a β-agonist lowers the potassium and adds adrenergic drive — both make torsades more likely. Avoid it unless the patient is wheezing.`), steps: [tachy] };
     return { verdict: caution('A bronchodilator (2.5–5 mg for wheezing) — no indication for the rhythm on the monitor.'), steps: [tachy] };
   },
 };
@@ -1488,7 +1504,7 @@ const aspirin: MedDef = {
     const big: EffectStep[] = cls === 'toxic' ? [{ at: 30 * MIN, note: 'High doses add bleeding and stomach injury with no extra benefit.', tone: 'warn' }] : [];
     if (c === 'arrest' || c === 'torsades') return { verdict: bad('Not in cardiac arrest — nothing by mouth.'), steps: noEcg(60 * S, 'No change.') };
     if (prof.id === DISSECTION) return { verdict: bad('Contraindicated: aortic dissection can mimic an MI — antiplatelets feed the bleeding into the wall.'), steps: noEcg(60 * S, 'No ECG change.') };
-    if (prof.id === 'pericarditis') return { verdict: caution('Pericarditis: aspirin is first line (with colchicine; aspirin is the one after an MI) — but at the anti-inflammatory dose, 650–1000 mg every 8 h (2025 ACC), not the 162–325 mg ACS load. Not with a tamponade or a dissection.'), steps: [...noEcg(60 * S, 'No direct ECG change: the pericarditis settles over days, not minutes.'), ...big] };
+    if (prof.id === 'pericarditis') return { verdict: caution('Pericarditis: aspirin is first line (with colchicine; aspirin is the one after an MI) — but at the anti-inflammatory dose, 650–1000 mg every 8 h (2025 ACC), not the 162–325 mg ACS load. A tamponade is drained first; avoid it with a hemorrhagic effusion or a possible dissection.'), steps: [...noEcg(60 * S, 'No direct ECG change: the pericarditis settles over days, not minutes.'), ...big] };
     if (isAcs(prof) && dosesOf(p, 'aspirin').length) return { verdict: caution(`Aspirin has already been given (${fmtDose(totalOf(p, 'aspirin'))} mg): the load is once, then 75–100 mg daily. More adds bleeding and stomach injury, no benefit.`), steps: [...noEcg(60 * S, none), ...big] };
     if (isAcs(prof)) {
       return {
@@ -1517,8 +1533,8 @@ const tenecteplase: MedDef = {
   verb: 'Push',
   onset: 'Reperfusion in ~30–60 min if it works (about 6 in 10)',
   guide: 'STEMI within 12 h of symptom onset when primary PCI cannot happen within 120 min: by weight — < 60 kg 30 mg, 60–69 kg 35 mg, 70–79 kg 40 mg, 80–89 kg 45 mg, ≥ 90 kg 50 mg (consider half dose from 75 y: STREAM-2, ESC — not in the US label). Not with: any prior intracranial hemorrhage, an ischemic stroke within 3 months, a known intracranial lesion, brain or spine surgery or significant head trauma within 3 months, active bleeding, suspected aortic dissection, or severe uncontrolled hypertension. With care (relative): a TIA or a stroke more than 3 months ago, an oral anticoagulant, major surgery within 3 weeks, recent internal bleeding, pregnancy, a systolic above 180. With aspirin, clopidogrel and an anticoagulant; then transfer for angiography.',
-  // 75 or older: half the weight band (STREAM-2; ESC) — not in the US label
-  usual: (p) => (elderly(p) ? { low: tnkBand(p.kg) / 2, high: tnkBand(p.kg) / 2 } : { low: tnkBand(p.kg), high: tnkBand(p.kg) }),
+  // 75 or older: half the weight band is considered (STREAM-2; ESC) and the full band is the US label's dose — both usual
+  usual: (p) => (elderly(p) ? { low: tnkBand(p.kg) / 2, high: tnkBand(p.kg) } : { low: tnkBand(p.kg), high: tnkBand(p.kg) }),
   max: () => 50,
   picks: () => [30, 35, 40, 45, 50],
   step: 5,
@@ -1529,8 +1545,8 @@ const tenecteplase: MedDef = {
     const band = tnkBand(p.kg);
     const bleed: EffectStep[] = dose > band * 1.02 || cls === 'toxic'
       ? [{ at: 10 * MIN, note: 'Above the weight band: more bleeding (intracranial hemorrhage ~1%) with no extra benefit.', tone: 'warn' }]
-      : cls === 'high' && elderly(p)
-        ? [{ at: 10 * MIN, note: `The full weight-band dose at ${p.age}: intracranial hemorrhage rises with age, and STREAM-2 halved the dose from 75 to cut it (ESC; the US label keeps the full band).`, tone: 'warn' }]
+      : elderly(p) && dose > (band / 2) * 1.02
+        ? [{ at: 10 * MIN, note: `${dose >= band * 0.98 ? 'The full' : 'More than half the'} weight-band dose at ${p.age}: intracranial hemorrhage rises with age, and STREAM-2 halved the dose from 75 to cut it (ESC; the US label keeps the full band).`, tone: 'warn' }]
         : [];
     if (dosesOf(p, 'tenecteplase').length) {
       return { verdict: bad('Tenecteplase has already been given: it is one bolus. A failed lysis (less than 50% ST resolution at 60–90 min) goes for rescue PCI — repeat fibrinolysis did no better than none and worse than rescue PCI (REACT), and it adds bleeding.'), steps: [...noEcg(10 * MIN, 'No further reperfusion — only more bleeding risk.'), ...bleed] };
@@ -1603,6 +1619,9 @@ const heparin: MedDef = {
     const c = category(prof, p.hr);
     if (prof.id === DISSECTION) return { verdict: bad('Contraindicated: aortic dissection — anticoagulation feeds the bleeding into the wall.'), steps: noEcg(60 * S, 'No ECG change.') };
     const none = noEcg(60 * S, 'No direct ECG effect: heparin prevents clot extension — the tracing does not change.');
+    const useful = isAcs(prof) || c === 'af' || c === 'flutter';
+    // one bolus, then the infusion — in a PE as in an ACS
+    if ((useful || prof.id === 'pulmonary-embolism') && dosesOf(p, 'heparin').length) return { verdict: caution('The bolus has already been given: unfractionated heparin is one bolus, then an infusion adjusted to the aPTT (or ACT in the lab). A second full bolus doubles the anticoagulation — more bleeding.'), steps: none };
     if (prof.id === 'pulmonary-embolism') {
       // which heparin depends on what may come next: lysis or a procedure needs one that can be stopped and reversed
       return {
@@ -1612,8 +1631,6 @@ const heparin: MedDef = {
         steps: none,
       };
     }
-    const useful = isAcs(prof) || c === 'af' || c === 'flutter';
-    if (useful && dosesOf(p, 'heparin').length) return { verdict: caution('The bolus has already been given: unfractionated heparin is one bolus, then an infusion adjusted to the aPTT (or ACT in the lab). A second full bolus doubles the anticoagulation — more bleeding.'), steps: none };
     return {
       verdict: useful ? good('Anticoagulation to stop the clot growing (ACS, AF before cardioversion). It does not open an occluded artery.')
         : prof.id === 'pericarditis' || prof.hemo === 'tamponade' ? bad('No indication — and in pericarditis or a tamponade, anticoagulation risks bleeding into the pericardium.')
@@ -1742,7 +1759,7 @@ const phenylephrine: MedDef = {
     return {
       verdict: isBrady(c) || slowSinus(c, p) ? bad('Avoid in bradycardia: the reflex slowing makes it worse.')
         : !low ? bad('No low pressure to treat: phenylephrine only adds afterload and slows the heart.')
-          : prof.hemo === 'hcm' || prof.hemo === 'aortic-stenosis' ? good('Hypotension with outflow obstruction (obstructive HCM) or severe aortic stenosis: a vasoconstrictor without inotropy is the drug, after fluid (HCM guideline).')
+          : prof.hemo === 'hcm' || prof.hemo === 'aortic-stenosis' || hasProblem(p, 'lvot-obstruction', 'severe-aortic-stenosis') ? good('Hypotension with outflow obstruction (obstructive HCM, Takotsubo with LV outflow obstruction) or severe aortic stenosis: a vasoconstrictor without inotropy is the drug, after fluid (2024 AHA/ACC HCM).')
             : prof.hemo === 'tamponade' ? caution('Tamponade: the output depends on the fast rate, and phenylephrine slows it (reflex). Drain the pericardium; fluid meanwhile.')
               : prof.hemo === 'hfref' || prof.hemo === 'shock' || isAcs(prof) ? caution('Raises the afterload of a failing ventricle: norepinephrine is the usual first pressor in cardiogenic shock.')
                 : caution('A vasopressor for hypotension from vasodilation (e.g. anesthesia) — not for a rhythm problem. Note the reflex slowing.'),
@@ -1878,7 +1895,9 @@ const sinceLast = (p: Patient, id: MedId): number | null => {
   const doses = dosesOf(p, id);
   return p.now === undefined || !doses.length ? null : p.now - Math.max(...doses.map((g) => g.at));
 };
-const minutes = (ms: number) => (ms < MIN ? `${Math.round(ms / S)} s` : `${Math.round(ms / MIN)} min`);
+const minutes = (ms: number) => (ms < MIN ? `${Math.round(ms / S)} s` : ms < 2 * 60 * MIN ? `${Math.round(ms / MIN)} min` : `${Math.round(ms / (60 * MIN))} h`);
+/** "together or in close proximity (within a few hours)": the diltiazem label's window for an IV β-blocker */
+const FEW_HOURS = 4 * 60 * MIN;
 
 /**
  * What a drug's own plan, which looks at this one dose, does not see: the doses of it given before — a regimen that
@@ -1891,6 +1910,7 @@ function repeatCaveats(id: MedId, p: Patient, dose: number, cls: DoseClass, plan
   const c = category(prof, p.hr);
   const total = totalOf(p, id) + dose;
   let { verdict } = plan;
+  const warns: EffectStep[] = [];
   const since = sinceLast(p, id);
   switch (id) {
     case 'epinephrine':
@@ -1898,7 +1918,11 @@ function repeatCaveats(id: MedId, p: Patient, dose: number, cls: DoseClass, plan
       if (prof.hemo === 'no-output' && since !== null && since < 3 * MIN) verdict = worse(verdict, 'caution', `Too soon: the last epinephrine was ${minutes(since)} ago — 1 mg every 3–5 min (about every other 2-minute cycle). Keep compressing.`);
       break;
     case 'atropine':
-      if (total > 3 + 1e-6 && totalOf(p, 'atropine') < 3) verdict = worse(verdict, 'caution', `${fmtDose(total)} mg in total — past the 3 mg maximum (full vagal block): more only adds anticholinergic toxicity. Pace, or start an epinephrine infusion.`);
+      if (total > 3 + 1e-6 && totalOf(p, 'atropine') < 3) {
+        verdict = worse(verdict, 'caution', `${fmtDose(total)} mg in total — past the 3 mg maximum (full vagal block): more only adds anticholinergic toxicity. Pace, or start an epinephrine infusion.`);
+        // on the timeline in every rhythm, not only where the drug's own plan has a rate to show
+        warns.push(warnStep(plan.steps, `${fmtDose(total)} mg in total — past the 3 mg maximum (full vagal block): more only adds anticholinergic toxicity.`));
+      }
       break;
     case 'diltiazem':
       if (dosesOf(p, 'diltiazem').length >= 2) verdict = worse(verdict, 'caution', 'Two boluses already (0.25, then 0.35 mg/kg): the label does not give a third — start an infusion (5–15 mg/h), or think again about the rhythm.');
@@ -1920,7 +1944,8 @@ function repeatCaveats(id: MedId, p: Patient, dose: number, cls: DoseClass, plan
       if (dosesOf(p, id).length && total > 2 * p.kg + 1e-6 && cls !== 'toxic') verdict = worse(verdict, 'caution', `${fmtDose(total)} mcg in all — more than 2 mcg/kg: respiratory depression and a falling pressure. Watch the breathing, and have naloxone and a bag-mask ready.`);
       break;
     case 'insulin-dextrose':
-      if (dosesOf(p, id).length && (since === null || since < 60 * MIN)) verdict = worse(verdict, 'caution', 'A second dose of insulin: most lows come at 1–3 h, and two doses stack. Recheck the potassium and the glucose first — a repeat is for a potassium still high at the recheck, with more dextrose.');
+      // regular insulin IV acts for 4–6 h: a second dose inside that stacks on the first
+      if (dosesOf(p, id).length && (since === null || since < 6 * 60 * MIN)) verdict = worse(verdict, 'caution', 'A second dose of insulin: most lows come at 1–3 h, and two doses stack. Recheck the potassium and the glucose first — a repeat is for a potassium still high at the recheck, with more dextrose.');
       break;
     case 'sotalol':
       if (dosesOf(p, id).length) verdict = worse(verdict, 'caution', 'A second IV load: sotalol is loaded once, then given by the kidneys\' clock. Its effect on the QT builds with the level — check the QTc before any more.');
@@ -1928,7 +1953,7 @@ function repeatCaveats(id: MedId, p: Patient, dose: number, cls: DoseClass, plan
     default:
       break;
   }
-  return { verdict, steps: plan.steps };
+  return { verdict, steps: [...plan.steps, ...warns] };
 }
 
 /**
@@ -1946,7 +1971,13 @@ function comboCaveats(id: MedId, p: Patient, plan: Plan): Plan {
   const ccbThenBeta = IV_BETA.includes(id) && dosesOf(p, 'diltiazem').length > 0;
   const betaThenCcb = id === 'diltiazem' && givenOf(p, IV_BETA).length > 0;
   if (ccbThenBeta || betaThenCcb) {
-    verdict = worse(verdict, 'bad', `Not on top of ${ccbThenBeta ? 'IV diltiazem' : `an IV β-blocker (${names(givenOf(p, IV_BETA))})`}: the diltiazem and esmolol labels rule out giving them together or within a few hours — profound bradycardia, AV block, hypotension, even asystole. More of the same drug, or cardioversion.`);
+    // "within a few hours" (diltiazem label): without the drug clock the other drug counts as on board
+    const ago = (ccbThenBeta ? sinceLast(p, 'diltiazem') : Math.min(...givenOf(p, IV_BETA).map((x) => sinceLast(p, x) ?? 0))) ?? 0;
+    const recent = p.now === undefined || ago < FEW_HOURS;
+    const other = ccbThenBeta ? 'IV diltiazem' : `an IV β-blocker (${names(givenOf(p, IV_BETA))})`;
+    verdict = recent
+      ? worse(verdict, 'bad', `Not on top of ${other}: the diltiazem and esmolol labels rule out giving them together or within a few hours — profound bradycardia, AV block, hypotension, even asystole. More of the same drug, or cardioversion.`)
+      : worse(verdict, 'caution', `${other[0].toUpperCase()}${other.slice(1)} ${minutes(ago)} ago: past the few hours the labels ask for, but the two still add AV block and slowing — watch the rate and the pressure.`);
     warns.push('A calcium-channel blocker and a β-blocker together: watch for bradycardia, AV block and a falling pressure.');
   }
   // two antiarrhythmics that lengthen the QT
@@ -2000,7 +2031,7 @@ const RENAL: Partial<Record<MedId, string>> = {
 type HistoryText = (p: Patient, c: Category, id: MedId, dose: number) => string | null;
 const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone']; text: HistoryText }[] = [
   // the airway
-  { problems: ['asthma', 'bronchospasm'], drugs: ['adenosine'], tone: 'bad', text: () => 'Not with asthma or bronchospastic lung disease: adenosine can bring on severe bronchospasm (label). An SVT here: a calcium-channel blocker, or synchronized cardioversion.' },
+  { problems: ['asthma', 'bronchospasm'], drugs: ['adenosine'], tone: 'bad', text: (_p, c) => `Not with asthma or bronchospastic lung disease: adenosine can bring on severe bronchospasm (label).${c === 'svt' ? ' An SVT here: vagal maneuvers, a calcium-channel blocker, or synchronized cardioversion.' : c === 'vt' ? ' A wide-complex tachycardia: synchronized cardioversion, or procainamide or amiodarone if stable.' : ''}` },
   { problems: ['asthma', 'bronchospasm'], drugs: ['sotalol'], tone: 'bad', text: () => 'Contraindicated with asthma or bronchospasm (label): sotalol is a non-selective β-blocker.' },
   { problems: ['asthma', 'bronchospasm'], drugs: ['metoprolol', 'esmolol'], tone: 'caution', text: () => 'Asthma or bronchospasm: a β1-selective blocker only with care, at the smallest dose, watching the breathing — esmolol stops fastest if it tightens.' },
   // a denervated heart; adenosine made stronger
@@ -2011,9 +2042,15 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   { problems: ['sympathomimetic-toxicity'], drugs: ['metoprolol', 'esmolol', 'sotalol'], tone: 'bad', text: () => 'Not in acute cocaine or methamphetamine intoxication (2025 ACC/AHA ACS: 3 — Harm): a β-blocker leaves the α effect unopposed — the pressure and the coronary spasm get worse. Benzodiazepines, then nitroglycerin or a calcium-channel blocker.' },
   // bleeding
   { problems: ['aspirin-allergy'], drugs: ['aspirin'], tone: 'bad', text: () => 'Not with a true aspirin allergy (anaphylaxis, angioedema, aspirin-exacerbated asthma): give a P2Y12 inhibitor alone (2025 ACC/AHA ACS).' },
-  { problems: ['bleeding', 'intracranial-hemorrhage'], drugs: ['aspirin', 'ticagrelor', 'clopidogrel', 'prasugrel', 'heparin', 'tenecteplase'], tone: 'bad', text: (p) => `Not with ${hasProblem(p, 'intracranial-hemorrhage') ? 'an intracranial hemorrhage (now or ever)' : 'active bleeding'}: this drug feeds the bleeding (label${hasProblem(p, 'intracranial-hemorrhage') ? '; an absolute contraindication to lysis' : ''}).` },
+  { problems: ['bleeding'], drugs: ['aspirin', 'ticagrelor', 'clopidogrel', 'prasugrel', 'heparin', 'tenecteplase'], tone: 'bad', text: () => 'Not with active bleeding: this drug feeds the bleeding (label).' },
+  // an intracranial hemorrhage at any time: absolute for lysis (2013 ACCF/AHA STEMI, kept in 2025), a label contraindication
+  // for ticagrelor (history of ICH) and prasugrel (prior stroke); for aspirin, clopidogrel and heparin it is the bleed now
+  // (Plavix: active pathological bleeding such as ICH) that rules them out, and an old, healed one only raises the risk
+  { problems: ['intracranial-hemorrhage'], drugs: ['tenecteplase'], tone: 'bad', text: () => 'Absolutely contraindicated: any prior intracranial hemorrhage (2013 ACCF/AHA STEMI, kept in 2025; label) — however long ago. Transfer for primary PCI.' },
+  { problems: ['intracranial-hemorrhage'], drugs: ['ticagrelor'], tone: 'bad', text: () => 'Contraindicated (label): a history of intracranial hemorrhage — ticagrelor raised intracranial bleeding (PLATO). Clopidogrel, once the bleed is old and healed.' },
+  { problems: ['intracranial-hemorrhage'], drugs: ['aspirin', 'clopidogrel', 'heparin'], tone: 'caution', text: () => 'A prior intracranial hemorrhage raises the bleeding risk; a recent or active one rules this drug out — ask when, and give the ACS antithrombotics if it is old and healed.' },
   { problems: ['recent-stroke', 'intracranial-risk'], drugs: ['tenecteplase'], tone: 'bad', text: (p) => `Absolutely contraindicated: ${hasProblem(p, 'recent-stroke') ? 'an ischemic stroke within 3 months' : 'an intracranial lesion, or brain or spine surgery or significant head trauma within 3 months'} (2013 ACCF/AHA STEMI, kept in 2025) — the risk of intracranial hemorrhage. Transfer for primary PCI.` },
-  { problems: ['recent-stroke', 'prior-stroke', 'stroke'], drugs: ['prasugrel'], tone: 'bad', text: () => 'Contraindicated after any stroke or TIA (label, boxed): in TRITON prasugrel caused more intracranial bleeding in these patients. Ticagrelor or clopidogrel.' },
+  { problems: ['recent-stroke', 'prior-stroke', 'stroke', 'intracranial-hemorrhage'], drugs: ['prasugrel'], tone: 'bad', text: (p) => `Contraindicated after any stroke or TIA (label, boxed)${hasProblem(p, 'intracranial-hemorrhage') ? ' — an intracranial hemorrhage is one' : ''}: in TRITON prasugrel caused more intracranial bleeding in these patients. ${hasProblem(p, 'intracranial-hemorrhage') ? 'Clopidogrel, once the bleed is old and healed.' : 'Ticagrelor or clopidogrel.'}` },
   { problems: ['prior-stroke', 'oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy'], drugs: ['tenecteplase'], tone: 'caution', text: (p) => `A relative contraindication (2013 ACCF/AHA STEMI, kept in 2025): ${[
     hasProblem(p, 'prior-stroke') && 'a TIA or a stroke more than 3 months ago',
     hasProblem(p, 'oral-anticoagulant') && 'an oral anticoagulant',
@@ -2022,7 +2059,25 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
     hasProblem(p, 'pregnancy') && 'pregnancy',
   ].filter(Boolean).join(', ')}. Weigh it against the infarct — primary PCI if it can be reached in time.` },
   { problems: ['oral-anticoagulant'], drugs: ['ticagrelor', 'prasugrel'], tone: 'caution', text: () => 'An oral anticoagulant on board: the P2Y12 inhibitor to add is clopidogrel (2025 ACC/AHA ACS) — ticagrelor or prasugrel with an anticoagulant bleeds more.' },
-  { problems: ['hit', 'thrombocytopenia'], drugs: ['heparin'], tone: 'bad', text: (p) => `Contraindicated (label): ${hasProblem(p, 'hit') ? 'heparin-induced thrombocytopenia — heparin restarts the clotting; use bivalirudin or argatroban' : 'severe thrombocytopenia — heparin adds to the bleeding risk'}.` },
+  { problems: ['hit'], drugs: ['heparin'], tone: 'bad', text: () => 'Contraindicated (label): heparin-induced thrombocytopenia — heparin restarts the clotting; use bivalirudin or argatroban.' },
+  { problems: ['thrombocytopenia'], drugs: ['heparin'], tone: 'caution', text: (p) => (hasProblem(p, 'hit') ? null : 'Platelets under 100,000: find the cause first (HIT?) — under about 50,000 avoid full-dose anticoagulation; the label rules heparin out in severe thrombocytopenia.') },
+  { problems: ['thrombocytopenia'], drugs: ['tenecteplase'], tone: 'bad', text: () => 'Platelets under 100,000: a bleeding diathesis — an absolute contraindication to fibrinolysis (2013 ACCF/AHA STEMI, kept in 2025; TNKase label). Primary PCI.' },
+  { problems: ['thrombocytopenia'], drugs: ['aspirin', 'ticagrelor', 'clopidogrel', 'prasugrel'], tone: 'caution', text: () => 'Platelets under 100,000: an antiplatelet adds to the bleeding risk — weigh the count and find the cause; under about 50,000 avoid it.' },
+  // the brain: raised intracranial pressure is a nitroglycerin label contraindication; neurosurgery a relative one for heparin
+  { problems: ['intracranial-hemorrhage', 'intracranial-risk'], drugs: ['nitroglycerin'], tone: 'caution', text: () => 'Raised intracranial pressure is a label contraindication: no nitrate with an acute intracranial bleed or a recent head injury (an old, healed lesion is no bar).' },
+  { problems: ['intracranial-risk'], drugs: ['heparin'], tone: 'caution', text: () => 'An intracranial lesion, or recent brain or spine surgery or head trauma: full anticoagulation is a relative contraindication (label: hemorrhage after surgery of the brain or spinal cord) — weigh it, with the neurosurgeon.' },
+  // a preload-dependent heart: a nitrate drops the filling and the pressure
+  { problems: ['rv-infarction', 'severe-aortic-stenosis', 'lvot-obstruction'], drugs: ['nitroglycerin'], tone: 'bad', text: (p) => (['aortic-stenosis', 'hcm'].includes(p.profileId) ? null : `Not with ${[
+    hasProblem(p, 'rv-infarction') && 'an RV infarction (2025 ACC/AHA ACS)',
+    hasProblem(p, 'severe-aortic-stenosis') && 'severe aortic stenosis (2020 ACC/AHA valve)',
+    hasProblem(p, 'lvot-obstruction') && 'dynamic LV outflow obstruction (2024 AHA/ACC HCM)',
+  ].filter(Boolean).join(' or ')}: a preload-dependent heart — a nitrate drops the filling, and the pressure can collapse. Fluid if the pressure is low; an opioid in small doses for the pain.`) },
+  { problems: ['rv-infarction'], drugs: ['fentanyl'], tone: 'caution', text: (p) => (lowBP(p, resolveProfile(p.profileId)) ? null : 'RV infarction: a preload-dependent heart — an opioid can drop the pressure. Small titrated doses, with fluid ready.') },
+  // dynamic LV outflow obstruction: a catecholamine worsens it (in an arrest epinephrine is still the arrest drug)
+  { problems: ['lvot-obstruction'], drugs: ['epinephrine'], tone: 'bad', text: (p, c) => (c === 'arrest' || c === 'torsades' || resolveProfile(p.profileId).hemo === 'hcm' ? null : 'Not with dynamic LV outflow obstruction (obstructive HCM, Takotsubo with LVOTO): epinephrine makes the ventricle squeeze harder and faster, and the obstruction worse — the pressure falls further. Fluid and phenylephrine (2024 AHA/ACC HCM).') },
+  // digoxin toxicity
+  { problems: ['digoxin-toxicity'], drugs: ['digoxin'], tone: 'bad', text: () => 'Not with digoxin toxicity: more digoxin feeds it (label). Digoxin Fab is the treatment for a dangerous arrhythmia or a high potassium (2023 AHA); correct the potassium and magnesium.' },
+  { problems: ['digoxin-toxicity'], drugs: ['calcium-chloride'], tone: 'caution', text: () => 'Digoxin toxicity: digoxin Fab treats its hyperkalemia (2023 AHA). The calcium label still lists digitalis toxicity; the evidence (Levine 2011) found no harm — if calcium is needed, give it slowly.' },
   // the pump
   { problems: ['heart-failure'], drugs: ['diltiazem'], tone: 'bad', text: (_, c) => (['af', 'flutter', 'svt'].includes(c) ? 'Not with HFrEF (2023 ACC/AHA/ACCP/HRS AF: IV non-dihydropyridine calcium-channel blockers — 3: Harm): a negative inotrope can tip the failing ventricle into shock. A β-blocker if compensated, amiodarone or digoxin; cardiovert if unstable.' : null) },
   { problems: ['heart-failure'], drugs: ['diltiazem'], tone: 'caution', text: (_, c) => (['af', 'flutter', 'svt'].includes(c) ? null : 'HFrEF: diltiazem is a negative inotrope — avoided in a failing ventricle.') },
@@ -2031,11 +2086,14 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
   { problems: ['heart-failure'], drugs: ['metoprolol', 'esmolol'], tone: 'caution', text: () => 'HFrEF: a β-blocker only while the failure is compensated (no wet lungs, no low output) — never in decompensated failure or shock.' },
   // the kidneys and the potassium
   { problems: ['renal-failure', 'dialysis'], drugs: ['magnesium-sulfate', 'digoxin', 'procainamide'], tone: 'caution', text: (p, _, id) => `${hasProblem(p, 'dialysis') ? 'On dialysis' : 'Kidney failure'}: ${RENAL[id]}.` },
-  { problems: ['renal-failure', 'dialysis'], drugs: ['sotalol'], tone: 'bad', text: () => 'Not with kidney failure: sotalol is cleared by the kidneys, and its level — and the QT — climbs (label: IV dosing by creatinine clearance; not for AF below 40 mL/min).' },
+  { problems: ['renal-failure', 'dialysis'], drugs: ['sotalol'], tone: 'bad', text: (_p, c) => (c === 'af' || c === 'flutter' ? 'Not for AF or flutter with kidney failure: the sotalol label rules it out below a creatinine clearance of 40 mL/min — it is cleared by the kidneys, and its level (and the QT) climbs.' : null) },
+  { problems: ['renal-failure', 'dialysis'], drugs: ['sotalol'], tone: 'caution', text: (_p, c) => (c === 'af' || c === 'flutter' ? null : 'Kidney failure: sotalol is cleared by the kidneys — a longer dosing interval by the creatinine clearance (label), with QTc monitoring; and it is no longer in the 2025 AHA tachycardia algorithm.') },
   { problems: ['renal-failure', 'dialysis'], drugs: ['insulin-dextrose'], tone: 'caution', text: (_p, _c, _id, dose) => (dose > 5 * 1.15 ? 'Kidney failure: 5 units, not 10 — insulin is cleared by the kidneys, and hypoglycemia is much more likely.' : null) },
   { problems: ['hypokalemia'], drugs: ['sotalol'], tone: 'bad', text: () => 'Not with a potassium below 4 mEq/L (label): a low potassium and sotalol together set off torsades. Correct the potassium and magnesium first.' },
   { problems: ['hypokalemia'], drugs: ['digoxin'], tone: 'caution', text: () => 'A low potassium makes digoxin toxicity more likely (arrhythmias at a "normal" level): correct it first.' },
-  { problems: ['long-qt'], drugs: ['amiodarone', 'procainamide', 'sotalol'], tone: 'bad', text: () => 'Not with a long QT: it lengthens the QT further and can set off torsades de pointes. Magnesium, potassium to 4.0 or more, stop every QT-prolonging drug; lidocaine or synchronized cardioversion for a VT.' },
+  // (sotalol's own plan reads the long QT in the history, with its torsades step)
+  { problems: ['long-qt'], drugs: ['amiodarone', 'procainamide'], tone: 'bad', text: (p) => (resolveProfile(p.profileId).hemo === 'no-output' ? null : 'Not with a long QT: it lengthens the QT further and can set off torsades de pointes. Magnesium, potassium to 4.0 or more, stop every QT-prolonging drug; lidocaine or synchronized cardioversion for a VT.') },
+  { problems: ['long-qt'], drugs: ['amiodarone', 'procainamide'], tone: 'caution', text: (p) => (resolveProfile(p.profileId).hemo === 'no-output' ? 'A long QT: for shock-refractory VF or pulseless VT, lidocaine is the better choice (it does not lengthen the QT); magnesium; keep defibrillating.' : null) },
 ];
 
 /**
@@ -2043,7 +2101,7 @@ const HISTORY_RULES: { problems: Problem[]; drugs: MedId[]; tone: Verdict['tone'
  * above read. The words are the case simulator's (Problem), so a case and this page mean the same thing by them.
  */
 export const HISTORY: readonly { id: Problem; label: string }[] = [
-  { id: 'asthma', label: 'Asthma / COPD' },
+  { id: 'asthma', label: 'Asthma / bronchospastic lung disease' },
   { id: 'bronchospasm', label: 'Wheezing now' },
   { id: 'heart-failure', label: 'HFrEF' },
   { id: 'renal-failure', label: 'Kidney failure' },
@@ -2065,7 +2123,11 @@ export const HISTORY: readonly { id: Problem; label: string }[] = [
   { id: 'recent-bleeding', label: 'Internal bleeding < 4 weeks' },
   { id: 'pregnancy', label: 'Pregnancy' },
   { id: 'hit', label: 'HIT' },
-  { id: 'thrombocytopenia', label: 'Low platelets' },
+  { id: 'thrombocytopenia', label: 'Low platelets (< 100,000)' },
+  { id: 'rv-infarction', label: 'RV infarction (V4R)' },
+  { id: 'severe-aortic-stenosis', label: 'Severe aortic stenosis' },
+  { id: 'lvot-obstruction', label: 'LV outflow obstruction (HCM, Takotsubo)' },
+  { id: 'digoxin-toxicity', label: 'Digoxin toxicity' },
 ];
 
 function historyCaveats(id: MedId, p: Patient, dose: number, plan: Plan): Plan {
