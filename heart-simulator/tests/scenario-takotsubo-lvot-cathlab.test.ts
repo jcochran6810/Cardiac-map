@@ -336,6 +336,8 @@ describe('the traps: wrong care does what it would, and costs points', () => {
     const nurse = run(sc, 4, [...RN_TO_DROP, 'callout', 'inotrope']);
     expect(penalties(nurse)).toEqual(['inotrope-lvoto']);
     expect(nurse.log.some((l) => l.who === 'operator' && /Stop the dobutamine/.test(l.text))).toBe(true);
+    // before the fall there is no low output either: still the case's rule alone, not the built-in no-indication rule beside it
+    expect(penalties(run(sc, 5, ['inotrope']))).toEqual(['inotrope-lvoto']);
   });
 
   it('a diuretic during the obstruction empties the ventricle: the gradient climbs; once it is relieved the built-in rules judge it', () => {

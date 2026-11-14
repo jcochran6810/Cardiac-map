@@ -868,7 +868,7 @@ export const cathlabTakotsubo: Scenario = {
     // the case's own obstruction (a flag, not a Problem: it begins on the table): it stands in for every built-in inotrope rule
     {
       id: 'inotrope-lvoto', actions: ['inotrope'], roles: [4, 5], when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: ['inotrope-lvot-obstruction', 'inotrope-unsupported-hypotension', 'inotrope-tachyarrhythmia'],
+      replaces: ['inotrope-lvot-obstruction', 'inotrope-unsupported-hypotension', 'inotrope-tachyarrhythmia', 'inotrope-no-indication'],
       text: 'An inotrope in Takotsubo syndrome with outflow obstruction. Dobutamine (a catecholamine) and milrinone both push the contractility up: the hyperdynamic base squeezes harder, the outflow tract narrows, the gradient climbs and the pressure falls (dobutamine and milrinone labels: obstructive subaortic disease; 2024 AHA/ACC HCM guideline). For a low pressure with outflow obstruction: fluid, then phenylephrine; if those fail, mechanical support.',
     },
     {
