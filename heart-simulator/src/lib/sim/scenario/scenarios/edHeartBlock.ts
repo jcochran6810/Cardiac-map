@@ -824,6 +824,12 @@ export const edHeartBlock: Scenario = {
       text: 'CPAP without breathing trouble. Her lungs are clear and her oxygen is fine; the positive pressure cuts the blood returning to the heart, and with a systolic in the 80s it deepens the shock.',
     },
     {
+      // the built-in rule, same id (a deliberate exemption): her own metoprolol is the AV-nodal blockade of BRASH, and glucagon
+      // is a listed rescue there when the rest fails (Farkas 2020) — no answer to this rate (its responder says so), not scored
+      id: 'glucagon-no-indication', actions: ['glucagon'], when: () => false, points: 3, severity: 'minor',
+      text: 'Glucagon without a beta- or calcium-channel-blocker overdose: in BRASH it is a rescue for when the rest fails.',
+    },
+    {
       // the same id as the built-in rule: a low pressure here is the slow rate's, and the tube does not treat it
       id: 'rsi-no-indication', actions: ['rsi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.gcs >= 9, points: 10, severity: 'major', replaces: ['rsi-unresuscitated'],
       text: 'Rapid sequence intubation for a low pressure that comes from a slow heart. She protects her airway and oxygenates; the induction drug and positive pressure drop the pressure further and can stop a heart beating 34 times a minute. Fix the rate (pacing) first.',

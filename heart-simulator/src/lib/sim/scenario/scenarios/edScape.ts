@@ -938,7 +938,7 @@ export const edScape: Scenario = {
       text: 'IM epinephrine without anaphylaxis. No hives, no swelling, no exposure: his noisy breathing is fluid in the lungs, and epinephrine only drives up the pressure and the rate.',
     },
     {
-      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, replaces: ['albuterol-no-bronchospasm'], points: 3, severity: 'minor',
       text: 'Albuterol for crackles. There is no wheeze for it to open: the noise in his chest is fluid, and a beta-agonist only speeds the heart. Positive pressure and nitroglycerin clear the lungs.',
     },
     {

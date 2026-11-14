@@ -727,7 +727,7 @@ export const scapeField: Scenario = {
       text: 'IM epinephrine without anaphylaxis. No hives, no swelling, no exposure: her noisy breathing is fluid in the lungs, and epinephrine only drives up the pressure and the rate.',
     },
     {
-      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'albuterol-crackles', actions: ['albuterol'], when: (s) => s.pulse, replaces: ['albuterol-no-bronchospasm'], points: 3, severity: 'minor',
       text: 'Albuterol for crackles. There is no wheeze for it to open: the noise in her chest is fluid, and a beta-agonist only speeds the heart. CPAP and nitroglycerin clear the lungs.',
     },
     {

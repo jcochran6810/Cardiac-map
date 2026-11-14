@@ -6,9 +6,10 @@
  * a higher one applies (the gate order is noted above each group).
  */
 import { LOW_GLUCOSE, canSwallow, count, has, mapOf, paced, ventilated } from '../kit';
-import type { Harm, Scenario, SimState } from '../types';
+import type { Harm, Problem, Scenario, SimState } from '../types';
 import {
-  BICARBONATE_FOR, CALCIUMS, CALCIUM_FOR, hasProblem, lowPressure, lvadPerfusing, preloadDependent, procedureComing, shockable, shockedThisArrest,
+  BICARBONATE_FOR, CALCIUMS, CALCIUM_FOR, did, hasProblem, lowPressure, lvadPerfusing, preloadDependent, procedureComing, shockable,
+  shockedThisArrest, tachyarrhythmia,
 } from './helpers';
 
 // ─── Vasopressors: what each rule reads ────────────────────────────────────
@@ -38,6 +39,24 @@ const notBreathing = (s: SimState) => !s.pulse || ((s.vitals.rr < 8 || s.vitals.
 const vomitingLikely = (s: SimState) => has(s, 'glucagon') && s.minute - s.flags.glucagon <= 30;
 /** A drowsy patient in the field (GCS 9–12): no airway reflexes to trust under a sealed mask, and nobody watching them alone */
 const drowsyInField = (s: SimState, sc: Scenario) => sc.setting === 'field' && s.vitals.gcs >= 9 && s.vitals.gcs <= 12;
+// ─── Electrolytes and antidotes: what each rule reads ──────────────────────
+
+/**
+ * What sodium bicarbonate treats with a pulse: a metabolic acidosis, or a sodium-channel-blocker (e.g. tricyclic)
+ * overdose. Hyperkalemia alone is not one — bicarbonate shifts little potassium without an acidosis (KDIGO 2020) — but in
+ * a hyperkalemic arrest it is (BICARBONATE_FOR, the arrest list)
+ */
+const BICARBONATE_WITH_A_PULSE: Problem[] = ['metabolic-acidosis', 'sodium-channel-blocker-overdose'];
+const bicarbonateNoIndication = (s: SimState, sc: Scenario) => !hasProblem(sc, s.pulse ? BICARBONATE_WITH_A_PULSE : BICARBONATE_FOR);
+/** A massive transfusion (4 units or more): the citrate in the blood binds the ionized calcium */
+const massiveTransfusion = (s: SimState) => count(s, 'transfuse') >= 4;
+/** High-dose albuterol has nothing to treat (albuterol-hyperk-no-indication) */
+const albuterolHyperkNoIndication = (sc: Scenario) => !hasProblem(sc, ['hyperkalemia']);
+/** Glucagon has nothing to treat: no beta- or calcium-channel-blocker overdose */
+const glucagonNoIndication = (sc: Scenario) => !hasProblem(sc, ['beta-blocker-overdose', 'ccb-overdose']);
+/** Glucagon's vomiting with no airway reflexes (GCS 8 or less) and no airway in */
+const unprotectedAirway = (s: SimState) => s.pulse && s.vitals.gcs <= 8 && !has(s, 'airway');
+
 /** The rules on the RSI before the one for a preload-dependent heart (see rsi-preload-dependent) */
 const rsiNoIndication = (s: SimState) => s.pulse && s.vitals.gcs >= 13 && s.vitals.spo2 >= 92 && s.vitals.rr >= 10 && s.vitals.rr <= 30 && !lowPressure(s);
 const rsiUnresuscitated = (s: SimState) => s.pulse && lowPressure(s) && !has(s, 'pressor') && !has(s, 'push-epi');
@@ -74,12 +93,24 @@ export const SUPPORT_RULES: Harm[] = [
   // has (Scenario.problems); "not well established" in a hyperkalemic arrest (2025 AHA) is never penalized.
   // calcium also reverses part of the low pressure IV diltiazem causes: for that low pressure (a pulse, a systolic under 90)
   // it is a fair answer. Not routinely in a later arrest, and not once the pressure is back: one therapeutic dose is no overdose
-  { id: 'calcium-no-indication', actions: CALCIUMS, when: (s, sc) => !hasProblem(sc, CALCIUM_FOR) && !(has(s, 'diltiazem') && s.pulse && lowPressure(s)), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose (or the low pressure IV diltiazem causes) or a low calcium; otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
-  { id: 'bicarbonate-no-indication', actions: ['sodium-bicarbonate'], when: (_s, sc) => !hasProblem(sc, BICARBONATE_FOR), points: 3, severity: 'minor', text: 'Sodium bicarbonate without an indication. It is for hyperkalemia, metabolic acidosis or a sodium-channel-blocker (e.g. tricyclic) overdose; routine bicarbonate in cardiac arrest has no benefit (2025 AHA), and it adds a sodium load and CO₂ the lungs must clear.' },
+  { id: 'calcium-no-indication', actions: CALCIUMS, when: (s, sc) => !hasProblem(sc, CALCIUM_FOR) && !(has(s, 'diltiazem') && s.pulse && lowPressure(s)) && !massiveTransfusion(s), points: 3, severity: 'minor', text: 'Calcium without an indication. It is for hyperkalemia, a calcium-channel- or beta-blocker overdose (or the low pressure IV diltiazem causes), a low calcium, or a massive transfusion (the citrate in the blood binds it); otherwise it does not help (routine calcium in cardiac arrest: no benefit, 2025 AHA), and it burns the tissue if it leaks.' },
+  // Bicarbonate. Gate order: bicarbonate-no-indication > bicarbonate-unventilated
+  { id: 'bicarbonate-no-indication', actions: ['sodium-bicarbonate'], when: (s, sc) => bicarbonateNoIndication(s, sc), points: 3, severity: 'minor', text: 'Sodium bicarbonate without an indication. It is for a metabolic acidosis or a sodium-channel-blocker (e.g. tricyclic) overdose — for hyperkalemia only with a metabolic acidosis (KDIGO 2020), or in the arrest; routine bicarbonate in cardiac arrest has no benefit (2025 AHA), and it adds a sodium load and CO₂ the lungs must clear.' },
+  { id: 'bicarbonate-unventilated', actions: ['sodium-bicarbonate'], when: (s, sc) => !s.pulse && !ventilated(s) && !bicarbonateNoIndication(s, sc), points: 2, severity: 'minor', text: 'Sodium bicarbonate in a cardiac arrest with nobody breathing for the patient. It turns into CO₂ that only breaths can clear: unventilated, the CO₂ builds up in the blood and the cells and deepens the acidosis inside them. Bag-mask (or an airway) first.' },
+  // Insulin. Gate order: insulin-hypoglycemia and insulin-no-indication > insulin-glucose-unchecked
   { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s) => s.vitals.glucose < LOW_GLUCOSE, points: 10, severity: 'major', text: 'Insulin with a blood glucose under 70 mg/dL. Treat the low glucose first: insulin drives it lower, and the worst lows come 1–3 hours later.' },
   // 10 units is the potassium dose; a beta- or calcium-channel-blocker overdose needs far more, so it is too little there, not a mistake
   { id: 'insulin-no-indication', actions: ['insulin-dextrose'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 5, severity: 'minor', text: 'Insulin and dextrose without hyperkalemia. They shift potassium into the cells; with no high potassium they only risk a low glucose.' },
-  { id: 'albuterol-hyperk-no-indication', actions: ['albuterol-hyperk'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia']), points: 3, severity: 'minor', text: 'High-dose albuterol (10–20 mg) without hyperkalemia. That dose is for shifting potassium and it races the heart; for wheezing the dose is 2.5–5 mg.' },
+  // the nurses who push it (the lab nurse, the ER nurse) check the glucose first: a fingerstick, or the labs drawn
+  { id: 'insulin-glucose-unchecked', actions: ['insulin-dextrose'], roles: [4, 6], when: (s, sc) => !did(s, 'glucose') && !has(s, 'labs') && s.vitals.glucose >= LOW_GLUCOSE && hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 2, severity: 'minor', text: 'Insulin with no glucose checked first. A fingerstick (or the labs) before the dose: a low or low-normal glucose needs more dextrose with it, and the hourly checks that follow need a starting value — the lows come 1–3 hours later.' },
+  // the wheezing dose: wheeze from asthma, COPD or anaphylaxis is what it opens (crackles are fluid, not bronchospasm)
+  { id: 'albuterol-no-bronchospasm', actions: ['albuterol'], when: (_s, sc) => !hasProblem(sc, ['bronchospasm', 'anaphylaxis']), points: 3, severity: 'minor', text: 'Albuterol (2.5–5 mg) with no wheeze. It opens airways narrowed by bronchospasm — asthma, COPD, anaphylaxis; with none it only speeds the heart and can bring on an arrhythmia. Crackles are fluid in the lungs, not bronchospasm.' },
+  // High-dose albuterol. Gate order: albuterol-hyperk-no-indication > albuterol-hyperk-tachycardia
+  { id: 'albuterol-hyperk-no-indication', actions: ['albuterol-hyperk'], when: (_s, sc) => albuterolHyperkNoIndication(sc), points: 3, severity: 'minor', text: 'High-dose albuterol (10–20 mg) without hyperkalemia. That dose is for shifting potassium and it races the heart; for wheezing the dose is 2.5–5 mg.' },
+  { id: 'albuterol-hyperk-tachycardia', actions: ['albuterol-hyperk'], when: (s, sc) => s.pulse && (tachyarrhythmia(s) || s.rhythm.hr >= 120) && !albuterolHyperkNoIndication(sc), points: 3, severity: 'minor', text: 'High-dose albuterol with a fast heart rate (120 or more, or a tachyarrhythmia). 10–20 mg speeds the heart further and can bring on an arrhythmia (albuterol label: cardiovascular effects): shift the potassium with insulin and dextrose instead.' },
+  // Glucagon. Gate order: glucagon-unprotected-airway > glucagon-no-indication
+  { id: 'glucagon-unprotected-airway', actions: ['glucagon'], when: (s) => unprotectedAirway(s), points: 3, severity: 'minor', text: 'Glucagon for a patient who cannot protect the airway (GCS 8 or less, no airway in). Vomiting is the rule at the antidote doses: secure the airway first, or turn the patient on the side with suction ready (GlucaGen label: nausea and vomiting).' },
+  { id: 'glucagon-no-indication', actions: ['glucagon'], when: (s, sc) => glucagonNoIndication(sc) && !unprotectedAirway(s), points: 3, severity: 'minor', text: 'Glucagon without a beta- or calcium-channel-blocker overdose. In those doses it is an antidote, with vomiting the rule; with no overdose it treats nothing (and it raises the glucose).' },
 
   // Glucose: judged on the patient's real glucose, checked or not
   { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE, points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },

@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import type { FixtureSpec } from './ruleFixture';
 import { fixture, penaltyIds } from './ruleFixture';
 import { runScenario as runSteps } from './helpers';
+import { standingOrders } from '@/lib/sim/scenario/edKit';
+import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 
@@ -265,5 +267,82 @@ describe('the legs, fluids and blood', () => {
     expect(ids(7, { ...bleeding, harms: [exempt('saline-instead-of-blood', ['fluid'])] }, ['iv', 'fluid', 'fluid', 'fluid'])).toEqual([]);
     // the gate: a dissection with no low pressure is that rule's — one penalty for the case, none added
     expect(ids(7, withProblems('bleeding', 'aortic-dissection'), ['iv', 'fluid', 'fluid', 'fluid'])).toEqual(['fluid-hypertensive']);
+  });
+});
+
+describe('electrolytes, insulin and the antidotes', () => {
+  it('bicarbonate-no-indication: with a pulse, a metabolic acidosis or a sodium-channel-blocker overdose — a high potassium alone is not one', () => {
+    expect(ids(2, withProblems('hyperkalemia'), ['iv', 'sodium-bicarbonate'])).toEqual(['bicarbonate-no-indication']);
+    expect(ids(2, withProblems('hyperkalemia', 'metabolic-acidosis'), ['iv', 'sodium-bicarbonate'])).toEqual([]);
+    expect(ids(2, withProblems('sodium-channel-blocker-overdose'), ['iv', 'sodium-bicarbonate'])).toEqual([]);
+    // in the arrest the high potassium is one
+    expect(ids(2, { ...withProblems('hyperkalemia'), pulse: false, rhythm: VF }, ['cpr', 'bvm', 'io', 'sodium-bicarbonate'])).toEqual([]);
+    expect(ids(2, { pulse: false, rhythm: VF }, ['cpr', 'bvm', 'io', 'sodium-bicarbonate'])).toEqual(['bicarbonate-no-indication']);
+    expect(ids(2, { ...withProblems('hyperkalemia'), harms: [exempt('bicarbonate-no-indication', ['sodium-bicarbonate'])] }, ['iv', 'sodium-bicarbonate'])).toEqual([]);
+  });
+
+  it('bicarbonate-unventilated: in the arrest its CO₂ needs breaths to clear', () => {
+    const arrest = { ...withProblems('hyperkalemia'), pulse: false, rhythm: VF };
+    expect(ids(2, arrest, ['cpr', 'io', 'sodium-bicarbonate'])).toEqual(['bicarbonate-unventilated']);
+    expect(ids(2, arrest, ['cpr', 'bvm', 'io', 'sodium-bicarbonate'])).toEqual([]);
+    expect(ids(2, { ...arrest, harms: [exempt('bicarbonate-unventilated', ['sodium-bicarbonate'])] }, ['cpr', 'io', 'sodium-bicarbonate'])).toEqual([]);
+    // the gate: with no indication at all, that is the one penalty
+    expect(ids(2, { pulse: false, rhythm: VF }, ['cpr', 'io', 'sodium-bicarbonate'])).toEqual(['bicarbonate-no-indication']);
+  });
+
+  it('calcium-no-indication: a massive transfusion is an indication (the citrate binds the calcium)', () => {
+    const bleeding = { ...withProblems('bleeding'), vitals: VERY_LOW };
+    expect(ids(7, bleeding, ['iv', 'transfuse', 'transfuse', 'transfuse', 'calcium-chloride'])).toEqual(['calcium-no-indication']);
+    expect(ids(7, bleeding, ['iv', 'transfuse', 'transfuse', 'transfuse', 'transfuse', 'calcium-chloride'])).toEqual([]);
+  });
+
+  it('insulin-glucose-unchecked: the nurse who pushes it checks the glucose first', () => {
+    const hyperk = withProblems('hyperkalemia');
+    expect(ids(4, hyperk, ['iv', 'insulin-dextrose'])).toEqual(['insulin-glucose-unchecked']);
+    expect(ids(4, hyperk, ['iv', 'glucose', 'insulin-dextrose'])).toEqual([]);
+    expect(ids(4, hyperk, ['iv', 'labs', 'insulin-dextrose'])).toEqual([]);
+    // the ER nurse too (on the physician's order); the physician orders it, the nurse checks
+    expect(ids(6, { ...hyperk, extra: { events: [standingOrders(['insulin-dextrose'])] } }, ['iv', 'insulin-dextrose'])).toEqual(['insulin-glucose-unchecked']);
+    expect(ids(5, hyperk, ['iv', 'insulin-dextrose'])).toEqual([]);
+    expect(ids(4, { ...hyperk, harms: [exempt('insulin-glucose-unchecked', ['insulin-dextrose'])] }, ['iv', 'insulin-dextrose'])).toEqual([]);
+    // the gate: no high potassium, or a low glucose, is the one penalty
+    expect(ids(4, {}, ['iv', 'insulin-dextrose'])).toEqual(['insulin-no-indication']);
+    expect(ids(4, { ...hyperk, vitals: { glucose: 60 } }, ['iv', 'insulin-dextrose'])).toEqual(['insulin-hypoglycemia']);
+  });
+
+  it('albuterol-hyperk-tachycardia: 10–20 mg speeds a fast heart further', () => {
+    const hyperk = withProblems('hyperkalemia');
+    expect(ids(2, { ...hyperk, rhythm: { profile: 'sinus-tachycardia', hr: 124 } }, ['albuterol-hyperk'])).toEqual(['albuterol-hyperk-tachycardia']);
+    expect(ids(2, { ...hyperk, rhythm: { profile: 'avnrt', hr: 180 } }, ['albuterol-hyperk'])).toEqual(['albuterol-hyperk-tachycardia']);
+    expect(ids(2, { ...hyperk, rhythm: { profile: 'sinus-tachycardia', hr: 110 } }, ['albuterol-hyperk'])).toEqual([]);
+    expect(ids(2, { ...hyperk, rhythm: { profile: 'sinus-tachycardia', hr: 124 }, harms: [exempt('albuterol-hyperk-tachycardia', ['albuterol-hyperk'])] }, ['albuterol-hyperk'])).toEqual([]);
+    // the gate: with no high potassium, that is the one penalty
+    expect(ids(2, { rhythm: { profile: 'sinus-tachycardia', hr: 124 } }, ['albuterol-hyperk'])).toEqual(['albuterol-hyperk-no-indication']);
+  });
+
+  it('albuterol-no-bronchospasm: the wheezing dose with no wheeze', () => {
+    expect(ids(2, {}, ['albuterol'])).toEqual(['albuterol-no-bronchospasm']);
+    expect(ids(2, withProblems('bronchospasm'), ['albuterol'])).toEqual([]);
+    expect(ids(2, withProblems('anaphylaxis'), ['albuterol'])).toEqual([]);
+    expect(ids(2, { harms: [exempt('albuterol-no-bronchospasm', ['albuterol'])] }, ['albuterol'])).toEqual([]);
+    // the contrast reaction case: before the reaction a dose is prophylaxis for nothing; after it, the wheeze is real
+    const contrast = SCENARIO_BY_ID['contrast-cathlab'];
+    expect(penaltyIds(contrast, 4, ['consent', 'iv', 'albuterol'])).toEqual(['albuterol-no-bronchospasm']);
+    expect(penaltyIds(contrast, 4, ['consent', 'iv', 'timeout', 'reassess', 'callout', 'albuterol'])).toEqual([]);
+  });
+
+  it('glucagon-no-indication and glucagon-unprotected-airway', () => {
+    expect(ids(2, {}, ['iv', 'glucagon'])).toEqual(['glucagon-no-indication']);
+    expect(ids(2, withProblems('beta-blocker-overdose'), ['iv', 'glucagon'])).toEqual([]);
+    expect(ids(2, withProblems('ccb-overdose'), ['iv', 'glucagon'])).toEqual([]);
+    expect(ids(2, { harms: [exempt('glucagon-no-indication', ['glucagon'])] }, ['iv', 'glucagon'])).toEqual([]);
+    // the ER nurse with no order: the missing order covers the indication — one penalty
+    expect(ids(6, {}, ['iv', 'glucagon'])).toEqual(['rn-without-order-glucagon']);
+    const drowsy = { ...withProblems('beta-blocker-overdose'), vitals: { gcs: 7 } };
+    expect(ids(2, drowsy, ['iv', 'glucagon'])).toEqual(['glucagon-unprotected-airway']);
+    expect(ids(2, drowsy, ['iv', 'airway', 'glucagon'])).toEqual([]);
+    expect(ids(2, { ...drowsy, harms: [exempt('glucagon-unprotected-airway', ['glucagon'])] }, ['iv', 'glucagon'])).toEqual([]);
+    // the gate: the airway first — one penalty
+    expect(ids(2, { vitals: { gcs: 7 } }, ['iv', 'glucagon'])).toEqual(['glucagon-unprotected-airway']);
   });
 });

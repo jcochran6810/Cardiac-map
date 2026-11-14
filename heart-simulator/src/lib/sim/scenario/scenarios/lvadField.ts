@@ -663,7 +663,7 @@ export const lvadField: Scenario = {
       text: 'Magnesium without torsades or a long QT. His monitor shows a sinus rhythm with nothing for it to treat, and it drops a pressure that is already low; his electrolytes are the hospital\'s to check and replace.',
     },
     {
-      id: 'beta-agonist-antihistamine-no-indication', actions: ['albuterol', 'diphenhydramine'], roles: [2], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'beta-agonist-antihistamine-no-indication', actions: ['albuterol', 'diphenhydramine'], roles: [2], when: (s) => s.pulse, replaces: ['albuterol-no-bronchospasm'], points: 3, severity: 'minor',
       text: 'Albuterol or diphenhydramine with nothing to treat: no wheeze and no allergic reaction. Albuterol speeds a heart already racing for its volume; IV diphenhydramine drops the pressure and clouds the mental status that is your best sign of his perfusion.',
     },
     // The built-in rules for these say "with a pulse", and the learner has just found no pulse to feel: the case says the

@@ -239,6 +239,9 @@ export const cathlabContrast: Scenario = {
     { id: 'premed-for-shellfish', actions: ['steroid', 'diphenhydramine'], roles: [4, 5], when: (s) => !has(s, 'reaction'), points: 2, severity: 'minor', text: 'Premedication for a shellfish allergy. Shellfish allergy is not a contrast allergy: premedication is for a previous reaction to contrast.' },
     { id: 'antihistamine-first', actions: ['diphenhydramine', 'steroid'], roles: [4, 5], when: (s) => has(s, 'reaction') && !has(s, 'epi-given'), points: 5, severity: 'major', text: 'An antihistamine or steroid before epinephrine. They are second-line and slow: epinephrine first, then the rest.' },
     { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'A beta-blocker in anaphylaxis. It blocks the response to epinephrine.' },
+    // The case declares the anaphylaxis and the bronchospasm she has once the contrast goes in: before the reaction the
+    // built-in rules, same ids, still charge (a prophylactic dose is no treatment); after it, these drugs are right
+    { id: 'albuterol-no-bronchospasm', actions: ['albuterol'], when: (s) => !has(s, 'reaction'), points: 3, severity: 'minor', text: 'Albuterol with no wheeze. Her lungs are clear: a bronchodilator before any reaction treats nothing and only speeds the heart. It is for the wheeze of a reaction, after epinephrine.' },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
   ],
   timings: [

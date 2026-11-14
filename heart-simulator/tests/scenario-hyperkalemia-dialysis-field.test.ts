@@ -342,7 +342,8 @@ describe('hyperkalemia in a dialysis patient — delay matters', () => {
     const said = s.log.at(-1)!.text;
     expect(said).toMatch(/^Medical control: no pulse in a dialysis patient — treat it as a high potassium\. CPR, epinephrine 1 mg every 3–5 minutes, calcium chloride 1 g IV\/IO push and sodium bicarbonate 50 mEq, flushed between them\. Work it there: no transport until ROSC/);
     expect(said).not.toMatch(/12-lead|albuterol|Take him/);
-    for (const id of ['cpr', 'epinephrine', 'calcium-chloride', 'sodium-bicarbonate', 'cpr']) s = perform(sc, s, id);
+    // (breaths with the compressions: the bicarbonate's CO₂ needs them)
+    for (const id of ['cpr', 'bvm', 'epinephrine', 'calcium-chloride', 'sodium-bicarbonate', 'cpr']) s = perform(sc, s, id);
     expect(s.pulse).toBe(true);
     expect(s.penalties).toEqual([]);
     // with no 12-lead yet it does not ask for one (none can be recorded in the arrest)
