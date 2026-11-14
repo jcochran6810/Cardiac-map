@@ -5,6 +5,7 @@
 import { has, orderedFlag } from '../kit';
 import { answeringWrong } from '../labKit';
 import type { Harm, Scenario, SimState } from '../types';
+import { sameDrug } from './charge';
 import { chargedBefore } from './helpers';
 
 /**
@@ -57,11 +58,27 @@ export const INDICATION_RULES = [
 /** The id of the rule that scores the ER nurse giving this drug without an order */
 export const rnWithoutOrderId = (id: string) => `rn-without-order-${id}`;
 
+/**
+ * Actions one order covers: the doses of one drug by one route (adenosine 3, 6 and 12 mg — the ACLS order is "6 mg, then
+ * 12 mg if it does not convert") and the two salts of IV calcium. Another route (IV and oral metoprolol, sublingual and IV
+ * nitroglycerin) needs an order of its own
+ */
+const ONE_ORDER = [['adenosine3', 'adenosine6', 'adenosine12'], ['calcium-chloride', 'calcium-gluconate']];
+/** The ER nurse has an order for this action, or for another dose or salt the same order covers */
+const ordered = (s: SimState, id: string) => [id, ...(ONE_ORDER.find((g) => g.includes(id)) ?? [])].some((a) => has(s, orderedFlag(a)));
+/**
+ * A missing order was charged already for this drug, at another dose or by another route (rules/charge.ts DRUGS_OF:
+ * adenosine 6 then 12 mg, calcium chloride then gluconate, IV then oral metoprolol): one drug, one missing order
+ */
+const missingOrderChargedFor = (s: SimState, id: string) =>
+  s.penalties.some((p) => p.id.startsWith('rn-without-order-') && p.minute < s.minute && sameDrug(p.action, id));
+
 export const rnWithoutOrder = ([id, name]: [string, string]): Harm => ({
   id: rnWithoutOrderId(id), actions: [id], roles: [6],
   ...(RN_ORDER_CRITICAL.includes(id) ? { points: 15, severity: 'critical' as const } : { points: 5, severity: 'major' as const }),
   // a wrong answer to an open order is the order's own harm (labKit askHarm): one mistake, one penalty
-  when: (s, sc) => sc.setting === 'ed' && !has(s, orderedFlag(id)) && !answeringWrong(s, id) && (s.pulse || !RN_ORDER_WITH_A_PULSE.includes(id)),
+  when: (s, sc) => sc.setting === 'ed' && !ordered(s, id) && !missingOrderChargedFor(s, id) && !answeringWrong(s, id)
+    && (s.pulse || !RN_ORDER_WITH_A_PULSE.includes(id)),
   text: `${name} without an order. The ER nurse gives a medication on a provider's order or an approved standing order or protocol (the state Nurse Practice Act, ENA scope and standards, facility policy), and this one is on neither: the chest pain standing order covers aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs and the chest film, and the ACLS protocol the arrest drugs. Tell the ED physician what you see and what you think it needs (SBAR, closed loop), and give it once it is ordered.`,
 });
 

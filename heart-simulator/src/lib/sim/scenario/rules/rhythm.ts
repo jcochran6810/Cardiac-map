@@ -202,6 +202,8 @@ const RULES: Harm[] = [
 
   // ─── Lidocaine ─────────────────────────────────────────────────────────────
   { id: 'lidocaine-slow-or-block', actions: ['lidocaine'], when: (s) => slowOrBlocked(s), points: 10, severity: 'major', text: 'Lidocaine with heart block or a slow rate. Its label rules it out in Stokes-Adams attacks and in severe sinoatrial, AV or intraventricular block without a pacemaker: it can suppress the escape beats that keep the patient alive. Pace, or speed the rate.' },
+  // the IV lidocaine label lists Wolff-Parkinson-White syndrome among its contraindications
+  { id: 'lidocaine-preexcited-af', actions: ['lidocaine'], when: (s) => preexcitedAf(s), points: 8, severity: 'major', text: 'Lidocaine in pre-excited atrial fibrillation. Its label lists Wolff-Parkinson-White syndrome as a contraindication: it does not slow conduction down the accessory pathway and may speed it, so the ventricular rate can climb toward VF. Stable pre-excited AF gets IV procainamide (or ibutilide); unstable, synchronized cardioversion (2023 ACC/AHA/ACCP/HRS AF guideline).' },
   // a class I drug deepens the sodium-channel block the potassium has made, in a PEA arrest too. Shock-refractory VF or
   // pulseless VT still gets amiodarone or lidocaine, with calcium alongside (2025 AHA)
   { id: 'antiarrhythmic-hyperkalemia', actions: ['lidocaine', 'procainamide', 'amio-infusion', 'amio-arrest'], when: (s, sc) => hasProblem(sc, ['hyperkalemia']) && !shockable(s), points: 10, severity: 'major', text: 'An antiarrhythmic for the rhythm of hyperkalemia. The wide, slow complexes come from the potassium, not from an irritable ventricle: lidocaine, procainamide and amiodarone deepen the block the potassium has already made and can turn it into a sine wave or asystole. Calcium first, then shift the potassium (insulin with dextrose, albuterol) and remove it. (VF or pulseless VT that shocks have not fixed still gets amiodarone or lidocaine — with the calcium.)' },
@@ -251,7 +253,7 @@ const RATE_LADDER = [
 ];
 export const LADDERS: Record<string, string[]> = {
   ...Object.fromEntries(RATE_DRUGS.map((a) => [a, RATE_LADDER])),
-  lidocaine: ['lidocaine-slow-or-block', 'antiarrhythmic-hyperkalemia', 'antiarrhythmic-nonshockable', 'lidocaine-no-arrhythmia'],
+  lidocaine: ['lidocaine-slow-or-block', 'lidocaine-preexcited-af', 'antiarrhythmic-hyperkalemia', 'antiarrhythmic-nonshockable', 'lidocaine-no-arrhythmia'],
   procainamide: [
     'procainamide-in-arrest', 'procainamide-slow', 'procainamide-long-qt', 'procainamide-hypotension', 'procainamide-heart-failure',
     'procainamide-lupus', 'procainamide-after-amiodarone', 'procainamide-sodium-channel', 'antiarrhythmic-hyperkalemia', 'cardioversion-unanticoagulated',

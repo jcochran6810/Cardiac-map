@@ -393,6 +393,10 @@ describe('electrolytes, insulin and the antidotes', () => {
     // dextrose (or oral glucose) for the declared low is the treatment
     expect(ids(4, withProblems('hypoglycemia'), ['iv', 'dextrose'])).toEqual([]);
     expect(ids(2, withProblems('hypoglycemia'), ['oral-glucose'])).toEqual([]);
+    // the declared low lasts until glucose is given: dextrose, a recheck, then the insulin — the order its text advises —
+    // is judged on the glucose on the patient, and a further dextrose with the glucose up is no longer for a low
+    expect(ids(4, withProblems('hyperkalemia', 'hypoglycemia'), ['iv', 'dextrose', 'glucose', 'insulin-dextrose'])).toEqual([]);
+    expect(ids(4, withProblems('hypoglycemia'), ['iv', 'dextrose', 'glucose', 'dextrose'])).toEqual(['glucose-not-low']);
   });
 
   it('insulin-glucose-unchecked: the nurse who pushes it checks the glucose first', () => {

@@ -56,6 +56,11 @@ const inAnArrest = (s: SimState, minute: number) =>
 export const pressorNotLow = (s: SimState, sc: Scenario, id: string) => pressureNotLow(s, sc) && !pressorBridging(s, sc, id);
 /** Dynamic LV outflow obstruction with a pulse: what every catecholamine makes worse */
 const lvoto = (s: SimState, sc: Scenario) => s.pulse && hasProblem(sc, ['lvot-obstruction']);
+/**
+ * The case declares a low glucose (Problem 'hypoglycemia': under 70 mg/dL at the start) and no glucose has been given yet.
+ * Once dextrose or oral glucose is in, the glucose on the patient (s.vitals.glucose) decides: the declared low is treated
+ */
+const declaredLowUntreated = (s: SimState, sc: Scenario) => hasProblem(sc, ['hypoglycemia']) && !has(s, 'dextrose') && !has(s, 'oral-glucose');
 /** A bleeding patient with nothing yet given to fill the circulation */
 const noVolumeYet = (s: SimState, sc: Scenario) => s.pulse && hasProblem(sc, ['bleeding']) && !has(s, 'fluid') && !has(s, 'transfused');
 /** An unstable tachyarrhythmia — a low pressure with SVT, AF, flutter or VT at 100 or more — that no shock has yet been tried on */
@@ -153,8 +158,8 @@ export const SUPPORT_RULES: Harm[] = [
   { id: 'bicarbonate-unventilated', actions: ['sodium-bicarbonate'], when: (s, sc) => !s.pulse && !ventilated(s) && !bicarbonateNoIndication(s, sc), points: 2, severity: 'minor', text: 'Sodium bicarbonate in a cardiac arrest with nobody breathing for the patient. It turns into CO₂ that only breaths can clear: unventilated, the CO₂ builds up in the blood and the cells and deepens the acidosis inside them. Bag-mask (or an airway) first.' },
   // Insulin. Gate order: insulin-hypoglycemia and insulin-no-indication > insulin-glucose-unchecked
   // a label contraindication (regular insulin: contraindicated during episodes of hypoglycemia) — the glucose on the
-  // patient now, or a low the case declares (Problem 'hypoglycemia')
-  { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s, sc) => s.vitals.glucose < LOW_GLUCOSE || hasProblem(sc, ['hypoglycemia']), points: 15, severity: 'critical', text: 'Insulin with a blood glucose under 70 mg/dL. Its label rules insulin out during hypoglycemia: it drives the glucose lower, and the worst lows come 1–3 hours later. Give dextrose first (D10 in steps, or D50 25 g) and recheck the glucose in 15 minutes, then the insulin with its dextrose for the potassium — calcium protects the heart meanwhile.' },
+  // patient now, or a low the case declares (Problem 'hypoglycemia') that no glucose has treated yet
+  { id: 'insulin-hypoglycemia', actions: ['insulin-dextrose'], when: (s, sc) => s.vitals.glucose < LOW_GLUCOSE || declaredLowUntreated(s, sc), points: 15, severity: 'critical', text: 'Insulin with a blood glucose under 70 mg/dL. Its label rules insulin out during hypoglycemia: it drives the glucose lower, and the worst lows come 1–3 hours later. Give dextrose first (D10 in steps, or D50 25 g) and recheck the glucose in 15 minutes, then the insulin with its dextrose for the potassium — calcium protects the heart meanwhile.' },
   // 10 units is the potassium dose; a beta- or calcium-channel-blocker overdose needs far more, so it is too little there, not a mistake
   { id: 'insulin-no-indication', actions: ['insulin-dextrose'], when: (_s, sc) => !hasProblem(sc, ['hyperkalemia', 'beta-blocker-overdose', 'ccb-overdose']), points: 5, severity: 'minor', text: 'Insulin and dextrose without hyperkalemia. They shift potassium into the cells; with no high potassium they only risk a low glucose.' },
   // the nurses who push it (the lab nurse, the ER nurse) check the glucose first: a fingerstick, or the labs drawn. The ER
@@ -184,7 +189,7 @@ export const SUPPORT_RULES: Harm[] = [
 
   // Glucose: judged on the patient's real glucose, checked or not
   // Gate order (oral glucose): oral-glucose-cannot-swallow > glucose-not-low
-  { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s, sc, id) => s.vitals.glucose >= LOW_GLUCOSE && !hasProblem(sc, ['hypoglycemia']) && !(id === 'oral-glucose' && !canSwallow(s)), points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
+  { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s, sc, id) => s.vitals.glucose >= LOW_GLUCOSE && !declaredLowUntreated(s, sc) && !(id === 'oral-glucose' && !canSwallow(s)), points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
   { id: 'oral-glucose-cannot-swallow', actions: ['oral-glucose'], when: (s) => !canSwallow(s), points: 8, severity: 'major', text: 'Oral glucose for a patient too drowsy to swallow. It can be inhaled into the lungs: by mouth only if awake enough to swallow and protect the airway — otherwise IV dextrose (ALS).' },
 
   // Vasopressors. Gate order — the infusion and push-dose epinephrine: push-epi-in-arrest > catecholamine-lvoto >

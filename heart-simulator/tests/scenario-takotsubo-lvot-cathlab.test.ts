@@ -385,6 +385,12 @@ describe('the traps: wrong care does what it would, and costs points', () => {
     expect(penalties(back)).toEqual(['nitrate-lvoto']);
   });
 
+  it('nicardipine with the obstruction is an arterial vasodilator\'s contraindication, at the nitrates\' weight, once a dose', () => {
+    // an outflow obstruction lives on its afterload (2024 AHA/ACC HCM): not the low-pressure rule beside it
+    expect(penalties(run(sc, 5, [...MD_TO_GRADIENT, 'nicardipine']))).toEqual(['vasodilator-lvoto']);
+    expect(penalties(run(sc, 4, [...RN_TO_DROP, 'callout', 'nicardipine']))).toEqual(['vasodilator-lvoto']);
+  });
+
   it('a balloon pump makes the obstruction worse and is a critical error; the tech who readies one is stopped', () => {
     const s = run(sc, 5, [...MD_TO_GRADIENT, 'iabp']);
     expect(s.vitals.sbp).toBeLessThan(79);
@@ -494,15 +500,18 @@ describe('the nurse', () => {
     expect(penalties(midaz)).toEqual(['wrong-rn-pain']);
   });
 
-  it('an intracoronary drug drawn up unasked during the fall is refused: a nitrate at this pressure costs its contraindication, epinephrine the small cost', () => {
+  it('an intracoronary drug drawn up unasked during the fall is refused: a nitrate or epinephrine costs its contraindication, not the small cost', () => {
     const s = run(sc, 4, [...RN_TO_DROP, 'callout', 'ic-nitro']);
     expect(s.log.some((l) => l.who === 'operator' && /I didn't ask for that/.test(l.text))).toBe(true);
     // the unasked drug is a wrong answer to the team: the heavier label contraindication on the same dose — nitroglycerin
     // under 90 — charges alone (engine harmsFor), never hidden behind the 3-point rule
     expect(penalties(s)).toEqual(['nitro-hypotension']);
     expect(s.vitals.sbp).toBe(79);
-    // epinephrine down the catheter has no heavier rule here: the wrong answer alone
-    expect(penalties(run(sc, 4, [...RN_TO_DROP, 'callout', 'ic-epinephrine']))).toEqual(['unasked-ic-drug']);
+    // epinephrine down the catheter into an outflow obstruction is a contraindication too (2024 AHA/ACC HCM; InterTAK):
+    // its 10 points charge alone, for the nurse and the tech as for the operator
+    expect(penalties(run(sc, 4, [...RN_TO_DROP, 'callout', 'ic-epinephrine']))).toEqual(['catecholamine-lvoto-ic']);
+    // a wrong answer with nothing heavier against it still charges: another anticoagulant for the heparin order
+    expect(penalties(run(sc, 4, ['consent', 'bivalirudin']))).toEqual(['wrong-rn-heparin']);
   });
 
   it('the heparin order: another anticoagulant gets a word and costs points', () => {

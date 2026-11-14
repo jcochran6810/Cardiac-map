@@ -118,6 +118,21 @@ describe('the ER nurse: one act, one penalty', () => {
     expect(penaltyIds(nurse(), 6, ['iv', 'calcium-chloride', 'calcium-chloride'])).toEqual(['rn-without-order-calcium-chloride', 'calcium-no-indication']);
   });
 
+  it('one drug, one missing order: another dose or salt is not charged again, and one order covers the doses of one drug by one route', () => {
+    // adenosine 6 then 12 mg, calcium chloride then gluconate, IV then oral metoprolol: one missing order each
+    expect(penaltyIds(nurse({ rhythm: { profile: 'svt', hr: 180 } }), 6, ['iv', 'adenosine6', 'adenosine12']).filter((p) => p.startsWith('rn-without-order'))).toEqual(['rn-without-order-adenosine6']);
+    expect(penaltyIds(nurse({ problems: ['hyperkalemia'] }), 6, ['iv', 'calcium-chloride', 'calcium-gluconate'])).toEqual(['rn-without-order-calcium-chloride']);
+    expect(penaltyIds(nurse({ rhythm: { profile: 'afib', hr: 140 } }), 6, ['iv', 'metoprolol', 'metoprolol-po']).filter((p) => p.startsWith('rn-without-order'))).toEqual(['rn-without-order-metoprolol']);
+    // the ACLS order "6 mg, then 12 mg" is one order; so is IV calcium, either salt
+    const adenosineOrdered = nurse({ rhythm: { profile: 'svt', hr: 180 }, extra: { events: [standingOrders(['adenosine6'])] } });
+    expect(penaltyIds(adenosineOrdered, 6, ['iv', 'adenosine6', 'adenosine12']).filter((p) => p.startsWith('rn-without-order'))).toEqual([]);
+    const calciumOrdered = nurse({ problems: ['hyperkalemia'], extra: { events: [standingOrders(['calcium-chloride'])] } });
+    expect(penaltyIds(calciumOrdered, 6, ['iv', 'calcium-gluconate'])).toEqual([]);
+    // another route needs an order of its own
+    const ivOrdered = nurse({ rhythm: { profile: 'afib', hr: 140 }, extra: { events: [standingOrders(['metoprolol'])] } });
+    expect(penaltyIds(ivOrdered, 6, ['iv', 'metoprolol-po']).filter((p) => p.startsWith('rn-without-order'))).toEqual(['rn-without-order-metoprolol-po']);
+  });
+
   it('a contraindication still applies on top of the missing order', () => {
     const failing = nurse({ rhythm: { profile: 'afib', hr: 140 }, problems: ['heart-failure'] });
     expect(penaltyIds(failing, 6, ['iv', 'diltiazem']).sort()).toEqual(['diltiazem-heart-failure', 'rn-without-order-diltiazem']);
@@ -664,7 +679,7 @@ describe('a drug contraindication charges once for each drug given into it (rule
 
   it('a repeat of the same drug is not charged for a reason that held when it was charged; what is new still charges', () => {
     // the ER nurse's magnesium twice in a dialysis patient's heart block: the kidneys and the missing order on the first dose;
-    // the second brings nothing new (the missing indication held then, covered by the missing order)
+    // the second brings nothing new (no indication held then too: the kidneys' rule spoke for it)
     const chb = penaltyIds(SCENARIO_BY_ID['complete-heart-block-ed'], 6, ['iv', 'magnesium-sulfate', 'reassess', 'reassess', 'reassess', 'magnesium-sulfate']);
     expect(chb.filter((p) => p.startsWith('magnesium') || p.startsWith('rn-without-order'))).toEqual(['magnesium-renal-failure', 'rn-without-order-magnesium-sulfate']);
     // a reason that did not hold then still charges: the pressure the first nitrate crashed (see the ACS gate's tests)

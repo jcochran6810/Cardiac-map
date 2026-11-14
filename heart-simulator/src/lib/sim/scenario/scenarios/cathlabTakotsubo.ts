@@ -427,6 +427,8 @@ function betaBlocker(s: SimState, given: string, name: string): Effect | null {
 }
 
 const NITRATE_TEXT = 'A nitrate with dynamic outflow obstruction. Nitroglycerin lowers the preload and the afterload — the two things holding the outflow tract open — so the ventricle empties faster, the gradient climbs and the pressure falls (InterTAK 2018: avoid nitroglycerin with LV outflow tract obstruction). For her pain, a small dose of fentanyl.';
+/** Nicardipine with the outflow obstruction (2024 AHA/ACC HCM: vasodilators worsen it; InterTAK 2018) */
+const VASODILATOR_TEXT = 'An arterial vasodilator with dynamic outflow obstruction. Nicardipine takes away the afterload that holds the outflow tract open: the hyperdynamic base empties the ventricle faster, the gradient climbs and the pressure falls (2024 AHA/ACC HCM: vasodilators worsen obstruction; InterTAK). Fluid and phenylephrine.';
 
 export const cathlabTakotsubo: Scenario = {
   id: 'takotsubo-lvot-cathlab',
@@ -865,6 +867,9 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'access-no-consent', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'consent') && has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi'], roles: [4, 5], when: (s) => s.pulse, replaces: ['pressor-no-hypotension'], points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
     { id: 'catecholamine-lvoto-ic', actions: ['ic-epinephrine'], roles: MD, when: (s) => s.pulse, replaces: ['ic-epi-no-indication'], points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
+    // the nurse or the tech who draws intracoronary epinephrine up unasked during the fall: the same contraindication, which
+    // outweighs the unasked drug's wrong answer (engine harmsFor: the heavier charges alone)
+    { id: 'catecholamine-lvoto-ic', actions: ['ic-epinephrine'], roles: [3, 4], when: (s) => s.pulse && has(s, 'obstructed'), replaces: ['ic-epi-no-indication'], points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
     // the case's own obstruction (a flag, not a Problem: it begins on the table): it stands in for every built-in inotrope rule
     {
       id: 'inotrope-lvoto', actions: ['inotrope'], roles: [4, 5], when: (s) => s.pulse, points: 10, severity: 'major',
@@ -876,6 +881,8 @@ export const cathlabTakotsubo: Scenario = {
       replaces: ['furosemide-hypotension', 'furosemide-preload-dependent', 'furosemide-anuria', 'furosemide-no-indication'],
       text: 'A diuretic during the outflow obstruction. A ventricle that obstructs needs filling to hold its outflow tract open: taking volume off narrows it further, and the gradient climbs as the pressure falls (2024 AHA/ACC HCM guideline: no diuretics in hypotension with obstruction). Fluid and phenylephrine instead.',
     },
+    // an arterial vasodilator takes away the afterload the outflow tract lives on: the nitrates' weight, one penalty a dose
+    { id: 'vasodilator-lvoto', actions: ['nicardipine'], roles: [4, 5], when: (s) => s.pulse && has(s, 'obstructed'), replaces: ['nicardipine-outflow-obstruction', 'vasodilator-hypotension', 'nicardipine-no-hypertension'], points: 10, severity: 'major', text: VASODILATOR_TEXT },
     { id: 'nitrate-lvoto', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: [4, 5], replaces: NITRATE_RULES, when: (s) => s.pulse && has(s, 'obstructed'), points: 10, severity: 'major', text: NITRATE_TEXT },
     { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail', 'ic-nitroprusside'], roles: MD, when: (s) => s.pulse && has(s, 'obstructed'), replaces: [...NITRATE_RULES, ...RATE_RULES], points: 10, severity: 'major', text: NITRATE_TEXT },
     // the built-in rule, kept for the time before the fall (afterwards nitrate-lvoto covers it): one mistake, one penalty

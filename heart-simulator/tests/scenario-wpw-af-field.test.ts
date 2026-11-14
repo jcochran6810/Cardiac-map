@@ -309,7 +309,7 @@ describe('pre-excited AF in the field — delay, procainamide and the other drug
     expect(s.penalties).toEqual([]);
   });
 
-  it('magnesium and a vagal maneuver act on the node, not the pathway: nothing changes, a minor penalty; so is lidocaine (its label rules it out in WPW)', () => {
+  it('magnesium and a vagal maneuver act on the node, not the pathway: nothing changes, a minor penalty; lidocaine is its label contraindication in WPW', () => {
     for (const [drug, harm] of [['magnesium-sulfate', 'magnesium-preexcited-af'], ['vagal', 'vagal-preexcited-af']]) {
       const s = medic([...WORKED_UP, drug]);
       expect(s.rhythm, drug).toEqual(PREEXCITED);
@@ -317,7 +317,8 @@ describe('pre-excited AF in the field — delay, procainamide and the other drug
     }
     const s = medic([...WORKED_UP, 'lidocaine']);
     expect(s.rhythm).toEqual(PREEXCITED);
-    expect(s.penalties).toEqual([expect.objectContaining({ id: 'lidocaine-no-arrhythmia', points: 3, severity: 'minor' })]);
+    // the IV lidocaine label lists Wolff-Parkinson-White syndrome as a contraindication: it may speed conduction down the pathway
+    expect(s.penalties).toEqual([expect.objectContaining({ id: 'lidocaine-preexcited-af', points: 8, severity: 'major' })]);
     expect(s.log.at(-1)!.text).toBe('No change: heart rate 214.');
   });
 

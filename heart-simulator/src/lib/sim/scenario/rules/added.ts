@@ -46,7 +46,9 @@ const beforeRateControl = (s: SimState, sc: Scenario) => s.pulse && vasodilatorB
 
 /** The nicardipine rules, in their gate order */
 const NICARDIPINE: [string, Check][] = [
-  ['nicardipine-aortic-stenosis', (_s, sc) => hasProblem(sc, ['severe-aortic-stenosis'])],
+  // an outflow obstruction, fixed (severe aortic stenosis: its label contraindication) or dynamic (obstructive HCM, Takotsubo
+  // with LVOTO) — every other preload or afterload rule reads both (outflowObstruction)
+  ['nicardipine-outflow-obstruction', (_s, sc) => outflowObstruction(sc)],
   ['vasodilator-hypotension', (s) => lowPressure(s)],
   ['nicardipine-no-hypertension', (s) => s.vitals.sbp < 120],
 ];
@@ -132,8 +134,8 @@ export const ADDED_RULES: Harm[] = [
 
   // Nicardipine (or clevidipine): its label contraindication, a low pressure, and no high pressure to treat
   {
-    id: 'nicardipine-aortic-stenosis', actions: ['nicardipine'], when: (s, sc) => nicardipineRule(s, sc) === 'nicardipine-aortic-stenosis', points: 10, severity: 'major',
-    text: 'Nicardipine with severe aortic stenosis. A fixed narrowing lets the output rise no further, so an arterial vasodilator only drops the pressure — and with it the flow to a thick, hungry heart muscle (nicardipine label: advanced aortic stenosis; clevidipine label: severe aortic stenosis). Lower a high pressure there only with invasive monitoring, slowly.',
+    id: 'nicardipine-outflow-obstruction', actions: ['nicardipine'], when: (s, sc) => nicardipineRule(s, sc) === 'nicardipine-outflow-obstruction', points: 10, severity: 'major',
+    text: 'Nicardipine with an LV outflow obstruction — fixed (severe aortic stenosis) or dynamic (obstructive HCM, Takotsubo with outflow obstruction). Against a fixed narrowing the output can rise no further, so an arterial vasodilator only drops the pressure and the flow to a thick, hungry heart muscle (nicardipine label: advanced aortic stenosis; clevidipine label: severe aortic stenosis); a dynamic obstruction lives on the afterload, and taking it away makes the gradient climb and the pressure fall (2024 AHA/ACC HCM). Fluid and phenylephrine for the pressure; lower a high one in aortic stenosis only with invasive monitoring, slowly.',
   },
   {
     id: 'vasodilator-hypotension', actions: ['nicardipine'], when: (s, sc) => nicardipineRule(s, sc) === 'vasodilator-hypotension', points: 8, severity: 'major',

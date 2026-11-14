@@ -128,10 +128,12 @@ const edLine = (over: Partial<Parameters<typeof fixture>[0]> = {}) => opened('ed
 const HIGH = { sbp: 190, dbp: 110 };
 const LOW = { sbp: 82, dbp: 50 };
 
-describe('nicardipine: aortic stenosis, a low pressure, no high pressure (in that order); before the rate drug in a dissection it stands aside', () => {
+describe('nicardipine: an outflow obstruction, a low pressure, no high pressure (in that order); before the rate drug in a dissection it stands aside', () => {
   it('each fires in its state, and the one before it wins for one dose', () => {
-    expect(penaltyIds(edLine({ vitals: HIGH, problems: ['severe-aortic-stenosis'] }), 7, ['nicardipine'])).toEqual(['nicardipine-aortic-stenosis']);
-    expect(penaltyIds(edLine({ vitals: LOW, problems: ['severe-aortic-stenosis'] }), 7, ['nicardipine'])).toEqual(['nicardipine-aortic-stenosis']);
+    // a dynamic outflow obstruction too (obstructive HCM, Takotsubo with LVOTO), as every other afterload and preload rule reads
+    expect(penaltyIds(edLine({ vitals: { sbp: 130, dbp: 80 }, problems: ['lvot-obstruction'] }), 7, ['nicardipine'])).toEqual(['nicardipine-outflow-obstruction']);
+    expect(penaltyIds(edLine({ vitals: HIGH, problems: ['severe-aortic-stenosis'] }), 7, ['nicardipine'])).toEqual(['nicardipine-outflow-obstruction']);
+    expect(penaltyIds(edLine({ vitals: LOW, problems: ['severe-aortic-stenosis'] }), 7, ['nicardipine'])).toEqual(['nicardipine-outflow-obstruction']);
     expect(penaltyIds(edLine({ vitals: LOW }), 7, ['nicardipine'])).toEqual(['vasodilator-hypotension']);
     expect(penaltyIds(edLine({ vitals: { sbp: 112, dbp: 70 } }), 7, ['nicardipine'])).toEqual(['nicardipine-no-hypertension']);
   });
@@ -152,11 +154,11 @@ describe('nicardipine: aortic stenosis, a low pressure, no high pressure (in tha
   });
 
   it('an exemption of the top rank only: the next rank judges the dose', () => {
-    expect(penaltyIds(edLine({ vitals: LOW, problems: ['severe-aortic-stenosis'], harms: [exempt('nicardipine-aortic-stenosis', ['nicardipine'])] }), 7, ['nicardipine'])).toEqual(['vasodilator-hypotension']);
+    expect(penaltyIds(edLine({ vitals: LOW, problems: ['severe-aortic-stenosis'], harms: [exempt('nicardipine-outflow-obstruction', ['nicardipine'])] }), 7, ['nicardipine'])).toEqual(['vasodilator-hypotension']);
   });
 
   it('same-id case rules replace them; nothing in an arrest', () => {
-    const harms = ['nicardipine-aortic-stenosis', 'vasodilator-hypotension', 'nicardipine-no-hypertension'].map((id) => exempt(id, ['nicardipine']));
+    const harms = ['nicardipine-outflow-obstruction', 'vasodilator-hypotension', 'nicardipine-no-hypertension'].map((id) => exempt(id, ['nicardipine']));
     expect(penaltyIds(edLine({ vitals: LOW, problems: ['severe-aortic-stenosis'], harms }), 7, ['nicardipine'])).toEqual([]);
     expect(penaltyIds(edLine({ vitals: LOW, harms }), 7, ['nicardipine'])).toEqual([]);
     const vf = opened('ed', 7, ['iv'], { rhythm: { profile: 'vf', hr: 0 }, pulse: false });

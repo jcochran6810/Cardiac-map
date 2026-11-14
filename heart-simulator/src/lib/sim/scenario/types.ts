@@ -336,8 +336,19 @@ export type Problem =
   | 'hit'
   /** platelets under 100,000 */
   | 'thrombocytopenia'
-  /** any intracranial hemorrhage, now or ever */
+  /**
+   * any intracranial hemorrhage, now or ever: a fibrinolytic's absolute contraindication however long ago (2013 ACCF/AHA
+   * STEMI table, kept in 2025), eptifibatide's (any hemorrhagic stroke) and ticagrelor's and prasugrel's (labels). An old,
+   * healed bleed does not rule out aspirin, clopidogrel or heparin (their labels: active bleeding) — a bleed now is
+   * 'acute-intracranial-hemorrhage'
+   */
   | 'intracranial-hemorrhage'
+  /**
+   * a bleed in the head now (acute or recent, not yet healed): every antiplatelet, anticoagulant and fibrinolytic is ruled
+   * out (aspirin, P2Y12 inhibitor, heparin, bivalirudin and cangrelor labels: active intracranial bleeding), and a nitrate
+   * (label: increased intracranial pressure). It counts as an intracranial hemorrhage ever too
+   */
+  | 'acute-intracranial-hemorrhage'
   /**
    * an ischemic stroke within 3 months: an absolute contraindication to a lytic for a STEMI (2013 ACCF/AHA, kept in 2025
    * ACC/AHA ACS). A stroke under way now is 'stroke'; a TIA is not this one (see prior-stroke)

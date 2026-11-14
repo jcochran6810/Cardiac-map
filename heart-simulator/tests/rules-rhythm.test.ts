@@ -317,9 +317,9 @@ describe('rate-drug-in-arrest', () => {
     expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'amio-infusion'])).toEqual(['rn-without-order-amio-infusion']);
     expect(pen(edRn({ rhythm: VF, pulse: false, extra: ordered('amio-infusion') }), ['io', 'amio-infusion'])).toEqual(['rate-drug-in-arrest']);
     expect(pen(edMd({ rhythm: VF, pulse: false }), ['io', 'amio-infusion'])).toEqual(['rate-drug-in-arrest']);
-    // her second unordered dose of the same drug: the missing order covered the indication when it was charged, and a
-    // repeat of the same drug is not charged again for a reason that held then (rules/charge.ts coveredBefore)
-    expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'adenosine12', 'adenosine12'])).toEqual(['rn-without-order-adenosine12']);
+    // her second unordered dose: the missing order is charged already, so the drug's own mistake is (the missing order
+    // covers the indication for its own act only)
+    expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'adenosine12', 'adenosine12'])).toEqual(['rn-without-order-adenosine12', 'rate-drug-in-arrest']);
     // a different drug is judged anew: its own missing order (the indication stands aside for it again)
     expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'adenosine12', 'amio-infusion'])).toEqual(['rn-without-order-adenosine12', 'rn-without-order-amio-infusion']);
   });
@@ -361,9 +361,18 @@ describe('antiarrhythmic-nonshockable', () => {
 });
 
 describe('lidocaine-no-arrhythmia', () => {
-  it('fires for lidocaine with a pulse and no ventricular arrhythmia — pre-excited AF too (its label rules out WPW)', () => {
+  it('fires for lidocaine with a pulse and no ventricular arrhythmia; pre-excited AF is its label contraindication, ranked above', () => {
     expect(pen(field(), ['iv', 'lidocaine'])).toEqual(['lidocaine-no-arrhythmia']);
-    expect(pen(field({ rhythm: PREEXCITED, vitals: { sbp: 110 } }), ['iv', 'lidocaine'])).toEqual(['lidocaine-no-arrhythmia']);
+    // the IV lidocaine label lists Wolff-Parkinson-White syndrome among its contraindications (8, major), whatever the pressure
+    expect(pen(field({ rhythm: PREEXCITED, vitals: { sbp: 110 } }), ['iv', 'lidocaine'])).toEqual(['lidocaine-preexcited-af']);
+    expect(pen(field({ rhythm: PREEXCITED, vitals: { sbp: 84, dbp: 50 } }), ['iv', 'lidocaine'])).toEqual(['lidocaine-preexcited-af']);
+    expect(BUILT_IN_HARMS.find((h) => h.id === 'lidocaine-preexcited-af')).toMatchObject({ points: 8, severity: 'major' });
+    expect(LIDOCAINE_RULES).toContain('lidocaine-preexcited-af');
+  });
+
+  it('the ER nurse without an order: the contraindication still charges beside the missing order (the indication stands aside)', () => {
+    const rn = fixture({ setting: 'ed', role: 6, rhythm: PREEXCITED, vitals: { sbp: 120 } });
+    expect(penaltyIds(rn, 6, ['iv', 'lidocaine'])).toEqual(['lidocaine-preexcited-af', 'rn-without-order-lidocaine']);
   });
 
   it('does not fire for VT or torsades, or after ROSC (it may be considered then)', () => {

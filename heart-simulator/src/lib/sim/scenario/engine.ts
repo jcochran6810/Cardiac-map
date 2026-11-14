@@ -31,7 +31,7 @@ import { BUILT_IN_HARMS } from './rules';
 import { NITRATE_CHECKS, sedationForProcedure } from './rules/acs';
 import { caseChargesPerDrug, chargedAgainst, chargesPerDrug, holdingNow, isNitrateCheck, rankOf } from './rules/charge';
 import { SECOND_ANTIARRHYTHMIC } from './rules/rhythm';
-import { INDICATION_RULES, RN_ORDER_ONLY, missingOrderCovers } from './rules/scope';
+import { INDICATION_RULES, RN_ORDER_ONLY, SCOPE_RULES, missingOrderCovers } from './rules/scope';
 import {
   cprThisArrest, did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, outflowObstruction, preexcitedAf, preloadDependent, profileShowsStemi,
   radialSheath, rhythmKind, shockable, slowOrBlocked, tachyarrhythmia,
@@ -1020,7 +1020,7 @@ const sheathIn = (s: SimState) => has(s, 'access') && !has(s, 'hemostasis');
  */
 function p2y12Agent(s: SimState, sc: Scenario): string {
   if (has(s, 'lytic')) return 'clopidogrel 300 mg (75 mg, no load, over 75) — the only P2Y12 inhibitor with a fibrinolytic';
-  if (hasProblem(sc, ['intracranial-hemorrhage'])) return 'clopidogrel 600 mg — ticagrelor and prasugrel are contraindicated after an intracranial hemorrhage';
+  if (hasProblem(sc, ['intracranial-hemorrhage', 'acute-intracranial-hemorrhage'])) return 'clopidogrel 600 mg — ticagrelor and prasugrel are contraindicated after an intracranial hemorrhage';
   if (hasProblem(sc, ['oral-anticoagulant'])) return 'clopidogrel 600 mg — the P2Y12 inhibitor to pair with an oral anticoagulant';
   if (has(s, 'cangrelor')) return 'ticagrelor 180 mg — clopidogrel or prasugrel would wait until the cangrelor infusion ends';
   return 'ticagrelor 180 mg';
@@ -1278,18 +1278,20 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
 }
 
 /**
- * Each penalty this act kept, but a check before a nitrate, records the reasons that held for the act (rules/charge.ts
- * holdingNow) and the rank a case rule charged on it stands at — its own id when it is a built-in's, or the rank of the
- * nitrate gate it was built at. A repeat of the same drug is then not charged for them (rules/charge.ts coveredBefore): they
- * were the mistake already charged. A check speaks for no reason but itself
+ * Each penalty this act kept records the reasons that held for the act (rules/charge.ts holdingNow) and the rank a case rule
+ * charged on it stands at — its own id when it is a built-in's, or the rank of the nitrate gate it was built at. A repeat of
+ * the same drug is then not charged for them (rules/charge.ts coveredBefore): they were the mistake already charged. Two
+ * kinds speak for no reason but their own: a check before a nitrate, and the ER nurse's missing order (it covers the
+ * indication for the act it is charged on only — a second unordered dose meets the indication rule, rules/scope.ts)
  */
 function noteHeld(s: SimState, from: number, chargedNow: Harm[], held: string[], builtIns: Set<Harm>) {
   const ranks = chargedNow.filter((h) => !builtIns.has(h)).flatMap((h) => [rankOf(h), BUILT_IN_HARMS.some((b) => b.id === h.id) ? h.id : undefined]);
   const all = Array.from(new Set([...held, ...ranks.filter((r): r is string => !!r)]));
   if (!all.length) return;
-  const checks = new Set(chargedNow.filter(isNitrateCheck).map((h) => h.id));
-  for (const p of s.penalties.slice(from)) if (!checks.has(p.id)) p.held = all;
+  const ownOnly = new Set(chargedNow.filter((h) => isNitrateCheck(h) || SCOPE_RULE_IDS.has(h.id)).map((h) => h.id));
+  for (const p of s.penalties.slice(from)) if (!ownOnly.has(p.id)) p.held = all;
 }
+const SCOPE_RULE_IDS = new Set(SCOPE_RULES.map((h) => h.id));
 
 const SEVERITY_RANK: Record<Harm['severity'], number> = { minor: 1, major: 2, critical: 3 };
 /**

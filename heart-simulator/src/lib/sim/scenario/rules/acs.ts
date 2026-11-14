@@ -356,9 +356,10 @@ const LYTIC_GATE = gate([
   {
     // a stroke under way now: an ischemic stroke within 3 months, and before a CT a bleed is not excluded (the stroke dose of
     // alteplase or tenecteplase is the stroke team's decision, not a STEMI or PE dose)
-    id: 'lytic-absolute', actions: LYTICS, applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'stroke', 'intracranial-risk', 'bleeding']),
+    id: 'lytic-absolute', actions: LYTICS,
+    applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'acute-intracranial-hemorrhage', 'recent-stroke', 'stroke', 'intracranial-risk', 'bleeding', 'thrombocytopenia']),
     points: 15, severity: 'critical',
-    text: 'A fibrinolytic with an absolute contraindication: an intracranial hemorrhage ever, an ischemic stroke within 3 months or one under way now (before a CT has excluded a bleed), an intracranial lesion (an AVM, an aneurysm, a tumor), significant head or face trauma within 3 months, brain or spinal surgery within 2 months, or active bleeding or a bleeding disorder (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels). The bleeding risk is prohibitive: primary PCI for a STEMI; for a pulmonary embolism, catheter-directed therapy or surgery.',
+    text: 'A fibrinolytic with an absolute contraindication: an intracranial hemorrhage ever, an ischemic stroke within 3 months or one under way now (before a CT has excluded a bleed), an intracranial lesion (an AVM, an aneurysm, a tumor), significant head or face trauma within 3 months, brain or spinal surgery within 2 months, or active bleeding or a bleeding disorder — platelets under 100,000 among them (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline; TNKase and Activase labels). The bleeding risk is prohibitive: primary PCI for a STEMI; for a pulmonary embolism, catheter-directed therapy or surgery.',
   },
   {
     id: 'lytic-uncontrolled-hypertension', actions: LYTICS,
@@ -391,10 +392,10 @@ const LYTIC_GATE = gate([
   },
   {
     id: 'lytic-relative', actions: LYTICS,
-    applies: (s, sc) => (!peNeedsLysis(s, sc) && hasProblem(sc, ['oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy', 'prior-stroke', 'thrombocytopenia']))
+    applies: (s, sc) => (!peNeedsLysis(s, sc) && hasProblem(sc, ['oral-anticoagulant', 'recent-surgery', 'recent-bleeding', 'pregnancy', 'prior-stroke']))
       || (ecgShowsStemi(s) && !hasProblem(sc, ['pulmonary-embolism']) && (s.counts.cpr ?? 0) * CPR_MINUTES_PER_CYCLE > 10),
     points: 5, severity: 'major',
-    text: 'A fibrinolytic with a relative contraindication: an oral anticoagulant, major surgery within 3 weeks, internal bleeding within 2–4 weeks or an active ulcer, pregnancy, platelets under 100,000, a stroke more than 3 months ago or a TIA (the TNKase label lists any earlier stroke), or more than 10 minutes of CPR (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline). For a STEMI, PCI is the safer reperfusion. (For a pulmonary embolism in shock or in arrest these are weighed against catheter-directed therapy or surgery, not counted against the lysis.)',
+    text: 'A fibrinolytic with a relative contraindication: an oral anticoagulant, major surgery within 3 weeks, internal bleeding within 2–4 weeks or an active ulcer, pregnancy, a stroke more than 3 months ago or a TIA (the TNKase label lists any earlier stroke), or more than 10 minutes of CPR (2013 ACCF/AHA STEMI table, kept by the 2025 ACC/AHA ACS guideline). For a STEMI, PCI is the safer reperfusion. (For a pulmonary embolism in shock or in arrest these are weighed against catheter-directed therapy or surgery, not counted against the lysis.)',
   },
 ]);
 
@@ -417,10 +418,11 @@ const ANTITHROMBOTIC_GATE = gate([
     text: 'Heparin for a patient with heparin-induced thrombocytopenia, now or before. It can set off a new fall in the platelets with clots in the arteries and veins (heparin label; ACCP and ASH: no heparin with HIT): anticoagulate with bivalirudin or argatroban.',
   },
   {
-    // a bleed in the head, or a stroke under way that no CT has yet shown is not one: no antithrombotic until the stroke
-    // team decides (an ischemic stroke's aspirin comes after the scan)
-    id: 'antithrombotic-intracranial', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'stroke']), points: 15, severity: 'critical',
-    text: 'An antiplatelet or anticoagulant with a bleed in the head, or a stroke under way that no CT has yet shown is not a bleed. It can turn a small bleed into a fatal one (aspirin, P2Y12 inhibitor, heparin, bivalirudin and cangrelor labels: active pathological or intracranial bleeding; AHA/ASA stroke guidelines: no antithrombotic before the scan, and none within 24 hours of thrombolysis): get the CT, and leave the antithrombotic drugs to the stroke team.',
+    // a bleed in the head now, or a stroke under way that no CT has yet shown is not one: no antithrombotic until the stroke
+    // team decides (an ischemic stroke's aspirin comes after the scan). An old, healed bleed is no bar to aspirin, clopidogrel
+    // or heparin (their labels: active bleeding); eptifibatide's label rules out any (gp-contraindicated)
+    id: 'antithrombotic-intracranial', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['acute-intracranial-hemorrhage', 'stroke']), points: 15, severity: 'critical',
+    text: 'An antiplatelet or anticoagulant with a bleed in the head now, or a stroke under way that no CT has yet shown is not a bleed. It can turn a small bleed into a fatal one (aspirin, P2Y12 inhibitor, heparin, bivalirudin and cangrelor labels: active pathological or intracranial bleeding; AHA/ASA stroke guidelines: no antithrombotic before the scan, and none within 24 hours of thrombolysis): get the CT, and leave the antithrombotic drugs to the stroke team.',
   },
   {
     id: 'antithrombotic-bleeding', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['bleeding']), points: 10, severity: 'major',
@@ -448,7 +450,7 @@ const ANTITHROMBOTIC_GATE = gate([
   },
   {
     // the label's stroke is any within 30 days (a recent stroke here means 3 months, which covers it) or one under way now
-    id: 'gp-contraindicated', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'stroke', 'recent-surgery', 'surgery-within-6-weeks', 'recent-bleeding', 'dialysis']),
+    id: 'gp-contraindicated', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'acute-intracranial-hemorrhage', 'recent-stroke', 'stroke', 'recent-surgery', 'surgery-within-6-weeks', 'recent-bleeding', 'dialysis']),
     points: 10, severity: 'major',
     text: 'Eptifibatide with a contraindication on its label: a bleed in the head ever, a stroke now or a recent one (the label: within 30 days), major surgery within 6 weeks, bleeding within 30 days, or dialysis (Integrilin label). It doubles the bleeding risk where it is highest — and on dialysis it is not cleared at all.',
   },

@@ -409,7 +409,7 @@ describe('the fibrinolytic gate', () => {
   });
 
   it('lytic-absolute: an intracranial bleed, a recent ischemic stroke, an intracranial lesion or trauma, active bleeding', () => {
-    for (const p of ['intracranial-hemorrhage', 'recent-stroke', 'intracranial-risk', 'bleeding'] as Problem[]) expect(tnk(ed({ problems: [p] })), p).toEqual(['lytic-absolute']);
+    for (const p of ['intracranial-hemorrhage', 'acute-intracranial-hemorrhage', 'recent-stroke', 'intracranial-risk', 'bleeding'] as Problem[]) expect(tnk(ed({ problems: [p] })), p).toEqual(['lytic-absolute']);
   });
 
   it('a stroke more than 3 months ago or a TIA is a relative contraindication, never an absolute one', () => {
@@ -529,8 +529,10 @@ describe('the antithrombotic gate', () => {
     for (const p of ['recent-stroke', 'recent-surgery', 'surgery-within-6-weeks', 'recent-bleeding', 'dialysis'] as Problem[]) {
       expect(give(lab([p]), 'gp2b3a'), p).toEqual(['gp-contraindicated']);
     }
-    // a bleed in the head is every antithrombotic's contraindication, ranked over the label's list (one dose, one penalty)
-    expect(give(lab(['intracranial-hemorrhage']), 'gp2b3a')).toEqual(['antithrombotic-intracranial']);
+    // a bleed in the head now is every antithrombotic's contraindication, ranked over the label's list (one dose, one
+    // penalty); an old one is still eptifibatide's (its label: any history of hemorrhagic stroke)
+    expect(give(lab(['acute-intracranial-hemorrhage']), 'gp2b3a')).toEqual(['antithrombotic-intracranial']);
+    expect(give(lab(['intracranial-hemorrhage']), 'gp2b3a')).toEqual(['gp-contraindicated']);
     expect(give(lab(['renal-failure']), 'gp2b3a')).toEqual([]);
     expect(give(lab(), 'tnk', 'gp2b3a')).toEqual(['lytic-in-lab', 'gp-after-lytic']);
     expect(give(lab([], { vitals: { sbp: 208, dbp: 104 } }), 'gp2b3a')).toEqual(['gp-hypertension']);
@@ -756,9 +758,11 @@ describe('review fixes: the other gates', () => {
     fixture({ setting: 'ed', role: 7, rhythm: STEMI, ...over, vitals: { pain: 6, ...vitals }, extra: { noTimelyPci: true, ...extra } });
   const tnk = (sc: ReturnType<typeof fixture>, before: string[] = ['ecg12']) => penaltyIds(sc, sc.roles[0], [...before, 'iv', 'tnk']);
 
-  it('lytic-absolute: a stroke under way now; lytic-relative: platelets under 100,000', () => {
+  it('lytic-absolute: a stroke under way now, and platelets under 100,000 — a bleeding diathesis (TNKase label), as Give meds says', () => {
     expect(tnk(ed({ problems: ['stroke'] }))).toEqual(['lytic-absolute']);
-    expect(tnk(ed({ problems: ['thrombocytopenia'] }))).toEqual(['lytic-relative']);
+    expect(tnk(ed({ problems: ['thrombocytopenia'] }))).toEqual(['lytic-absolute']);
+    expect(rule('lytic-absolute').text).toMatch(/platelets under 100,000/);
+    expect(rule('lytic-relative').text).not.toMatch(/platelets/);
     expect(rule('lytic-relative').text).toMatch(/TNKase label lists any earlier stroke/);
   });
 
@@ -825,12 +829,18 @@ describe('review round: contraindications that went free, and correct care that 
       .toContain('antithrombotic-tamponade');
   });
 
-  it('antithrombotic-intracranial: a bleed in the head or a stroke not yet scanned rules every antithrombotic out (heparin-hit first)', () => {
+  it('antithrombotic-intracranial: a bleed in the head now or a stroke not yet scanned rules every antithrombotic out (heparin-hit first)', () => {
     for (const id of ['aspirin', 'heparin', 'p2y12', 'bivalirudin', 'cangrelor', 'gp2b3a']) {
-      expect(penaltyIds(lab({ problems: ['intracranial-hemorrhage'] }), 5, ['iv', id]), id).toEqual(['antithrombotic-intracranial']);
+      expect(penaltyIds(lab({ problems: ['acute-intracranial-hemorrhage'] }), 5, ['iv', id]), id).toEqual(['antithrombotic-intracranial']);
     }
+    // an old, healed bleed is no bar to the ACS antithrombotics (aspirin, clopidogrel and heparin labels: active bleeding);
+    // eptifibatide's label rules out any hemorrhagic stroke, and the P2Y12 load is clopidogrel (ticagrelor's label)
+    for (const id of ['aspirin', 'heparin', 'p2y12', 'bivalirudin', 'cangrelor']) {
+      expect(penaltyIds(lab({ problems: ['intracranial-hemorrhage'] }), 5, ['iv', id]), id).toEqual([]);
+    }
+    expect(penaltyIds(lab({ problems: ['intracranial-hemorrhage'] }), 5, ['iv', 'gp2b3a'])).toEqual(['gp-contraindicated']);
     expect(penaltyIds(ed({ problems: ['stroke', 'acs'] }), 7, ['iv', 'aspirin'])).toEqual(['antithrombotic-intracranial']);
-    expect(penaltyIds(lab({ problems: ['intracranial-hemorrhage', 'hit'] }), 5, ['iv', 'heparin'])).toEqual(['heparin-hit']);
+    expect(penaltyIds(lab({ problems: ['acute-intracranial-hemorrhage', 'hit'] }), 5, ['iv', 'heparin'])).toEqual(['heparin-hit']);
     expect(penaltyIds(lab({ problems: ['prior-stroke'] }), 5, ['iv', 'heparin'])).toEqual([]);
   });
 
