@@ -2,6 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Vitals } from '../type
 import { atRate, bpAfter, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder } from '../edKit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Acute type A aortic dissection in the emergency department. A 63-year-old man whose blood pressure has gone untreated
@@ -703,7 +704,7 @@ export const edDissection: Scenario = {
     // both
     { id: 'handoff', label: 'Hand-off to the operating room team (SBAR)', why: 'The onset and the pain, the pressure in each arm, the murmur, the scans, every drug and dose — and what was held (aspirin, heparin) — his rate and pressure now, and the blood on hold.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the chest pain standing order's aspirin is this case's main trap for the nurse; heparin or a P2Y12 would also be given
       // with no order, so this rule stands for that one too (one mistake, one penalty)
@@ -738,11 +739,11 @@ export const edDissection: Scenario = {
       text: 'High-dose nitroglycerin without a high blood pressure.',
     },
     {
-      id: 'rate-drug-low', actions: RATE_DRUGS, when: (s) => s.pulse && (bled(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), points: 8, severity: 'major',
+      id: 'rate-drug-low', actions: RATE_DRUGS, when: (s) => s.pulse && (bled(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in shock, or with a systolic under 100 or a rate under 60. With a torn aorta a falling pressure means tamponade, rupture or a badly leaking aortic valve: slowing the heart takes away the rate that is holding up his output.',
     },
     {
-      id: 'second-rate-drug', actions: RATE_DRUGS, when: (s) => s.pulse && has(s, 'rate-controlled') && s.vitals.sbp >= 100 && s.rhythm.hr >= 60, points: 3, severity: 'minor',
+      id: 'second-rate-drug', actions: RATE_DRUGS, when: (s) => s.pulse && has(s, 'rate-controlled') && s.vitals.sbp >= 100 && s.rhythm.hr >= 60, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'A second rate-slowing drug with the rate already at 60–80. More beta-blocker or diltiazem now only adds bradycardia (and with the aortic valve leaking, a slow rate lets more blood fall back into the ventricle): a systolic still over 120 needs a vasodilator.',
     },
     {
@@ -804,9 +805,9 @@ export const edDissection: Scenario = {
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
     // the nurse's answer to an order that is not the order: a medication error, scored once (not also as a drug with no order)
-    askHarm(RN_BETA, 'Diltiazem in place of the metoprolol the physician ordered. He has no reason not to take a beta-blocker, the drug the guideline puts first (2022 ACC/AHA); diltiazem is for a patient who cannot. Give the drug, the dose and the route that were ordered — read the order back, and ask if it seems wrong.', 5),
+    { ...askHarm(RN_BETA, 'Diltiazem in place of the metoprolol the physician ordered. He has no reason not to take a beta-blocker, the drug the guideline puts first (2022 ACC/AHA); diltiazem is for a patient who cannot. Give the drug, the dose and the route that were ordered — read the order back, and ask if it seems wrong.', 5), replaces: RATE_RULES },
     askHarm(RN_VASODILATOR, 'Nitroglycerin 0.8 mg when 0.4 mg was ordered. Twice the ordered dose of a vasodilator in a patient whose pressure is coming down to a goal of 100–120 is a medication error: give the dose that was ordered, read it back, and recheck the pressure in the higher arm.'),
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Blood pressure in both arms', actions: ['bp-both-arms'], target: 10 },

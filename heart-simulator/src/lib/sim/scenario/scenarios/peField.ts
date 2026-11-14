@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Pulmonary embolism with obstructive shock, in the field. A 45-year-old woman ten days after a plate and screws for a
@@ -596,7 +597,7 @@ export const peField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'Report the sudden onset and the faint, the surgery and the swollen calf, the pressures and the neck veins with clear lungs, the 12-lead, what was given — and what was held (fluid, nitroglycerin, CPAP).', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // one small bolus is tolerated; a second is beyond the 500 mL that cautious volume loading allows
       id: 'fluid-loading-pe', actions: ['fluid'], when: (s) => s.pulse && count(s, 'fluid') >= 1, points: 10, severity: 'major',
@@ -614,12 +615,12 @@ export const peField: Scenario = {
     {
       // the fast rate is her compensation, not an arrhythmia; it stands in for the low-pressure procainamide rule
       id: 'rate-control-pe', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: ['procainamide-hypotension'],
+      replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert her rhythm. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest.',
     },
     {
       // magnesium is for torsades: here it only drops the pressure (the engine's default answer)
-      id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal', 'magnesium-sulfate'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal', 'magnesium-sulfate'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'vagal-slow', 'magnesium-no-indication'], points: 3, severity: 'minor',
       text: 'A vagal maneuver, adenosine, lidocaine or magnesium for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down, a pause or a vasodilating drug cuts the output she has left.',
     },
     {
@@ -642,10 +643,10 @@ export const peField: Scenario = {
     },
     {
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
-      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest', ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt'],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause.',
     },
-  ],
+  ]),
   timings: [
     { label: 'High-flow oxygen', actions: ['o2-nrb'], target: 5 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },

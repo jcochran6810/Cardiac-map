@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo, physicianOrder } from '../edKit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Pulmonary embolism with shock, in the emergency department. A 52-year-old woman, four days after a 15-hour flight and
@@ -873,7 +874,7 @@ export const edPeLysis: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off to the ICU team', roles: ED_TEAM, points: 5, done: ['handoff'], why: 'The faint and the story, the scan, the 12-lead, every drug and when — the heparin, the norepinephrine, the alteplase and when it ends (then the heparin restarts) — the bleeding seen, and the rescue plan if she worsens.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // before anyone has looked at her IVC one small bolus is a fair try; after the doctor's own scan shows it full, it is not
       id: 'fluid-full-ivc', actions: ['fluid'], roles: ED_MD, when: (s) => s.pulse && count(s, 'fluid') === 0 && has(s, 'pocus'), points: 3, severity: 'minor',
@@ -919,25 +920,26 @@ export const edPeLysis: Scenario = {
     {
       // the fast rate is her compensation, not an arrhythmia; it stands in for the low-pressure procainamide rule
       id: 'rate-control-pe', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: ['procainamide-hypotension'],
+      replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert her rhythm. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest.',
     },
     {
       // the nurse's version also stands for the missing order (and, like the doctor's, for the low-pressure procainamide rule)
       id: 'rate-control-pe-rn', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: [...noOrder(['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide']), 'procainamide-hypotension'],
+      replaces: [...noOrder(['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide']), 'procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert her rhythm, with no order. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest — and none of them is on a standing order. Tell the physician what you see instead.',
     },
     {
       // the doctor's, and the nurse's vagal maneuver (it needs no order); her drugs are the rule below
       id: 'no-arrhythmia-pe', actions: ['adenosine6', 'adenosine12', 'lidocaine', 'vagal'], roles: ED_TEAM,
       when: (s, _sc, id) => s.pulse && (s.role !== 6 || id === 'vagal'), points: 3, severity: 'minor',
+      replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'vagal-slow'],
       text: 'A vagal maneuver, adenosine or lidocaine for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break, and bearing down or a pause cuts the output she has left.',
     },
     {
       // the nurse's version also stands for the missing order, at the order's weight, and says so
       id: 'no-arrhythmia-pe-rn', actions: ['adenosine6', 'adenosine12', 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
-      replaces: noOrder(['adenosine6', 'adenosine12', 'lidocaine']),
+      replaces: [...noOrder(['adenosine6', 'adenosine12', 'lidocaine']), ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'Adenosine or lidocaine with no order, for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break — and with a pulse neither drug is on a standing order. Tell the physician what you see instead.',
     },
     {
@@ -980,14 +982,27 @@ export const edPeLysis: Scenario = {
       text: 'Transferring her out of a hospital that has everything she needs — an ICU, a PE response team, catheter-directed therapy, cardiac surgery and ECMO. A transport of a patient in shock, on a lytic and a vasopressor, only adds risk: admit her to your ICU.',
     },
     {
-      // one penalty for the drug that has no place in PEA: for the nurse it also stands for the missing order of those that
-      // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
+      // one penalty for the drug that has no place in PEA. The ER nurse's lidocaine and arrest dose of amiodarone need no
+      // order in an arrest (they are the code leader's): her other drugs are the twin below, which also stands for the order
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
-      roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
-      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'])],
+      roles: ED_TEAM, when: (s, _sc, id) => !s.pulse && (s.role !== 6 || ['amio-arrest', 'lidocaine'].includes(id)), points: 3, severity: 'minor',
+      replaces: [
+        'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
+        ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
+      ],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the clot, and a lytic for it.',
     },
-  ],
+    {
+      // the nurse's version also stands for the missing order, at the order's weight, and says so
+      id: 'antiarrhythmic-pea-rn', actions: ['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
+      roles: ED_RN, when: (s) => !s.pulse, points: 5, severity: 'major',
+      replaces: [
+        'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
+        ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
+      ],
+      text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, metoprolol and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the clot, and a lytic for it.',
+    },
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Heparin in', actions: ['heparin'], flag: 'heparin' },

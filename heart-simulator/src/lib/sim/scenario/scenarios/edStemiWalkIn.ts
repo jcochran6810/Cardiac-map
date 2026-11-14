@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { allOf, bpAfter, firstDone, has, shocks, PADS } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A walk-in anterior STEMI in a PCI-capable emergency department, on a Saturday evening (the cath lab team is on call from
@@ -528,7 +529,7 @@ export const edStemiWalkIn: Scenario = {
       why: 'SBAR with the times (onset, arrival, 12-lead, activation), every drug with its dose and time (aspirin, heparin, ticagrelor, fentanyl), the tadalafil (no nitrates for 48 hours), the VF and the shock, allergies, weight, kidney function and the IV.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the standing order's own exclusion: one rule for both roles, whether or not anyone asked
       id: 'nitro-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, points: 10, severity: 'major',
@@ -536,13 +537,13 @@ export const edStemiWalkIn: Scenario = {
       text: 'Nitroglycerin within 48 hours of tadalafil. His "pill for my prostate" is tadalafil 5 mg, taken this morning: a PDE-5 inhibitor and a nitrate together can drop the pressure profoundly — no nitrate within 48 hours of tadalafil, 24 hours of sildenafil or vardenafil, 12 hours of avanafil. Ask by name before every nitrate (the chest pain standing order excludes it too); if the pressure falls, lay him flat and give a small fluid bolus, and treat the pain with a small dose of an IV opioid instead.',
     },
     {
-      id: 'rate-drug-heart-failure', actions: ['metoprolol', 'diltiazem'], roles: ED_MD, when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'rate-drug-heart-failure', actions: ['metoprolol', 'diltiazem'], roles: ED_MD, when: (s) => s.pulse, replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'An IV beta-blocker or diltiazem in an anterior STEMI with crackles at both bases. Signs of heart failure (Killip II or worse), a low-output state and a risk of cardiogenic shock are contraindications to early beta-blockade (ACC/AHA ACS guidelines): the drug takes away output the injured heart needs, and in COMMIT early IV metoprolol caused more cardiogenic shock than it prevented. An oral beta-blocker comes within 24 hours, once the heart failure has settled; diltiazem has no place in it.',
     },
     {
       // one penalty for the nurse: the drug is wrong for him, and it was never ordered
       id: 'rn-rate-drug-heart-failure', actions: ['metoprolol', 'diltiazem'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem'],
+      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem', ...RATE_RULES],
       text: 'IV metoprolol or diltiazem with no order, in an anterior STEMI with crackles at both bases. With signs of heart failure they take away output the injured heart needs and can tip him into cardiogenic shock (COMMIT; ACC/AHA ACS guidelines) — and the ER nurse gives them only on the physician\'s order. Report the rate, the pressure and the lungs, and let the physician decide.',
     },
     {
@@ -580,14 +581,17 @@ export const edStemiWalkIn: Scenario = {
     },
     {
       // with his own sinus rhythm there is nothing for an antiarrhythmic to treat; after the VF and the shock it is no mistake
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse && !has(s, 'rosc'), points: 3, severity: 'minor',
-      text: 'An antiarrhythmic with no arrhythmia to treat. Prophylactic lidocaine in an acute MI prevents some VF without saving lives, and amiodarone or procainamide only drop the pressure of a failing heart: the protection against VF is the monitor and the pads, a shock the moment it comes, and the artery opened.',
+      // (an antiarrhythmic to hold the rhythm), but adenosine still has nothing to treat. The same id as the built-in rule,
+      // which it hides for every action: so it says adenosine too
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide', 'adenosine6', 'adenosine12'], roles: ED_MD,
+      when: (s, _sc, id) => s.pulse && (!has(s, 'rosc') || id.startsWith('adenosine')), replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
+      text: 'An antiarrhythmic with no arrhythmia to treat. Prophylactic lidocaine in an acute MI prevents some VF without saving lives, amiodarone or procainamide only drop the pressure of a failing heart, and adenosine only pauses a sinus rhythm: the protection against VF is the monitor and the pads, a shock the moment it comes, and the artery opened.',
     },
     {
       // the nurse's amiodarone or procainamide is already scored as given without an order (the built-in rule, which keeps
       // working after ROSC); lidocaine is an arrest drug on her protocol, so with a pulse the case says it
       id: 'rn-lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
-      replaces: ['rn-without-order-lidocaine'],
+      replaces: ['rn-without-order-lidocaine', ...LIDOCAINE_RULES],
       text: 'Lidocaine with a pulse, and no order. With his own rhythm there is no arrhythmia to treat — prophylactic lidocaine in an acute MI prevents some VF without saving lives — and outside a code the ER nurse gives an antiarrhythmic only on the physician\'s order. The protection against VF is the monitor and the pads, and a shock the moment it comes.',
     },
     {
@@ -600,7 +604,7 @@ export const edStemiWalkIn: Scenario = {
       id: 'pressor-normal-pressure', actions: ['pressor', 'push-epi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.sbp >= 100, points: 3, severity: 'minor',
       text: 'A vasopressor with a normal blood pressure. It raises the afterload and the oxygen demand of a heart whose artery is shut, and drives the rate; it is for a pressure that has fallen and does not come back with fluid.',
     },
-  ],
+  ]),
   timings: TIMINGS,
   cathLabMinutes: CATH_MINUTES,
   teaching: [

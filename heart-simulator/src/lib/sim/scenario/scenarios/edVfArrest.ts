@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { arrestEtco2, bpAfter, count, firstDone, has, mapOf, ventilated } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A witnessed, monitored cardiac arrest in the emergency department. A 61-year-old man came in 40 minutes ago with two
@@ -856,7 +857,7 @@ export const edVfArrest: Scenario = {
       why: 'SBAR with the times: the collapse, each shock, each drug and its time, the airway, ROSC, the post-arrest pressure and the norepinephrine, the 12-lead, the neuro exam and the temperature control, the IV and his allergies (none).',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'airway-before-shock', actions: ['airway'], when: (s) => shockDue(s), points: 8, severity: 'major',
       text: 'Intubating while the shock waits. The defibrillator was ready and the rhythm called for a shock: the laryngoscope stopped the compressions and held the shock back. Shock first; place the airway while the compressions go on after it — a bag-mask at 30:2 is fine until then (2025 AHA: weigh the airway against the compression fraction, above all in VF).',
@@ -895,7 +896,7 @@ export const edVfArrest: Scenario = {
       text: 'A shock for organized complexes. The VF had converted: organized complexes at the rhythm check call for a pulse check (10 seconds or less), not another shock — he had a pulse, and an unsynchronized shock on a beating heart can throw it back into VF.',
     },
     {
-      id: 'epi-before-second-shock', actions: ['epinephrine'], when: (s) => !s.pulse && vfShocks(s) < 2, points: 3, severity: 'minor',
+      id: 'epi-before-second-shock', actions: ['epinephrine'], when: (s) => !s.pulse && vfShocks(s) < 2, replaces: ['epi-before-shock', 'epi-too-soon'], points: 3, severity: 'minor',
       text: 'Epinephrine before the second shock. In VF the shock is the treatment: epinephrine comes once defibrillation has failed — after the second shock — then every 3–5 minutes. Given within 2 minutes of the first shock in an in-hospital VF arrest, it was linked to fewer survivors (Andersen, BMJ 2016).',
     },
     {
@@ -903,12 +904,12 @@ export const edVfArrest: Scenario = {
       text: 'Epinephrine again less than 3 minutes after the last dose. The interval is 3–5 minutes: stacked doses add up to high-dose epinephrine, which brings no benefit and drives up the oxygen demand of an ischemic heart.',
     },
     {
-      id: 'antiarrhythmic-before-shock', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && vfShocks(s) === 0, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-before-shock', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && vfShocks(s) === 0, replaces: [...LIDOCAINE_RULES, 'amiodarone-arrest-long-qt'], points: 3, severity: 'minor',
       text: 'An antiarrhythmic before any shock. Amiodarone and lidocaine are for VF that shocks have not fixed: the shock comes first.',
     },
     {
       // the nurse's version is the built-in rule: an infusion without an order
-      id: 'amio-infusion-in-arrest', actions: ['amio-infusion'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'amio-infusion-in-arrest', actions: ['amio-infusion'], roles: ED_MD, when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'An amiodarone infusion in cardiac arrest. 150 mg over 10 minutes is the dose for a tachycardia with a pulse; in VF the dose is a 300 mg push (then 150 mg), given during compressions.',
     },
     {
@@ -916,7 +917,7 @@ export const edVfArrest: Scenario = {
       text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg every 3–5 minutes.',
     },
     {
-      id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine in cardiac arrest. It is for a regular narrow-complex tachycardia with a pulse; in VF it treats nothing.',
     },
     {
@@ -927,7 +928,7 @@ export const edVfArrest: Scenario = {
     },
     {
       id: 'rate-drug', actions: ['metoprolol', 'diltiazem'], points: 8, severity: 'major',
-      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem'],
+      replaces: ['rn-without-order-metoprolol', 'rn-without-order-diltiazem', ...RATE_RULES],
       text: 'A beta-blocker or diltiazem in the arrest or after ROSC. His fast rate after ROSC is the body\'s answer to the arrest, the epinephrine and a low pressure: these drugs weaken the squeeze and drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {
@@ -943,7 +944,7 @@ export const edVfArrest: Scenario = {
       id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), points: 10, severity: 'major',
       text: 'Transferring a post-arrest STEMI out of a hospital with its own cath lab. A transfer adds an hour or more to opening the artery: activate your own lab.',
     },
-  ],
+  ]),
   timings: TIMINGS,
   cathLabMinutes: CATH_MINUTES,
   deathAfter: DEATH_AFTER,

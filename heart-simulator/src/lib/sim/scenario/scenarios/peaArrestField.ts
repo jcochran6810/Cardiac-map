@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, firstDone, has, interpret, line } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Minutes from the EMT's call until the paramedic intercept is at her side */
 const ALS_MINUTES = 6;
@@ -485,7 +486,7 @@ export const peaArrestField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'Report the downtime and bystander CPR, the first rhythm, what brought her back (breaths with oxygen), each epinephrine dose and its time, the time of ROSC, and the vitals and 12-lead after it.', done: ['handoff'], points: 5, applies: (s) => has(s, 'rosc') },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // she never has a shockable rhythm: organized complexes, or a flat line
       id: 'shock-pea', actions: ['defib', 'cardiovert'], when: (s) => !s.pulse, points: 10, severity: 'major', replaces: ['shock-nonshockable'],
@@ -517,7 +518,7 @@ export const peaArrestField: Scenario = {
     {
       // one rule for all of them, in its own words; it stands in for the built-in procainamide-in-arrest rule
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
-      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest', ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt'],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; adenosine, procainamide, beta-blockers and diltiazem are for tachycardias with a pulse: in PEA they treat nothing. CPR, epinephrine and the cause.',
     },
     {
@@ -537,11 +538,11 @@ export const peaArrestField: Scenario = {
     {
       // procainamide included: its built-in rule only fires while the systolic is under 90, and after a bolus it may not be
       id: 'rate-control-post-rosc', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['procainamide-hypotension'],
+      replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert her rhythm after ROSC. Her fast rate is the body\'s answer to the arrest, the epinephrine and a low pressure — there is no arrhythmia to treat: beta-blockers, diltiazem, amiodarone and procainamide drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {
-      id: 'antiarrhythmic-post-rosc', actions: ['adenosine6', 'adenosine12', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-post-rosc', actions: ['adenosine6', 'adenosine12', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'Adenosine or lidocaine after ROSC. Her fast rate is the body\'s answer to the arrest, not an arrhythmia: adenosine only stops a rhythm whose circuit runs through the AV node, and hers does not; lidocaine treats nothing after an arrest that was never VF.',
     },
     {
@@ -561,7 +562,7 @@ export const peaArrestField: Scenario = {
       id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'A STEMI alert without ST elevation. Her 12-lead after ROSC shows none, and her arrest began with her breathing: it calls in the cath lab team for an artery that is not blocked.',
     },
-  ],
+  ]),
   timings: [
     { label: 'CPR taken over', actions: ['cpr'], target: 1.5 },
     { label: 'Rhythm analyzed (AED or monitor)', actions: ['aed', 'pads', 'monitor'], target: 3 },

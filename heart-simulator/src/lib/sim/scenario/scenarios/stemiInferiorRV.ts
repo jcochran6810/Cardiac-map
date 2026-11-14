@@ -1,5 +1,6 @@
 import type { Effect, Scenario, SimState } from '../types';
 import { bpAfter, has } from '../kit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** RV infarction: nitrates drop preload and blood pressure — to 74/44, or further down from a pressure already lower */
 function nitroCrash(s: SimState): Effect {
@@ -128,15 +129,15 @@ export const stemiInferiorRV: Scenario = {
     { id: 'pci', label: 'Straight to the PCI-capable heart center', why: 'Primary PCI within 90 minutes of first contact.', done: (s) => s.flags['dest-pci'] ?? null, points: 10 },
     { id: 'handoff', label: 'Hand-off at the heart center', why: 'Report the RV involvement and the AV block so the team is ready (pacing wire, fluids).', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'nitro-rv', actions: ['nitro', 'nitro-high'], roles: [2], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 15, severity: 'critical', text: 'Nitroglycerin in an inferior STEMI with RV involvement: it drops preload and the blood pressure crashed to 74/44. Check V4R (and the BP) before nitrates; RV infarction is a contraindication.' },
     { id: 'nitro-assist-rv', actions: ['nitro-assist'], roles: [1], replaces: ['nitro-hypotension'], points: 15, severity: 'critical', text: "Assisting with her nitroglycerin despite a borderline BP (102) and a slow pulse: it crashed her pressure to 74/44. With an inferior STEMI (which the physician sees on your transmitted ECG), nitrates are dangerous — check with medical control first." },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 3, severity: 'minor', text: 'Oxygen is for SpO₂ below 90 %.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 10, severity: 'major', text: 'An IV beta-blocker with bradycardia and borderline blood pressure worsens both — and can push AV block to asystole.' },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'An IV beta-blocker with bradycardia and borderline blood pressure worsens both — and can push AV block to asystole.' },
     { id: 'opioid-hypotension', actions: ['fentanyl'], when: (s) => s.vitals.sbp < 90, points: 4, severity: 'minor', text: 'Opioids venodilate: avoid them while she is hypotensive with RV infarction.' },
     { id: 'nearest-ed', actions: ['transport-near'], points: 10, severity: 'major', text: 'A STEMI goes straight to a PCI-capable center; the nearest ED has no cath lab.' },
     { id: 'cpap-hypotension', actions: ['cpap'], points: 6, severity: 'major', text: 'CPAP lowers venous return — dangerous in a hypotensive, preload-dependent patient with clear lungs.' },
-  ],
+  ]),
   timings: [
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     { label: 'Right-sided leads', actions: ['ecg-right'] },

@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -477,7 +478,7 @@ export const cocaineField: Scenario = {
       why: 'Witnessed VF with the pads on: shock it at once — every minute without a shock lowers survival.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words and weight: the beta-blocker is this case's main trap, weighted
       // as the other field cases weight a Class 3 — Harm drug (it must not leave an otherwise perfect run "Excellent")
@@ -526,14 +527,14 @@ export const cocaineField: Scenario = {
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {
-      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       when: (s) => s.pulse && ['sinus-tachycardia', 'normal-sinus'].includes(s.rhythm.profile),
       text: 'A drug for an arrhythmia, given for a fast sinus rate. The rate is the cocaine and the agitation driving a normal heart: adenosine and the antiarrhythmics treat nothing here. A benzodiazepine brings the rate down by treating its cause.',
     },
     {
       // a calcium-channel blocker is a vasodilator the AHA lists for cocaine's coronary spasm or a dangerous pressure (2023
       // poisoning update) — after the benzodiazepine and nitroglycerin, not instead of them: then it costs nothing
-      id: 'diltiazem-stimulant', actions: ['diltiazem'], points: 2, severity: 'minor',
+      id: 'diltiazem-stimulant', actions: ['diltiazem'], replaces: RATE_RULES, points: 2, severity: 'minor',
       when: (s) => s.pulse && !(has(s, 'benzodiazepine') && has(s, 'nitro') && s.vitals.sbp >= 160),
       text: 'IV diltiazem for the fast rate and the high pressure of cocaine. A benzodiazepine treats both at their cause and nitroglycerin the coronary spasm; a calcium-channel blocker is a later option for spasm or a pressure that stays dangerously high after them (AHA statement on cocaine-associated chest pain; 2023 AHA poisoning update) — and in field protocols IV diltiazem is a rate drug for atrial fibrillation or flutter, not for a fast sinus rate.',
     },
@@ -545,7 +546,7 @@ export const cocaineField: Scenario = {
       id: 'legs-up-hypertensive', actions: ['legs-up'], when: (s) => s.pulse, points: 2, severity: 'minor',
       text: 'Raising the legs of a patient whose pressure is already high. It returns more blood to a heart that is already working too hard: let him sit in the position of comfort.',
     },
-  ],
+  ]),
   timings: [
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     // the EMT's intercept gives it: the flag counts theirs

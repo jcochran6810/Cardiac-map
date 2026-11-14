@@ -349,12 +349,13 @@ describe('in the cases: one dose, one penalty in every state a case rule speaks 
 
   it('pulmonary embolism (ED): the nurse\'s rate drug in shock, and a rate drug in PEA', () => {
     expect(lastStep('pulmonary-embolism-lysis-ed', 6, ['iv', 'procainamide'])).toEqual(['rate-control-pe-rn']);
-    // PEA by the last step: the drug that has no place there is one penalty, not also the missing order
-    expect(lastStep('pulmonary-embolism-lysis-ed', 6, ['iv', 'primary', 'perfusion', 'nitro', 'adenosine12', 'bvm', 'cxr', 'io', 'adenosine6'])).toEqual(['antiarrhythmic-pea']);
+    // PEA by the last step: the drug that has no place there is one penalty, not also the missing order — the nurse's
+    // version, which says both
+    expect(lastStep('pulmonary-embolism-lysis-ed', 6, ['iv', 'primary', 'perfusion', 'nitro', 'adenosine12', 'bvm', 'cxr', 'io', 'adenosine6'])).toEqual(['antiarrhythmic-pea-rn']);
   });
 
   it('tamponade (ED): a rate drug in PEA, and nitroglycerin after the drain', () => {
-    expect(lastStep('tamponade-ed', 6, ['iv', 'bp-both-arms', 'procainamide', 'cpr', 'vitals', 'magnesium-sulfate', 'midazolam', 'metoprolol'])).toEqual(['antiarrhythmic-pea']);
+    expect(lastStep('tamponade-ed', 6, ['iv', 'bp-both-arms', 'procainamide', 'cpr', 'vitals', 'magnesium-sulfate', 'midazolam', 'metoprolol'])).toEqual(['antiarrhythmic-pea-rn']);
     expect(lastStep('tamponade-ed', 7, ['perfusion', 'lungs', 'sample', 'pocus', 'fluid', 'pericardiocentesis', 'nitro-high'])).toEqual(['nitro-no-indication']);
     const nurseDrained = ['triage', 'monitor', 'o2-nc', 'vitals', 'perfusion', 'lungs', 'notify-physician', 'iv', 'labs', 'ecg12', 'sample', 'fluid', 'pads',
       'notify-physician', 'pressor', 'reassess', 'notify-physician', 'vitals', 'reassess'];

@@ -4,6 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine,
   doneAfter, nextStep, type LabAsk,
 } from '../labKit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'rca-occlusion', 'final-angio': 'rca-open-timi3' };
@@ -378,7 +379,7 @@ export const cathlabInferior: Scenario = {
     { id: 'hemostasis', label: 'Femoral hemostasis', why: 'Sheath out with firm pressure (or a closure device); check the groin and distal pulses, and watch for back pain and hypotension (retroperitoneal bleed).', done: ['hemostasis', 'closure-device'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the reflex and its treatment, the RV infarct (no nitrates) and the groin.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'nitro-rv', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 10, severity: 'major', text: 'Nitroglycerin with an RV infarct. Her RV is preload-dependent: nitrates pool blood in the veins and the pressure crashes.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
@@ -395,10 +396,10 @@ export const cathlabInferior: Scenario = {
     askHarm(TECH_ASKS[4], 'A hydrophilic wire when the operator asked for a workhorse.'),
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a compliant pre-dilation balloon.'),
     askHarm(TECH_ASKS[7], 'The wrong device when the operator asked for a drug-eluting stent.'),
-    askHarm(RN_ASKS[0], 'The wrong drug for a reflex bradycardia of 38. Atropine 1 mg IV.', 5),
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 8, severity: 'major', text: 'An IV beta-blocker with bradycardia, hypotension and an RV infarct.' },
+    { ...askHarm(RN_ASKS[0], 'The wrong drug for a reflex bradycardia of 38. Atropine 1 mg IV.', 5), replaces: RATE_RULES },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'An IV beta-blocker with bradycardia, hypotension and an RV infarct.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
-  ],
+  ]),
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     { label: 'Artery open (arrival to device)', actions: ['stent-des'], flag: 'pci', target: 30 },

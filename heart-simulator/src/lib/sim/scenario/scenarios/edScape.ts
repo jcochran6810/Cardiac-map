@@ -2,6 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Hypertensive acute pulmonary edema ("sympathetic crashing acute pulmonary edema", SCAPE) arriving in the emergency
@@ -869,7 +870,7 @@ export const edScape: Scenario = {
       why: 'The story and the trigger, the BiPAP settings, each nitroglycerin dose and the infusion with its pressure target, the 12-lead and the troponin plan, and how fast he turned around.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'niv-off', actions: ['o2-nrb', 'o2-nc'], when: (s) => s.pulse && onNiv(s), points: 10, severity: 'major',
       text: 'Taking him off positive pressure for an oxygen mask. CPAP and BiPAP hold his flooded air sacs open and take over much of the work of breathing; a non-rebreather or a cannula gives oxygen but no pressure, and within a minute his saturation falls and his breathing climbs. Keep the mask on his face from the ambulance stretcher to the ICU — swap the crew\'s CPAP for the department\'s machine in one move, never with a gap.',
@@ -914,7 +915,7 @@ export const edScape: Scenario = {
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
-      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure', ...RATE_RULES], points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
     }, NO_ORDER, ['rn-without-order-metoprolol', 'rn-without-order-diltiazem']),
     ...bothRoles({
@@ -922,7 +923,7 @@ export const edScape: Scenario = {
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding his lungs: raising it makes the edema worse. He needs the pressure taken off — nitroglycerin and positive pressure.',
     }, NO_ORDER, ['rn-without-order-pressor', 'rn-without-order-push-epi']),
     ...bothRoles({
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
     }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {
@@ -975,7 +976,7 @@ export const edScape: Scenario = {
       text: 'Transferring a patient this hospital can care for. He needs an ICU bed, BiPAP and a nitroglycerin infusion — all here; a transfer moves a patient in respiratory failure for nothing another hospital can add. Admit him.',
     },
     ...RN_ORDERS.map((a) => askHarm(a, 'The wrong dose after the physician\'s order: 0.4 mg instead of 0.8 mg. Read the order back (closed loop) and give what was ordered — the chest pain dose barely touches a pressure like his.')),
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'On the department\'s BiPAP, without a gap', actions: ['cpap'], target: 3 },

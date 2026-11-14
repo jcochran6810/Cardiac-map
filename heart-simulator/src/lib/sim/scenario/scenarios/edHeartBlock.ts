@@ -3,6 +3,7 @@ import { PADS, allOf, bpAfter, firstDone, has, line, orderedFlag, paced } from '
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, physicianDispo } from '../edKit';
 import { INTERVENTION_BY_ID } from '../interventions';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Complete heart block in the emergency department. A 78-year-old woman comes in by a basic (BLS) ambulance after two
@@ -775,25 +776,25 @@ export const edHeartBlock: Scenario = {
     { id: 'md-admit', label: 'Admit her to the CCU', roles: ED_MD, done: ['admit'], points: 5, why: 'A pacing wire, a potassium being corrected and, very likely, a permanent pacemaker tomorrow: a monitored bed with nurses who manage temporary pacing.' },
     { id: 'md-handoff', label: 'Hand-off', roles: ED_MD, done: ['handoff'], points: 5, why: 'The rhythm and the pacing settings, the potassium and what was given for it, the drugs held, and the plan.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 20, severity: 'critical',
-      replaces: ['arrest-amio-with-pulse', 'procainamide-slow', 'procainamide-hypotension'],
+      replaces: ['arrest-amio-with-pulse', 'procainamide-slow', 'procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'Lidocaine, amiodarone or procainamide for a wide escape rhythm. The wide beats are the only thing keeping her alive: suppressing them can leave no rhythm at all. A slow wide rhythm needs a faster rate (pacing), never an antiarrhythmic.',
     },
     {
-      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 15, severity: 'critical',
+      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'A beta-blocker or a calcium-channel blocker in complete heart block. They slow conduction further and weaken the squeeze — her own metoprolol is part of why she is here.',
     },
     {
-      id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major',
+      id: 'adenosine-block', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major',
       text: 'Adenosine in complete heart block. It has nothing to treat — the AV node already conducts nothing — and it can suppress the slow escape that is left, for seconds of standstill.',
     },
     {
       // the trap: the first dose did nothing, and more of it only delays the pacer. The nurse's order was for one dose
       // (doses: 1), so a second also has no order: this rule is the one penalty for it
       id: 'atropine-repeat', actions: ['atropine'], when: (s) => s.pulse && has(s, 'atropine') && !paced(s) && !has(s, 'pressor') && s.vitals.sbp < 90,
-      points: 5, severity: 'major', replaces: ['rn-without-order-atropine'],
+      points: 5, severity: 'major', replaces: ['rn-without-order-atropine', 'atropine-infranodal-repeat'],
       text: 'Atropine again while she stays hypotensive. A wide escape from below the AV node rarely answers to atropine — the first dose showed it. Pace her (or start an epinephrine or dopamine infusion) instead of pushing more: every minute at 34 with a pressure in the 80s costs perfusion. (In the ER nurse\'s run, a second dose also needs a new order.)',
     },
     {
@@ -828,7 +829,7 @@ export const edHeartBlock: Scenario = {
       id: 'rsi-no-indication', actions: ['rsi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.gcs >= 9, points: 10, severity: 'major', replaces: ['rsi-unresuscitated'],
       text: 'Rapid sequence intubation for a low pressure that comes from a slow heart. She protects her airway and oxygenates; the induction drug and positive pressure drop the pressure further and can stop a heart beating 34 times a minute. Fix the rate (pacing) first.',
     },
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Pads on', actions: [], flag: 'pads', target: 4 },

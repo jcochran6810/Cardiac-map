@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line, paced } from '../kit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Drug-induced long QT with torsades de pointes. A 58-year-old woman who has taken a thiazide for years (it drains potassium
@@ -465,7 +466,7 @@ export const torsadesField: Scenario = {
       why: 'Report the faints, what the monitor showed, the 12-lead and its QT, the new medicines (with the bottles), the magnesium, any shock and when, and the times.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // during a run she is unresponsive and pulseless for a few seconds: starting compressions then is right
       id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse && !inRun(s), points: 10, severity: 'major',
@@ -486,11 +487,11 @@ export const torsadesField: Scenario = {
     },
     {
       // one rule for both doses, in this case's words: the 300 mg push with a pulse is the same mistake made worse
-      id: 'amiodarone-long-qt', actions: ['amio-infusion', 'amio-arrest'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['arrest-amio-with-pulse'],
+      id: 'amiodarone-long-qt', actions: ['amio-infusion', 'amio-arrest'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['arrest-amio-with-pulse', ...RATE_RULES],
       text: 'Amiodarone for torsades. It lengthens the QT further and slows the heart, and here it set off the run that did not stop. Sustained torsades gets a shock; the runs get magnesium — amiodarone and procainamide are the wrong drugs (and a 300 mg push is only for VF or pulseless VT that shocks have not fixed).',
     },
     {
-      id: 'amiodarone-arrest-long-qt', actions: ['amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, points: 5, severity: 'major',
+      id: 'amiodarone-arrest-long-qt', actions: ['amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, replaces: [...RATE_RULES, 'antiarrhythmic-nonshockable'], points: 5, severity: 'major',
       text: 'Amiodarone in her torsades arrest. The shock and CPR end it, and magnesium is the drug for torsades; amiodarone lengthens her QT further, so the runs are more likely to come back once the pulse returns.',
     },
     {
@@ -499,16 +500,16 @@ export const torsadesField: Scenario = {
       text: 'Procainamide with a long QT. It lengthens the QT further, and here it set off the run that did not stop. The runs get magnesium; a run that does not stop gets a shock.',
     },
     {
-      id: 'adenosine-long-qt', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse, points: 15, severity: 'critical',
+      id: 'adenosine-long-qt', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse, replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'Adenosine with a long QT. There is no regular narrow-complex tachycardia for it to treat (and it is never for a polymorphic VT), and the pause it causes is exactly what sets off torsades: it set off the run that did not stop.',
     },
     {
-      id: 'beta-blocker-long-qt', actions: ['metoprolol'], when: (s) => s.pulse, points: 15, severity: 'critical',
+      id: 'beta-blocker-long-qt', actions: ['metoprolol'], when: (s) => s.pulse, replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'A beta-blocker that slows her heart. In acquired long QT, torsades starts after slow beats and pauses: the slower rate set off the run that did not stop. She needs magnesium, and if the runs keep coming a faster rate — not a slower one.',
     },
     {
       // during a run the built-in diltiazem-for-VT rule says it in its own words
-      id: 'diltiazem-long-qt', actions: ['diltiazem'], when: (s) => s.pulse && s.rhythm.profile !== 'torsades', points: 15, severity: 'critical',
+      id: 'diltiazem-long-qt', actions: ['diltiazem'], when: (s) => s.pulse && s.rhythm.profile !== 'torsades', replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'Diltiazem with a long QT. It slows her heart and drops her pressure, and in acquired long QT the pauses after slow beats set off torsades: it treats nothing she has, and it set off the run that did not stop.',
     },
     {
@@ -518,7 +519,7 @@ export const torsadesField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['magnesium-sulfate', 'epinephrine', 'lidocaine', 'iv', 'io', 'airway'],
-      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), points: 5, severity: 'major',
+      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), replaces: ['epi-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Pulseless torsades — or the VF it turns into — needs a shock first: magnesium, IV access, drugs and the airway come after it, during CPR.',
     },
     {
@@ -548,7 +549,7 @@ export const torsadesField: Scenario = {
       id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
       text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; she has none, and it only lowers her pressure.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 3 },
     // the EMT's medics give it: the flag counts theirs

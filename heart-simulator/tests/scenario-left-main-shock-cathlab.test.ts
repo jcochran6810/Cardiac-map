@@ -566,7 +566,8 @@ describe('left main in cardiogenic shock: review fixes', () => {
 
   it('his ejection fraction is about 25 %: diltiazem and procainamide are caught by the built-in rules', () => {
     expect(penalties(run(sc, 5, ['diltiazem']))).toEqual(['diltiazem-heart-failure']);
-    expect(penalties(run(sc, 4, ['iv', 'procainamide']))).toEqual(expect.arrayContaining(['procainamide-heart-failure']));
+    // one dose, one penalty: in shock the low pressure outranks the failing heart
+    expect(penalties(run(sc, 4, ['iv', 'procainamide']))).toEqual(['procainamide-hypotension']);
   });
 
   it('no FFR at the culprit (refused), and IV adenosine in shock costs and drops the pressure', () => {
@@ -576,9 +577,9 @@ describe('left main in cardiogenic shock: review fixes', () => {
     expect(s.vitals.sbp).toBeLessThan(78);
   });
 
-  it('the radial cocktail with a systolic under 90 costs a little; on the pressor it does not', () => {
+  it('the radial cocktail with a systolic under 90 costs a little; on the pressor its verapamil still does (cardiogenic shock)', () => {
     expect(penalties(run(sc, 5, ['consent', 'timeout', 'access', 'radial-cocktail']))).toEqual(['cocktail-low-pressure']);
-    expect(penalties(run(sc, 5, ['pressor', 'consent', 'timeout', 'access', 'radial-cocktail']))).toEqual([]);
+    expect(penalties(run(sc, 5, ['pressor', 'consent', 'timeout', 'access', 'radial-cocktail']))).toEqual(['verapamil-cardiogenic-shock']);
   });
 
   it('going without support costs the score, not just the patient: below Excellent even with a fast shock', () => {

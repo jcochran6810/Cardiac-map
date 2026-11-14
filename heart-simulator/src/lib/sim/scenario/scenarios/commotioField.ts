@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { ARREST_ETCO2, arrestEtco2, bpAfter, firstDone, has, interpret, line, mapOf, ventilated } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Minutes after the crew reaches him (he collapsed about 5 minutes before, with the coach's CPR since) within which the
@@ -552,7 +553,7 @@ export const commotioField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'The blow and the time of collapse, the coach\'s CPR, each shock and its time, the time of ROSC, every drug, and the vitals and 12-lead after it.', done: ['handoff'], points: 5, applies: (s) => has(s, 'rosc') },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'iv-before-shock', actions: ['iv', 'io'], when: (s) => !s.pulse && vfShocks(s) === 0, roles: [2], points: 5, severity: 'major',
       text: 'IV or IO access before the first shock. In VF the shock is the treatment, and every minute without it cuts the chance of survival: pads on and shock first — the line comes during the CPR after the shock.',
@@ -562,11 +563,11 @@ export const commotioField: Scenario = {
       text: 'An advanced airway before the first shock. It takes minutes he does not have: in VF the shock comes first, and a bag-mask does for the breaths until there is time for an airway.',
     },
     {
-      id: 'epi-not-yet', actions: ['epinephrine'], when: (s) => !s.pulse && epiNotYet(s), roles: [2], points: 3, severity: 'minor',
+      id: 'epi-not-yet', actions: ['epinephrine'], when: (s) => !s.pulse && epiNotYet(s), roles: [2], replaces: ['epi-before-shock', 'epi-too-soon'], points: 3, severity: 'minor',
       text: 'Epinephrine before it was due. In VF the shock comes first; epinephrine is for VF that persists or comes back after the shocks — in the 2025 AHA algorithm, during the CPR after the second shock, then every 3–5 minutes. Pushed into a heart a shock has just converted, it only drives up the rate, the oxygen demand and the risk of VF coming back.',
     },
     {
-      id: 'antiarrhythmic-not-yet', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && antiarrhythmicNotYet(s), roles: [2], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-not-yet', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && antiarrhythmicNotYet(s), roles: [2], replaces: [...LIDOCAINE_RULES, 'amiodarone-arrest-long-qt'], points: 3, severity: 'minor',
       text: 'Amiodarone or lidocaine before any shock had failed. They are for VF that persists or comes back after a shock (in the 2025 AHA algorithm, after the third shock), not a replacement for the first one.',
     },
     {
@@ -602,12 +603,12 @@ export const commotioField: Scenario = {
     {
       // procainamide included: its built-in rule only fires while the systolic is under 90, and after a bolus it may not be
       id: 'rate-drug-post-rosc', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide', 'adenosine6', 'adenosine12'], when: (s) => s.pulse, roles: [2],
-      points: 5, severity: 'major', replaces: ['procainamide-hypotension'],
+      points: 5, severity: 'major', replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'A drug to slow or convert his rhythm after ROSC. His fast rate is the body\'s answer to the arrest and a low pressure — there is no arrhythmia to treat: these drugs drop a pressure that is barely held up, and can bring the arrest back.',
     },
     {
       id: 'rate-drug-arrest', actions: ['adenosine6', 'adenosine12', 'metoprolol', 'diltiazem', 'procainamide', 'amio-infusion'], when: (s) => !s.pulse, roles: [2],
-      points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      points: 3, severity: 'minor', replaces: ['procainamide-in-arrest', ...RATE_RULES],
       text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem, procainamide and the 150 mg amiodarone infusion are not arrest drugs: VF needs shocks, CPR, epinephrine and, if it persists, amiodarone 300 mg or lidocaine.',
     },
     {
@@ -622,7 +623,7 @@ export const commotioField: Scenario = {
       id: 'no-indication', actions: ['glucagon', 'diphenhydramine', 'albuterol'], roles: [2], points: 3, severity: 'minor',
       text: 'A drug with nothing to treat. Glucagon is for a beta- or calcium-channel-blocker overdose, diphenhydramine for an allergic reaction, albuterol for wheezing: he has none of them, and each brings its own side effects.',
     },
-  ],
+  ]),
   timings: [
     { label: 'First shock', actions: ['aed', 'defib'], target: 2 },
     { label: 'Compressions after the first shock', actions: ['cpr'], from: 'shocked', target: 0.5 },

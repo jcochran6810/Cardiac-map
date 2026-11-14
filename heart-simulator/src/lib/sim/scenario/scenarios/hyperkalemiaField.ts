@@ -1,6 +1,7 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { PADS, bpAfter, count, cprCycles, firstDone, has } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** His rhythm while the potassium is high: the case keeps it until he arrests or a pacer takes over */
 const HYPERK = 'hyperkalemia';
@@ -430,26 +431,26 @@ export const hyperkalemiaField: Scenario = {
     { id: 'destination', label: 'Transport to the hospital that can dialyze him', why: 'The nearest emergency department has no dialysis: calcium and albuterol only buy an hour or two, and he would need a second transfer.', done: (s) => s.flags['dest-pci'] ?? null, uses: ['transport-pci'], points: 10 },
     { id: 'handoff', label: 'Hand-off', why: 'Report the missed sessions, the 12-lead, each calcium dose with its time and effect, the albuterol, and the fistula arm.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // Atropine is not here: it is the bradycardia algorithm's first drug and harmless, so trying it costs only the minute
       // it takes (it does nothing). Pacing is judged only once there is a line to give the calcium through: before that,
       // trying the pacer while the IV goes in is a fair bridge.
-      id: 'pace-before-calcium', actions: ['pace'], when: (s) => s.pulse && has(s, 'iv') && !has(s, 'calcium'), points: 3, severity: 'minor',
+      id: 'pace-before-calcium', actions: ['pace'], when: (s) => s.pulse && has(s, 'iv') && !has(s, 'calcium'), replaces: ['pace-no-analgesia'], points: 3, severity: 'minor',
       text: 'Pacing before calcium, with the line already in. In a dialysis patient this slow and wide the cause comes first: a high potassium raises the pacing threshold, so the pacer often cannot take over, and the attempt hurts. Give calcium first; pacing or an epinephrine infusion is for a rate still too slow after it.',
     },
     { id: 'atropine-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['atropine-in-arrest'], text:'Atropine in PEA. It has not been part of the cardiac-arrest algorithm since 2010: CPR, epinephrine and the reversible cause — here the potassium.' },
     {
       // one rule for all of them, in its own words; it stands in for the built-in procainamide and arrest-amiodarone rules
       id: 'antiarrhythmic-wide', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], points: 15, severity: 'critical',
-      replaces: ['procainamide-slow', 'procainamide-hypotension', 'procainamide-in-arrest', 'arrest-amio-with-pulse'],
+      replaces: ['procainamide-slow', 'procainamide-hypotension', 'procainamide-in-arrest', 'arrest-amio-with-pulse', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'Lidocaine, amiodarone or procainamide for the wide complexes. This is not VT: a high potassium widens the QRS by depressing the heart\'s sodium channels, and these drugs depress them further — the rate falls and the heart can stop. Treat the potassium: calcium.',
     },
     {
-      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], points: 12, severity: 'critical',
+      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 12, severity: 'critical',
       text: 'A beta-blocker or calcium-channel blocker for a slow heart with a high potassium. Both slow the AV node and weaken the squeeze; with the potassium they spiral toward standstill (BRASH: bradycardia, renal failure, AV-nodal blockade, shock, hyperkalemia).',
     },
-    { id: 'adenosine-slow', actions: ['adenosine6', 'adenosine12'], points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
+    { id: 'adenosine-slow', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
     { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
     // a pacer that has captured (after the calcium wore off) hurts: then analgesia and sedation are right
     {
@@ -459,13 +460,13 @@ export const hyperkalemiaField: Scenario = {
     },
     { id: 'false-alert', actions: ['stemi-alert'], points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. It calls the cath lab team in for an artery that is not blocked, and points the patient at a lab when what he needs is dialysis.' },
     {
-      id: 'magnesium-renal', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest'],
+      id: 'magnesium-renal', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest', 'magnesium-renal-failure', 'magnesium-no-indication'],
       text: 'Magnesium for a dialysis patient. Nothing here calls for it, and failed kidneys cannot clear it: a high magnesium adds weakness, slows the heart and lowers the pressure.',
     },
     { id: 'fluid-overload', actions: ['fluid'], when: (s) => count(s, 'fluid') >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses for a dialysis patient who missed two sessions. He cannot pass the fluid, his lungs are already wet, and the low pressure comes from the slow rate, not from too little volume.' },
     { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'CPAP with a systolic pressure under 90 mmHg. It cuts the blood returning to the heart and can deepen the shock: fix the rate and the pressure first (calcium).' },
     { id: 'no-dialysis', actions: ['transport-near'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'The nearest emergency department cannot dialyze him. Calcium and albuterol only buy time, and he would need a second transfer: go to the regional center that can.' },
-  ],
+  ]),
   timings: [
     { label: '12-lead', actions: ['ecg12'], target: 6 },
     { label: 'Pads on', actions: PADS, target: 8 },

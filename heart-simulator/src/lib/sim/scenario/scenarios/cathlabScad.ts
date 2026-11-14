@@ -5,6 +5,7 @@ import {
   LAD_VIEWS, LEFT_VIEWS, MD, RCA_VIEWS, TECH, WIRES, angioGate, anticoagulated, askCritical, askDone, askEvents, askHarm, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Spontaneous coronary artery dissection (SCAD). A 42-year-old woman eight weeks after childbirth, breastfeeding, comes
@@ -750,7 +751,7 @@ export const cathlabScad: Scenario = {
     { id: 'defib', label: 'Defibrillate VF within 1 minute', why: 'In the lab VF is witnessed with the pads on: shock it within seconds.', done: ['defib', 'aed'], after: 'arrest', points: 15, target: { within: { flag: 'arrest', minutes: 1 } }, applies: (s) => has(s, 'arrest') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'SCAD extends in 5–10 % of patients in the first week: she stays on telemetry for 3–5 days, not an early discharge. Say what was found and done, that no more heparin is to be given, and what should bring the team back.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'inject-damped', actions: ['angio', ...LEFT_VIEWS], roles: MD, when: (s) => dampedNow(s), points: 10, severity: 'major', text: 'Contrast injected into a damped catheter. With the tip against the wall the jet hits the wall: that is how catheters dissect coronaries, and a fragile artery (a young woman after a pregnancy) tears more easily — catheter-induced dissection is about 3 % in SCAD patients, under 0.2 % in others. Back out, re-seat coaxially, inject gently.' },
@@ -766,7 +767,7 @@ export const cathlabScad: Scenario = {
     { id: 'heparin-twice', actions: ['heparin'], roles: [4], when: (s) => has(s, 'heparin') && !has(s, 'scad'), points: 8, severity: 'major', text: 'A second heparin bolus on top of the first. She already had heparin 70 units/kg: check what has been given before you draw up a dose — a double dose doubles the bleeding risk, at the radial artery and in the wall of a fragile coronary.' },
     { id: 'lytic-scad', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', text: 'A fibrinolytic in the cath lab, where the artery can be seen and treated. It adds only bleeding — and in SCAD it can make the blood in the wall spread (case reports of extension, rupture and tamponade). In a young woman after a pregnancy with a STEMI, think of SCAD before any lytic.' },
     // the spread hematoma has made the anterior wall ischemic again, with a fast rate and a falling pressure (COMMIT)
-    { id: 'beta-blocker-shock-risk', actions: ['metoprolol'], roles: MD, when: (s) => s.pulse && ischemic(s), points: 6, severity: 'major', text: 'IV metoprolol with the anterior wall ischemic again, a heart rate over 110 and the pressure falling. A failing ventricle leans on its rate: an IV beta-blocker now risks cardiogenic shock (COMMIT). Restore the flow first, and start the beta-blocker once she is stable.' },
+    { id: 'beta-blocker-shock-risk', actions: ['metoprolol'], roles: MD, when: (s) => s.pulse && ischemic(s), replaces: RATE_RULES, points: 6, severity: 'major', text: 'IV metoprolol with the anterior wall ischemic again, a heart rate over 110 and the pressure falling. A failing ventricle leans on its rate: an IV beta-blocker now risks cardiogenic shock (COMMIT). Restore the flow first, and start the beta-blocker once she is stable.' },
     { id: 'mcs-stable', actions: ['iabp', 'impella'], roles: MD, when: (s) => s.pulse && s.vitals.sbp >= 90, points: 8, severity: 'major', text: 'A balloon pump or Impella for a stable patient. Nothing needs support, large-bore femoral access risks an iliac dissection in a woman who may have fibromuscular dysplasia, and a balloon pump can push a coronary dissection further.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     // the tech only opens it — the operator refuses it and nothing reaches the patient — so a small penalty
@@ -776,10 +777,10 @@ export const cathlabScad: Scenario = {
     askHarm(TECH_ASKS[1], 'A right-coronary view when the operator asked to repeat the LAD. Cranial views lay out the mid and distal LAD.'),
     askHarm(TECH_ASKS[2], 'The wrong catheter when the operator asked for a JR4 for the right coronary.', 2),
     askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,800 units. Read the order back before you give it.'),
-    askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'),
-    askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'),
+    { ...askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'), replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'), replaces: RATE_RULES },
     askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain.', 2),
-  ],
+  ]),
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     // from the damping to the catheter backed out, whoever did it (a call-out, the back-out, the operator alone or the VF)

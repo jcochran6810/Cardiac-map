@@ -814,11 +814,15 @@ describe('inferior STEMI in the cath lab', () => {
     expect(untreated.vitals.sbp).toBe(58);
   });
 
-  it('the nurse must choose the drug: adenosine for a rate of 38 is wrong', () => {
+  it('the nurse must choose the drug: adenosine for a rate of 38 is wrong — and ruled out at that rate, which outranks the wrong answer', () => {
     const steps = IDEAL['stemi-inferior-cathlab'][4]!;
-    const s = run(sc, 4, [...steps.slice(0, steps.indexOf('callout') + 1), 'adenosine6']);
-    expect(s.penalties.map((p) => p.id)).toContain('wrong-atropine');
-    expect(s.log.some((l) => l.who === 'operator' && /Atropine, 1 milligram/.test(l.text))).toBe(true);
+    for (const drug of ['adenosine6', 'diltiazem']) {
+      const s = run(sc, 4, [...steps.slice(0, steps.indexOf('callout') + 1), drug]);
+      // at 38/min and 68/40 the labels rule them out (major): that penalty alone, not the minor wrong answer
+      expect(s.penalties.map((p) => p.id), drug).toContain('nodal-blocker-slow');
+      expect(s.penalties.map((p) => p.id), drug).not.toContain('wrong-atropine');
+      expect(s.log.some((l) => l.who === 'operator' && /Atropine, 1 milligram/.test(l.text)), drug).toBe(true);
+    }
   });
 });
 

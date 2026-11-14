@@ -188,8 +188,8 @@ describe('long QT with PVCs (long-qt)', () => {
     expect(ids(run(sc, 2, ['iv', 'ondansetron']))).toEqual(['ondansetron-long-qt']);
     expect(ids(run(sc, 2, ['iv', 'procainamide']))).toEqual(['procainamide-long-qt']);
     expect(ids(run(sc, 2, ['iv', 'amio-infusion']))).toEqual(['amiodarone-long-qt']);
-    // a normal QT: none of them
-    expect(ids(run(patient(), 2, ['iv', 'amio-infusion']))).toEqual([]);
+    // a normal QT: none of them (only the indication rule: a sinus rhythm has no arrhythmia for it)
+    expect(ids(run(patient(), 2, ['iv', 'amio-infusion']))).toEqual(['antiarrhythmic-no-arrhythmia']);
     expect(ids(run(patient({ problems: ['long-qt'] }), 2, ['iv', 'amio-infusion']))).toEqual(['amiodarone-long-qt']);
   });
 });

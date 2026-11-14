@@ -4,6 +4,7 @@ import {
   LAD_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, nextStep,
   operator, type LabAsk,
 } from '../labKit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion-thrombus', 'final-angio': 'lad-open-after-aspiration' };
@@ -341,7 +342,7 @@ export const cathlabStemi: Scenario = {
     { id: 'hemostasis', label: 'Access-site hemostasis', why: 'Radial band with distal pulse and perfusion checks.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'Report the culprit, the stent, the drugs, the VF and the access site.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'aspiration'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'Wiring and ballooning the artery without anticoagulation. Catheters, wires and stents clot without heparin (or bivalirudin).' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
@@ -356,12 +357,12 @@ export const cathlabStemi: Scenario = {
     askHarm(TECH_ASKS[4], 'The wrong device when the operator asked for a compliant pre-dilation balloon.'),
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[6], 'A compliant balloon when the operator asked for a non-compliant one. At high pressure a compliant balloon over-stretches the vessel at the stent edges.'),
-    askHarm(RN_ASKS[0], 'An intracoronary drug when the operator asked for the radial cocktail.'),
-    askHarm(RN_ASKS[2], 'The wrong intracoronary drug when the operator asked for nitroglycerin.'),
+    { ...askHarm(RN_ASKS[0], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: RATE_RULES },
+    { ...askHarm(RN_ASKS[2], 'The wrong intracoronary drug when the operator asked for nitroglycerin.'), replaces: RATE_RULES },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'Fibrinolysis has no place when primary PCI is happening: it only adds bleeding risk.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], points: 6, severity: 'major', text: 'An IV beta-blocker in the acute phase of a large anterior STEMI. It risks cardiogenic shock (COMMIT).' },
+    { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 6, severity: 'major', text: 'An IV beta-blocker in the acute phase of a large anterior STEMI. It risks cardiogenic shock (COMMIT).' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
-  ],
+  ]),
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     { label: 'Artery open (arrival to device)', actions: ['stent-des'], flag: 'pci', target: 30 },

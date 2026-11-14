@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, ScenarioEvent, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the field. A 62-year-old man on chemotherapy for lung cancer
@@ -597,7 +598,7 @@ export const tamponadeField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', points: 5, done: ['handoff'], why: 'Report the story, the low pressure and its narrow pulse pressure, Beck\'s triad and the pulsus, the 12-lead, what was given and what was held (nitroglycerin, CPAP), and how he responded.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'nitro-tamponade', actions: ['nitro', 'nitro-assist', 'nitro-high'], when: (s) => s.pulse, points: 10, severity: 'major',
       // whatever his pressure: after a bolus his systolic can be over 90, and nitroglycerin is still wrong for him
@@ -613,15 +614,15 @@ export const tamponadeField: Scenario = {
       text: 'Bag-mask breaths for a man who is breathing on his own. He fights it, and every squeeze raises the pressure in his chest and cuts the blood returning to a heart that cannot fill. Give oxygen by mask; if breaths must ever be given, give small, gentle ones.',
     },
     {
-      id: 'rate-slowing-tamponade', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 15, severity: 'critical',
+      id: 'rate-slowing-tamponade', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'A drug to slow his heart. His fast rate is the only thing keeping his output up while each beat fills so little: a beta-blocker or diltiazem takes it away and drops the pressure, and can stop his heart. A sinus tachycardia in shock is never the problem to treat.',
     },
     {
-      id: 'antiarrhythmic-tamponade', actions: ['amio-infusion', 'procainamide'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: ['procainamide-hypotension'],
+      id: 'antiarrhythmic-tamponade', actions: ['amio-infusion', 'procainamide'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: ['procainamide-hypotension', ...RATE_RULES],
       text: 'An antiarrhythmic for a sinus tachycardia. There is no arrhythmia to convert — the fast rate is his compensation — and amiodarone and procainamide drop a pressure that has nothing in reserve.',
     },
     {
-      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'adenosine-sinus', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for him.',
     },
     {
@@ -633,7 +634,7 @@ export const tamponadeField: Scenario = {
       text: 'Laying him flat with his legs up. He cannot breathe lying down: let him sit up, leaning forward, as he wants to. For a paramedic, a fluid bolus is the way to fill his heart.',
     },
     {
-      id: 'vagal-tamponade', actions: ['vagal'], when: (s) => s.pulse, points: 2, severity: 'minor',
+      id: 'vagal-tamponade', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-slow'], points: 2, severity: 'minor',
       text: 'A vagal maneuver for a sinus tachycardia in shock. Bearing down raises the pressure in his chest and cuts the blood returning to a heart that cannot fill, and there is no reentry circuit to break.',
     },
     {
@@ -646,7 +647,7 @@ export const tamponadeField: Scenario = {
       id: 'transport-in-arrest', actions: ['transport-near', 'transport-pci'], when: (s) => !s.pulse && !has(s, 'transport-ordered'), points: 6, severity: 'major',
       text: 'Loading him in cardiac arrest without medical direction. Compressions on a stretcher and in a moving ambulance are poorer, so the arrest is worked on scene for most adults (2025 AHA). His cause — fluid squeezing his heart — can only be drained in hospital: call medical control, and move him with CPR on their order.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Blood pressure by hand or on the monitor', actions: ['vitals', 'nibp'], target: 4 },
     { label: 'Neck veins and pulses checked', actions: ['perfusion'], target: 8 },

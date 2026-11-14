@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * The version this case teaches: a regular wide-complex tachycardia in a man with an old infarct, whose pressure and
@@ -372,29 +373,29 @@ export const stableVtField: Scenario = {
     { id: 'transport', label: 'Transport', why: 'He needs a monitored bed, his potassium and magnesium, an echo and an electrophysiology review (ICD, ablation) — the heart center has them. The pads stay on en route; an unstable patient is shocked on scene, not driven further first.', done: ['transport-pci', 'transport-near'], points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report both 12-leads, the drug and dose, when it stopped and any shocks.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'ccb-wide-complex', actions: ['diltiazem'], when: (s) => inVt(s), points: 15, severity: 'critical', replaces: ['diltiazem-vt'], text: 'Diltiazem for a regular wide-complex tachycardia. Treat it as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest — COR 3: Harm (2025 AHA). For a stable one the drugs are procainamide or amiodarone.' },
     // a manual shock only: with his pulse the AED is not applied, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock to a patient with a pulse. It can land on the T wave and set off VF. A tachycardia with a pulse that needs a shock gets synchronized cardioversion: 100 J for monomorphic VT (2025).' },
     {
       // its words cover the pressure too: procainamide with a low one is this same mistake (one penalty)
       id: 'two-antiarrhythmics', actions: ANTIARRHYTHMICS, when: (s) => s.pulse && (has(s, 'amiodarone') || has(s, 'procainamide')), points: 8, severity: 'major',
-      replaces: ['procainamide-after-amiodarone', 'amiodarone-after-procainamide', 'procainamide-hypotension'],
+      replaces: ['procainamide-after-amiodarone', 'amiodarone-after-procainamide', 'procainamide-hypotension', ...RATE_RULES],
       text: 'A second antiarrhythmic dose on top of the first. Procainamide and amiodarone both lengthen the QT and drop the pressure: give one, and if it fails the next step is synchronized cardioversion (with sedation) or expert advice — not a second drug.',
     },
     {
       id: 'drug-while-unstable', actions: [...ANTIARRHYTHMICS, 'lidocaine'], when: (s) => inVt(s) && unstable(s), points: 8, severity: 'major',
       // the same mistake as procainamide with a low pressure, in the words of this case: one penalty, not two
-      replaces: ['procainamide-hypotension'],
+      replaces: ['procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'An antiarrhythmic for a tachycardia that had become unstable. Hypotension, a change in mental status, chest pain or heart failure make it unstable: synchronized cardioversion now (100 J), not a drug that takes minutes and drops the pressure further.',
     },
     { id: 'no-sedation', actions: ['cardiovert'], when: (s) => inVt(s) && s.vitals.gcs >= 14 && !comfortable(s), points: 3, severity: 'minor', text: 'Cardioversion of an awake patient without sedation or analgesia. Sedate the conscious patient when you can.' },
     // accepted care, so it costs little, and nothing once medical control has been asked (an elective shock is their call in the field)
     { id: 'cardiovert-stable', actions: ['cardiovert'], when: (s) => inVt(s) && !unstable(s) && !has(s, 'med-control'), points: 2, severity: 'minor', text: 'An elective shock for a stable tachycardia without asking medical control. The 2025 AHA order is a drug first and synchronized cardioversion when it fails; a sedated shock first is also accepted care (the European guidelines\' first line when sedation is safe), but for a stable patient in the field it is medical control\'s call.' },
     // no penalty for lidocaine: some US protocols still list it for a stable wide-complex tachycardia. It just does not work here.
-    { id: 'beta-blocker-vt', actions: ['metoprolol'], when: (s) => inVt(s), points: 3, severity: 'minor', text: 'IV metoprolol for a wide-complex tachycardia. It does not stop a monomorphic VT and it lowers the pressure; for a stable one the drugs are procainamide or amiodarone.' },
+    { id: 'beta-blocker-vt', actions: ['metoprolol'], when: (s) => inVt(s), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'IV metoprolol for a wide-complex tachycardia. It does not stop a monomorphic VT and it lowers the pressure; for a stable one the drugs are procainamide or amiodarone.' },
     // the 2015–2025 rule: adenosine only for a regular, monomorphic and STABLE wide-complex tachycardia
-    { id: 'adenosine-unstable', actions: ['adenosine6', 'adenosine12'], when: (s) => inVt(s) && unstable(s), points: 5, severity: 'major', text: 'Adenosine for a wide-complex tachycardia that had become unstable (2025 AHA: 3 — Harm). Unstable means synchronized cardioversion now; adenosine only delays it, and in a wide-complex tachycardia it can set off VF.' },
+    { id: 'adenosine-unstable', actions: ['adenosine6', 'adenosine12'], when: (s) => inVt(s) && unstable(s), replaces: RATE_RULES, points: 5, severity: 'major', text: 'Adenosine for a wide-complex tachycardia that had become unstable (2025 AHA: 3 — Harm). Unstable means synchronized cardioversion now; adenosine only delays it, and in a wide-complex tachycardia it can set off VF.' },
     // with a low pressure a pressor is a bridge (the shock is still what he needs), so only a normal pressure makes it a mistake
     { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => inVt(s) && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs drive a ventricular circuit faster and can turn it into VF.' },
     { id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => inVt(s) && s.vitals.pain === 0 && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; in a fast tachycardia it only lowers the pressure the heart is struggling to keep up.' },
@@ -404,7 +405,7 @@ export const stableVtField: Scenario = {
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90 && !has(s, 'rosc'), points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. The tachycardia algorithm gives oxygen only if he is hypoxemic (below 90 %).' },
     // calcium is a fair answer to the pressure drop diltiazem caused, so only without it does it count as no indication
     { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (s) => !has(s, 'diltiazem'), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. He has no high potassium, no low calcium and no calcium-channel-blocker overdose: it cannot stop the tachycardia, and it burns the tissue if it leaks.' },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 4 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 8 },

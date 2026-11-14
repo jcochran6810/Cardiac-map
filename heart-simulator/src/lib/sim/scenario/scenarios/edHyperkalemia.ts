@@ -3,6 +3,7 @@ import { INTERVENTION_BY_ID } from '../interventions';
 import { LOW_GLUCOSE, PADS, bpAfter, count, cprCycles, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edNurse, physicianDispo, physicianOrder } from '../edKit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Severe hyperkalemia in the emergency department. A 66-year-old man walks in with his wife: two days of nausea, legs
@@ -975,7 +976,7 @@ export const edHyperkalemia: Scenario = {
       why: 'A glucose of 52 after insulin: dextrose 25 g IV now, then a dextrose infusion and a glucose every 15 minutes until it is steady.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     // the trap: the 12-lead already shows it, and the calcium waited for the lab
     {
       id: 'calcium-waited-for-lab', actions: ['calcium-chloride'], roles: ED_MD, points: 8, severity: 'major',
@@ -989,7 +990,7 @@ export const edHyperkalemia: Scenario = {
       text: 'Atropine first, for a slow rate the 12-lead has already put down to the potassium. The potassium, not the vagus, slows this heart: atropine rarely helps, and it delays the drug that does — IV calcium.',
     },
     {
-      id: 'pace-before-calcium', actions: ['pace', 'temp-wire'], points: 5, severity: 'major',
+      id: 'pace-before-calcium', actions: ['pace', 'temp-wire'], replaces: ['pace-no-analgesia', 'temp-wire-without-pads'], points: 5, severity: 'major',
       when: (s) => s.pulse && ecgSeen(s) && !has(s, 'calcium'),
       text: 'Pacing before calcium, with the 12-lead showing a high potassium. The potassium raises the pacing threshold: the pacer often cannot take over, the attempt hurts, and it delays the treatment. Calcium first; pacing or an epinephrine infusion is for a rate still too slow after it.',
     },
@@ -1015,17 +1016,17 @@ export const edHyperkalemia: Scenario = {
     {
       // one rule for all of them, in its own words; it stands in for the built-in procainamide and arrest-amiodarone rules
       id: 'antiarrhythmic-wide', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], points: 15, severity: 'critical',
-      replaces: ['procainamide-slow', 'procainamide-hypotension', 'procainamide-in-arrest', 'arrest-amio-with-pulse'],
+      replaces: ['procainamide-slow', 'procainamide-hypotension', 'procainamide-in-arrest', 'arrest-amio-with-pulse', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'Lidocaine, amiodarone or procainamide for the wide complexes. This is not VT: a high potassium widens the QRS by depressing the heart\'s sodium channels, and these drugs depress them further — the rate falls and the heart can stop. Treat the potassium: calcium.',
     },
     {
-      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], points: 12, severity: 'critical',
+      id: 'av-blocker', actions: ['metoprolol', 'diltiazem'], replaces: RATE_RULES, points: 12, severity: 'critical',
       text: 'A beta-blocker or calcium-channel blocker for a slow heart with a high potassium. Both slow the AV node and weaken the squeeze; with the potassium they spiral toward standstill.',
     },
-    { id: 'adenosine-slow', actions: ['adenosine6', 'adenosine12'], points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
+    { id: 'adenosine-slow', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node for several seconds: at a rate this slow that is a pause with no output, and it treats nothing here.' },
     { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
     {
-      id: 'magnesium-kidneys', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest'],
+      id: 'magnesium-kidneys', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest', 'magnesium-renal-failure', 'magnesium-no-indication'],
       text: 'Magnesium for a patient whose kidneys are failing. Nothing here calls for it (his magnesium is already 2.5), and he cannot clear it: a high magnesium adds weakness, slows the heart and lowers the pressure.',
     },
     { id: 'fluid-repeat', actions: ['fluid'], when: (s) => count(s, 'fluid') >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses for a pressure that comes from a slow rate, in a man with failing kidneys, swollen ankles and crackles. The fluid barely moves the pressure and floods the lungs: fix the rate (calcium).' },
@@ -1046,7 +1047,7 @@ export const edHyperkalemia: Scenario = {
     { id: 'opioid-no-pain', actions: ['fentanyl'], roles: ED_MD, when: (s) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp', points: 3, severity: 'minor', text: 'An opioid for a patient with no pain. With his pressure this low and his breathing muscles weak, it only adds hypotension and slower, shallower breathing.' },
     askHarm(CALCIUM, 'Atropine when the physician ordered calcium. The potassium, not the vagus, slows this heart: give what was ordered, and if you disagree with an order, say so before giving anything else.'),
     askHarm(NEB, 'Albuterol 2.5 mg when the physician ordered 10–20 mg. The wheezing dose is a quarter to an eighth of what moves potassium into the cells: check the dose on the order before you give it.'),
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: '12-lead to calcium', actions: ['calcium-chloride'], flag: 'calcium', from: 'ecg12', target: 5 },

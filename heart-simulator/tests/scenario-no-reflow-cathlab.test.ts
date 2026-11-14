@@ -276,6 +276,17 @@ describe('no-reflow in the cath lab: the traps', () => {
     expect(penalties(s)).toEqual(['protamine-in-thrombus']);
   });
 
+  it('intracoronary adenosine is fair at the no-reflow pressure; below 85 — the pressure falling, or after the VF — it is the low-pressure mistake', () => {
+    let s = run(sc, 5, MD_TO_STENT);
+    expect(penalties(perform(sc, s, 'ic-adenosine'))).toEqual([]);
+    while (!s.fired.includes('pressure-falls')) s = perform(sc, s, 'reassess');
+    expect(penalties(perform(sc, s, 'ic-adenosine'))).toEqual(['ic-vasodilator-hypotension']);
+    while (s.pulse) s = perform(sc, s, 'reassess');
+    s = perform(sc, s, 'defib');
+    expect([s.vitals.sbp, s.vitals.dbp]).toEqual([82, 50]);
+    expect(penalties(perform(sc, s, 'ic-adenosine'))).toEqual(['ic-vasodilator-hypotension']);
+  });
+
   it('left untreated the pressure falls, then VF; a shock brings him back to the same stalled flow — no shock and he dies', () => {
     let s = run(sc, 5, MD_TO_STENT);
     while (!s.fired.includes('pressure-falls')) s = perform(sc, s, 'reassess');
@@ -296,6 +307,15 @@ describe('no-reflow in the cath lab: the traps', () => {
 describe('no-reflow in the cath lab: the tech and the nurse', () => {
   const TECH = IDEAL[3];
   const RN = IDEAL[4];
+
+  it('adenosine handed up for the epinephrine asked for: the wrong answer at 86; with the pressure fallen under 85, the low-pressure mistake alone', () => {
+    const asked = run(sc, 4, RN.slice(0, RN.indexOf('ic-epinephrine')));
+    expect(penalties(perform(sc, asked, 'ic-adenosine'))).toEqual(['wrong-rn-epi']);
+    // procainamide dropped him to 76 with the request still open: the heavier mistake speaks for the dose, once
+    const low = perform(sc, asked, 'procainamide');
+    expect(low.vitals.sbp).toBeLessThan(85);
+    expect(penalties(perform(sc, low, 'ic-adenosine'))).toEqual(['procainamide-hypotension', 'ic-vasodilator-hypotension']);
+  });
 
   it('the nurse who reaches for nitroglycerin gets a word from the operator and one penalty, not two', () => {
     const s = run(sc, 4, [...RN.slice(0, RN.indexOf('ic-epinephrine')), 'ic-nitro']);

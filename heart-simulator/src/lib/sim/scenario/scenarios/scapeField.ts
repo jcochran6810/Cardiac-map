@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Hypertensive acute pulmonary edema — "sympathetic crashing acute pulmonary edema" (SCAPE). A surge of sympathetic tone
@@ -658,7 +659,7 @@ export const scapeField: Scenario = {
       why: 'Report the sudden onset at 3 am, the pressure of 224/122, the missed blood pressure pills, the CPAP setting, each nitroglycerin dose with the pressure before it, the 12-lead, and how she responded.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // a fluid bolus and raised legs are the built-in rules ('fluid-pulmonary-edema', 'legs-up-pulmonary-edema'); these are the case's own
       id: 'opioid-dyspnea', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major',
@@ -704,11 +705,11 @@ export const scapeField: Scenario = {
       text: 'Nitroglycerin with a systolic pressure under 100. Hold nitrates once the pressure has fallen (protocols set the line at 90, 100 or 110): CPAP and the nitrate already on board keep lowering it, and a low pressure starves the heart and the brain.',
     },
     {
-      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'negative-inotrope', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse, replaces: ['diltiazem-heart-failure', ...RATE_RULES], points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. Her fast rate is the body\'s answer to the hypoxia and the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — CPAP and nitroglycerin — and the rate comes down by itself.',
     },
     {
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. Her 12-lead shows a sinus rhythm whose speed is her response to the hypoxia: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing she has.',
     },
     {
@@ -736,7 +737,7 @@ export const scapeField: Scenario = {
       id: 'sedative-unsupported', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && (!onCpap(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
       text: 'A sedative before CPAP, or for a patient who is tiring. Her panic is air hunger, which CPAP and nitroglycerin treat; a benzodiazepine without that support blunts the breathing she has left. A small dose is for a patient on CPAP who is awake and fighting the mask.',
     },
-  ],
+  ]),
   timings: [
     { label: 'CPAP on', actions: ['cpap'], target: 5 },
     // the EMT's patient may get hers from the intercept paramedic: the flag counts theirs

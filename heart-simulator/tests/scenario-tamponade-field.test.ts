@@ -490,7 +490,8 @@ describe('tamponade in the field — the traps', () => {
     const s = medic(['iv', 'nitro', 'cpap', 'metoprolol', 'fentanyl', 'legs-up', 'transport-near']);
     expect(s.fired).toContain('arrest');
     expect(review(sc, stop(s)).wentWell.map((w) => w.label)).toEqual(['IV access']);
-    expect(penalties(s)).toEqual(['nitro-tamponade', 'cpap-tamponade', 'transport-in-arrest']);
+    // (the metoprolol comes after the arrest: a drug for a tachycardia with a pulse, given in cardiac arrest)
+    expect(penalties(s)).toEqual(['nitro-tamponade', 'cpap-tamponade', 'rate-drug-in-arrest', 'transport-in-arrest']);
   });
 
   // regression: the review said "a blood pressure by hand" for the monitor's cuff, and the nitroglycerin text said his

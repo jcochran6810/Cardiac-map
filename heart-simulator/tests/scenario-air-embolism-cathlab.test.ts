@@ -537,7 +537,8 @@ describe('air embolism in the cath lab: review fixes (each a regression test)', 
     expect([dilt.rhythm.hr, dilt.vitals.sbp]).toEqual([38, 66]);
     expect(penalties(run(sc, 5, ['adenosine-iv-ffr']))).toEqual(['av-blocker-slow']);
     expect(penalties(run(sc, 5, ['amio-infusion']))).toEqual(['av-blocker-slow']);
-    expect(penalties(run(sc, 5, ['lidocaine']))).toEqual(['lidocaine-no-target']);
+    // lidocaine at a rate of 44: its label rules it out (it can suppress the escape beats) — that outranks the case's minor rule
+    expect(penalties(run(sc, 5, ['lidocaine']))).toEqual(['lidocaine-slow-or-block']);
   });
 
   it('an OCT run is a contrast flush down the guide: before the aspiration it pushes more air (the tech is held off)', () => {

@@ -1,6 +1,7 @@
 import type { Effect, Line, Scenario, ScenarioEvent, SimState, Vitals } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LOW_GLUCOSE, PADS, PERFUSING_FLOOR, canSwallow, count, firstDone, has, paced } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Extended-release metoprolol overdose. The patient is computed, not patched: her rate and pressure are the untreated
@@ -607,13 +608,13 @@ export const betaBlockerField: Scenario = {
     { id: 'transport', label: 'Transport early', why: 'Treat on the way: she needs high-dose insulin, perhaps a transvenous pacing wire or ECMO, and 24 hours of ICU monitoring for an extended-release tablet.', done: ['transport-pci', 'transport-near'], points: 10, target: { by: 20 } },
     { id: 'handoff', label: 'Hand-off', why: 'The drug and its form (extended-release), the dose and the time, the glucose, what you gave and how she responded, and that this was a suicide attempt.', done: ['handoff'], points: 5 },
   ],
-  harms: [
-    { id: 'av-blocker', actions: ['diltiazem', 'metoprolol'], points: 20, severity: 'critical', text: 'Another AV-nodal blocker on top of a beta-blocker overdose. A calcium-channel blocker or more beta-blocker slows the heart, weakens the squeeze and opens the vessels further, and can stop the heart: treat the poison, never add to it.' },
-    { id: 'adenosine-brady', actions: ['adenosine6', 'adenosine12'], points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
+  harms: yieldToHeavier([
+    { id: 'av-blocker', actions: ['diltiazem', 'metoprolol'], replaces: RATE_RULES, points: 20, severity: 'critical', text: 'Another AV-nodal blocker on top of a beta-blocker overdose. A calcium-channel blocker or more beta-blocker slows the heart, weakens the squeeze and opens the vessels further, and can stop the heart: treat the poison, never add to it.' },
+    { id: 'adenosine-brady', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
     // one penalty for one mistake: these stand in for the engine's procainamide and arrest-dose amiodarone rules
-    { id: 'antiarrhythmic-brady', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['procainamide-slow', 'procainamide-hypotension', 'arrest-amio-with-pulse'], text: 'An antiarrhythmic for a slow rhythm with a low pressure. Amiodarone and procainamide slow conduction and drop the pressure, and all three can suppress the backup pacemaker that is keeping her going; there is nothing here to suppress.' },
+    { id: 'antiarrhythmic-brady', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 15, severity: 'critical', replaces: ['procainamide-slow', 'procainamide-hypotension', 'arrest-amio-with-pulse', ...LIDOCAINE_RULES, ...RATE_RULES], text: 'An antiarrhythmic for a slow rhythm with a low pressure. Amiodarone and procainamide slow conduction and drop the pressure, and all three can suppress the backup pacemaker that is keeping her going; there is nothing here to suppress.' },
     // her arrest is an organized rhythm without a pulse: nothing for amiodarone or lidocaine to treat (procainamide has its own built-in rule)
-    { id: 'antiarrhythmic-pea', actions: ['lidocaine', 'amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'An antiarrhythmic in a cardiac arrest without VF or VT. Amiodarone and lidocaine are for shock-refractory VF or pulseless VT; with an organized rhythm and no pulse: CPR, epinephrine and the cause.' },
+    { id: 'antiarrhythmic-pea', actions: ['lidocaine', 'amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt'], points: 3, severity: 'minor', text: 'An antiarrhythmic in a cardiac arrest without VF or VT. Amiodarone and lidocaine are for shock-refractory VF or pulseless VT; with an organized rhythm and no pulse: CPR, epinephrine and the cause.' },
     { id: 'atropine-loop', actions: ['atropine'], when: (s) => s.pulse && count(s, 'atropine') >= 2 && !escalated(s), points: 5, severity: 'major', text: 'A third dose of atropine with nothing else started, while the pressure falls. Atropine often does little in a beta-blocker overdose: when the first dose fails, move on — glucagon, an epinephrine infusion, pacing.' },
     { id: 'atropine-in-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in cardiac arrest. It is no longer recommended for PEA or asystole: CPR, epinephrine and the reversible causes.' },
     // the engine's own rule judges on the real glucose; after a low one was found, the first dose is right even if glucagon has since raised it
@@ -632,8 +633,8 @@ export const betaBlockerField: Scenario = {
     { id: 'magnesium-no-indication', actions: ['magnesium-sulfate'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Magnesium without torsades or a long QT. It has no role in a metoprolol overdose and drops the pressure (sotalol, which lengthens the QT, is the exception).' },
     // stands in for the engine's rule (a rate of 50 or more): here a rate of 50–59 with the pressure still low may be paced
     { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow, failing rate to treat. Pace a rate under 50 — or under 60 with the pressure still under 90 — that the drugs have not fixed; above that it adds pain, not perfusion.' },
-    { id: 'vagal-brady', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
-  ],
+    { id: 'vagal-brady', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-slow'], points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 5 },
     { label: 'Glucose checked', actions: ['glucose'], target: 10 },

@@ -2,6 +2,7 @@ import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
 import { bpAfter, firstDone, has, PADS } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Unstable atrial fibrillation in the emergency department. A 70-year-old woman with known paroxysmal AF and high blood
@@ -837,14 +838,14 @@ export const edUnstableAf: Scenario = {
     { id: 'md-admit', label: 'Admit her to a monitored bed', roles: ED_MD, done: ['admit'], points: 5, why: 'A cardioversion for an unstable rhythm, heparin running, a rhythm that may come back, the cause to treat and the TSH pending: a monitored bed.' },
     { id: 'md-handoff', label: 'Hand-off', roles: ED_MD, done: ['handoff'], points: 5, why: 'The rhythm, the two shocks, the sedation, the anticoagulation plan (heparin, then apixaban for at least 4 weeks and lifelong), the causes found, and what is pending.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     // the central trap: a rate-slowing drug into a pressure the rate is holding down
     {
-      id: 'diltiazem-unstable', actions: ['diltiazem'], when: (s) => s.pulse && (inAf(s) || s.vitals.sbp < 90), points: 15, severity: 'critical',
+      id: 'diltiazem-unstable', actions: ['diltiazem'], when: (s) => s.pulse && (inAf(s) || s.vitals.sbp < 90), replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'IV diltiazem into a patient whose pressure is 78. Diltiazem dilates the vessels and weakens the squeeze: it slows the rate a little and drops the pressure further — and her pressure was low because of the rate. An unstable tachycardia (hypotension, an acute change in mental status, signs of shock) gets an immediate synchronized shock (2025 AHA; 2023 AF guideline: COR 1), not a rate-control drug. (In the ER nurse\'s run, no rate-control drug goes in without the physician\'s order — and this one should be questioned.)',
     },
     {
-      id: 'metoprolol-unstable', actions: ['metoprolol'], when: (s) => s.pulse && (inAf(s) || s.vitals.sbp < 90), points: 15, severity: 'critical',
+      id: 'metoprolol-unstable', actions: ['metoprolol'], when: (s) => s.pulse && (inAf(s) || s.vitals.sbp < 90), replaces: RATE_RULES, points: 15, severity: 'critical',
       text: 'IV metoprolol into a patient whose pressure is 78. A beta-blocker weakens the squeeze and slows the rate only a little: her pressure falls further, because it was low from the rate. An unstable tachycardia gets an immediate synchronized shock (2025 AHA), not a rate-control drug; her own metoprolol is restarted by mouth once her pressure holds. (In the ER nurse\'s run, no rate-control drug goes in without the physician\'s order.)',
     },
     {
@@ -864,11 +865,11 @@ export const edUnstableAf: Scenario = {
       text: 'A cardioversion with no physician in the room. The ER nurse cardioverts per ACLS and facility policy with the physician directing: the decision, the sedation it needs and the airway are the physician\'s. Call the physician first — this patient needed one at the bedside from the start.',
     },
     {
-      id: 'amiodarone-before-shock', actions: ['amio-infusion'], roles: ED_MD, when: (s) => inAf(s) && !has(s, 'sync-shock'), points: 5, severity: 'major',
+      id: 'amiodarone-before-shock', actions: ['amio-infusion'], roles: ED_MD, when: (s) => inAf(s) && !has(s, 'sync-shock'), replaces: RATE_RULES, points: 5, severity: 'major',
       text: 'Amiodarone instead of the shock. In an unstable patient a 10-minute infusion is too slow, its solvent drops the pressure, and it can convert the rhythm with no plan for the stroke risk: the treatment is an immediate synchronized shock. (After a failed shock, amiodarone to help the next one hold is fair — 2023 AF guideline.)',
     },
     {
-      id: 'adenosine-irregular', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => inAf(s), points: 3, severity: 'minor',
+      id: 'adenosine-irregular', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => inAf(s), replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'Adenosine for an irregular tachycardia. It breaks circuits that run through the AV node (most regular narrow-complex tachycardias); fibrillating atria do not depend on the node, so the same rhythm came straight back after a few seconds — and the shock was delayed.',
     },
     {
@@ -884,7 +885,7 @@ export const edUnstableAf: Scenario = {
       id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, points: 5, severity: 'major',
       text: 'CPAP without breathing trouble. Her lungs are clear and her oxygen is fine; the positive pressure cuts the blood returning to a heart that already cannot fill, and with a systolic of 78 it deepens the shock.',
     },
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Pads on', actions: ['pads'], flag: 'pads', target: 4 },

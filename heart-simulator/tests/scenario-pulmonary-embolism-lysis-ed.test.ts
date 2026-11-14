@@ -313,6 +313,15 @@ describe('the ER nurse', () => {
     expect(ids(alone)).not.toContain('rn-without-order-alteplase');
   });
 
+  it('a rate or rhythm drug in her PEA: one penalty — the nurse\'s version also says it had no order; lidocaine and the arrest amiodarone need none', () => {
+    const arrested = rn(['ems-handoff', 'monitor', 'iv', 'fluid', 'fluid', 'fluid']);
+    expect(arrested.pulse).toBe(false);
+    const added = (id: string) => ids(perform(sc, arrested, id)).slice(arrested.penalties.length);
+    for (const drug of ['adenosine6', 'metoprolol', 'diltiazem', 'amio-infusion', 'procainamide']) expect(added(drug), drug).toEqual(['antiarrhythmic-pea-rn']);
+    for (const drug of ['amio-arrest', 'lidocaine']) expect(added(drug), drug).toEqual(['antiarrhythmic-pea']);
+    expect(sc.harms.find((h) => h.id === 'antiarrhythmic-pea-rn')).toMatchObject({ roles: [6], points: 5, severity: 'major', text: expect.stringMatching(/PEA, with no order/) });
+  });
+
   it('in the arrest, another nurse pushes the epinephrine if she does not, and the item is missed', () => {
     const s = rn(['ems-handoff', 'monitor', 'iv', 'fluid', 'fluid', 'fluid', 'cpr', 'cpr', 'cpr']);
     expect(said(s)).toMatch(/Another nurse pushes epinephrine 1 mg IV/);

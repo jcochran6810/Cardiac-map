@@ -3,6 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A vasovagal reaction at femoral sheath removal. A diagnostic cath from the right groin is over; the tech pulled the
@@ -663,7 +664,7 @@ export const cathlabVasovagal: Scenario = {
     { id: 'rn-site-after', label: 'Check the site and the foot pulses after the hold', why: 'Once the pressure comes off: a dry site, no lump growing, strong foot pulses and a warm leg — then every 15 minutes at first, with the vitals.', done: ['hemostasis'], after: 'hold-done', roles: RN, points: 5, applies: (s) => has(s, 'hold-done') },
     { id: 'handoff', label: 'Hand-off to the recovery nurse', why: 'What happened and what was given; the groin and the hold; bed rest and the checks; what to watch for (a falling pressure, a climbing pulse, back or flank pain, a growing groin) — and the plan for next time.', done: ['handoff'], roles: RN_MD, points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the tech's main lesson: it weighs as much as a missed call-out
       id: 'let-go', actions: Object.keys(HANDS_OFF), roles: TECH, when: (s) => holding(s), points: 10, severity: 'major',
@@ -678,11 +679,11 @@ export const cathlabVasovagal: Scenario = {
       text: 'Epinephrine for anaphylaxis with no anaphylaxis. A contrast reaction drops the pressure too, but with a fast pulse, flushing, hives, wheeze or swelling; here the pulse is slow, the skin pale and wet, and he yawned and felt sick first — a vagal picture. Unneeded epinephrine races the heart and spikes the pressure in a man just studied for chest pain: legs up, fluid and atropine.',
     },
     {
-      id: 'nodal-blocker-slow', actions: ['metoprolol', 'diltiazem', 'adenosine6', 'adenosine12', 'amio-infusion'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60 && !paced(s), points: 8, severity: 'major',
+      id: 'nodal-blocker-slow', actions: ['metoprolol', 'diltiazem', 'adenosine6', 'adenosine12', 'amio-infusion'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60 && !paced(s), replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A drug that slows the heart, with a pulse under 60. Metoprolol, diltiazem, amiodarone and adenosine slow the sinus node or the AV node further and deepen the fall in pressure: atropine is the drug for a slow rate.',
     },
     {
-      id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: RN_MD, points: 3, severity: 'minor',
+      id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: RN_MD, replaces: LIDOCAINE_RULES, points: 3, severity: 'minor',
       text: 'Lidocaine with no ventricular arrhythmia to treat. It is for VF, pulseless VT or a stable monomorphic VT; with a slow sinus rhythm it treats nothing and brings only its side effects.',
     },
     {
@@ -691,7 +692,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'Nitroglycerin with no chest pain to treat. It is for ischemic chest pain (or a high pressure in pulmonary edema); here it only opens the vessels and drops the pressure — and nitrates during a sheath pull are a known trigger of this reaction.',
     },
     {
-      id: 'vagal-maneuver-slow', actions: ['vagal'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60, points: 3, severity: 'minor',
+      id: 'vagal-maneuver-slow', actions: ['vagal'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60, replaces: ['vagal-slow'], points: 3, severity: 'minor',
       text: 'A vagal maneuver with a slow pulse. It adds to the vagal surge that is slowing the heart: it is for a narrow-complex tachycardia.',
     },
     {
@@ -710,7 +711,7 @@ export const cathlabVasovagal: Scenario = {
       id: 'lytic-no-indication', actions: ['tnk'], roles: MD, points: 15, severity: 'critical',
       text: 'A fibrinolytic with no indication, minutes after a femoral artery puncture. Tenecteplase is for a STEMI when PCI cannot be done in time; here it can turn the groin into a major or retroperitoneal bleed.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Rate brought up', actions: ['atropine', 'pace'], flag: 'rate-up', target: 2, from: 'reaction' },
     { label: 'Pulse and pressure back', actions: [], flag: 'recovered', target: 4, from: 'reaction' },

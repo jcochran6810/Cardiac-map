@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState, Vitals } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Acute type A aortic dissection in the field. A hypertensive man who ran out of his pills tears his ascending aorta lifting
@@ -405,7 +406,7 @@ export const dissectionField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'Report the onset, the pressure in each arm and the pulses, the 12-lead, what was given — and what was held (aspirin, nitroglycerin) — and how he changed.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words and weight: the aspirin is this case's main trap
       id: 'antithrombotic-dissection', actions: ['aspirin'], points: 10, severity: 'major',
@@ -445,12 +446,12 @@ export const dissectionField: Scenario = {
       text: 'Raising the legs of a patient who is not in shock. It returns more blood to a heart that is already pushing too hard against the tear: let him rest in the position of comfort.',
     },
     {
-      id: 'rate-drug-low', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && (shock(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), points: 8, severity: 'major',
+      id: 'rate-drug-low', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && (shock(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in shock, or with a systolic under 100 or a rate under 60. With a torn aorta a falling pressure means tamponade, rupture or a leaking aortic valve: slowing the heart takes away the rate that is holding up his output.',
     },
     {
       // metoprolol and diltiazem are offered once each: one already on board means this is the second AV-nodal blocker
-      id: 'rate-drug-double', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && !shock(s) && s.vitals.sbp >= 100 && s.rhythm.hr >= 60 && rateControlled(s), points: 5, severity: 'major',
+      id: 'rate-drug-double', actions: ['metoprolol', 'diltiazem'], when: (s) => s.pulse && !shock(s) && s.vitals.sbp >= 100 && s.rhythm.hr >= 60 && rateControlled(s), replaces: RATE_RULES, points: 5, severity: 'major',
       text: 'IV diltiazem and an IV beta-blocker together. Two AV-nodal blockers on top of each other can bring profound bradycardia, heart block and a falling pressure. The guideline gives one: a beta-blocker, or diltiazem only for a patient who cannot take one.',
     },
     {
@@ -488,7 +489,7 @@ export const dissectionField: Scenario = {
       id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; his lungs are clear, and positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Blood pressure in both arms', actions: ['bp-both-arms'], target: 10 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },

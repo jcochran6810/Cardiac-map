@@ -189,10 +189,11 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(sc.status!(s)).toMatch(/better/);
   });
 
-  it('IV metoprolol on top of his carvedilol is a minor error: the pressure falls, the rate barely moves, and he still decompensates', () => {
+  it('IV metoprolol on top of his carvedilol: the pressure falls, the rate barely moves, and he still decompensates — with fluid on his lungs it is ruled out', () => {
     let s = run(sc, 2, [...READY, 'metoprolol']);
-    expect(ids(s)).toEqual(['metoprolol-decompensated']);
-    expect(s.penalties[0].severity).toBe('minor');
+    // decompensated heart failure is a label contraindication (major): it outranks the case's minor rule
+    expect(ids(s)).toEqual(['beta-blocker-pulmonary-edema']);
+    expect(s.penalties[0].severity).toBe('major');
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([98, 66]);
     expect(s.rhythm.hr).toBe(136);
     s = run(sc, 2, [...READY, 'metoprolol', ...R(3)]);
@@ -205,15 +206,16 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(s.vitals.sbp).toBeLessThan(90);
     expect(s.fired).toContain('hypotensive');
     expect(s.flags.unstable).toBeDefined();
-    expect(ids(s)).toEqual(['metoprolol-decompensated', 'procainamide-heart-failure']);
+    expect(ids(s)).toEqual(['beta-blocker-pulmonary-edema', 'procainamide-heart-failure']);
   });
 
-  it('procainamide in heart failure is a major error; given once he is unstable it costs once for the low pressure, not twice', () => {
+  it('procainamide in heart failure is a major error; given once he is unstable it costs once, in the case\'s words, not twice', () => {
     const s = run(sc, 2, [...READY, 'procainamide']);
     expect(ids(s)).toEqual(['procainamide-heart-failure']);
     expect([s.vitals.sbp, s.vitals.dbp]).toEqual([94, 64]);
     const unstable = run(sc, 2, [...READY, 'diltiazem', 'procainamide']);
-    expect(ids(unstable)).toEqual(['diltiazem-hfref', 'procainamide-heart-failure', 'antiarrhythmic-unstable']);
+    // one dose, one penalty: the low pressure outranks the failing heart, and the case's rule speaks for that
+    expect(ids(unstable)).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable']);
     expect(ids(unstable)).not.toContain('procainamide-hypotension');
   });
 

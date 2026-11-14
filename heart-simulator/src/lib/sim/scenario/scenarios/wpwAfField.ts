@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Pre-excited atrial fibrillation (Wolff-Parkinson-White). A 24-year-old man whose heart took off in a pickup basketball
@@ -586,7 +587,7 @@ export const wpwAfField: Scenario = {
       why: 'Report the onset, the 12-lead of the arrhythmia and the one after it, every drug and shock with its time, and that no AV-nodal blocker was given.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words; the 300 mg push with a pulse is the same mistake made worse
       id: 'av-blocker-preexcited-af', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion', 'amio-arrest'],
@@ -606,7 +607,7 @@ export const wpwAfField: Scenario = {
     {
       // the same mistake as procainamide with a low pressure, in the words of this case: one penalty, not two
       id: 'drug-while-unstable', actions: ['procainamide', 'lidocaine', 'magnesium-sulfate'], when: (s) => inAf(s) && unstable(s),
-      points: 8, severity: 'major',
+      replaces: [...LIDOCAINE_RULES, 'magnesium-no-indication'], points: 8, severity: 'major',
       text: 'A drug for a tachycardia that had become unstable. Hypotension, a change in mental status, chest pain or heart failure make it unstable: synchronized cardioversion now (200 J), not an infusion that takes minutes and drops the pressure further.',
     },
     {
@@ -615,7 +616,7 @@ export const wpwAfField: Scenario = {
       text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one.',
     },
     {
-      id: 'magnesium-preexcited-af', actions: ['magnesium-sulfate'], when: (s) => inAf(s) && !unstable(s), points: 3, severity: 'minor',
+      id: 'magnesium-preexcited-af', actions: ['magnesium-sulfate'], when: (s) => inAf(s) && !unstable(s), replaces: ['magnesium-no-indication'], points: 3, severity: 'minor',
       text: 'Magnesium for pre-excited atrial fibrillation. It acts on the AV node, not the pathway: it cannot slow or stop this rhythm, and it drops the pressure. A sedated synchronized cardioversion, or procainamide.',
     },
     {
@@ -648,7 +649,7 @@ export const wpwAfField: Scenario = {
       // once he is back in sinus there is nothing left for them to treat; in WPW adenosine can even set off AF again
       // amiodarone after the procainamide that converted him is this same mistake: one penalty
       id: 'rate-drug-after-conversion', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion'], when: (s) => s.pulse && !inAf(s), points: 3, severity: 'minor',
-      replaces: ['amiodarone-after-procainamide'],
+      replaces: ['amiodarone-after-procainamide', ...RATE_RULES],
       text: 'A rate or rhythm drug once he was back in a regular rhythm. There is nothing left to treat: they only drop the pressure — and in WPW adenosine can set off atrial fibrillation again.',
     },
     {
@@ -659,10 +660,10 @@ export const wpwAfField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['iv', 'io', 'epinephrine', 'amio-arrest', 'lidocaine', 'magnesium-sulfate', 'airway'],
-      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), points: 5, severity: 'major',
+      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), replaces: ['epi-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Witnessed VF needs a shock first: IV access, drugs and the airway come after it, during CPR.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 4 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 8 },

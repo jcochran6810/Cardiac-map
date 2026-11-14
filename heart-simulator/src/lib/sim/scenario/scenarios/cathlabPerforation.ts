@@ -1,6 +1,7 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { bpAfter, has, line } from '../kit';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, operator, type LabAsk } from '../labKit';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { perforation: 'lad-perforation-ellis3', 'final-angio': 'lad-covered-stent-sealed' };
@@ -209,15 +210,15 @@ export const cathlabPerforation: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always.', done: ['hemostasis'], after: 'sealed', roles: [3, 4], points: 5, applies: (s) => has(s, 'sealed') },
     { id: 'handoff', label: 'Hand-off to the cardiac ICU', why: 'The perforation, the covered stent, the drain and how much came out, the heparin decision, surgery\'s plan, and a repeat echo.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'des-for-perforation', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'perforation'), points: 4, severity: 'minor', text: 'A drug-eluting stent for a perforation. It does not seal the hole; a covered stent does.' },
     { id: 'gp-in-perforation', actions: ['gp2b3a'], when: (s) => has(s, 'perforation'), points: 12, severity: 'critical', text: 'A GP IIb/IIIa inhibitor during an active perforation. It keeps the hole bleeding.' },
     { id: 'more-heparin', actions: ['heparin', 'bivalirudin'], when: (s) => has(s, 'perforation'), points: 10, severity: 'major', text: 'More anticoagulant during an active perforation.' },
     { id: 'nitro-in-tamponade', actions: ['nitro', 'nitro-high', 'ic-nitro'], when: (s) => has(s, 'perforation'), replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 6, severity: 'major', text: 'Nitroglycerin with a falling pressure from tamponade. It lowers the filling the heart depends on.' },
-    { id: 'beta-blocker', actions: ['metoprolol'], when: (s) => has(s, 'perforation'), points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
+    { id: 'beta-blocker', actions: ['metoprolol'], when: (s) => has(s, 'perforation'), replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in tamponade. The fast heart rate is what keeps her output up.' },
     askHarm(TECH_ASKS[1], 'The wrong device when the operator asked for a covered stent to seal the perforation.'),
-    askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5),
-  ],
+    { ...askHarm(RN_ASKS[0], 'A drug that drops the pressure (or keeps the hole bleeding) when the operator asked you to support it.', 5), replaces: RATE_RULES },
+  ]),
   timings: [
     { label: 'Balloon up over the hole', actions: ['balloon-tamponade'], flag: 'balloon-up', target: 1, from: 'perforation' },
     { label: 'Tamponade drained', actions: ['pericardiocentesis'], flag: 'drained', target: 6, from: 'tamponade' },

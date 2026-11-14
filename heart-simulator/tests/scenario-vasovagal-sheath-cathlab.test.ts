@@ -510,7 +510,9 @@ describe('vasovagal reaction at the sheath pull: review fixes', () => {
     for (const role of [4, 5] as const) {
       expect(penalties(run(sc, role, ['epi-im'])), `${role}`).toEqual(['epi-im-no-anaphylaxis']);
       expect(penalties(run(sc, role, ['p2y12'])), `${role}`).toEqual(['thinner-fresh-puncture']);
-      expect(penalties(run(sc, role, ['lidocaine'])), `${role}`).toEqual(['lidocaine-no-arrhythmia']);
+      // at a rate of 38 lidocaine is ruled out by its label; with the rate back up it only treats nothing
+      expect(penalties(run(sc, role, ['lidocaine'])), `${role}`).toEqual(['lidocaine-slow-or-block']);
+      expect(penalties(run(sc, role, ['atropine', 'lidocaine'])), `${role}`).toEqual(['lidocaine-no-arrhythmia']);
     }
     const amio = run(sc, 5, ['amio-infusion']);
     expect(penalties(amio)).toEqual(['nodal-blocker-slow']);
