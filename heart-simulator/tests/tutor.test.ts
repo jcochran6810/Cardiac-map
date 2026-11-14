@@ -412,9 +412,33 @@ describe('drug safety questions get the drug card\'s whole list of contraindicat
   it.each([
     ['can I give amiodarone for VT?', 'amiodarone'],
     ['can I use amiodarone in VT?', 'amiodarone'],
+    ['Can I give amiodarone in VT?', 'amiodarone'],
     ['can I give adenosine for SVT?', 'adenosine'],
     ['when do I give aspirin', 'aspirin'],
+    // "with a pulse" names the arrhythmia, not a reason to withhold the drug
+    ['Can I give amiodarone for VT with a pulse?', 'amiodarone'],
+    ['can I give atropine for bradycardia with a pulse?', 'atropine'],
   ])('an indication question stays one: "%s" gets the indications for %s', (q, id) => {
     expect(ask(q).title).toBe(`${lib.medications[id].name} — indications`);
+  });
+
+  // "Can I give X in Y?" asks whether it is safe there unless Y is what it is for: never the indications list, which reads like
+  // permission (2023 AF guideline: IV amiodarone in pre-excited AF 3 — Harm; ACE inhibitors' boxed fetal-toxicity warning;
+  // pregnancy a relative contraindication to lysis; atropine after a heart transplant 3 — Harm)
+  it.each([
+    ['Can I give adenosine in asthma?', 'adenosine'],
+    ['Can I give amiodarone in pre-excited AF?', 'amiodarone'],
+    ['Can I give nitro in tamponade?', 'nitroglycerin'],
+    ['Can I give lisinopril in pregnancy?', 'lisinopril'],
+    ['Can I give tenecteplase in pregnancy?', 'tenecteplase'],
+    ['Can I give diltiazem in WPW?', 'diltiazem'],
+    ['Can I give lidocaine in hyperkalemia?', 'lidocaine'],
+    ['Can I give atropine in a heart transplant patient?', 'atropine'],
+    ['Can I give metoprolol in cocaine chest pain?', 'metoprolol'],
+    ['Can I give metoprolol for AF in WPW?', 'metoprolol'],
+  ])('"%s" gets the contraindications to %s, not its indications', (q, id) => {
+    const a = ask(q);
+    expect(a.title).toBe(contraOf(id));
+    expect(a.bullets.slice(0, lib.medications[id].contraindications.length)).toEqual(lib.medications[id].contraindications);
   });
 });

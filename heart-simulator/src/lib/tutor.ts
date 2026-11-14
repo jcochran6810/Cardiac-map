@@ -4,6 +4,7 @@
  * best-matching item, and composes a level-appropriate answer with links.
  */
 import type { ContentLibrary, SearchExtra, SearchHit } from '@/lib/content';
+import type { MedicationContent } from '@/types/content';
 import { levelNote, searchLibrary, withAliases } from '@/lib/content';
 import type { AppMode, LearningLevel } from '@/store/useAppStore';
 import { LEVEL_LABELS, ROLE_SETTING } from '@/store/useAppStore';
@@ -225,12 +226,15 @@ const INTENTS: { key: string; re: RegExp }[] = [
 const SAFE_TO_GIVE = /\b(?:is\s+(?:it\s+)?(?:\w+\s+){0,2}safe|safe\s+to\s+(?:give|use)|ok(?:ay)?\s+to\s+(?:give|use))\b[^?]*\b(?:after|with|on|while|if|in|to|for)\b/i;
 /**
  * "Can I give nitroglycerin after Viagra?", "can I give metoprolol with a low pressure?", "…to a cocaine patient?", "…if he is
- * allergic?": may it be given in this situation — the contraindications. "Can I give amiodarone for VT?" or "…in VT?" asks
- * what it is for (CAN_GIVE_FOR): the indications.
+ * allergic?": may it be given in this situation — the contraindications. "With a pulse" (or "with no pulse") names the
+ * arrhythmia, not a situation that could forbid the drug: "can I give amiodarone for VT with a pulse?" asks what it is for.
+ * "Can I give amiodarone for VT?" or "…in VT?" may ask what it is for (CAN_GIVE_FOR): the situation decides (givenIn).
  */
 const CAN_GIVE = String.raw`(?:can|could|may|should)\s+(?:i|we|you)\s+(?:still\s+)?(?:give|use|push|start)\b`;
-const CAN_GIVE_IN = new RegExp(String.raw`\b${CAN_GIVE}[^?]*\b(?:after|with|on|while|if|to\s+(?:a|an|the|this|that|my|our|your|someone|anyone|patients?|him|her|them|people))\b`, 'i');
+const CAN_GIVE_IN = new RegExp(String.raw`\b${CAN_GIVE}[^?]*\b(?:after|with(?!\s+(?:a|no)\s+pulse\b)|on|while|if|to\s+(?:a|an|the|this|that|my|our|your|someone|anyone|patients?|him|her|them|people))\b`, 'i');
 const CAN_GIVE_FOR = new RegExp(String.raw`\b${CAN_GIVE}[^?]*\b(?:for|in)\b`, 'i');
+/** "Can I give X in Y?", "…for Y?", "…during Y?": the word before the situation, and the situation */
+const CAN_GIVE_SITUATION = new RegExp(String.raw`\b${CAN_GIVE}[^?]*?\b(in|for|during)\s+([^?]+)`, 'i');
 
 /**
  * What kind of answer a question wants. "When should I NOT give nitro?" comes first: it says "give" (a treatment
@@ -549,6 +553,47 @@ function drugCardNamed(q: string, lib: ContentLibrary): string | null {
   return best?.id ?? null;
 }
 
+/**
+ * One spelling for the situations a question and a drug card name in different words: "Wolff-Parkinson-White" and
+ * "pre-excited" are WPW, "pregnant" is pregnancy, "wheezing" and "bronchospasm" are asthma, a "high potassium" is
+ * hyperkalemia, a "transplanted" or "denervated" heart a transplant
+ */
+const situationWords = (text: string): string[] => tokens(text.toLowerCase()
+  .replace(/wolff[\s\-–]*parkinson[\s\-–]*white/g, ' wpw ')
+  .replace(/pre[\s\-–]?excit\w*/g, ' preexcited wpw ')
+  .replace(/ventricular tachycardia/g, ' vt ')
+  .replace(/supraventricular tachycardia/g, ' svt ')
+  .replace(/atrial fibrillation/g, ' af ')
+  .replace(/\bpregnan\w*/g, ' pregnancy ')
+  .replace(/\bhyperkal\w*|\bhigh\s+potassium/g, ' hyperkalemia ')
+  .replace(/\basthma\w*|\bbronchospas\w*|\bwheez\w*|\breactive\s+airway\w*/g, ' asthma ')
+  .replace(/\btransplant\w*|\bdenervat\w*/g, ' transplant ')
+  .replace(/\bhypotensi\w*|\blow\s+(?:blood\s+)?pressure/g, ' hypotension '));
+/** Question words and words that say nothing about the situation ("a patient", "the heart", "someone") */
+const NOT_A_SITUATION = new RegExp(String.raw`^(?:${STOP.source}|heart|cardiac|someone|anyone|person|people|man|woman|his|her|their|known|history|acute|setting|cases?|presence|possible|suspected|pulse|still|already)$`, 'i');
+
+/**
+ * "Can I give X in Y?": a question about safety unless Y is what the drug is for. The contraindications when Y names
+ * something only the card's contraindications or interactions name ("amiodarone in pre-excited AF", "adenosine in
+ * asthma", "lisinopril in pregnancy") or nothing on the card at all ("nitro in tamponade", "lidocaine in hyperkalemia");
+ * the indications when Y is among them and nothing in it is a contraindication ("amiodarone in VT"). Asked with "for" it
+ * stays an indications question unless Y names a contraindication ("metoprolol for AF in WPW"). Null: not such a question.
+ */
+function givenIn(q: string, m: MedicationContent): 'contra' | 'indications' | null {
+  const hit = CAN_GIVE_SITUATION.exec(q);
+  if (!hit) return null;
+  const own = new Set(situationWords([m.id, m.name, ...m.brandNames].join(' ')));
+  const said = Array.from(new Set(situationWords(withAliases(hit[2]) ?? hit[2]))).filter((w) => !own.has(w) && !NOT_A_SITUATION.test(w));
+  const known = (lines: readonly string[]) => new Set(situationWords(lines.join(' ')).flatMap(forms));
+  const contra = known([...m.contraindications, ...(m.interactions ?? [])]);
+  const ind = known(m.indications);
+  const named = (set: Set<string>) => said.filter((w) => forms(w).some((f) => set.has(f)));
+  const [inContra, inInd] = [named(contra), named(ind)];
+  if (inContra.some((w) => !inInd.includes(w))) return 'contra';
+  if (hit[1].toLowerCase() === 'for') return 'indications';
+  return inInd.length ? 'indications' : 'contra';
+}
+
 function careField(level: LearningLevel): 'fieldCare' | 'hospitalCare' | 'cardiologyCare' {
   // EMS roles → field care; the ER nurse and doctor, and the cath lab tech and nurse → in-hospital (ED / ICU) care;
   // cardiologist → specialist care
@@ -586,7 +631,20 @@ function composeAnswer(question: string, lib: ContentLibrary, ctx: TutorContext,
     also = match?.also ?? [];
     missed.push(...(match?.missed ?? []));
   }
-  const intent = intentOf(q);
+  let intent = intentOf(q);
+  // "can I give adenosine in asthma?", "…lisinopril in pregnancy?", "…amiodarone in pre-excited AF?": unless the situation is
+  // what the drug is for, the question is whether it is safe there — never answered with the list of what it is for. When it
+  // is what the drug is for ("can I give atropine for bradycardia with a pulse?"), the drug's own card says so
+  if (intent !== 'contra' && intent !== 'dose') {
+    const card = targetId && lib.medications[targetId] ? targetId : drugCardNamed(q, lib);
+    const verdict = card ? givenIn(q, lib.medications[card]) : null;
+    if (verdict === 'contra') intent = 'contra';
+    else if (verdict === 'indications' && card !== targetId) {
+      targetId = card;
+      also = [];
+      missed.length = 0;
+    }
+  }
   // a question about a drug's contraindications or dose is answered from the drug's own card, whatever page the search (or
   // the selection) put first: "contraindications to heparin" is not the cath lab's heparin overview, "can I give metoprolol
   // with a low blood pressure?" is not the blood pressure page, and "can I give nitro to someone on Adempas?" names the drug
