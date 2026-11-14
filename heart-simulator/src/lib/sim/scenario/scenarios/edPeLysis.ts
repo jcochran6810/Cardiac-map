@@ -2,7 +2,7 @@ import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo, physicianOrder } from '../edKit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * Pulmonary embolism with shock, in the emergency department. A 52-year-old woman, four days after a 15-hour flight and
@@ -942,11 +942,11 @@ export const edPeLysis: Scenario = {
       text: 'Adenosine or lidocaine with no order, for a fast rate that is not an arrhythmia. Hers is sinus tachycardia, the body\'s answer to a low pressure and low oxygen: nothing to break — and with a pulse neither drug is on a standing order. Tell the physician what you see instead.',
     },
     {
-      id: 'sedation-pe', actions: ['midazolam', 'procedural-sedation'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['midazolam-unsafe', 'sedation-no-procedure'],
+      id: 'sedation-pe', actions: ['midazolam', 'procedural-sedation'], roles: ED_MD, when: (s) => s.pulse, points: 5, severity: 'major', replaces: [...SEDATIVE_RULES, 'sedation-no-procedure'],
       text: 'Sedation for a patient in obstructive shock. Her fear and fast breathing come from the shock and the low oxygen: a sedative takes away the adrenaline that is holding her pressure up and slows her breathing (2026 AHA/ACC: no deep sedation unless clinically indicated — 3: Harm). Oxygen, a vasopressor and calm reassurance.',
     },
     {
-      id: 'sedation-pe-rn', actions: ['midazolam'], roles: ED_RN, points: 5, severity: 'major', replaces: [...noOrder(['midazolam']), 'midazolam-unsafe'],
+      id: 'sedation-pe-rn', actions: ['midazolam'], roles: ED_RN, points: 5, severity: 'major', replaces: [...SEDATIVE_RULES, ...noOrder(['midazolam'])],
       text: 'Midazolam with no order, for a patient in obstructive shock. Her fear and fast breathing come from the shock and the low oxygen: a sedative takes away the adrenaline that is holding her pressure up and slows her breathing. Oxygen, reassurance — and the physician, if you think she needs more.',
     },
     {

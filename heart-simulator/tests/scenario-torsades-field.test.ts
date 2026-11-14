@@ -434,7 +434,8 @@ describe('torsades in the field — overdrive pacing', () => {
 
   it('pacing an awake patient without analgesia costs a little; pacing once magnesium has stopped the runs is pacing with nothing to do', () => {
     expect(penalties(medic(['pads', 'pace']))).toEqual(['pace-before-magnesium', 'pace-no-analgesia']);
-    expect(penalties(medic(['pads', 'iv', 'magnesium-sulfate', 'fentanyl', 'pace']))).toEqual(['pace-not-slow']);
+    // (and with the runs stopped and no pain, the fentanyl has nothing to treat either)
+    expect(penalties(medic(['pads', 'iv', 'magnesium-sulfate', 'fentanyl', 'pace']))).toEqual(['opioid-no-pain', 'pace-not-slow']);
   });
 });
 

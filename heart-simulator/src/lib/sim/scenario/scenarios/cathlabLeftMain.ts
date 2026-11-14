@@ -3,7 +3,7 @@ import { PADS, bpAfter, firstDone, has, line, mapOf } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * A thrombotic left main in cardiogenic shock. A 72-year-old man comes straight up from the emergency department with
@@ -847,8 +847,8 @@ export const cathlabLeftMain: Scenario = {
     { id: 'beta-blocker', actions: ['metoprolol'], points: 12, severity: 'critical', text: 'An IV beta-blocker in cardiogenic shock. It takes away the little output the heart still has.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing ventricle must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock.' },
     // a benzodiazepine, named as one, is the bigger mistake; the generic "sedation / analgesia" order is a smaller one
-    { id: 'benzodiazepine-in-shock', actions: ['midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse, points: 5, severity: 'major', text: 'Midazolam in a shocked, hypoxic, drowsy patient. A benzodiazepine drops the pressure and the breathing; a small dose of fentanyl eases the pain without either.' },
-    { id: 'sedation-in-shock', actions: ['sedation'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Procedural sedation in a shocked, hypoxic, drowsy patient. It drops the pressure and the breathing; a small dose of fentanyl alone eases the pain without either.' },
+    { id: 'benzodiazepine-in-shock', actions: ['midazolam'], replaces: SEDATIVE_RULES, when: (s) => s.pulse, points: 5, severity: 'major', text: 'Midazolam in a shocked, hypoxic, drowsy patient. A benzodiazepine drops the pressure and the breathing; a small dose of fentanyl eases the pain without either.' },
+    { id: 'sedation-in-shock', actions: ['sedation'], when: (s) => s.pulse, points: 3, severity: 'minor', replaces: SEDATIVE_RULES, text: 'Procedural sedation in a shocked, hypoxic, drowsy patient. It drops the pressure and the breathing; a small dose of fentanyl alone eases the pain without either.' },
     { id: 'pci-no-heparin', actions: [...WIRES, 'balloon-predil', 'stent-des', 'impella'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A pump or a coronary wire without anticoagulation. Both clot without heparin.' },
     { id: 'right-guide-for-lm', actions: RIGHT_GUIDES, roles: MD, when: (s) => has(s, 'angio') && !has(s, 'pci'), points: 5, severity: 'minor', text: 'A right-coronary guide while the left main is still shut. The culprit is on the left: a left guide with back-up (EBU).' },
     // judged when the RCA is wired or treated (PCI starts with the wire): a guide alone treats nothing

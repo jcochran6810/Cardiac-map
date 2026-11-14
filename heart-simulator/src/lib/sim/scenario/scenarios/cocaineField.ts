@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
-import { nitrateRulesExcept } from '../rules/acs';
+import { SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -508,18 +508,19 @@ export const cocaineField: Scenario = {
     // titrated to calm: one unneeded dose is a small mistake (some protocols repeat it for a rate or pressure that stays up);
     // dosing a patient already drowsy from it is a real one
     {
-      id: 'midazolam-calm', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && calm(s) && !has(s, 'oversedated'), points: 2, severity: 'minor',
+      id: 'midazolam-calm', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && calm(s) && !has(s, 'oversedated'), points: 2, severity: 'minor', replaces: SEDATIVE_RULES,
       text: 'More midazolam for a patient who was already calm. A benzodiazepine is titrated to calm, not to sleep — and with the beers on board each dose goes further: more only makes him drowsy and slows his breathing. Treat the chest pain that is left with nitroglycerin, and repeat the benzodiazepine if the agitation comes back.',
     },
     {
       // the dose after the extra one (GCS 13, which the built-in 'midazolam-unsafe' does not yet catch); a dose after that,
-      // with a GCS of 12 or less or a low pressure, breaks the built-in rule as well — each dose is a mistake of its own
-      id: 'midazolam-oversedated', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && has(s, 'oversedated'), points: 8, severity: 'major',
+      // with a GCS of 12 or less or a low pressure, breaks the built-in rule as well — each dose is a mistake of its own (so
+      // this rule stands in only for the built-in sedation rule, which the one below already speaks for)
+      id: 'midazolam-oversedated', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && has(s, 'oversedated'), points: 8, severity: 'major', replaces: ['sedation-unsafe'],
       text: 'Midazolam for a patient already drowsy from it. Each dose deepens the sedation and slows the breathing further, and the alcohol he drank adds to it: stop, keep his airway open and his head up, watch the breathing, SpO₂ and EtCO₂, and be ready to assist his breathing with the bag-mask.',
     },
     {
-      // the built-in 'midazolam-unsafe' watches the midazolam action only; here the sedation protocol is the same drug
-      id: 'sedation-drowsy', actions: ['sedation'], when: (s) => s.pulse && (s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major',
+      // the sedation protocol is the same drug: the built-in sedation rules, in this case's words
+      id: 'sedation-drowsy', actions: ['sedation'], when: (s) => s.pulse && (s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'More midazolam (the sedation protocol) for a patient this drowsy. A benzodiazepine drops the breathing and the pressure further: with a GCS of 12 or less, support the airway and the breathing instead.',
     },
     {

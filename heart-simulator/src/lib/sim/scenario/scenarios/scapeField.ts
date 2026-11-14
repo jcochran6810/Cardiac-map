@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
-import { NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Hypertensive acute pulmonary edema — "sympathetic crashing acute pulmonary edema" (SCAPE). A surge of sympathetic tone
@@ -662,7 +662,7 @@ export const scapeField: Scenario = {
   harms: [
     {
       // a fluid bolus and raised legs are the built-in rules ('fluid-pulmonary-edema', 'legs-up-pulmonary-edema'); these are the case's own
-      id: 'opioid-dyspnea', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'opioid-dyspnea', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid for her breathlessness. She has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, adds nausea and vomiting under a CPAP mask, and in acute cardiogenic pulmonary edema morphine has been linked to more ventilation, ICU admissions and deaths. CPAP and nitroglycerin relieve the air hunger.',
     },
     {
@@ -734,7 +734,7 @@ export const scapeField: Scenario = {
     {
       // the benzodiazepine for the panic of the mask is a fair choice once she is on CPAP and awake; before that, or once she is
       // drowsy, it only blunts the breathing she has left
-      id: 'sedative-unsupported', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && (!onCpap(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-unsupported', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && (!onCpap(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'A sedative before CPAP, or for a patient who is tiring. Her panic is air hunger, which CPAP and nitroglycerin treat; a benzodiazepine without that support blunts the breathing she has left. A small dose is for a patient on CPAP who is awake and fighting the mask.',
     },
   ],

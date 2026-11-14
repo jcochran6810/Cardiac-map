@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -952,7 +952,7 @@ export const edTamponade: Scenario = {
       text: 'Adenosine with no order, for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for her — and with a pulse it is on no standing order.',
     },
     {
-      id: 'sedative-tamponade', actions: ['midazolam', 'fentanyl'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-tamponade', actions: ['midazolam', 'fentanyl'], roles: ED_MD, when: (s) => s.pulse && !drained(s), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid or a sedative in obstructive shock. Her distress is the effusion, not pain that needs an opioid, and her own adrenaline is what keeps her vessels tight and her pressure up: an opioid or a sedative blunts it and slows her breathing. The needle needs only local anesthetic.',
     },
     {
@@ -961,7 +961,7 @@ export const edTamponade: Scenario = {
     },
     {
       id: 'sedative-tamponade-rn', actions: ['midazolam', 'fentanyl'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
-      replaces: [...noOrder(['midazolam', 'fentanyl']), 'midazolam-unsafe'],
+      replaces: [...SEDATIVE_RULES, ...noOrder(['midazolam', 'fentanyl'])],
       text: 'Midazolam or fentanyl with no order. Before the drain her distress is the effusion, and her own adrenaline is what holds her pressure up: a sedative or an opioid blunts it and slows her breathing. Reassure her, keep her sitting up — and tell the physician if you think she needs more.',
     },
     {

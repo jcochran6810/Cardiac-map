@@ -291,8 +291,9 @@ describe('the ER nurse', () => {
     expect(rn(['ems-handoff', 'iv', 'lidocaine']).penalties).toMatchObject([{ id: 'no-arrhythmia-pe-rn', points: 5, severity: 'major', text: expect.stringMatching(/no order/) }]);
     expect(ids(rn(['ems-handoff', 'vagal']))).toEqual(['no-arrhythmia-pe']);
     expect(ids(md(['ems-handoff', 'iv', 'adenosine6']))).toEqual(['no-arrhythmia-pe']);
-    // a drug that is not a trap here still needs the order
-    expect(ids(rn(['ems-handoff', 'iv', 'fentanyl']))).toEqual(['rn-without-order-fentanyl']);
+    // a drug that is not a trap here still needs the order — and with her systolic under 90 the built-in opioid rule charges
+    // beside it (the missing order covers an indication rule, not a contraindication)
+    expect(ids(rn(['ems-handoff', 'iv', 'fentanyl']))).toEqual(['opioid-hypotension', 'rn-without-order-fentanyl']);
   });
 
   it('her arrest: CPR and epinephrine on the ACLS protocol, the lytic push on the physician\'s order — and she comes back', () => {

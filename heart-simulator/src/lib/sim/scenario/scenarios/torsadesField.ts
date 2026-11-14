@@ -482,7 +482,7 @@ export const torsadesField: Scenario = {
     },
     {
       // the built-in long-QT rule is replaced by the one above whatever the pulse: in the arrest it is this one
-      id: 'ondansetron-in-arrest', actions: ['ondansetron'], when: (s) => !s.pulse, points: 3, severity: 'minor',
+      id: 'ondansetron-in-arrest', actions: ['ondansetron'], when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['no-role-in-arrest'],
       text: 'Ondansetron in cardiac arrest. It treats nausea and has no place in an arrest — and it lengthens her QT further, for after ROSC.',
     },
     {

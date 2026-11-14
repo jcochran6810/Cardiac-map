@@ -2,6 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, type LabAsk } from '../labKit';
+import { SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * A retroperitoneal bleed after femoral access. Three hours after a PCI from the right groin, a small 76-year-old woman
@@ -740,7 +741,7 @@ export const cathlabRpBleed: Scenario = {
     },
     {
       // it stands in for the built-in midazolam rule, so it keeps that rule's drowsy patient too
-      id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], when: (s) => s.pulse && (s.vitals.sbp < 90 || s.vitals.gcs <= 12), replaces: ['midazolam-unsafe'], points: 3, severity: 'minor',
+      id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], when: (s) => s.pulse && (s.vitals.sbp < 90 || s.vitals.gcs <= 12), replaces: SEDATIVE_RULES, points: 3, severity: 'minor',
       text: 'Sedation with a systolic under 90 or a drowsy patient. It drops the pressure and the breathing further: local anesthetic at the groin, and only a little analgesia once she is stable.',
     },
     {

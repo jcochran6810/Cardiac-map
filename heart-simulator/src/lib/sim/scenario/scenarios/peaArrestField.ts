@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, firstDone, has, interpret, line } from '../kit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /** Minutes from the EMT's call until the paramedic intercept is at her side */
 const ALS_MINUTES = 6;
@@ -551,7 +551,7 @@ export const peaArrestField: Scenario = {
       text: 'Nitroglycerin after ROSC. She has no chest pain and no ST elevation, and her pressure is low or only just held up by treatment: nitrates drop it further.',
     },
     {
-      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse, points: 5, severity: 'major',
+      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: SEDATIVE_RULES, when: (s) => s.pulse, points: 5, severity: 'major',
       text: 'Fentanyl or sedation for a patient who is unresponsive. With a GCS of 3 she shows no pain or agitation to treat: an opioid or a sedative slows the breathing she has left and lowers her pressure.',
     },
     {

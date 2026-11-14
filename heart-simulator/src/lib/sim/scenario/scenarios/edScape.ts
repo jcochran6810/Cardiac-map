@@ -2,7 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Hypertensive acute pulmonary edema ("sympathetic crashing acute pulmonary edema", SCAPE) arriving in the emergency
@@ -917,7 +917,7 @@ export const edScape: Scenario = {
       text: 'Nitroglycerin with a systolic under 120. The surge has broken and the pressure is falling: hold the sublingual doses and turn the infusion down — a low pressure starves the heart, the brain and the kidneys.',
     },
     ...bothRoles({
-      id: 'opioid-air-hunger', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'opioid-air-hunger', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid for his air hunger. He has no pain to treat: an opioid blunts the breathing drive of a patient already tiring, and in acute cardiogenic pulmonary edema morphine has been linked to more intubations, ICU admissions and deaths (in the MIMO trial, more serious adverse events than midazolam). Positive pressure and nitroglycerin relieve the air hunger.',
     }, NO_ORDER, ['rn-without-order-fentanyl']),
     ...bothRoles({
@@ -933,11 +933,11 @@ export const edScape: Scenario = {
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
     }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {
-      id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-unsupported', actions: ['midazolam'], roles: ED_MD, when: (s) => s.pulse && (!onNiv(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'A sedative off the mask, or for a patient who is tiring. His panic is air hunger, which positive pressure and nitroglycerin treat; a benzodiazepine without that support blunts the breathing he has left. A small dose is for a patient on the mask who is awake and fighting it.',
     },
     {
-      id: 'rn-sedative-no-order', actions: ['midazolam'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['rn-without-order-midazolam', 'midazolam-unsafe'],
+      id: 'rn-sedative-no-order', actions: ['midazolam'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major', replaces: [...SEDATIVE_RULES, 'rn-without-order-midazolam'],
       text: 'Midazolam without an order. A sedative in a patient this tired can blunt the breathing he has left, and the ER nurse gives it only on the physician\'s order: if he is fighting the mask, tell the physician — positive pressure and nitroglycerin usually settle the panic.',
     },
     {

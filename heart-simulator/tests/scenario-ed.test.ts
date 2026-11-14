@@ -338,8 +338,10 @@ describe('emergency department defaults', () => {
     expect(ids(s)).toEqual([]);
     expect(ids(run(svt, 7, ['iv', 'procedural-sedation']))).toEqual(['sedation-unmonitored']);
     expect(ids(run(edPatient(), 7, ['monitor', 'iv', 'procedural-sedation']))).toEqual(['sedation-no-procedure']);
+    // a slow rate is a procedure to sedate for once the pads are on for the pacer; before that there is none yet
     const block = edPatient({ profile: 'third-degree-avb', hr: 34 });
-    expect(ids(run(block, 7, ['monitor', 'iv', 'procedural-sedation']))).toEqual([]);
+    expect(ids(run(block, 7, ['monitor', 'pads', 'iv', 'procedural-sedation']))).toEqual([]);
+    expect(ids(run(block, 7, ['monitor', 'iv', 'procedural-sedation']))).toEqual(['sedation-no-procedure']);
   });
 
   it('activates the cath lab only for a STEMI on the 12-lead; the team is ready after the case\'s minutes', () => {

@@ -3,7 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * A vasovagal reaction at femoral sheath removal. A diagnostic cath from the right groin is over; the tech pulled the
@@ -696,7 +696,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'A vagal maneuver with a slow pulse. It adds to the vagal surge that is slowing the heart: it is for a narrow-complex tachycardia.',
     },
     {
-      id: 'sedative-in-reaction', actions: ['fentanyl', 'midazolam', 'sedation'], roles: RN_MD, replaces: ['midazolam-unsafe'], when: (s) => reacting(s), points: 4, severity: 'minor',
+      id: 'sedative-in-reaction', actions: ['fentanyl', 'midazolam', 'sedation'], roles: RN_MD, replaces: SEDATIVE_RULES, when: (s) => reacting(s), points: 4, severity: 'minor',
       text: 'An opioid or a sedative in the middle of the reaction. They drop the pressure further and dull a patient you need awake (fentanyl can slow the heart too): treat the reaction first. Analgesia belongs before the sheath comes out — next time, IV fentanyl (with a little midazolam if needed) before the pull.',
     },
     {

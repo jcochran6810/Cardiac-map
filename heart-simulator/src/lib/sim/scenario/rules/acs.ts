@@ -1,6 +1,7 @@
 /**
- * Built-in safety rules for acute coronary care: the fibrinolytics, the nitrates and nitroprusside, the antiemetic,
- * the antithrombotics in a dissection, and sedation (midazolam and procedural sedation).
+ * Built-in safety rules for acute coronary care: the nitrates and nitroprusside, the fibrinolytics, the antithrombotics,
+ * protamine, the opioid and the sedatives (midazolam, sedation, procedural sedation), the antiemetic, and the drugs with no
+ * role in a cardiac arrest.
  *
  * A drug family with several reasons to hold it is judged through a gate: its rules are ranked, and one dose earns only
  * the highest-ranked rule that applies (one dose, one penalty). Each rule's `when` asks the gate whether it is the top one.
@@ -9,8 +10,8 @@ import { READ_OPTIONS } from '../reads';
 import { has, mapOf, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
 import {
-  ANTITHROMBOTICS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, hasProblem, lastDoneAt, longQt,
-  lowPressure, outflowObstruction, preloadDependent, procedureComing, tachyarrhythmia,
+  ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, hasProblem, lastDoneAt, longQt,
+  lowPressure, outflowObstruction, preloadDependent, rhythmKind, tachyarrhythmia,
 } from './helpers';
 
 type Check = (s: SimState, sc: Scenario, id: string) => boolean;
@@ -135,8 +136,11 @@ const NITRATE_GATE = gate([
   },
 ], (s) => s.pulse);
 
-/** Every built-in nitrate rule: a case rule that says a nitrate is wrong for its patient lists them in `replaces` */
-export const NITRATE_RULES = NITRATE_GATE.harms.map((h) => h.id);
+/**
+ * Every built-in nitrate rule, and the rule for a drug with no role in an arrest: a case rule that says a nitrate is wrong
+ * for its patient lists them in `replaces` (one that also applies in an arrest then stands for that rule too)
+ */
+export const NITRATE_RULES = [...NITRATE_GATE.harms.map((h) => h.id), 'no-role-in-arrest'];
 
 /**
  * The nitrate rules but these: for a case rule that judges a nitrate dose in its own words but leaves some built-in rules
@@ -150,18 +154,78 @@ export const nitrateRulesExcept = (...kept: string[]) => NITRATE_RULES.filter((i
  */
 export const topNitrate = NITRATE_GATE.top;
 
+// ─── Analgesia and sedation ────────────────────────────────────────────────
+
+/**
+ * A procedure that needs sedation or analgesia is running or about to start: a cardioversion (a tachyarrhythmia, or torsades
+ * to be defibrillated), transcutaneous pacing, or the pads on for a rate under 50 that the pacer is about to take. A heart
+ * already paced by a transvenous wire needs none, and a slow rate with no pads on is no procedure yet
+ */
+export const sedationForProcedure = (s: SimState) =>
+  tachyarrhythmia(s) || rhythmKind(s) === 'torsades' || s.rhythm.profile === 'tcp' || (s.rhythm.hr < 50 && !paced(s) && has(s, 'pads'));
+
+/**
+ * Too unwell to sedate: a low pressure, breathing under 10 a minute, or drowsy (GCS 12 or less) — and no procedure to sedate
+ * for. In the emergency department a drowsy patient with an advanced airway (RSI, or a tube after the arrest) is a ventilated
+ * one, sedated for the tube on the physician's decision: no mistake there
+ */
+export const unsafeToSedate: Check = (s, sc) =>
+  s.pulse && (lowPressure(s) || s.vitals.rr < 10 || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !sedationForProcedure(s);
+
+/** The opioid (fentanyl), ranked: the breathing first, then the pressure, then whether there is pain to treat */
+const OPIOID_GATE = gate([
+  {
+    id: 'opioid-respiratory', actions: ['fentanyl'], applies: (s) => s.vitals.rr < 10 || (s.vitals.gcs <= 8 && !has(s, 'airway') && !sedationForProcedure(s)),
+    points: 5, severity: 'major',
+    text: 'An opioid for a patient breathing under 10 a minute, or too drowsy to protect the airway (GCS 8 or less, no airway in place). Fentanyl slows the breathing further and can stop it (label boxed warning: life-threatening respiratory depression): support the breathing and the airway first.',
+  },
+  {
+    id: 'opioid-hypotension', actions: ['fentanyl'], applies: (s) => lowPressure(s) && !sedationForProcedure(s), points: 3, severity: 'minor',
+    text: 'An opioid with a systolic under 90 (with an LVAD, a Doppler MAP under 60) and no cardioversion or pacing to give it for. It widens the veins and blunts the drive holding the pressure up (label: severe hypotension): support the pressure first, then small doses, titrated.',
+  },
+  {
+    id: 'opioid-no-pain', actions: ['fentanyl'], applies: (s) => s.vitals.pain === 0 && !sedationForProcedure(s), points: 3, severity: 'minor',
+    text: 'An opioid with no pain to treat, and no cardioversion or pacing to give it for. Without either it brings only its risks — slower breathing, a lower pressure, nausea — and in an acute coronary syndrome an opioid also slows the oral P2Y12 inhibitor (2025 ACC/AHA ACS).',
+  },
+], (s) => s.pulse);
+
+/**
+ * Every built-in rule for the opioid and the sedatives (midazolam, the paramedic's and the lab's sedation), and the rule for a
+ * drug with no role in an arrest: a case rule that says a sedative or an opioid is wrong for its patient lists them in
+ * `replaces`
+ */
+export const SEDATIVE_RULES = [...OPIOID_GATE.harms.map((h) => h.id), 'midazolam-unsafe', 'sedation-unsafe', 'no-role-in-arrest'];
+
+// ─── The antiemetic ────────────────────────────────────────────────────────
+
+/** The label's advice to monitor the ECG: a failing heart, a high potassium, a slow rate or AV block */
+const ondansetronRisk = (s: SimState, sc: Scenario) =>
+  hasProblem(sc, ['heart-failure', 'hyperkalemia']) || s.rhythm.hr < 50 || AV_BLOCKS.includes(rhythmKind(s));
+
 export const ACS_RULES: Harm[] = [
   // the emergency department's procedural sedation (ACEP clinical policy: monitoring and capnography)
   { id: 'sedation-unmonitored', actions: ['procedural-sedation'], when: (s) => !has(s, 'monitor'), points: 5, severity: 'major', text: 'Procedural sedation without the cardiac monitor on. Sedation can stop the breathing and drop the pressure: the ECG, pulse oximetry, the blood pressure and capnography run from before the first dose until the patient is awake again.' },
-  { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s) => s.pulse && !procedureComing(s), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
+  { id: 'sedation-no-procedure', actions: ['procedural-sedation'], when: (s) => s.pulse && !sedationForProcedure(s), points: 3, severity: 'minor', text: 'Procedural sedation with no procedure that needs it. Deep sedation is for a cardioversion, a shock or pacing in a patient who is awake; without one it only puts the airway, the breathing and the pressure at risk.' },
   { id: 'lytic-no-indication', actions: LYTICS, when: (s, sc) => sc.setting === 'ed' && !has(s, 'ecg-stemi') && !hasProblem(sc, ['pulmonary-embolism', 'aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic without an indication. In the emergency department it is for a STEMI on the 12-lead when PCI cannot happen within 120 minutes of first medical contact (then within 30 minutes of arrival), or a high-risk pulmonary embolism; any other patient gets only its bleeding — intracranial in about 1 in 100.' },
   ...NITRATE_GATE.harms,
   { id: 'ondansetron-long-qt', actions: ['ondansetron'], when: (s, sc) => longQt(s, sc), points: 5, severity: 'major', text: 'Ondansetron with a long QT. It lengthens the QT further, more with each dose, and can set off torsades de pointes: avoid it with a long QT or torsades.' },
+  // the long-QT rule above speaks for a pulseless torsades
+  {
+    id: 'no-role-in-arrest', actions: ['nitro', 'nitro-high', 'nitro-iv', 'ic-nitro', 'fentanyl', 'midazolam', 'ondansetron'],
+    when: (s, sc, id) => !s.pulse && !(id === 'ondansetron' && longQt(s, sc)), points: 3, severity: 'minor',
+    text: 'A drug with no role in cardiac arrest. Nitroglycerin, fentanyl, midazolam and ondansetron treat a patient with a circulation: in an arrest they do nothing (2025 AHA) and take time from what does — compressions, a shock for VF or pulseless VT, epinephrine and the reversible causes.',
+  },
+  {
+    // in the lab the monitor is always on
+    id: 'ondansetron-unmonitored', actions: ['ondansetron'],
+    when: (s, sc) => s.pulse && sc.setting !== 'cathlab' && !has(s, 'monitor') && !longQt(s, sc) && ondansetronRisk(s, sc), points: 2, severity: 'minor',
+    text: 'Ondansetron without the cardiac monitor on, for a patient with a failing heart, a high potassium, a slow rate or AV block. It lengthens the QT, and its label advises ECG monitoring for exactly these patients: put the monitor on first.',
+  },
+  ...OPIOID_GATE.harms,
   // sedation before a cardioversion or for the pacer is needed even with a low pressure (a smaller dose, titrated): a case
   // with its own sedation rule says so in its own words
-  // in the emergency department a drowsy patient with an advanced airway (RSI, or a tube after the arrest) is a ventilated
-  // one, sedated for the tube on the physician's decision: no mistake there. The field and the lab score it as before
-  { id: 'midazolam-unsafe', actions: ['midazolam'], when: (s, sc) => s.pulse && (lowPressure(s) || (s.vitals.gcs <= 12 && !(sc.setting === 'ed' && has(s, 'airway')))) && !tachyarrhythmia(s) && !(s.rhythm.hr < 50 || paced(s)), points: 5, severity: 'major', text: 'Midazolam with a low pressure or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further: it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
+  { id: 'midazolam-unsafe', actions: ['midazolam'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Midazolam with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further (label boxed warning: respiratory depression): it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
+  { id: 'sedation-unsafe', actions: ['sedation'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Sedation with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A sedative drops the pressure and the breathing further (midazolam label boxed warning: respiratory depression, continuous monitoring): sedation is for a procedure in a patient awake enough to feel it — here support the pressure and the airway instead.' },
   { id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major', text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.' },
   { id: 'lytic-dissection', actions: LYTICS, when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 15, severity: 'critical', text: 'A fibrinolytic in an aortic dissection. It can turn the tear into a fatal hemorrhage: a dissection that blocks a coronary ostium can mimic a STEMI — think of it before any lytic.' },
 ];

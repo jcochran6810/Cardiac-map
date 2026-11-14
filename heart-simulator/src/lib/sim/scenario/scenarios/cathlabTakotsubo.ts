@@ -5,7 +5,7 @@ import {
   LEFT_VIEWS, MD, RCA_VIEWS, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Takotsubo syndrome with dynamic LV outflow tract obstruction. A 70-year-old woman comes to the lab as a STEMI alert an hour
@@ -851,7 +851,7 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'antiplatelet-no-acs', actions: ['p2y12', 'cangrelor', 'gp2b3a'], roles: [4, 5], when: (s) => has(s, 'normal-coronaries'), points: 4, severity: 'minor', text: 'A P2Y12 or GP IIb/IIIa inhibitor after the angiogram showed clean coronaries. There is no plaque rupture and no stent to protect: it adds only bleeding.' },
     { id: 'lytic-lab', actions: ['tnk'], roles: MD, points: 15, severity: 'critical', text: 'A fibrinolytic in the cath lab, with the arteries on the screen. There is no clot to dissolve — only a bleeding risk (intracranial in about 1 in 100), on top of heparin and aspirin.' },
     { id: 'pericardiocentesis-no-effusion', actions: ['pericardiocentesis'], roles: MD, points: 15, severity: 'critical', text: 'A pericardiocentesis without an effusion. The low pressure comes from inside the ventricle, and the needle can puncture the right ventricle or a coronary artery. Look first: an echo shows the pericardium and the outflow tract within a minute.' },
-    { id: 'sedation-low-pressure', actions: ['sedation'], roles: [4, 5], when: (s) => s.pulse && (obstructing(s) || s.vitals.sbp < 90), points: 5, severity: 'major', text: 'Sedation while her pressure was down. Sedatives and opioids in sedating doses dilate the veins and the arteries: less preload and less afterload, a bigger gradient and a lower pressure.' },
+    { id: 'sedation-low-pressure', actions: ['sedation'], roles: [4, 5], when: (s) => s.pulse && (obstructing(s) || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES, text: 'Sedation while her pressure was down. Sedatives and opioids in sedating doses dilate the veins and the arteries: less preload and less afterload, a bigger gradient and a lower pressure.' },
     // same id as the built-in rule (which waits for a systolic of 120): before the fall her 106 needed no vasoconstrictor either
     { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], roles: [4, 5], when: (s) => s.pulse && (!has(s, 'obstructed') || s.vitals.sbp >= 120), points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension — here, the fall with outflow obstruction; before the fall, or with a systolic of 120 or more, it only loads a ventricle under stress and slows the heart.' },
     rnNoOrder('phenylephrine', ['phenylephrine'], 'Phenylephrine', (s) => has(s, 'obstructed') && !phenylephrineOrdered(s)),

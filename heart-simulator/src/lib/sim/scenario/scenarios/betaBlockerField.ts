@@ -1,6 +1,8 @@
 import type { Effect, Line, Scenario, ScenarioEvent, SimState, Vitals } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LOW_GLUCOSE, PADS, PERFUSING_FLOOR, canSwallow, count, firstDone, has, paced } from '../kit';
+import { SEDATIVE_RULES, sedationForProcedure, unsafeToSedate } from '../rules/acs';
+import { lowPressure } from '../rules/helpers';
 
 /**
  * Extended-release metoprolol overdose. The patient is computed, not patched: her rate and pressure are the untreated
@@ -620,12 +622,18 @@ export const betaBlockerField: Scenario = {
     { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE && !(has(s, 'low-glucose') && count(s, 'dextrose') === 0 && !has(s, 'glucose-by-mouth')), points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
     // a dose while she is slow and failing may be premedication for the pacer: judged at the hand-off, by whether pacing followed
     // her own rule judges midazolam as it judges sedation (premedication for the pacer is right even with a low pressure)
-    { id: 'sedative-no-indication', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: ['midazolam-unsafe'], when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'An opioid or a sedative with no pain to treat and no pacing to cover. In a drowsy patient with a low pressure it deepens the sedation and the hypotension.' },
+    { id: 'sedative-no-indication', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: SEDATIVE_RULES, when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'An opioid or a sedative with no pain to treat and no pacing to cover. In a drowsy patient with a low pressure it deepens the sedation and the hypotension.' },
     // the engine's midazolam rule, same id, in this case's terms. While she is slow and failing and not yet paced, midazolam is
     // premedication for the pacer — right even with a low pressure (judged at the hand-off, by whether pacing followed); with
     // no pacing in sight the rule above speaks for it. Left for this one: once paced, her own rate has taken over from the
     // pacer and she is hypotensive or drowsy — nothing to sedate for
     { id: 'midazolam-unsafe', actions: ['midazolam'], when: (s) => s.pulse && has(s, 'paced') && !paced(s) && (s.vitals.sbp < 90 || s.vitals.gcs <= 12), points: 5, severity: 'major', text: 'Midazolam with a low pressure or a drowsy patient, once her own rate had taken over from the pacer. With no pacing to sedate for, a benzodiazepine drops the pressure and the breathing further: support the pressure and the airway instead.' },
+    // the built-in rules for an opioid or sedation with a low pressure, no pain or a drowsy patient, same ids, in this case's
+    // terms: while she is slow and failing it is premedication for the pacer (judged at the hand-off), with no pacing in sight
+    // the rule above speaks for it — left for these, once she has been paced
+    { id: 'opioid-hypotension', actions: ['fentanyl'], when: (s) => s.pulse && has(s, 'paced') && lowPressure(s) && !sedationForProcedure(s), points: 3, severity: 'minor', text: 'Fentanyl with a systolic under 90, once her own rate had taken over from the pacer. An opioid widens the veins and blunts the drive holding her pressure up: with nothing to pace there is nothing to give it for.' },
+    { id: 'opioid-no-pain', actions: ['fentanyl'], when: (s) => s.pulse && has(s, 'paced') && s.vitals.pain === 0 && !sedationForProcedure(s), points: 3, severity: 'minor', text: 'Fentanyl with no pain to treat, once her own rate had taken over from the pacer. Without pain or a pacer to cover it brings only its risks: slower breathing and a lower pressure.' },
+    { id: 'sedation-unsafe', actions: ['sedation'], when: (s, sc) => has(s, 'paced') && unsafeToSedate(s, sc, 'sedation'), points: 5, severity: 'major', text: 'Sedation with a low pressure or a drowsy patient, once her own rate had taken over from the pacer. A sedative drops the pressure and the breathing further: with no pacing to sedate for, support the pressure and the airway instead.' },
     { id: 'premed-no-pacing', actions: ['handoff'], when: (s) => premedUnused(s), points: 5, severity: 'minor', text: 'Fentanyl or sedation given before pacing that never came. Premedicate just before the pacer goes on; with no pacing, an opioid or a sedative in a drowsy patient with a low pressure only deepens the sedation and the hypotension.' },
     { id: 'false-stemi-alert', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. Her 12-lead shows none: the slow rate and the low pressure have another cause, and the cath lab team is called in for nothing.' },
     { id: 'cpap-shock', actions: ['cpap'], when: (s) => s.pulse, points: 6, severity: 'major', text: 'CPAP for a patient who is not short of breath. It cuts the venous return; with a systolic pressure in the 70s it deepens the shock.' },

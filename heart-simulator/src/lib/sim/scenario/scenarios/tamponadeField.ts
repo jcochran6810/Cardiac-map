@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, ScenarioEvent, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the field. A 62-year-old man on chemotherapy for lung cancer
@@ -626,7 +626,7 @@ export const tamponadeField: Scenario = {
       text: 'Adenosine for a sinus tachycardia. It only stops a rhythm whose circuit runs through the AV node: this one comes from the sinus node, driven by shock, and the pause it brings does nothing for him.',
     },
     {
-      id: 'sedative-tamponade', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedative-tamponade', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid or a sedative in obstructive shock. His heaviness is the effusion, not pain that needs an opioid, and his own adrenaline is what keeps his vessels tight and his pressure up: an opioid or a sedative blunts it and slows his breathing.',
     },
     {

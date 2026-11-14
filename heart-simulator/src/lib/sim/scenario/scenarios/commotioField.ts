@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { ARREST_ETCO2, arrestEtco2, bpAfter, firstDone, has, interpret, line, mapOf, ventilated } from '../kit';
-import { NITRATE_RULES } from '../rules/acs';
+import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * Minutes after the crew reaches him (he collapsed about 5 minutes before, with the coach's CPR since) within which the
@@ -612,7 +612,7 @@ export const commotioField: Scenario = {
       text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem, procainamide and the 150 mg amiodarone infusion are not arrest drugs: VF needs shocks, CPR, epinephrine and, if it persists, amiodarone 300 mg or lidocaine.',
     },
     {
-      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, roles: [2], points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
+      id: 'sedation-unresponsive', actions: ['fentanyl', 'sedation', 'midazolam'], when: (s) => s.pulse, roles: [2], points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'An opioid or a sedative for a patient who is unresponsive. With a GCS of 6 he shows no pain or agitation to treat: it slows the breathing he has left and lowers his pressure.',
     },
     {

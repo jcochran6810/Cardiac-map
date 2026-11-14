@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../
 import { atRate, bpAfter, has } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH } from '../labKit';
-import { nitrateRulesExcept } from '../rules/acs';
+import { SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * A stroke on the table. A diagnostic angiogram from the right radial: the left coronary is done, and a JR4 has just gone up
@@ -577,7 +577,7 @@ export const cathlabStroke: Scenario = {
   harms: [
     { id: 'carry-on', actions: MD_CARRY_ON, roles: MD, when: (s) => deficit(s) && !has(s, 'stopped'), points: 8, severity: 'major', text: 'More catheter work after a new neurologic deficit. Every pass in the arch can knock off more debris, and every minute before the stroke team is called costs brain: stop the injections, bring the catheter out over a wire and leave the sheath in — the coronary pictures can wait.' },
     { id: 'tech-carry-on', actions: TECH_CARRY_ON, roles: TECH, when: deficit, points: 3, severity: 'minor', text: 'Setting up the next step of the case when the patient has a new deficit. Call it out and help stop the procedure instead: slurred speech and a weak arm during catheter work in the arch is a stroke until proven otherwise.' },
-    { id: 'sedation-for-deficit', actions: ['midazolam', 'fentanyl', 'sedation'], when: (s) => deficit(s) && s.pulse, replaces: ['midazolam-unsafe'], points: 8, severity: 'major', text: 'More sedation for a new one-sided deficit. Sedation does not cause a one-sided weakness or a facial droop: more of it hides the exam the stroke team needs, slows the breathing and lowers the pressure the brain is living on.' },
+    { id: 'sedation-for-deficit', actions: ['midazolam', 'fentanyl', 'sedation'], when: (s) => deficit(s) && s.pulse, replaces: SEDATIVE_RULES, points: 8, severity: 'major', text: 'More sedation for a new one-sided deficit. Sedation does not cause a one-sided weakness or a facial droop: more of it hides the exam the stroke team needs, slows the breathing and lowers the pressure the brain is living on.' },
     { id: 'lower-bp-stroke', actions: LOWERING, when: (s) => s.pulse && deficit(s) && s.vitals.sbp <= 185 && s.vitals.dbp <= 110, replaces: nitrateRulesExcept('nitro-hypotension', 'nitroprusside-hypotension'), points: 8, severity: 'major', text: 'Lowering the blood pressure in an acute ischemic stroke. The tissue around the blocked artery lives on collaterals that need the pressure: a pressure of 185/110 or less is left alone (before thrombolysis or thrombectomy it must be 185/110 or less; without either it is treated only above 220/120). Nitroglycerin, a beta-blocker, the radial cocktail and the other vasodilators all drop it.' },
     // the monitor has already shown the fall: another dose on top is a second mistake, so a run of them cannot cost the same as one
     { id: 'lower-bp-again', actions: LOWERING, when: (s) => s.pulse && deficit(s) && has(s, 'bp-drug') && s.vitals.sbp <= 185 && s.vitals.dbp <= 110, replaces: nitrateRulesExcept('nitro-hypotension', 'nitroprusside-hypotension'), points: 5, severity: 'major', text: 'Lowering his pressure again after a first drug had already brought it down. The monitor showed the fall: each further dose takes more pressure from the brain living on collaterals around the clot. Stop the drugs that lower it, and bring it back if it has fallen well below his usual.' },
