@@ -224,6 +224,16 @@ describe('the nitrate rules in the cases', () => {
     expect(md.penalties.map((p) => p.id)).toEqual(['nitro-no-indication']);
   });
 
+  it('the ED dissection: the case\'s 0.8 mg exemption leaves every other nitrate rule judging, and its own rules cover theirs', () => {
+    const sc = SCENARIO_BY_ID['aortic-dissection-ed'];
+    const rateControlled = ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl'];
+    // rate controlled and over 120: the 0.8 mg dose is allowed, but not without the PDE-5 question
+    expect(runScenario(sc, 7, [...rateControlled, 'nitro-high']).penalties.map((p) => p.id)).toEqual(['nitro-no-pde5']);
+    expect(runScenario(sc, 7, [...rateControlled, 'ask-pde5', 'nitro-high']).penalties.map((p) => p.id)).toEqual([]);
+    // before the beta-blocker: the case's rule alone (it stands in for the built-in rate-control rule and the checks)
+    expect(runScenario(sc, 7, ['opqrst', 'nitro-high']).penalties.map((p) => p.id)).toEqual(['vasodilator-before-rate-md']);
+  });
+
   it('the NSTEMI\'s returning pain: a rate of 96 and the monitor\'s pressure, so her nitroglycerin is clean', () => {
     const sc = SCENARIO_BY_ID['nstemi-troponin-ed'];
     const s = runScenario(sc, 7, ['opqrst', 'sample', 'ecg-posterior', 'aspirin', 'heparin', 'troponin-repeat', ...R(4), 'consult-cardiology', 'admit', ...R(8)]);
