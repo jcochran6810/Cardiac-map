@@ -668,13 +668,30 @@ describe('a drug contraindication charges once for each drug given into it (rule
     expect(penaltyIds(SCENARIO_BY_ID['lvad-field'], 2, ['iv', 'fentanyl', 'sedation'])).toEqual(['sedative-no-indication', 'sedative-no-indication']);
     expect(penaltyIds(SCENARIO_BY_ID['lvad-field'], 2, ['iv', 'sedation', 'midazolam', 'fentanyl'])).toEqual(['sedative-no-indication']);
     // the radial cocktail carries verapamil and nitroglycerin: a rate-drug rule judges its verapamil, a nitrate rule its nitroglycerin
-    const rate = BUILT_IN_HARMS.find((h) => h.id === 'cocktail-low-pressure')!;
+    const rate = BUILT_IN_HARMS.find((h) => h.id === 'nodal-blocker-slow')!;
     const nitrate = BUILT_IN_HARMS.find((h) => h.id === 'nitro-pde5')!;
     expect(judgedDrugs(rate, 'radial-cocktail')).toEqual(['verapamil']);
     expect(judgedDrugs(nitrate, 'radial-cocktail')).toEqual(['nitroglycerin']);
-    // so intracoronary verapamil, then the cocktail, at a low pressure: verapamil once
-    const low = fixture({ setting: 'cathlab', role: 5, rhythm: { profile: 'normal-sinus', hr: 80 }, vitals: { sbp: 84, dbp: 50 } });
-    expect(penaltyIds(low, 5, ['ic-verapamil', 'radial-cocktail']).filter((p) => p === 'cocktail-low-pressure')).toEqual(['cocktail-low-pressure']);
+    // …but the cocktail's low-pressure rule judges it whole: it speaks for the nitroglycerin too, which the nitrate gate leaves
+    // to it under 90 (WHOLE_ACTION)
+    const cocktail = BUILT_IN_HARMS.find((h) => h.id === 'cocktail-low-pressure')!;
+    expect(judgedDrugs(cocktail, 'radial-cocktail')).toEqual(['verapamil', 'nitroglycerin']);
+    expect(judgedDrugs(cocktail, 'ic-verapamil')).toEqual(['verapamil']);
+    // so intracoronary verapamil, then the cocktail, at a low pressure: the cocktail brings its nitroglycerin, a second drug
+    // into the same low pressure (the sheath is in: the cocktail goes through it)
+    const low = fixture({
+      setting: 'cathlab', role: 5, rhythm: { profile: 'normal-sinus', hr: 80 }, vitals: { sbp: 84, dbp: 50 },
+      extra: { events: [{ id: 'sheath', when: () => true, effect: () => ({ flags: ['access'] }) }] },
+    });
+    expect(penaltyIds(low, 5, ['ic-verapamil', 'radial-cocktail'])).toEqual(['cocktail-low-pressure', 'cocktail-low-pressure']);
+    // the other way round, intracoronary verapamil after the cocktail brings no new drug: once
+    expect(penaltyIds(low, 5, ['radial-cocktail', 'ic-verapamil'])).toEqual(['cocktail-low-pressure']);
+    // every rule on the procedure's sedation judges its midazolam and its fentanyl: after midazolam the sedation's fentanyl
+    // into the same shock is a mistake of its own; midazolam after the sedation is a repeat
+    expect(judgedDrugs({ id: 'sedation-in-shock', actions: ['sedation', 'midazolam'] }, 'sedation')).toEqual(['midazolam', 'fentanyl']);
+    expect(penaltyIds(SCENARIO_BY_ID['retroperitoneal-bleed-cathlab'], 4, ['midazolam', 'sedation'])).toEqual(['sedation-in-shock', 'sedation-in-shock']);
+    expect(penaltyIds(SCENARIO_BY_ID['retroperitoneal-bleed-cathlab'], 4, ['sedation', 'midazolam'])).toEqual(['sedation-in-shock']);
+    expect(penaltyIds(SCENARIO_BY_ID['pulmonary-embolism-field'], 2, ['iv', 'midazolam', 'sedation'])).toEqual(['sedation-pe', 'sedation-pe']);
   });
 
   it('a repeat of the same drug is not charged for a reason that held when it was charged; what is new still charges', () => {

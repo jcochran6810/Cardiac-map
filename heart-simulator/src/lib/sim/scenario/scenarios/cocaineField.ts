@@ -53,6 +53,8 @@ const UNSEDATED_RESTRAINT = 5;
 
 /** A benzodiazepine (the learner's or the intercept's) has settled the agitation */
 const calm = (s: SimState) => has(s, 'calm');
+/** Too drowsy (GCS 12 or less) or too low a pressure for the sedation protocol: sedation-drowsy */
+const sedationTooDrowsy = (s: SimState) => s.vitals.gcs <= 12 || s.vitals.sbp < 90;
 
 /** In the ambulance: he is on the stretcher, and the partner is driving */
 const enroute = (s: SimState) => has(s, 'enroute');
@@ -557,13 +559,17 @@ export const cocaineField: Scenario = {
     {
       // the dose after the extra one (GCS 13, which the built-in 'midazolam-unsafe' does not yet catch); a dose after that,
       // with a GCS of 12 or less or a low pressure, breaks the built-in rule as well — each dose is a mistake of its own (so
-      // this rule stands in only for the built-in sedation rule, which the one below already speaks for)
-      id: 'midazolam-oversedated', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && has(s, 'oversedated'), points: 8, severity: 'major', replaces: ['sedation-unsafe'],
+      // this rule stands in only for the built-in sedation rule, which the one below already speaks for). The sedation
+      // protocol that drowsy is sedation-drowsy's alone (one act, one penalty): the engine counts the procedure's sedation as
+      // midazolam with fentanyl (rules/charge.ts DRUGS_OF, WHOLE_ACTION), so after a charged midazolam this rule would charge
+      // it again beside that one
+      id: 'midazolam-oversedated', actions: ['midazolam', 'sedation'], when: (s, _sc, id) => s.pulse && has(s, 'oversedated') && !(id === 'sedation' && sedationTooDrowsy(s)),
+      points: 8, severity: 'major', replaces: ['sedation-unsafe'],
       text: 'Midazolam for a patient already drowsy from it. Each dose deepens the sedation and slows the breathing further, and the alcohol he drank adds to it: stop, keep his airway open and his head up, watch the breathing, SpO₂ and EtCO₂, and be ready to assist his breathing with the bag-mask.',
     },
     {
       // the sedation protocol is the same drug: the built-in sedation rules, in this case's words
-      id: 'sedation-drowsy', actions: ['sedation'], when: (s) => s.pulse && (s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
+      id: 'sedation-drowsy', actions: ['sedation'], when: (s) => s.pulse && sedationTooDrowsy(s), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'More midazolam (the sedation protocol) for a patient this drowsy. A benzodiazepine drops the breathing and the pressure further: with a GCS of 12 or less, support the airway and the breathing instead.',
     },
     // a drug contraindication of the case's own: push-dose epinephrine and the infusion each charge it (rules/charge.ts perDrug)

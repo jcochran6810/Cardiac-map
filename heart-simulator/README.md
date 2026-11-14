@@ -303,7 +303,10 @@ changes the count. A second, different drug into the same contraindication is a 
 if the case speaks for it, while the same drug again — at another dose or by another route (`DRUGS_OF`: sublingual and
 IV nitroglycerin, adenosine 6 and 12 mg …) — costs nothing more from that rule. An act is a repeat for a rule when it
 brings no drug the rule judges that the rule has charged already (`judgedDrugs`: the procedure's sedation after fentanyl
-brings midazolam; the radial cocktail after intracoronary verapamil brings no new drug for a rate rule). Minor case rules,
+brings midazolam, and after midazolam its fentanyl — every rule on the sedation judges both; the radial cocktail after
+intracoronary verapamil brings no new drug for a rate rule other than `cocktail-low-pressure`, which judges the cocktail
+whole, since under 90 its nitroglycerin is that rule's too — as does a case rule standing in for the nitrate and the
+rate-drug rules alike: `WHOLE_ACTION`). Minor case rules,
 indication rules and rules on anything that is not a drug keep charging once a case. `charge.ts` throws if the built-in
 rules were never registered (the engine imports `rules/index.ts`).
 **One dose, one penalty:** where several rules judge one action they are ranked, and only the highest-ranked rule that

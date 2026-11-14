@@ -54,7 +54,8 @@ type RuleLike = { id: string; severity: Severity; actions: string[] };
 const JUDGED = new WeakMap<object, Set<string>>();
 /**
  * The drugs this rule judges: those of its actions that give one drug each. The radial cocktail carries two, and a rate-drug
- * rule judges its verapamil (it lists intracoronary verapamil too), a nitrate rule its nitroglycerin
+ * rule judges its verapamil (it lists intracoronary verapamil too), a nitrate rule its nitroglycerin — but a rule that judges
+ * the action whole judges both (WHOLE_ACTION)
  */
 function judgedBy(rule: { actions: string[] }): Set<string> {
   let set = JUDGED.get(rule);
@@ -64,18 +65,52 @@ function judgedBy(rule: { actions: string[] }): Set<string> {
   }
   return set;
 }
+/** A rule as judgedDrugs reads it: a case rule's `replaces` names the built-in rules it speaks for */
+type JudgingRule = { id: string; actions: string[]; replaces?: string[] };
+
+const SPEAKS_FOR = new WeakMap<object, Set<string>>();
 /**
- * The drugs of this action this rule judges (every drug of it, when the rule lists none of them alone): the midazolam and
- * the fentanyl of the procedure's sedation for a sedative rule; the cocktail's verapamil for a rate-drug rule
+ * The drugs a rule speaks for: those it judges itself, and those the built-in rules it stands in for judge (its id, its
+ * `replaces`) — e.g. both drugs of the radial cocktail for a case rule standing in for the nitrate and the rate-drug rules
  */
-export function judgedDrugs(rule: { actions: string[] }, action?: string): string[] {
+function speaksFor(rule: JudgingRule): Set<string> {
+  let set = SPEAKS_FOR.get(rule);
+  if (!set) {
+    const registry = builtIns();
+    const standsFor = [rule.id, ...(rule.replaces ?? [])].map((id) => registry.get(id)).filter((b): b is Harm => !!b);
+    set = new Set([rule, ...standsFor].flatMap((r) => Array.from(judgedBy(r))));
+    SPEAKS_FOR.set(rule, set);
+  }
+  return set;
+}
+
+/**
+ * The two-drug actions a rule judges whole, where its own reason covers both drugs and no other rule judges the second:
+ * - the radial cocktail's low-pressure rule speaks for its nitroglycerin too (its text says so): the nitrate gate leaves
+ *   the cocktail under 90 to it (nitro-hypotension judges NITRATES_ACS only). So does a case rule that stands in for the
+ *   nitrate and the rate-drug rules alike: while it applies, no other rule judges either drug;
+ * - no opioid rule judges the procedure's sedation: every rule on it judges its midazolam and its fentanyl.
+ * Narrowing these would let the second drug go free after the first was charged (intracoronary verapamil, then the cocktail
+ * into the same low pressure; midazolam, then the sedation's fentanyl into the same shock)
+ */
+const WHOLE_ACTION: Record<string, (rule: JudgingRule) => boolean> = {
+  'radial-cocktail': (rule) => rule.id === 'cocktail-low-pressure' || drugsOf('radial-cocktail').every((d) => speaksFor(rule).has(d)),
+  sedation: () => true,
+};
+/**
+ * The drugs of this action this rule judges: every drug of it when the rule lists none of them alone, or when the rule
+ * judges the action whole (WHOLE_ACTION); otherwise those it lists alone — the cocktail's verapamil for a rate-drug rule,
+ * its nitroglycerin for a nitrate rule
+ */
+export function judgedDrugs(rule: JudgingRule, action?: string): string[] {
   const all = drugsOf(action);
+  if (action && WHOLE_ACTION[action]?.(rule)) return all;
   const mine = judgedBy(rule);
   const judged = all.filter((d) => mine.has(d));
   return judged.length ? judged : all;
 }
 /** Every drug of this action the rule judges is among the drugs of these earlier acts (a repeat, for this rule) */
-const repeatOf = (rule: { actions: string[] }, action: string, earlier: Penalty[]) => {
+const repeatOf = (rule: JudgingRule, action: string, earlier: Penalty[]) => {
   const given = new Set(earlier.flatMap((p) => judgedDrugs(rule, p.action)));
   return judgedDrugs(rule, action).every((d) => given.has(d));
 };
@@ -93,7 +128,7 @@ export function chargesPerDrug(rule: RuleLike): boolean {
  * (the penalty pushed for the act being judged has the current minute, so a condition that reads this does not change while
  * the engine charges the act's rules one after the other)
  */
-export function chargedAgainst(s: SimState, rule: { id: string; actions: string[] }, perDrug: boolean, action: string, earlier = false): boolean {
+export function chargedAgainst(s: SimState, rule: JudgingRule, perDrug: boolean, action: string, earlier = false): boolean {
   const mine = s.penalties.filter((p) => p.id === rule.id && (!earlier || p.minute < s.minute));
   if (!mine.length) return false;
   return !perDrug || repeatOf(rule, action, mine);
@@ -107,7 +142,7 @@ export const builtInChargedBefore = (s: SimState, rule: RuleLike, action: string
  * not charged for it — it was part of the mistake charged then (one dose, one penalty). The checks before a nitrate are never
  * covered: each dose owes them. A different drug is never covered (judged anew)
  */
-export function coveredBefore(s: SimState, rule: { id: string; actions: string[] }, action: string): boolean {
+export function coveredBefore(s: SimState, rule: JudgingRule, action: string): boolean {
   if (NITRATE_CHECK_IDS.includes(rule.id)) return false;
   const earlier = s.penalties.filter((p) => p.minute < s.minute && !!p.held?.includes(rule.id));
   return earlier.length > 0 && repeatOf(rule, action, earlier);
@@ -118,7 +153,7 @@ export function coveredBefore(s: SimState, rule: { id: string; actions: string[]
  * per drug: on earlier doses of this drug), or covered by an earlier dose of this drug (coveredBefore). The one repeat policy
  * of every gate
  */
-export const passedOver = (s: SimState, rule: { id: string; actions: string[] }, perDrug: boolean, action: string) =>
+export const passedOver = (s: SimState, rule: JudgingRule, perDrug: boolean, action: string) =>
   chargedAgainst(s, rule, perDrug, action, true) || coveredBefore(s, rule, action);
 
 // ─── The built-in rules, and what each one's own condition is ──────────────

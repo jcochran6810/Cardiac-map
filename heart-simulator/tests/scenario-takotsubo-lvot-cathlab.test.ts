@@ -379,6 +379,11 @@ describe('the traps: wrong care does what it would, and costs points', () => {
       expect(s.vitals.sbp, id).toBeLessThan(79);
       expect(penalties(s), id).toEqual([id === 'ic-nitro' ? 'nitrate-lvoto-ic' : 'nitrate-lvoto']);
     }
+    // the radial cocktail after intracoronary nitroglycerin brings verapamil, a second drug into the obstruction (the rule
+    // stands in for the nitrate and the rate-drug rules alike: it judges the cocktail whole, rules/charge.ts WHOLE_ACTION);
+    // intracoronary nitroglycerin after the cocktail brings nothing new
+    expect(penalties(run(sc, 5, [...MD_TO_GRADIENT, 'ic-nitro', 'radial-cocktail']))).toEqual(['nitrate-lvoto-ic', 'nitrate-lvoto-ic']);
+    expect(penalties(run(sc, 5, [...MD_TO_GRADIENT, 'radial-cocktail', 'ic-nitro']))).toEqual(['nitrate-lvoto-ic']);
     // once relieved, a nitrate brings the obstruction straight back
     const back = run(sc, 5, [...MD.slice(0, MD.indexOf('phenylephrine') + 1), 'nitro-high']);
     expect(back.flags.relieved).toBeUndefined();

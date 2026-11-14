@@ -410,9 +410,13 @@ describe('Pulmonary embolism in the field — the traps', () => {
     expect(penalties(emt(['primary', 'vagal']))).toEqual(['no-arrhythmia-pe']);
   });
 
-  it('sedation takes away the drive that holds her pressure up: one major penalty, in place of the built-in midazolam rule', () => {
+  it('sedation takes away the drive that holds her pressure up: one major penalty for each drug, in place of the built-in midazolam rule', () => {
+    expect(penalties(medic(['primary', 'monitor', 'iv', 'midazolam']))).toEqual(['sedation-pe']);
+    // the procedure's sedation after midazolam brings fentanyl, a second drug into the same failing pressure: its own penalty
+    // (rules/charge.ts WHOLE_ACTION); midazolam after the sedation is a repeat
+    expect(penalties(medic(['primary', 'monitor', 'iv', 'sedation', 'midazolam']))).toEqual(['sedation-pe']);
     const s = medic(['primary', 'monitor', 'iv', 'midazolam', 'sedation']);
-    expect(penalties(s)).toEqual(['sedation-pe']);
+    expect(penalties(s)).toEqual(['sedation-pe', 'sedation-pe']);
     expect(s.vitals.sbp).toBeLessThan(84);
     expect(s.vitals.rr).toBeLessThan(30);
   });
