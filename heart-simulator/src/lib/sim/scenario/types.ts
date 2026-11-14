@@ -85,6 +85,8 @@ export type EndReason = 'complete' | 'death' | 'stopped';
 export interface Penalty {
   id: string;
   minute: number;
+  /** the act a rule charged it on (rules/charge.ts: a drug contraindication charges once for each drug given into it) */
+  action?: string;
   points: number;
   severity: Severity;
   text: string;

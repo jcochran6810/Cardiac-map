@@ -29,6 +29,7 @@ import type {
 } from './types';
 import { BUILT_IN_HARMS } from './rules';
 import { NITRATE_CHECKS, sedationForProcedure } from './rules/acs';
+import { countsFor } from './rules/charge';
 import { INDICATION_RULES, RN_ORDER_ONLY, missingOrderCovers } from './rules/scope';
 import {
   cprThisArrest, did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, outflowObstruction, preexcitedAf, preloadDependent, profileShowsStemi,
@@ -1235,7 +1236,9 @@ function askRead(s: SimState, r: PendingRead) {
 
 /**
  * The rules that charge this action (`id`), judged on the state just before it takes effect. Each rule charges at most
- * once per case. One mistake, one penalty:
+ * once per case — but a built-in drug contraindication charges once for each drug given into it (rules/charge.ts: a second,
+ * different drug into the same contraindication is a mistake of its own; the same drug again is not). One mistake, one
+ * penalty:
  * - a case rule with the same id as a built-in replaces it for the actions the case rule lists, for the roles it is
  *   written for (a deliberate exemption, or the case's own words). For any other action the built-in still judges;
  * - a case rule's `replaces` hides those built-ins only while the case rule applies to this action — same action, a role
@@ -1247,7 +1250,9 @@ function askRead(s: SimState, r: PendingRead) {
 function harmsFor(sc: Scenario, s: SimState, id: string) {
   const roleOk = (h: Harm) => !h.roles || h.roles.includes(s.role);
   const applies = (h: Harm) => h.actions.includes(id) && roleOk(h) && (!h.when || h.when(s, sc, id));
-  const charged = (h: Harm) => s.penalties.some((p) => p.id === h.id);
+  const builtInSet = new Set<Harm>(BUILT_IN_HARMS);
+  // a built-in drug contraindication charges once for each drug given into it (rules/charge.ts); a case rule once a case
+  const charged = (h: Harm) => s.penalties.some((p) => (builtInSet.has(h) ? countsFor(p, h, id) : p.id === h.id));
   const own = new Set([
     ...sc.harms.filter((h) => roleOk(h) && h.actions.includes(id)).map((h) => h.id),
     ...sc.harms.filter(applies).flatMap((h) => h.replaces ?? []),
@@ -1258,7 +1263,7 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
   const chargedNow: Harm[] = [];
   for (const h of [...builtIn.filter((b) => !(orderCovers && INDICATION_RULES.includes(b.id))), ...sc.harms]) {
     if (!applies(h) || charged(h)) continue;
-    s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text });
+    s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text, action: id });
     chargedNow.push(h);
   }
   oneAnswerOnePenalty(s, from, chargedNow);

@@ -4,6 +4,7 @@
  * requests (labKit / edKit).
  */
 import { describe, expect, it } from 'vitest';
+import { chargesPerDrug } from '@/lib/sim/scenario/rules/charge';
 import { BUILT_IN_HARMS, RN_ORDER_ONLY, perform, review, start } from '@/lib/sim/scenario/engine';
 import { askCritical, askEvents, askHarm, type LabAsk } from '@/lib/sim/scenario/labKit';
 import { edOrder, standingOrders } from '@/lib/sim/scenario/edKit';
@@ -513,5 +514,34 @@ describe('in the cases: one dose, one penalty in every state a case rule speaks 
       'magnesium-sulfate', 'reassess']);
     expect(early.fired).not.toContain('magnesium-ask');
     expect(early.fired).toContain('md-unordered');
+  });
+});
+
+describe('a drug contraindication charges once for each drug given into it (rules/charge.ts)', () => {
+  const SLOW = { profile: 'sinus-bradycardia', hr: 40 };
+  it('a second, different drug into the same contraindication is charged; the same drug again is not', () => {
+    const slow = fixture({ setting: 'ed', role: 7, rhythm: SLOW, vitals: { sbp: 110 } });
+    expect(penaltyIds(slow, 7, ['iv', 'diltiazem', 'amio-infusion'])).toEqual(['nodal-blocker-slow', 'nodal-blocker-slow']);
+    expect(penaltyIds(slow, 7, ['iv', 'adenosine12', 'adenosine12'])).toEqual(['nodal-blocker-slow']);
+    // the ACS gate: aspirin, then heparin, with active bleeding
+    const bleeding = fixture({ setting: 'ed', role: 7, rhythm: { profile: 'normal-sinus', hr: 90 }, problems: ['acs', 'bleeding'] });
+    expect(penaltyIds(bleeding, 7, ['iv', 'aspirin', 'heparin'])).toEqual(['antithrombotic-bleeding', 'antithrombotic-bleeding']);
+  });
+
+  it('indication rules, minor rules, the nitrate checks and rules on what is not a drug charge once a case', () => {
+    expect(chargesPerDrug({ id: 'nodal-blocker-slow', severity: 'major' }, 'diltiazem')).toBe(true);
+    expect(chargesPerDrug({ id: 'antiarrhythmic-no-arrhythmia', severity: 'minor' }, 'diltiazem')).toBe(false);
+    expect(chargesPerDrug({ id: 'nitro-no-bp', severity: 'major' }, 'nitro')).toBe(false);
+    expect(chargesPerDrug({ id: 'airway-awake', severity: 'major' }, 'airway')).toBe(false);
+    const field = fixture({ setting: 'field', role: 2, rhythm: { profile: 'normal-sinus', hr: 80 }, vitals: { pain: 6 } });
+    expect(penaltyIds(field, 2, ['iv', 'nitro', 'nitro-high']).filter((p) => p === 'nitro-no-bp')).toHaveLength(1);
+    const arrest = fixture({ setting: 'field', role: 2, rhythm: { profile: 'vf', hr: 0 }, pulse: false });
+    expect(penaltyIds(arrest, 2, ['io', 'midazolam', 'fentanyl']).filter((p) => p === 'no-role-in-arrest')).toHaveLength(1);
+  });
+
+  it('a case rule keeps charging once a case, as its case decides (wpw-af-field: a second blocker on top is the same one mistake)', () => {
+    const own: Harm = { id: 'av-blocker-preexcited-af', actions: ['diltiazem', 'metoprolol'], points: 15, severity: 'critical', text: 'The case\'s words.' };
+    const preexcited = fixture({ setting: 'field', role: 2, rhythm: { profile: 'af-wpw', hr: 210 }, harms: [own] });
+    expect(penaltyIds(preexcited, 2, ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af']);
   });
 });

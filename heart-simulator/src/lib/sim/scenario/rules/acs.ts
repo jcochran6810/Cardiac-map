@@ -9,6 +9,7 @@
 import { READ_OPTIONS } from '../reads';
 import { has, mapOf, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
+import { NITRATE_CHECK_IDS, builtInChargedBefore } from './charge';
 import { indicationCovered } from './scope';
 import {
   ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, ecgShowsStemi, hasProblem, lastDoneAt,
@@ -35,7 +36,7 @@ function topOf(rules: GateRule[], s: SimState, sc: Scenario, id: string): string
     // a rank that charged an earlier dose is passed over: each rule charges once a case, so a later dose is judged by the
     // next reason that holds and never goes free because an earlier one was charged (the penalty pushed for this dose has
     // this minute: every drug the gates judge takes time)
-    if (s.penalties.some((p) => p.id === r.id && p.minute < s.minute)) continue;
+    if (builtInChargedBefore(s, r, id)) continue;
     const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id));
     if (own.length) {
       if (own.some((h) => !h.when || h.when(s, sc, id))) return r.id;
@@ -201,7 +202,7 @@ export const nitrateRulesExcept = (...kept: string[]) => NITRATE_RULES.filter((i
 export const topNitrate = NITRATE_GATE.top;
 
 /** The checks before a sublingual dose — the pressure, the interval, the PDE-5 question: each one a mistake of its own */
-export const NITRATE_CHECKS = ['nitro-no-bp', 'nitro-too-soon', 'nitro-no-pde5'];
+export const NITRATE_CHECKS = NITRATE_CHECK_IDS;
 
 /**
  * The gate's reasons to hold a nitrate dose altogether (its contraindications): the ranks above the 0.8 mg dose rule, and the

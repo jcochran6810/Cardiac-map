@@ -18,6 +18,7 @@ import {
   lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
 import { NITRATE_RULES, nitrateCharges } from './acs';
+import { builtInChargedBefore } from './charge';
 import { indicationCovered } from './scope';
 import { pressorBridging } from './support';
 
@@ -388,7 +389,7 @@ export function yieldsTo(s: SimState, sc: Scenario, id: string, h: Harm): boolea
   // steps aside too, its own check finds itself here and stops)
   const own = sc.harms.find((c) => c.id === top && roleOk(c, s) && c.actions.includes(id));
   if (own) return own.id !== h.id && heavier(own) && applies(own, s, sc, id) && !chargedBefore(s, own.id);
-  if (!heavier(BY_ID.get(top)!) || chargedBefore(s, top)) return false;
+  if (!heavier(BY_ID.get(top)!) || builtInChargedBefore(s, BY_ID.get(top)!, id)) return false;
   return !sc.harms.some((c) => c.id !== h.id && roleOk(c, s) && c.actions.includes(id) && !!c.replaces?.includes(top) && chargedBefore(s, c.id));
 }
 

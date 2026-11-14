@@ -108,9 +108,13 @@ describe('the gate: one dose, one penalty', () => {
 
   it('a repeat of a mistake charged already — the built-in rule or the case\'s rule with its id — costs nothing more', () => {
     const own: Harm = { id: 'av-blocker-preexcited-af', actions: ['diltiazem', 'metoprolol'], points: 15, severity: 'critical', text: 'The case\'s words.' };
-    for (const harms of [[], [own]]) {
-      expect(pen(field({ rhythm: PREEXCITED, vitals: { sbp: 84, dbp: 50 }, harms }), ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af']);
-    }
+    const patient = (harms: Harm[]) => field({ rhythm: PREEXCITED, vitals: { sbp: 84, dbp: 50 }, harms });
+    // the same drug again costs nothing more, the built-in's or the case's
+    expect(pen(patient([]), ['iv', 'adenosine12', 'adenosine12'])).toEqual(['av-blocker-preexcited-af']);
+    // a second, different drug into the same contraindication is a mistake of its own for a built-in drug rule (each label rules
+    // its drug out: rules/charge.ts); the case's own rule with the id still charges once a case
+    expect(pen(patient([]), ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af', 'av-blocker-preexcited-af']);
+    expect(pen(patient([own]), ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af']);
   });
 
   it('a case that narrows a rule under its id and says the rest in another rule: the dose is the case\'s alone', () => {
@@ -138,7 +142,11 @@ describe('a minor case rule never speaks for a major contraindication (yieldToHe
 
   it('it steps aside only for a rule that would charge: once that rule, or another case rule standing in for it, was charged, the case speaks', () => {
     const [yielding] = yieldToHeavier([askLike]);
-    expect(pen(field({ ...slow, harms: [yielding] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['nodal-blocker-slow', 'case-wrong-drug']);
+    // the same drug again: the label rule was charged on it, so the case's words speak
+    const [repeatable] = yieldToHeavier([{ ...askLike, actions: [...askLike.actions, 'adenosine12'] }]);
+    expect(pen(field({ ...slow, harms: [repeatable] }), ['iv', 'adenosine12', 'adenosine12'])).toEqual(['nodal-blocker-slow', 'case-wrong-drug']);
+    // a second drug into the slow rate is the label rule's again (it charges once for each drug)
+    expect(pen(field({ ...slow, harms: [yielding] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['nodal-blocker-slow', 'nodal-blocker-slow']);
     const [standIn, wrong] = yieldToHeavier([{ id: 'case-unstable', actions: ['adenosine6', 'diltiazem'], points: 8, severity: 'major', replaces: RATE_RULES, text: 'The case\'s words.' }, askLike]);
     expect(pen(field({ ...slow, harms: [standIn, wrong] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['case-unstable', 'case-wrong-drug']);
   });
@@ -532,7 +540,8 @@ describe('iv-beta-blocker-with-diltiazem', () => {
 
   it('one penalty: the pressure the first drug took away outranks it; pre-excited AF outranks both', () => {
     expect(pen(field({ rhythm: AF, vitals: { sbp: 96, dbp: 60 } }), ['iv', 'metoprolol', 'diltiazem'])).toEqual(['nodal-blocker-hypotension']);
-    expect(pen(field({ rhythm: PREEXCITED, vitals: { sbp: 120 } }), ['iv', 'metoprolol', 'diltiazem'])).toEqual(['av-blocker-preexcited-af']);
+    // pre-excited AF outranks the combination on the diltiazem dose too (each drug into it is charged: rules/charge.ts)
+    expect(pen(field({ rhythm: PREEXCITED, vitals: { sbp: 120 } }), ['iv', 'metoprolol', 'diltiazem'])).toEqual(['av-blocker-preexcited-af', 'av-blocker-preexcited-af']);
   });
 });
 
