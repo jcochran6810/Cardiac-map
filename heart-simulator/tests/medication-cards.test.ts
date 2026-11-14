@@ -52,7 +52,9 @@ describe('rhythm and rate cards', () => {
   it('esmolol: IV calcium-channel blockers, pulmonary hypertension as a label contraindication, cocaine', () => {
     const c = contra('esmolol');
     expect(c).toMatch(/IV calcium-channel blockers \(verapamil, diltiazem\) while their effect lasts — fatal cardiac arrests reported \(label\)/);
-    expect(c).toMatch(/Pulmonary hypertension with RV failure \(label\)/);
+    // the Brevibloc contraindication is pulmonary hypertension itself, not only with RV failure
+    expect(card('esmolol').contraindications).toContain('Pulmonary hypertension (label)');
+    expect(c).not.toMatch(/with RV failure/);
     expect(c).not.toMatch(/pulmonary hypertension \(relative\)/i);
     expect(c).toMatch(/cocaine/);
   });
@@ -71,9 +73,11 @@ describe('rhythm and rate cards', () => {
     const ado = contra('adenosine');
     expect(ado).toMatch(/unstable wide-complex tachycardia \(2025 AHA: 3 — Harm\)/);
     expect(ado).toMatch(/contraindicated for the IV infusion \(stress imaging, FFR hyperemia — Adenoscan label\); avoid the 6\/12 mg push as well/);
-    expect(ado).toMatch(/Severe hypotension \(the infusion\)/);
+    expect(ado).toMatch(/Severe hypotension \(the infusion\) — a label warning, not a contraindication: avoid with uncorrected hypovolemia, stenotic valve disease, pericarditis or a pericardial effusion/);
     expect(card('adenosine').dosing.join(' ')).toMatch(/FFR hyperemia: 140 mcg\/kg\/min IV through a large vein, or an intracoronary bolus/);
     expect(contra('digoxin')).toMatch(/Elective electrical cardioversion while digoxin-toxic/);
+    // audit B20: the Lanoxin label warnings
+    expect(contra('digoxin')).toMatch(/Hypercalcemia or hypomagnesemia \(more toxicity\); amyloid or restrictive cardiomyopathy, constrictive pericarditis \(label warnings\)/);
     expect(card('atropine').contraindications[0]).toBe('The US label lists no contraindications; these are guideline limits');
     expect(contra('atropine')).toMatch(/Acute MI or ischemia — use cautiously/);
     expect(contra('amiodarone')).toMatch(/including iodine \(label\) — a seafood "allergy" is not one, and none stands in a shock-refractory arrest/);
@@ -122,6 +126,19 @@ describe('antithrombotic, lytic and nitrate cards', () => {
     expect(card('apixaban').interactions.join(' ')).toMatch(/a DOAC within 48 h bars stroke lysis/);
   });
 
+  it('aspirin: the two absolute lines say so, and a bleeding disorder or very low platelets is relative (audit B1)', () => {
+    const lines = card('aspirin').contraindications;
+    expect(lines[0]).toMatch(/^True aspirin\/NSAID allergy .* — absolute; give a P2Y12 inhibitor alone \(2025 ACC\/AHA ACS\)$/);
+    expect(lines[1]).toMatch(/recent intracranial hemorrhage — absolute$/);
+    expect(lines).toContain('Known bleeding disorder (hemophilia, von Willebrand disease) or platelets under 50,000 (relative)');
+  });
+
+  it('tenecteplase: approved for acute ischemic stroke in 2025 (audit B10)', () => {
+    const ind = card('tenecteplase').indications.join(' ');
+    expect(ind).toMatch(/Acute ischemic stroke: 0\.25 mg\/kg \(max 25 mg\) as a single bolus — FDA-approved for stroke in 2025/);
+    expect(ind).not.toMatch(/accepted alternative/);
+  });
+
   it('tenecteplase: an ischemic stroke within 3 months is absolute; a TIA or a stroke after 3 months, and the other relatives, say "relative"', () => {
     const lines = card('tenecteplase').contraindications;
     expect(lines).toContain('Ischemic stroke within 3 months (unless treating acute stroke in window)');
@@ -158,6 +175,15 @@ describe('antithrombotic, lytic and nitrate cards', () => {
 describe('support and chronic cards', () => {
   it('calcium: the gluconate dose, by a peripheral line', () => {
     expect(card('calcium-chloride').dosing.join(' ')).toMatch(/Calcium gluconate 10%: 3 g \(30 mL\) IV over 2–5 min through a peripheral line/);
+  });
+
+  it('calcium and digoxin: what the label still says, next to the evidence', () => {
+    expect(card('calcium-chloride').interactions.join(' ')).toMatch(/Some US calcium chloride labels still list it \(with VF during resuscitation\): the evidence found no harm, but Fab comes first and calcium goes in slowly/);
+    expect(contra('calcium-chloride')).toMatch(/Routine use in cardiac arrest without a specific indication \(older US labels: VF during resuscitation\)/);
+  });
+
+  it('insulin: the label\'s hypokalemia warning', () => {
+    expect(contra('insulin-dextrose')).toMatch(/Hypokalemia — insulin lowers the potassium further \(label warning: respiratory paralysis, ventricular arrhythmia\); recheck K⁺/);
   });
 
   it('catecholamines and inodilators in dynamic LV outflow obstruction; the pressor labels list no contraindications', () => {
@@ -240,6 +266,15 @@ describe('new cards for the drugs the simulator gives', () => {
     expect(card('alteplase').dosing.join(' ')).toMatch(/100 mg IV over 2 h; heparin is paused during the infusion and restarted once the aPTT is under twice normal/);
   });
 
+  it('alteplase for stroke: the 2019 AHA/ASA lysis criteria are on the card, and endocarditis is absolute for stroke', () => {
+    const c = contra('alteplase');
+    for (const re of [/2019 AHA\/ASA/, /BP above 185\/110 that cannot be lowered/, /glucose under 50 mg\/dL \(correct it first\)/, /platelets under 100,000, INR above 1\.7, aPTT above 40 s or PT above 15 s/, /full-dose LMWH within 24 h or a DOAC within 48 h/, /GI bleeding within 21 days or a GI malignancy/, /infective endocarditis \(3: Harm\)/, /aortic arch dissection/, /extensive hypodensity on CT, or a suspected subarachnoid hemorrhage/]) {
+      expect(c).toMatch(re);
+    }
+    expect(c).toMatch(/bacterial endocarditis \(relative for PE and STEMI; infective endocarditis is absolute for stroke — 3: Harm\)/);
+    expect(c).not.toMatch(/bacterial endocarditis \(relative\)/);
+  });
+
   it('verapamil, eptifibatide, cangrelor and protamine: their label contraindications and rules', () => {
     const v = contra('verapamil');
     for (const re of [/cardiogenic shock/, /AV block without a pacemaker/, /LVEF under 40%/, /IV β-blocker given together or within a few hours/, /accessory pathway/, /Ventricular tachycardia/, /Hypersensitivity/]) expect(v).toMatch(re);
@@ -254,6 +289,10 @@ describe('new cards for the drugs the simulator gives', () => {
 
   it('midazolam, ondansetron, nitroprusside, glucagon, labetalol, nicardipine', () => {
     expect(contra('midazolam')).toMatch(/Acute narrow-angle glaucoma \(label\)[\s\S]*Boxed warning: respiratory depression[\s\S]*Boxed warning: with opioids/);
+    // diltiazem and verapamil are moderate CYP3A4 inhibitors, not strong ones
+    const mi = card('midazolam').interactions.join(' ');
+    expect(mi).toMatch(/CYP3A4 inhibitors — strong \(clarithromycin, ritonavir, ketoconazole\) and moderate \(diltiazem, verapamil, erythromycin\)/);
+    expect(mi).not.toMatch(/Strong CYP3A4 inhibitors \([^)]*diltiazem/);
     expect(contra('ondansetron')).toMatch(/^Apomorphine/);
     expect(contra('ondansetron')).toMatch(/Congenital long QT syndrome — avoid \(label warning\)/);
     expect(contra('ondansetron')).toMatch(/ECG monitoring with a low potassium or magnesium/);
@@ -278,7 +317,9 @@ describe('new cards for the drugs the simulator gives', () => {
     const sux = contra('succinylcholine');
     for (const re of [/malignant hyperthermia/, /myopathies/, /burns, multiple trauma, extensive denervation or upper motor neuron injury/, /Hyperkalemia/]) expect(sux).toMatch(re);
     expect(card('rocuronium').dosing.join(' ')).toMatch(/sugammadex 16 mg\/kg/);
-    expect(card('naloxone').levelNotes[6]).toMatch(/2025 AHA, COR 1/);
+    // no class of recommendation until the 2025 AHA Part 10 table is read (the 2020 guideline gave 2a)
+    expect(card('naloxone').levelNotes[6]).toMatch(/ventilate and give naloxone \(2025 AHA\)\./);
+    expect(JSON.stringify(card('naloxone'))).not.toMatch(/COR/);
     expect(contra('naloxone')).toMatch(/pulmonary edema, VT\/VF/);
     expect(contra('morphine')).toMatch(/histamine release drops the pressure/);
     expect(card('morphine').interactions.join(' ')).toMatch(/Delays and lowers the absorption and effect of oral P2Y12 inhibitors/);

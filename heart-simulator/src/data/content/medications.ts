@@ -45,9 +45,10 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Acute pericarditis: ~750–1000 mg every 8 h for 1–2 weeks, then taper (ESC)',
     ],
     contraindications: [
-      'True aspirin/NSAID allergy (anaphylaxis, angioedema, urticaria)',
-      'Active significant bleeding (e.g. GI hemorrhage) or recent intracranial hemorrhage',
+      'True aspirin/NSAID allergy (anaphylaxis, angioedema, urticaria) — absolute; give a P2Y12 inhibitor alone (2025 ACC/AHA ACS)',
+      'Active significant bleeding (e.g. GI hemorrhage) or recent intracranial hemorrhage — absolute',
       'Suspected aortic dissection — withhold until excluded',
+      'Known bleeding disorder (hemophilia, von Willebrand disease) or platelets under 50,000 (relative)',
       'Aspirin-exacerbated respiratory disease (asthma with nasal polyps) — relative',
       'Children and teenagers with viral illness (Reye syndrome)',
     ],
@@ -695,7 +696,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     indications: [
       'STEMI within 12 h of onset when primary PCI is not achievable within 120 min of first medical contact',
-      'Acute ischemic stroke (0.25 mg/kg, max 25 mg) — accepted alternative to alteplase',
+      'Acute ischemic stroke: 0.25 mg/kg (max 25 mg) as a single bolus — FDA-approved for stroke in 2025 (the stroke-lysis criteria on the alteplase card apply)',
       'PE with cardiopulmonary failure (AHA/ACC 2026 category E, formerly "massive" / high-risk) or PE arrest (alteplase better studied; tenecteplase used off-label)',
     ],
     dosing: [
@@ -1041,7 +1042,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Sinus bradycardia, sick sinus or AV block above first degree without a pacemaker',
       'Cardiogenic shock or decompensated heart failure',
       'Pre-excited AF (WPW)',
-      'Pulmonary hypertension with RV failure (label)',
+      'Pulmonary hypertension (label)',
       'IV calcium-channel blockers (verapamil, diltiazem) while their effect lasts — fatal cardiac arrests reported (label)',
       'Acute cocaine or methamphetamine intoxication — unopposed α (2025 ACC/AHA ACS: 3 — Harm)',
     ],
@@ -1118,7 +1119,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Irregular or polymorphic wide-complex tachycardia, or an unstable wide-complex tachycardia (2025 AHA: 3 — Harm)',
       'Second- or third-degree AV block or sick sinus without a pacemaker',
       'Asthma or bronchospastic lung disease: contraindicated for the IV infusion (stress imaging, FFR hyperemia — Adenoscan label); avoid the 6/12 mg push as well',
-      'Severe hypotension (the infusion)',
+      'Severe hypotension (the infusion) — a label warning, not a contraindication: avoid with uncorrected hypovolemia, stenotic valve disease, pericarditis or a pericardial effusion',
     ],
     adverseEffects: [
       'Flushing, chest pressure, dyspnea and a sense of doom (seconds)',
@@ -1516,6 +1517,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Ventricular fibrillation',
       'Uncorrected hypokalemia (increases toxicity)',
       'Elective electrical cardioversion while digoxin-toxic (VT/VF) — wait until the toxicity resolves',
+      'Hypercalcemia or hypomagnesemia (more toxicity); amyloid or restrictive cardiomyopathy, constrictive pericarditis (label warnings)',
     ],
     adverseEffects: [
       'Anorexia, nausea and vomiting',
@@ -2739,7 +2741,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     contraindications: [
       'Hypercalcemia',
-      'Routine use in cardiac arrest without a specific indication',
+      'Routine use in cardiac arrest without a specific indication (older US labels: VF during resuscitation)',
       'Never mix with sodium bicarbonate (precipitates)',
     ],
     adverseEffects: [
@@ -2764,7 +2766,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     interactions: [
       'Precipitates with sodium bicarbonate and phosphate — flush lines between',
-      'Digoxin: give calcium slowly (label). Digoxin toxicity is no longer considered a contraindication (Levine 2011) — its hyperkalemia is treated with digoxin Fab (2023 AHA, COR 1)',
+      'Digoxin: give calcium slowly (label). Digoxin toxicity is no longer considered a contraindication (Levine 2011) — its hyperkalemia is treated with digoxin Fab (2023 AHA, COR 1). Some US calcium chloride labels still list it (with VF during resuscitation): the evidence found no harm, but Fab comes first and calcium goes in slowly',
       'Antagonizes calcium channel blockers and magnesium',
     ],
     teaching: [
@@ -2811,6 +2813,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     contraindications: [
       'Hypoglycemia (correct it first)',
       'Give insulin without dextrose only when the glucose is already high (about 250 mg/dL or more)',
+      'Hypokalemia — insulin lowers the potassium further (label warning: respiratory paralysis, ventricular arrhythmia); recheck K⁺',
     ],
     adverseEffects: [
       'Hypoglycemia — common, often 1–3 h after the dose, worse in kidney failure',
@@ -3168,8 +3171,9 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'A TIA, or an ischemic stroke more than 3 months ago (relative)',
       'Recent major surgery or trauma, or GI or urinary bleeding (relative)',
       'Systolic 175 mmHg or more, or diastolic 110 or more (relative)',
-      'Acute pericarditis or bacterial endocarditis (relative)',
+      'Acute pericarditis or bacterial endocarditis (relative for PE and STEMI; infective endocarditis is absolute for stroke — 3: Harm)',
       'An oral anticoagulant, pregnancy, or non-compressible vascular punctures (relative)',
+      'Acute ischemic stroke (2019 AHA/ASA): a BP above 185/110 that cannot be lowered; glucose under 50 mg/dL (correct it first); platelets under 100,000, INR above 1.7, aPTT above 40 s or PT above 15 s; full-dose LMWH within 24 h or a DOAC within 48 h; GI bleeding within 21 days or a GI malignancy; infective endocarditis (3: Harm); aortic arch dissection; extensive hypodensity on CT, or a suspected subarachnoid hemorrhage',
     ],
     adverseEffects: [
       'Bleeding — intracranial hemorrhage is the feared one (headache, vomiting, a falling GCS, a new deficit)',
@@ -3534,7 +3538,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
     ],
     interactions: [
       'Opioids (boxed warning) and alcohol: additive respiratory depression',
-      'Strong CYP3A4 inhibitors (clarithromycin, ritonavir, diltiazem, verapamil) prolong its effect',
+      'CYP3A4 inhibitors — strong (clarithromycin, ritonavir, ketoconazole) and moderate (diltiazem, verapamil, erythromycin) — prolong and deepen its effect',
     ],
     teaching: [
       'Titrate: the second small dose is safer than one big dose',
@@ -4377,7 +4381,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'For opioid-induced respiratory depression after sedation: dilute 0.4 mg in 10 mL and give 0.04–0.08 mg at a time to restore breathing, not full alertness. Re-sedation can follow in 30–90 min.',
       'Small titrated doses in cardiac patients: a full reversal releases catecholamines (hypertension, pulmonary edema, VT/VF). In a cardiac arrest, CPR and standard ALS care come first; naloxone does not replace them.',
       'On order or protocol: small IV doses titrated to the breathing while ventilating, and watch for withdrawal and re-sedation (repeat doses or an infusion).',
-      'For opioid respiratory arrest with a pulse: ventilate and give naloxone (2025 AHA, COR 1). Titrate in cardiac patients; observe for re-sedation, longer after methadone or fentanyl analogs.',
+      'For opioid respiratory arrest with a pulse: ventilate and give naloxone (2025 AHA). Titrate in cardiac patients; observe for re-sedation, longer after methadone or fentanyl analogs.',
     ],
     mechanism: [
       'Competitively displaces opioids from the μ receptor',
