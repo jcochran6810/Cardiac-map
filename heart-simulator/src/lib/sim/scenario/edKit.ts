@@ -81,10 +81,12 @@ export function standingOrders(ids: string[], when: (s: SimState) => boolean = (
 
 /**
  * An order from the ED physician that the ER nurse carries out — labKit's LabAsk with the physician as the one who asks:
- * use it with askEvents, askCritical and askHarm exactly as in a cath lab case (the item is the nurse's: roles [6])
+ * use it with askEvents, askCritical and askHarm exactly as in a cath lab case (the item is the nurse's: roles [6]). It is
+ * held during a cardiac arrest unless it says `holdInArrest: false` (an order for the arrest itself); `doses` makes it an
+ * order for that many doses
  */
 export function edOrder(a: Omit<LabAsk, 'role' | 'speaker'>): LabAsk {
-  return { ...a, role: 6, speaker: 'physician' };
+  return { holdInArrest: true, ...a, role: 6, speaker: 'physician' };
 }
 
 /**

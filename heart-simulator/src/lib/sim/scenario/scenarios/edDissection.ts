@@ -260,6 +260,8 @@ const RN_FENTANYL: LabAsk = edOrder({
   fallback: '"I\'ll give the fentanyl myself."',
   fallbackEffect: (s) => fentanyl(s, 'physician') ?? {},
   gives: 'fentanyl-done',
+  // one dose: more needs another order
+  doses: 1,
   label: 'IV opioid for the pain, on the physician\'s order',
   why: 'Pain drives his heart rate and pressure, and both tear the wall further: the opioid is part of the treatment (2022 ACC/AHA).',
   points: 5,

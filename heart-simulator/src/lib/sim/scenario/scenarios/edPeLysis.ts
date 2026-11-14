@@ -286,7 +286,8 @@ const RN_ALTEPLASE: LabAsk = edOrder({
 });
 
 const RN_ARREST_LYTIC: LabAsk = edOrder({
-  id: 'rn-arrest-lytic', when: (s) => !s.pulse && has(s, 'md-arrest') && !has(s, 'lytic'),
+  // an order for the arrest itself: not held while there is no pulse
+  id: 'rn-arrest-lytic', when: (s) => !s.pulse && has(s, 'md-arrest') && !has(s, 'lytic'), holdInArrest: false,
   ask: 'The clot is what stopped her heart: alteplase 50 milligrams IV push, now. Then keep the compressions going — it needs circulation to work.',
   accept: ['alteplase'],
   thanks: 'Alteplase is in. Keep compressing.', fallback: 'I\'ll push the alteplase myself.', gives: 'arrest-lytic-given',

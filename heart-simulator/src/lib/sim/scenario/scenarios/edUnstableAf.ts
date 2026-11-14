@@ -188,6 +188,7 @@ const MAGNESIUM: LabAsk = edOrder({
   fallback: 'I will hang the magnesium myself.',
   fallbackEffect: () => ({ flags: ['magnesium'] }),
   gives: 'magnesium-given',
+  doses: 1,
   label: 'Magnesium on the physician\'s order',
   why: 'A low potassium and magnesium make the atria irritable and the rhythm likelier to come back: replace them (potassium to 4, magnesium to 2) — part of treating what set it off.',
   points: 5,

@@ -83,6 +83,17 @@ export interface LabAsk {
   wait?: number;
   /** full marks if answered within this many minutes (default 2) */
   within?: number;
+  /**
+   * hold the request — the ask and the fallback — while the patient is in cardiac arrest (edKit's edOrder makes it the
+   * default for an ED physician's order: the arrest comes first). An order meant for the arrest sets false
+   */
+  holdInArrest?: boolean;
+  /**
+   * an ED physician's order for this many doses: once the learner has given an accepted action that many times since the
+   * order, it is used up — `ordered:<id>` is cleared (after that dose's rules have judged it), so another dose needs
+   * another order. Leave it out for an order that stays open (a titration)
+   */
+  doses?: number;
 }
 
 const askedRole = (a: LabAsk) => a.role ?? 3;
@@ -98,29 +109,42 @@ export const wrongAnswerFlag = (askId: string, id: string) => `wrong-answer:${as
 export const answeringWrong = (s: SimState, id: string) =>
   Object.keys(s.flags).some((f) => f.startsWith('wrong-answer:') && f.endsWith(`:${id}`));
 
-/** Minute the learner answered a request (a device opened early counts from the request), or null */
+/**
+ * Minute the learner answered a request (a device opened early counts from the request), or null. Once the operator or a
+ * teammate has done it after all (the fallback), the learner's answer after that is a second dose, not the answer
+ */
 export function askDone(s: SimState, a: LabAsk): number | null {
   const at = s.flags[`asked-${a.id}`];
   if (at === undefined) return null;
+  if (s.fired.includes(`${a.id}-fallback`)) return null;
   const hit = s.performed.find((p) => a.accept.includes(p.id) && (a.early || p.minute >= at));
   return hit ? Math.max(hit.minute, at) : null;
 }
 
 /**
  * The request, the operator's word on a wrong answer, the thank-you and the fallback, as events. When the ED physician
- * asks (edKit's edOrder), the request is the order: it sets `ordered:<id>` for each right answer, so the ER nurse may give it
+ * asks (edKit's edOrder), the request is the order: it sets `ordered:<id>` for each right answer, so the ER nurse may give
+ * it — and, with `doses`, it is used up once she has given that many
  */
 export function askEvents(a: LabAsk): ScenarioEvent[] {
   const asked = `asked-${a.id}`;
   const wait = a.wait ?? 3;
   const mine = (s: SimState) => s.role === askedRole(a);
+  // the arrest comes first: no new order, and no teammate stepping in, while there is no pulse
+  const held = (s: SimState) => !!a.holdInArrest && !s.pulse;
   const order = asker(a) === 'physician';
   const ordered = order ? a.accept.map(orderedFlag) : [];
   const wrongOpen = order ? (a.wrong ?? []).map((id) => wrongAnswerFlag(a.id, id)) : [];
+  const given = (s: SimState) => s.performed.filter((p) => a.accept.includes(p.id) && p.minute >= s.flags[asked]).length;
+  const used: ScenarioEvent[] = order && a.doses !== undefined ? [{
+    id: `${a.id}-used`,
+    when: (s) => mine(s) && has(s, asked) && given(s) >= a.doses!,
+    effect: () => ({ clear: ordered }),
+  }] : [];
   return [
     {
       id: `${a.id}-ask`,
-      when: (s) => mine(s) && a.when(s),
+      when: (s) => mine(s) && !held(s) && a.when(s),
       effect: () => ({ say: [[asker(a), a.ask]], flags: [asked, ...ordered, ...wrongOpen] }),
     },
     {
@@ -135,13 +159,14 @@ export function askEvents(a: LabAsk): ScenarioEvent[] {
     },
     {
       id: `${a.id}-fallback`,
-      when: (s) => mine(s) && has(s, asked) && !has(s, a.gives) && s.minute >= s.flags[asked] + wait,
+      when: (s) => mine(s) && !held(s) && has(s, asked) && !has(s, a.gives) && s.minute >= s.flags[asked] + wait,
       effect: (s) => {
         const done = a.fallbackEffect?.(s) ?? {};
         const clear = [...wrongOpen, ...(done.clear ?? [])];
         return { ...done, say: [[asker(a), a.fallback, 'warn'], ...(done.say ?? [])], flags: [a.gives, ...(done.flags ?? [])], ...(clear.length ? { clear } : {}) };
       },
     },
+    ...used,
   ];
 }
 

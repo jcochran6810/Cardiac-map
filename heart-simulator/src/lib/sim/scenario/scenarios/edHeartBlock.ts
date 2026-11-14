@@ -222,6 +222,8 @@ const ATROPINE: LabAsk = {
   fallback: 'I will push the atropine myself — we cannot wait.',
   fallbackEffect: () => ({ say: [['monitor', 'No change in heart rate.']], flags: ['atropine'] }),
   gives: 'atropine-given',
+  // one dose: a second needs a second order
+  doses: 1,
   label: 'Atropine 1 mg on the physician\'s order',
   why: 'One dose of atropine is first-line for unstable bradycardia (2025 AHA) while the pacer is readied. With a slow, wide escape below the AV node it rarely works — and when it does not, pacing comes next, not more atropine.',
 };
@@ -236,6 +238,8 @@ const ANALGESIA: LabAsk = {
   fallback: 'She is in agony — I will give the fentanyl myself.',
   fallbackEffect: () => ({ say: [['patient', '"That\'s easier…"']], vitals: { pain: 2 }, flags: ['analgesia'] }),
   gives: 'analgesia-given',
+  // the dose and the one repeat the order allows
+  doses: 2,
   label: 'Fentanyl for the pacing, on the order',
   why: 'Transcutaneous pacing hurts with every beat: a small opioid dose, repeated as needed and titrated to the pressure.',
   wait: 3,
@@ -253,6 +257,7 @@ const CALCIUM: LabAsk = {
   fallback: 'I will push the calcium myself.',
   fallbackEffect: (s) => calcium(s, 'physician'),
   gives: 'calcium-given',
+  doses: 1,
   label: 'Calcium on the physician\'s order',
   why: 'A potassium of 6.9 with a conduction block: IV calcium steadies the heart\'s membranes within minutes and lasts 30–60 minutes, while the potassium is brought down.',
 };
@@ -784,9 +789,10 @@ export const edHeartBlock: Scenario = {
       text: 'Adenosine in complete heart block. It has nothing to treat — the AV node already conducts nothing — and it can suppress the slow escape that is left, for seconds of standstill.',
     },
     {
-      // the trap: the first dose did nothing, and more of it only delays the pacer
+      // the trap: the first dose did nothing, and more of it only delays the pacer. The nurse's order was for one dose
+      // (doses: 1), so a second also has no order: this rule is the one penalty for it
       id: 'atropine-repeat', actions: ['atropine'], when: (s) => s.pulse && has(s, 'atropine') && !paced(s) && !has(s, 'pressor') && s.vitals.sbp < 90,
-      points: 5, severity: 'major',
+      points: 5, severity: 'major', replaces: ['rn-without-order-atropine'],
       text: 'Atropine again while she stays hypotensive. A wide escape from below the AV node rarely answers to atropine — the first dose showed it. Pace her (or start an epinephrine or dopamine infusion) instead of pushing more: every minute at 34 with a pressure in the 80s costs perfusion. (In the ER nurse\'s run, a second dose also needs a new order.)',
     },
     {

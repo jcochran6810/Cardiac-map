@@ -172,6 +172,8 @@ const FENTANYL_ORDER: LabAsk = edOrder({
   fallbackEffect: (s) => { const line = lineFor(s); return { say: line.say, vitals: { pain: Math.max(0, s.vitals.pain - 3) }, flags: [...(line.flags ?? []), 'analgesia'] }; },
   gives: 'fentanyl-given', points: 5,
   within: 3, wait: 4,
+  // one dose: more needs another order
+  doses: 1,
   label: 'Fentanyl for the pain, on the physician\'s order',
   why: 'With nitrates ruled out by the tadalafil, an IV opioid treats the ischemic pain; the ER nurse gives it on the order and watches the breathing and the pressure.',
 });
