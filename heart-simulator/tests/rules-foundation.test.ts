@@ -3,8 +3,8 @@
  * built-in (and when), the ER nurse's one act, one penalty, the flags and effects the engine adds, and the team
  * requests (labKit / edKit).
  */
-import { describe, expect, it } from 'vitest';
-import { DRUGS_OF, caseChargesPerDrug, chargesPerDrug, drugsOf, sameDrug } from '@/lib/sim/scenario/rules/charge';
+import { describe, expect, it, vi } from 'vitest';
+import { DRUGS_OF, caseChargesPerDrug, chargesPerDrug, drugsOf, judgedDrugs, sameDrug } from '@/lib/sim/scenario/rules/charge';
 import { NITRATE_CHECKS, nitrateCheckRule } from '@/lib/sim/scenario/rules/acs';
 import { RATE_RULES } from '@/lib/sim/scenario/rules/rhythm';
 import { BUILT_IN_HARMS, RN_ORDER_ONLY, perform, review, start } from '@/lib/sim/scenario/engine';
@@ -56,7 +56,12 @@ describe('a case rule stands in for a built-in only while it applies', () => {
 
   it('a case rule that applies still stands in for the built-in after it has been charged once', () => {
     const harms = [caseRule({ when: (s) => s.pulse, replaces: ['nitro-hypotension'] })];
-    expect(penaltyIds(lowEd(7, harms), 7, ['nitro', 'nitro', 'nitro'])).toEqual(['case-nitro']);
+    // the low pressure is the case's, once for the drug; the later doses are not charged for it again, in either's words
+    // (rules/charge.ts coveredBefore) — only for the checks each dose owes (a pressure first, then the interval), as without
+    // the case rule
+    expect(penaltyIds(lowEd(7, harms), 7, ['nitro', 'nitro', 'nitro'])).toEqual(['case-nitro', 'nitro-no-bp', 'nitro-too-soon']);
+    expect(penaltyIds(lowEd(7), 7, ['nitro', 'nitro', 'nitro'])).toEqual(['nitro-hypotension', 'nitro-no-bp', 'nitro-too-soon']);
+    expect(penaltyIds(lowEd(7, harms), 7, [...CHECKED, 'nitro', 'reassess', 'reassess', 'vitals', 'nitro']).filter((p) => p !== 'case-nitro')).toEqual([]);
   });
 
   it('a case rule on another action does not stand in for this one', () => {
@@ -577,10 +582,10 @@ describe('a drug contraindication charges once for each drug given into it (rule
   });
 
   it('indication rules, minor rules, the nitrate checks and rules on what is not a drug charge once a case', () => {
-    expect(chargesPerDrug({ id: 'nodal-blocker-slow', severity: 'major' }, 'diltiazem')).toBe(true);
-    expect(chargesPerDrug({ id: 'antiarrhythmic-no-arrhythmia', severity: 'minor' }, 'diltiazem')).toBe(false);
-    expect(chargesPerDrug({ id: 'nitro-no-bp', severity: 'major' }, 'nitro')).toBe(false);
-    expect(chargesPerDrug({ id: 'airway-awake', severity: 'major' }, 'airway')).toBe(false);
+    expect(chargesPerDrug({ id: 'nodal-blocker-slow', severity: 'major', actions: ['diltiazem'] })).toBe(true);
+    expect(chargesPerDrug({ id: 'antiarrhythmic-no-arrhythmia', severity: 'minor', actions: ['diltiazem'] })).toBe(false);
+    expect(chargesPerDrug({ id: 'nitro-no-bp', severity: 'major', actions: ['nitro'] })).toBe(false);
+    expect(chargesPerDrug({ id: 'airway-awake', severity: 'major', actions: ['airway'] })).toBe(false);
     const field = fixture({ setting: 'field', role: 2, rhythm: { profile: 'normal-sinus', hr: 80 }, vitals: { pain: 6 } });
     expect(penaltyIds(field, 2, ['iv', 'nitro', 'nitro-high']).filter((p) => p === 'nitro-no-bp')).toHaveLength(1);
     const arrest = fixture({ setting: 'field', role: 2, rhythm: { profile: 'vf', hr: 0 }, pulse: false });
@@ -598,8 +603,8 @@ describe('a drug contraindication charges once for each drug given into it (rule
     // the same drug again — at another dose too — is not charged again
     expect(penaltyIds(preexcited([own]), 2, ['iv', 'adenosine6', 'adenosine12'])).toEqual(['av-blocker-preexcited-af']);
     expect(penaltyIds(preexcited([standIn]), 2, ['iv', 'adenosine6', 'adenosine12'])).toEqual(['case-blocker']);
-    expect(caseChargesPerDrug(standIn, 'diltiazem')).toBe(true);
-    expect(caseChargesPerDrug(own, 'metoprolol')).toBe(true);
+    expect(caseChargesPerDrug(standIn)).toBe(true);
+    expect(caseChargesPerDrug(own)).toBe(true);
   });
 
   it('in the cases: a second, different drug into the case\'s contraindication is its own mistake, in the case\'s words', () => {
@@ -612,18 +617,80 @@ describe('a drug contraindication charges once for each drug given into it (rule
     expect(ids('stemi-walk-in-ed', 7, ['iv', 'metoprolol', 'metoprolol-po']).filter((p) => p === 'rate-drug-heart-failure')).toHaveLength(1);
   });
 
+  it('a case drug contraindication on several drugs that stands in for no built-in one charges per drug when the case marks it perDrug', () => {
+    const ids = (id: string, role: 2 | 6 | 7, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+    // cocaine: push-dose epinephrine, then the norepinephrine infusion, into a stimulant's high pressure — two drugs, two mistakes
+    expect(ids('cocaine-chest-pain-field', 2, ['iv', 'push-epi', 'pressor'])).toEqual(['pressor-stimulant', 'pressor-stimulant']);
+    expect(ids('lvad-field', 2, ['iv', 'pressor', 'push-epi'])).toEqual(['pressor-dry-pump', 'pressor-dry-pump']);
+    // push-dose and IM epinephrine are one drug: the infusion is the second
+    expect(ids('posterior-stemi-field', 2, ['iv', 'push-epi', 'pressor', 'epi-im'])).toEqual(['adrenergic-mi', 'adrenergic-mi']);
+    // SCAPE in the ED: the doctor is charged as the nurse is (her twin stands for the missing order too)
+    expect(ids('scape-ed', 7, ['iv', 'push-epi', 'pressor'])).toEqual(['pressor-hypertensive', 'pressor-hypertensive']);
+    expect(ids('scape-ed', 6, ['iv', 'push-epi', 'pressor'])).toEqual(['rn-pressor-hypertensive', 'rn-pressor-hypertensive']);
+    expect(caseChargesPerDrug({ id: 'case-pressor', actions: ['push-epi', 'pressor'], points: 8, severity: 'major', perDrug: true, text: 'No.' })).toBe(true);
+    expect(caseChargesPerDrug({ id: 'case-pressor', actions: ['push-epi', 'pressor'], points: 3, severity: 'minor', perDrug: true, text: 'No.' })).toBe(false);
+  });
+
+  it('whether a rule charges per drug is decided for the rule, not the action: the order of the drugs never changes the count', () => {
+    const ids = (id: string, role: 2 | 5 | 7, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+    // the stroke case's lowering rule: a beta-blocker and intracoronary verapamil, either way round
+    expect(ids('periprocedural-stroke-cathlab', 5, ['read:clin-contrast', 'metoprolol', 'ic-verapamil'])).toEqual(['lower-bp-stroke', 'lower-bp-stroke']);
+    expect(ids('periprocedural-stroke-cathlab', 5, ['read:clin-contrast', 'ic-verapamil', 'metoprolol'])).toEqual(['lower-bp-stroke', 'lower-bp-stroke']);
+    // pre-excited AF while unstable: procainamide and magnesium, either way round
+    const wpw = ['primary', 'pads', 'nibp', 'ecg12', 'sample', 'iv', 'diltiazem'];
+    expect(ids('wpw-af-field', 2, [...wpw, 'procainamide', 'magnesium-sulfate']).filter((p) => p === 'drug-while-unstable')).toHaveLength(2);
+    expect(ids('wpw-af-field', 2, [...wpw, 'magnesium-sulfate', 'procainamide']).filter((p) => p === 'drug-while-unstable')).toHaveLength(2);
+    // heparin and bivalirudin on top of each other, either way round
+    expect(ids('stent-thrombosis-cathlab', 5, ['act', 'heparin', 'bivalirudin'])).toEqual(['double-anticoagulant']);
+    expect(ids('stent-thrombosis-cathlab', 5, ['act', 'bivalirudin', 'heparin'])).toEqual(['double-anticoagulant']);
+    // midazolam and the ED's procedural sedation in a PE, either way round
+    expect(ids('pulmonary-embolism-lysis-ed', 7, ['iv', 'midazolam', 'procedural-sedation'])).toEqual(['sedation-pe', 'sedation-pe']);
+    expect(ids('pulmonary-embolism-lysis-ed', 7, ['iv', 'procedural-sedation', 'midazolam'])).toEqual(['sedation-pe', 'sedation-pe']);
+  });
+
+  it('a repeat is an act that brings no drug the rule judges that it has not charged already (DRUGS_OF, judgedDrugs)', () => {
+    // the procedure's sedation is midazolam with fentanyl: after fentanyl it brings midazolam, a new drug for a sedative rule
+    expect(penaltyIds(SCENARIO_BY_ID['lvad-field'], 2, ['iv', 'fentanyl', 'sedation'])).toEqual(['sedative-no-indication', 'sedative-no-indication']);
+    expect(penaltyIds(SCENARIO_BY_ID['lvad-field'], 2, ['iv', 'sedation', 'midazolam', 'fentanyl'])).toEqual(['sedative-no-indication']);
+    // the radial cocktail carries verapamil and nitroglycerin: a rate-drug rule judges its verapamil, a nitrate rule its nitroglycerin
+    const rate = BUILT_IN_HARMS.find((h) => h.id === 'cocktail-low-pressure')!;
+    const nitrate = BUILT_IN_HARMS.find((h) => h.id === 'nitro-pde5')!;
+    expect(judgedDrugs(rate, 'radial-cocktail')).toEqual(['verapamil']);
+    expect(judgedDrugs(nitrate, 'radial-cocktail')).toEqual(['nitroglycerin']);
+    // so intracoronary verapamil, then the cocktail, at a low pressure: verapamil once
+    const low = fixture({ setting: 'cathlab', role: 5, rhythm: { profile: 'normal-sinus', hr: 80 }, vitals: { sbp: 84, dbp: 50 } });
+    expect(penaltyIds(low, 5, ['ic-verapamil', 'radial-cocktail']).filter((p) => p === 'cocktail-low-pressure')).toEqual(['cocktail-low-pressure']);
+  });
+
+  it('a repeat of the same drug is not charged for a reason that held when it was charged; what is new still charges', () => {
+    // the ER nurse's magnesium twice in a dialysis patient's heart block: the kidneys and the missing order on the first dose;
+    // the second brings nothing new (the missing indication held then, covered by the missing order)
+    const chb = penaltyIds(SCENARIO_BY_ID['complete-heart-block-ed'], 6, ['iv', 'magnesium-sulfate', 'reassess', 'reassess', 'reassess', 'magnesium-sulfate']);
+    expect(chb.filter((p) => p.startsWith('magnesium') || p.startsWith('rn-without-order'))).toEqual(['magnesium-renal-failure', 'rn-without-order-magnesium-sulfate']);
+    // a reason that did not hold then still charges: the pressure the first nitrate crashed (see the ACS gate's tests)
+    const sildenafil = fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { pain: 6 }, problems: ['pde5-inhibitor'], extra: { events: [{ id: 'fall', when: (s) => s.minute >= 3, effect: () => ({ vitals: { sbp: 84, dbp: 50 } }) }] } });
+    expect(penaltyIds(sildenafil, 7, [...CHECKED, 'nitro', 'reassess', 'nitro'])).toEqual(['nitro-pde5', 'nitro-hypotension']);
+  });
+
+  it('the per-drug registry must be filled: without the built-in rules a case rule would silently charge once a case', async () => {
+    vi.resetModules();
+    const fresh = await import('@/lib/sim/scenario/rules/charge');
+    expect(() => fresh.caseChargesPerDrug({ id: 'case-x', actions: ['diltiazem'], replaces: ['nodal-blocker-slow'], points: 8, severity: 'major', text: 'No.' })).toThrow(/not registered/);
+    vi.resetModules();
+  });
+
   it('a minor case rule, an indication rule, a nitrate check and a rule on what is not a drug still charge once a case', () => {
     const standIn: Harm = { id: 'case-blocker', actions: ['diltiazem', 'metoprolol'], replaces: ['av-blocker-preexcited-af', ...RATE_RULES], points: 15, severity: 'critical', text: 'The case\'s words.' };
-    expect(caseChargesPerDrug({ ...standIn, points: 3, severity: 'minor' }, 'diltiazem')).toBe(false);
+    expect(caseChargesPerDrug({ ...standIn, points: 3, severity: 'minor' })).toBe(false);
     // a case rule with an indication rule's id, or standing in only for indication rules
-    expect(caseChargesPerDrug({ ...standIn, id: 'antiarrhythmic-no-arrhythmia', replaces: undefined }, 'diltiazem')).toBe(false);
-    expect(caseChargesPerDrug({ ...standIn, replaces: ['antiarrhythmic-no-arrhythmia'] }, 'diltiazem')).toBe(false);
+    expect(caseChargesPerDrug({ ...standIn, id: 'antiarrhythmic-no-arrhythmia', replaces: undefined })).toBe(false);
+    expect(caseChargesPerDrug({ ...standIn, replaces: ['antiarrhythmic-no-arrhythmia'] })).toBe(false);
     // one of the nitrate checks, under its own id or a built-in's
-    expect(caseChargesPerDrug(nitrateCheckRule({ id: 'case-no-bp', actions: ['nitro'], points: 5, severity: 'major', text: 'No pressure.' }, 'nitro-no-bp'), 'nitro')).toBe(false);
-    expect(caseChargesPerDrug({ id: 'nitro-no-bp', actions: ['nitro'], points: 5, severity: 'major', text: 'No pressure.' }, 'nitro')).toBe(false);
+    expect(caseChargesPerDrug(nitrateCheckRule({ id: 'case-no-bp', actions: ['nitro'], points: 5, severity: 'major', text: 'No pressure.' }, 'nitro-no-bp'))).toBe(false);
+    expect(caseChargesPerDrug({ id: 'nitro-no-bp', actions: ['nitro'], points: 5, severity: 'major', text: 'No pressure.' })).toBe(false);
     // a case rule that stands in for nothing built in, or judges a procedure
-    expect(caseChargesPerDrug({ ...standIn, replaces: undefined }, 'diltiazem')).toBe(false);
-    expect(caseChargesPerDrug({ id: 'case-shock', actions: ['cardiovert'], replaces: ['shock-nonshockable'], points: 10, severity: 'major', text: 'No.' }, 'cardiovert')).toBe(false);
+    expect(caseChargesPerDrug({ ...standIn, replaces: undefined })).toBe(false);
+    expect(caseChargesPerDrug({ id: 'case-shock', actions: ['cardiovert'], replaces: ['shock-nonshockable'], points: 10, severity: 'major', text: 'No.' })).toBe(false);
     const minor: Harm = { ...standIn, points: 3, severity: 'minor' };
     const preexcited = fixture({ setting: 'field', role: 2, rhythm: { profile: 'af-wpw', hr: 210 }, harms: [minor] });
     expect(penaltyIds(preexcited, 2, ['iv', 'diltiazem', 'metoprolol']).filter((p) => p === 'case-blocker')).toHaveLength(1);

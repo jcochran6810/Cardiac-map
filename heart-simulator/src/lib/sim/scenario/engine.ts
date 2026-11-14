@@ -29,7 +29,7 @@ import type {
 } from './types';
 import { BUILT_IN_HARMS } from './rules';
 import { NITRATE_CHECKS, sedationForProcedure } from './rules/acs';
-import { caseCountsFor, countsFor } from './rules/charge';
+import { caseChargesPerDrug, chargedAgainst, chargesPerDrug, holdingNow, isNitrateCheck, rankOf } from './rules/charge';
 import { SECOND_ANTIARRHYTHMIC } from './rules/rhythm';
 import { INDICATION_RULES, RN_ORDER_ONLY, missingOrderCovers } from './rules/scope';
 import {
@@ -1246,7 +1246,9 @@ function askRead(s: SimState, r: PendingRead) {
  *   it is written for, its `when` true now (whether or not it was charged before). In any other state the built-ins apply;
  * - the ER nurse giving a drug without the order it needs: when the missing order is scored for this act (rules/scope.ts
  *   missingOrderCovers) the built-in indication rules (INDICATION_RULES) are skipped for it: the missing order covers the
- *   indication. The contraindication rules still apply.
+ *   indication. The contraindication rules still apply;
+ * - a repeat of the same drug: each penalty records the reasons that held for its act (noteHeld), and the gates pass them
+ *   over on a later dose of that drug (rules/charge.ts coveredBefore) — the mistake already charged; what is new charges.
  */
 function harmsFor(sc: Scenario, s: SimState, id: string) {
   const roleOk = (h: Harm) => !h.roles || h.roles.includes(s.role);
@@ -1254,7 +1256,9 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
   const builtInSet = new Set<Harm>(BUILT_IN_HARMS);
   // a drug contraindication — built-in, or a case rule standing in for one — charges once for each drug given into it
   // (rules/charge.ts); any other rule once a case
-  const charged = (h: Harm) => s.penalties.some((p) => (builtInSet.has(h) ? countsFor(p, h, id) : caseCountsFor(p, h, id)));
+  const charged = (h: Harm) => chargedAgainst(s, h, builtInSet.has(h) ? chargesPerDrug(h) : caseChargesPerDrug(h), id);
+  // the reasons that hold for this act, judged before it takes effect: what a penalty charged on it speaks for
+  const held = holdingNow(s, sc, id);
   const own = new Set([
     ...sc.harms.filter((h) => roleOk(h) && h.actions.includes(id)).map((h) => h.id),
     ...sc.harms.filter(applies).flatMap((h) => h.replaces ?? []),
@@ -1270,6 +1274,21 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
   }
   oneAnswerOnePenalty(s, from, chargedNow);
   secondAntiarrhythmicBesideCase(s, from, chargedNow, new Set(sc.harms));
+  noteHeld(s, from, chargedNow, held, builtInSet);
+}
+
+/**
+ * Each penalty this act kept, but a check before a nitrate, records the reasons that held for the act (rules/charge.ts
+ * holdingNow) and the rank a case rule charged on it stands at — its own id when it is a built-in's, or the rank of the
+ * nitrate gate it was built at. A repeat of the same drug is then not charged for them (rules/charge.ts coveredBefore): they
+ * were the mistake already charged. A check speaks for no reason but itself
+ */
+function noteHeld(s: SimState, from: number, chargedNow: Harm[], held: string[], builtIns: Set<Harm>) {
+  const ranks = chargedNow.filter((h) => !builtIns.has(h)).flatMap((h) => [rankOf(h), BUILT_IN_HARMS.some((b) => b.id === h.id) ? h.id : undefined]);
+  const all = Array.from(new Set([...held, ...ranks.filter((r): r is string => !!r)]));
+  if (!all.length) return;
+  const checks = new Set(chargedNow.filter(isNitrateCheck).map((h) => h.id));
+  for (const p of s.penalties.slice(from)) if (!checks.has(p.id)) p.held = all;
 }
 
 const SEVERITY_RANK: Record<Harm['severity'], number> = { minor: 1, major: 2, critical: 3 };

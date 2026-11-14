@@ -715,8 +715,9 @@ export const scapeField: Scenario = {
       id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...PROCAINAMIDE_RULES, ...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. Her 12-lead shows a sinus rhythm whose speed is her response to the hypoxia: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing she has.',
     },
+    // a drug contraindication of the case's own: push-dose epinephrine and the infusion each charge it (rules/charge.ts perDrug)
     {
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 140, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 140, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major', perDrug: true,
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding her lungs: raising it makes the edema worse. She needs the pressure taken off — nitroglycerin and CPAP.',
     },
     {

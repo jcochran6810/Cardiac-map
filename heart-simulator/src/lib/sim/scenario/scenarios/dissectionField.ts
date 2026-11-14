@@ -439,8 +439,9 @@ export const dissectionField: Scenario = {
       id: 'fluid-hypertensive', actions: ['fluid'], when: (s) => s.pulse && !shock(s), points: 5, severity: 'major',
       text: 'A fluid bolus for a patient who is not in shock. He came hypertensive: more volume raises the pressure and the force on the torn wall. Fluid is for the shock of tamponade or rupture, in small boluses.',
     },
+    // a drug contraindication of the case's own: push-dose epinephrine and the infusion each charge it (rules/charge.ts perDrug)
     {
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !low(s), replaces: ['pressor-no-hypotension'], points: 5, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !low(s), replaces: ['pressor-no-hypotension'], points: 5, severity: 'major', perDrug: true,
       text: 'A vasopressor or push-dose epinephrine without a low blood pressure. It drives the pressure and the heart harder against the tear: the goal is a lower rate and pressure, not a higher one.',
     },
     {

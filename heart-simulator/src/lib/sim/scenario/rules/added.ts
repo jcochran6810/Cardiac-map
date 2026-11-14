@@ -7,7 +7,7 @@ import { has, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
 import { antithromboticCharges, vasodilatorBeforeRateControl } from './acs';
 import { BETA_BLOCKERS, did, hasProblem, lastDoneAt, lowPressure, outflowObstruction, preloadDependent, slowOrBlocked, tachyarrhythmia } from './helpers';
-import { caseChargedBefore, caseChargesPerDrug, chargedBeforeAs, chargesPerDrug } from './charge';
+import { caseChargedBefore, caseChargesPerDrug, chargesPerDrug, passedOver, registerCondition } from './charge';
 import { RATE_RULES } from './rhythm';
 import { indicationCovered } from './scope';
 
@@ -19,15 +19,17 @@ type Check = (s: SimState, sc: Scenario) => boolean;
  * the dose the gate stops there (it charges, and nothing ranked lower adds a second penalty); while it does not — an
  * exemption, or its condition is false — the gate goes on to the next rank: the case has said this one reason does not
  * hold here. An indication rank the ER nurse's missing order covers is passed over (rules/scope.ts indicationCovered), and
- * so is a rank already charged against this dose, as in every gate (rules/charge.ts chargedBeforeAs).
+ * so is a rank already charged against this dose or covered by an earlier dose of this drug, as in every gate
+ * (rules/charge.ts passedOver).
  */
 function topOf(ranks: [string, Check][], s: SimState, sc: Scenario, action: string): string | null {
   for (const [id, applies] of ranks) {
     const own = sc.harms.filter((h) => h.id === id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(action));
-    // a rank charged already against this dose is passed over: the one repeat policy of every gate (rules/charge.ts chargedBeforeAs)
-    const rule = BY_ID.get(id);
-    const perDrug = own.length ? own.some((h) => caseChargesPerDrug(h, action)) : !!rule && chargesPerDrug(rule, action);
-    if (chargedBeforeAs(s, id, perDrug, action)) continue;
+    // a rank charged already against this dose, or covered by an earlier dose of this drug, is passed over: the one repeat
+    // policy of every gate (rules/charge.ts passedOver)
+    const rule = BY_ID.get(id) ?? { id, actions: [action] };
+    const perDrug = own.length ? own.some((h) => caseChargesPerDrug(h)) : 'severity' in rule && chargesPerDrug(rule);
+    if (passedOver(s, rule, perDrug, action)) continue;
     if (own.length) {
       if (own.some((h) => !h.when || h.when(s, sc, action))) return id;
     } else if (applies(s, sc) && !indicationCovered(id, s, sc, action)) return id;
@@ -244,3 +246,8 @@ export const ADDED_RULES: Harm[] = [
 
 /** This file's rules by id: a gate rank's weight decides whether it charges once a case or once for each drug */
 const BY_ID = new Map(ADDED_RULES.map((r) => [r.id, r]));
+
+// each gate rank's own condition, with its gate's: what a penalty on the dose speaks for (rules/charge.ts holdingNow)
+for (const [id, applies] of NICARDIPINE) registerCondition(id, (s, sc) => s.pulse && !beforeRateControl(s, sc) && applies(s, sc));
+for (const [id, applies] of INOTROPE) registerCondition(id, (s, sc) => s.pulse && applies(s, sc));
+for (const [id, applies] of FUROSEMIDE) registerCondition(id, (s, sc) => s.pulse && applies(s, sc));

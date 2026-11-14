@@ -317,8 +317,11 @@ describe('rate-drug-in-arrest', () => {
     expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'amio-infusion'])).toEqual(['rn-without-order-amio-infusion']);
     expect(pen(edRn({ rhythm: VF, pulse: false, extra: ordered('amio-infusion') }), ['io', 'amio-infusion'])).toEqual(['rate-drug-in-arrest']);
     expect(pen(edMd({ rhythm: VF, pulse: false }), ['io', 'amio-infusion'])).toEqual(['rate-drug-in-arrest']);
-    // her second unordered dose: the missing order is charged already, so the drug's own mistake is
-    expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'adenosine12', 'adenosine12'])).toEqual(['rn-without-order-adenosine12', 'rate-drug-in-arrest']);
+    // her second unordered dose of the same drug: the missing order covered the indication when it was charged, and a
+    // repeat of the same drug is not charged again for a reason that held then (rules/charge.ts coveredBefore)
+    expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'adenosine12', 'adenosine12'])).toEqual(['rn-without-order-adenosine12']);
+    // a different drug is judged anew: its own missing order (the indication stands aside for it again)
+    expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'adenosine12', 'amio-infusion'])).toEqual(['rn-without-order-adenosine12', 'rn-without-order-amio-infusion']);
   });
 
   it('the FFR adenosine infusion in an arrest is a rate drug in arrest too', () => {

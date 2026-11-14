@@ -452,8 +452,9 @@ export const posteriorStemiField: Scenario = {
       id: 'beta-blocker', actions: ['metoprolol'], roles: [2], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
       text: 'IV metoprolol in the field. Routine IV beta-blockade before primary PCI is not supported (2025 ACC/AHA ACS guideline), and it is no part of US prehospital STEMI protocols: given early it can bring on bradycardia, hypotension and cardiogenic shock (COMMIT). The hospital starts an oral beta-blocker within 24 hours once heart failure, a low output and the risk of shock are excluded.',
     },
+    // a drug contraindication of the case's own: push-dose epinephrine and the infusion each charge it (rules/charge.ts perDrug)
     {
-      id: 'adrenergic-mi', actions: ['push-epi', 'pressor', 'epi-im'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension', 'epi-im-no-anaphylaxis'], points: 5, severity: 'major',
+      id: 'adrenergic-mi', actions: ['push-epi', 'pressor', 'epi-im'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension', 'epi-im-no-anaphylaxis'], points: 5, severity: 'major', perDrug: true,
       text: 'Epinephrine or a vasopressor with a normal pressure in an acute MI. It drives up the rate, the pressure and the oxygen the starving muscle needs, and can set off arrhythmias: her pressure needs no support.',
     },
     {

@@ -566,8 +566,9 @@ export const cocaineField: Scenario = {
       id: 'sedation-drowsy', actions: ['sedation'], when: (s) => s.pulse && (s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: SEDATIVE_RULES,
       text: 'More midazolam (the sedation protocol) for a patient this drowsy. A benzodiazepine drops the breathing and the pressure further: with a GCS of 12 or less, support the airway and the breathing instead.',
     },
+    // a drug contraindication of the case's own: push-dose epinephrine and the infusion each charge it (rules/charge.ts perDrug)
     {
-      id: 'pressor-stimulant', actions: ['push-epi', 'pressor'], when: (s) => s.pulse, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
+      id: 'pressor-stimulant', actions: ['push-epi', 'pressor'], when: (s) => s.pulse, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major', perDrug: true,
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {

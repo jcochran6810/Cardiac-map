@@ -966,8 +966,9 @@ export const edScape: Scenario = {
       id: 'negative-inotrope', actions: [...BETA_BLOCKERS, 'diltiazem'], when: (s, _sc, id) => s.pulse && id !== 'diltiazem', replaces: RATE_RULES, points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. His fast rate is the body\'s answer to the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — positive pressure and nitroglycerin — and the rate comes down by itself.',
     }, NO_ORDER, [...BETA_BLOCKERS, 'diltiazem'].map((id) => `rn-without-order-${id}`)),
+    // a drug contraindication of the case's own: push-dose epinephrine and the infusion each charge it (rules/charge.ts perDrug)
     ...bothRoles({
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major', perDrug: true,
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding his lungs: raising it makes the edema worse. He needs the pressure taken off — nitroglycerin and positive pressure.',
     }, NO_ORDER, ['rn-without-order-pressor', 'rn-without-order-push-epi']),
     ...bothRoles({

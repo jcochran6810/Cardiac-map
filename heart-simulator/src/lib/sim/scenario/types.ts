@@ -87,6 +87,11 @@ export interface Penalty {
   minute: number;
   /** the act a rule charged it on (rules/charge.ts: a drug contraindication charges once for each drug given into it) */
   action?: string;
+  /**
+   * the built-in rules whose own condition held for that act (and the rank of the case rule charged): the reasons this
+   * penalty spoke for. A repeat of the same drug is not charged for them again (rules/charge.ts coveredBefore)
+   */
+  held?: string[];
   points: number;
   severity: Severity;
   text: string;
@@ -236,6 +241,12 @@ export interface Harm {
    * harmsFor)
    */
   wrongAnswer?: true;
+  /**
+   * A drug contraindication of the case's own that stands in for no built-in drug rule (e.g. a vasopressor into a stimulant's
+   * high pressure, push-dose epinephrine or the infusion): it charges once for each drug given into it, like a built-in one
+   * (rules/charge.ts). Only for a major or critical rule
+   */
+  perDrug?: true;
 }
 
 /**

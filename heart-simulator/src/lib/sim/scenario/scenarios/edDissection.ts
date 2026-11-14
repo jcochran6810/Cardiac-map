@@ -778,8 +778,9 @@ export const edDissection: Scenario = {
       id: 'pressor-no-hypotension', actions: ['push-epi', 'pressor'], when: () => false, points: 3, severity: 'minor',
       text: 'A vasopressor without a low pressure: in this case the rule for a high pressure judges it.',
     },
+    // a drug contraindication of the case's own: push-dose epinephrine and the infusion each charge it (rules/charge.ts perDrug)
     {
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !shock(s), points: 5, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !shock(s), points: 5, severity: 'major', perDrug: true,
       text: 'A vasopressor or push-dose epinephrine with a high blood pressure. It drives the pressure and the heart harder against the tear: the goal is a lower rate and pressure, not a higher one.',
     },
     {
