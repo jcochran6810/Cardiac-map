@@ -2,7 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { arrestEtco2, bpAfter, count, firstDone, has, mapOf, ventilated } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * A witnessed, monitored cardiac arrest in the emergency department. A 61-year-old man came in 40 minutes ago with two
@@ -896,7 +896,7 @@ export const edVfArrest: Scenario = {
       text: 'A shock for organized complexes. The VF had converted: organized complexes at the rhythm check call for a pulse check (10 seconds or less), not another shock — he had a pulse, and an unsynchronized shock on a beating heart can throw it back into VF.',
     },
     {
-      id: 'epi-before-second-shock', actions: ['epinephrine'], when: (s) => !s.pulse && vfShocks(s) < 2, points: 3, severity: 'minor',
+      id: 'epi-before-second-shock', actions: ['epinephrine'], when: (s) => !s.pulse && vfShocks(s) < 2, replaces: ['epi-before-shock', 'epi-too-soon'], points: 3, severity: 'minor',
       text: 'Epinephrine before the second shock. In VF the shock is the treatment: epinephrine comes once defibrillation has failed — after the second shock — then every 3–5 minutes. Given within 2 minutes of the first shock in an in-hospital VF arrest, it was linked to fewer survivors (Andersen, BMJ 2016).',
     },
     {
@@ -904,7 +904,7 @@ export const edVfArrest: Scenario = {
       text: 'Epinephrine again less than 3 minutes after the last dose. The interval is 3–5 minutes: stacked doses add up to high-dose epinephrine, which brings no benefit and drives up the oxygen demand of an ischemic heart.',
     },
     {
-      id: 'antiarrhythmic-before-shock', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && vfShocks(s) === 0, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-before-shock', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && vfShocks(s) === 0, replaces: [...LIDOCAINE_RULES, 'amiodarone-arrest-long-qt'], points: 3, severity: 'minor',
       text: 'An antiarrhythmic before any shock. Amiodarone and lidocaine are for VF that shocks have not fixed: the shock comes first.',
     },
     {

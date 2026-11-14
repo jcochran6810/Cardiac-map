@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * The version this case teaches: a regular wide-complex tachycardia in a man with an old infarct, whose pressure and
@@ -386,7 +386,7 @@ export const stableVtField: Scenario = {
     {
       id: 'drug-while-unstable', actions: [...ANTIARRHYTHMICS, 'lidocaine'], when: (s) => inVt(s) && unstable(s), points: 8, severity: 'major',
       // the same mistake as procainamide with a low pressure, in the words of this case: one penalty, not two
-      replaces: ['procainamide-hypotension', ...RATE_RULES],
+      replaces: ['procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'An antiarrhythmic for a tachycardia that had become unstable. Hypotension, a change in mental status, chest pain or heart failure make it unstable: synchronized cardioversion now (100 J), not a drug that takes minutes and drops the pressure further.',
     },
     { id: 'no-sedation', actions: ['cardiovert'], when: (s) => inVt(s) && s.vitals.gcs >= 14 && !comfortable(s), points: 3, severity: 'minor', text: 'Cardioversion of an awake patient without sedation or analgesia. Sedate the conscious patient when you can.' },

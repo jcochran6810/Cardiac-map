@@ -491,7 +491,7 @@ export const torsadesField: Scenario = {
       text: 'Amiodarone for torsades. It lengthens the QT further and slows the heart, and here it set off the run that did not stop. Sustained torsades gets a shock; the runs get magnesium — amiodarone and procainamide are the wrong drugs (and a 300 mg push is only for VF or pulseless VT that shocks have not fixed).',
     },
     {
-      id: 'amiodarone-arrest-long-qt', actions: ['amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, replaces: RATE_RULES, points: 5, severity: 'major',
+      id: 'amiodarone-arrest-long-qt', actions: ['amio-infusion', 'amio-arrest'], when: (s) => !s.pulse, replaces: [...RATE_RULES, 'antiarrhythmic-nonshockable'], points: 5, severity: 'major',
       text: 'Amiodarone in her torsades arrest. The shock and CPR end it, and magnesium is the drug for torsades; amiodarone lengthens her QT further, so the runs are more likely to come back once the pulse returns.',
     },
     {
@@ -519,7 +519,7 @@ export const torsadesField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['magnesium-sulfate', 'epinephrine', 'lidocaine', 'iv', 'io', 'airway'],
-      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), points: 5, severity: 'major',
+      when: (s) => !s.pulse && (s.rhythm.profile === 'torsades' || s.rhythm.profile === 'vf') && has(s, 'pads') && !shockedThisArrest(s), replaces: ['epi-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Pulseless torsades — or the VF it turns into — needs a shock first: magnesium, IV access, drugs and the airway come after it, during CPR.',
     },
     {

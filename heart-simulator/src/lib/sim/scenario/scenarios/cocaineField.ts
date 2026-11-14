@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -527,7 +527,7 @@ export const cocaineField: Scenario = {
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {
-      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], replaces: RATE_RULES, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-sinus', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       when: (s) => s.pulse && ['sinus-tachycardia', 'normal-sinus'].includes(s.rhythm.profile),
       text: 'A drug for an arrhythmia, given for a fast sinus rate. The rate is the cocaine and the agitation driving a normal heart: adenosine and the antiarrhythmics treat nothing here. A benzodiazepine brings the rate down by treating its cause.',
     },

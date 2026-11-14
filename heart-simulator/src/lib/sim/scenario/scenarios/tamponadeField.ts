@@ -634,7 +634,7 @@ export const tamponadeField: Scenario = {
       text: 'Laying him flat with his legs up. He cannot breathe lying down: let him sit up, leaning forward, as he wants to. For a paramedic, a fluid bolus is the way to fill his heart.',
     },
     {
-      id: 'vagal-tamponade', actions: ['vagal'], when: (s) => s.pulse, points: 2, severity: 'minor',
+      id: 'vagal-tamponade', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-slow'], points: 2, severity: 'minor',
       text: 'A vagal maneuver for a sinus tachycardia in shock. Bearing down raises the pressure in his chest and cuts the blood returning to a heart that cannot fill, and there is no reentry circuit to break.',
     },
     {

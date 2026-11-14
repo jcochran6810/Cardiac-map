@@ -2,7 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { allOf, bpAfter, firstDone, has, shocks, PADS } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * A walk-in anterior STEMI in a PCI-capable emergency department, on a Saturday evening (the cath lab team is on call from
@@ -581,14 +581,14 @@ export const edStemiWalkIn: Scenario = {
     },
     {
       // with his own sinus rhythm there is nothing for an antiarrhythmic to treat; after the VF and the shock it is no mistake
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse && !has(s, 'rosc'), replaces: RATE_RULES, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse && !has(s, 'rosc'), replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. Prophylactic lidocaine in an acute MI prevents some VF without saving lives, and amiodarone or procainamide only drop the pressure of a failing heart: the protection against VF is the monitor and the pads, a shock the moment it comes, and the artery opened.',
     },
     {
       // the nurse's amiodarone or procainamide is already scored as given without an order (the built-in rule, which keeps
       // working after ROSC); lidocaine is an arrest drug on her protocol, so with a pulse the case says it
       id: 'rn-lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 5, severity: 'major',
-      replaces: ['rn-without-order-lidocaine'],
+      replaces: ['rn-without-order-lidocaine', ...LIDOCAINE_RULES],
       text: 'Lidocaine with a pulse, and no order. With his own rhythm there is no arrhythmia to treat — prophylactic lidocaine in an acute MI prevents some VF without saving lives — and outside a code the ER nurse gives an antiarrhythmic only on the physician\'s order. The protection against VF is the monitor and the pads, and a shock the moment it comes.',
     },
     {

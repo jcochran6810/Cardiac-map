@@ -3,7 +3,7 @@ import { PADS, allOf, bpAfter, firstDone, has, line, orderedFlag, paced } from '
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, physicianDispo } from '../edKit';
 import { INTERVENTION_BY_ID } from '../interventions';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * Complete heart block in the emergency department. A 78-year-old woman comes in by a basic (BLS) ambulance after two
@@ -779,7 +779,7 @@ export const edHeartBlock: Scenario = {
   harms: [
     {
       id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 20, severity: 'critical',
-      replaces: ['arrest-amio-with-pulse', 'procainamide-slow', 'procainamide-hypotension', ...RATE_RULES],
+      replaces: ['arrest-amio-with-pulse', 'procainamide-slow', 'procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'Lidocaine, amiodarone or procainamide for a wide escape rhythm. The wide beats are the only thing keeping her alive: suppressing them can leave no rhythm at all. A slow wide rhythm needs a faster rate (pacing), never an antiarrhythmic.',
     },
     {
@@ -794,7 +794,7 @@ export const edHeartBlock: Scenario = {
       // the trap: the first dose did nothing, and more of it only delays the pacer. The nurse's order was for one dose
       // (doses: 1), so a second also has no order: this rule is the one penalty for it
       id: 'atropine-repeat', actions: ['atropine'], when: (s) => s.pulse && has(s, 'atropine') && !paced(s) && !has(s, 'pressor') && s.vitals.sbp < 90,
-      points: 5, severity: 'major', replaces: ['rn-without-order-atropine'],
+      points: 5, severity: 'major', replaces: ['rn-without-order-atropine', 'atropine-infranodal-repeat'],
       text: 'Atropine again while she stays hypotensive. A wide escape from below the AV node rarely answers to atropine — the first dose showed it. Pace her (or start an epinephrine or dopamine infusion) instead of pushing more: every minute at 34 with a pressure in the 80s costs perfusion. (In the ER nurse\'s run, a second dose also needs a new order.)',
     },
     {

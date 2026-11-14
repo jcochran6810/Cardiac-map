@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * Pre-excited atrial fibrillation (Wolff-Parkinson-White). A 24-year-old man whose heart took off in a pickup basketball
@@ -607,7 +607,7 @@ export const wpwAfField: Scenario = {
     {
       // the same mistake as procainamide with a low pressure, in the words of this case: one penalty, not two
       id: 'drug-while-unstable', actions: ['procainamide', 'lidocaine', 'magnesium-sulfate'], when: (s) => inAf(s) && unstable(s),
-      points: 8, severity: 'major',
+      replaces: [...LIDOCAINE_RULES, 'magnesium-no-indication'], points: 8, severity: 'major',
       text: 'A drug for a tachycardia that had become unstable. Hypotension, a change in mental status, chest pain or heart failure make it unstable: synchronized cardioversion now (200 J), not an infusion that takes minutes and drops the pressure further.',
     },
     {
@@ -616,7 +616,7 @@ export const wpwAfField: Scenario = {
       text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one.',
     },
     {
-      id: 'magnesium-preexcited-af', actions: ['magnesium-sulfate'], when: (s) => inAf(s) && !unstable(s), points: 3, severity: 'minor',
+      id: 'magnesium-preexcited-af', actions: ['magnesium-sulfate'], when: (s) => inAf(s) && !unstable(s), replaces: ['magnesium-no-indication'], points: 3, severity: 'minor',
       text: 'Magnesium for pre-excited atrial fibrillation. It acts on the AV node, not the pathway: it cannot slow or stop this rhythm, and it drops the pressure. A sedated synchronized cardioversion, or procainamide.',
     },
     {
@@ -660,7 +660,7 @@ export const wpwAfField: Scenario = {
     },
     {
       id: 'delay-shock', actions: ['iv', 'io', 'epinephrine', 'amio-arrest', 'lidocaine', 'magnesium-sulfate', 'airway'],
-      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), points: 5, severity: 'major',
+      when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), replaces: ['epi-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Witnessed VF needs a shock first: IV access, drugs and the airway come after it, during CPR.',
     },
   ],

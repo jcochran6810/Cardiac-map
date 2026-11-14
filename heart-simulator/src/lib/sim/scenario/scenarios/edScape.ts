@@ -2,7 +2,7 @@ import type { Effect, Harm, Line, Scenario, SimState, Speaker } from '../types';
 import { allOf, atRate, bpAfter, canSwallow, firstDone, has, line } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * Hypertensive acute pulmonary edema ("sympathetic crashing acute pulmonary edema", SCAPE) arriving in the emergency
@@ -923,7 +923,7 @@ export const edScape: Scenario = {
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding his lungs: raising it makes the edema worse. He needs the pressure taken off — nitroglycerin and positive pressure.',
     }, NO_ORDER, ['rn-without-order-pressor', 'rn-without-order-push-epi']),
     ...bothRoles({
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: RATE_RULES, points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. His 12-lead shows a regular rhythm whose speed is his response to the work of breathing: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing he has.',
     }, NO_ORDER, ['rn-without-order-adenosine6', 'rn-without-order-adenosine12', 'rn-without-order-amio-infusion', 'rn-without-order-procainamide', 'rn-without-order-lidocaine']),
     {

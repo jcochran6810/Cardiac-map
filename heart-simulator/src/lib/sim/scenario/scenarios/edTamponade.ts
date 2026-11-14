@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -929,12 +929,12 @@ export const edTamponade: Scenario = {
     },
     {
       id: 'antiarrhythmic-tamponade', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: ED_MD, when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['procainamide-hypotension', ...RATE_RULES],
+      replaces: ['procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'An antiarrhythmic for a sinus tachycardia (or for the extra beats a needle sets off). There is no arrhythmia to convert — the fast rate is her compensation, and extra beats with the needle in mean pull it back: amiodarone and procainamide drop a pressure that has little in reserve, and lidocaine treats nothing she has.',
     },
     {
       id: 'antiarrhythmic-tamponade-rn', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: ED_RN, when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: [...noOrder(['amio-infusion', 'procainamide', 'lidocaine']), 'procainamide-hypotension', ...RATE_RULES],
+      replaces: [...noOrder(['amio-infusion', 'procainamide', 'lidocaine']), 'procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'An antiarrhythmic with no order, for a sinus tachycardia or the extra beats a needle sets off. The fast rate is her compensation; extra beats with the needle in mean the physician pulls back — call them out. Amiodarone and procainamide drop a pressure that has little in reserve, lidocaine treats nothing she has, and with a pulse none of them is on a standing order.',
     },
     {
@@ -1008,7 +1008,10 @@ export const edTamponade: Scenario = {
       // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'procainamide', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem'],
       roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
-      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']), ...RATE_RULES],
+      replaces: [
+        'procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem']),
+        ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt',
+      ],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },
   ],

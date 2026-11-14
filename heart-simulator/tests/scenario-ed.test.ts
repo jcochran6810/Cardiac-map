@@ -217,25 +217,31 @@ describe('emergency department defaults', () => {
     const noLine = tryAct(block, before, 'temp-wire');
     expect(noLine.minute).toBe(0);
     expect(last(noLine).text).toMatch(/place a central venous line first/);
-    const s = run(block, 7, ['central-line', 'atropine', 'temp-wire']);
+    const s = run(block, 7, ['central-line', 'atropine', 'pads', 'temp-wire']);
     expect(s.flags.central).toBeDefined();
     expect(s.log.some((l) => /^Right internal jugular introducer sheath \(6 Fr, with a side port\)/.test(l.text))).toBe(true);
     expect(s.log.some((l) => /from every port/.test(l.text))).toBe(false);
     expect(s.log.some((l) => /^Balloon-tipped pacing wire floated through the introducer sheath/.test(l.text))).toBe(true);
     expect(s.counts.atropine).toBe(1);
     expect(s.rhythm).toEqual({ profile: 'paced', hr: 70 });
-    expect(s.minute).toBeCloseTo(8 + 0.5 + 3, 5);
+    expect(s.minute).toBeCloseTo(8 + 0.5 + 0.5 + 3, 5);
     expect(ids(s)).toEqual([]);
     expect(INTERVENTION_BY_ID['central-line'].detail).toMatch(/introducer sheath \(6 Fr, with a side port for drugs\)/);
   });
 
-  it('a transvenous wire in the ED is for a slow rate; in the lab a wire on demand is still a backup', () => {
+  it('a transvenous wire in the ED is for a slow rate; in the lab a wire on demand backs up a heart that has been slow', () => {
     const s = run(edPatient(), 7, ['central-line', 'temp-wire']);
     expect(ids(s)).toEqual(['temp-wire-not-slow']);
     expect(last(s).text).toMatch(/set to pace on demand below 50/);
     const lab = { ...edPatient(), id: 'lab-test', setting: 'cathlab' as const, roles: [3, 4, 5] as LearningLevel[] };
-    expect(ids(run(lab, 5, ['access-venous', 'temp-wire']))).toEqual([]);
+    // a heart that has never slowed: nothing for the wire to back up (one penalty, though the pads are off too)
+    expect(ids(run(lab, 5, ['access-venous', 'temp-wire']))).toEqual(['temp-wire-no-indication']);
     expect(last(run(lab, 5, ['access-venous', 'temp-wire'])).text).toMatch(/^Temporary wire in the RV apex/);
+    // a slow rate on the monitor, and the pads on: the wire on demand is a fair backup
+    const slow = { ...lab, initial: { ...lab.initial, rhythm: { profile: 'sinus-bradycardia', hr: 44 } } };
+    expect(ids(run(slow, 5, ['pads', 'access-venous', 'temp-wire']))).toEqual([]);
+    // the pads are the backup while the wire goes in
+    expect(ids(run(slow, 5, ['access-venous', 'temp-wire']))).toEqual(['temp-wire-without-pads']);
   });
 
   it('the ER doctor drains the pericardium under their own ultrasound, and only for tamponade', () => {

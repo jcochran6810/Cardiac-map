@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { ARREST_ETCO2, arrestEtco2, bpAfter, firstDone, has, interpret, line, mapOf, ventilated } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * Minutes after the crew reaches him (he collapsed about 5 minutes before, with the coach's CPR since) within which the
@@ -563,11 +563,11 @@ export const commotioField: Scenario = {
       text: 'An advanced airway before the first shock. It takes minutes he does not have: in VF the shock comes first, and a bag-mask does for the breaths until there is time for an airway.',
     },
     {
-      id: 'epi-not-yet', actions: ['epinephrine'], when: (s) => !s.pulse && epiNotYet(s), roles: [2], points: 3, severity: 'minor',
+      id: 'epi-not-yet', actions: ['epinephrine'], when: (s) => !s.pulse && epiNotYet(s), roles: [2], replaces: ['epi-before-shock', 'epi-too-soon'], points: 3, severity: 'minor',
       text: 'Epinephrine before it was due. In VF the shock comes first; epinephrine is for VF that persists or comes back after the shocks — in the 2025 AHA algorithm, during the CPR after the second shock, then every 3–5 minutes. Pushed into a heart a shock has just converted, it only drives up the rate, the oxygen demand and the risk of VF coming back.',
     },
     {
-      id: 'antiarrhythmic-not-yet', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && antiarrhythmicNotYet(s), roles: [2], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-not-yet', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && antiarrhythmicNotYet(s), roles: [2], replaces: [...LIDOCAINE_RULES, 'amiodarone-arrest-long-qt'], points: 3, severity: 'minor',
       text: 'Amiodarone or lidocaine before any shock had failed. They are for VF that persists or comes back after a shock (in the 2025 AHA algorithm, after the third shock), not a replacement for the first one.',
     },
     {

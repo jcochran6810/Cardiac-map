@@ -1,7 +1,7 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { PADS, bpAfter, count, cprCycles, firstDone, has } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /** His rhythm while the potassium is high: the case keeps it until he arrests or a pacer takes over */
 const HYPERK = 'hyperkalemia';
@@ -436,14 +436,14 @@ export const hyperkalemiaField: Scenario = {
       // Atropine is not here: it is the bradycardia algorithm's first drug and harmless, so trying it costs only the minute
       // it takes (it does nothing). Pacing is judged only once there is a line to give the calcium through: before that,
       // trying the pacer while the IV goes in is a fair bridge.
-      id: 'pace-before-calcium', actions: ['pace'], when: (s) => s.pulse && has(s, 'iv') && !has(s, 'calcium'), points: 3, severity: 'minor',
+      id: 'pace-before-calcium', actions: ['pace'], when: (s) => s.pulse && has(s, 'iv') && !has(s, 'calcium'), replaces: ['pace-no-analgesia'], points: 3, severity: 'minor',
       text: 'Pacing before calcium, with the line already in. In a dialysis patient this slow and wide the cause comes first: a high potassium raises the pacing threshold, so the pacer often cannot take over, and the attempt hurts. Give calcium first; pacing or an epinephrine infusion is for a rate still too slow after it.',
     },
     { id: 'atropine-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['atropine-in-arrest'], text:'Atropine in PEA. It has not been part of the cardiac-arrest algorithm since 2010: CPR, epinephrine and the reversible cause — here the potassium.' },
     {
       // one rule for all of them, in its own words; it stands in for the built-in procainamide and arrest-amiodarone rules
       id: 'antiarrhythmic-wide', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], points: 15, severity: 'critical',
-      replaces: ['procainamide-slow', 'procainamide-hypotension', 'procainamide-in-arrest', 'arrest-amio-with-pulse', ...RATE_RULES],
+      replaces: ['procainamide-slow', 'procainamide-hypotension', 'procainamide-in-arrest', 'arrest-amio-with-pulse', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'Lidocaine, amiodarone or procainamide for the wide complexes. This is not VT: a high potassium widens the QRS by depressing the heart\'s sodium channels, and these drugs depress them further — the rate falls and the heart can stop. Treat the potassium: calcium.',
     },
     {
@@ -460,7 +460,7 @@ export const hyperkalemiaField: Scenario = {
     },
     { id: 'false-alert', actions: ['stemi-alert'], points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. It calls the cath lab team in for an artery that is not blocked, and points the patient at a lab when what he needs is dialysis.' },
     {
-      id: 'magnesium-renal', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest'],
+      id: 'magnesium-renal', actions: ['magnesium-sulfate'], points: 5, severity: 'major', replaces: ['magnesium-routine-arrest', 'magnesium-renal-failure', 'magnesium-no-indication'],
       text: 'Magnesium for a dialysis patient. Nothing here calls for it, and failed kidneys cannot clear it: a high magnesium adds weakness, slows the heart and lowers the pressure.',
     },
     { id: 'fluid-overload', actions: ['fluid'], when: (s) => count(s, 'fluid') >= 1, points: 3, severity: 'minor', text: 'Repeated fluid boluses for a dialysis patient who missed two sessions. He cannot pass the fluid, his lungs are already wet, and the low pressure comes from the slow rate, not from too little volume.' },

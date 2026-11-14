@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { allOf, atRate, bpAfter, count, firstDone, flagAt, has, mapOf } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * A man on a continuous-flow LVAD (a HeartMate 3, the only durable LVAD implanted in the US today) with two days of vomiting
@@ -647,7 +647,7 @@ export const lvadField: Scenario = {
     },
     {
       id: 'antiarrhythmic-sinus', actions: ['amio-infusion', 'procainamide', 'lidocaine'], roles: [2], when: (s) => s.pulse, points: 8, severity: 'major',
-      replaces: ['procainamide-hypotension', 'procainamide-heart-failure', ...RATE_RULES],
+      replaces: ['procainamide-hypotension', 'procainamide-heart-failure', ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'An antiarrhythmic for a sinus rhythm. His 12-lead shows a fast sinus rate with no arrhythmia to treat; amiodarone and procainamide drop a pressure that is already low, and procainamide weakens a failing heart. Ventricular arrhythmias with an LVAD are treated when the monitor shows one.',
     },
     {
@@ -656,7 +656,7 @@ export const lvadField: Scenario = {
     },
     {
       // either crew can try one
-      id: 'vagal-sinus', actions: ['vagal'], when: (s) => s.pulse, points: 3, severity: 'minor',
+      id: 'vagal-sinus', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-slow'], points: 3, severity: 'minor',
       text: 'A vagal maneuver for a fast sinus rate. It only stops a rhythm whose circuit runs through the AV node; his rate is his answer to a low volume, and bearing down cuts the blood returning to a heart — and a pump — already short of it.',
     },
     {

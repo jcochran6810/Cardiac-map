@@ -3,7 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * A vasovagal reaction at femoral sheath removal. A diagnostic cath from the right groin is over; the tech pulled the
@@ -683,7 +683,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'A drug that slows the heart, with a pulse under 60. Metoprolol, diltiazem, amiodarone and adenosine slow the sinus node or the AV node further and deepen the fall in pressure: atropine is the drug for a slow rate.',
     },
     {
-      id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: RN_MD, points: 3, severity: 'minor',
+      id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], roles: RN_MD, replaces: LIDOCAINE_RULES, points: 3, severity: 'minor',
       text: 'Lidocaine with no ventricular arrhythmia to treat. It is for VF, pulseless VT or a stable monomorphic VT; with a slow sinus rhythm it treats nothing and brings only its side effects.',
     },
     {
@@ -692,7 +692,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'Nitroglycerin with no chest pain to treat. It is for ischemic chest pain (or a high pressure in pulmonary edema); here it only opens the vessels and drops the pressure — and nitrates during a sheath pull are a known trigger of this reaction.',
     },
     {
-      id: 'vagal-maneuver-slow', actions: ['vagal'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60, points: 3, severity: 'minor',
+      id: 'vagal-maneuver-slow', actions: ['vagal'], roles: RN_MD, when: (s) => s.pulse && s.rhythm.hr < 60, replaces: ['vagal-slow'], points: 3, severity: 'minor',
       text: 'A vagal maneuver with a slow pulse. It adds to the vagal surge that is slowing the heart: it is for a narrow-complex tachycardia.',
     },
     {

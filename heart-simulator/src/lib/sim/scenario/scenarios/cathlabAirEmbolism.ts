@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { atRate, bpAfter, firstDone, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LAD_VIEWS, MD, RCA_VIEWS, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
 
 /**
  * Coronary air embolism during a staged PCI of the right coronary. The pre-dilation balloon has just come out fast
@@ -757,7 +757,7 @@ export const cathlabAirEmbolism: Scenario = {
     // (the operator's word on it is the order's own)
     { id: 'av-blocker-slow', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'amio-infusion', 'adenosine-iv-ffr'], when: (s) => s.pulse && unwell(s) && (s.rhythm.hr < 60 || s.vitals.sbp < 90), replaces: [...RATE_RULES, 'ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'], points: 8, severity: 'major', text: 'A drug that slows the sinus or AV node and drops the pressure (adenosine, diltiazem, amiodarone), with a slow rate or a low pressure from the air in the right coronary. The slow rate needs atropine (or pacing), not more slowing.' },
     { id: 'cocktail-low-pressure', actions: ['radial-cocktail'], when: (s) => s.pulse && unwell(s) && s.vitals.sbp < 90, replaces: RATE_RULES, points: 6, severity: 'major', text: 'The radial cocktail with a systolic pressure under 90 mmHg. Verapamil and nitroglycerin both drop the pressure (verapamil also slows the heart), and there is no spasm to treat: hold the pressure up while the air clears.' },
-    { id: 'lidocaine-no-target', actions: ['lidocaine'], when: (s) => s.pulse && unwell(s), points: 3, severity: 'minor', text: 'Lidocaine with no ventricular arrhythmia to treat. Prophylactic lidocaine in an acute coronary occlusion is not recommended, and with a slow rate it can suppress the beats that keep him going.' },
+    { id: 'lidocaine-no-target', actions: ['lidocaine'], when: (s) => s.pulse && unwell(s), replaces: LIDOCAINE_RULES, points: 3, severity: 'minor', text: 'Lidocaine with no ventricular arrhythmia to treat. Prophylactic lidocaine in an acute coronary occlusion is not recommended, and with a slow rate it can suppress the beats that keep him going.' },
     { id: 'clot-drugs-for-air', actions: ['gp2b3a', 'cangrelor'], when: unwell, points: 4, severity: 'minor', text: 'A drug for clot during an air embolism. The artery is blocked by bubbles, not thrombus: a GP IIb/IIIa or IV P2Y12 inhibitor treats nothing here and adds bleeding risk on top of heparin and two antiplatelet drugs.' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab, for air. There is no clot to dissolve, and on top of heparin and two antiplatelet drugs it brings major bleeding risk.' },
     { id: 'protamine-mid-pci', actions: ['protamine'], when: (s) => !has(s, 'pci'), points: 8, severity: 'major', text: 'Protamine in the middle of a PCI, with a wire in the artery and the stent still to go in. Reversing the heparin lets clot form on the wire and the guide; air embolism is not a bleeding problem.' },

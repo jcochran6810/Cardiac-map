@@ -1,7 +1,8 @@
 /**
- * Built-in safety rules for the rhythm: shocks, cardioversion, the arrest drugs given with a pulse, pacing, atropine, the
- * antiarrhythmic and rate drugs (diltiazem, procainamide, amiodarone, beta-blockers, adenosine) and the cath lab's AV-nodal
- * drugs (the radial cocktail, intracoronary adenosine and verapamil, the adenosine infusion for an FFR).
+ * Built-in safety rules for the rhythm: shocks, cardioversion, the arrest drugs, pacing and the transvenous wire, atropine,
+ * magnesium, the antiarrhythmic and rate drugs (diltiazem, procainamide, amiodarone, lidocaine, beta-blockers, adenosine)
+ * and the cath lab's AV-nodal drugs (the radial cocktail, intracoronary adenosine and verapamil, the adenosine infusion for
+ * an FFR).
  *
  * One dose, one penalty: for the drugs and shocks in LADDERS the rules are ranked, and only the highest-ranked rule whose
  * condition holds charges the dose (topRhythmRule). A case rule that stands in for that rule therefore covers the whole
@@ -11,8 +12,8 @@
 import { has, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
 import {
-  ADENOSINE_PUSH, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, did, hasProblem, longQt, lowPressure, lvadPerfusing, preexcitedAf,
-  rhythmKind, shockable, slowOrBlocked, tachyarrhythmia,
+  ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, did, hasProblem, lastDoneAt, longQt, lowPressure,
+  lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
 import { SCOPE_RULES, rnWithoutOrderId } from './scope';
 
@@ -22,6 +23,8 @@ export const RATE_DRUGS = [
 ];
 /** The cath lab's verapamil: intracoronary, or in the radial cocktail (with nitroglycerin and heparin) */
 const VERAPAMIL = ['radial-cocktail', 'ic-verapamil'];
+/** No sedation or analgesia yet: what a shock or a pacer needs first in an awake patient */
+const unsedated = (s: SimState) => !has(s, 'sedation') && !has(s, 'analgesia') && !has(s, 'benzodiazepine');
 /** Atrial fibrillation or flutter on the monitor (with a pulse) */
 const afOrFlutter = (s: SimState) => s.pulse && ['af', 'flutter'].includes(rhythmKind(s));
 /**
@@ -45,11 +48,24 @@ const RULES: Harm[] = [
   { id: 'sync-in-arrest', actions: ['cardiovert'], when: (s) => shockable(s), points: 8, severity: 'major', text: 'Synchronized mode needs R waves; in VF or pulseless VT it may never fire. Defibrillate unsynchronized.' },
   { id: 'sync-polymorphic', actions: ['cardiovert'], when: (s) => s.pulse && rhythmKind(s) === 'torsades', points: 5, severity: 'major', text: 'Synchronized cardioversion for polymorphic VT. The device cannot lock onto the R waves of a twisting rhythm and may never fire: sustained torsades is defibrillated, unsynchronized, pulse or not (2025 AHA) — then IV magnesium.' },
   { id: 'cardiovert-no-tachycardia', actions: ['cardiovert'], when: (s) => s.pulse && !tachyarrhythmia(s) && rhythmKind(s) !== 'torsades', points: 8, severity: 'major', text: 'Synchronized cardioversion without a tachyarrhythmia to treat. It is for an unstable SVT, atrial fibrillation or flutter, or monomorphic VT; on any other rhythm the shock cannot help, and it hurts an awake patient.' },
+  { id: 'cardioversion-digoxin-toxicity', actions: ['cardiovert'], when: (s, sc) => s.pulse && hasProblem(sc, ['digoxin-toxicity']), points: 8, severity: 'major', text: 'Electrical cardioversion of a digoxin-toxic heart. The shock can set off VT or VF that does not respond to further shocks (emergency medicine and toxicology references): treat the toxicity first — digoxin Fab and the potassium — with lidocaine or pacing for the arrhythmia, and cardiovert only a rhythm that is about to kill, at the lowest energy.' },
+  // AF or flutter of 48 hours or more (or unknown onset) without 3 weeks of anticoagulation or a TEE: converting it,
+  // electrically or with procainamide, can throw a clot from the left atrium. An unstable patient is cardioverted at once
+  { id: 'cardioversion-unanticoagulated', actions: ['cardiovert', 'procainamide'], when: (s, sc) => hasProblem(sc, ['af-over-48h']) && afOrFlutter(s) && !lowPressure(s) && s.vitals.gcs >= 14, points: 10, severity: 'major', text: 'Converting atrial fibrillation or flutter that has lasted 48 hours or more (or began at an unknown time) without anticoagulation. A clot may have formed in the left atrium, and restoring the rhythm — with a shock or with procainamide — can throw it out as a stroke: 3 weeks of anticoagulation, or a TEE that shows no clot, first (2023 ACC/AHA/ACCP/HRS AF guideline, COR 1). A stable patient gets rate control and anticoagulation; only an unstable one is cardioverted at once.' },
+  // the same id as the cases that score it in their own words (svt, af-rvr, stable VT, WPW, unstable AF in the ED)
+  { id: 'no-sedation', actions: ['cardiovert'], when: (s) => tachyarrhythmia(s) && s.vitals.gcs >= 14 && unsedated(s), points: 3, severity: 'minor', text: 'Synchronized cardioversion of an awake patient without sedation or analgesia. Sedate a conscious patient whenever there is time (2025 AHA) — a reduced dose of a drug that spares the pressure, with the airway kit ready.' },
 
   // ─── The arrest drugs ──────────────────────────────────────────────────────
   { id: 'arrest-epi-with-pulse', actions: ['epinephrine'], when: (s) => s.pulse, points: 15, severity: 'critical', text: '1 mg IV epinephrine is the cardiac-arrest dose. With a pulse it causes severe hypertension, arrhythmias and ischemia; use push-dose epinephrine or an infusion.' },
+  // the same id as vf-arrest-field's
+  { id: 'epi-before-shock', actions: ['epinephrine'], when: (s) => shockable(s) && !shockedThisArrest(s), points: 3, severity: 'minor', text: 'Epinephrine before the first shock in VF or pulseless VT. The shock comes first: every minute without one lowers the chance of survival, and epinephrine is given once shocks have failed — after the second (2025 AHA).' },
+  // the same id as the PEA and the ED's VF arrest
+  { id: 'epi-too-soon', actions: ['epinephrine'], when: (s) => !s.pulse && ((t) => t !== null && s.minute - t < 3)(lastDoneAt(s, ['epinephrine'], s.timers.arrestAt ?? 0)), points: 3, severity: 'minor', text: 'Epinephrine again within 3 minutes of the last dose. The arrest dose is 1 mg every 3–5 minutes (2025 AHA): sooner adds nothing to the arrest, only to the fast, irritable, oxygen-hungry heart that follows a return of circulation.' },
   // pre-excited AF is scored by av-blocker-preexcited-af (one mistake, one penalty)
   { id: 'arrest-amio-with-pulse', actions: ['amio-arrest'], when: (s) => s.pulse && !preexcitedAf(s), points: 10, severity: 'major', text: 'A 300 mg amiodarone push is for cardiac arrest. With a pulse, give 150 mg over 10 minutes.' },
+  // the same id as torsades-field's
+  { id: 'amiodarone-arrest-long-qt', actions: ['amio-arrest'], when: (s, sc) => !s.pulse && longQt(s, sc), points: 3, severity: 'minor', text: 'Amiodarone 300 mg in a torsades or long-QT arrest. It lengthens the QT further and can keep torsades going: defibrillate, give 2 g of IV magnesium, and correct the potassium (2025 AHA).' },
+  { id: 'antiarrhythmic-nonshockable', actions: ['amio-arrest', 'lidocaine'], when: (s) => !s.pulse && !shockable(s), points: 3, severity: 'minor', text: 'Amiodarone or lidocaine in PEA or asystole. They are for VF or pulseless VT that shocks have not fixed (2025 AHA): a rhythm that cannot be shocked gets CPR, epinephrine and a search for the cause.' },
   // the same id as wpw-af-field's. An indication rule: the ER nurse's missing order stands in for it
   { id: 'rate-drug-in-arrest', actions: [...ADENOSINE_PUSH, ...IV_BETA_BLOCKERS, 'diltiazem', 'amio-infusion'], when: (s, sc, id) => !s.pulse && !nurseWithoutOrder(s, sc, id), points: 3, severity: 'minor', text: 'A drug for a tachycardia with a pulse, given in cardiac arrest. Adenosine, beta-blockers, diltiazem and the 150 mg amiodarone infusion are not arrest drugs: CPR, a shock for VF or pulseless VT, epinephrine and — for shock-refractory VF — amiodarone 300 mg or lidocaine (2025 AHA).' },
 
@@ -57,18 +73,33 @@ const RULES: Harm[] = [
   // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
   { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
   { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
+  // the same id as torsades-field's. A patient who is crashing (a low pressure) is paced first
+  { id: 'pace-no-analgesia', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr < 50 && !paced(s) && s.vitals.gcs >= 13 && !lowPressure(s) && unsedated(s), points: 2, severity: 'minor', text: 'Transcutaneous pacing of an awake patient, with a pressure that allows analgesia, and none given. Each paced beat jolts the chest wall: fentanyl or a small titrated sedative first (2025 AHA) — without delaying pacing in a patient who is crashing.' },
   // the emergency physician's invasive procedures need their indication (the cath lab's cases score their own). In the lab
   // a transvenous wire can be a backup on demand, so the rate rule is the department's only
   { id: 'temp-wire-not-slow', actions: ['temp-wire'], when: (s, sc) => sc.setting === 'ed' && s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'A transvenous pacing wire without a slow heart rate to treat. It is for bradycardia (usually under 50/min) that drugs and the transcutaneous pacer cannot hold; with a faster rate it brings only its risks — a perforated ventricle, arrhythmias, a pneumothorax, bleeding and infection.' },
+  // in the lab: a wire backs up a slow rhythm that has been on the monitor (the flag 'brady-seen'), not a heart that never slowed
+  { id: 'temp-wire-no-indication', actions: ['temp-wire'], roles: [5], when: (s, sc) => sc.setting === 'cathlab' && s.pulse && !has(s, 'brady-seen') && !paced(s), points: 3, severity: 'minor', text: 'A transvenous pacing wire with no slow rhythm to back up. In the lab a wire is placed for a bradycardia or heart block that has happened; with a heart that has never slowed it brings only its risks — a perforated right ventricle and tamponade, arrhythmias, bleeding and infection.' },
+  { id: 'temp-wire-without-pads', actions: ['temp-wire'], roles: [5, 7], when: (s) => !has(s, 'pads'), points: 5, severity: 'major', text: 'A transvenous pacing wire with no pads on. Crossing the tricuspid valve can set off VT, and a new wire can lose capture at any moment: pads on, with the transcutaneous pacer ready to take over, before the wire goes in.' },
 
   // ─── Atropine ──────────────────────────────────────────────────────────────
   // atropine is for symptomatic bradycardia. With a pulse: a rate of 60 or more has nothing for it to treat (over a pacer,
   // whose 70 hides a slow rate of the heart's own, it is still a fair try). In arrest: out of the algorithm since 2010
   { id: 'atropine-fast', actions: ['atropine'], when: (s) => s.pulse && s.rhythm.hr >= 60 && !paced(s), points: 3, severity: 'minor', text: 'Atropine with no slow heart rate to treat. It is for symptomatic bradycardia: with a normal or fast rate it has nothing to treat, and any speeding only adds to the heart\'s oxygen demand — in an acute MI that can worsen the ischemia.' },
   { id: 'atropine-in-arrest', actions: ['atropine'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Atropine in cardiac arrest. It has not been part of the cardiac arrest algorithm since 2010: routine atropine does not help PEA or asystole, and it does nothing for VF. CPR, epinephrine, a shock for VF or pulseless VT, and the reversible causes.' },
+  { id: 'atropine-heart-transplant', actions: ['atropine'], when: (_s, sc) => hasProblem(sc, ['heart-transplant']), points: 8, severity: 'major', text: 'Atropine in a patient with a transplanted heart. The donor heart has no vagal nerve supply, so atropine cannot speed it, and it can cause a high-grade AV block or a sinus arrest (2018 ACC/AHA/HRS bradycardia guideline: 3 — Harm): pace, start an epinephrine infusion, or give aminophylline.' },
+  // a block below the AV node (Mobitz II, complete heart block) that the first dose did not lift
+  { id: 'atropine-infranodal-repeat', actions: ['atropine'], when: (s) => s.pulse && has(s, 'atropine') && ['mobitz2', 'chb'].includes(rhythmKind(s)) && !paced(s), points: 3, severity: 'minor', text: 'Repeat atropine for a Mobitz II or complete heart block the first dose did not help. The block sits below the AV node, where atropine does not reach (2018 ACC/AHA/HRS bradycardia; 2025 AHA): pace, or start an epinephrine or dopamine infusion.' },
 
   // ─── Magnesium ─────────────────────────────────────────────────────────────
   { id: 'magnesium-routine-arrest', actions: ['magnesium-sulfate'], when: (s, sc) => !s.pulse && !longQt(s, sc), points: 3, severity: 'minor', text: 'Magnesium in a cardiac arrest without torsades. Routine magnesium does not help VF, pulseless VT, PEA or asystole; it is for torsades de pointes.' },
+  { id: 'magnesium-renal-failure', actions: ['magnesium-sulfate'], when: (_s, sc) => hasProblem(sc, ['renal-failure', 'dialysis']), points: 5, severity: 'major', text: 'IV magnesium with failing kidneys. The kidneys clear magnesium: with severe kidney disease or on dialysis it builds up — weakness, a falling pressure, heart block and slowed breathing (magnesium sulfate label: caution in renal impairment). Give it only for torsades or a proven low magnesium, at a reduced dose, with levels.' },
+  // the same id as the beta-blocker overdose and the LVAD cases'. AF and flutter: magnesium is a fair adjunct for the rate
+  { id: 'magnesium-no-indication', actions: ['magnesium-sulfate'], when: (s, sc) => s.pulse && !longQt(s, sc) && !hasProblem(sc, ['hypomagnesemia']) && !['af', 'flutter'].includes(rhythmKind(s)), points: 3, severity: 'minor', text: 'IV magnesium with no torsades, long QT or low magnesium to treat. It drops the pressure and slows conduction — its label rules parenteral magnesium out in heart block — and it does nothing for this rhythm.' },
+
+  // ─── Vagal maneuvers ───────────────────────────────────────────────────────
+  // the same id as the hyperkalemia cases'
+  { id: 'vagal-slow', actions: ['vagal'], when: (s) => s.pulse && !paced(s) && (AV_BLOCKS.includes(rhythmKind(s)) || s.rhythm.hr < 60), points: 3, severity: 'minor', text: 'A vagal maneuver with a slow pulse. It slows the sinus and AV nodes further; it is for a regular narrow-complex tachycardia (2015 ACC/AHA/HRS SVT guideline).' },
 
   // ─── The rate and AV-nodal drugs (one ladder: RATE_LADDER) ─────────────────
   { id: 'av-blocker-preexcited-af', actions: [...AV_NODAL_BLOCKERS, 'amio-arrest'], when: (s) => preexcitedAf(s), points: 15, severity: 'critical', text: 'An AV-nodal blocker in pre-excited atrial fibrillation. Blocking the node sends every impulse down the accessory pathway: the rate climbs and it can turn into VF (2023 ACC/AHA/ACCP/HRS AF guideline: adenosine, diltiazem, verapamil, digoxin, IV amiodarone and beta-blockers — 3: Harm). Unstable: synchronized cardioversion; stable: cardioversion, or IV procainamide or ibutilide.' },
@@ -102,6 +133,13 @@ const RULES: Harm[] = [
   // dissection (the dissection cases judge it)
   { id: 'antiarrhythmic-no-arrhythmia', actions: [...ADENOSINE_PUSH, 'diltiazem', 'amio-infusion', 'procainamide'], when: (s, sc, id) => s.pulse && !tachyarrhythmia(s) && !['vt', 'torsades'].includes(rhythmKind(s)) && !slowOrBlocked(s) && !(id === 'amio-infusion' && has(s, 'rosc')) && !(id === 'diltiazem' && hasProblem(sc, ['aortic-dissection'])), points: 3, severity: 'minor', text: 'An antiarrhythmic or AV-nodal drug with no tachyarrhythmia to treat. Adenosine, diltiazem, an amiodarone infusion and procainamide are for a fast arrhythmia — SVT, atrial fibrillation or flutter with a fast rate, or VT (2025 AHA tachycardia algorithm): with a normal rhythm, or a sinus tachycardia that is the body\'s answer to something else, they only slow the heart and drop the pressure. Treat the cause.' },
 
+  // ─── Lidocaine ─────────────────────────────────────────────────────────────
+  { id: 'lidocaine-slow-or-block', actions: ['lidocaine'], when: (s) => slowOrBlocked(s), points: 10, severity: 'major', text: 'Lidocaine with heart block or a slow rate. Its label rules it out in Stokes-Adams attacks and in severe sinoatrial, AV or intraventricular block without a pacemaker: it can suppress the escape beats that keep the patient alive. Pace, or speed the rate.' },
+  // a class I drug deepens the sodium-channel block the potassium has made, in an arrest too
+  { id: 'antiarrhythmic-hyperkalemia', actions: ['lidocaine', 'procainamide', 'amio-infusion', 'amio-arrest'], when: (_s, sc) => hasProblem(sc, ['hyperkalemia']), points: 10, severity: 'major', text: 'An antiarrhythmic in hyperkalemia. The wide, slow complexes come from the potassium, not from an irritable ventricle: lidocaine, procainamide and amiodarone deepen the block the potassium has already made and can turn it into a sine wave or asystole. Calcium first, then shift the potassium (insulin with dextrose, albuterol) and remove it.' },
+  // the same id as the guide-dissection and vasovagal cases'. After ROSC from VF, lidocaine may be considered (2025 AHA)
+  { id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], when: (s) => s.pulse && !['vt', 'torsades'].includes(rhythmKind(s)) && !has(s, 'rosc'), points: 3, severity: 'minor', text: 'Lidocaine with no ventricular arrhythmia to treat. Lidocaine to prevent VF in an acute MI is not recommended (more asystole, no benefit), it does nothing for atrial or AV-nodal rhythms, and its label rules it out in WPW: a stable wide tachycardia gets procainamide or amiodarone.' },
+
   // ─── Procainamide: the stop rules and contraindications on its drug card (2025 AHA tachycardia algorithm) ───
   { id: 'procainamide-in-arrest', actions: ['procainamide'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Procainamide in cardiac arrest. It is a slow infusion (20–50 mg/min), not an arrest drug: amiodarone 300 mg or lidocaine is.' },
   // a pacer (pads or a wire) protects against the block it would deepen
@@ -110,6 +148,7 @@ const RULES: Harm[] = [
   { id: 'procainamide-hypotension', actions: ['procainamide'], when: (s) => s.pulse && lowPressure(s), points: 8, severity: 'major', text: 'Procainamide with a systolic pressure under 90 mmHg. Hypotension is one of its stop rules, so it is no drug to start with one: an unstable tachycardia needs synchronized cardioversion.' },
   { id: 'procainamide-heart-failure', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['heart-failure']), points: 8, severity: 'major', text: 'Procainamide in a patient with heart failure. It weakens the squeeze and drops the pressure: in heart failure use amiodarone, or synchronized cardioversion.' },
   { id: 'procainamide-after-amiodarone', actions: ['procainamide'], when: (s) => s.pulse && has(s, 'amiodarone'), points: 5, severity: 'minor', text: 'Procainamide on top of amiodarone. Both lengthen the QT and drop the pressure: when one antiarrhythmic fails, cardiovert (with sedation) or get expert advice instead of adding another.' },
+  { id: 'procainamide-sodium-channel', actions: ['procainamide'], when: (_s, sc) => hasProblem(sc, ['sodium-channel-blocker-overdose']), points: 10, severity: 'major', text: 'Procainamide in a tricyclic or other sodium-channel-blocker overdose. As a class IA drug it deepens the sodium-channel block — a wider QRS, a lower pressure and more ventricular arrhythmias (toxicology references): sodium bicarbonate, then lidocaine.' },
 
   // ─── The cath lab's adenosine infusion for an FFR (Adenoscan label) ────────
   { id: 'ffr-adenosine-unsafe', actions: ['adenosine-iv-ffr'], when: (s, sc) => s.pulse && (slowOrBlocked(s) || lowPressure(s) || hasProblem(sc, ['asthma', 'bronchospasm'])), points: 8, severity: 'major', text: 'IV adenosine for hyperemia with AV block, a slow rate, a low pressure, or asthma or bronchospasm. Its label rules the infusion out in second- or third-degree AV block and sinus node disease without a pacemaker and in bronchospastic lung disease, and it drops the pressure: measure a resting index (iFR or RFR) instead, or treat the patient first.' },
@@ -126,6 +165,8 @@ const RATE_LADDER = [
   'diltiazem-vt', 'diltiazem-heart-failure',
   'rate-drug-in-arrest',
   'nodal-blocker-slow',
+  // (amiodarone's infusion only)
+  'antiarrhythmic-hyperkalemia',
   'adenosine-wide-unstable',
   'beta-blocker-stimulant',
   'nodal-blocker-hypotension', 'cocktail-low-pressure', 'amiodarone-hypotension', 'ic-vasodilator-hypotension',
@@ -140,19 +181,25 @@ const RATE_LADDER = [
 ];
 export const LADDERS: Record<string, string[]> = {
   ...Object.fromEntries(RATE_DRUGS.map((a) => [a, RATE_LADDER])),
+  lidocaine: ['lidocaine-slow-or-block', 'antiarrhythmic-hyperkalemia', 'antiarrhythmic-nonshockable', 'lidocaine-no-arrhythmia'],
   procainamide: [
     'procainamide-in-arrest', 'procainamide-slow', 'procainamide-long-qt', 'procainamide-hypotension', 'procainamide-heart-failure',
-    'procainamide-after-amiodarone', 'antiarrhythmic-no-arrhythmia',
+    'procainamide-after-amiodarone', 'procainamide-sodium-channel', 'antiarrhythmic-hyperkalemia', 'cardioversion-unanticoagulated',
+    'antiarrhythmic-no-arrhythmia',
   ],
-  'amio-arrest': ['arrest-amio-with-pulse', 'av-blocker-preexcited-af'],
-  epinephrine: ['arrest-epi-with-pulse'],
-  atropine: ['atropine-in-arrest', 'atropine-fast'],
-  cardiovert: ['shock-nonshockable', 'sync-in-arrest', 'sync-polymorphic', 'cardiovert-no-tachycardia'],
-  pace: ['pace-in-arrest', 'pace-not-slow'],
-  'temp-wire': ['temp-wire-not-slow'],
-  'magnesium-sulfate': ['magnesium-routine-arrest'],
+  'amio-arrest': ['arrest-amio-with-pulse', 'av-blocker-preexcited-af', 'antiarrhythmic-hyperkalemia', 'amiodarone-arrest-long-qt', 'antiarrhythmic-nonshockable'],
+  epinephrine: ['arrest-epi-with-pulse', 'epi-before-shock', 'epi-too-soon'],
+  atropine: ['atropine-in-arrest', 'atropine-heart-transplant', 'atropine-infranodal-repeat', 'atropine-fast'],
+  cardiovert: [
+    'shock-nonshockable', 'sync-in-arrest', 'sync-polymorphic', 'cardiovert-no-tachycardia', 'cardioversion-digoxin-toxicity',
+    'cardioversion-unanticoagulated', 'no-sedation',
+  ],
+  pace: ['pace-in-arrest', 'pace-not-slow', 'pace-no-analgesia'],
+  'temp-wire': ['temp-wire-not-slow', 'temp-wire-no-indication', 'temp-wire-without-pads'],
+  'magnesium-sulfate': ['magnesium-routine-arrest', 'magnesium-renal-failure', 'magnesium-no-indication'],
   'adenosine-iv-ffr': ['ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'],
 };
+
 /**
  * The rules of RATE_LADDER that came after its older ones (av-blocker-preexcited-af, the two diltiazem rules,
  * beta-blocker-stimulant and the two amiodarone rules). A case rule that says a rate or AV-nodal drug is wrong for its
@@ -162,6 +209,8 @@ export const LADDERS: Record<string, string[]> = {
 export const RATE_RULES = RATE_LADDER.filter((id) => ![
   'av-blocker-preexcited-af', 'diltiazem-vt', 'diltiazem-heart-failure', 'beta-blocker-stimulant', 'amiodarone-long-qt', 'amiodarone-after-procainamide',
 ].includes(id));
+/** Every rule on lidocaine: a case rule that says lidocaine is wrong for its patient lists them in its `replaces` */
+export const LIDOCAINE_RULES = LADDERS.lidocaine;
 
 const BY_ID = new Map(RULES.map((r) => [r.id, r]));
 
