@@ -4,7 +4,7 @@
  * requests (labKit / edKit).
  */
 import { describe, expect, it } from 'vitest';
-import { chargesPerDrug } from '@/lib/sim/scenario/rules/charge';
+import { DRUGS_OF, chargesPerDrug, drugsOf, sameDrug } from '@/lib/sim/scenario/rules/charge';
 import { BUILT_IN_HARMS, RN_ORDER_ONLY, perform, review, start } from '@/lib/sim/scenario/engine';
 import { askCritical, askEvents, askHarm, type LabAsk } from '@/lib/sim/scenario/labKit';
 import { edOrder, standingOrders } from '@/lib/sim/scenario/edKit';
@@ -13,6 +13,7 @@ import { lastDoneAt, outflowObstruction, preloadDependent, slowOrBlocked } from 
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Effect, Harm, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { fixture, penaltyIds } from './ruleFixture';
+import { INTERVENTION_BY_ID } from '@/lib/sim/scenario/interventions';
 import { UNTIL_ARRIVED, runScenario } from './helpers';
 
 const ids = (s: SimState) => s.penalties.map((p) => p.id);
@@ -526,6 +527,32 @@ describe('a drug contraindication charges once for each drug given into it (rule
     // the ACS gate: aspirin, then heparin, with active bleeding
     const bleeding = fixture({ setting: 'ed', role: 7, rhythm: { profile: 'normal-sinus', hr: 90 }, problems: ['acs', 'bleeding'] });
     expect(penaltyIds(bleeding, 7, ['iv', 'aspirin', 'heparin'])).toEqual(['antithrombotic-bleeding', 'antithrombotic-bleeding']);
+  });
+
+  it('the same drug at another dose or by another route is the same drug: charged once (DRUGS_OF)', () => {
+    // nitroglycerin 0.4 mg, then 0.8 mg, under 90: the low pressure once; the second dose goes to the next reason that holds
+    const low = fixture({ setting: 'field', role: 2, rhythm: { profile: 'normal-sinus', hr: 80 }, vitals: { sbp: 84, dbp: 50, pain: 6 } });
+    expect(penaltyIds(low, 2, ['vitals', 'ask-pde5', 'iv', 'nitro', 'nitro-high'])).toEqual(['nitro-hypotension', 'nitro-too-soon']);
+    // sublingual, then the infusion (ED physician): the same drug, no second penalty for the same reason
+    const lowEd = fixture({ setting: 'ed', role: 7, rhythm: { profile: 'normal-sinus', hr: 80 }, vitals: { sbp: 84, dbp: 50, pain: 6 } });
+    expect(penaltyIds(lowEd, 7, ['vitals', 'ask-pde5', 'iv', 'nitro-iv', 'nitro']).filter((p) => p === 'nitro-hypotension')).toHaveLength(1);
+    // adenosine 6 mg, then 12 mg, at a rate of 48
+    const slow48 = fixture({ setting: 'ed', role: 7, rhythm: { profile: 'sinus-bradycardia', hr: 48 }, vitals: { sbp: 110 } });
+    expect(penaltyIds(slow48, 7, ['iv', 'adenosine6', 'adenosine12'])).toEqual(['nodal-blocker-slow']);
+    // a different drug is still a mistake of its own: metoprolol, then diltiazem
+    expect(penaltyIds(slow48, 7, ['iv', 'metoprolol', 'diltiazem'])).toEqual(['nodal-blocker-slow', 'nodal-blocker-slow']);
+    // metoprolol IV, then by mouth: one drug
+    expect(penaltyIds(slow48, 7, ['iv', 'metoprolol', 'metoprolol-po']).filter((p) => p === 'nodal-blocker-slow')).toHaveLength(1);
+  });
+
+  it('DRUGS_OF names only drug actions, and an action with no entry is a drug of its own', () => {
+    for (const id of Object.keys(DRUGS_OF)) expect(INTERVENTION_BY_ID[id]?.category, id).toBe('meds');
+    expect(drugsOf('diltiazem')).toEqual(['diltiazem']);
+    expect(drugsOf(undefined)).toEqual([]);
+    expect(sameDrug('radial-cocktail', 'ic-verapamil')).toBe(true);
+    expect(sameDrug('radial-cocktail', 'ic-nitro')).toBe(true);
+    expect(sameDrug('ic-nitro', 'ic-nitroprusside')).toBe(false);
+    expect(sameDrug('push-epi', 'pressor')).toBe(false);
   });
 
   it('indication rules, minor rules, the nitrate checks and rules on what is not a drug charge once a case', () => {
