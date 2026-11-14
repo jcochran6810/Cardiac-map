@@ -172,6 +172,8 @@ const FENTANYL_ORDER: LabAsk = edOrder({
   fallbackEffect: (s) => { const line = lineFor(s); return { say: line.say, vitals: { pain: Math.max(0, s.vitals.pain - 3) }, flags: [...(line.flags ?? []), 'analgesia'] }; },
   gives: 'fentanyl-given', points: 5,
   within: 3, wait: 4,
+  // held through an arrest and no longer right at ROSC (the order's own `when`): what the physician says as he cancels it
+  cancelWhy: (s) => (s.vitals.sbp < 90 ? `his systolic is ${s.vitals.sbp} now — no opioid until his pressure holds` : 'his pain is already treated'),
   // one dose: more needs another order
   doses: 1,
   label: 'Fentanyl for the pain, on the physician\'s order',
