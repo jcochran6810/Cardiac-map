@@ -5,7 +5,9 @@
  */
 import { has, orderedFlag, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
+import { antithromboticCharges } from './acs';
 import { BETA_BLOCKERS, did, hasProblem, lastDoneAt, lowPressure, outflowObstruction, preloadDependent, slowOrBlocked, tachyarrhythmia } from './helpers';
+import { RATE_RULES } from './rhythm';
 
 type Check = (s: SimState, sc: Scenario) => boolean;
 
@@ -96,6 +98,16 @@ const tamponadeUndrained = (s: SimState, sc: Scenario) => (hasProblem(sc, ['tamp
  * a systolic under 120 with age over 70, a heart rate over 110 — or another contraindication; COMMIT). The rhythm rules
  * judge a low pressure, a slow rate or block, fluid on the lungs and bronchospasm: this rule is for the rest
  */
+/**
+ * A case rule speaks for this beta-blocker dose: it names the tablet, stands in for the rate-drug rules (RATE_RULES of
+ * rules/rhythm.ts) and applies — the case's words for a beta-blocker that is wrong for this patient — and has not charged an
+ * earlier dose. The oral rule then adds no second penalty to the same tablet. A stand-in charged already passes the tablet on
+ * to this rule, as the rhythm gate passes a dose on (rules/rhythm.ts caseVoice)
+ */
+const caseSpeaksForBetaBlocker = (s: SimState, sc: Scenario, id: string) => sc.harms.some((h) =>
+  h.actions.includes(id) && (!h.roles || h.roles.includes(s.role)) && !!h.replaces?.some((r) => RATE_RULES.includes(r)) && (!h.when || h.when(s, sc, id))
+  && !s.penalties.some((p) => p.id === h.id && p.minute < s.minute));
+
 const oralBetaBlockerShockRisk = (s: SimState, sc: Scenario) =>
   s.pulse && hasProblem(sc, ['acs']) && !lowPressure(s) && !slowOrBlocked(s) && !hasProblem(sc, ['pulmonary-edema', 'asthma', 'bronchospasm'])
   && (s.vitals.sbp < 100 || (!paced(s) && (s.rhythm.hr > 110 || s.rhythm.hr < 60)) || hasProblem(sc, ['heart-failure', 'cardiogenic-shock']));
@@ -111,9 +123,12 @@ const stopsMidPci = (s: SimState, sc: Scenario) =>
 export const ADDED_RULES: Harm[] = [
   // In the lab extra heparin follows the ACT (the default ACT, or a case's, sets the timer 'actLowAt' when it is low); the
   // emergency department has no ACT: its bolus is followed by the infusion, so every repeat bolus there is unguided
+  // (a reason the antithrombotic gate gives to hold the dose altogether — heparin on top of bivalirudin, bleeding, HIT —
+  // charges it instead: one dose, one penalty)
   {
     id: 'heparin-repeat-unguided', actions: ['heparin'],
-    when: (s, sc) => did(s, 'heparin') && (sc.setting === 'ed' || !((s.timers.actLowAt ?? -Infinity) > (lastDoneAt(s, ['heparin']) ?? Infinity))),
+    when: (s, sc, id) => did(s, 'heparin') && (sc.setting === 'ed' || !((s.timers.actLowAt ?? -Infinity) > (lastDoneAt(s, ['heparin']) ?? Infinity)))
+      && !antithromboticCharges(s, sc, id),
     points: 5, severity: 'major',
     text: 'Another heparin bolus without a low ACT to guide it. During PCI extra heparin is given to a target ACT — 250–300 s on heparin alone, 200–250 s with a GP IIb/IIIa inhibitor (ACCF/AHA/SCAI PCI guideline): check the ACT first, since an unguided bolus only adds bleeding. In the emergency department the bolus is followed by the infusion, adjusted to the aPTT or anti-Xa level, not by more boluses.',
   },
@@ -210,9 +225,11 @@ export const ADDED_RULES: Harm[] = [
     text: 'Sitting up a patient with a systolic under 90. Upright, the blood pools in the legs and less comes back to the heart: the pressure falls further and the brain goes short. Lay a hypotensive patient flat (raise the legs if the lungs are clear); sitting up is for fluid on the lungs, or for a tamponade that will not let the patient breathe lying down.',
   },
 
-  // Oral metoprolol after a heart attack: only once the risk of shock is past
+  // Oral metoprolol after a heart attack: only once the risk of shock is past (a case rule that speaks for the beta-blocker
+  // in its own words, standing in for the rate-drug rules, covers the tablet too)
   {
-    id: 'oral-beta-blocker-shock-risk', actions: ['metoprolol-po'], when: (s, sc) => oralBetaBlockerShockRisk(s, sc), points: 5, severity: 'major',
+    id: 'oral-beta-blocker-shock-risk', actions: ['metoprolol-po'], when: (s, sc, id) => oralBetaBlockerShockRisk(s, sc) && !caseSpeaksForBetaBlocker(s, sc, id),
+    points: 5, severity: 'major',
     text: 'Oral metoprolol in an acute coronary syndrome with a risk of cardiogenic shock — a systolic under 100, a heart rate over 110 or under 60, or heart failure. The oral beta-blocker starts in the first 24 hours only without signs of heart failure, a low output or an increased risk of shock (2013 ACCF/AHA STEMI guideline; COMMIT, where early beta-blockade in these patients brought on cardiogenic shock; 2025 ACC/AHA ACS): hold it until the patient is stable.',
   },
 

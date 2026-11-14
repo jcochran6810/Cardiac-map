@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { perform, review, start, stop } from '@/lib/sim/scenario/engine';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import { INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
+import { ANTITHROMBOTIC_RULES } from '@/lib/sim/scenario/rules/acs';
+import { RATE_RULES } from '@/lib/sim/scenario/rules/rhythm';
 import type { Harm, Setting } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 import { fixture, penaltyIds } from './ruleFixture';
@@ -46,6 +48,18 @@ describe('heparin-repeat-unguided', () => {
 
   it('charges once per case: a third unguided bolus adds nothing', () => {
     expect(penaltyIds(lab, 4, ['heparin', 'heparin', 'heparin'])).toEqual(['heparin-repeat-unguided']);
+  });
+
+  it('one dose, one penalty with the antithrombotic gate (rules/acs.ts): a reason to hold the dose altogether charges it', () => {
+    // a top-up on a running bivalirudin infusion: the second anticoagulant, not the missing ACT
+    expect(penaltyIds(lab, 4, ['heparin', 'bivalirudin', 'heparin'])).toEqual(['double-anticoagulant']);
+    // active bleeding: the first bolus is the gate's; the second, its reason charged already, is the unguided repeat
+    const bleeding = opened('cathlab', 4, ['iv'], { problems: ['bleeding'] });
+    expect(penaltyIds(bleeding, 4, ['heparin', 'heparin'])).toEqual(['antithrombotic-bleeding', 'heparin-repeat-unguided']);
+    // the same when a case rule speaks for the gate's reason: charged on the first dose, the repeat is the unguided top-up's
+    const inCaseWords: Harm = { id: 'heparin-dissection', actions: ['heparin'], replaces: ANTITHROMBOTIC_RULES, points: 10, severity: 'major', text: 'Heparin in a dissection.' };
+    const dissection = opened('ed', 7, ['iv'], { problems: ['aortic-dissection'], harms: [inCaseWords] });
+    expect(penaltyIds(dissection, 7, ['heparin', 'heparin'])).toEqual(['heparin-dissection', 'heparin-repeat-unguided']);
   });
 });
 
@@ -273,6 +287,21 @@ describe('oral-beta-blocker-shock-risk', () => {
     }
     const exempted = fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { sbp: 96, dbp: 60 }, problems: ['acs'], harms: [exempt('oral-beta-blocker-shock-risk', ['metoprolol-po'])] });
     expect(penaltyIds(exempted, 7, ['metoprolol-po'])).toEqual([]);
+  });
+
+  it('one dose, one penalty: a case rule that speaks for the beta-blocker (it stands in for RATE_RULES) covers the tablet', () => {
+    const caseRule: Harm = { id: 'beta-blocker', actions: ['metoprolol', 'metoprolol-po'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker for this patient.' };
+    const withCase = fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { sbp: 96, dbp: 60 }, problems: ['acs'], harms: [caseRule] });
+    expect(penaltyIds(withCase, 7, ['metoprolol-po'])).toEqual(['beta-blocker']);
+    // a case rule that does not apply leaves the tablet to the oral rule
+    const off = fixture({ setting: 'ed', role: 7, rhythm: SINUS, vitals: { sbp: 96, dbp: 60 }, problems: ['acs'], harms: [{ ...caseRule, when: () => false }] });
+    expect(penaltyIds(off, 7, ['metoprolol-po'])).toEqual(['oral-beta-blocker-shock-risk']);
+    // a stand-in charged on an earlier dose passes the tablet on: its shock risk is charged as the next reason
+    const failing = fixture({ setting: 'ed', role: 7, rhythm: SINUS, problems: ['acs', 'heart-failure'], harms: [caseRule] });
+    expect(penaltyIds(failing, 7, ['iv', 'metoprolol', 'metoprolol-po'])).toEqual(['beta-blocker', 'oral-beta-blocker-shock-risk']);
+    // the cases: the cath lab's inferior STEMI, the nurse's tablet before the artery is open
+    const inferior = SCENARIO_BY_ID['stemi-inferior-cathlab'];
+    expect(run(inferior, 4, ['metoprolol-po']).penalties.map((p) => p.id)).toEqual(['beta-blocker']);
   });
 });
 

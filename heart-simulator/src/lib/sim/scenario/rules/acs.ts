@@ -386,6 +386,20 @@ const ANTITHROMBOTIC_GATE = gate([
 /** Every built-in antithrombotic rule: a case rule that says an antithrombotic is wrong for its patient lists them in `replaces` */
 export const ANTITHROMBOTIC_RULES = ANTITHROMBOTIC_GATE.harms.map((h) => h.id);
 
+/**
+ * The antithrombotic gate charges this dose: its top rule, or a case rule standing in for that rule (its id, or listing it
+ * in `replaces`) that has not charged an earlier dose. For a rule elsewhere that must not add a second penalty to the same
+ * dose (e.g. the unguided heparin top-up, rules/added.ts). A stand-in that charged already makes this dose a repeat of
+ * that mistake, which costs nothing more: the dose is then left to the next reason that holds
+ */
+export function antithromboticCharges(s: SimState, sc: Scenario, id: string): boolean {
+  const top = ANTITHROMBOTIC_GATE.top(s, sc, id);
+  if (!top) return false;
+  const standIns = sc.harms.filter((h) => (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id)
+    && (h.id === top || !!h.replaces?.includes(top)) && (!h.when || h.when(s, sc, id)));
+  return !standIns.length || standIns.some((h) => !chargedBefore(s, h.id));
+}
+
 /** Protamine, ranked: an earlier reaction to it, the PCI not finished, no heparin to reverse, then a sensitized patient */
 const PROTAMINE_GATE = gate([
   {
