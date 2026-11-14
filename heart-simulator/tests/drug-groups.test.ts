@@ -33,7 +33,7 @@ const ALLOWED: Record<string, Record<string, { ids: string[]; why: string }>> = 
     'beta-blocker-after': { ids: ['metoprolol-po'], why: 'once the RCA is open an oral beta-blocker is the right start (its text says so); the built-in oral rule judges the shock risk' },
   },
   'periprocedural-stroke-cathlab': {
-    'lower-bp-stroke': { ids: ['metoprolol-po'], why: 'a tablet does not bring the pressure down now: with a new deficit it is the nothing-by-mouth mistake' },
+    'lower-bp-stroke': { ids: ['metoprolol-po'], why: 'a tablet does not bring the pressure down now: with a new deficit it is the tablet-by-mouth mistake (the swallow)' },
     'lower-bp-again': { ids: ['metoprolol-po'], why: 'as lower-bp-stroke' },
   },
 };

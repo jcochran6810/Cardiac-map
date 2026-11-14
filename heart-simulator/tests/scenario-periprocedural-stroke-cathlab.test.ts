@@ -525,6 +525,12 @@ describe('stroke in the cath lab: the traps', () => {
     for (const id of ['heparin', 'bivalirudin', 'cangrelor']) expect(penalties(run(sc, 5, ['stop-contrast', id])), id).toEqual(['more-antithrombotic']);
     // eptifibatide with a stroke under way: every antithrombotic's contraindication at the built-in weight (15, critical)
     expect(penalties(run(sc, 5, ['stop-contrast', 'gp2b3a']))).toEqual(['antithrombotic-intracranial']);
+    // one contraindication, one weight, whichever antithrombotic carries it (the case's words for heparin, bivalirudin,
+    // cangrelor, aspirin and the P2Y12 inhibitor; the built-in's for eptifibatide)
+    for (const [role, first, id] of [[5, 'stop-contrast', 'heparin'], [5, 'stop-contrast', 'bivalirudin'], [5, 'stop-contrast', 'cangrelor'],
+      [5, 'stop-contrast', 'gp2b3a'], [5, 'stop-contrast', 'aspirin'], [5, 'stop-contrast', 'p2y12'], [4, 'callout', 'aspirin']] as const) {
+      expect(run(sc, role, [first, id]).penalties.map((p) => [p.points, p.severity]), `${role} ${id}`).toEqual([[15, 'critical']]);
+    }
     const s = run(sc, 4, ['callout', 'heparin', 'act']);
     expect(penalties(s)).toEqual(['more-antithrombotic']);
     expect(s.log.at(-1)!.text).toMatch(/^ACT 312 s/);

@@ -139,8 +139,8 @@ describe('lowering the pressure of 174/92 in an acute ischemic stroke', () => {
         expect(s.flags['bp-drug'], drug).toBeDefined();
       }
     }
-    // a tablet: nothing by mouth with a new deficit
-    expect(ids(run('periprocedural-stroke-cathlab', 5, ['stop-contrast', 'stroke-team', 'neuro', 'metoprolol-po']))).toEqual(['nothing-by-mouth']);
+    // a tablet: nothing by mouth with a new deficit (the swallow: no antiplatelet in it)
+    expect(ids(run('periprocedural-stroke-cathlab', 5, ['stop-contrast', 'stroke-team', 'neuro', 'metoprolol-po']))).toEqual(['tablet-by-mouth']);
   });
 });
 
