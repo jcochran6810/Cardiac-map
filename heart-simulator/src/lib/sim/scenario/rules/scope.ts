@@ -11,8 +11,8 @@ import type { Harm, Scenario, SimState } from '../types';
  * ENA scope and standards, facility policy), with the name the review gives each. None is on the chest pain standing
  * order (aspirin, nitroglycerin 0.4 mg, oxygen, the 12-lead, an IV, labs, the chest film) or the ACLS arrest protocol
  * (epinephrine, amiodarone, lidocaine in an arrest, the shocks); the glucose, antiemetic, anaphylaxis and bronchospasm
- * drugs are left to the department's protocols. Some ids are actions still to come. Given with no order — the flag `ordered:<id>` (kit's orderedFlag, set by edKit's
- * edOrder, physicianOrder, physicianDispo or standingOrders) — each costs points once ('rn-without-order-<id>')
+ * drugs are left to the department's protocols. Given with no order — the flag `ordered:<id>` (kit's orderedFlag, set by
+ * edKit's edOrder, physicianOrder, physicianDispo or standingOrders) — each costs points once ('rn-without-order-<id>')
  */
 export const RN_ORDER_ONLY: Record<string, string> = {
   heparin: 'Heparin', p2y12: 'A P2Y12 loading dose', metoprolol: 'IV metoprolol', diltiazem: 'IV diltiazem', procainamide: 'Procainamide',
