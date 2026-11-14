@@ -219,6 +219,8 @@ describe('AF with a rapid ventricular response in a weak heart', () => {
     expect(ids(unstable)).not.toContain('procainamide-hypotension');
     // metoprolol once he is unstable: the case's unstable-patient rule alone, not also its decompensation rule
     expect(ids(run(sc, 2, [...READY, 'diltiazem', 'metoprolol']))).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable']);
+    // …and once that rule was charged on an earlier drug, metoprolol is judged on its own: it never goes free
+    expect(ids(run(sc, 2, [...READY, 'diltiazem', 'procainamide', 'metoprolol']))).toEqual(['diltiazem-hfref', 'antiarrhythmic-unstable', 'metoprolol-decompensated']);
   });
 
   it('adenosine does not convert it: the same rhythm comes straight back, and it costs once', () => {
