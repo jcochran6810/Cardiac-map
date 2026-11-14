@@ -544,7 +544,7 @@ describe('the rapid sequence intubation page', () => {
     expect(line(/^Succinylcholine: a personal or family history of malignant hyperthermia/)).toMatch(/label/);
     expect(line(/^Etomidate/)).toMatch(/adrenal suppression.*single induction dose is generally accepted/);
     expect(line(/^Succinylcholine in a child/)).toMatch(/boxed warning.*hyperkalemia.*cardiac arrest.*undiagnosed myopathy.*emergency intubation.*label/);
-    expect(line(/^Ketamine/)).toMatch(/uncontrolled hypertension.*acute coronary syndrome with a high pressure.*Ketalar label.*intracranial pressure is not a reason to avoid it.*systematic review.*Cohen et al\., Ann Emerg Med 2015/);
+    expect(line(/^Ketamine/)).toMatch(/uncontrolled hypertension.*acute coronary syndrome with a high pressure.*Ketalar label.*intracranial pressure is not a reason to avoid it.*systematic review of intubated, critically ill patients.*did not lower the cerebral perfusion pressure or worsen outcomes.*Cohen et al\., Ann Emerg Med 2015/);
     expect(line(/^Propofol/)).toMatch(/hypotension or shock.*label.*half the dose/);
     expect(line(/^Rocuronium/)).toMatch(/allergy.*label.*sugammadex.*Bridion label/);
     expect(line(/^Resuscitate before you intubate/)).toMatch(/hypotension, hypoxia and a severe metabolic acidosis.*INTUBE.*2022 ASA/);
