@@ -366,7 +366,7 @@ export const cathlabLeftMain: Scenario = {
     perfusion: (s) => (has(s, 'impella')
       ? `${pumpSide(s) === 'left' ? 'Left' : 'Right'} leg below the large-bore sheath: the foot is pink and warm, with dorsalis pedis and posterior tibial signals on the Doppler; capillary refill 3 seconds. His knees are less mottled than on arrival.`
       : 'Cold, mottled knees; thready pulses; capillary refill 5 seconds; neck veins full.'),
-    labs: 'Lactate 6.1, creatinine 1.8 (1.0 last year), potassium 4.9, hemoglobin 13.4, platelets 228, INR 1.1. High-sensitivity troponin 4,200 ng/L.',
+    labs: 'Lactate 6.1, creatinine 1.8 (1.0 last year), potassium 4.9, hemoglobin 13.4, platelets 228, INR 1.1. High-sensitivity troponin 4,200 ng/L. He takes metformin and his kidneys are struggling: hold it from today, recheck the creatinine at 48 hours before it restarts, and keep the contrast to the minimum — no LV gram.',
     // the explanation the feedback gives after each 12-lead read: the vector model's ST shifts for the 'nstemi' profile are
     // about 1–1.5 mm down in I, II and V4–V6, less in aVF and V3, and about 1 mm up in aVR (a little in V1)
     ecg12: (s) => {

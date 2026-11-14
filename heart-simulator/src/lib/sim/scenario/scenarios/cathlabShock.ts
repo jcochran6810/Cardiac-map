@@ -21,6 +21,8 @@ const finalRun = (who: 'you' | 'operator') => cine('final-angio', 'Final angiogr
   explain: 'TIMI 3 flow down the LAD, with the Impella still in place to support the ventricle; the non-culprit RCA is left alone.',
 });
 
+/** Both groins: the catheters in the right, and the left made ready for the pump's 14 French sheath (closure sutures first) */
+const BOTH_GROINS = 'Right common femoral artery under ultrasound, over the femoral head: a 6 French sheath for the catheters. The left common femoral artery under ultrasound too, with two closure sutures placed for the 14 French sheath the pump will need.';
 const RHC_LINE = 'RA 15 · PA 46/28 (mean 34) · PCWP 28 · CO 3.0 L/min, CI 1.5 · SVR 1700 · PA saturation 48 %.';
 const rhcRead: Omit<PendingRead, 'minute'> = {
   kind: 'hemo', answer: 'hemo-cardiogenic', partial: ['hemo-lvedp-high'], prompt: 'What do these numbers show?',
@@ -158,11 +160,14 @@ export const cathlabShock: Scenario = {
     opqrst: '"Since this morning… crushing… I can\'t breathe lying flat."',
     lungs: 'Crackles to the mid-zones on both sides.',
     perfusion: 'Cold, mottled knees; thready pulses; capillary refill 5 seconds; neck veins full.',
-    labs: 'Lactate 5.2, creatinine 1.6, potassium 4.8, hemoglobin 13.8, INR 1.1, platelets 210. Troponin very high.',
+    labs: 'Lactate 5.2, creatinine 1.6, potassium 4.8, hemoglobin 13.8, INR 1.1, platelets 210. Troponin very high. He takes metformin and his kidneys are struggling: hold it from today, recheck the creatinine at 48 hours before it restarts, and keep the contrast to the minimum — no LV gram.',
     ecg12: (s) => s.rhythm.profile === 'anterior-stemi-reperfused'
       ? 'Sinus rhythm: ST elevation in V1–V5 coming down, Q waves forming — the anterior infarct after reperfusion.'
       : `Sinus tachycardia ${s.rhythm.hr} with ST elevation in V1–V5, I and aVL: an extensive anterior STEMI.`,
     echo: 'Akinetic anterior wall, septum and apex; LVEF about 20 %. No ventricular septal rupture, no severe mitral regurgitation, no effusion.',
+    // the same failing ventricle the echo and the right heart run show (PCWP 28), not the engine's normal one
+    lvgram: 'LV gram: the anterior wall, the septum and the apex do not move, and only the base squeezes; EF about 20 %, no mitral regurgitation. The LVEDP is over 30 after the injection.',
+    lvedp: (s) => (has(s, 'impella') ? 'LV 96/16: LVEDP 16 mmHg, with the pump unloading the ventricle.' : 'LV 82/30: LVEDP 30 mmHg.'),
     rhc: RHC_LINE,
   },
   status: (s) => (has(s, 'pci') ? '"I can breathe a bit better."' : has(s, 'impella') ? 'Drowsy, but answers questions.' : '"Can\'t… breathe…"'),
@@ -171,13 +176,14 @@ export const cathlabShock: Scenario = {
     'final-angio': (s) => (s.role === 5 && has(s, 'access') ? { ...finalRun('you'), flags: ['final-angio'] } : null),
     rhc: (s) => (has(s, 'venous') ? { say: [['monitor', RHC_LINE]], flags: ['rhc'], read: rhcRead } : null),
     pressor: (s) => norepinephrine(s, 'you'),
+    'access-femoral': (s) => (s.role === 5 ? { say: [['you', BOTH_GROINS]], flags: ['access', 'femoral'] } : null),
     impella: (s) => {
       if (s.role === 3) return { say: [['you', 'Impella console primed, purge running with heparinized fluid; large-bore sheath, wire and closure sutures open.']], flags: ['impella-ready'] };
       if (!has(s, 'access')) return { blocked: true, say: [['system', 'No arterial access yet.']] };
       // the pump adds output: the pressure rises to 102/70, never down from a higher one
       const sbp = Math.max(s.vitals.sbp, 102);
       const dbp = Math.max(s.vitals.dbp, 70);
-      return { say: [['you', 'Impella CP across the aortic valve, inlet 3.5 cm into the LV: flow 3.2 L/min.'], ['monitor', `BP ${sbp}/${dbp}.`]], vitals: { sbp, dbp, spo2: Math.max(s.vitals.spo2, 92) }, flags: ['impella', 'mcs'] };
+      return { say: [['you', 'Impella CP through the 14 French sheath in the left common femoral artery, across the aortic valve, inlet 3.5 cm into the LV: flow 3.2 L/min.'], ['monitor', `BP ${sbp}/${dbp}.`]], vitals: { sbp, dbp, spo2: Math.max(s.vitals.spo2, 92) }, flags: ['impella', 'mcs'] };
     },
     fluid: (s) => {
       const spo2 = Math.max(70, s.vitals.spo2 - 3);
@@ -220,7 +226,7 @@ export const cathlabShock: Scenario = {
     },
     {
       id: 'md-access', when: (s) => s.role !== 5 && has(s, 'timeout') && !has(s, 'access'),
-      effect: () => ({ say: [['operator', 'Right femoral artery and vein, ultrasound-guided. PA catheter going in.']], flags: ['access', 'femoral', 'venous'] }),
+      effect: () => ({ say: [['operator', `${BOTH_GROINS} And the right femoral vein. PA catheter going in.`]], flags: ['access', 'femoral', 'venous'] }),
     },
     {
       id: 'md-rhc', when: (s) => s.role === 4 && has(s, 'access') && s.minute >= s.flags.access + 1,
@@ -293,7 +299,7 @@ export const cathlabShock: Scenario = {
       },
       uses: ['o2-nc', 'o2-nrb', 'airway'],
     },
-    { id: 'md-pressor', label: 'A vasopressor early (norepinephrine)', why: 'Norepinephrine first in cardiogenic shock; MAP 65 or more while you get support in.', done: ['pressor', 'push-epi'], roles: MD, points: 10, target: { by: 6 } },
+    { id: 'md-pressor', label: 'A vasopressor early (norepinephrine)', why: 'Norepinephrine first in cardiogenic shock; MAP 65 or more while you get support in.', done: ['pressor'], roles: MD, points: 10, target: { by: 6 } },
     { id: 'access', label: 'Femoral arterial access (large-bore ready)', why: 'The pump needs a large-bore femoral sheath; ultrasound-guided, over the femoral head.', done: ['access-femoral', 'access'], roles: MD, points: 5 },
     { id: 'venous', label: 'Femoral venous access for the right heart catheter', why: 'The PA catheter measures the shock and guides the support.', done: ['access-venous'], roles: MD, points: 5 },
     { id: 'md-rhc', label: 'Right heart catheterization: measure the shock', why: 'Filling pressures, cardiac output and index, SVR and PA saturation define the shock and its severity (SCAI stages).', done: ['rhc'], roles: MD, points: 10 },
@@ -338,7 +344,7 @@ export const cathlabShock: Scenario = {
     askHarm(RN_ASKS[2], 'Oral P2Y12 tablets for a drowsy, shocked patient when the operator asked for the IV drug.'),
   ],
   timings: [
-    { label: 'Pressor running', actions: ['pressor', 'push-epi'], flag: 'pressor', target: 6 },
+    { label: 'Pressor running', actions: ['pressor'], flag: 'pressor', target: 6 },
     { label: 'Mechanical support in', actions: ['impella'], flag: 'impella', target: 25 },
     { label: 'Artery open', actions: ['stent-des'], flag: 'pci', target: 45 },
   ],
