@@ -712,14 +712,14 @@ export const scapeField: Scenario = {
       text: 'An antiarrhythmic with no arrhythmia to treat. Her 12-lead shows a sinus rhythm whose speed is her response to the hypoxia: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing she has.',
     },
     {
-      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 140, points: 8, severity: 'major',
+      id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 140, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
       text: 'A pressor in a patient whose pressure is already far too high. The pressure the ventricle cannot empty against is what is flooding her lungs: raising it makes the edema worse. She needs the pressure taken off — nitroglycerin and CPAP.',
     },
     {
       // between 90 and 140 (a dip after the nitrates) the pressure is not low enough for a pressor — and in the hypoxic
       // slowing before an arrest an epinephrine push is a fair adjunct of the bradycardia algorithm: the breaths she is not
       // getting are what the review charges there
-      id: 'pressor-not-hypotensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90 && s.vitals.sbp < 140 && !(has(s, 'slowing') && s.rhythm.hr < 60), points: 3, severity: 'minor',
+      id: 'pressor-not-hypotensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90 && s.vitals.sbp < 140 && !(has(s, 'slowing') && s.rhythm.hr < 60), replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
       text: 'A pressor without a low pressure. Her systolic was 90 or more: a dip after nitroglycerin comes back by itself once the nitrates are held, and a pressor only adds afterload to a ventricle that has just stopped flooding her lungs.',
     },
     {

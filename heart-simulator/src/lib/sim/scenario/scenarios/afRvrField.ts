@@ -431,7 +431,7 @@ export const afRvrField: Scenario = {
     { id: 'cpap-hypotension', actions: ['cpap'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 5, severity: 'major', text: 'CPAP with a systolic pressure under 90. Positive pressure cuts the blood returning to the heart and drops the pressure further.' },
     // calcium for the low pressure diltiazem caused: the built-in rule 'calcium-no-indication' spares it (a pulse and a
     // systolic under 90), and still charges it once the pressure is back or in the arrest an unsynchronized shock can cause
-    { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs speed AV conduction: in atrial fibrillation the rate goes up.' },
+    { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs speed AV conduction: in atrial fibrillation the rate goes up.' },
   ],
   timings: [
     { label: '12-lead', actions: ['ecg12'], target: 8 },

@@ -554,7 +554,8 @@ describe('the ER nurse gives a medication on an order', () => {
     expect(ids(run(asked, 6, ['iv', 'reassess', 'p2y12']))).toEqual(['wrong-heparin']);
     // once the order is carried out, the same drug again on her own is no answer to it
     expect(ids(run(asked, 6, ['iv', 'reassess', 'heparin', 'p2y12']))).toEqual(['rn-without-order-p2y12']);
-    const event = edPatient({ events: [{ id: 'orders', when: (s) => s.minute >= 3, effect: () => physicianOrder('Start a norepinephrine drip, please.', ['pressor']) }] });
+    // (a low pressure, so the drip has something to treat: the order is the only thing judged here)
+    const event = edPatient({ vitals: { sbp: 82, dbp: 50 }, events: [{ id: 'orders', when: (s) => s.minute >= 3, effect: () => physicianOrder('Start a norepinephrine drip, please.', ['pressor']) }] });
     const e = run(event, 6, ['iv', 'pressor']);
     expect(ids(e)).toEqual(['rn-without-order-pressor']);
     expect(ids(run(event, 6, ['iv', 'reassess', 'pressor']))).toEqual([]);

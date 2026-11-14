@@ -1,5 +1,5 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
-import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
+import { atRate, bpAfter, count, firstDone, has, line, mapOf } from '../kit';
 
 /**
  * Pulmonary embolism with obstructive shock, in the field. A 45-year-old woman ten days after a plate and screws for a
@@ -597,6 +597,12 @@ export const peField: Scenario = {
     { id: 'handoff', label: 'Hand-off', why: 'Report the sudden onset and the faint, the surgery and the swollen calf, the pressures and the neck veins with clear lungs, the 12-lead, what was given — and what was held (fluid, nitroglycerin, CPAP).', done: ['handoff'], points: 5 },
   ],
   harms: [
+    {
+      // the built-in rule, same id (a deliberate exemption): a pressure that the infusion or a push in the last few minutes
+      // is holding up is still obstructive shock — she falls back when it wears off — so keeping the pushes going is right
+      id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s) => s.pulse && !supported(s) && s.vitals.sbp >= 90 && mapOf(s.vitals) >= 65, points: 3, severity: 'minor',
+      text: 'A vasopressor or push-dose epinephrine without a low pressure. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.',
+    },
     {
       // one small bolus is tolerated; a second is beyond the 500 mL that cautious volume loading allows
       id: 'fluid-loading-pe', actions: ['fluid'], when: (s) => s.pulse && count(s, 'fluid') >= 1, points: 10, severity: 'major',

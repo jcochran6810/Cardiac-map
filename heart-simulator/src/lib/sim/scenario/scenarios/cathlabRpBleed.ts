@@ -1,5 +1,5 @@
 import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Speaker } from '../types';
-import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
+import { atRate, bpAfter, count, firstDone, has, line, mapOf } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, type LabAsk } from '../labKit';
 
@@ -733,6 +733,13 @@ export const cathlabRpBleed: Scenario = {
     {
       id: 'pressor-before-volume', actions: ['pressor', 'push-epi', 'phenylephrine'], when: (s) => s.pulse && !has(s, 'fluid') && !has(s, 'transfused'), points: 3, severity: 'minor',
       text: 'A vasopressor before any volume in a bleeding patient. It squeezes an empty circulation: fill it first (saline, then blood), and use a pressor only as a bridge while the volume goes in.',
+    },
+    {
+      // the built-in rule, same id (a deliberate exemption): until the bleeding is controlled, a pressure the volume has
+      // lifted just over 90 is held up by what is running in, and a pressor after the volume is a bridge (the rule above
+      // judges one before it). Once a balloon or a stent stops the bleeding, the built-in line holds
+      id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s) => s.pulse && controlled(s) && (has(s, 'fluid') || has(s, 'transfused')) && s.vitals.sbp >= 90 && mapOf(s.vitals) >= 65, points: 3, severity: 'minor',
+      text: 'A vasopressor or push-dose epinephrine without a low pressure, once the bleeding is controlled. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.',
     },
     {
       id: 'saline-instead-of-blood', actions: ['fluid'], when: (s) => s.pulse && count(s, 'fluid') >= 2 && !has(s, 'transfused'), points: 3, severity: 'minor',

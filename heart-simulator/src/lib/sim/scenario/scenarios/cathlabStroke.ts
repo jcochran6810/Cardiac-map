@@ -588,6 +588,10 @@ export const cathlabStroke: Scenario = {
     // (the built-in phenylephrine rule, same id: a deliberate exemption — once the deficit is there, 120–139 is a pressure
     // to bring back up, not a normal one; only before it does the built-in's line hold)
     { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 120, points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension; with a normal pressure it only adds afterload and slows the heart.' },
+    // the built-in rules for the other vasopressors, same ids, for the same reason: their lines (90 for the infusion and
+    // push-dose epinephrine, 110 for intracoronary epinephrine) hold only before the deficit
+    { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A vasopressor or push-dose epinephrine without a low pressure. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.' },
+    { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 110, points: 3, severity: 'minor', text: 'Intracoronary epinephrine with a normal pressure. It is a drug for no-reflow with a low pressure; otherwise it speeds the heart and raises the pressure and the oxygen need of the heart.' },
     { id: 'pressor-high-bp', actions: PRESSORS, when: (s) => s.pulse && deficit(s) && s.vitals.sbp >= LOW_FOR_STROKE, replaces: ['phenylephrine-no-hypotension'], points: 3, severity: 'minor', text: 'A vasopressor with a systolic of 140 or more. Raising the pressure with drugs has no established benefit in acute ischemic stroke and adds their risks: keep it where it is, and support it only if it falls well below his usual.' },
   ],
   timings: [

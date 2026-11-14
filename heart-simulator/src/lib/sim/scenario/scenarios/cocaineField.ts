@@ -522,7 +522,7 @@ export const cocaineField: Scenario = {
       text: 'More midazolam (the sedation protocol) for a patient this drowsy. A benzodiazepine drops the breathing and the pressure further: with a GCS of 12 or less, support the airway and the breathing instead.',
     },
     {
-      id: 'pressor-stimulant', actions: ['push-epi', 'pressor'], when: (s) => s.pulse, points: 8, severity: 'major',
+      id: 'pressor-stimulant', actions: ['push-epi', 'pressor'], when: (s) => s.pulse, replaces: ['pressor-no-hypotension'], points: 8, severity: 'major',
       text: 'A vasopressor or push-dose epinephrine in cocaine toxicity with a high pressure. Cocaine already floods the adrenergic receptors: more drives the rate, the pressure and the coronary spasm higher.',
     },
     {

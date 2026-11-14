@@ -1,10 +1,32 @@
 /**
- * Built-in safety rules for supportive care: CPR, the airway and RSI, the electrolytes and antidotes, glucose,
- * phenylephrine, the legs, fluids and blood.
+ * Built-in safety rules for supportive care: CPR, the airway and RSI, the electrolytes and antidotes, glucose, the
+ * vasopressors (infusion, push-dose and intracoronary epinephrine, phenylephrine), the legs, fluids and blood.
+ *
+ * One dose, one penalty: where several rules here judge the same action, each lower one is written to stay silent while
+ * a higher one applies (the gate order is noted above each group).
  */
 import { LOW_GLUCOSE, canSwallow, has, mapOf, paced } from '../kit';
-import type { Harm } from '../types';
+import type { Harm, Scenario, SimState } from '../types';
 import { BICARBONATE_FOR, CALCIUMS, CALCIUM_FOR, hasProblem, lowPressure, lvadPerfusing } from './helpers';
+
+// ─── Vasopressors: what each rule reads ────────────────────────────────────
+
+/**
+ * No low pressure for a vasopressor infusion or push-dose epinephrine to treat: a systolic of 90 or more and a MAP of 65
+ * or more (with an LVAD, the Doppler MAP), no slow rate of its own (a pressor with a chronotropic effect is a bridge for a
+ * symptomatic bradycardia that atropine has not fixed) and no beta- or calcium-channel-blocker overdose (where epinephrine
+ * or norepinephrine is part of the antidote)
+ */
+const pressorNotLow = (s: SimState, sc: Scenario) =>
+  s.pulse && !lowPressure(s) && mapOf(s.vitals) >= 65 && !(s.rhythm.hr < 50 && !paced(s)) && !hasProblem(sc, ['beta-blocker-overdose', 'ccb-overdose']);
+/** Dynamic LV outflow obstruction with a pulse: what every catecholamine makes worse */
+const lvoto = (s: SimState, sc: Scenario) => s.pulse && hasProblem(sc, ['lvot-obstruction']);
+/** A bleeding patient with nothing yet given to fill the circulation */
+const noVolumeYet = (s: SimState, sc: Scenario) => s.pulse && hasProblem(sc, ['bleeding']) && !has(s, 'fluid') && !has(s, 'transfused');
+/** Phenylephrine with no low pressure to treat: a systolic of 120 or more (with an LVAD, a Doppler MAP of 70 or more) */
+const phenylephrineNotLow = (s: SimState) => s.pulse && (s.lvad ? mapOf(s.vitals) >= 70 : s.vitals.sbp >= 120);
+/** Phenylephrine onto a slow heart of its own: the reflex slowing it brings makes the bradycardia worse */
+const phenylephrineSlow = (s: SimState) => s.pulse && s.rhythm.hr < 50 && !paced(s);
 
 export const SUPPORT_RULES: Harm[] = [
   { id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse && !s.lvad, points: 10, severity: 'major', text: 'Chest compressions on a patient with a pulse. Check for a pulse (no more than 10 seconds) before starting CPR.' },
@@ -30,8 +52,19 @@ export const SUPPORT_RULES: Harm[] = [
   // Glucose: judged on the patient's real glucose, checked or not
   { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE, points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
   { id: 'oral-glucose-cannot-swallow', actions: ['oral-glucose'], when: (s) => !canSwallow(s), points: 8, severity: 'major', text: 'Oral glucose for a patient too drowsy to swallow. It can be inhaled into the lungs: by mouth only if awake enough to swallow and protect the airway — otherwise IV dextrose (ALS).' },
-  { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && (s.lvad ? mapOf(s.vitals) >= 70 : s.vitals.sbp >= 120), points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension (sedation, a vasovagal drop, LV outflow obstruction); with a normal pressure it only adds afterload (which cuts an LVAD\'s flow) and slows the heart.' },
-  { id: 'phenylephrine-slow', actions: ['phenylephrine'], when: (s) => s.pulse && s.rhythm.hr < 50 && !paced(s), points: 3, severity: 'minor', text: 'Phenylephrine with a slow heart rate. The reflex slowing it brings makes the bradycardia worse: treat the rate first (atropine, pacing), or support the pressure with a drug that also speeds the heart (epinephrine).' },
+
+  // Vasopressors. Gate order — the infusion and push-dose epinephrine: push-epi-in-arrest > catecholamine-lvoto >
+  // pressor-no-hypotension > pressor-before-volume; phenylephrine: phenylephrine-no-hypotension and phenylephrine-slow >
+  // pressor-before-volume > phenylephrine-heart-failure; intracoronary epinephrine: catecholamine-lvoto > ic-epi-no-indication
+  { id: 'push-epi-in-arrest', actions: ['push-epi'], when: (s) => !s.pulse, points: 3, severity: 'minor', text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg IV/IO every 3–5 minutes (2025 AHA).' },
+  { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi', 'ic-epinephrine'], when: (s, sc) => lvoto(s, sc), points: 10, severity: 'major', text: 'A catecholamine with dynamic LV outflow obstruction. Epinephrine, norepinephrine and dopamine push the contractility up: the ventricle squeezes harder, the outflow tract narrows further, the gradient climbs and the pressure falls. For a low pressure with outflow obstruction: fluid first, then a vasoconstrictor with no inotropic effect — phenylephrine (2024 AHA/ACC HCM guideline) — and if those fail, mechanical support.' },
+  { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s, sc) => pressorNotLow(s, sc) && !lvoto(s, sc), points: 3, severity: 'minor', text: 'A vasopressor or push-dose epinephrine without a low pressure. With a systolic of 90 or more and a MAP of 65 or more it only adds afterload, rate and oxygen demand for the heart (and speeds conduction through the AV node in atrial fibrillation): a pressor is for hypotension (Levophed label: acute hypotensive states; 2025 AHA: a MAP of 65 or more is the target), or a bridge for a symptomatic bradycardia that atropine has not fixed.' },
+  { id: 'pressor-before-volume', actions: ['pressor', 'push-epi', 'phenylephrine'], when: (s, sc, id) => noVolumeYet(s, sc) && (id === 'phenylephrine' ? !phenylephrineNotLow(s) && !phenylephrineSlow(s) : !pressorNotLow(s, sc) && !lvoto(s, sc)), points: 3, severity: 'minor', text: 'A vasopressor before any volume in a bleeding patient. It squeezes an empty circulation: fill it first (saline, then blood), and use a pressor only as a bridge while the volume goes in (ATLS).' },
+  { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => phenylephrineNotLow(s), points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension (sedation, a vasovagal drop, LV outflow obstruction); with a normal pressure it only adds afterload (which cuts an LVAD\'s flow) and slows the heart.' },
+  { id: 'phenylephrine-slow', actions: ['phenylephrine'], when: (s) => phenylephrineSlow(s), points: 3, severity: 'minor', text: 'Phenylephrine with a slow heart rate. The reflex slowing it brings makes the bradycardia worse: treat the rate first (atropine, pacing), or support the pressure with a drug that also speeds the heart (epinephrine).' },
+  // an LVAD's flow falls with a high afterload too, but it is not a failing ventricle's: the LVAD rules judge it by the MAP
+  { id: 'phenylephrine-heart-failure', actions: ['phenylephrine'], when: (s, sc) => s.pulse && hasProblem(sc, ['heart-failure']) && !s.lvad && !hasProblem(sc, ['lvot-obstruction']) && !phenylephrineNotLow(s) && !phenylephrineSlow(s) && !noVolumeYet(s, sc), points: 3, severity: 'minor', text: 'Phenylephrine for a failing left ventricle. A pure vasoconstrictor raises the afterload the weak ventricle must empty against, so the stroke volume and the cardiac output can fall even as the pressure rises (Biorphen label: decreased cardiac output). In cardiogenic shock norepinephrine is the usual vasopressor, with an inotrope or mechanical support for the pump.' },
+  { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: (s, sc) => s.pulse && (s.lvad ? mapOf(s.vitals) >= 80 : s.vitals.sbp >= 110) && !lvoto(s, sc), points: 3, severity: 'minor', text: 'Intracoronary epinephrine with a normal pressure. It is a drug for no-reflow with a low pressure; otherwise it speeds the heart and raises the pressure and the oxygen need of an ischemic heart, and it can set off ventricular arrhythmias.' },
   { id: 'legs-up-pulmonary-edema', actions: ['legs-up'], when: (_s, sc) => hasProblem(sc, ['pulmonary-edema']), points: 5, severity: 'major', text: 'Raising the legs of a patient with fluid on the lungs. It pours more blood back into a heart that is already backing up into the lungs: sit them up with the legs down.' },
   { id: 'fluid-pulmonary-edema', actions: ['fluid'], when: (s, sc) => s.pulse && hasProblem(sc, ['pulmonary-edema']), points: 8, severity: 'major', text: 'A fluid bolus in pulmonary edema. The lungs are already flooded: more volume worsens the breathing and the oxygen. Sit the patient up, CPAP, and nitroglycerin for a high pressure.' },
   { id: 'transfuse-no-bleeding', actions: ['transfuse'], when: (_s, sc) => !hasProblem(sc, ['bleeding']), points: 3, severity: 'minor', text: 'Packed red cells with no bleeding to treat. Blood is for hemorrhage or a low hemoglobin; otherwise it adds volume, reaction and infection risks for nothing.' },

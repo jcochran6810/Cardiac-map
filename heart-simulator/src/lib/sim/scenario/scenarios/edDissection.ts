@@ -755,6 +755,12 @@ export const edDissection: Scenario = {
       text: 'A fluid bolus for a patient whose pressure is already high. More volume raises the pressure and the force on the torn wall. Fluid is for the shock of tamponade or rupture, in small boluses, on the way to the operating room.',
     },
     {
+      // the built-in rule, same id (a deliberate exemption): in the tamponade a bolus can lift the systolic over 90 and he
+      // is still in shock — a pressor then is the bridge to the operating room. The rule below judges the pressure
+      id: 'pressor-no-hypotension', actions: ['push-epi', 'pressor'], when: () => false, points: 3, severity: 'minor',
+      text: 'A vasopressor without a low pressure: in this case the rule for a high pressure judges it.',
+    },
+    {
       id: 'pressor-hypertensive', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && !shock(s), points: 5, severity: 'major',
       text: 'A vasopressor or push-dose epinephrine with a high blood pressure. It drives the pressure and the heart harder against the tear: the goal is a lower rate and pressure, not a higher one.',
     },

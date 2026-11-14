@@ -830,8 +830,8 @@ export const cathlabTakotsubo: Scenario = {
   harms: [
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
-    { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi'], roles: [4, 5], when: (s) => s.pulse, points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
-    { id: 'catecholamine-lvoto-ic', actions: ['ic-epinephrine'], roles: MD, when: (s) => s.pulse, points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
+    { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi'], roles: [4, 5], when: (s) => s.pulse, replaces: ['pressor-no-hypotension'], points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
+    { id: 'catecholamine-lvoto-ic', actions: ['ic-epinephrine'], roles: MD, when: (s) => s.pulse, replaces: ['ic-epi-no-indication'], points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
     { id: 'nitrate-lvoto', actions: ['nitro', 'nitro-high'], roles: [4, 5], replaces: ['nitro-hypotension'], when: (s) => s.pulse && has(s, 'obstructed'), points: 10, severity: 'major', text: NITRATE_TEXT },
     { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail'], roles: MD, when: (s) => s.pulse && has(s, 'obstructed'), replaces: ['nitro-hypotension'], points: 10, severity: 'major', text: NITRATE_TEXT },
     // the built-in rule, kept for the time before the fall (afterwards nitrate-lvoto covers it): one mistake, one penalty

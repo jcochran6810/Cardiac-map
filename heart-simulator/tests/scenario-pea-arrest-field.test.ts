@@ -589,9 +589,9 @@ describe('PEA arrest in the field — the traps', () => {
     }
   });
 
-  it('push-dose epinephrine in the arrest is not the arrest dose: no cost, but it does not count, and the crew is told the dose', () => {
+  it('push-dose epinephrine in the arrest is not the arrest dose: a minor penalty, it does not count, and the crew is told the dose', () => {
     const s = medic(['cpr', 'iv', 'push-epi']);
-    expect(s.penalties).toEqual([]);
+    expect(s.penalties.map((p) => [p.id, p.points])).toEqual([['push-epi-in-arrest', 3]]);
     expect(s.flags.epi).toBeUndefined();
     expect(s.log.at(-1)!.text).toMatch(/In cardiac arrest the dose is 1 mg/);
     expect(missed(s, /^Epinephrine 1 mg/)).toBe(true);

@@ -597,7 +597,7 @@ export const edStemiWalkIn: Scenario = {
     },
     {
       // a falling pressure (after a nitrate or a blocker) is a reason; a normal one is not
-      id: 'pressor-normal-pressure', actions: ['pressor', 'push-epi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.sbp >= 100, points: 3, severity: 'minor',
+      id: 'pressor-normal-pressure', actions: ['pressor', 'push-epi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.sbp >= 100, replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
       text: 'A vasopressor with a normal blood pressure. It raises the afterload and the oxygen demand of a heart whose artery is shut, and drives the rate; it is for a pressure that has fallen and does not come back with fluid.',
     },
   ],

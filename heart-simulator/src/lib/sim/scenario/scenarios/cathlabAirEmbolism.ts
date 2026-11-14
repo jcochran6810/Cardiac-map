@@ -760,7 +760,10 @@ export const cathlabAirEmbolism: Scenario = {
     { id: 'clot-drugs-for-air', actions: ['gp2b3a', 'cangrelor'], when: unwell, points: 4, severity: 'minor', text: 'A drug for clot during an air embolism. The artery is blocked by bubbles, not thrombus: a GP IIb/IIIa or IV P2Y12 inhibitor treats nothing here and adds bleeding risk on top of heparin and two antiplatelet drugs.' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab, for air. There is no clot to dissolve, and on top of heparin and two antiplatelet drugs it brings major bleeding risk.' },
     { id: 'protamine-mid-pci', actions: ['protamine'], when: (s) => !has(s, 'pci'), points: 8, severity: 'major', text: 'Protamine in the middle of a PCI, with a wire in the artery and the stent still to go in. Reversing the heparin lets clot form on the wire and the guide; air embolism is not a bleeding problem.' },
-    { id: 'vasopressor-normal-pressure', actions: ['ic-epinephrine', 'push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 110, points: 3, severity: 'minor', text: 'A vasopressor with a systolic of 110 or more. It only speeds the heart and raises its oxygen need: support the pressure when it is low.' },
+    // its line is 110, not the built-in rules' 90 for the infusion and push-dose epinephrine: the aortic pressure pushes the
+    // bubbles through, so pressure support the operator asks for between 90 and 110 is right (same id: a deliberate exemption)
+    { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: () => false, points: 3, severity: 'minor', text: 'A vasopressor without a low pressure: in this case the rule below (a systolic of 110 or more) judges it.' },
+    { id: 'vasopressor-normal-pressure', actions: ['ic-epinephrine', 'push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 110, replaces: ['ic-epi-no-indication'], points: 3, severity: 'minor', text: 'A vasopressor with a systolic of 110 or more. It only speeds the heart and raises its oxygen need: support the pressure when it is low.' },
     askHarm(TECH_ASKS[2],'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
   ],
   timings: [

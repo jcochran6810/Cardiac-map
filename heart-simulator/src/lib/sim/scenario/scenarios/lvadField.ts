@@ -628,7 +628,7 @@ export const lvadField: Scenario = {
     },
     {
       // fluid first; once the MAP is back over 65 nothing calls for one
-      id: 'pressor-dry-pump', actions: ['pressor', 'push-epi'], roles: [2], when: (s) => s.pulse && (!has(s, 'fluid') || mapOf(s.vitals) >= 65), points: 5, severity: 'major',
+      id: 'pressor-dry-pump', actions: ['pressor', 'push-epi'], roles: [2], when: (s) => s.pulse && (!has(s, 'fluid') || mapOf(s.vitals) >= 65), replaces: ['pressor-no-hypotension'], points: 5, severity: 'major',
       text: 'A vasopressor for a pump that is running dry. A continuous-flow LVAD is sensitive to afterload: squeezing the vessels raises the MAP a little and cuts the pump\'s flow further. A low-flow alarm from vomiting and diarrhea needs volume — a fluid bolus, then recheck — and a vasopressor only if the MAP stays low after it, with the VAD team.',
     },
     {

@@ -537,7 +537,7 @@ export const torsadesField: Scenario = {
       text: 'Transcutaneous pacing of an awake patient with no analgesia or sedation. Every paced beat jolts her chest muscles: fentanyl or a small dose of midazolam first, as her pressure allows.',
     },
     {
-      id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 3, severity: 'minor',
+      id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, replaces: ['pressor-no-hypotension'], points: 3, severity: 'minor',
       text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. Her pressure needs no raising, and a surge of catecholamine in a long QT can set off a run.',
     },
     {

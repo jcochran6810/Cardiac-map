@@ -912,10 +912,6 @@ export const edVfArrest: Scenario = {
       text: 'An amiodarone infusion in cardiac arrest. 150 mg over 10 minutes is the dose for a tachycardia with a pulse; in VF the dose is a 300 mg push (then 150 mg), given during compressions.',
     },
     {
-      id: 'push-epi-in-arrest', actions: ['push-epi'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
-      text: 'Push-dose epinephrine in cardiac arrest. 10–20 mcg is the dose for a low pressure with a pulse; the arrest dose is 1 mg every 3–5 minutes.',
-    },
-    {
       id: 'adenosine-in-arrest', actions: ['adenosine6', 'adenosine12'], roles: ED_MD, when: (s) => !s.pulse, points: 3, severity: 'minor',
       text: 'Adenosine in cardiac arrest. It is for a regular narrow-complex tachycardia with a pulse; in VF it treats nothing.',
     },
