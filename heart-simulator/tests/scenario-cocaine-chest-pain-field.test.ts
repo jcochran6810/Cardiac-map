@@ -380,8 +380,10 @@ describe('cocaine chest pain in the field — the traps', () => {
     expect(skin.log.at(-1)!.text).toBe('He has no pulse: CPR and a shock come first.');
     for (const id of ['opqrst', 'sample', 'lungs', 'neuro']) {
       const s = perform(sc, vf, id);
-      expect(s.log.at(-1)!.text, id).toMatch(/He cannot answer|No breaths of his own|Unresponsive/);
+      expect(s.log.at(-1)!.text, id).toMatch(/He cannot answer|No breaths of his own|Not during CPR/);
     }
+    // the neuro check is refused during CPR: no time passes
+    expect(perform(sc, vf, 'neuro').minute).toBe(vf.minute);
   });
 
   it('a STEMI alert for a 12-lead without one is declined, at a small cost', () => {

@@ -1,6 +1,7 @@
 import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Speaker } from '../types';
 import { bpAfter, canSwallow, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
+import { lastDoneAt } from '../rules/helpers';
 import { LEFT_VIEWS, MD, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 
 /**
@@ -37,17 +38,23 @@ const named = (s: SimState) => s.reads.some((r) => r.answer === 'clin-stent-thro
 
 /** The stent is shut (TIMI 0) right now */
 const occluded = (s: SimState) => has(s, 'occluded');
+/** His weight (kg): the heparin dose per kilo */
+const KG = 90;
+
 /** Flow is back through the stent right now (it can clot again) */
 const flowing = (s: SimState) => has(s, 'open');
 
 /**
  * The heparin is back in the PCI range: topped up (and not reversed with protamine since), or bivalirudin instead. The
- * emergency department's 4,000 units (about 44 units/kg) never was.
+ * emergency department's 4,000 units (about 44 units/kg) never was. The latest top-up counts (another after protamine
+ * brings it back), and the latest protamine: a flag keeps only its first minute
  */
 function anticoagulated(s: SimState): boolean {
   if (has(s, 'bivalirudin')) return true;
   if (!has(s, 'heparin-topup')) return false;
-  return !(has(s, 'protamine') && s.flags.protamine >= s.flags['heparin-topup']);
+  const topup = Math.max(s.flags['heparin-topup'], lastDoneAt(s, ['heparin']) ?? -Infinity);
+  const reversed = Math.max(s.flags.protamine ?? -Infinity, lastDoneAt(s, ['protamine']) ?? -Infinity);
+  return !(reversed >= topup);
 }
 
 /** A drug that blocks the platelets within minutes is running: cangrelor or a GP IIb/IIIa inhibitor (a tablet takes an hour or more) */
@@ -108,7 +115,8 @@ function actText(s: SimState): { text: string; low: boolean } {
 
 function act(s: SimState, who: Speaker, prefix = ''): Effect {
   const { text, low } = actText(s);
-  return { say: [[who, prefix ? `${prefix}"${text}"` : text]], flags: low ? ['act', 'act-low'] : ['act'] };
+  // a low ACT guides another heparin bolus (the built-in heparin-repeat-unguided reads the timer)
+  return { say: [[who, prefix ? `${prefix}"${text}"` : text]], ...(low ? { flags: ['act', 'act-low'], timers: { actLowAt: s.minute } } : { flags: ['act'] }) };
 }
 
 /**
@@ -117,10 +125,13 @@ function act(s: SimState, who: Speaker, prefix = ''): Effect {
  */
 function heparin(s: SimState, by: By): Effect {
   const small = has(s, 'gp2b3a');
+  // the units given so far, the emergency department's 4,000 first: each top-up adds to them
+  const total = (s.timers.heparinUnits ?? 4000) + (small ? 2000 : 4000);
+  const perKg = Math.round(total / KG / 10) * 10;
   const text = small
     ? 'Heparin 2,000 units IV, flushed — a smaller top-up with eptifibatide running.'
-    : 'Heparin 4,000 units IV, flushed: 8,000 units in all, about 90 units/kg.';
-  return { say: [given(by, text)], flags: ['heparin', 'heparin-topup', ...(small ? ['topup-small'] : [])] };
+    : `Heparin 4,000 units IV, flushed: ${total.toLocaleString('en-US')} units in all, about ${perKg} units/kg.`;
+  return { say: [given(by, text)], flags: ['heparin', 'heparin-topup', ...(small ? ['topup-small'] : [])], timers: { heparinUnits: total } };
 }
 
 const cangrelor = (by: By): Effect => ({

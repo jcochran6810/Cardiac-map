@@ -217,8 +217,8 @@ export const cocaineField: Scenario = {
       : 'He cannot answer. His friend: "A few lines of coke and some beers tonight. No medicines, no allergies that I know of."'),
     pde5: (s) => (s.pulse ? '"No — nothing like that."' : 'He cannot answer.'),
     lungs: (s) => (s.pulse ? 'Clear and equal on both sides; he is breathing fast.' : 'No breaths of his own.'),
+    // with no pulse the engine refuses the neuro check (nothing for it to find)
     neuro: (s) => {
-      if (!s.pulse) return 'Unresponsive.';
       if (has(s, 'oversedated')) return `Drowsy: he opens his eyes only ${s.vitals.gcs <= 11 ? 'to a shake' : 'when you speak to him'}; pupils mid-sized; moves all four limbs.`;
       if (has(s, 'severe') && !calm(s)) return 'Confused — he does not know where he is; pupils wide and reactive; moves all four limbs; no facial droop.';
       return 'Oriented, but restless and talking fast; pupils wide and reactive; no facial droop or weakness; speech clear.';

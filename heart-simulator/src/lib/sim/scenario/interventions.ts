@@ -89,7 +89,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'perfusion', label: 'Skin signs, neck veins (JVD) and peripheral pulses', category: 'assess', roles: ALL, minutes: 0.5 },
   // repeatable: a glucose is rechecked after dextrose, oral glucose or glucagon
   { id: 'glucose', label: 'Blood glucose', category: 'assess', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5, repeatable: true },
-  { id: 'neuro', label: 'Neuro check: GCS and stroke screen', category: 'assess', roles: ALL, minutes: 0.5 },
+  { id: 'neuro', label: 'Neuro check: GCS and stroke screen', category: 'assess', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'reassess', label: 'Reassess the patient (2 min)', category: 'assess', roles: ALL, minutes: 2, repeatable: true },
 
   // Monitoring & ECG
@@ -98,17 +98,17 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'nibp', label: 'Blood pressure on the monitor (NIBP)', category: 'monitor', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'ecg12', label: 'Acquire a 12-lead ECG', category: 'monitor', roles: ALL, minutes: 2 },
   { id: 'ecg12-repeat', label: 'Repeat the 12-lead ECG', category: 'monitor', roles: ALL, minutes: 1.5, repeatable: true },
-  { id: 'ecg-transmit', label: 'Transmit the 12-lead to the hospital', category: 'monitor', roles: [1, 2], settings: FIELD, minutes: 0.5 },
+  { id: 'ecg-transmit', label: 'Transmit the 12-lead to the hospital', category: 'monitor', roles: [1, 2], settings: FIELD, minutes: 0.5, repeatable: true, maxTimes: 3 },
   { id: 'ecg-right', label: 'Right-sided leads (V4R)', category: 'monitor', roles: MANUAL, minutes: 1 },
   { id: 'ecg-posterior', label: 'Posterior leads (V7–V9)', category: 'monitor', roles: MANUAL, minutes: 1 },
-  { id: 'capno', label: 'Waveform capnography (EtCO₂)', category: 'monitor', roles: MANUAL, minutes: 0.5 },
+  { id: 'capno', label: 'Waveform capnography (EtCO₂)', category: 'monitor', roles: MANUAL, minutes: 0.5, repeatable: true },
   { id: 'transducer', label: 'Zero and level the pressure transducers', category: 'monitor', roles: [3, 4], settings: LAB, minutes: 0.5 },
   { id: 'labs', label: 'Draw labs: troponin, electrolytes, CBC, coagulation', category: 'monitor', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5 },
   // the chest pain pathway's serial high-sensitivity troponin (2021 AHA/ACC chest pain guideline: at 0 and 1–3 h), part of
   // the chest pain order set the nurse draws on
   { id: 'troponin-repeat', label: 'Repeat high-sensitivity troponin', category: 'monitor', roles: ED_TEAM, settings: ED, minutes: 0.5, repeatable: true, maxTimes: 2, detail: '1–3 hours after the first: the change between the two decides as much as either value' },
   { id: 'act', label: 'Check the ACT (activated clotting time)', category: 'monitor', roles: [3, 4, 5], settings: LAB, minutes: 1, repeatable: true },
-  { id: 'echo', label: 'Bedside echocardiogram', category: 'monitor', roles: [5], settings: LAB, minutes: 3 },
+  { id: 'echo', label: 'Bedside echocardiogram', category: 'monitor', roles: [5], settings: LAB, minutes: 3, repeatable: true, maxTimes: 3 },
   { id: 'lvedp', label: 'Measure LVEDP (pigtail in the left ventricle)', category: 'monitor', roles: TECH_MD, settings: LAB, minutes: 1 },
   { id: 'rhc', label: 'Right heart run: RA, RV, PA, PCWP and cardiac output', category: 'monitor', roles: TECH_MD, settings: LAB, minutes: 5 },
 
@@ -155,14 +155,14 @@ export const INTERVENTIONS: Intervention[] = [
 
   // Medications
   { id: 'aspirin', label: 'Aspirin, chewed', category: 'meds', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5, detail: '324 mg (162–325 mg) non-enteric-coated' },
-  { id: 'nitro-assist', label: "Help the patient take their own nitroglycerin", category: 'meds', roles: [1], settings: FIELD, minutes: 0.5, detail: 'per protocol / medical direction' },
+  { id: 'nitro-assist', label: "Help the patient take their own nitroglycerin", category: 'meds', roles: [1], settings: FIELD, minutes: 0.5, repeatable: true, maxTimes: 3, detail: '0.4 mg (the patient\'s own), every 5 min, max 3, with a blood pressure before each — per protocol / medical direction; not with a systolic under 90, a rate under 50 or over 100, or a PDE-5 inhibitor or riociguat' },
   { id: 'nitro', label: 'Nitroglycerin sublingual', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '0.4 mg, every 5 min, max 3', repeatable: true, maxTimes: 3 },
   // hypertensive acute pulmonary edema (SCAPE): the sublingual high dose most US EMS protocols carry (IV infusions are not
   // carried by most services), with CPAP
   { id: 'nitro-high', label: 'Nitroglycerin 0.8 mg sublingual (high dose, pulmonary edema)', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: 'two 0.4 mg tablets or sprays every 5 min while the systolic stays 160 or more (1.2 mg over 200 in some protocols), with CPAP; step down to 0.4 mg below 160', repeatable: true, maxTimes: 3 },
   { id: 'fentanyl', label: 'Fentanyl IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '25–50 mcg (0.5–1 mcg/kg)', repeatable: true, maxTimes: 3, needsAccess: true },
   // the dose depends on where it is given: the lab the PCI dose, the ED the ACS (or fibrinolytic) bolus and infusion
-  { id: 'heparin', label: 'Unfractionated heparin IV bolus', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, detail: '70–100 U/kg for primary PCI', detailBySetting: { ed: 'weight-based: 60 U/kg (max 4,000 U), then 12 U/kg/h (max 1,000 U/h); the cath lab tops it up for PCI' }, needsAccess: true },
+  { id: 'heparin', label: 'Unfractionated heparin IV bolus', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, detail: '70–100 U/kg for primary PCI', detailBySetting: { ed: 'weight-based: 60 U/kg (max 4,000 U), then 12 U/kg/h (max 1,000 U/h) for ACS; for a pulmonary embolism 80 U/kg, then 18 U/kg/h; the cath lab tops it up for PCI — not with heparin-induced thrombocytopenia, active bleeding or a possible aortic dissection' }, repeatable: true, maxTimes: 3, needsAccess: true },
   { id: 'p2y12', label: 'P2Y12 loading dose', category: 'meds', roles: HOSPITAL_RN_MD, settings: LAB_ED, minutes: 0.5, detail: 'ticagrelor 180 mg (or prasugrel 60 mg)', detailBySetting: { ed: 'by mouth: ticagrelor 180 mg (prasugrel 60 mg only once the anatomy is known); with a fibrinolytic, clopidogrel 300 mg (75 mg over age 75)' } },
   { id: 'metoprolol', label: 'Metoprolol IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '5 mg', needsAccess: true },
   { id: 'atropine', label: 'Atropine IV', category: 'meds', roles: ALS_RN_MD, minutes: 0.5, detail: '1 mg, every 3–5 min, max 3 mg', repeatable: true, maxTimes: 3, needsAccess: true },
@@ -185,7 +185,7 @@ export const INTERVENTIONS: Intervention[] = [
   // the approved regimen for pulmonary embolism with shock; the ER nurse runs it on the physician's order
   { id: 'alteplase', label: 'Fibrinolytic: alteplase IV (pulmonary embolism)', category: 'meds', roles: ED_TEAM, settings: ED, minutes: 1, needsAccess: true, detail: '100 mg over 2 hours (stop the heparin infusion while it runs); in a cardiac arrest from PE, a bolus per protocol' },
   // ACEP procedural sedation: the physician sedates, with continuous monitoring and capnography, for a cardioversion or the pacer
-  { id: 'procedural-sedation', label: 'Procedural sedation (etomidate or propofol)', category: 'meds', roles: ED_MD, settings: ED, minutes: 1, needsAccess: true, detail: 'etomidate 0.1–0.15 mg/kg or propofol 0.5–1 mg/kg IV, titrated (smaller doses with a low pressure); monitor, capnography, suction and airway equipment ready' },
+  { id: 'procedural-sedation', label: 'Procedural sedation (etomidate or propofol)', category: 'meds', roles: ED_MD, settings: ED, minutes: 1, repeatable: true, maxTimes: 2, needsAccess: true, detail: 'etomidate 0.1–0.15 mg/kg IV (or propofol 0.5–1 mg/kg with a normal pressure — not with a low one: it drops the pressure; with a low pressure a reduced dose of etomidate or ketamine), titrated; monitor, capnography, suction and airway equipment ready' },
   { id: 'epi-im', label: 'Epinephrine IM for anaphylaxis', category: 'meds', roles: [1, 2, 4, 5, 6, 7], minutes: 0.3, detail: '0.3–0.5 mg (1 mg/mL), lateral thigh' },
   // two actions, not one with a dose to pick: the hyperkalemia dose is 4–8 times the wheezing dose, and choosing it is the point
   { id: 'albuterol', label: 'Albuterol (salbutamol) 2.5–5 mg nebulized (bronchospasm)', category: 'meds', roles: [2, 4, 5, 6, 7], minutes: 1, detail: 'for wheezing; repeat per protocol' },
@@ -221,7 +221,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'aed', label: 'AED: analyze and shock if advised', category: 'resus', roles: ALL, minutes: 0.5, repeatable: true },
   { id: 'defib', label: 'Defibrillate, unsynchronized', category: 'resus', roles: MANUAL, minutes: 0.3, detail: '200 J biphasic', repeatable: true },
   { id: 'cardiovert', label: 'Synchronized cardioversion', category: 'resus', roles: MANUAL, minutes: 0.5, detail: '100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J)', repeatable: true },
-  { id: 'pace', label: 'Transcutaneous pacing', category: 'resus', roles: MANUAL, minutes: 1, detail: 'rate 70, raise mA until capture' },
+  { id: 'pace', label: 'Transcutaneous pacing', category: 'resus', roles: MANUAL, minutes: 1, repeatable: true, detail: 'rate 70, raise mA until capture' },
   { id: 'vagal', label: 'Vagal maneuver (modified Valsalva)', category: 'resus', roles: [1, 2, 4, 5, 6, 7], minutes: 0.5 },
   { id: 'hs-ts', label: 'Look for reversible causes (Hs and Ts)', category: 'resus', roles: ALS_RN_MD, minutes: 0.5 },
   { id: 'legs-up', label: 'Lay flat and raise the legs', category: 'resus', roles: ALL, minutes: 0.3, detail: 'about 45°: blood from the legs returns to the heart for a few minutes' },
@@ -235,7 +235,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'reposition', label: 'Disengage and reposition the catheter', category: 'procedure', roles: [5], settings: LAB, minutes: 0.3 },
   { id: 'access-femoral', label: 'Femoral arterial access (ultrasound-guided)', category: 'procedure', roles: [5], settings: LAB, minutes: 2 },
   { id: 'access-venous', label: 'Femoral venous access', category: 'procedure', roles: [5], settings: LAB, minutes: 2 },
-  { id: 'balloon-tamponade', label: 'Inflate a balloon over the perforation', category: 'procedure', roles: [5], settings: LAB, minutes: 1, detail: 'low pressure, 5–10 minutes' },
+  { id: 'balloon-tamponade', label: 'Inflate a balloon over the perforation', category: 'procedure', roles: TECH_MD, settings: LAB, minutes: 1, detail: 'low pressure, 5–10 minutes' },
   { id: 'pericardiocentesis', label: 'Pericardiocentesis (echo-guided)', category: 'procedure', roles: TECH_MD_ED, settings: LAB_ED, minutes: 3 },
   { id: 'closure-device', label: 'Femoral closure device', category: 'procedure', roles: [5], settings: LAB, minutes: 1 },
   // the cardiologist aspirates and flushes; the tech holds the syringe tip-down, back-bleeds the guide and keeps the line free of air
@@ -276,7 +276,7 @@ export const INTERVENTIONS: Intervention[] = [
   { id: 'call-vad', label: 'Call the VAD team (the number on the controller)', category: 'team', roles: [1, 2, 6, 7], settings: FIELD_ED, minutes: 1, detail: 'the implanting center, 24/7: they talk you through the alarms and say where to take the patient', detailBySetting: { ed: 'the implanting center, 24/7: they talk you through the alarms and advise where the patient should be treated' }, repeatable: true, maxTimes: 3 },
   { id: 'poison-control', label: 'Call the poison center', category: 'team', roles: [1, 2, 6, 7], settings: FIELD_ED, minutes: 1, detail: 'Poison Help line 1-800-222-1222: what was taken, how much, when, and the weight', repeatable: true, maxTimes: 3 },
   { id: 'stemi-alert', label: 'STEMI alert: activate the cath lab from the field', category: 'team', roles: [2], settings: FIELD, minutes: 0.5 },
-  { id: 'notify', label: 'Radio report to the receiving hospital', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1 },
+  { id: 'notify', label: 'Radio report to the receiving hospital', category: 'team', roles: [1, 2], settings: FIELD, minutes: 1, repeatable: true, maxTimes: 2 },
   // the far destination in every field case: the STEMI's cath lab, a pacing wire, cardiac surgery, the ICU, emergency
   // dialysis. The STEMI cases call it the "PCI-capable heart center" (briefing, critical step, hint): the detail carries that
   // name for the search

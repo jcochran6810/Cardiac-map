@@ -480,6 +480,8 @@ describe('SCAD in the cath lab: the independent review', () => {
     expect(missed(s)).toContain('Heparin for the STEMI, as ordered');
     // switching to bivalirudin before the diagnosis is not scored as a double dose (after it, it is the anticoagulation harm)
     expect(penalties(run(sc, 5, ['consent', 'heparin', 'bivalirudin']))).toEqual([]);
+    // her own second bolus: the case's double dose stands in for the built-in unguided repeat (one dose, one penalty)
+    expect(penalties(run(sc, 4, ['consent', 'heparin', 'heparin']))).toEqual(['heparin-twice']);
   });
 
   it('the tech who opens a balloon or a stent before anyone has seen the artery wastes it; a guide and a wire opened ahead are no mistake', () => {
