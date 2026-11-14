@@ -885,6 +885,10 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'vasodilator-lvoto', actions: ['nicardipine'], roles: [4, 5], when: (s) => s.pulse && has(s, 'obstructed'), replaces: ['nicardipine-outflow-obstruction', 'vasodilator-hypotension', 'nicardipine-no-hypertension'], points: 10, severity: 'major', text: VASODILATOR_TEXT },
     { id: 'nitrate-lvoto', actions: ['nitro', 'nitro-high', 'nitro-iv'], roles: [4, 5], replaces: NITRATE_RULES, when: (s) => s.pulse && has(s, 'obstructed'), points: 10, severity: 'major', text: NITRATE_TEXT },
     { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail', 'ic-nitroprusside'], roles: MD, when: (s) => s.pulse && has(s, 'obstructed'), replaces: [...NITRATE_RULES, ...RATE_RULES], points: 10, severity: 'major', text: NITRATE_TEXT },
+    // the nurse or the tech who draws an intracoronary nitrate (or the cocktail) up unasked during the obstruction: the same
+    // contraindication as the operator's, as for epinephrine above — it outweighs the unasked drug's wrong answer, whatever
+    // the pressure (engine harmsFor: the heavier charges alone)
+    { id: 'nitrate-lvoto-ic', actions: ['ic-nitro', 'radial-cocktail', 'ic-nitroprusside'], roles: [3, 4], when: (s) => s.pulse && has(s, 'obstructed'), replaces: [...NITRATE_RULES, ...RATE_RULES], points: 10, severity: 'major', text: NITRATE_TEXT },
     // the built-in rule, kept for the time before the fall (afterwards nitrate-lvoto covers it): one mistake, one penalty
     nitrateCaseRule({ id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: (s) => s.pulse && !has(s, 'obstructed') && s.vitals.sbp >= 90 && s.vitals.sbp < 160, points: 3, severity: 'minor', text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more; below that step down to 0.4 mg, and hold nitrates when the pressure is low.' }),
     // drawn up unasked: a wrong answer to the team (Harm.wrongAnswer) — the nitrate, rate-drug or epinephrine rule that judges

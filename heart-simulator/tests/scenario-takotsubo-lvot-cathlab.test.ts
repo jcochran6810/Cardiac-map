@@ -508,13 +508,29 @@ describe('the nurse', () => {
   it('an intracoronary drug drawn up unasked during the fall is refused: a nitrate or epinephrine costs its contraindication, not the small cost', () => {
     const s = run(sc, 4, [...RN_TO_DROP, 'callout', 'ic-nitro']);
     expect(s.log.some((l) => l.who === 'operator' && /I didn't ask for that/.test(l.text))).toBe(true);
-    // the unasked drug is a wrong answer to the team: the heavier label contraindication on the same dose — nitroglycerin
-    // under 90 — charges alone (engine harmsFor), never hidden behind the 3-point rule
-    expect(penalties(s)).toEqual(['nitro-hypotension']);
+    // the unasked drug is a wrong answer to the team: the heavier contraindication on the same dose — a nitrate into the
+    // outflow obstruction, as for the operator (2024 AHA/ACC HCM; InterTAK) — charges alone (engine harmsFor), never hidden
+    // behind the 3-point rule
+    expect(penalties(s)).toEqual(['nitrate-lvoto-ic']);
     expect(s.vitals.sbp).toBe(79);
-    // epinephrine down the catheter into an outflow obstruction is a contraindication too (2024 AHA/ACC HCM; InterTAK):
-    // its 10 points charge alone, for the nurse and the tech as for the operator
+    // epinephrine down the catheter into an outflow obstruction is a contraindication too: its 10 points charge alone, for
+    // the nurse and the tech as for the operator
     expect(penalties(run(sc, 4, [...RN_TO_DROP, 'callout', 'ic-epinephrine']))).toEqual(['catecholamine-lvoto-ic']);
+    // once fluid and phenylephrine have the pressure over 90 she is still obstructed: a nitrate or epinephrine still costs its
+    // contraindication, not the small cost of the unasked drug
+    const lifted = [...RN_TO_DROP, 'callout', 'lungs', 'fluid', 'phenylephrine', 'reassess'];
+    const nurseNitro = run(sc, 4, [...lifted, 'ic-nitro']);
+    expect(nurseNitro.vitals.sbp).toBeGreaterThanOrEqual(90);
+    expect(penalties(nurseNitro)).toEqual(['nitrate-lvoto-ic']);
+    expect(penalties(run(sc, 4, [...lifted, 'ic-epinephrine']))).toEqual(['catecholamine-lvoto-ic']);
+    // the tech, at the fall and after the LV gram (the pressure back over 90): the nitrate, the cocktail and epinephrine alike
+    expect(penalties(run(sc, 3, [...TECH_TO_DROP, 'callout', 'ic-nitro']))).toEqual(['nitrate-lvoto-ic']);
+    const techLifted = TECH.slice(0, TECH.indexOf('lv-gram') + 1);
+    const techNitro = run(sc, 3, [...techLifted, 'ic-nitro']);
+    expect(techNitro.vitals.sbp).toBeGreaterThanOrEqual(90);
+    expect(penalties(techNitro)).toEqual(['nitrate-lvoto-ic']);
+    expect(penalties(run(sc, 3, [...techLifted, 'radial-cocktail']))).toEqual(['nitrate-lvoto-ic']);
+    expect(penalties(run(sc, 3, [...techLifted, 'ic-epinephrine']))).toEqual(['catecholamine-lvoto-ic']);
     // a wrong answer with nothing heavier against it still charges: another anticoagulant for the heparin order
     expect(penalties(run(sc, 4, ['consent', 'bivalirudin']))).toEqual(['wrong-rn-heparin']);
   });
