@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, atRate, bpAfter, has, interpret, line } from '../kit';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Posterior STEMI in the field. A 61-year-old woman with diabetes and high blood pressure had to sit down halfway up the
@@ -458,7 +459,9 @@ export const posteriorStemiField: Scenario = {
       text: 'A drug for an arrhythmia with a regular sinus rate. Her rhythm needs no treatment: adenosine, diltiazem and the antiarrhythmics have nothing to treat and bring only their side effects — a pause, a falling pressure, slower conduction (prophylactic lidocaine in MI was abandoned decades ago). The treatment of her heart is opening the artery.',
     },
     {
-      id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication', 'cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
+      // the lungs are clear: a lighter mistake than CPAP on a low pressure, a heart that lives on its preload or a patient
+      // about to vomit — there (cpapHarmful) the built-in rules speak, at their own weight
+      id: 'cpap-clear', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; hers are clear, and the pressure in the chest lowers the blood returning to the heart.',
     },
   ],

@@ -575,7 +575,9 @@ export const edStemiWalkIn: Scenario = {
       text: 'Transferring a STEMI out of a hospital with its own cath lab. A transfer adds an hour or more to the time to the device: activate your own lab.',
     },
     {
-      id: 'ct-delays-reperfusion', actions: ['ct-urgent'], roles: ED_MD, points: 5, severity: 'major',
+      // the built-in rule, same id, in this case's words; like the built-in it leaves a low pressure to ct-unstable (one
+      // act, one penalty)
+      id: 'ct-delays-reperfusion', actions: ['ct-urgent'], roles: ED_MD, when: (s) => !s.pulse || s.vitals.sbp >= 90, points: 5, severity: 'major',
       text: 'A CT scan before the cath lab, with nothing to suggest a dissection or a pulmonary embolism. It takes him out of the department, into a scanner, in the hours VF is most likely, adds a contrast load before the angiogram\'s own, and can delay the artery being opened. A tearing pain to the back, a pressure difference between the arms or a widened mediastinum would be a reason; he has none.',
     },
     {

@@ -584,14 +584,14 @@ export const cathlabStroke: Scenario = {
     { id: 'more-antithrombotic', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: deficit, points: 5, severity: 'major', text: 'More anticoagulant or antiplatelet drug for the stroke. Before the scan has excluded a bleed, more of it can turn a small bleed into a fatal one; after it, antithrombotic drugs are the stroke team\'s decision — and it all stacks on the 5,000 units of heparin already given.' },
     { id: 'nothing-by-mouth', actions: ['aspirin', 'p2y12'], when: deficit, points: 5, severity: 'major', text: 'Something by mouth with a new deficit and slurred speech. His swallow may not be safe — nothing by mouth until a swallow screen — and no new antiplatelet drug before the CT has excluded a bleed and the stroke team has decided on thrombolysis (no aspirin within 24 hours of it); he had his aspirin this morning.' },
     { id: 'protamine-no-bleed', actions: ['protamine'], when: deficit, points: 3, severity: 'minor', text: 'Protamine for a stroke with no bleed on the scan. Reversing the heparin is for a bleed the CT shows, or on the stroke team\'s advice: most strokes in the lab are embolic, protamine does nothing for a blocked artery, and it can let clot form on the sheath and the catheter.' },
-    // one rule for every vasopressor, at the same line as the 'bp-low' item: under 140 bringing it back up is right
-    // (the built-in phenylephrine rule, same id: a deliberate exemption — once the deficit is there, 120–139 is a pressure
-    // to bring back up, not a normal one; only before it does the built-in's line hold)
-    { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 120, points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension; with a normal pressure it only adds afterload and slows the heart.' },
-    // the built-in rules for the other vasopressors, same ids, for the same reason: their lines (90 for the infusion and
-    // push-dose epinephrine, 110 for intracoronary epinephrine) hold only before the deficit
-    { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A vasopressor or push-dose epinephrine without a low pressure. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.' },
-    { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 110, points: 3, severity: 'minor', text: 'Intracoronary epinephrine with a normal pressure. It is a drug for no-reflow with a low pressure; otherwise it speeds the heart and raises the pressure and the oxygen need of the heart.' },
+    // one rule for every vasopressor, at the same line as the 'bp-low' item: under 140 bringing it back up is right.
+    // The built-in rules for the vasopressors, same ids, never charge here (deliberate exemptions): the deficit is there from
+    // the first minute (the 'deficit' event fires at once), and with a stroke under way the built-ins' lines (120 for
+    // phenylephrine, 90 for the infusion and push-dose epinephrine, 110 for intracoronary epinephrine) mark a pressure to
+    // bring back up, not a normal one — pressor-high-bp judges every vasopressor at 140
+    { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: () => false, points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure: in this case the stroke\'s own line (140) judges it.' },
+    { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: () => false, points: 3, severity: 'minor', text: 'A vasopressor without a low pressure: in this case the stroke\'s own line (140) judges it.' },
+    { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: () => false, points: 3, severity: 'minor', text: 'Intracoronary epinephrine with a normal pressure: in this case the stroke\'s own line (140) judges it.' },
     { id: 'pressor-high-bp', actions: PRESSORS, when: (s) => s.pulse && deficit(s) && s.vitals.sbp >= LOW_FOR_STROKE, replaces: ['phenylephrine-no-hypotension'], points: 3, severity: 'minor', text: 'A vasopressor with a systolic of 140 or more. Raising the pressure with drugs has no established benefit in acute ischemic stroke and adds their risks: keep it where it is, and support it only if it falls well below his usual.' },
   ],
   timings: [

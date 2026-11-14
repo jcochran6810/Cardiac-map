@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState, Vitals } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Acute type A aortic dissection in the field. A hypertensive man who ran out of his pills tears his ascending aorta lifting
@@ -485,7 +486,9 @@ export const dissectionField: Scenario = {
       text: 'Still on scene when he went into shock. More than 20 minutes on scene with a suspected tear in the ascending aorta: it bled into the sac around his heart while he waited. Nothing in the field relieves it — find it, treat the pain and go; the rest can be done on the way.',
     },
     {
-      id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication', 'cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
+      // the lungs are clear: a lighter mistake than CPAP on a low pressure, a heart that lives on its preload or a patient
+      // about to vomit — there (cpapHarmful) the built-in rules speak, at their own weight
+      id: 'cpap-no-distress', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; his lungs are clear, and positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
   ],

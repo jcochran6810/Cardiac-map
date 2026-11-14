@@ -922,7 +922,8 @@ describe('cardiogenic shock in the cath lab', () => {
     expect(said).toMatch(/EF about 20 %/);
     expect(said).toMatch(/LVEDP 30 mmHg/);
     expect(said).not.toMatch(/normal wall motion|LVEDP 10/);
-    expect(said).toMatch(/hold it from today, recheck the creatinine at 48 hours/);
+    expect(said).toMatch(/hold it from today \(the shock and a lactate of 5 alone rule it out\), recheck the creatinine at 48 hours/);
+    expect(said).toMatch(/no significant mitral regurgitation/);
     // the LV gram in shock is itself a minor mistake
     expect(s.penalties.map((p) => p.id)).toEqual(['lv-gram-in-shock']);
   });

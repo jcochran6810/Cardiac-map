@@ -160,14 +160,15 @@ export const cathlabShock: Scenario = {
     opqrst: '"Since this morning… crushing… I can\'t breathe lying flat."',
     lungs: 'Crackles to the mid-zones on both sides.',
     perfusion: 'Cold, mottled knees; thready pulses; capillary refill 5 seconds; neck veins full.',
-    labs: 'Lactate 5.2, creatinine 1.6, potassium 4.8, hemoglobin 13.8, INR 1.1, platelets 210. Troponin very high. He takes metformin and his kidneys are struggling: hold it from today, recheck the creatinine at 48 hours before it restarts, and keep the contrast to the minimum — no LV gram.',
+    labs: 'Lactate 5.2, creatinine 1.6, potassium 4.8, hemoglobin 13.8, INR 1.1, platelets 210. Troponin very high. He takes metformin and his kidneys are struggling: hold it from today (the shock and a lactate of 5 alone rule it out), recheck the creatinine at 48 hours before it restarts, and keep the contrast to the minimum — no LV gram.',
     ecg12: (s) => s.rhythm.profile === 'anterior-stemi-reperfused'
       ? 'Sinus rhythm: ST elevation in V1–V5 coming down, Q waves forming — the anterior infarct after reperfusion.'
       : `Sinus tachycardia ${s.rhythm.hr} with ST elevation in V1–V5, I and aVL: an extensive anterior STEMI.`,
     echo: 'Akinetic anterior wall, septum and apex; LVEF about 20 %. No ventricular septal rupture, no severe mitral regurgitation, no effusion.',
     // the same failing ventricle the echo and the right heart run show (PCWP 28), not the engine's normal one
-    lvgram: 'LV gram: the anterior wall, the septum and the apex do not move, and only the base squeezes; EF about 20 %, no mitral regurgitation. The LVEDP is over 30 after the injection.',
-    lvedp: (s) => (has(s, 'impella') ? 'LV 96/16: LVEDP 16 mmHg, with the pump unloading the ventricle.' : 'LV 82/30: LVEDP 30 mmHg.'),
+    lvgram: 'LV gram: the anterior wall, the septum and the apex do not move, and only the base squeezes; EF about 20 %, no significant mitral regurgitation. The LVEDP is over 30 after the injection.',
+    // the LV systolic is the aortic one (no aortic stenosis): whatever the monitor shows now
+    lvedp: (s) => (has(s, 'impella') ? `LV ${s.vitals.sbp}/16: LVEDP 16 mmHg, with the pump unloading the ventricle.` : `LV ${s.vitals.sbp}/30: LVEDP 30 mmHg.`),
     rhc: RHC_LINE,
   },
   status: (s) => (has(s, 'pci') ? '"I can breathe a bit better."' : has(s, 'impella') ? 'Drowsy, but answers questions.' : '"Can\'t… breathe…"'),

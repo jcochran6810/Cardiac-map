@@ -1,6 +1,7 @@
 import type { Critical, Effect, Line, Scenario, ScenarioEvent, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
+import { pressorBridging, pressureNotLow } from '../rules/support';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
 
 /**
@@ -583,8 +584,10 @@ export const edTamponade: Scenario = {
         const down = arrestEffect(s, 'As the ventilator starts, her pressure falls away — and now there is no pulse!');
         return { ...down, say: [tube, ...(down.say ?? [])], flags: [...flags, ...(down.flags ?? [])] };
       }
-      const sbp = Math.min(s.vitals.sbp, 64);
-      const dbp = Math.min(s.vitals.dbp, 50);
+      // the crash takes the pressure of her own; what a push still adds stays on top until it wears off
+      const lift = pushLift(s);
+      const sbp = Math.min(s.vitals.sbp - lift.sbp, 64) + lift.sbp;
+      const dbp = Math.min(s.vitals.dbp - lift.dbp, 50) + lift.dbp;
       return {
         say: [tube, line('monitor', `BP ${sbp}/${dbp}.`, 'bad'), [helper(s), 'Her pressure crashed as soon as the ventilator started — she is mottled.', 'bad']],
         vitals: { sbp, dbp, gcs: 3, rr: 16, spo2: Math.max(s.vitals.spo2, 96) }, flags: [...flags, 'crashing'],
@@ -814,8 +817,12 @@ export const edTamponade: Scenario = {
       id: 'crash',
       when: (s) => s.pulse && !drained(s) && !has(s, 'crashing') && s.minute >= CRASH_AT,
       effect: (s) => {
-        const sbp = Math.max(ARREST_SBP, Math.min(s.vitals.sbp - 8, 68));
-        const dbp = Math.max(40, Math.min(s.vitals.dbp - 6, sbp - 10, 56));
+        // the squeeze takes the pressure of her own; what a push still adds stays on top and comes off when it wears off,
+        // so a bridge never brings the arrest closer than no push at all
+        const lift = pushLift(s);
+        const own = Math.max(ARREST_SBP, Math.min(s.vitals.sbp - lift.sbp - 8, 68));
+        const sbp = own + lift.sbp;
+        const dbp = Math.max(40, Math.min(s.vitals.dbp - lift.dbp - 6, own - 10, 56)) + lift.dbp;
         const hr = Math.min(150, s.rhythm.hr + 6);
         return {
           say: [[helper(s), 'She is slumping in the bed — she only opens her eyes when I shout her name.', 'bad'], rateBp(hr, { sbp, dbp }, 'bad')],
@@ -955,6 +962,14 @@ export const edTamponade: Scenario = {
       text: 'CPAP for a patient in tamponade. Positive pressure in the chest pushes back against the blood returning to her already squeezed right heart: the output falls, and it can bring on PEA. Her breathlessness comes from a heart that cannot fill, not wet lungs (they are clear): oxygen by cannula or mask, sitting up.',
     },
     {
+      // the built-in rule, same id, for the physician: before the drain a push in the last few minutes holds her pressure up,
+      // so another push or the infusion that takes over is the bridge (as the built-in reads it); once the fluid is off, a
+      // normal pressure is her own and a vasopressor has nothing to treat. (The nurse's dose is the built-in's, and with no
+      // order the order rule's)
+      id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], roles: ED_MD, when: (s, sc, id) => pressureNotLow(s, sc) && (drained(s) || !pressorBridging(s, sc, id)), points: 3, severity: 'minor',
+      text: 'A vasopressor or push-dose epinephrine without a low pressure. With the fluid off (or nothing holding her pressure up) a systolic of 90 or more and a MAP of 65 or more is her own: a pressor only adds afterload, rate and oxygen demand for the heart.',
+    },
+    {
       id: 'bvm-breathing', actions: ['bvm'], roles: ED_TEAM, when: (s) => s.pulse && s.vitals.gcs > 8, points: 5, severity: 'major',
       text: 'Bag-mask breaths for a patient who is breathing on her own. She fights the mask, and every squeeze that gets in raises the pressure in her chest and cuts the blood returning to her heart — the blood a heart squeezed by fluid lives on. Oxygen by mask; if breaths must ever be given, small and gentle ones.',
     },
@@ -1054,7 +1069,7 @@ export const edTamponade: Scenario = {
       text: 'IM epinephrine without anaphylaxis. 0.3–0.5 mg in the thigh is the anaphylaxis dose; for a low pressure in shock, push-dose epinephrine or an infusion IV, which can be titrated — on the physician\'s order.',
     },
     {
-      id: 'transfer-tamponade', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse && drained(s), points: 3, severity: 'minor',
+      id: 'transfer-tamponade', actions: ['transfer'], roles: ED_MD, when: (s) => s.pulse && drained(s), replaces: ['transfer-unstable'], points: 3, severity: 'minor',
       text: 'Transferring her out of a hospital that has everything she needs — cardiology, a CCU, cardiothoracic surgery and her oncologists. A transport only adds risk to a patient with a fresh pericardial drain: admit her.',
     },
     {

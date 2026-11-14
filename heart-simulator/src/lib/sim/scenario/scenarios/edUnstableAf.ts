@@ -886,7 +886,8 @@ export const edUnstableAf: Scenario = {
     },
     {
       // the built-in rule, same id (a deliberate exemption): here the bag-mask is readied at the head of the bed for the
-      // sedation (the nurse's set-up item), not squeezed into an awake patient — its responder says so
+      // sedation (the nurse's set-up item), not squeezed into an awake patient — its responder says so, before the shock and
+      // after it alike (a late set-up is the rn-prep item's to miss), so no breaths are ever forced in to judge
       id: 'bvm-breathing', actions: ['bvm'], when: () => false, points: 3, severity: 'minor',
       text: 'Bag-mask ventilation for a patient who is breathing well: in this case the bag-mask is readied for the sedation.',
     },

@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Pre-excited atrial fibrillation (Wolff-Parkinson-White). A 24-year-old man whose heart took off in a pickup basketball
@@ -641,7 +642,8 @@ export const wpwAfField: Scenario = {
       text: 'Aspirin with no suspected acute coronary syndrome. It is for chest pain that may be a heart attack; he is 24, with palpitations and no chest pain — it treats nothing he has.',
     },
     {
-      id: 'cpap-no-indication', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
+      // the built-in's id, in this case's words; with a low pressure (cpapHarmful) the built-in cpap-hypotension speaks instead
+      id: 'cpap-no-indication', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with no breathing problem to treat. His lungs are clear and his oxygen normal; positive pressure cuts the blood returning to the heart and drops a pressure the fast rate is already straining.',
     },
     {

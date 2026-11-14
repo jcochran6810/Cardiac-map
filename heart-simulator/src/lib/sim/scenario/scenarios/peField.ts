@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
-import { atRate, bpAfter, count, firstDone, has, line, mapOf } from '../kit';
+import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
+import { pressorNotLow } from '../rules/support';
 
 /**
  * Pulmonary embolism with obstructive shock, in the field. A 45-year-old woman ten days after a plate and screws for a
@@ -600,7 +601,8 @@ export const peField: Scenario = {
     {
       // the built-in rule, same id (a deliberate exemption): a pressure that the infusion or a push in the last few minutes
       // is holding up is still obstructive shock — she falls back when it wears off — so keeping the pushes going is right
-      id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s) => s.pulse && !supported(s) && s.vitals.sbp >= 90 && mapOf(s.vitals) >= 65, points: 3, severity: 'minor',
+      // (a push on top of the running infusion too). Otherwise the built-in's own line
+      id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s, sc, id) => pressorNotLow(s, sc, id) && !supported(s), points: 3, severity: 'minor',
       text: 'A vasopressor or push-dose epinephrine without a low pressure. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.',
     },
     {

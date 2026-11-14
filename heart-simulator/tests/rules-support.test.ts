@@ -7,9 +7,10 @@ import { describe, expect, it } from 'vitest';
 import type { FixtureSpec } from './ruleFixture';
 import { fixture, penaltyIds } from './ruleFixture';
 import { runScenario as runSteps } from './helpers';
+import { perform } from '@/lib/sim/scenario/engine';
 import { standingOrders } from '@/lib/sim/scenario/edKit';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
-import type { Harm, Problem } from '@/lib/sim/scenario/types';
+import type { Harm, Problem, SimState } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 
 const SINUS = { profile: 'normal-sinus', hr: 80 };
@@ -43,10 +44,53 @@ describe('vasopressors: the infusion and push-dose epinephrine', () => {
     // over an LVAD the Doppler MAP decides
     expect(ids(2, { lvad: true, vitals: { sbp: 84, dbp: 74 } }, ['iv', 'pressor'])).toEqual(['pressor-no-hypotension']);
     expect(ids(2, { lvad: true, vitals: { sbp: 62, dbp: 56 } }, ['iv', 'pressor'])).toEqual([]);
+    // a slow heart of its own is AV block at any rate, not only a rate under 50 (2018 ACC/AHA/HRS bradycardia guideline)
+    expect(ids(2, { rhythm: { profile: 'third-degree-avb', hr: 56 } }, ['iv', 'pressor'])).toEqual([]);
+    expect(ids(2, { rhythm: { profile: 'sinus-bradycardia', hr: 56 } }, ['iv', 'pressor'])).toEqual(['pressor-no-hypotension']);
+  });
+
+  it('pressor-no-hypotension: a push holding the pressure up is a bridge — the infusion that takes over, or the next push, is no mistake', () => {
+    // 82/50, a push (the default lifts it to 98/60), then the infusion or another push
+    expect(ids(2, { vitals: LOW }, ['iv', 'push-epi', 'pressor'])).toEqual([]);
+    expect(ids(2, { vitals: LOW }, ['iv', 'push-epi', 'push-epi'])).toEqual([]);
+    // phenylephrine holds it up too
+    expect(ids(5, { vitals: LOW }, ['iv', 'phenylephrine', 'pressor'])).toEqual([]);
+    // the nearest wrong state: more than ten minutes after the push the pressure is the patient's own again
+    expect(ids(2, { vitals: LOW }, ['iv', 'push-epi', 'reassess', 'reassess', 'reassess', 'reassess', 'reassess', 'reassess', 'pressor'])).toEqual(['pressor-no-hypotension']);
+  });
+
+  it('pressor-no-hypotension: in cardiogenic shock the norepinephrine infusion is the first vasopressor', () => {
+    const shock = withProblems('cardiogenic-shock');
+    expect(ids(5, shock, ['iv', 'pressor'])).toEqual([]);
+    // not push-dose epinephrine with nothing to treat
+    expect(ids(5, shock, ['iv', 'push-epi'])).toEqual(['pressor-no-hypotension']);
+  });
+
+  it('pressor-no-hypotension in the cases: the push-dose bridge to the infusion costs nothing', () => {
+    const caseIds = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+    // 78/50, a push to 94/60, then the infusion the case asks for (md-pressor)
+    expect(caseIds('shock-cathlab', 5, ['push-epi', 'pressor'])).toEqual([]);
+    expect(caseIds('left-main-shock-cathlab', 5, ['push-epi', 'pressor'])).toEqual([]);
+    // the tamponades: a second push while the first holds her, or the infusion after it
+    const tamponade = ['primary', 'vitals', 'perfusion', 'lungs', 'sample', 'iv'];
+    expect(caseIds('tamponade-field', 2, [...tamponade, 'push-epi', 'reassess', 'push-epi'])).toEqual([]);
+    expect(caseIds('tamponade-field', 2, [...tamponade, 'push-epi', 'pressor'])).toEqual([]);
+    const ed = ['perfusion', 'lungs', 'sample', 'pocus'];
+    expect(caseIds('tamponade-ed', 7, [...ed, 'push-epi', 'reassess', 'push-epi'])).toEqual([]);
+    expect(caseIds('tamponade-ed', 7, [...ed, 'push-epi', 'pressor'])).toEqual([]);
+    // once the fluid is off, a normal pressure is her own: the infusion has nothing to treat, push or no push before it
+    expect(caseIds('tamponade-ed', 7, [...ed, 'fluid', 'pericardiocentesis', 'pressor'])).toEqual(['pressor-no-hypotension']);
+    expect(caseIds('tamponade-ed', 7, [...ed, 'push-epi', 'pericardiocentesis', 'pressor'])).toEqual(['pressor-no-hypotension']);
+    // the perforation: a pressor before the hole is sealed is a bridge to the drain, whatever the pressure
+    expect(caseIds('perforation-cathlab', 5, ['balloon-tamponade', 'fluid', 'pressor'])).toEqual([]);
   });
 
   it('push-epi-in-arrest: push-dose epinephrine is not the arrest dose', () => {
     expect(ids(2, { pulse: false, rhythm: VF }, ['iv', 'push-epi'])).toEqual(['push-epi-in-arrest']);
+    // the ER nurse with no order: the missing order is the one penalty; with the order, the dose is the mistake
+    expect(ids(6, { pulse: false, rhythm: VF }, ['iv', 'push-epi'])).toEqual(['rn-without-order-push-epi']);
+    expect(ids(6, { pulse: false, rhythm: VF, extra: { events: [standingOrders(['push-epi'])] } }, ['iv', 'push-epi'])).toEqual(['push-epi-in-arrest']);
+    expect(penaltyIds(SCENARIO_BY_ID['vf-arrest-ed'], 6, ['call-help', 'cpr', 'defib', 'iv', 'push-epi'])).toEqual(['rn-without-order-push-epi']);
     expect(ids(2, { vitals: LOW }, ['iv', 'push-epi'])).toEqual([]);
     expect(ids(2, { pulse: false, rhythm: VF, harms: [exempt('push-epi-in-arrest', ['push-epi'])] }, ['iv', 'push-epi'])).toEqual([]);
     // the arrest rule first: one penalty, whatever else the patient has
@@ -90,9 +134,11 @@ describe('phenylephrine and intracoronary epinephrine', () => {
   it('phenylephrine-heart-failure: a pure vasoconstrictor loads a failing ventricle', () => {
     const failing = { ...withProblems('heart-failure'), vitals: LOW };
     expect(ids(5, failing, ['iv', 'phenylephrine'])).toEqual(['phenylephrine-heart-failure']);
-    // the nearest correct states: no failing ventricle, outflow obstruction (phenylephrine is its drug), an LVAD
+    // the nearest correct states: no failing ventricle, outflow obstruction (phenylephrine is its drug: LVOT obstruction or
+    // severe aortic stenosis, an afterload-dependent ventricle), an LVAD
     expect(ids(5, { vitals: LOW }, ['iv', 'phenylephrine'])).toEqual([]);
     expect(ids(5, { ...withProblems('heart-failure', 'lvot-obstruction'), vitals: LOW }, ['iv', 'phenylephrine'])).toEqual([]);
+    expect(ids(5, { ...withProblems('heart-failure', 'severe-aortic-stenosis'), vitals: LOW }, ['iv', 'phenylephrine'])).toEqual([]);
     expect(ids(5, { ...withProblems('heart-failure'), lvad: true, vitals: { sbp: 62, dbp: 56 } }, ['iv', 'phenylephrine'])).toEqual([]);
     expect(ids(5, { ...failing, harms: [exempt('phenylephrine-heart-failure', ['phenylephrine'])] }, ['iv', 'phenylephrine'])).toEqual([]);
     // the gate: the existing phenylephrine rules, then the bleeding rule, come first — one penalty
@@ -105,6 +151,12 @@ describe('phenylephrine and intracoronary epinephrine', () => {
     expect(ids(5, {}, ['ic-epinephrine'])).toEqual(['ic-epi-no-indication']);
     expect(ids(5, { vitals: { sbp: 100, dbp: 60 } }, ['ic-epinephrine'])).toEqual([]);
     expect(ids(5, { harms: [exempt('ic-epi-no-indication', ['ic-epinephrine'])] }, ['ic-epinephrine'])).toEqual([]);
+    // no-reflow (the flag 'no-reflow', until 'reflow'): it treats the microvessels at any pressure (COAR)
+    const stall = (...flags: string[]) => ({ extra: { events: [{ id: 'stall', when: () => true, effect: () => ({ flags }) }] } });
+    expect(ids(5, stall('no-reflow'), ['ic-epinephrine'])).toEqual([]);
+    expect(ids(5, stall('no-reflow', 'reflow'), ['ic-epinephrine'])).toEqual(['ic-epi-no-indication']);
+    // the no-reflow case: stalled at 118 after phenylephrine, the epinephrine costs nothing
+    expect(penaltyIds(SCENARIO_BY_ID['no-reflow-cathlab'], 5, ['act', 'heparin', 'stent-des', 'phenylephrine', 'phenylephrine', 'ic-epinephrine'])).toEqual([]);
   });
 });
 
@@ -112,13 +164,19 @@ describe('oxygen', () => {
   it('oxygen-not-breathing: a mask or a cannula only offers oxygen to someone who breathes', () => {
     for (const mask of ['o2-nc', 'o2-nrb']) {
       expect(ids(2, { pulse: false, rhythm: VF }, [mask]), mask).toEqual(['oxygen-not-breathing']);
-      expect(ids(2, { vitals: { gcs: 6 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
       expect(ids(2, { vitals: { rr: 6 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
-      // the nearest correct state: someone is bagging (or there is an airway)
-      expect(ids(2, { vitals: { gcs: 6 } }, ['bvm', mask]), mask).toEqual([]);
+      // no airway reflexes with slow breaths or a low saturation
+      expect(ids(2, { vitals: { gcs: 6, rr: 9 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+      expect(ids(2, { vitals: { gcs: 6, spo2: 86 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+      // the nearest correct states: someone is bagging (or there is an airway); an unresponsive patient breathing well
+      // (after ROSC, after sedation) — the airway needs looking after, but a mask is no mistake
+      expect(ids(2, { vitals: { gcs: 6, rr: 9 } }, ['bvm', mask]), mask).toEqual([]);
+      expect(ids(2, { vitals: { gcs: 6, rr: 20, spo2: 96 } }, [mask]), mask).toEqual([]);
       expect(ids(2, { pulse: false, rhythm: VF, harms: [exempt('oxygen-not-breathing', ['o2-nc', 'o2-nrb'])] }, [mask]), mask).toEqual([]);
       // the gate: not breathing comes first, whatever the saturation
-      expect(ids(2, { ...withProblems('acs'), vitals: { gcs: 6 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+      expect(ids(2, { ...withProblems('acs'), vitals: { gcs: 6, rr: 9 } }, [mask]), mask).toEqual(['oxygen-not-breathing']);
+      // …and an unresponsive coronary patient breathing well is not judged by the saturation rule either
+      expect(ids(2, { ...withProblems('acs'), vitals: { gcs: 6 } }, [mask]), mask).toEqual([]);
     }
     // once for the case
     expect(ids(2, { pulse: false, rhythm: VF }, ['o2-nrb', 'o2-nc'])).toEqual(['oxygen-not-breathing']);
@@ -152,8 +210,9 @@ describe('CPAP', () => {
     expect(ids(2, overdose, ['iv', 'glucagon', 'cpap'])).toEqual(['cpap-vomiting']);
     expect(ids(2, overdose, ['iv', 'cpap'])).toEqual([]);
     expect(ids(2, { ...overdose, harms: [exempt('cpap-vomiting', ['cpap'])] }, ['iv', 'glucagon', 'cpap'])).toEqual([]);
-    // the gate: before the preload, the drowsiness and the indication — one penalty
+    // the gate: before the preload, the drowsiness and the indication — one penalty; after the low pressure
     expect(ids(2, { ...withProblems('beta-blocker-overdose', 'rv-infarction'), vitals: { gcs: 11 } }, ['iv', 'glucagon', 'cpap'])).toEqual(['cpap-vomiting']);
+    expect(ids(2, { ...overdose, vitals: LOW }, ['iv', 'glucagon', 'cpap'])).toEqual(['cpap-hypotension']);
   });
 
   it('cpap-preload-dependent: a heart that lives on its preload', () => {
@@ -178,6 +237,11 @@ describe('CPAP', () => {
     expect(ids(2, { ...edema, vitals: { gcs: 11 }, harms: [exempt('cpap-drowsy', ['cpap'])] }, ['cpap'])).toEqual([]);
     // the gate: before the indication — one penalty
     expect(ids(2, { vitals: { gcs: 11 } }, ['cpap'])).toEqual(['cpap-drowsy']);
+    // the drowsiness of hypoxic pulmonary edema is what CPAP reverses: the paramedic stays at the head
+    expect(ids(2, { ...edema, vitals: { gcs: 11, spo2: 82 } }, ['cpap'])).toEqual([]);
+    expect(ids(2, { vitals: { gcs: 11, spo2: 82 } }, ['cpap'])).toEqual(['cpap-drowsy']);
+    // the SCAPE crew case: GCS 12 and an SpO₂ of 78 when the mask goes on, and she wakes up under it
+    expect(penaltyIds(SCENARIO_BY_ID['scape-field'], 2, ['primary', 'vitals', 'lungs', 'reassess', 'reassess', 'reassess', 'cpap', 'reassess', 'reassess'])).toEqual([]);
   });
 
   it('cpap-no-indication: no respiratory distress, no fluid on the lungs, no wheeze', () => {
@@ -221,6 +285,9 @@ describe('the bag-mask, the advanced airway and RSI', () => {
     expect(ids(7, withProblems('tamponade'), ['monitor', 'iv', 'rsi'])).toEqual(['rsi-no-indication']);
     expect(ids(7, { ...withProblems('tamponade'), vitals: { ...LOW, gcs: 12 } }, ['monitor', 'iv', 'rsi'])).toEqual(['rsi-unresuscitated']);
     expect(ids(7, tamponade, ['iv', 'rsi'])).toEqual(['rsi-unmonitored']);
+    // the tube that cannot wait, with the precaution its text asks for: a pressor running
+    expect(ids(7, { ...withProblems('tamponade'), vitals: { ...LOW, gcs: 12 } }, ['monitor', 'iv', 'pressor', 'rsi'])).toEqual([]);
+    expect(ids(7, { ...withProblems('tamponade'), vitals: { ...LOW, gcs: 12 } }, ['monitor', 'iv', 'push-epi', 'rsi'])).toEqual([]);
   });
 });
 
@@ -255,6 +322,9 @@ describe('the legs, fluids and blood', () => {
     const sc = fixture({ setting: 'ed', role: 7, rhythm: SINUS, ...both });
     const s = runSteps(sc, 7, ['iv', 'fluid', 'fluid']);
     expect(s.penalties.map((p) => [p.id, p.minute])).toEqual([['fluid-hypertensive', 2], ['fluid-loading-pe', 3]]);
+    // …and when the first bolus went in at a low pressure (charged for nothing), the second is the PE rule's alone
+    const lifted = { extra: { events: [{ id: 'lifted', when: (st: SimState) => st.counts.fluid === 1, effect: () => ({ vitals: { sbp: 120, dbp: 70 } }) }] } };
+    expect(ids(7, { ...both, vitals: LOW, ...lifted }, ['iv', 'fluid', 'fluid'])).toEqual(['fluid-loading-pe']);
   });
 
   it('saline-instead-of-blood: a third saline bolus with no blood yet, where there is blood to give', () => {
@@ -271,6 +341,11 @@ describe('the legs, fluids and blood', () => {
 });
 
 describe('electrolytes, insulin and the antidotes', () => {
+  it('bicarbonate-no-indication: the BRASH case\'s bicarbonate of 17 is a metabolic acidosis', () => {
+    expect(SCENARIO_BY_ID['complete-heart-block-ed'].problems).toContain('metabolic-acidosis');
+    expect(penaltyIds(SCENARIO_BY_ID['complete-heart-block-ed'], 7, ['ems-handoff', 'sample', 'labs', 'perfusion', 'atropine', 'pace', 'pulse-check', 'nibp', 'fentanyl', 'lungs', 'calcium-chloride', 'insulin-dextrose', 'sodium-bicarbonate'])).toEqual([]);
+  });
+
   it('bicarbonate-no-indication: with a pulse, a metabolic acidosis or a sodium-channel-blocker overdose — a high potassium alone is not one', () => {
     expect(ids(2, withProblems('hyperkalemia'), ['iv', 'sodium-bicarbonate'])).toEqual(['bicarbonate-no-indication']);
     expect(ids(2, withProblems('hyperkalemia', 'metabolic-acidosis'), ['iv', 'sodium-bicarbonate'])).toEqual([]);
@@ -326,6 +401,9 @@ describe('electrolytes, insulin and the antidotes', () => {
     expect(ids(2, {}, ['albuterol'])).toEqual(['albuterol-no-bronchospasm']);
     expect(ids(2, withProblems('bronchospasm'), ['albuterol'])).toEqual([]);
     expect(ids(2, withProblems('anaphylaxis'), ['albuterol'])).toEqual([]);
+    // with a high potassium it moves a little: too small a dose, not a drug with nothing to treat (every hyperkalemia case)
+    expect(ids(2, withProblems('hyperkalemia'), ['albuterol'])).toEqual([]);
+    expect(penaltyIds(SCENARIO_BY_ID['complete-heart-block-ed'], 7, ['ems-handoff', 'sample', 'labs', 'perfusion', 'atropine', 'pace', 'albuterol'])).toEqual([]);
     expect(ids(2, { harms: [exempt('albuterol-no-bronchospasm', ['albuterol'])] }, ['albuterol'])).toEqual([]);
     // the contrast reaction case: before the reaction a dose is prophylaxis for nothing; after it, the wheeze is real
     const contrast = SCENARIO_BY_ID['contrast-cathlab'];
@@ -391,6 +469,22 @@ describe('anaphylaxis: IM epinephrine first, then the adjuncts', () => {
 
 describe('one dose, one penalty: a case rule that scores the same dose stands in for the built-ins', () => {
   const caseIds = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+  it('a lighter "clear lungs" CPAP rule speaks only where no heavier built-in does: CPAP on a dissection\'s tamponade is the hypotension rule\'s', () => {
+    const waiting = ['primary', 'opqrst', 'vitals', 'iv', ...Array(11).fill('reassess')];
+    expect(caseIds('aortic-dissection-field', 2, [...waiting, 'cpap'])).toEqual(['cpap-hypotension']);
+    expect(caseIds('aortic-dissection-field', 2, ['primary', 'opqrst', 'vitals', 'cpap'])).toEqual(['cpap-no-distress']);
+    expect(caseIds('stemi-anterior-field', 2, ['primary', 'cpap'])).toEqual(['cpap-clear']);
+  });
+  it('BiPAP for a patient with no airway reflexes, or a mask in its place: the case\'s rule, not a built-in as well', () => {
+    const sc = SCENARIO_BY_ID['scape-ed'];
+    const after = (steps: string[], vitals: Partial<SimState['vitals']>, last: string) => {
+      const s = runSteps(sc, 7, steps);
+      s.vitals = { ...s.vitals, ...vitals };
+      return perform(sc, s, last).penalties.map((p) => p.id);
+    };
+    expect(after(['ems-handoff'], { gcs: 6, sbp: 80, dbp: 50 }, 'cpap')).toEqual(['niv-unprotected']);
+    expect(after(['ems-handoff', 'cpap'], { gcs: 6, rr: 8 }, 'o2-nrb')).toEqual(['niv-off']);
+  });
   it('CPAP for an unresponsive patient after ROSC: the case\'s rule, not the indication rule as well', () => {
     expect(caseIds('commotio-cordis-field', 2, ['defib', 'cpr', 'bvm', 'capno', 'cpap'])).toEqual(['cpap-unresponsive']);
   });

@@ -6,6 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import type { FixtureSpec } from './ruleFixture';
 import { fixture, penaltyIds } from './ruleFixture';
+import { runScenario } from './helpers';
+import { perform } from '@/lib/sim/scenario/engine';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
@@ -26,6 +28,12 @@ function ids(role: LearningLevel, spec: Omit<FixtureSpec, 'role' | 'setting' | '
   return penaltyIds(fixture({ rhythm: SINUS, ...spec, setting, role }), role, steps);
 }
 
+/** The penalties themselves (text and all), for a fixture written for one role */
+function fixturePenalties(role: LearningLevel, spec: Omit<FixtureSpec, 'role' | 'setting' | 'rhythm'>, steps: string[]) {
+  const setting = role <= 2 ? 'field' : role <= 5 ? 'cathlab' : 'ed';
+  return runScenario(fixture({ rhythm: SINUS, ...spec, setting, role }), role, steps).penalties;
+}
+
 /** The operator's way in: consent, a radial sheath, a diagnostic catheter */
 const IN = ['consent', 'access', 'cath-tiger'];
 /** …and down the coronary: heparin, a guide, a wire */
@@ -40,6 +48,26 @@ describe('the pericardiocentesis', () => {
     // the tech only opens the tray
     expect(ids(3, {}, ['pericardiocentesis'])).toEqual([]);
     expect(ids(5, { harms: [exempt('pericardiocentesis-no-tamponade', ['pericardiocentesis'])] }, ['pericardiocentesis'])).toEqual([]);
+  });
+
+  it('pericardiocentesis-dissection-tamponade: a torn aorta\'s tamponade goes to the operating room, not the needle', () => {
+    const dissection = withProblems('aortic-dissection');
+    expect(ids(7, { ...dissection, ...LATER_TAMPONADE }, ['pocus', 'pericardiocentesis'])).toEqual(['pericardiocentesis-dissection-tamponade']);
+    expect(ids(5, { ...withProblems('aortic-dissection', 'tamponade') }, ['pericardiocentesis'])).toEqual(['pericardiocentesis-dissection-tamponade']);
+    // the nearest correct state: a tamponade with no dissection is drained
+    expect(ids(7, LATER_TAMPONADE, ['pocus', 'pericardiocentesis'])).toEqual([]);
+    expect(ids(7, { ...dissection, ...LATER_TAMPONADE, harms: [exempt('pericardiocentesis-dissection-tamponade', ['pericardiocentesis'])] }, ['pocus', 'pericardiocentesis'])).toEqual([]);
+    // the gate: with no tamponade at all it is the other rule's — one penalty
+    expect(ids(7, dissection, ['pocus', 'pericardiocentesis'])).toEqual(['pericardiocentesis-no-tamponade']);
+  });
+
+  it('the temp-wire case: a drain before the new effusion squeezes the heart is the case\'s lighter charge, not the critical', () => {
+    const sc = SCENARIO_BY_ID['heart-block-temp-wire-cathlab'];
+    const wire = ['pads', 'pace', 'fentanyl', 'midazolam', 'pulse-check', 'sample', 'consent', 'timeout', 'access-venous', 'temp-wire'];
+    const early = runScenario(sc, 5, [...wire, 'echo', 'pericardiocentesis']).penalties;
+    expect(early.map((p) => [p.id, p.points, p.severity])).toEqual([['pericardiocentesis-no-tamponade', 5, 'major']]);
+    // once it squeezes, the drain is the treatment
+    expect(penaltyIds(sc, 5, [...wire, 'echo', 'reassess', 'reassess', 'reassess', 'pericardiocentesis'])).toEqual([]);
   });
 });
 
@@ -58,6 +86,23 @@ describe('the pumps', () => {
     expect(ids(5, { ...withProblems('lv-thrombus'), harms: [exempt('impella-contraindicated', ['impella'])] }, ['impella'])).toEqual([]);
     // the gate: a contraindication first, whatever else — one penalty
     expect(ids(5, withProblems('aortic-regurgitation', 'bleeding'), ['iabp'])).toEqual(['iabp-contraindicated']);
+    // a dynamic LV outflow obstruction rules out the balloon pump (its deflation worsens the gradient), not the Impella
+    expect(ids(5, withProblems('lvot-obstruction'), ['iabp'])).toEqual(['iabp-contraindicated']);
+    expect(ids(5, { ...withProblems('lvot-obstruction'), vitals: LOW }, ['impella'])).toEqual([]);
+  });
+
+  it('mcs-tamponade: no pump fills a heart squeezed by a tamponade — drain it first', () => {
+    for (const pump of ['iabp', 'impella']) {
+      expect(ids(5, withProblems('tamponade'), [pump]), pump).toEqual(['mcs-tamponade']);
+      expect(ids(5, { ...LATER_TAMPONADE, vitals: LOW }, [pump]), pump).toEqual(['mcs-tamponade']);
+      // drained: the heart fills again, and what is left is judged as any pump
+      expect(ids(5, withProblems('tamponade'), ['pericardiocentesis', pump]), pump).toEqual(['mcs-no-cardiogenic-shock']);
+      expect(ids(5, { ...withProblems('tamponade'), harms: [exempt('mcs-tamponade', ['iabp', 'impella'])] }, [pump]), pump).toEqual([]);
+      // the gate: after the device's own contraindications, before the bleeding and the shock rules — one penalty
+      expect(ids(5, { ...withProblems('tamponade', 'bleeding'), vitals: LOW }, [pump]), pump).toEqual(['mcs-tamponade']);
+    }
+    expect(ids(5, withProblems('tamponade', 'aortic-regurgitation'), ['impella'])).toEqual(['impella-contraindicated']);
+    expect(ids(5, { ...withProblems('tamponade', 'cardiogenic-shock'), vitals: LOW }, ['iabp'])).toEqual(['mcs-tamponade']);
   });
 
   it('mcs-bleeding: a pump needs another big sheath and full anticoagulation', () => {
@@ -105,10 +150,31 @@ describe('across the aortic valve: the pigtail, the LV gram and the LVEDP', () =
     expect(ids(5, withProblems('pulmonary-edema'), [...IN, 'lv-gram'])).toEqual(['lv-gram-in-shock']);
     expect(ids(5, {}, [...IN, 'lv-gram'])).toEqual([]);
     expect(ids(5, { vitals: LOW, harms: [exempt('lv-gram-in-shock', ['lv-gram'])] }, [...IN, 'lv-gram'])).toEqual([]);
+    // the gate: a catheter that must not cross the valve first, contrast allergy or not — one penalty
+    expect(ids(5, { ...withProblems('lv-thrombus', 'cardiogenic-shock'), vitals: LOW }, [...IN, 'lv-gram'])).toEqual(['lv-crossing-contraindicated']);
     // the gate: an earlier contrast reaction unprepared first; once the steroid is in, the shock rule speaks
     const allergic = { ...withProblems('contrast-allergy', 'cardiogenic-shock'), vitals: LOW };
     expect(ids(5, allergic, ['consent', 'access', 'lv-gram'])).toEqual(['contrast-allergy-unprepared']);
     expect(ids(5, allergic, ['consent', 'iv', 'steroid', 'access', 'lv-gram'])).toEqual(['lv-gram-in-shock']);
+  });
+});
+
+describe('the kidneys and the femoral arteries', () => {
+  it('lv-gram-renal-failure: 30–40 mL more contrast for failing kidneys', () => {
+    expect(ids(5, withProblems('renal-failure'), [...IN, 'lv-gram'])).toEqual(['lv-gram-renal-failure']);
+    expect(ids(5, {}, [...IN, 'lv-gram'])).toEqual([]);
+    expect(ids(5, { ...withProblems('renal-failure'), harms: [exempt('lv-gram-renal-failure', ['lv-gram'])] }, [...IN, 'lv-gram'])).toEqual([]);
+    // the gate: in shock it is that rule's — one penalty
+    expect(ids(5, { ...withProblems('renal-failure', 'cardiogenic-shock'), vitals: LOW }, [...IN, 'lv-gram'])).toEqual(['lv-gram-in-shock']);
+    expect(ids(5, withProblems('renal-failure', 'lv-thrombus'), [...IN, 'lv-gram'])).toEqual(['lv-crossing-contraindicated']);
+  });
+
+  it('femoral-access-pad: severe iliofemoral disease or an aortofemoral graft — go radial', () => {
+    const pad = withProblems('peripheral-artery-disease');
+    expect(ids(5, pad, ['consent', 'access-femoral'])).toEqual(['femoral-access-pad']);
+    expect(ids(5, pad, ['consent', 'access'])).toEqual([]);
+    expect(ids(5, {}, ['consent', 'access-femoral'])).toEqual([]);
+    expect(ids(5, { ...pad, harms: [exempt('femoral-access-pad', ['access-femoral'])] }, ['consent', 'access-femoral'])).toEqual([]);
   });
 });
 
@@ -132,6 +198,13 @@ describe('the PCI', () => {
 
   it('aspiration-routine: no routine aspiration in a primary PCI; a large thrombus is the exception', () => {
     expect(ids(5, { rhythm: STEMI }, [...WIRED, 'aspiration'])).toEqual(['aspiration-routine']);
+    // a bail-out for the thrombus still there after the balloon is no routine aspiration
+    expect(ids(5, { rhythm: STEMI }, [...WIRED, 'balloon-predil', 'aspiration'])).toEqual([]);
+    const stemiLab = ['consent', 'heparin', 'p2y12', 'fentanyl', 'timeout', 'access', 'cath-tiger', 'angio', 'guide-ebu', 'reposition', 'view-rao-cranial', 'wire-workhorse'];
+    expect(penaltyIds(SCENARIO_BY_ID['stemi-cathlab'], 5, [...stemiLab, 'balloon-predil', 'aspiration'])).toEqual([]);
+    expect(penaltyIds(SCENARIO_BY_ID['stemi-cathlab'], 5, [...stemiLab, 'aspiration'])).toEqual(['aspiration-routine']);
+    // the gate: no heparin is the one penalty — the wire's, and nothing more for the aspiration
+    expect(ids(5, { rhythm: STEMI }, [...IN, 'guide-ebu', 'wire-workhorse', 'aspiration'])).toEqual(['pci-no-heparin']);
     expect(ids(5, { rhythm: STEMI, ...withProblems('large-thrombus-burden') }, [...WIRED, 'aspiration'])).toEqual([]);
     // not a primary PCI, or after the stent
     expect(ids(5, {}, [...WIRED, 'aspiration'])).toEqual([]);
@@ -159,6 +232,8 @@ describe('contrast after an earlier reaction', () => {
     expect(ids(5, { ...allergic, harms: [exempt('contrast-allergy-unprepared', ['angio'])] }, [...IN, 'angio'])).toEqual([]);
     // the gate: the scanner's own rules first — one penalty
     expect(ids(7, { ...allergic, vitals: LOW }, ['ct-urgent'])).toEqual(['ct-unstable']);
+    // the operator decides on the run, not the tech who sets it up
+    expect(ids(3, allergic, ['view-rao-caudal'])).toEqual([]);
   });
 });
 
@@ -173,6 +248,14 @@ describe('the scanner, the central line and the transfer (the emergency departme
     expect(ids(7, { rhythm: STEMI, harms: [exempt('ct-delays-reperfusion', ['ct-urgent'])] }, ['ecg12', 'ct-urgent'])).toEqual([]);
     // the gate: an unstable patient is the other rule's
     expect(ids(7, { rhythm: STEMI, vitals: LOW }, ['ecg12', 'ct-urgent'])).toEqual(['ct-unstable']);
+    // the angiogram showed clean coronaries (Takotsubo): no artery is waiting to be opened
+    const clean = { extra: { events: [{ id: 'clean', when: () => true, effect: () => ({ flags: ['normal-coronaries'] }) }] } };
+    expect(ids(5, { rhythm: STEMI, ...clean }, ['ct-urgent'])).toEqual([]);
+    expect(penaltyIds(SCENARIO_BY_ID['takotsubo-lvot-cathlab'], 5, ['consent', 'heparin', 'timeout', 'access', 'cath-tiger', 'angio', 'cath-pigtail', 'lvedp', 'fluid', 'phenylephrine', 'lv-gram', 'ecg12', 'ct-urgent'])).toEqual([]);
+    // the air embolism's ST elevation is air in the artery: the case's own words for the same mistake
+    const air = runScenario(SCENARIO_BY_ID['air-embolism-cathlab'], 4, ['iv', 'capno', 'heparin', 'fluid', 'ct-urgent']).penalties;
+    expect(air.map((p) => p.id)).toEqual(['ct-delays-reperfusion']);
+    expect(air[0].text).toMatch(/air embolism/);
   });
 
   it('central-line-no-indication: a working IV, no pressor, no pacing wire', () => {
@@ -185,6 +268,8 @@ describe('the scanner, the central line and the transfer (the emergency departme
 
   it('transfer-unstable: stabilize first (EMTALA)', () => {
     expect(ids(7, { vitals: LOW }, ['transfer'])).toEqual(['transfer-unstable']);
+    // the hospital can treat the cause: a transfer is for a patient it cannot (EMTALA)
+    expect(fixturePenalties(7, { vitals: LOW }, ['transfer'])[0].text).toMatch(/out of a hospital that can treat the cause/);
     expect(ids(7, {}, ['transfer'])).toEqual([]);
     expect(ids(7, { vitals: LOW, harms: [exempt('transfer-unstable', ['transfer'])] }, ['transfer'])).toEqual([]);
   });
@@ -204,6 +289,26 @@ describe('one action, one penalty: a case rule that scores the same action stand
   const caseIds = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
   it('transferring a PE in shock out of a hospital that can treat her: the case\'s rule', () => {
     expect(caseIds('pulmonary-embolism-lysis-ed', 7, ['ems-handoff', 'pocus', 'transfer'])).toEqual(['transfer-pe']);
+  });
+  it('transferring a hypotensive patient whose case has its own transfer lesson: the case\'s rule alone', () => {
+    const lowThen = (id: string, steps: string[]) => {
+      const sc = SCENARIO_BY_ID[id];
+      const s = runScenario(sc, 7, steps);
+      s.vitals = { ...s.vitals, sbp: 80, dbp: 50 };
+      return perform(sc, s, 'transfer').penalties.map((p) => p.id);
+    };
+    expect(lowThen('aortic-dissection-ed', ['opqrst', 'bp-both-arms', 'pocus'])).toEqual(['transfer-in-house']);
+    expect(lowThen('scape-ed', ['ems-handoff'])).toEqual(['transfer-unneeded']);
+    expect(lowThen('tamponade-ed', ['perfusion', 'lungs', 'sample', 'pocus', 'fluid', 'pericardiocentesis'])).toEqual(['transfer-tamponade']);
+  });
+  it('a stent over a wire in the false lumen: that rule, not the covered-stent one as well', () => {
+    expect(caseIds('guide-dissection-cathlab', 5, ['stop-contrast', 'wire-hydrophilic', 'stent-covered'])).toEqual(['hydrophilic-in-dissection', 'stent-false-lumen']);
+  });
+  it('the case\'s drain of a torn aorta\'s tamponade: its rule in place of the built-in', () => {
+    const sc = SCENARIO_BY_ID['aortic-dissection-ed'];
+    const s = runScenario(sc, 7, ['opqrst', 'bp-both-arms', 'pocus']);
+    s.flags.tamponade = s.minute;
+    expect(perform(sc, s, 'pericardiocentesis').penalties.map((p) => p.id)).toEqual(['pericardiocentesis-before-or']);
   });
   it('an LV gram during the contrast reaction: the case\'s rule', () => {
     expect(caseIds('contrast-cathlab', 5, ['consent', 'timeout', 'access', 'cath-tiger', 'angio', 'lv-gram'])).toEqual(['contrast-during-reaction']);

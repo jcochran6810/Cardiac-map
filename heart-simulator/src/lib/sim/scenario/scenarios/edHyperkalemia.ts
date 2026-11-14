@@ -1045,10 +1045,6 @@ export const edHyperkalemia: Scenario = {
     { id: 'glucagon-no-overdose', actions: ['glucagon'], replaces: ['glucagon-no-indication'], points: 3, severity: 'minor', text: 'Glucagon without an overdose. It is for a beta- or calcium-channel-blocker overdose, and he takes neither; it does nothing for a slow rate from the potassium, and the vomiting it brings is dangerous in a weak patient lying flat.' },
     { id: 'opioid-no-pain', actions: ['fentanyl'], roles: ED_MD, when: (s) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp', points: 3, severity: 'minor', text: 'An opioid for a patient with no pain. With his pressure this low and his breathing muscles weak, it only adds hypotension and slower, shallower breathing.' },
     askHarm(CALCIUM, 'Atropine when the physician ordered calcium. The potassium, not the vagus, slows this heart: give what was ordered, and if you disagree with an order, say so before giving anything else.'),
-    // the built-in rule, same id (a deliberate exemption): with this potassium the wheezing dose is too small a dose, not a drug
-    // with nothing to treat — it moves a little potassium, not enough: the case marks the shift as missed instead (the nurse who gives it
-    // for the physician's order has answered it wrongly: the order's own penalty)
-    { id: 'albuterol-no-bronchospasm', actions: ['albuterol'], when: () => false, points: 3, severity: 'minor', text: 'Albuterol 2.5–5 mg with no wheeze: for this potassium it is too small a dose — 10–20 mg moves it.' },
     askHarm(NEB, 'Albuterol 2.5 mg when the physician ordered 10–20 mg. The wheezing dose is a quarter to an eighth of what moves potassium into the cells: check the dose on the order before you give it.'),
   ],
   timings: [

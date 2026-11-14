@@ -453,8 +453,12 @@ export const tamponadeField: Scenario = {
       id: 'crash',
       when: (s) => s.pulse && onScene(s) && s.minute >= CRASH_AT,
       effect: (s) => {
-        const sbp = Math.max(ARREST_SBP, Math.min(s.vitals.sbp - 8, 68));
-        const dbp = Math.max(40, Math.min(s.vitals.dbp - 6, sbp - 10, 56));
+        // the squeeze takes the pressure of his own; what a push still adds stays on top and comes off when it wears off,
+        // so a bridge never brings the arrest closer than no push at all
+        const lift = pushLift(s);
+        const own = Math.max(ARREST_SBP, Math.min(s.vitals.sbp - lift.sbp - 8, 68));
+        const sbp = own + lift.sbp;
+        const dbp = Math.max(40, Math.min(s.vitals.dbp - lift.dbp - 6, own - 10, 56)) + lift.dbp;
         const hr = Math.min(150, s.rhythm.hr + 6);
         return {
           say: [['partner', 'He\'s slumping in the chair — he only opens his eyes when I shout his name.', 'bad'], rateLine(s, hr, 'bad')],

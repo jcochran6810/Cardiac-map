@@ -1,5 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
+import { cpapHarmful } from '../rules/support';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -538,7 +539,9 @@ export const cocaineField: Scenario = {
       text: 'IV diltiazem for the fast rate and the high pressure of cocaine. A benzodiazepine treats both at their cause and nitroglycerin the coronary spasm; a calcium-channel blocker is a later option for spasm or a pressure that stays dangerously high after them (AHA statement on cocaine-associated chest pain; 2023 AHA poisoning update) — and in field protocols IV diltiazem is a rate drug for atrial fibrillation or flutter, not for a fast sinus rate.',
     },
     {
-      id: 'cpap-clear-lungs', actions: ['cpap'], when: (s) => s.pulse, replaces: ['cpap-no-indication', 'cpap-hypotension', 'cpap-vomiting', 'cpap-preload-dependent', 'cpap-drowsy'], points: 3, severity: 'minor',
+      // the lungs are clear: a lighter mistake than CPAP on a low pressure, a heart that lives on its preload or a patient
+      // about to vomit — there (cpapHarmful) the built-in rules speak, at their own weight
+      id: 'cpap-clear-lungs', actions: ['cpap'], when: (s, sc) => s.pulse && !cpapHarmful(s, sc), replaces: ['cpap-no-indication', 'cpap-drowsy'], points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; his lungs are clear, and a mask strapped over the face of an agitated patient makes the agitation worse.',
     },
     {

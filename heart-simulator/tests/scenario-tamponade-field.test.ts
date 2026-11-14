@@ -519,3 +519,18 @@ describe('tamponade in the field — the traps', () => {
     expect(text).toMatch(/echo-guided pericardiocentesis/);
   });
 });
+
+describe('the push-dose bridge and the crash', () => {
+  it('a push before the crash never brings the arrest closer than no push at all', () => {
+    const base = [...ASSESSED, 'iv', 'fluid'];
+    const firstArrest = (steps: string[]) => {
+      let s = medic(steps);
+      for (let i = 0; i < 12 && s.pulse && !s.ended; i++) s = perform(sc, s, 'reassess');
+      return s.flags.arrested;
+    };
+    const untreated = firstArrest([...base, ...R(5)]);
+    expect(untreated).toBeDefined();
+    const pushed = firstArrest([...base, ...R(5), 'push-epi']);
+    expect(pushed).toBeGreaterThanOrEqual(untreated);
+  });
+});

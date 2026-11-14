@@ -1,5 +1,6 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
-import { bpAfter, has, line, mapOf } from '../kit';
+import { bpAfter, has, line } from '../kit';
+import { pressorNotLow } from '../rules/support';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, operator, type LabAsk } from '../labKit';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
@@ -222,7 +223,7 @@ export const cathlabPerforation: Scenario = {
     // (the support ask) with or without fluid first — and while the hole is open the pressure is about to fall, so no
     // "normal pressure" counts until it is sealed and drained
     { id: 'pressor-before-volume', actions: ['pressor', 'push-epi', 'phenylephrine'], when: () => false, points: 3, severity: 'minor', text: 'A vasopressor before any volume: in a perforation the falling pressure is a tamponade\'s, and a pressor is a bridge until the drain.' },
-    { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s) => s.pulse && has(s, 'sealed') && has(s, 'drained') && s.vitals.sbp >= 90 && mapOf(s.vitals) >= 65, points: 3, severity: 'minor', text: 'A vasopressor or push-dose epinephrine without a low pressure, once the hole is sealed and the pericardium drained. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.' },
+    { id: 'pressor-no-hypotension', actions: ['pressor', 'push-epi'], when: (s, sc, id) => pressorNotLow(s, sc, id) && has(s, 'sealed') && has(s, 'drained'), points: 3, severity: 'minor', text: 'A vasopressor or push-dose epinephrine without a low pressure, once the hole is sealed and the pericardium drained. It only adds afterload, rate and oxygen demand for the heart: a pressor is for hypotension.' },
   ],
   timings: [
     { label: 'Balloon up over the hole', actions: ['balloon-tamponade'], flag: 'balloon-up', target: 1, from: 'perforation' },

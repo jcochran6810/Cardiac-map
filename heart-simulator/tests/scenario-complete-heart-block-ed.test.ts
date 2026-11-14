@@ -76,8 +76,9 @@ describe('complete heart block in the ED: the case itself', () => {
     expect(sc.roles).toEqual([6, 7]);
     expect(CONDITIONS[sc.conditionId!]).toBeDefined();
     expect(resolveProfile(sc.initial.rhythm.profile).id).toBe(sc.initial.rhythm.profile);
-    // BRASH: the potassium and an AKI on her chronic kidney disease (creatinine 2.6, 1.2 last spring)
-    expect(sc.problems).toEqual(['hyperkalemia', 'renal-failure']);
+    // BRASH: the potassium, an AKI on her chronic kidney disease (creatinine 2.6, 1.2 last spring) and the metabolic
+    // acidosis with them (bicarbonate 17)
+    expect(sc.problems).toEqual(['hyperkalemia', 'renal-failure', 'metabolic-acidosis']);
     for (const id of Object.keys(sc.respond)) expect(INTERVENTION_BY_ID[id], `respond ${id}`).toBeDefined();
     for (const h of sc.harms) for (const id of h.actions) expect(INTERVENTION_BY_ID[id], `harm ${h.id}: ${id}`).toBeDefined();
     for (const t of sc.timings ?? []) for (const id of t.actions) expect(INTERVENTION_BY_ID[id], `timing ${id}`).toBeDefined();
@@ -384,9 +385,11 @@ describe('complete heart block in the ED: what must not be given', () => {
 
   it('CPAP and a tube treat nothing she has, glucagon does nothing; nitroglycerin, a lytic and the cath lab are the built-in rules', () => {
     expect(ids(run(sc, 7, ['ems-handoff', 'cpap']))).toEqual(['cpap-no-indication']);
-    // glucagon is a listed rescue in BRASH when the rest fails (Farkas 2020): not scored, but it treats nothing here and she vomits
+    // glucagon is a listed rescue in BRASH once the rate support has failed (Farkas 2020): given first it is scored, it
+    // treats nothing here and she vomits; after the pacing it costs nothing
     const glucagon = run(sc, 7, ['ems-handoff', 'sample', 'labs', 'perfusion', 'glucagon']);
-    expect(ids(glucagon)).toEqual([]);
+    expect(ids(glucagon)).toEqual(['glucagon-no-indication']);
+    expect(ids(run(sc, 7, ['ems-handoff', 'sample', 'labs', 'perfusion', 'atropine', 'pace', 'glucagon']))).toEqual([]);
     expect(said(glucagon, 'patient', /vomits/)).toBe(true);
     expect(glucagon.rhythm.hr).toBe(34);
     // the nurse still needs an order for it

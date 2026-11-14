@@ -303,8 +303,9 @@ export const edHeartBlock: Scenario = {
     rhythm: { profile: 'third-degree-avb', hr: 34 },
     vitals: { sbp: 82, dbp: 46, spo2: 94, rr: 18, etco2: 34, pain: 0, gcs: 14, glucose: 118, temp: 36.6 },
   },
-  // BRASH: the potassium, and kidneys failing on top of stage 3 disease (creatinine 2.6, 1.2 last spring: KDIGO stage 2)
-  problems: ['hyperkalemia', 'renal-failure'],
+  // BRASH: the potassium, kidneys failing on top of stage 3 disease (creatinine 2.6, 1.2 last spring: KDIGO stage 2) and
+  // the acidosis that comes with them (the analyzer's bicarbonate 17: KDIGO 2020 allows bicarbonate for it)
+  problems: ['hyperkalemia', 'renal-failure', 'metabolic-acidosis'],
   facts: {
     ems: 'EMS: "78-year-old woman, fainted twice this morning — her daughter found her on the kitchen floor the second time; both times she came round within a minute. Pulse 32 to 36 on our oximeter the whole way, BP 80 over 48, confused about the date and where she is. No chest pain, no trouble breathing. Three days of vomiting and diarrhea, the daughter says. Two liters of oxygen; no IV — we are a basic unit, and the paramedics were 20 minutes out, so we came straight here: 8 minutes. Her pill bottles are in this bag."',
     opqrst: '"No pain. I just went dizzy and gray, and then I was on the floor — twice. I\'ve felt so weak since this stomach bug."',
@@ -824,10 +825,11 @@ export const edHeartBlock: Scenario = {
       text: 'CPAP without breathing trouble. Her lungs are clear and her oxygen is fine; the positive pressure cuts the blood returning to the heart, and with a systolic in the 80s it deepens the shock.',
     },
     {
-      // the built-in rule, same id (a deliberate exemption): her own metoprolol is the AV-nodal blockade of BRASH, and glucagon
-      // is a listed rescue there when the rest fails (Farkas 2020) — no answer to this rate (its responder says so), not scored
-      id: 'glucagon-no-indication', actions: ['glucagon'], when: () => false, points: 3, severity: 'minor',
-      text: 'Glucagon without a beta- or calcium-channel-blocker overdose: in BRASH it is a rescue for when the rest fails.',
+      // the built-in rule, same id, for the physician: her own metoprolol is the AV-nodal blockade of BRASH, and glucagon is a
+      // listed rescue there once the rate support has failed (Farkas 2020) — so it is scored only before pacing or an infusion
+      // has been tried. (The nurse's dose with no order is the order rule's: the built-in, skipped for her then)
+      id: 'glucagon-no-indication', actions: ['glucagon'], roles: ED_MD, when: (s) => !has(s, 'paced') && !has(s, 'pressor'), points: 3, severity: 'minor',
+      text: 'Glucagon before the rate support has been tried. Her metoprolol dose is an everyday one, not an overdose: in BRASH glucagon (or high-dose insulin) is a rescue only once pacing or an epinephrine infusion and the potassium treatments have failed (Farkas 2020). First it brings vomiting, not a faster escape.',
     },
     {
       // the same id as the built-in rule: a low pressure here is the slow rate's, and the tube does not treat it
