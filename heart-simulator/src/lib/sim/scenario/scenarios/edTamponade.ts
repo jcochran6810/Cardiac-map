@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
-import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -977,7 +977,7 @@ export const edTamponade: Scenario = {
       text: 'An anticoagulant or antiplatelet loading dose for a patient with a large, blood-stained effusion and a needle going into her pericardium (or a fresh drain in it). There is no acute coronary syndrome to treat: it only adds bleeding into the sac and from the needle track.',
     },
     {
-      id: 'antithrombotic-tamponade-rn', actions: ['heparin', 'p2y12'], roles: ED_RN, points: 8, severity: 'major', replaces: noOrder(['heparin', 'p2y12']),
+      id: 'antithrombotic-tamponade-rn', actions: ['heparin', 'p2y12'], roles: ED_RN, points: 8, severity: 'major', replaces: [...noOrder(['heparin', 'p2y12']), ...ANTITHROMBOTIC_RULES],
       text: 'Heparin or a P2Y12 loading dose with no order, for a patient with a large effusion and a needle going into her pericardium (or a fresh drain in it). Neither is on the chest pain standing order, and there is no coronary syndrome to treat: it only adds bleeding into the sac.',
     },
     {

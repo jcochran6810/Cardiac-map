@@ -209,6 +209,89 @@ const LYTIC_GATE = gate([
 /** Every built-in fibrinolytic rule: a case rule that says a lytic is wrong for its patient lists them in `replaces` */
 export const LYTIC_RULES = LYTIC_GATE.harms.map((h) => h.id);
 
+// ─── Antithrombotics and protamine ─────────────────────────────────────────
+
+/** The anticoagulants and the antiplatelet loading doses a tamponade bleeds with (aspirin is the case's to judge) */
+const TAMPONADE_ANTITHROMBOTICS = ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12'];
+
+/**
+ * The antiplatelet and anticoagulant drugs, ranked: the dissection, active bleeding, heparin with HIT, a true aspirin
+ * allergy, a tamponade, a low platelet count, the eptifibatide label's contraindications, then the combinations
+ */
+const ANTITHROMBOTIC_GATE = gate([
+  {
+    id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major',
+    text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.',
+  },
+  {
+    id: 'antithrombotic-bleeding', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['bleeding']), points: 10, severity: 'major',
+    text: 'An antiplatelet or anticoagulant with active bleeding. It keeps the bleeding going (the aspirin, P2Y12 inhibitor, heparin, bivalirudin, eptifibatide and cangrelor labels: contraindicated with active pathological bleeding): hold the antithrombotics, stop the bleeding, and reverse what can be reversed.',
+  },
+  {
+    id: 'heparin-hit', actions: ['heparin'], applies: (_s, sc) => hasProblem(sc, ['hit']), points: 15, severity: 'critical',
+    text: 'Heparin for a patient with heparin-induced thrombocytopenia, now or before. It can set off a new fall in the platelets with clots in the arteries and veins (heparin label; ACCP and ASH: no heparin with HIT): anticoagulate with bivalirudin or argatroban.',
+  },
+  {
+    id: 'aspirin-allergy', actions: ['aspirin'], applies: (_s, sc) => hasProblem(sc, ['aspirin-allergy']), points: 10, severity: 'major',
+    text: 'Aspirin for a patient with a true aspirin allergy (anaphylaxis, angioedema, hives) or aspirin-exacerbated asthma. It can set off the same reaction: give clopidogrel instead (2025 ACC/AHA ACS).',
+  },
+  {
+    id: 'antithrombotic-tamponade', actions: TAMPONADE_ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['tamponade']), points: 8, severity: 'major',
+    text: 'An anticoagulant or an antiplatelet loading dose in cardiac tamponade. Blood in the pericardium can be the cause (a dissection, a ruptured wall, a perforation), and the needle that drains it needs blood that clots: an antithrombotic keeps the effusion bleeding and makes the drain riskier. Drain it and find the cause first.',
+  },
+  {
+    id: 'heparin-thrombocytopenia', actions: ['heparin', 'gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['thrombocytopenia']), points: 8, severity: 'major',
+    text: 'Heparin or eptifibatide with platelets under 100,000. Both can drop the platelets further and add to the bleeding (heparin label; Integrilin label: contraindicated under 100,000): find the cause, and choose the anticoagulant with the count in hand.',
+  },
+  {
+    id: 'gp-contraindicated', actions: ['gp2b3a'], applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'recent-stroke', 'recent-surgery', 'recent-bleeding', 'dialysis']),
+    points: 10, severity: 'major',
+    text: 'Eptifibatide with a contraindication on its label: a bleed in the head ever or a recent stroke, major surgery within 6 weeks, bleeding within 30 days, or dialysis (Integrilin label). It doubles the bleeding risk where it is highest — and on dialysis it is not cleared at all.',
+  },
+  {
+    id: 'gp-after-lytic', actions: ['gp2b3a'], applies: (s) => has(s, 'lytic'), points: 8, severity: 'major',
+    text: 'Eptifibatide after a fibrinolytic. Together they add major and intracranial bleeding without saving more lives (ASSENT-3, GUSTO V): after lysis, PCI goes ahead with heparin and the oral antiplatelet drugs.',
+  },
+  {
+    id: 'gp-hypertension', actions: ['gp2b3a'], applies: (s) => s.pulse && (s.vitals.sbp > 200 || s.vitals.dbp > 110), points: 5, severity: 'major',
+    text: 'Eptifibatide with a systolic over 200 or a diastolic over 110. Severe, uncontrolled hypertension is a contraindication on its label: the risk of a bleed in the brain is too high — bring the pressure down first.',
+  },
+  {
+    id: 'double-anticoagulant', actions: ['heparin'], applies: (s) => has(s, 'bivalirudin'), points: 5, severity: 'major',
+    text: 'Heparin on top of a running bivalirudin infusion. Two anticoagulants at once add bleeding and no protection (2025 ACC/AHA ACS): choose one — switching from heparin to bivalirudin is accepted practice, adding heparin to bivalirudin is not.',
+  },
+  {
+    id: 'heparin-after-lmwh', actions: ['heparin'], applies: (_s, sc) => hasProblem(sc, ['lmwh-on-board']), points: 3, severity: 'minor',
+    text: 'Unfractionated heparin within 12 hours of enoxaparin. Switching between them adds bleeding (SYNERGY; 2014 AHA/ACC NSTE-ACS: no crossover): for PCI, an extra IV dose of enoxaparin if the last was 8–12 hours ago, none if under 8.',
+  },
+]);
+
+/** Every built-in antithrombotic rule: a case rule that says an antithrombotic is wrong for its patient lists them in `replaces` */
+export const ANTITHROMBOTIC_RULES = ANTITHROMBOTIC_GATE.harms.map((h) => h.id);
+
+/** Protamine, ranked: an earlier reaction to it, the PCI not finished, no heparin to reverse, then a sensitized patient */
+const PROTAMINE_GATE = gate([
+  {
+    id: 'protamine-allergy', actions: ['protamine'], applies: (_s, sc) => hasProblem(sc, ['protamine-allergy']), points: 10, severity: 'major',
+    text: 'Protamine for a patient who reacted to it before. Another dose can bring anaphylaxis, a collapse of the pressure and severe pulmonary hypertension (protamine label: contraindicated after an earlier intolerance; boxed warning): let the heparin wear off, or control the bleeding another way.',
+  },
+  {
+    id: 'protamine-mid-pci', actions: ['protamine'], applies: (s, sc) => has(s, 'wired') && !has(s, 'final-angio') && !hasProblem(sc, ['bleeding']), points: 8, severity: 'major',
+    text: 'Protamine with the wire still across and the PCI not finished. Reversing the heparin with hardware in the artery invites a clot on the wire and in a fresh stent: reverse only after the final angiogram, or for bleeding that threatens life.',
+  },
+  {
+    id: 'protamine-no-heparin', actions: ['protamine'], applies: (s, sc) => !has(s, 'heparin') && !hasProblem(sc, ['heparin-on-board']), points: 5, severity: 'major',
+    text: 'Protamine with no heparin to reverse. It reverses unfractionated heparin only (not bivalirudin), and on its own it can drop the pressure, set off a reaction and act as an anticoagulant itself (protamine label, boxed warning).',
+  },
+  {
+    id: 'protamine-sensitized', actions: ['protamine'], applies: (_s, sc) => hasProblem(sc, ['protamine-sensitized']) && !hasProblem(sc, ['bleeding']), points: 5, severity: 'major',
+    text: 'Protamine for a patient sensitized to it — NPH or protamine-zinc insulin, an earlier protamine dose, a fish allergy or a vasectomy — with no bleeding that needs it. These raise the risk of a severe reaction (protamine label, boxed warning): reverse heparin only for real bleeding, slowly (no more than 50 mg over 10 minutes), with epinephrine at hand.',
+  },
+]);
+
+/** Every built-in protamine rule: a case rule that says protamine is wrong for its patient lists them in `replaces` */
+export const PROTAMINE_RULES = PROTAMINE_GATE.harms.map((h) => h.id);
+
 // ─── Analgesia and sedation ────────────────────────────────────────────────
 
 /**
@@ -281,5 +364,6 @@ export const ACS_RULES: Harm[] = [
   // with its own sedation rule says so in its own words
   { id: 'midazolam-unsafe', actions: ['midazolam'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Midazolam with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A benzodiazepine drops the pressure and the breathing further (label boxed warning: respiratory depression): it is for agitation, seizures or stimulant toxicity in a patient who can take it — here support the pressure and the airway instead.' },
   { id: 'sedation-unsafe', actions: ['sedation'], when: unsafeToSedate, points: 5, severity: 'major', text: 'Sedation with a low pressure, slow breathing or a drowsy patient, and no cardioversion or pacing to sedate for. A sedative drops the pressure and the breathing further (midazolam label boxed warning: respiratory depression, continuous monitoring): sedation is for a procedure in a patient awake enough to feel it — here support the pressure and the airway instead.' },
-  { id: 'antithrombotic-dissection', actions: ANTITHROMBOTICS, when: (_s, sc) => hasProblem(sc, ['aortic-dissection']), points: 8, severity: 'major', text: 'An antiplatelet or anticoagulant in an aortic dissection. It makes the torn aorta bleed — into the chest, the pericardium or the abdomen — and complicates the surgery the patient needs. Tearing pain to the back, a pressure difference between the arms or a new murmur: think dissection before giving antithrombotics.' },
+  ...ANTITHROMBOTIC_GATE.harms,
+  ...PROTAMINE_GATE.harms,
 ];

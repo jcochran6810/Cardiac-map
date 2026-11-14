@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Vitals } from '../type
 import { atRate, bpAfter, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder } from '../edKit';
-import { NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Acute type A aortic dissection in the emergency department. A 63-year-old man whose blood pressure has gone untreated
@@ -709,11 +709,11 @@ export const edDissection: Scenario = {
       // the chest pain standing order's aspirin is this case's main trap for the nurse; heparin or a P2Y12 would also be given
       // with no order, so this rule stands for that one too (one mistake, one penalty)
       id: 'antithrombotic-dissection-rn', actions: ANTITHROMBOTICS, roles: ED_RN, points: 10, severity: 'major',
-      replaces: ['antithrombotic-dissection', 'rn-without-order-heparin', 'rn-without-order-p2y12'],
+      replaces: [...ANTITHROMBOTIC_RULES, 'rn-without-order-heparin', 'rn-without-order-p2y12'],
       text: 'An antithrombotic for sudden pain that tears through to the back. The chest pain standing order covers aspirin, but it also asks you to screen first: pain that goes through to the back, a difference between the arms or a new murmur means a torn aorta until a scan says otherwise, and aspirin, heparin or a P2Y12 inhibitor make it bleed — into the chest, the pericardium — and add to the bleeding in the emergency surgery he needs. Hold it, and tell the ED physician why.',
     },
     {
-      id: 'antithrombotic-dissection-md', actions: ANTITHROMBOTICS, roles: ED_MD, points: 10, severity: 'major', replaces: ['antithrombotic-dissection'],
+      id: 'antithrombotic-dissection-md', actions: ANTITHROMBOTICS, roles: ED_MD, points: 10, severity: 'major', replaces: ANTITHROMBOTIC_RULES,
       text: 'An antithrombotic for sudden pain that tears through to the back. With a pressure difference between the arms, a new diastolic murmur and a 12-lead without a STEMI, this is a torn aorta until a scan says otherwise: aspirin, heparin or a P2Y12 inhibitor make the tear bleed and add to the bleeding in the emergency surgery. Hold every antithrombotic until the aorta is imaged.',
     },
     {

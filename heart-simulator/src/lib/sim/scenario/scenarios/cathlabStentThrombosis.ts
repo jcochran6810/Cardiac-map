@@ -2,6 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { bpAfter, canSwallow, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LEFT_VIEWS, MD, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
+import { ANTITHROMBOTIC_RULES, PROTAMINE_RULES } from '../rules/acs';
 
 /**
  * Acute stent thrombosis on the table. A primary PCI of the proximal LAD: the stent went in on the emergency
@@ -676,7 +677,7 @@ export const cathlabStentThrombosis: Scenario = {
     { id: 'stent-no-indication', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'imaged') && has(s, 'expanded'), points: 5, severity: 'major', text: 'Another stent in a stent that the imaging had shown fully expanded, apposed and free of edge dissection. There was nothing left for it to fix: a second layer of metal only adds to the risk of restenosis and of the stent clotting again.' },
     // the tech only opens it — the operator refuses it and nothing reaches the patient — so a smaller penalty than the operator's
     { id: 'tech-unasked-stent', actions: ['stent-des'], roles: TECH, points: 3, severity: 'minor', text: 'A stent opened that the operator did not ask for, while the first one was clotting. Nobody knows yet why it clotted, and another stent fixes neither the drugs nor an under-expanded stent. Open devices when the operator asks for them.' },
-    { id: 'protamine-in-thrombosis', actions: ['protamine'], points: 12, severity: 'critical', text: 'Protamine during a stent thrombosis. It reverses the heparin — the one thing holding back more clot — while the stent is filling with thrombus. The ACT is already too low: he needs more heparin, not less.' },
+    { id: 'protamine-in-thrombosis', actions: ['protamine'], points: 12, severity: 'critical', replaces: PROTAMINE_RULES, text: 'Protamine during a stent thrombosis. It reverses the heparin — the one thing holding back more clot — while the stent is filling with thrombus. The ACT is already too low: he needs more heparin, not less.' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. On top of heparin, aspirin and an IV platelet drug it brings major (and intracranial) bleeding, and the clot in the stent is treated mechanically — aspiration, a balloon, then the cause the imaging shows.' },
     // switching from heparin to bivalirudin is fine; adding one on top of the other once the ACT is back in range is not. The
     // nurse's bivalirudin given to an open order is scored by that order's own wrong answer (one mistake, one penalty)
@@ -690,7 +691,7 @@ export const cathlabStentThrombosis: Scenario = {
     { id: 'ic-epi-no-indication', actions: ['ic-epinephrine'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Intracoronary epinephrine for a stent thrombosis. It is a drug for no-reflow with a low pressure; it does nothing for clot in the stent, and it speeds the heart and raises the oxygen need of an infarcting heart.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[3], 'A compliant balloon when the operator asked for a non-compliant one. Taken to high pressure, a compliant balloon grows past its size and can tear the vessel at the stent edges. Check the order and the box before you open it.'),
-    askHarm(RN_ASKS[0], 'Bivalirudin when the operator asked for a drug that blocks the platelets. Bivalirudin is an anticoagulant, like the heparin: cangrelor or eptifibatide blocks the platelets within minutes.'),
+    { ...askHarm(RN_ASKS[0], 'Bivalirudin when the operator asked for a drug that blocks the platelets. Bivalirudin is an anticoagulant, like the heparin: cangrelor or eptifibatide blocks the platelets within minutes.'), replaces: ANTITHROMBOTIC_RULES },
     // the nurse's bivalirudin for the heparin order (respond.bivalirudin closes it): the platelet order's own wrong answer covers it when that one is open too
     { id: 'wrong-rn-heparin', actions: ['bivalirudin'], roles: [4], when: (s) => openOrder(s, 'rn-heparin', 'heparin-given') && !openOrder(s, 'rn-platelets', 'platelets-given'), points: 3, severity: 'minor', text: 'Bivalirudin when the operator asked for a heparin top-up. Switching the anticoagulant is the operator\'s decision, with its own dosing: give what was ordered, or ask first.' },
     askHarm(RN_ASKS[3], 'Midazolam when the operator asked for something for the pain. A sedative does not relieve ischemic pain, and it lowers the pressure and the breathing: fentanyl 25–50 mcg IV.'),

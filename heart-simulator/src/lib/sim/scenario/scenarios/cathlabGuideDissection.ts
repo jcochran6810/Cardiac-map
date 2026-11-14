@@ -4,7 +4,7 @@ import { INTERVENTION_BY_ID } from '../interventions';
 import {
   LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, TECH, WIRES, askCritical, askEvents, askHarm, operator, type LabAsk,
 } from '../labKit';
-import { NITRATE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * A guide catheter tears the RCA ostium. Elective PCI of a proximal RCA narrowing from the right radial: the JR4 kept
@@ -812,7 +812,7 @@ export const cathlabGuideDissection: Scenario = {
     { id: 'beta-blocker-after', actions: ['metoprolol'], when: (s) => !stillSlowOrLow(s), points: 3, severity: 'minor', text: 'An IV beta-blocker with nothing to treat. Minutes ago the closing RCA gave her a rate of 48 and a pressure of 84: an IV beta-blocker is not routine after a myocardial infarction and is avoided in anyone at risk of a low output (2025 ACC/AHA ACS). An oral one can start on the unit once she is stable.' },
     // the heparin from the start of the case still holds the ACT in range (272 s): more only adds bleeding. After protamine
     // has reversed it, a new bolus is right
-    { id: 'heparin-extra', actions: ['heparin'], when: (s) => !reversed(s), points: 3, severity: 'minor', text: 'Another heparin bolus with the ACT already in range. More heparin adds bleeding — into the wall of the torn artery among other places — and treats nothing: check the ACT and redose only when it falls below the PCI target (250–300 s).' },
+    { id: 'heparin-extra', actions: ['heparin'], when: (s) => !reversed(s), points: 3, severity: 'minor', replaces: ANTITHROMBOTIC_RULES, text: 'Another heparin bolus with the ACT already in range. More heparin adds bleeding — into the wall of the torn artery among other places — and treats nothing: check the ACT and redose only when it falls below the PCI target (250–300 s).' },
     // no tachycardia anywhere in this case: drugs that slow the node or treat an arrhythmia only slow a heart the RCA has
     // slowed and drop its pressure. While the nurse's rate request is open, a wrong answer to it is that request's own
     // penalty ('wrong-rn-rate'): one mistake, one penalty
@@ -821,8 +821,8 @@ export const cathlabGuideDissection: Scenario = {
     { id: 'lidocaine-no-arrhythmia', actions: ['lidocaine'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'Lidocaine with no ventricular arrhythmia to treat. Lidocaine to prevent VF in an acute MI brings no benefit and more asystole; here it only adds its toxicity.' },
     { id: 'epi-im-no-anaphylaxis', actions: ['epi-im'], when: (s) => s.pulse, points: 3, severity: 'minor', text: 'IM epinephrine with no anaphylaxis. It speeds the heart and raises its oxygen demand while the RCA is closing; a low pressure here takes fluid first, then push-dose epinephrine or an infusion that can be titrated.' },
     { id: 'adenosine-infusion-dissection', actions: ['adenosine-iv-ffr'], when: (s) => s.pulse && torn(s), points: 3, severity: 'minor', text: 'An IV adenosine infusion with nothing to measure. It makes the hyperemia for an FFR of a narrowing; in a torn ostium it only drops the pressure and slows the AV node of a heart the ischemia is already slowing.' },
-    { id: 'protamine-dissection', actions: ['protamine'], points: 10, severity: 'major', text: 'Protamine with a wire in a torn artery and a stent to come (or just in). Reversing the heparin lets clot form on the wire, in the false channel and in the fresh stent; the tear is sealed with a stent, not by reversing the anticoagulant.' },
-    { id: 'gp-in-dissection', actions: ['gp2b3a'], points: 4, severity: 'minor', text: 'A GP IIb/IIIa inhibitor with no clot to treat. It adds bleeding — into the wall of a torn artery and the aortic root among other places — and treats nothing here.' },
+    { id: 'protamine-dissection', actions: ['protamine'], points: 10, severity: 'major', replaces: PROTAMINE_RULES, text: 'Protamine with a wire in a torn artery and a stent to come (or just in). Reversing the heparin lets clot form on the wire, in the false channel and in the fresh stent; the tear is sealed with a stent, not by reversing the anticoagulant.' },
+    { id: 'gp-in-dissection', actions: ['gp2b3a'], points: 4, severity: 'minor', replaces: ANTITHROMBOTIC_RULES, text: 'A GP IIb/IIIa inhibitor with no clot to treat. It adds bleeding — into the wall of a torn artery and the aortic root among other places — and treats nothing here.' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A systemic fibrinolytic in the lab. A torn artery is closed by the blood in its wall, not by clot: a lytic treats nothing and makes the wall — and everything else — bleed.' },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
     askHarm(TECH_ASKS[0], 'A hydrophilic wire when the operator asked for a soft workhorse. In a dissected artery it slips into the false channel. Check the order and the box before you open it.'),

@@ -5,7 +5,7 @@ import {
   LEFT_VIEWS, MD, RCA_VIEWS, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * Takotsubo syndrome with dynamic LV outflow tract obstruction. A 70-year-old woman comes to the lab as a STEMI alert an hour
@@ -865,7 +865,7 @@ export const cathlabTakotsubo: Scenario = {
     askHarm(TECH_ASKS[0], 'The wrong catheter when the operator asked for one that does both coronaries from the radial (a Tiger). A JL4 or a JR4 does one side; a guide is for an intervention.'),
     // a guide has its own penalty once the arteries are known to be clean (tech-unasked-device): the ask's harm is the diagnostic catheters
     { ...askHarm(TECH_ASKS[1], 'A coronary catheter when the operator asked for a pigtail. The coronaries are clean: the answer is in the ventricle.'), actions: ['cath-jl4', 'cath-jr4'] },
-    askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,300 units. Read the order back before you give it.'),
+    { ...askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,300 units. Read the order back before you give it.'), replaces: [...ANTITHROMBOTIC_RULES, ...PROTAMINE_RULES] },
     { ...askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain — and it drops the pressure.', 2), actions: ['midazolam'] },
   ],
   timings: [

@@ -3,7 +3,7 @@ import type { Effect, Line, PendingRead, Responder, Scenario, SimState, Speaker 
 import { bpAfter, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, type LabAsk } from '../labKit';
-import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * A vasovagal reaction at femoral sheath removal. A diagnostic cath from the right groin is over; the tech pulled the
@@ -704,7 +704,7 @@ export const cathlabVasovagal: Scenario = {
       text: 'Protamine with no heparin to reverse. No heparin was given for this diagnostic study, so it can only do harm: protamine itself can drop the pressure, slow the heart and cause an anaphylactoid reaction.',
     },
     {
-      id: 'thinner-fresh-puncture', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12'], roles: RN_MD, points: 6, severity: 'major',
+      id: 'thinner-fresh-puncture', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12'], roles: RN_MD, points: 6, severity: 'major', replaces: ANTITHROMBOTIC_RULES,
       text: 'An anticoagulant or a P2Y12 inhibitor with nothing to treat, minutes after the femoral sheath came out. There is no ACS and no stent — only mild non-obstructive disease — and it keeps the puncture oozing and raises the risk of a hematoma or a retroperitoneal bleed.',
     },
     {

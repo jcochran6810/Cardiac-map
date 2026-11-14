@@ -3,7 +3,7 @@ import { PADS, bpAfter, firstDone, has, line, mapOf } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
-import { NITRATE_RULES, SEDATIVE_RULES } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES } from '../rules/acs';
 
 /**
  * A thrombotic left main in cardiogenic shock. A 72-year-old man comes straight up from the emergency department with
@@ -857,7 +857,7 @@ export const cathlabLeftMain: Scenario = {
     { id: 'aspiration-ostial-lm', actions: ['aspiration'], roles: MD, when: (s) => !has(s, 'on-rca'), points: 3, severity: 'minor', text: 'Aspiration thrombectomy at the left main ostium. Routine aspiration brings no benefit (TASTE, TOTAL — and more strokes in TOTAL), and at the ostium the catheter can drag clot out into the aorta. Stent it; a GP IIb/IIIa inhibitor is the bail-out for a heavy thrombus burden.' },
     { id: 'lv-gram-in-shock', actions: ['lv-gram'], roles: [3, 5], points: 3, severity: 'minor', text: 'A left ventriculogram in cardiogenic shock. 30–40 mL of contrast at high speed into a failing ventricle with an LVEDP over 30: more volume for wet lungs and more contrast for failing kidneys, for what the echo shows at the bedside.' },
     { id: 'access-no-timeout', actions: ['access', 'access-femoral', 'access-venous'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Access before the time-out.' },
-    { id: 'protamine-in-pci', actions: ['protamine'], when: (s) => !has(s, 'final-angio'), points: 10, severity: 'major', text: 'Protamine in the middle of a thrombotic left main PCI with a pump in. Reversing the heparin lets clot form on the wire, in the fresh stent and in the pump.' },
+    { id: 'protamine-in-pci', actions: ['protamine'], when: (s) => !has(s, 'final-angio'), points: 10, severity: 'major', replaces: PROTAMINE_RULES, text: 'Protamine in the middle of a thrombotic left main PCI with a pump in. Reversing the heparin lets clot form on the wire, in the fresh stent and in the pump.' },
     // the main trap: a balloon in the left main of a failing ventricle with nothing to carry the circulation (it brings VF here).
     // A balloon pump is support, if far less: no penalty for it (the support item is missed instead)
     {
@@ -884,7 +884,7 @@ export const cathlabLeftMain: Scenario = {
     askHarm(TECH_ASKS[4], 'OCT when the operator asked for IVUS. The OCT flush cannot clear an ostial left main with the guide sitting in it, and it costs contrast a shocked patient\'s kidneys cannot spare.', 2),
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[6], 'The wrong balloon when the operator asked for a non-compliant one. A compliant balloon at high pressure over-stretches the vessel at the stent edges instead of expanding the stent.'),
-    askHarm(RN_ASKS[4], 'Oral P2Y12 tablets when the operator asked for the IV drug. In shock they are absorbed poorly and a drowsy patient may aspirate them; if the surgeon has to take him, a ticagrelor load means days of bleeding risk.'),
+    { ...askHarm(RN_ASKS[4], 'Oral P2Y12 tablets when the operator asked for the IV drug. In shock they are absorbed poorly and a drowsy patient may aspirate them; if the surgeon has to take him, a ticagrelor load means days of bleeding risk.'), replaces: ANTITHROMBOTIC_RULES },
   ],
   timings: [
     { label: 'Pressor running', actions: ['pressor'], flag: 'pressor', target: 6 },

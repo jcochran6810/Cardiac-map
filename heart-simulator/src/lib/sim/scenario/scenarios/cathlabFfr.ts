@@ -4,7 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
-import { nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, PROTAMINE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-ffr-positive', ffr: 'ffr-significant', 'final-angio': 'lad-stented-after-ffr' };
@@ -410,7 +410,7 @@ export const cathlabFfr: Scenario = {
     askHarm(TECH_ASKS[6], 'A right-coronary guide when the operator asked for a left guide.'),
     askHarm(TECH_ASKS[10], 'The wrong device when the operator asked for a drug-eluting stent.'),
     askHarm(TECH_ASKS[11], 'A compliant balloon when the operator asked for a non-compliant one.'),
-    askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5),
+    { ...askHarm(RN_ASKS[1], 'The wrong drug before a coronary wire: he needs anticoagulation.', 5), replaces: [...ANTITHROMBOTIC_RULES, ...PROTAMINE_RULES] },
     { ...askHarm(RN_ASKS[2], 'An intracoronary drug when the operator asked for the radial cocktail.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') },
     { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: nitrateRulesExcept('nitro-hypotension', 'nitro-high-not-hypertensive') },
     askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'),

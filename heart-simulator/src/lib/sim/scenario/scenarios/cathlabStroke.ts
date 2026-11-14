@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../
 import { atRate, bpAfter, has } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH } from '../labKit';
-import { SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { ANTITHROMBOTIC_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
 
 /**
  * A stroke on the table. A diagnostic angiogram from the right radial: the left coronary is done, and a JR4 has just gone up
@@ -582,9 +582,9 @@ export const cathlabStroke: Scenario = {
     // the monitor has already shown the fall: another dose on top is a second mistake, so a run of them cannot cost the same as one
     { id: 'lower-bp-again', actions: LOWERING, when: (s) => s.pulse && deficit(s) && has(s, 'bp-drug') && s.vitals.sbp <= 185 && s.vitals.dbp <= 110, replaces: nitrateRulesExcept('nitro-hypotension', 'nitroprusside-hypotension'), points: 5, severity: 'major', text: 'Lowering his pressure again after a first drug had already brought it down. The monitor showed the fall: each further dose takes more pressure from the brain living on collaterals around the clot. Stop the drugs that lower it, and bring it back if it has fallen well below his usual.' },
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', text: 'A fibrinolytic from the cardiologist, for the stroke. Before a CT has excluded a bleed it can kill; after 5,000 units of heparin (a long ACT) IV thrombolysis is generally not given at all; the stroke dose of tenecteplase is 0.25 mg/kg (25 mg at most), not the STEMI dose; and the decision is the stroke team\'s. A blocked large artery is treated with thrombectomy.' },
-    { id: 'more-antithrombotic', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: deficit, points: 5, severity: 'major', text: 'More anticoagulant or antiplatelet drug for the stroke. Before the scan has excluded a bleed, more of it can turn a small bleed into a fatal one; after it, antithrombotic drugs are the stroke team\'s decision — and it all stacks on the 5,000 units of heparin already given.' },
+    { id: 'more-antithrombotic', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: deficit, points: 5, severity: 'major', replaces: ANTITHROMBOTIC_RULES, text: 'More anticoagulant or antiplatelet drug for the stroke. Before the scan has excluded a bleed, more of it can turn a small bleed into a fatal one; after it, antithrombotic drugs are the stroke team\'s decision — and it all stacks on the 5,000 units of heparin already given.' },
     { id: 'nothing-by-mouth', actions: ['aspirin', 'p2y12'], when: deficit, points: 5, severity: 'major', text: 'Something by mouth with a new deficit and slurred speech. His swallow may not be safe — nothing by mouth until a swallow screen — and no new antiplatelet drug before the CT has excluded a bleed and the stroke team has decided on thrombolysis (no aspirin within 24 hours of it); he had his aspirin this morning.' },
-    { id: 'protamine-no-bleed', actions: ['protamine'], when: deficit, points: 3, severity: 'minor', text: 'Protamine for a stroke with no bleed on the scan. Reversing the heparin is for a bleed the CT shows, or on the stroke team\'s advice: most strokes in the lab are embolic, protamine does nothing for a blocked artery, and it can let clot form on the sheath and the catheter.' },
+    { id: 'protamine-no-bleed', actions: ['protamine'], when: deficit, points: 3, severity: 'minor', replaces: PROTAMINE_RULES, text: 'Protamine for a stroke with no bleed on the scan. Reversing the heparin is for a bleed the CT shows, or on the stroke team\'s advice: most strokes in the lab are embolic, protamine does nothing for a blocked artery, and it can let clot form on the sheath and the catheter.' },
     // one rule for every vasopressor, at the same line as the 'bp-low' item: under 140 bringing it back up is right
     // (the built-in phenylephrine rule, same id: a deliberate exemption — once the deficit is there, 120–139 is a pressure
     // to bring back up, not a normal one; only before it does the built-in's line hold)

@@ -5,7 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_HARMS, start } from '@/lib/sim/scenario/engine';
-import { LYTIC_RULES, NITRATE_RULES, SEDATIVE_RULES, nitrateRulesExcept, sedationForProcedure, topNitrate } from '@/lib/sim/scenario/rules/acs';
+import {
+  ANTITHROMBOTIC_RULES, LYTIC_RULES, NITRATE_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateRulesExcept, sedationForProcedure, topNitrate,
+} from '@/lib/sim/scenario/rules/acs';
 import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem, Vitals } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
@@ -430,5 +432,129 @@ describe('the fibrinolytic gate', () => {
     const covers = caseRule({ id: 'case-lytic', actions: ['tnk'], points: 15, severity: 'critical', replaces: LYTIC_RULES });
     expect(penaltyIds(fixture({ setting: 'cathlab', role: 5, rhythm: STEMI, problems: ['bleeding'], harms: [covers] }), 5, ['iv', 'tnk'])).toEqual(['case-lytic']);
     expect(tnk(ed({ problems: ['aortic-dissection', 'bleeding'], vitals: { sbp: 196, dbp: 112 } }))).toEqual(['lytic-dissection']);
+  });
+});
+
+describe('the antithrombotic gate', () => {
+  /** The cardiologist's patient in the lab (every antithrombotic is offered there but aspirin's chewing is the ED's too) */
+  const lab = (problems: Problem[] = [], over: Spec = {}) => fixture({ setting: 'cathlab', role: 5, rhythm: SINUS, problems, ...over });
+  const ed = (problems: Problem[] = []) => fixture({ setting: 'ed', role: 7, rhythm: SINUS, problems });
+  const give = (sc: ReturnType<typeof fixture>, ...ids: string[]) => penaltyIds(sc, sc.roles[0], ['iv', ...ids]);
+
+  it('no problem, no penalty', () => {
+    for (const id of ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12']) expect(give(lab(), id), id).toEqual([]);
+    expect(give(ed(), 'aspirin')).toEqual([]);
+  });
+
+  it('antithrombotic-bleeding: every antiplatelet and anticoagulant with active bleeding', () => {
+    for (const id of ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor', 'p2y12']) expect(give(lab(['bleeding']), id), id).toEqual(['antithrombotic-bleeding']);
+    expect(give(ed(['bleeding']), 'aspirin')).toEqual(['antithrombotic-bleeding']);
+  });
+
+  it('heparin-hit: heparin with HIT — and with bleeding too, the bleeding rule alone', () => {
+    expect(give(lab(['hit']), 'heparin')).toEqual(['heparin-hit']);
+    expect(give(lab(['hit']), 'bivalirudin')).toEqual([]);
+    expect(give(lab(['hit', 'bleeding']), 'heparin')).toEqual(['antithrombotic-bleeding']);
+  });
+
+  it('aspirin-allergy: aspirin for a true allergy', () => {
+    expect(give(ed(['aspirin-allergy']), 'aspirin')).toEqual(['aspirin-allergy']);
+    expect(give(ed(['aspirin-allergy']), 'p2y12')).toEqual([]);
+  });
+
+  it('antithrombotic-tamponade: an anticoagulant or a P2Y12 load in tamponade (aspirin is the case\'s)', () => {
+    for (const id of ['heparin', 'p2y12']) expect(give(ed(['tamponade']), id), id).toEqual(['antithrombotic-tamponade']);
+    expect(give(lab(['tamponade']), 'gp2b3a')).toEqual(['antithrombotic-tamponade']);
+    expect(give(ed(['tamponade']), 'aspirin')).toEqual([]);
+  });
+
+  it('heparin-thrombocytopenia: heparin and eptifibatide under 100,000 platelets', () => {
+    expect(give(lab(['thrombocytopenia']), 'heparin')).toEqual(['heparin-thrombocytopenia']);
+    expect(give(lab(['thrombocytopenia']), 'gp2b3a')).toEqual(['heparin-thrombocytopenia']);
+    expect(give(lab(['thrombocytopenia']), 'cangrelor')).toEqual([]);
+  });
+
+  it('gp-contraindicated, gp-after-lytic and gp-hypertension: eptifibatide\'s label', () => {
+    for (const p of ['intracranial-hemorrhage', 'recent-stroke', 'recent-surgery', 'recent-bleeding', 'dialysis'] as Problem[]) expect(give(lab([p]), 'gp2b3a'), p).toEqual(['gp-contraindicated']);
+    expect(give(lab(['renal-failure']), 'gp2b3a')).toEqual([]);
+    expect(give(lab(), 'tnk', 'gp2b3a')).toEqual(['lytic-in-lab', 'gp-after-lytic']);
+    expect(give(lab([], { vitals: { sbp: 208, dbp: 104 } }), 'gp2b3a')).toEqual(['gp-hypertension']);
+    expect(give(lab([], { vitals: { sbp: 186, dbp: 114 } }), 'gp2b3a')).toEqual(['gp-hypertension']);
+    expect(give(lab([], { vitals: { sbp: 196, dbp: 108 } }), 'gp2b3a')).toEqual([]);
+  });
+
+  it('double-anticoagulant: heparin on top of running bivalirudin (switching the other way is accepted practice)', () => {
+    expect(give(lab(), 'bivalirudin', 'heparin')).toEqual(['double-anticoagulant']);
+    expect(give(lab(), 'heparin', 'bivalirudin')).toEqual([]);
+    // the stent thrombosis case says it in its own words
+    const st = SCENARIO_BY_ID['stent-thrombosis-cathlab'];
+    expect(st.harms.some((h) => h.id === 'double-anticoagulant')).toBe(true);
+  });
+
+  it('heparin-after-lmwh: unfractionated heparin within 12 hours of enoxaparin', () => {
+    expect(give(lab(['lmwh-on-board']), 'heparin')).toEqual(['heparin-after-lmwh']);
+    expect(give(lab(['lmwh-on-board']), 'bivalirudin')).toEqual([]);
+  });
+
+  it('one dose, one penalty: the dissection first, then the bleeding', () => {
+    expect(give(lab(['aortic-dissection', 'bleeding', 'hit', 'thrombocytopenia']), 'heparin')).toEqual(['antithrombotic-dissection']);
+    expect(give(lab(['bleeding', 'dialysis', 'thrombocytopenia'], { vitals: { sbp: 210, dbp: 120 } }), 'gp2b3a')).toEqual(['antithrombotic-bleeding']);
+  });
+
+  it('a case rule that lists ANTITHROMBOTIC_RULES covers the dose', () => {
+    const covers = caseRule({ id: 'case-heparin', actions: ['heparin'], replaces: ANTITHROMBOTIC_RULES });
+    expect(give(lab(['bleeding'], { harms: [covers] }), 'heparin')).toEqual(['case-heparin']);
+    const perforation = SCENARIO_BY_ID['perforation-cathlab'];
+    expect(perforation.harms.find((h) => h.id === 'more-heparin')!.replaces).toEqual(ANTITHROMBOTIC_RULES);
+  });
+});
+
+describe('the protamine gate', () => {
+  /** A lab patient with heparin on board unless the test says otherwise */
+  const lab = (problems: Problem[] = [], flags: string[] = ['heparin']) => fixture({
+    setting: 'cathlab', role: 5, rhythm: SINUS, problems,
+    extra: { events: [{ id: 'setup', when: () => true, effect: () => ({ flags }) }] },
+  });
+  const protamine = (sc: ReturnType<typeof fixture>) => penaltyIds(sc, 5, ['iv', 'protamine']);
+
+  it('after the heparin, with the PCI finished and nothing against it: no penalty', () => {
+    expect(protamine(lab())).toEqual([]);
+    expect(protamine(lab([], ['heparin', 'wired', 'final-angio']))).toEqual([]);
+  });
+
+  it('protamine-allergy: an earlier reaction to it', () => {
+    expect(protamine(lab(['protamine-allergy']))).toEqual(['protamine-allergy']);
+  });
+
+  it('protamine-mid-pci: the wire across and no final angiogram — unless it is for bleeding', () => {
+    expect(protamine(lab([], ['heparin', 'wired']))).toEqual(['protamine-mid-pci']);
+    expect(protamine(lab(['bleeding'], ['heparin', 'wired']))).toEqual([]);
+  });
+
+  it('protamine-no-heparin: nothing to reverse — heparin given before the case counts', () => {
+    expect(protamine(lab([], []))).toEqual(['protamine-no-heparin']);
+    expect(protamine(lab([], ['bivalirudin']))).toEqual(['protamine-no-heparin']);
+    expect(protamine(lab(['heparin-on-board'], []))).toEqual([]);
+  });
+
+  it('protamine-sensitized: NPH insulin, an earlier dose, a fish allergy or a vasectomy, without bleeding', () => {
+    expect(protamine(lab(['protamine-sensitized']))).toEqual(['protamine-sensitized']);
+    expect(protamine(lab(['protamine-sensitized', 'bleeding']))).toEqual([]);
+  });
+
+  it('one dose, one penalty: the allergy first', () => {
+    expect(protamine(lab(['protamine-allergy', 'protamine-sensitized'], ['wired']))).toEqual(['protamine-allergy']);
+    expect(protamine(lab(['protamine-sensitized'], ['wired']))).toEqual(['protamine-mid-pci']);
+  });
+
+  it('the cases\' own protamine rules stand in for the gate', () => {
+    // same id: the vasovagal case's no-heparin rule (the nurse and the cardiologist)
+    const vasovagal = SCENARIO_BY_ID['vasovagal-sheath-cathlab'];
+    expect(runScenario(vasovagal, 5, ['protamine']).penalties.map((p) => p.id)).toEqual(['protamine-no-heparin']);
+    // the list: a stent thrombosis is reversed in no state
+    const st = SCENARIO_BY_ID['stent-thrombosis-cathlab'];
+    expect(st.harms.find((h) => h.id === 'protamine-in-thrombosis')!.replaces).toEqual(PROTAMINE_RULES);
+    const covers = caseRule({ id: 'case-protamine', actions: ['protamine'], replaces: PROTAMINE_RULES });
+    expect(penaltyIds(fixture({ setting: 'cathlab', role: 5, rhythm: SINUS, problems: ['protamine-allergy'], harms: [covers] }), 5, ['iv', 'protamine'])).toEqual(['case-protamine']);
   });
 });
