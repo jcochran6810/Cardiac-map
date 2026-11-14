@@ -353,6 +353,20 @@ describe('atropine is judged by the heart rate, not by the name of the rhythm', 
     expect(logged().at(-1)).toMatch(/Little response.*potassium.*calcium/);
   });
 
+  it.each([['hyperkalemia-moderate', 50], ['hyperkalemia-severe', 40]] as const)(
+    'every stage of hyperkalemia is the potassium\'s slow heart: %s hardly responds to atropine, and calcium stabilizes it',
+    (id, hr) => {
+      patient(id, hr);
+      lucky();
+      D.giveDrug('atropine');
+      run(21_000);
+      expect(monitor()).toBe(`${id}@${hr}`);
+      expect(logged().at(-1)).toMatch(/Little response.*potassium.*calcium/);
+      D.giveDrug('calcium');
+      expect(logged().at(-1)).toMatch(/stabilizes/);
+    },
+  );
+
   it('a response does not land on a patient whose bradycardia was meanwhile paced', () => {
     patient('sinus-bradycardia', 38);
     D.giveDrug('atropine');
@@ -636,6 +650,23 @@ describe('what the trainer says follows the current guidelines', () => {
     expect(cycle(true, 0.2)).toBe(true);
     expect(cycle(true, 0.4)).toBe(false);
     expect(cycle(false, 0.2)).toBe(false);
+  });
+
+  it('the narrow, fast PEA of a mechanical cause can regain a pulse after CPR and epinephrine, like any PEA', () => {
+    const cycle = (luck: number) => {
+      vi.restoreAllMocks();
+      D.resetCode();
+      pressures({ sbp: 20, dbp: 20, sv: 0, noOutput: true });
+      patient('pea-narrow');
+      D.toggleCPR();
+      D.giveDrug('epinephrine');
+      run(115_000, 500);
+      vi.spyOn(Math, 'random').mockReturnValue(luck);
+      D.toggleCPR();
+      return defib().log.some((l) => l.kind === 'rosc');
+    };
+    expect(cycle(0.2)).toBe(true);
+    expect(cycle(0.3)).toBe(false);
   });
 
   it('the trainer is written in US English', async () => {
