@@ -258,6 +258,8 @@ export const RATE_RULES = RATE_LADDER.filter((id) => ![
 ].includes(id));
 /** Every rule on lidocaine: a case rule that says lidocaine is wrong for its patient lists them in its `replaces` */
 export const LIDOCAINE_RULES = LADDERS.lidocaine;
+/** Every rule on procainamide: a case rule that says procainamide is wrong for its patient lists them in its `replaces` */
+export const PROCAINAMIDE_RULES = LADDERS.procainamide;
 
 const BY_ID = new Map(RULES.map((r) => [r.id, r]));
 const roleOk = (h: Harm, s: SimState) => !h.roles || h.roles.includes(s.role);

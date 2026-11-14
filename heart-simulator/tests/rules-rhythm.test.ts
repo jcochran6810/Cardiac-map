@@ -916,6 +916,24 @@ describe('the corrected rules: what is right care is not charged', () => {
 describe('in the cases: one dose, one penalty, at the right weight', () => {
   const caseRun = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
 
+  it('a case rule that says an antiarrhythmic is wrong speaks for procainamide\'s own rules too (one dose, one penalty)', () => {
+    /** the penalties of the last step alone */
+    const lastDose = (id: string, role: LearningLevel, steps: string[]) => {
+      const s = runScenario(SCENARIO_BY_ID[id], role, steps);
+      return s.penalties.filter((p) => p.minute === s.performed.at(-1)!.minute).map((p) => p.id);
+    };
+    // the ER nurse's procainamide after amiodarone in SCAPE: the case's no-arrhythmia rule alone (P0 also charged the built-in)
+    expect(lastDose('scape-ed', 6, ['iv', 'dextrose', 'perfusion', 'nibp', 'labetalol', 'diltiazem', 'atropine', 'sit-up', 'opqrst', 'temp', 'glucose',
+      'cpr', 'pulse-check', 'transfuse', 'labs', 'stop-antithrombotics', 'amio-arrest', 'ondansetron', 'observe', 'handoff', 'capno', 'procainamide']))
+      .toEqual(['rn-antiarrhythmic-no-arrhythmia']);
+    // af-rvr unstable: procainamide is the case's unstable-patient rule alone, diltiazem the HFrEF rule alone
+    expect(lastDose('af-rvr-field', 2, ['vitals', 'smr', 'cpap', 'push-epi', 'ecg-posterior', 'temp', 'vitals', 'lvad-check', 'notify', 'io', 'capno',
+      'amio-arrest', 'ecg12-repeat', 'lvad-check', 'poison-control', 'sodium-bicarbonate', 'fluid', 'atropine', 'atropine', 'procainamide']))
+      .toEqual(['antiarrhythmic-unstable']);
+    expect(lastDose('af-rvr-field', 2, ['aspirin', 'med-control', 'cpr', 'transport-pci', 'ondansetron', 'restrain', 'io', 'ecg12-repeat', 'nitro-high',
+      'pace', 'perfusion', 'pressor', 'restrain-prone', 'doppler-map', 'monitor', 'cool', 'diltiazem'])).toEqual(['diltiazem-hfref']);
+  });
+
   it('a dose whose case rule was charged on the first drug still costs its own mistake (P0 charged it too)', () => {
     expect(caseRun('tamponade-field', 2, ['iv', 'amio-infusion', 'procainamide'])).toEqual(['antiarrhythmic-tamponade', 'procainamide-after-amiodarone']);
     expect(caseRun('lvad-field', 2, ['iv', 'procainamide', 'amio-infusion'])).toEqual(['antiarrhythmic-sinus', 'amiodarone-after-procainamide']);

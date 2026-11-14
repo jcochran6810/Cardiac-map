@@ -440,6 +440,12 @@ describe('electrolytes, insulin and the antidotes', () => {
     expect(ids(2, { vitals: { gcs: 7 } }, ['iv', 'glucagon'])).toEqual(['glucagon-unprotected-airway']);
   });
 
+  it('oral glucose for a patient too drowsy to swallow, with a normal glucose: the airway rule alone (one dose, one penalty)', () => {
+    expect(ids(2, { vitals: { gcs: 9 } }, ['oral-glucose'])).toEqual(['oral-glucose-cannot-swallow']);
+    expect(ids(2, {}, ['oral-glucose'])).toEqual(['glucose-not-low']);
+    expect(ids(2, {}, ['iv', 'dextrose'])).toEqual(['glucose-not-low']);
+  });
+
   it('glucagon-pheochromocytoma and glucagon-insulinoma: the GlucaGen label', () => {
     // a pheochromocytoma is critical and comes first, overdose or not, airway or not — one penalty
     expect(ids(2, withProblems('beta-blocker-overdose', 'pheochromocytoma'), ['iv', 'glucagon'])).toEqual(['glucagon-pheochromocytoma']);

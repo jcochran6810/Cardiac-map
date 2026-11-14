@@ -1,7 +1,7 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
 import { NITRATE_CHECKS, NITRATE_RULES, SEDATIVE_RULES, nitrateCaseRule, nitrateCheckRule } from '../rules/acs';
-import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { LIDOCAINE_RULES, PROCAINAMIDE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Hypertensive acute pulmonary edema — "sympathetic crashing acute pulmonary edema" (SCAPE). A surge of sympathetic tone
@@ -710,7 +710,7 @@ export const scapeField: Scenario = {
       text: 'A beta-blocker or diltiazem in acute pulmonary edema. Her fast rate is the body\'s answer to the hypoxia and the work of breathing, not an arrhythmia: slowing it and weakening the squeeze of a heart that is already backing up into the lungs makes the edema worse. Treat the cause — CPAP and nitroglycerin — and the rate comes down by itself.',
     },
     {
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['adenosine3', 'adenosine6', 'adenosine12', 'amio-infusion', 'procainamide', 'lidocaine'], when: (s) => s.pulse, replaces: [...PROCAINAMIDE_RULES, ...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
       text: 'An antiarrhythmic with no arrhythmia to treat. Her 12-lead shows a sinus rhythm whose speed is her response to the hypoxia: adenosine only pauses it, and amiodarone, procainamide and lidocaine treat nothing she has.',
     },
     {

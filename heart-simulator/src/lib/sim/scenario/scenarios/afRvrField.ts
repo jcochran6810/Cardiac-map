@@ -433,9 +433,11 @@ export const afRvrField: Scenario = {
     { id: 'cardiovert-stable', actions: ['cardiovert'], when: (s) => inAf(s) && !has(s, 'unstable'), points: 5, severity: 'minor', text: 'Synchronized cardioversion while he was hemodynamically stable. His pressure was normal and he was alert and talking in full sentences: the basal crackles were early congestion, not the shock or pulmonary edema that makes a shock urgent, so rate control comes first. An elective shock in a man with his stroke risk (CHA₂DS₂-VASc 3: heart failure, age 70, old infarct) needs anticoagulation started before it (2023 ACC/AHA AF guideline), and its sedation is hard on a heart pumping at 30 %: restoring sinus rhythm is the hospital\'s decision.' },
     { id: 'no-sedation', actions: ['cardiovert'], when: (s) => inAf(s) && s.vitals.gcs >= 14 && !has(s, 'sedation') && !has(s, 'analgesia'), points: 3, severity: 'minor', text: 'Cardioversion of an awake patient without sedation or analgesia.' },
     {
-      id: 'antiarrhythmic-unstable', actions: ['amio-infusion', 'procainamide', 'diltiazem', 'metoprolol'], when: (s) => unstableAf(s), points: 8, severity: 'major',
-      // the same mistake as the built-in "procainamide with a pressure under 90": one mistake, one penalty
-      replaces: ['procainamide-hypotension', ...RATE_RULES],
+      // (diltiazem is diltiazem-hfref's, at any pressure: one dose, one penalty, the heavier)
+      id: 'antiarrhythmic-unstable', actions: ['amio-infusion', 'procainamide', 'metoprolol'], when: (s) => unstableAf(s), points: 8, severity: 'major',
+      // the same mistake as the built-in "procainamide with a pressure under 90" (and, here, in a failing heart): one
+      // mistake, one penalty
+      replaces: ['procainamide-hypotension', 'procainamide-heart-failure', ...RATE_RULES],
       text: 'A drug for an unstable patient. Once he had become unstable, the treatment was an immediate synchronized shock (200 J or more), not an infusion that takes minutes to work and drops the pressure further.',
     },
     // atropine is for a slow rate; in a fast one it only lets more impulses through the AV node

@@ -174,7 +174,8 @@ export const SUPPORT_RULES: Harm[] = [
   { id: 'glucagon-no-indication', actions: ['glucagon'], when: (s, sc) => glucagonNoIndication(sc) && !unprotectedAirway(s) && !pheochromocytoma(sc) && !hasProblem(sc, ['insulinoma']), points: 3, severity: 'minor', text: 'Glucagon without a beta- or calcium-channel-blocker overdose. In those doses it is an antidote, with vomiting the rule; with no overdose it treats nothing (and it raises the glucose).' },
 
   // Glucose: judged on the patient's real glucose, checked or not
-  { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s) => s.vitals.glucose >= LOW_GLUCOSE, points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
+  // Gate order (oral glucose): oral-glucose-cannot-swallow > glucose-not-low
+  { id: 'glucose-not-low', actions: ['oral-glucose', 'dextrose'], when: (s, _sc, id) => s.vitals.glucose >= LOW_GLUCOSE && !(id === 'oral-glucose' && !canSwallow(s)), points: 3, severity: 'minor', text: 'Glucose given with a blood glucose of 70 mg/dL or more. Check it first: glucose treats a low one, and a high glucose harms an injured brain or heart.' },
   { id: 'oral-glucose-cannot-swallow', actions: ['oral-glucose'], when: (s) => !canSwallow(s), points: 8, severity: 'major', text: 'Oral glucose for a patient too drowsy to swallow. It can be inhaled into the lungs: by mouth only if awake enough to swallow and protect the airway — otherwise IV dextrose (ALS).' },
 
   // Vasopressors. Gate order — the infusion and push-dose epinephrine: push-epi-in-arrest > catecholamine-lvoto >
