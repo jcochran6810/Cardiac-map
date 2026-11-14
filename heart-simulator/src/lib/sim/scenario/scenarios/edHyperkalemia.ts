@@ -344,7 +344,7 @@ export const edHyperkalemia: Scenario = {
   },
   // the case has to say so: calcium, bicarbonate, insulin and high-dose albuterol are right here, and the built-in rules
   // otherwise count them as given with no indication
-  problems: ['hyperkalemia', 'metabolic-acidosis'],
+  problems: ['hyperkalemia', 'metabolic-acidosis', 'renal-failure'],
   facts: {
     // the triage nurse's level, in her own words: a slow rate with a low pressure needs a life-saving intervention now
     triage: 'ESI 1: a pulse of 38 with a pressure of 86/50 in a weak, pale man — he needs a life-saving intervention now. Straight to resus 3, onto the monitor with the pads on, and the physician to the bedside.',

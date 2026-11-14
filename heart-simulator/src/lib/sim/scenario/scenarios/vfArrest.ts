@@ -49,6 +49,8 @@ export const vfArrest: Scenario = {
     // bystander compressions only so far: no one has given him a breath, so there is nothing for a capnograph to measure
     vitals: { sbp: 0, dbp: 0, spo2: 85, rr: 0, etco2: ARREST_ETCO2.noBreaths, pain: 0, gcs: 3, glucose: 104, temp: 36.6 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     sample: 'Staff member: "He\'s a member here. He mentioned chest tightness on the treadmill last week."',
     opqrst: 'He cannot answer.',

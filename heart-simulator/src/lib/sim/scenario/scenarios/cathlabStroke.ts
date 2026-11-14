@@ -222,6 +222,8 @@ export const cathlabStroke: Scenario = {
     rhythm: { profile: 'normal-sinus', hr: 84 },
     vitals: { sbp: 174, dbp: 92, spo2: 96, rr: 18, etco2: 36, pain: 0, gcs: 14, glucose: 126, temp: 36.6 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['stroke'],
   facts: {
     // he cannot get the words out: the answers come from his chart and his nods
     opqrst: 'He shakes his head at "Any pain? A headache?" and points at his mouth.',

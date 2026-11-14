@@ -350,7 +350,7 @@ export const cathlabRpBleed: Scenario = {
     vitals: { sbp: 84, dbp: 50, spo2: 96, rr: 22, etco2: 30, pain: 7, gcs: 15, glucose: 132, temp: 36.2 },
   },
   // she is bleeding: blood for her is no mistake (the built-in transfusion rule reads it)
-  problems: ['bleeding'],
+  problems: ['bleeding', 'heparin-on-board'],
   facts: {
     allergies: 'No allergies. …Yes — if you have to go back in, do it.',
     sample: 'No allergies. Aspirin and ticagrelor since yesterday, atorvastatin, lisinopril. High blood pressure; the heart attack yesterday.',

@@ -6,7 +6,7 @@ import { INTERVENTIONS, INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/s
 import { READ_SETS } from '@/lib/sim/scenario/reads';
 import { SCENARIOS, SCENARIO_BY_ID, scenariosFor } from '@/lib/sim/scenario/scenarios';
 import { ROLES, ROLE_SETTING, type LearningLevel } from '@/store/useAppStore';
-import type { Speaker } from '@/lib/sim/scenario/types';
+import type { FactKey, Problem, Scenario, Speaker } from '@/lib/sim/scenario/types';
 import { CATH_IMAGES } from '@/data/cathImages';
 import { CATHLAB_C } from '@/data/content/cathlab-c';
 import { UNTIL_ARRIVED, readAfter, runScenario as run } from './helpers';
@@ -1101,4 +1101,49 @@ describe('real angiograms in the cath lab cases', () => {
     s = answerRead(sc, s, 'angio-thrombus');
     expect(s.reads.at(-1)).toMatchObject({ kind: 'angio', verdict: 'partial' });
   });
+});
+
+describe('the problems a case declares agree with what the patient says and shows', () => {
+  /** The case's words for a fact, read on a started state with the history taken (some facts depend on flags) */
+  function factText(sc: Scenario, key: FactKey): string {
+    const s = start(sc, sc.roles[0]);
+    for (const flag of ['sample', 'allergies', 'pde5-asked', 'opqrst', 'consent', 'ems-report']) s.flags[flag] = s.minute;
+    const f = sc.facts[key];
+    return typeof f === 'function' ? f(s) : f ?? '';
+  }
+  /** Everything the history gives: the SAMPLE and OPQRST answers, the allergy check, the crew's report (and a case's own SAMPLE answer) */
+  function history(sc: Scenario): string {
+    const own = sc.respond.sample?.(start(sc, sc.roles[0]))?.say?.map((l) => l[1]) ?? [];
+    return [...(['sample', 'allergies', 'opqrst', 'ems'] as FactKey[]).map((k) => factText(sc, k)), ...own].join(' ');
+  }
+  const declares = (sc: Scenario, p: Problem) => !!sc.problems?.includes(p);
+  const casesWith = (p: Problem) => SCENARIOS.filter((sc) => declares(sc, p)).map((sc) => sc.id);
+
+  it('the checks below run on real cases', () => {
+    expect(casesWith('pde5-inhibitor')).toEqual(expect.arrayContaining(['stemi-walk-in-ed', 'lvad-field']));
+    expect(casesWith('rv-infarction')).toEqual(expect.arrayContaining(['stemi-inferior-rv-field', 'stemi-inferior-cathlab']));
+    expect(casesWith('oral-anticoagulant')).toContain('lvad-field');
+    expect(casesWith('dialysis')).toContain('hyperkalemia-dialysis-field');
+  });
+
+  for (const sc of SCENARIOS) {
+    it(sc.id, () => {
+      if (declares(sc, 'pde5-inhibitor')) {
+        expect(factText(sc, 'pde5')).toMatch(/sildenafil|tadalafil|vardenafil|avanafil|riociguat|viagra|cialis|levitra|stendra|revatio|adcirca|adempas/i);
+      }
+      if (declares(sc, 'rv-infarction')) {
+        const v4r = factText(sc, 'ecgRight');
+        expect(v4r).toMatch(/ST elevation/);
+        expect(v4r).not.toMatch(/no ST elevation/i);
+      }
+      if (declares(sc, 'oral-anticoagulant')) {
+        expect(history(sc)).toMatch(/warfarin|coumadin|apixaban|eliquis|rivaroxaban|xarelto|dabigatran|pradaxa|edoxaban|savaysa/i);
+      }
+      if (declares(sc, 'dialysis')) expect(history(sc)).toMatch(/dialysis/i);
+      const allergies = `${factText(sc, 'allergies')} ${factText(sc, 'sample')}`;
+      if (declares(sc, 'aspirin-allergy')) expect(allergies).toMatch(/aspirin|NSAID|ibuprofen|naproxen/i);
+      if (declares(sc, 'contrast-allergy')) expect(allergies).toMatch(/contrast|dye/i);
+      if (declares(sc, 'protamine-allergy')) expect(allergies).toMatch(/protamine/i);
+    });
+  }
 });

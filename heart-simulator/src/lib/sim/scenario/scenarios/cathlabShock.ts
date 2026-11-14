@@ -149,8 +149,9 @@ export const cathlabShock: Scenario = {
     rhythm: { profile: 'cardiogenic-shock', hr: 116 },
     vitals: { sbp: 78, dbp: 50, spo2: 88, rr: 28, etco2: 28, pain: 5, gcs: 14, glucose: 210, temp: 36.0 },
   },
-  // wet lungs and a high wedge: no legs up, no bolus (the built-in rules know it)
-  problems: ['pulmonary-edema'],
+  // wet lungs and a high wedge: no legs up, no bolus (the built-in rules know it). A failing LV in shock: no IV diltiazem or
+  // verapamil, no procainamide
+  problems: ['pulmonary-edema', 'acs', 'heart-failure', 'cardiogenic-shock'],
   facts: {
     allergies: 'His wife, on the phone: "No allergies. He takes metformin, that\'s all. Yes — do whatever you need to."',
     sample: 'No allergies. Metformin. Diabetes; smoker.',

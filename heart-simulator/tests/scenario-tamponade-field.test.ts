@@ -53,8 +53,8 @@ describe('tamponade in the field — the case itself', () => {
         expect(ids.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // no built-in drug rule needs to know more than the tracing and the vitals show
-    expect(sc.problems).toBeUndefined();
+    // the tamponade is the only thing the built-in rules need to know beyond the tracing and the vitals
+    expect(sc.problems).toEqual(['tamponade']);
   });
 
   it('each role has its own briefing and its own part', () => {

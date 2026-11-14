@@ -220,6 +220,8 @@ export const edUnstableAf: Scenario = {
     rhythm: { profile: AF, hr: 170 },
     vitals: { sbp: 78, dbp: 50, spo2: 95, rr: 22, etco2: 30, pain: 0, gcs: 14, glucose: 142, temp: 37.1 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['hypomagnesemia'],
   facts: {
     ems: 'EMS: "70-year-old woman. Her daughter called: her mother has been confused for the last hour and says her heart is racing. On our monitor a fast, irregular rhythm around 170 the whole way, BP 78 over 50 and 80 over 52, sats 95 on room air, glucose 142. Cool and clammy, no chest pain. History of an irregular heartbeat and high blood pressure — she ran out of some of her pills last week, the daughter says; the bag is here. Two tries at a line, no luck, so nothing given. Seven minutes."',
     // the onset: last evening — about 14 hours, of a rhythm she has had before, off her anticoagulant for five days

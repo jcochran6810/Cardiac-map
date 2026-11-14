@@ -168,6 +168,8 @@ export const cathlabStemi: Scenario = {
     rhythm: { profile: 'anterior-stemi', hr: 94 },
     vitals: { sbp: 138, dbp: 86, spo2: 95, rr: 20, etco2: 35, pain: 7, gcs: 15, glucose: 140, temp: 36.7 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     allergies: 'No allergies — I had contrast for a CT last year without any problem. No blood thinners. Yes, go ahead.',
     sample: 'No allergies. Lisinopril. High blood pressure; ex-smoker.',

@@ -237,6 +237,8 @@ export const edNstemi: Scenario = {
     rhythm: { profile: 'nstemi', hr: 92 },
     vitals: { sbp: 138, dbp: 80, spo2: 97, rr: 18, etco2: 36, pain: 0, gcs: 15, glucose: 212, temp: 36.9 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     triage: 'ESI 2: two hours of chest pressure coming and going, in a 64-year-old woman with diabetes — high risk, even pain-free right now. A monitored bed now, not the waiting room; the 12-lead within 10 minutes of arrival, and the physician told.',
     opqrst: 'It started about two hours ago while I was folding laundry — a pressure across my chest, up into my jaw, with some nausea and a sweat. It came and went three times, ten minutes or so each; the last one stopped about 20 minutes ago, in the car. Right now there\'s nothing. It doesn\'t change when I breathe or move, and I\'ve never had it before.',

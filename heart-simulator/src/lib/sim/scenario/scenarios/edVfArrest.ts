@@ -355,6 +355,8 @@ export const edVfArrest: Scenario = {
     // nobody has given him a breath yet, so a capnograph would measure almost nothing (the shared arrest rule)
     vitals: { sbp: 0, dbp: 0, spo2: 82, rr: 0, etco2: 3, pain: 0, gcs: 3, glucose: 142, temp: 36.6 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     opqrst: 'His wife: "It started about two hours ago, after lunch — a heavy pressure in the middle of his chest, up into his jaw. He thought it was indigestion. It eased a little when we got here, then he said it was coming back, just before he went."',
     sample: 'His wife: "High blood pressure and cholesterol — he takes lisinopril and atorvastatin. He smokes. No allergies. No blood thinners. A stress test five years ago was fine. He had lunch at noon. About 200 pounds."',

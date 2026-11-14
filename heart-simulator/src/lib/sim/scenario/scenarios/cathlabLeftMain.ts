@@ -357,7 +357,7 @@ export const cathlabLeftMain: Scenario = {
   },
   // wet lungs and a high wedge: no bolus and no raised legs. An LVEF of about 25 %: no IV diltiazem or verapamil, no
   // procainamide (the built-in rules know both)
-  problems: ['pulmonary-edema', 'heart-failure'],
+  problems: ['pulmonary-edema', 'heart-failure', 'acs', 'cardiogenic-shock'],
   facts: {
     allergies: 'His wife, on the phone: "No allergies. He takes metformin, lisinopril and a statin. Yes — do whatever he needs."',
     sample: 'No allergies. Metformin, lisinopril, atorvastatin. Diabetes, high blood pressure and cholesterol; quit smoking ten years ago.',

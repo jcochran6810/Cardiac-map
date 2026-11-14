@@ -53,8 +53,8 @@ describe('posterior STEMI in the field — the case itself', () => {
         expect(ids.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // nothing she has makes a problem-specific drug right
-    expect(sc.problems ?? []).toEqual([]);
+    // nothing she has makes a problem-specific drug right: she has an acute coronary syndrome, nothing more
+    expect(sc.problems ?? []).toEqual(['acs']);
     // every role has its own briefing for its own crew
     expect(start(sc, 1).log.some((l) => /You are the BLS crew/.test(l.text))).toBe(true);
     expect(start(sc, 2).log.some((l) => /You are the ALS crew/.test(l.text))).toBe(true);

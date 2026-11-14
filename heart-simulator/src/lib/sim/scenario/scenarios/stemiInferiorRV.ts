@@ -35,6 +35,8 @@ export const stemiInferiorRV: Scenario = {
     rhythm: { profile: 'inferior-stemi', hr: 58 },
     vitals: { sbp: 102, dbp: 64, spo2: 95, rr: 18, etco2: 35, pain: 6, gcs: 15, glucose: 168, temp: 36.5 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs', 'rv-infarction'],
   facts: {
     opqrst: 'Pressure in the upper belly and lower chest for about an hour, a little into my back. 6 out of 10. I feel sick, and dizzy when I stand.',
     sample: 'Allergic to penicillin. I take metformin and amlodipine for diabetes and blood pressure.',

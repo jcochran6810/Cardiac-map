@@ -433,6 +433,8 @@ export const cathlabStentThrombosis: Scenario = {
     rhythm: { profile: 'anterior-stemi-reperfused', hr: 84 },
     vitals: { sbp: 126, dbp: 78, spo2: 96, rr: 18, etco2: 34, pain: 2, gcs: 15, glucose: 142, temp: 36.8 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs', 'large-thrombus-burden'],
   facts: {
     allergies: 'No allergies. Yes — whatever you need to do.',
     sample: 'No allergies. Lisinopril and atorvastatin; high blood pressure and cholesterol; quit smoking two years ago. "I threw up downstairs — they said I\'d get the blood-thinner pill up here."',

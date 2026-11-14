@@ -206,7 +206,7 @@ export const cocaineField: Scenario = {
     vitals: { sbp: 178, dbp: 104, spo2: 97, rr: 24, etco2: 32, pain: 7, gcs: 15, glucose: 112, temp: 38.4 },
   },
   // the built-in beta-blocker rule reads it (the case's own rule of the same id replaces it, in its words)
-  problems: ['sympathomimetic-toxicity'],
+  problems: ['sympathomimetic-toxicity', 'acs', 'severe-agitation'],
   facts: {
     // asked later, after the drugs, he says how it is now (and in the VF a shock can cause, his friend answers)
     opqrst: (s) => (s.pulse

@@ -69,8 +69,8 @@ describe('stent thrombosis in the cath lab: the case itself', () => {
         expect(ids.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // nothing he has makes a transfusion, calcium or bicarbonate right
-    expect(sc.problems ?? []).toEqual([]);
+    // nothing he has makes a transfusion, calcium or bicarbonate right: an acute coronary syndrome with a heavy thrombus
+    expect(sc.problems ?? []).toEqual(['acs', 'large-thrombus-burden']);
   });
 
   it('shows a real angiogram of an LAD shut at its stent, and it exists', () => {

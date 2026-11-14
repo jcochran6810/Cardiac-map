@@ -335,7 +335,7 @@ export const edPeLysis: Scenario = {
     vitals: { sbp: 82, dbp: 50, spo2: 86, rr: 30, etco2: 24, pain: 4, gcs: 15, glucose: 112, temp: 37.2 },
   },
   // the built-in fibrinolytic rule reads it: a pulmonary embolism with shock is an indication in the department
-  problems: ['pulmonary-embolism'],
+  problems: ['pulmonary-embolism', 'pe-high-risk'],
   facts: {
     ems: 'BLS crew: "52-year-old woman. Her husband says she got up from the couch, said she couldn\'t breathe and passed out in the kitchen — he caught her, she didn\'t hit her head, out maybe ten seconds. On our arrival: BP 84/52, pulse 130, breathing 30, SpO₂ 84 % on room air, 86 % on 4 liters by cannula; glucose 112; lungs clear. No IV — we\'re BLS and were six minutes out. She flew home from Manila four days ago, and her left calf has been sore since yesterday."',
     opqrst: OPQRST,

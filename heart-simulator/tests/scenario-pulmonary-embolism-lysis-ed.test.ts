@@ -87,8 +87,8 @@ describe('Pulmonary embolism with shock in the ED — the case itself', () => {
         expect(actions.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // the built-in fibrinolytic rule reads it; nothing else she has makes calcium, bicarbonate or blood right
-    expect(sc.problems).toEqual(['pulmonary-embolism']);
+    // the built-in fibrinolytic rule reads it (a high-risk PE: shock); nothing else she has makes calcium, bicarbonate or blood right
+    expect(sc.problems).toEqual(['pulmonary-embolism', 'pe-high-risk']);
   });
 
   it('keeps the physician\'s decisions and procedures from the ER nurse', () => {

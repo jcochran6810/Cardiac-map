@@ -71,6 +71,8 @@ export const cathlabContrast: Scenario = {
     rhythm: { profile: 'normal-sinus', hr: 76 },
     vitals: { sbp: 136, dbp: 84, spo2: 98, rr: 16, etco2: 36, pain: 0, gcs: 15, glucose: 98, temp: 36.7 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['anaphylaxis', 'bronchospasm'],
   facts: {
     allergies: '"I\'m allergic to shellfish — I get hives. Is that a problem with the dye?" Never had contrast. No blood thinners. She agrees to the study.',
     sample: 'Shellfish allergy (hives). Atorvastatin. High cholesterol, mild asthma as a child.',

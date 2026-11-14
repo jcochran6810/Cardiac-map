@@ -82,7 +82,7 @@ export const hyperkalemiaField: Scenario = {
     vitals: { sbp: 78, dbp: 44, spo2: 93, rr: 22, etco2: 28, pain: 0, gcs: 14, glucose: 168, temp: 36.4 },
   },
   // the case has to say so: calcium, bicarbonate and high-dose albuterol are right here, and the built-in rules otherwise count them as given with no indication
-  problems: ['hyperkalemia', 'metabolic-acidosis'],
+  problems: ['hyperkalemia', 'metabolic-acidosis', 'dialysis'],
   facts: {
     opqrst: 'No pain. I\'ve just got weaker and weaker since yesterday — my legs feel like rubber, and my hands and lips tingle. Now I can\'t stand up.',
     sample: 'No allergies. Dialysis Monday, Wednesday and Friday through the fistula in my left arm — I missed Wednesday and yesterday: my ride fell through, then I felt too sick to go. Kidney failure from diabetes and high blood pressure. Metoprolol, insulin, sevelamer and a renal vitamin. Last night: a big bowl of chili with beans and baked potatoes.',

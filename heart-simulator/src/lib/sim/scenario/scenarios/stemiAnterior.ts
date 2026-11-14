@@ -45,6 +45,8 @@ export const stemiAnterior: Scenario = {
     rhythm: { profile: 'anterior-stemi', hr: 96 },
     vitals: { sbp: 148, dbp: 92, spo2: 95, rr: 20, etco2: 36, pain: 8, gcs: 15, glucose: 132, temp: 36.8 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     opqrst: 'It came on 40 minutes ago while I was shoveling. Like an elephant on my chest — it goes into my left arm and jaw. 8 out of 10. Nothing makes it better.',
     sample: 'No allergies. I take lisinopril and atorvastatin. High blood pressure and cholesterol; I smoke a pack a day. Lunch was 2 hours ago.',

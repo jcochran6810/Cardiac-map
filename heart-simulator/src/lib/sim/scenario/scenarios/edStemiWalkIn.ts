@@ -224,6 +224,8 @@ export const edStemiWalkIn: Scenario = {
     rhythm: { profile: 'anterior-stemi', hr: 98 },
     vitals: { sbp: 146, dbp: 90, spo2: 94, rr: 20, etco2: 34, pain: 7, gcs: 15, glucose: 148, temp: 36.8 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs', 'pde5-inhibitor'],
   facts: {
     triage: 'ESI 2: an hour of chest pressure in a 57-year-old who is pale and sweaty — high risk. Straight back to a monitored bed, not the waiting room; the 12-lead now, before registration, within 10 minutes of arrival.',
     opqrst: 'It started about an hour ago, watching TV — a heavy pressure in the middle of my chest, into my left arm and my jaw. Seven out of ten, and it hasn\'t let up. I took some antacid; it did nothing. I\'m a little short of breath.',

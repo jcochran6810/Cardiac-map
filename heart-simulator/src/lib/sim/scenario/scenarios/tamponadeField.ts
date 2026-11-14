@@ -180,6 +180,8 @@ export const tamponadeField: Scenario = {
     rhythm: { profile: 'tamponade', hr: 128 },
     vitals: { sbp: 82, dbp: 64, spo2: 90, rr: 26, etco2: 30, pain: 3, gcs: 15, glucose: 132, temp: 37.1 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['tamponade'],
   facts: {
     opqrst: 'It\'s not really pain — a heavy, full feeling in the middle of my chest, 3 out of 10, for a few days. What gets me is the breathing: it has crept up all week, and I can\'t lie down at all — I have to sit up and lean forward. Today I stood up and everything went gray.',
     sample: 'No allergies. Lung cancer — in the right lung, found in the spring; chemotherapy every three weeks at the cancer center, the last one 10 days ago. A stent in my heart four years ago. Aspirin, a cholesterol pill, and a nausea pill for the chemo. I\'ve hardly eaten or drunk anything for three days. No fever. I used to smoke.',

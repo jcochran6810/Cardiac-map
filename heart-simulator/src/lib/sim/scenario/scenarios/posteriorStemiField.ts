@@ -152,6 +152,8 @@ export const posteriorStemiField: Scenario = {
     rhythm: { profile: 'posterior-stemi', hr: 84 },
     vitals: { sbp: 142, dbp: 86, spo2: 96, rr: 18, etco2: 35, pain: 7, gcs: 15, glucose: 188, temp: 36.7 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     // pressure that builds over minutes and goes through to the back: an MI can do that too, and it is not the tearing,
     // sudden pain of a dissection

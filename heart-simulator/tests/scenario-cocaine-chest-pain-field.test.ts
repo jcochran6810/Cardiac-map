@@ -51,8 +51,9 @@ describe('cocaine chest pain in the field — the case itself', () => {
         expect(ids.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // the built-in beta-blocker rule reads it; the case's own rule of the same id replaces it
-    expect(sc.problems).toEqual(['sympathomimetic-toxicity']);
+    // the built-in beta-blocker rule reads it; the case's own rule of the same id replaces it. His chest pain is a
+    // possible ACS, and the agitation is what the benzodiazepine is for
+    expect(sc.problems).toEqual(['sympathomimetic-toxicity', 'acs', 'severe-agitation']);
     expect(BUILT_IN_HARMS.some((b) => b.id === 'beta-blocker-stimulant')).toBe(true);
   });
 

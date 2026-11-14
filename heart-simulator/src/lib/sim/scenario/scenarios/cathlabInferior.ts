@@ -199,6 +199,8 @@ export const cathlabInferior: Scenario = {
     rhythm: { profile: 'inferior-stemi', hr: 58 },
     vitals: { sbp: 102, dbp: 64, spo2: 96, rr: 18, etco2: 34, pain: 6, gcs: 15, glucose: 150, temp: 36.6 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs', 'rv-infarction'],
   facts: {
     allergies: 'No allergies, no blood thinners. I\'ve never had dye before. Yes, please go ahead.',
     sample: 'No allergies. Metformin and amlodipine. Diabetes and high blood pressure.',
@@ -211,6 +213,12 @@ export const cathlabInferior: Scenario = {
         : s.rhythm.profile === 'paced'
           ? `Ventricular pacing at ${s.rhythm.hr} from the temporary wire: a small spike before every wide QRS. The paced beats hide the inferior ST elevation.`
           : `Sinus rhythm ${s.rhythm.hr}: ST elevation in II, III and aVF (III more than II), reciprocal depression in I and aVL — an inferior STEMI from the right coronary.`,
+    // her RV infarct, as the field ECG showed it (without this the right-sided leads would say "no ST elevation")
+    ecgRight: (s) => (s.rhythm.profile === 'inferior-stemi-reperfused'
+      ? 'V4R: the ST elevation (1.5 mm on the field ECG) is settling after reperfusion.'
+      : s.rhythm.profile === 'tcp' || s.rhythm.profile === 'paced'
+        ? 'V4R: paced beats — the ST segments cannot be read.'
+        : 'V4R: 1.5 mm ST elevation — the right ventricle is involved.'),
     echo: 'Inferior hypokinesis, LVEF about 50 %; the RV is dilated and hypokinetic. No effusion.',
     rhc: 'RA 16 · RV 32/16 · PA 30/14 (mean 20) · PCWP 11 · CO 3.4 L/min, CI 1.9.',
   },

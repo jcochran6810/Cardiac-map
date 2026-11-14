@@ -54,8 +54,9 @@ describe('Pulmonary embolism in the field — the case itself', () => {
         expect(ids.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // nothing she has makes calcium, bicarbonate, a transfusion or the wet-lung rules right
-    expect(sc.problems ?? []).toEqual([]);
+    // nothing she has makes calcium, bicarbonate, a transfusion or the wet-lung rules right: the embolism, after her
+    // recent surgery
+    expect(sc.problems ?? []).toEqual(['pulmonary-embolism', 'recent-surgery']);
   });
 
   it('nothing the learner sees before the 12-lead names the diagnosis — but the story is there', () => {

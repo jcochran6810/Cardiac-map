@@ -76,8 +76,9 @@ describe('VF arrest in the emergency department — the case itself', () => {
       // a harm written for a role can be committed by it
       for (const h of sc.harms.filter((x) => x.roles?.includes(role))) expect(h.actions.some((id) => scope.has(id)), `role ${role}: ${h.id}`).toBe(true);
     }
-    // nothing he has makes calcium, bicarbonate or magnesium right: the built-in rules judge them as given without an indication
-    expect(sc.problems ?? []).toEqual([]);
+    // nothing he has makes calcium, bicarbonate or magnesium right: the built-in rules judge them as given without an
+    // indication. His arrest comes from an acute coronary syndrome
+    expect(sc.problems ?? []).toEqual(['acs']);
   });
 
   it('each role has its own briefing and its own part: the nurse runs the code, the doctor leads it', () => {

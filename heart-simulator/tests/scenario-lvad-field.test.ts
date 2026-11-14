@@ -61,8 +61,9 @@ describe('LVAD in the field — the case itself', () => {
         expect(ids.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // his failing heart: the built-in diltiazem and procainamide rules read it (this case's own rules stand in for them)
-    expect(sc.problems).toEqual(['heart-failure']);
+    // his failing heart: the built-in diltiazem and procainamide rules read it (this case's own rules stand in for them);
+    // sildenafil for his pulmonary hypertension and warfarin are on his list
+    expect(sc.problems).toEqual(['heart-failure', 'pde5-inhibitor', 'oral-anticoagulant']);
   });
 
   it('each role has its own briefing and its own part', () => {

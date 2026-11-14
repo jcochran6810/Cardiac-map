@@ -430,6 +430,8 @@ export const cathlabScad: Scenario = {
     rhythm: { profile: 'anterior-stemi-reperfused', hr: 98 },
     vitals: { sbp: 138, dbp: 86, spo2: 98, rr: 18, etco2: 35, pain: 5, gcs: 15, glucose: 98, temp: 36.8 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     sample: 'No allergies. Prenatal vitamins and nothing else. Her third baby, born eight weeks ago after an uncomplicated vaginal delivery; she is breastfeeding. Migraines since her teens. Never smoked; no high blood pressure, diabetes or high cholesterol.',
     opqrst: (s) => (has(s, 'ache')

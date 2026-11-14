@@ -88,8 +88,9 @@ describe('Severe hyperkalemia in the ED — the case itself', () => {
         expect(actions.some((id) => scope.has(id)), `role ${role}: ${c.id}`).toBe(true);
       }
     }
-    // the built-in drug rules read them: calcium, bicarbonate, insulin and high-dose albuterol are right here
-    expect(sc.problems).toEqual(['hyperkalemia', 'metabolic-acidosis']);
+    // the built-in drug rules read them: calcium, bicarbonate, insulin and high-dose albuterol are right here; his
+    // stage 4 kidney disease (not on dialysis) is the renal failure the dosing rules read
+    expect(sc.problems).toEqual(['hyperkalemia', 'metabolic-acidosis', 'renal-failure']);
   });
 
   it('keeps the physician\'s decisions and procedures from the ER nurse', () => {

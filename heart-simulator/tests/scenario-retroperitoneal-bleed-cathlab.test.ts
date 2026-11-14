@@ -67,7 +67,7 @@ describe('retroperitoneal bleed in the cath lab: the case itself', () => {
     expect(sc.setting).toBe('cathlab');
     expect(sc.roles).toEqual([3, 4, 5]);
     expect(CONDITIONS[sc.conditionId!]).toBeDefined();
-    expect(sc.problems).toEqual(['bleeding']);
+    expect(sc.problems).toEqual(['bleeding', 'heparin-on-board']);
     expect(resolveProfile(sc.initial.rhythm.profile).id).toBe(sc.initial.rhythm.profile);
     for (const id of Object.keys(sc.respond)) expect(INTERVENTION_BY_ID[id], `respond ${id}`).toBeDefined();
     for (const h of sc.harms) for (const id of h.actions) expect(INTERVENTION_BY_ID[id], `harm ${h.id}: ${id}`).toBeDefined();

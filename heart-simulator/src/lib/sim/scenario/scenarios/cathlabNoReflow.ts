@@ -310,6 +310,8 @@ export const cathlabNoReflow: Scenario = {
     rhythm: { profile: 'anterior-stemi-reperfused', hr: 88 },
     vitals: { sbp: 118, dbp: 72, spo2: 96, rr: 18, etco2: 34, pain: 3, gcs: 15, glucose: 186, temp: 36.7 },
   },
+  // what the built-in safety rules read (types.ts Problem)
+  problems: ['acs'],
   facts: {
     allergies: 'No allergies. Yes — do whatever you need to.',
     sample: 'No allergies. Metformin and lisinopril. Diabetes and high blood pressure; a pack a day.',
