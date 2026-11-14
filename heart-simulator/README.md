@@ -306,7 +306,9 @@ brings no drug the rule judges that the rule has charged already (`judgedDrugs`:
 brings midazolam, and after midazolam its fentanyl — every rule on the sedation judges both; the radial cocktail after
 intracoronary verapamil brings no new drug for a rate rule other than `cocktail-low-pressure`, which judges the cocktail
 whole, since under 90 its nitroglycerin is that rule's too — as does a case rule standing in for the nitrate and the
-rate-drug rules alike: `WHOLE_ACTION`). Minor case rules,
+rate-drug rules alike: `WHOLE_ACTION`; such a whole action is a repeat too when every drug in it was already charged,
+by that rule or on its own act for a reason that still holds — the cocktail after intracoronary nitroglycerin and
+verapamil, the sedation after fentanyl and midazolam: `wholeActionRepeat`). Minor case rules,
 indication rules and rules on anything that is not a drug keep charging once a case. `charge.ts` throws if the built-in
 rules were never registered (the engine imports `rules/index.ts`).
 **One dose, one penalty:** where several rules judge one action they are ranked, and only the highest-ranked rule that

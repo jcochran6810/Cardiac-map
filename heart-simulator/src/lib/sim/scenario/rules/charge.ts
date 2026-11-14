@@ -109,6 +109,19 @@ export function judgedDrugs(rule: JudgingRule, action?: string): string[] {
   const judged = all.filter((d) => mine.has(d));
   return judged.length ? judged : all;
 }
+/**
+ * An action this rule judges whole whose every drug was given and charged already: by this rule, or on an earlier act of its
+ * own (one drug) for a reason that still holds now (Penalty.held) — the cocktail after intracoronary nitroglycerin and
+ * verapamil into the same low pressure, the sedation after fentanyl and midazolam into the same shock: no new drug
+ */
+export function wholeActionRepeat(s: SimState, sc: Scenario, rule: JudgingRule, action: string): boolean {
+  if (!WHOLE_ACTION[action]?.(rule)) return false;
+  const own = new Set(s.penalties.filter((p) => p.id === rule.id && p.minute < s.minute).flatMap((p) => judgedDrugs(rule, p.action)));
+  if (!own.size) return false;
+  const onItsOwn = (d: string) => s.penalties.some((p) => p.minute < s.minute && !!p.action && drugsOf(p.action).length === 1 && drugsOf(p.action)[0] === d
+    && (p.held ?? []).some((id) => holdingNow(s, sc, p.action!).includes(id)));
+  return drugsOf(action).every((d) => own.has(d) || onItsOwn(d));
+}
 /** Every drug of this action the rule judges is among the drugs of these earlier acts (a repeat, for this rule) */
 const repeatOf = (rule: JudgingRule, action: string, earlier: Penalty[]) => {
   const given = new Set(earlier.flatMap((p) => judgedDrugs(rule, p.action)));

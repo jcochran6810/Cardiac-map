@@ -29,7 +29,7 @@ import type {
 } from './types';
 import { BUILT_IN_HARMS } from './rules';
 import { NITRATE_CHECKS, sedationForProcedure } from './rules/acs';
-import { caseChargesPerDrug, chargedAgainst, chargesPerDrug, holdingNow, isNitrateCheck, rankOf } from './rules/charge';
+import { caseChargesPerDrug, chargedAgainst, chargesPerDrug, holdingNow, isNitrateCheck, rankOf, wholeActionRepeat } from './rules/charge';
 import { SECOND_ANTIARRHYTHMIC } from './rules/rhythm';
 import { INDICATION_RULES, RN_ORDER_ONLY, SCOPE_RULES, missingOrderCovers } from './rules/scope';
 import {
@@ -1256,7 +1256,7 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
   const builtInSet = new Set<Harm>(BUILT_IN_HARMS);
   // a drug contraindication — built-in, or a case rule standing in for one — charges once for each drug given into it
   // (rules/charge.ts); any other rule once a case
-  const charged = (h: Harm) => chargedAgainst(s, h, builtInSet.has(h) ? chargesPerDrug(h) : caseChargesPerDrug(h), id);
+  const charged = (h: Harm) => chargedAgainst(s, h, builtInSet.has(h) ? chargesPerDrug(h) : caseChargesPerDrug(h), id) || wholeActionRepeat(s, sc, h, id);
   // the reasons that hold for this act, judged before it takes effect: what a penalty charged on it speaks for
   const held = holdingNow(s, sc, id);
   const own = new Set([

@@ -692,6 +692,11 @@ describe('a drug contraindication charges once for each drug given into it (rule
     expect(penaltyIds(SCENARIO_BY_ID['retroperitoneal-bleed-cathlab'], 4, ['midazolam', 'sedation'])).toEqual(['sedation-in-shock', 'sedation-in-shock']);
     expect(penaltyIds(SCENARIO_BY_ID['retroperitoneal-bleed-cathlab'], 4, ['sedation', 'midazolam'])).toEqual(['sedation-in-shock']);
     expect(penaltyIds(SCENARIO_BY_ID['pulmonary-embolism-field'], 2, ['iv', 'midazolam', 'sedation'])).toEqual(['sedation-pe', 'sedation-pe']);
+    // a whole action whose every drug was already given and charged for a reason that still holds brings nothing new
+    // (wholeActionRepeat): the cocktail after intracoronary nitroglycerin and verapamil, the sedation after fentanyl and
+    // midazolam, into the same low pressure
+    expect(penaltyIds(low, 5, ['ic-nitro', 'ic-verapamil', 'radial-cocktail'])).toEqual(['nitro-hypotension', 'cocktail-low-pressure']);
+    expect(penaltyIds(SCENARIO_BY_ID['shock-cathlab'], 5, ['fentanyl', 'midazolam', 'sedation'])).toEqual(['opioid-hypotension', 'sedation-in-shock']);
   });
 
   it('a repeat of the same drug is not charged for a reason that held when it was charged; what is new still charges', () => {
