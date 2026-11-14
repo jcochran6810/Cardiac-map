@@ -366,3 +366,55 @@ describe('the role focus line', () => {
     }
   });
 });
+
+describe('drug safety questions get the drug card\'s whole list of contraindications (cards audit A1–A3)', () => {
+  const contraOf = (id: string) => `${lib.medications[id].name} — contraindications`;
+
+  it('never cuts a contraindication list short: tenecteplase\'s seventh is severe uncontrolled hypertension', () => {
+    const a = ask('contraindications to tenecteplase');
+    expect(a.title).toBe(contraOf('tenecteplase'));
+    const card = lib.medications.tenecteplase.contraindications;
+    expect(card.length).toBeGreaterThan(6);
+    expect(a.bullets.slice(0, card.length)).toEqual(card);
+    expect(a.bullets.join(' ')).toMatch(/Severe uncontrolled hypertension/);
+    // other lists still show six, then the role's note
+    const mech = ask('how does tenecteplase work');
+    expect(mech.bullets.length).toBeLessThanOrEqual(7);
+  });
+
+  it('a contraindication or dose question about heparin comes from the heparin card, not the cath lab overview', () => {
+    expect(ask('contraindications to heparin').title).toBe(contraOf('heparin'));
+    expect(ask('what is the dose of heparin').title).toBe(`${lib.medications.heparin.name} — dosing`);
+  });
+
+  it.each([
+    ['Can I give nitroglycerin after Viagra?', 'nitroglycerin'],
+    ['Can I give nitroglycerin to a patient who took Cialis?', 'nitroglycerin'],
+    ['Is nitroglycerin safe after sildenafil?', 'nitroglycerin'],
+    ['can I give nitro to someone on Adempas?', 'nitroglycerin'],
+    ['Can I give metoprolol with a low blood pressure?', 'metoprolol'],
+    ['Can I give metoprolol to a cocaine patient?', 'metoprolol'],
+    ['Is it safe to give adenosine in asthma?', 'adenosine'],
+    ['Can I give aspirin if the patient is allergic?', 'aspirin'],
+  ])('"%s" gets the contraindications to %s', (q, id) => {
+    const a = ask(q);
+    expect(a.title).toBe(contraOf(id));
+    expect(a.bullets.slice(0, lib.medications[id].contraindications.length)).toEqual(lib.medications[id].contraindications);
+    // a brand name is understood ("Viagra" is sildenafil, which the card names): no "nothing here mentions Viagra". A word
+    // the card itself never uses ("cocaine" before the card names it) may still be pointed out
+    if (/viagra|cialis|adempas|sildenafil/i.test(q)) expect(a.text ?? '').not.toMatch(/Closest match/);
+  });
+
+  it('the drug named wins over the page that is open ("is it safe…" names the drug, not "it")', () => {
+    expect(ask('Is it safe to give adenosine in asthma?', { selectedConditionId: 'atrial-fibrillation' }).title).toBe(contraOf('adenosine'));
+  });
+
+  it.each([
+    ['can I give amiodarone for VT?', 'amiodarone'],
+    ['can I use amiodarone in VT?', 'amiodarone'],
+    ['can I give adenosine for SVT?', 'adenosine'],
+    ['when do I give aspirin', 'aspirin'],
+  ])('an indication question stays one: "%s" gets the indications for %s', (q, id) => {
+    expect(ask(q).title).toBe(`${lib.medications[id].name} — indications`);
+  });
+});
