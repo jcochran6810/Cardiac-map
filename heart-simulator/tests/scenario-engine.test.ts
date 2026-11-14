@@ -798,7 +798,7 @@ describe('default responses follow the patient in front of them', () => {
     expect(energy('atrial-flutter', 150)).toMatch(/200 J/);
     expect(energy('avnrt', 190)).toMatch(/100 J/);
     expect(energy('vt', 170)).toMatch(/100 J/);
-    expect(INTERVENTION_BY_ID.cardiovert.detail).toBe('100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J)');
+    expect(INTERVENTION_BY_ID.cardiovert.detail).toBe('100 J biphasic (atrial fibrillation: 200 J or more; flutter: 200 J); sedate an awake patient; AF over 48 h without anticoagulation only if unstable; not in digoxin toxicity');
   });
 
   it('12: the cath lab is activated only for a 12-lead that shows a STEMI; a false alert is stood down and costs points', () => {

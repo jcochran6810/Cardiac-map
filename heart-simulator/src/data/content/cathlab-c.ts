@@ -216,7 +216,7 @@ export const CATHLAB_C: CathLabItem[] = [
       'The mix is diluted with about 10 mL or more of blood drawn back into the syringe and given slowly through the side arm to ease the burning.',
       'Warn the patient: a warm or burning feeling up the arm for a few seconds is expected.',
       'Verapamil can lower the pressure and heart rate and slow AV conduction: caution with hypotension, bradycardia, AV block, severe aortic stenosis or decompensated heart failure.',
-      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor in the last 12 hours (avanafil), 24 hours (sildenafil, vardenafil) or 48 hours (tadalafil).',
+      'Leave the nitroglycerin out with a low blood pressure, an RV infarct, or a PDE5 inhibitor in the last 12 hours (avanafil), 24 hours (sildenafil, vardenafil) or 48 hours (tadalafil), and with riociguat at any time.',
     ],
     roles: {
       tech: 'Makes sure the cocktail syringe on the sterile field is clearly labeled, watches the pressure and heart rate after it goes in, and calls out any drop or vagal reaction.',

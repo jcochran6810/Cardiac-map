@@ -469,7 +469,7 @@ export const edStemiWalkIn: Scenario = {
       // asked only after a nitrate is no screen: the item then drops out, and the 'nitro-pde5' harm says what went wrong
       id: 'rn-pde5', label: 'Ask about PDE-5 inhibitors and riociguat before any nitrate — by name', roles: ED_RN, points: 5,
       done: askedBeforeNitrate, uses: ['ask-pde5'], applies: pde5ItemApplies,
-      why: 'The standing order\'s nitroglycerin has exclusions: a systolic under 90, a suspected right ventricular infarct, and a PDE-5 inhibitor within 48 hours (tadalafil), 24 hours (sildenafil, vardenafil) or 12 hours (avanafil). Ask by name: his "pill for my prostate" is tadalafil 5 mg daily.',
+      why: 'The standing order\'s nitroglycerin has exclusions: a systolic under 90, a suspected right ventricular infarct, and a PDE-5 inhibitor within 48 hours (tadalafil), 24 hours (sildenafil, vardenafil) or 12 hours (avanafil), and riociguat at any time. Ask by name: his "pill for my prostate" is tadalafil 5 mg daily.',
     },
     {
       // a nitrate given after he named the tadalafil was not held: the 'nitro-pde5' harm scores it, and this item drops out
@@ -498,7 +498,7 @@ export const edStemiWalkIn: Scenario = {
     {
       id: 'md-pde5', label: 'Ask about PDE-5 inhibitors and riociguat before any nitrate', roles: ED_MD, points: 5,
       done: askedBeforeNitrate, uses: ['ask-pde5'], applies: pde5ItemApplies,
-      why: 'No nitrate within 48 hours of tadalafil, 24 hours of sildenafil or vardenafil, or 12 hours of avanafil: together they can drop the pressure profoundly. His "pill for my prostate" is tadalafil 5 mg, taken this morning.',
+      why: 'No nitrate within 48 hours of tadalafil, 24 hours of sildenafil or vardenafil, or 12 hours of avanafil, and none with riociguat: together they can drop the pressure profoundly. His "pill for my prostate" is tadalafil 5 mg, taken this morning.',
     },
     {
       id: 'md-heparin', label: 'Anticoagulation: unfractionated heparin', roles: ED_MD, points: 10, target: { within: { flag: 'alert', minutes: 10 } }, done: ['heparin'],
@@ -608,7 +608,7 @@ export const edStemiWalkIn: Scenario = {
     'A STEMI on the first 12-lead is activated at once, with one call from the ED physician: no troponin (often normal an hour in), no repeat tracing and no consult first. The goal is a device within 90 minutes of arrival; the department\'s share is the 12-lead in 10 minutes, the call within minutes of it, and the patient ready when the team is.',
     'In a hospital with its own cath lab the answer is primary PCI: no fibrinolytic (that is for a STEMI that cannot reach PCI within 120 minutes), no transfer, and no admission instead.',
     'Aspirin 162–325 mg chewed, as soon as possible. Unfractionated heparin (60 units/kg, at most 4,000, in the department; the lab tops it up to an ACT of 250–300 s). A P2Y12 inhibitor — ticagrelor or prasugrel preferred over clopidogrel for PCI — given when and as the interventional cardiologist asks: routine loading before the angiogram in a STEMI is not of proven benefit, and some wait to see the anatomy.',
-    'Nitroglycerin is held for a systolic under 90 (or 30 below baseline), a suspected right ventricular infarct, and a PDE-5 inhibitor within 48 hours (tadalafil), 24 hours (sildenafil, vardenafil) or 12 hours (avanafil). Ask by name: daily tadalafil 5 mg for an enlarged prostate is a PDE-5 inhibitor, and patients rarely call it one. If a nitrate drops the pressure: lay the patient flat and give a small fluid bolus.',
+    'Nitroglycerin is held for a systolic under 90 (or 30 below baseline), a suspected right ventricular infarct, and a PDE-5 inhibitor within 48 hours (tadalafil), 24 hours (sildenafil, vardenafil) or 12 hours (avanafil), or riociguat at any time. Ask by name: daily tadalafil 5 mg for an enlarged prostate is a PDE-5 inhibitor, and patients rarely call it one. If a nitrate drops the pressure: lay the patient flat and give a small fluid bolus.',
     'When nitrates cannot be used, small doses of an IV opioid (fentanyl 25–50 mcg) treat ongoing ischemic pain; opioids slow the absorption of an oral P2Y12 inhibitor, and no drug replaces opening the artery.',
     'Oxygen only for an SpO₂ under 90 %. No IV beta-blocker in the acute phase with signs of heart failure (crackles: Killip II or worse), a low output or a risk of cardiogenic shock; an oral beta-blocker within 24 hours once those have settled.',
     'VF is most likely in the first hours of a STEMI: monitor and pads on while waiting for the lab, and witnessed VF is shocked at once — no prophylactic antiarrhythmic before it (lidocaine prevents some VF without saving lives). After ROSC repeat the 12-lead; a STEMI after ROSC still goes straight to the lab.',
