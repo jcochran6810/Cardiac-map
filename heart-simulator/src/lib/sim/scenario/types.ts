@@ -394,6 +394,17 @@ export type Problem =
    * cardioversion (2023 ACC/AHA/ACCP/HRS AF, COR 1)
    */
   | 'af-over-48h'
+  /**
+   * another reason for heparin than an ACS, a pulmonary embolism or AF on the monitor (e.g. after a cardioversion of AF, an LV
+   * thrombus, a mechanical valve): without one, heparin or a P2Y12 load outside the lab has no indication
+   */
+  | 'anticoagulation-indicated'
+  /** a pneumothorax: positive pressure (CPAP, BiPAP) can tension it — no CPAP until it is drained */
+  | 'pneumothorax'
+  /** facial trauma or burns, or recent facial, upper-airway or upper-GI surgery: no sealed CPAP or BiPAP mask */
+  | 'facial-trauma'
+  /** acute narrow-angle glaucoma: midazolam is contraindicated (label) */
+  | 'glaucoma'
   /** digoxin toxicity: no elective cardioversion (VT/VF); digoxin Fab */
   | 'digoxin-toxicity'
   /** a pacemaker or ICD: pads at least 8 cm from the generator (or front-and-back); check the device afterwards */

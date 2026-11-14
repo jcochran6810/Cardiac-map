@@ -522,7 +522,9 @@ describe('stroke in the cath lab: the traps', () => {
   });
 
   it('more antithrombotic drugs before the scan: the nurse and the cardiologist pay for them, and the ACT climbs', () => {
-    for (const id of ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor']) expect(penalties(run(sc, 5, ['stop-contrast', id])), id).toEqual(['more-antithrombotic']);
+    for (const id of ['heparin', 'bivalirudin', 'cangrelor']) expect(penalties(run(sc, 5, ['stop-contrast', id])), id).toEqual(['more-antithrombotic']);
+    // eptifibatide with a stroke under way: every antithrombotic's contraindication at the built-in weight (15, critical)
+    expect(penalties(run(sc, 5, ['stop-contrast', 'gp2b3a']))).toEqual(['antithrombotic-intracranial']);
     const s = run(sc, 4, ['callout', 'heparin', 'act']);
     expect(penalties(s)).toEqual(['more-antithrombotic']);
     expect(s.log.at(-1)!.text).toMatch(/^ACT 312 s/);

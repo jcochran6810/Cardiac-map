@@ -245,7 +245,8 @@ describe('SCAPE in the ED: both roles', () => {
     // the doctor sees the pressure on the nurse's monitor, but without the crew's report nobody has asked about PDE-5 inhibitors
     expect(ids(md(['nitro-high']))).toEqual(['nitro-no-pde5']);
     expect(ids(md(['ask-pde5', 'nitro-high']))).toEqual([]);
-    expect(ids(rn(['cpap', 'notify-physician', 'nitro-high']))).toEqual(['nitro-no-bp', 'nitro-no-pde5']);
+    // one dose, one penalty: the pressure check first
+    expect(ids(rn(['cpap', 'notify-physician', 'nitro-high']))).toEqual(['nitro-no-bp']);
     expect(ids(rn(['ems-handoff', 'cpap', 'notify-physician', 'nitro-high']))).toEqual([]);
   });
 });
@@ -607,8 +608,9 @@ describe('the IV nitroglycerin and the diuretic in the SCAPE case', () => {
   });
 
   it('the case\'s nitrate checks cover the IV bolus too: the pressure, the PDE-5 question and the interval', () => {
-    // the nurse before any pressure or the PDE-5 question, and without the order: each check beside the missing order
-    expect(ids(run(sc, 6, ['iv', 'nitro-iv']))).toEqual(['rn-without-order-nitro-iv', 'nitro-no-bp', 'nitro-no-pde5']);
+    // the nurse before any pressure or the PDE-5 question, and without the order: one check (the pressure first) beside the
+    // missing order
+    expect(ids(run(sc, 6, ['iv', 'nitro-iv']))).toEqual(['rn-without-order-nitro-iv', 'nitro-no-bp']);
     // the doctor's second bolus straight after the first
     expect(ids(md(['ems-handoff', 'iv', 'nitro-iv', 'nitro-iv']))).toEqual(['nitro-repeat-unsafe']);
   });

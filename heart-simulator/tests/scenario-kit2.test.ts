@@ -771,8 +771,9 @@ describe('the existing cases treat the new drugs as they treat the ones beside t
     expect(said(run(patient(), 2, ['iv', 'midazolam']))).toMatch(/Midazolam 2\.5 mg IV\./);
     expect(INTERVENTION_BY_ID.midazolam.detail).toMatch(/0\.5–1 mg IV/);
     const hk = SCENARIO_BY_ID['hyperkalemia-dialysis-field'];
-    expect(ids(run(hk, 2, ['primary', 'iv', 'midazolam']))).toEqual(['sedation-no-pain']);
-    expect(ids(run(hk, 2, ['primary', 'iv', 'sedation']))).toEqual(['sedation-no-pain']);
+    // into his low pressure the built-in sedative rule speaks, at its weight (one penalty)
+    expect(ids(run(hk, 2, ['primary', 'iv', 'midazolam']))).toEqual(['midazolam-unsafe']);
+    expect(ids(run(hk, 2, ['primary', 'iv', 'sedation']))).toEqual(['sedation-unsafe']);
   });
 
   it('no cuff on the dialysis fistula arm, even for a pressure in both arms', () => {

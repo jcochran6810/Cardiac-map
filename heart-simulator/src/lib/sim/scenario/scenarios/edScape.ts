@@ -943,11 +943,11 @@ export const edScape: Scenario = {
       id: 'nitro-too-soon', actions: NITRATES, when: () => false, points: 3, severity: 'minor',
       text: 'Another nitroglycerin less than 3 minutes after the last.',
     },
-    // the IV high dose (this case's bolus and its drip titrated up) as well as the 0.8 mg tablet; the ER nurse's IV dose with
-    // no order is the order's rule alone (one act, one penalty)
+    // the 0.8 mg tablet. The infusion is dosed by its indication and titrated to the 120–160 the physician ordered: titrating
+    // it is not this dose (lead decision 29)
     nitrateCaseRule({
-      id: 'nitro-high-below-160', actions: ['nitro-high', 'nitro-iv'], points: 3, severity: 'minor',
-      when: (s, _sc, id) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160 && !(id === 'nitro-iv' && s.role === 6 && !has(s, orderedFlag('nitro-iv'))),
+      id: 'nitro-high-below-160', actions: ['nitro-high'], points: 3, severity: 'minor',
+      when: (s) => s.pulse && s.vitals.sbp >= 120 && s.vitals.sbp < 160,
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
     }, 'nitro-high-not-hypertensive', NITRATE_CHECKS),
     {

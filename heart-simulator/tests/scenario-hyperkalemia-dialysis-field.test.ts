@@ -469,7 +469,8 @@ describe('hyperkalemia in a dialysis patient — the traps', () => {
 
   it('fentanyl or sedation for a man with no pain costs 3; for a pacer that has captured and hurts, it is right', () => {
     expect(run(['monitor', 'iv', 'fentanyl']).penalties).toEqual([expect.objectContaining({ id: 'sedation-no-pain', points: 3, severity: 'minor' })]);
-    expect(penalties(run(['monitor', 'iv', 'sedation']))).toEqual(['sedation-no-pain']);
+    // sedation (or midazolam) into his low pressure and slow rate is the built-in rule's heavier reason, at its weight (5)
+    expect(penalties(run(['monitor', 'iv', 'sedation']))).toEqual(['sedation-unsafe']);
     let s = run(['monitor', 'iv', 'calcium-chloride']);
     while (!s.fired.includes('calcium-fades')) s = perform(sc, s, 'reassess');
     s = perform(sc, perform(sc, s, 'pace'), 'fentanyl');

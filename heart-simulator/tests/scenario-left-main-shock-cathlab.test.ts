@@ -399,10 +399,11 @@ describe('left main in cardiogenic shock: the traps', () => {
 
   it('a sedative in a shocked, hypoxic patient costs once, under the case\'s own rule', () => {
     expect(penalties(run(sc, 5, ['midazolam']))).toEqual(['benzodiazepine-in-shock']);
-    // the generic "sedation / analgesia" order costs less than a named benzodiazepine
+    // the generic "sedation / analgesia" order drops the pressure as a named benzodiazepine does: the built-in sedative rule's
+    // weight, in the case's words
     const sed = run(sc, 5, ['sedation']);
     expect(penalties(sed)).toEqual(['sedation-in-shock']);
-    expect(sed.penalties[0]).toMatchObject({ points: 3, severity: 'minor' });
+    expect(sed.penalties[0]).toMatchObject({ points: 5, severity: 'major' });
   });
 
   it('going after the non-culprit RCA once the left main is open is harmful (CULPRIT-SHOCK), and costs once', () => {

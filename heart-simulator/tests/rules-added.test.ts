@@ -29,7 +29,7 @@ describe('heparin-repeat-unguided', () => {
     expect(penaltyIds(lab, 4, ['heparin', 'heparin'])).toEqual(['heparin-repeat-unguided']);
     // an ACT checked after the first bolus that was in range is no guide either
     expect(penaltyIds(lab, 4, ['heparin', 'act', 'heparin'])).toEqual(['heparin-repeat-unguided']);
-    const ed = opened('ed', 7, ['iv']);
+    const ed = opened('ed', 7, ['iv'], { problems: ['acs'] });
     expect(penaltyIds(ed, 7, ['heparin', 'heparin'])).toEqual(['heparin-repeat-unguided']);
   });
 

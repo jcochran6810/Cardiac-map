@@ -1,7 +1,7 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { PADS, bpAfter, count, cprCycles, firstDone, has } from '../kit';
-import { SEDATIVE_RULES } from '../rules/acs';
+import { SEDATIVE_RULES, unsafeToSedate } from '../rules/acs';
 import { CALCIUMS } from '../rules/helpers';
 import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
@@ -486,7 +486,8 @@ export const hyperkalemiaField: Scenario = {
     // a pacer that has captured (after the calcium wore off) hurts: then analgesia and sedation are right
     {
       // midazolam is the same mistake as 'sedation' here, so it replaces the built-in midazolam rule (one penalty, not two)
-      id: 'sedation-no-pain', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: SEDATIVE_RULES, when: (s) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp', points: 3, severity: 'minor',
+      // a sedative into a low pressure, slow breathing or a drowsy patient is the built-in rule's heavier reason (5): it charges
+      id: 'sedation-no-pain', actions: ['fentanyl', 'sedation', 'midazolam'], replaces: SEDATIVE_RULES, when: (s, sc, id) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp' && !(id !== 'fentanyl' && unsafeToSedate(s, sc, id)), points: 3, severity: 'minor',
       text: 'An opioid or sedation for a patient with no pain and nothing to sedate him for. With his pressure this low and his breathing muscles weak, it only adds hypotension and slower, shallower breathing.',
     },
     { id: 'false-alert', actions: ['stemi-alert'], points: 3, severity: 'minor', replaces: ['stemi-alert-no-ste'], text: 'A STEMI alert without ST elevation. It calls the cath lab team in for an artery that is not blocked, and points the patient at a lab when what he needs is dialysis.' },

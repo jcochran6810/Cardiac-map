@@ -115,9 +115,11 @@ describe('anterior STEMI in the field', () => {
   it('penalises unsafe choices and explains them in the review', () => {
     const s = run(stemiAnterior, 2, ['nitro', 'o2-nrb', 'transport-near']);
     const ids = s.penalties.map((p) => p.id);
-    expect(ids).toEqual(expect.arrayContaining(['nitro-no-bp', 'nitro-no-pde5', 'oxygen-normoxic', 'nearest-ed']));
+    // the nitroglycerin's checks are one gate: no pressure is the one charged (one dose, one penalty)
+    expect(ids).toEqual(expect.arrayContaining(['nitro-no-bp', 'oxygen-normoxic', 'nearest-ed']));
+    expect(ids).not.toContain('nitro-no-pde5');
     const r = review(stemiAnterior, stop(s));
-    expect(r.toFix.filter((t) => t.kind === 'harm').length).toBe(4);
+    expect(r.toFix.filter((t) => t.kind === 'harm').length).toBe(3);
     expect(r.toFix.some((t) => t.kind === 'missed' && /12-lead/.test(t.label))).toBe(true);
     expect(r.grade).toBe('Unsafe');
   });

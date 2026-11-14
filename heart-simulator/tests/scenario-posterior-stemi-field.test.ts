@@ -286,7 +286,8 @@ describe('posterior STEMI in the field — the traps', () => {
   });
 
   it('nitroglycerin before the pressure and before the PDE-5 question costs points; asked and measured, it costs nothing', () => {
-    expect(penalties(medic(['primary', 'iv', 'nitro']))).toEqual(['nitro-no-bp', 'nitro-no-pde5']);
+    // one dose, one penalty: the pressure check first
+    expect(penalties(medic(['primary', 'iv', 'nitro']))).toEqual(['nitro-no-bp']);
     expect(penalties(medic(['primary', 'vitals', 'iv', 'nitro']))).toEqual(['nitro-no-pde5']);
     const ok = medic(['primary', 'vitals', 'ask-pde5', 'nitro']);
     expect(ok.penalties).toEqual([]);

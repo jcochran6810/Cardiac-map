@@ -964,7 +964,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Symptomatic bradycardia or sick sinus syndrome',
       'Pre-excited AF (WPW)',
       'Severe active bronchospasm (relative)',
-      'Acute cocaine or methamphetamine intoxication — a β-blocker leaves the α effect unopposed (2025 ACC/AHA ACS: 3 — Harm)',
+      'Acute cocaine or methamphetamine intoxication — a β-blocker leaves the α effect unopposed (2014 AHA/ACC NSTE-ACS: 3 — Harm)',
       'IV diltiazem or verapamil within a few hours (additive AV block, bradycardia and hypotension)',
       'In acute MI (label): heart rate below 45/min, PR 0.24 s or longer, or systolic below 100 mmHg',
       'Risk factors for cardiogenic shock in STEMI — age over 70, systolic under 120, heart rate over 110 or under 60, late presentation (COMMIT; 2013 ACCF/AHA): no IV dose',
@@ -1048,7 +1048,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Pre-excited AF (WPW)',
       'Pulmonary hypertension (label)',
       'IV calcium-channel blockers (verapamil, diltiazem) while their effect lasts — fatal cardiac arrests reported (label)',
-      'Acute cocaine or methamphetamine intoxication — unopposed α (2025 ACC/AHA ACS: 3 — Harm)',
+      'Acute cocaine or methamphetamine intoxication — unopposed α (2014 AHA/ACC NSTE-ACS: 3 — Harm)',
     ],
     adverseEffects: [
       'Hypotension (most common, dose-related)',
@@ -3786,7 +3786,7 @@ export const MEDICATIONS: Record<string, MedicationContent> = {
       'Cardiogenic shock (label)',
       'Severe bradycardia (label)',
       'Other conditions with severe, prolonged hypotension (label)',
-      'Acute cocaine or methamphetamine intoxication — a β-blocker (2025 ACC/AHA ACS: no β-blocker in acute intoxication)',
+      'Acute cocaine or methamphetamine intoxication — a β-blocker (2014 AHA/ACC NSTE-ACS: no β-blocker in acute intoxication, 3 — Harm)',
       'Hypersensitivity',
     ],
     adverseEffects: [

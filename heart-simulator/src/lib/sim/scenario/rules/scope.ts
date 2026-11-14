@@ -49,6 +49,8 @@ export const INDICATION_RULES = [
   // no role in an arrest (a tachycardia drug, nitroglycerin, an opioid or a sedative, a push-dose pressor), the
   // reperfusion the physician chooses, and the post-arrest and low-output treatments the physician decides on
   'rate-drug-in-arrest', 'no-role-in-arrest', 'push-epi-in-arrest', 'lytic-pci-available', 'temp-control-no-indication', 'inotrope-no-indication',
+  // an anticoagulant or P2Y12 load with nothing to treat
+  'antithrombotic-no-indication',
 ];
 
 /** The id of the rule that scores the ER nurse giving this drug without an order */

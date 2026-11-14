@@ -565,7 +565,8 @@ describe('the ER nurse gives a medication on an order', () => {
       wrongSay: 'That is not what I asked for.', thanks: 'Thanks.', fallback: 'I will give it myself.', gives: 'heparin-given',
       label: 'Heparin on order', why: '…',
     });
-    const asked = edPatient({ events: askEvents(order), harms: [askHarm(order, 'Not the drug the physician ordered.')] });
+    // (an acute coronary syndrome: what the heparin and the P2Y12 load are for)
+    const asked = edPatient({ problems: ['acs'], events: askEvents(order), harms: [askHarm(order, 'Not the drug the physician ordered.')] });
     expect(ids(run(asked, 6, ['iv', 'heparin']))).toEqual(['rn-without-order-heparin']); // at minute 2, before the order
     expect(ids(run(asked, 6, ['iv', 'reassess', 'heparin']))).toEqual([]);
     // a wrong answer to the open order is the order's own mistake: one penalty, not two
@@ -578,8 +579,8 @@ describe('the ER nurse gives a medication on an order', () => {
     expect(ids(e)).toEqual(['rn-without-order-pressor']);
     expect(ids(run(event, 6, ['iv', 'reassess', 'pressor']))).toEqual([]);
     expect(run(event, 6, ['iv', 'reassess']).log.some((l) => l.who === 'physician' && /norepinephrine/.test(l.text))).toBe(true);
-    expect(ids(run(edPatient({ events: [standingOrders(['heparin', 'p2y12'])] }), 6, ['iv', 'heparin', 'p2y12']))).toEqual([]);
-    const lab = edPatient({ events: [{ id: 'dispo', when: (s) => s.minute >= 1, effect: (s) => physicianDispo(s, 'cathLab', 'Cath lab is coming; heparin and ticagrelor now.', 10, ['heparin', 'p2y12']) }] });
+    expect(ids(run(edPatient({ problems: ['acs'], events: [standingOrders(['heparin', 'p2y12'])] }), 6, ['iv', 'heparin', 'p2y12']))).toEqual([]);
+    const lab = edPatient({ problems: ['acs'], events: [{ id: 'dispo', when: (s) => s.minute >= 1, effect: (s) => physicianDispo(s, 'cathLab', 'Cath lab is coming; heparin and ticagrelor now.', 10, ['heparin', 'p2y12']) }] });
     expect(ids(run(lab, 6, ['iv', 'reassess', 'heparin', 'p2y12']))).toEqual([]);
   });
 

@@ -1632,7 +1632,7 @@ describe('GM42: the patient\'s history and age', () => {
     expect(tone('nitroglycerin', h('nstemi', 84, []), 0.4)).toBe('good');
     expect(planDose('nitroglycerin', h('nstemi', 84, ['pde5-inhibitor']), 0.4).verdict.text).toMatch(/^Contraindicated \(label\): a PDE-5 inhibitor/);
     for (const id of ['metoprolol', 'esmolol', 'sotalol'] as MedId[]) {
-      expect(planDose(id, h('atrial-fibrillation', 150, ['sympathomimetic-toxicity']), MED_BY_ID[id].usual(patient('atrial-fibrillation', 150)).low).verdict.text, id).toMatch(/^Not in acute cocaine or methamphetamine intoxication \(2025 ACC\/AHA ACS: 3 — Harm\)/);
+      expect(planDose(id, h('atrial-fibrillation', 150, ['sympathomimetic-toxicity']), MED_BY_ID[id].usual(patient('atrial-fibrillation', 150)).low).verdict.text, id).toMatch(/^Not in acute cocaine or methamphetamine intoxication \(2014 AHA\/ACC NSTE-ACS: 3 — Harm\)/);
     }
     expect(tone('aspirin', h('anterior-stemi', 92, []), 325)).toBe('good');
     expect(planDose('aspirin', h('anterior-stemi', 92, ['aspirin-allergy']), 325).verdict.text).toMatch(/^Not with a true aspirin allergy.*P2Y12 inhibitor alone/);

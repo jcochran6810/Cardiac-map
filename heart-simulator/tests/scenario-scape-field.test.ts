@@ -430,7 +430,8 @@ describe('hypertensive pulmonary edema in the field — the traps', () => {
   it('nitroglycerin needs a pressure and the PDE-5 question first', () => {
     expect(penalties(medic(['ask-pde5', 'nitro-high']))).toEqual(['nitro-no-bp']);
     expect(penalties(medic(['vitals', 'nitro-high']))).toEqual(['nitro-no-pde5']);
-    expect(penalties(emt(['cpap', 'nitro-assist']))).toEqual(['nitro-no-bp', 'nitro-no-pde5']);
+    // one dose, one penalty: the pressure check first
+    expect(penalties(emt(['cpap', 'nitro-assist']))).toEqual(['nitro-no-bp']);
   });
 
   it('a repeat dose needs 3 minutes and a fresh pressure', () => {

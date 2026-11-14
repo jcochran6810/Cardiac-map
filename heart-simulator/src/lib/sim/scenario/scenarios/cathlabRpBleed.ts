@@ -729,9 +729,10 @@ export const cathlabRpBleed: Scenario = {
     },
     { id: 'lytic-in-bleeding', actions: ['tnk'], points: 15, severity: 'critical', replaces: LYTIC_RULES, text: 'A fibrinolytic in a patient who is bleeding. It dissolves every clot holding the hole closed.' },
     {
-      // another daily aspirin is the small mistake; a P2Y12 reload in active bleeding is the built-in bleeding rule's (the
-      // ticagrelor, prasugrel and clopidogrel labels: contraindicated with active pathological bleeding)
-      id: 'extra-antiplatelet', actions: ['aspirin', 'p2y12'], when: (_s, _sc, id) => id === 'aspirin', points: 3, severity: 'minor', replaces: ANTITHROMBOTIC_RULES,
+      // an extra aspirin in active bleeding, in the case's words at the built-in bleeding rule's weight (aspirin label: active
+      // bleeding); a P2Y12 reload is the built-in bleeding rule's (the ticagrelor, prasugrel and clopidogrel labels:
+      // contraindicated with active pathological bleeding)
+      id: 'extra-antiplatelet', actions: ['aspirin', 'p2y12'], when: (_s, _sc, id) => id === 'aspirin', points: 10, severity: 'major', replaces: ANTITHROMBOTIC_RULES,
       text: 'Another antiplatelet dose for a bleeding patient already on aspirin and ticagrelor. It adds to the bleeding and treats nothing; keep the daily doses for the fresh stent, and add none.',
     },
     {
@@ -763,7 +764,8 @@ export const cathlabRpBleed: Scenario = {
     },
     {
       // it stands in for the built-in midazolam rule, so it keeps that rule's drowsy patient too
-      id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], when: (s) => s.pulse && (s.vitals.sbp < 90 || s.vitals.gcs <= 12), replaces: SEDATIVE_RULES, points: 3, severity: 'minor',
+      // at the built-in midazolam rule's weight (label boxed warning; shock)
+      id: 'sedation-in-shock', actions: ['sedation', 'midazolam'], when: (s) => s.pulse && (s.vitals.sbp < 90 || s.vitals.gcs <= 12), replaces: SEDATIVE_RULES, points: 5, severity: 'major',
       text: 'Sedation with a systolic under 90 or a drowsy patient. It drops the pressure and the breathing further: local anesthetic at the groin, and only a little analgesia once she is stable.',
     },
     {

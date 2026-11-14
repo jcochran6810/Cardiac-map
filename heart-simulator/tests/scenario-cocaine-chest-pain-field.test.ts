@@ -324,7 +324,9 @@ describe('cocaine chest pain in the field — the traps', () => {
   });
 
   it('nitroglycerin needs a pressure and the erectile-dysfunction question first; with both it eases the pain', () => {
-    expect(penalties(medic(['nitro']))).toEqual(['nitro-no-bp', 'nitro-no-pde5']);
+    // one dose, one penalty: the pressure check first; with the pressure taken, the PDE-5 question
+    expect(penalties(medic(['nitro']))).toEqual(['nitro-no-bp']);
+    expect(penalties(medic(['vitals', 'nitro']))).toEqual(['nitro-no-pde5']);
     const s = medic(['vitals', 'ask-pde5', 'nitro']);
     expect(s.penalties).toEqual([]);
     expect(s.vitals).toMatchObject({ sbp: 166, dbp: 98, pain: 5 });

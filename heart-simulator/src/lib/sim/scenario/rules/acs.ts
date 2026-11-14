@@ -99,8 +99,8 @@ const NITRATE_RANKS: GateRule[] = [
     text: 'A nitrate after a PDE-5 inhibitor (or riociguat). Within 12 hours of avanafil, 24 hours of sildenafil or vardenafil or 48 hours of tadalafil — and at any time with riociguat — nitroglycerin or nitroprusside can drop the pressure profoundly and for hours (2025 ACC/AHA ACS guideline; Nitrostat and Nipride labels: contraindicated). Treat the pain without nitrates.',
   },
   {
-    id: 'nitro-preload-dependent', actions: NITRATES_ALL, applies: (s, sc) => preloadDependent(s, sc) || outflowObstruction(sc), points: 10, severity: 'major',
-    text: 'A nitrate for a heart that lives on its preload — a tamponade not yet drained, a pulmonary embolism, a right-ventricular infarction — or that pumps against an outflow obstruction (severe aortic stenosis, LV outflow obstruction). Nitroglycerin pools the blood in the veins: the filling the heart depends on falls, and the pressure with it, often suddenly (2025 ACC/AHA ACS: no nitrates in RV infarction; 2020 ACC/AHA valve and 2024 AHA/ACC HCM guidelines). Fluid, not a vasodilator.',
+    id: 'nitro-preload-dependent', actions: NO_DONORS, applies: (s, sc) => preloadDependent(s, sc) || outflowObstruction(sc), points: 10, severity: 'major',
+    text: 'A nitrate or nitroprusside for a heart that lives on its preload — a tamponade not yet drained, a pulmonary embolism, a right-ventricular infarction — or that pumps against an outflow obstruction (severe aortic stenosis, LV outflow obstruction). Nitroglycerin pools the blood in the veins, and nitroprusside opens the arteries too: the filling the heart depends on falls, and the pressure with it, often suddenly (2025 ACC/AHA ACS: no nitrates in RV infarction; 2020 ACC/AHA valve and 2024 AHA/ACC HCM guidelines; Nipride label). Fluid, not a vasodilator.',
   },
   {
     id: 'nitroprusside-hypotension', actions: ['ic-nitroprusside'], applies: (s) => lowPressure(s), points: 8, severity: 'major',
@@ -111,9 +111,10 @@ const NITRATE_RANKS: GateRule[] = [
     text: 'Nitroglycerin with a systolic pressure under 90 mmHg (with an LVAD, a Doppler MAP under 60). Nitrates drop the pressure further: hold them until it is back up.',
   },
   {
-    // a pressure still at 90 or more in a bleeding patient is held up by tight veins: the nitrate takes that away
-    id: 'nitro-volume-depleted', actions: NITRATES_ACS, applies: (_s, sc) => hasProblem(sc, ['bleeding']), points: 8, severity: 'major',
-    text: 'Nitroglycerin for a patient who is losing blood. Bleeding leaves the heart short of filling, and the pressure is held up by tightened veins: a nitrate opens them and the pressure can fall suddenly (Nitrostat label: caution with volume depletion; hold nitrates in hypotension). Stop the bleeding and replace the volume; treat the pain another way.',
+    // a pressure still at 90 or more in a bleeding patient is held up by tight veins: the nitrate takes that away (the radial
+    // cocktail's nitroglycerin and nitroprusside too; under 90 their own low-pressure rules speak)
+    id: 'nitro-volume-depleted', actions: NO_DONORS, applies: (s, sc) => hasProblem(sc, ['bleeding']), points: 8, severity: 'major',
+    text: 'Nitroglycerin (or nitroprusside, or the radial cocktail) for a patient who is losing blood. Bleeding leaves the heart short of filling, and the pressure is held up by tightened veins: a nitrate opens them and the pressure can fall suddenly (Nitrostat label: caution with volume depletion; hold nitrates in hypotension). Stop the bleeding and replace the volume; treat the pain another way.',
   },
   {
     // nicardipine has no other rank here: it is judged on this one alone. The rate drug counts whoever gave it (a teammate's
@@ -232,7 +233,7 @@ const hiddenByCase = (ruleId: string, selfId: string, s: SimState, sc: Scenario,
  * - A rule with a built-in's id stands aside once it has charged, as the gate passes its rank over: a later dose is judged
  *   by the gate again. A rule with another id keeps covering its ranks, so a repeated mistake is charged once.
  */
-export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: string[] = []): Harm {
+export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: string[] = [], yieldTo: string[] = []): Harm {
   const at = NITRATE_RANKS.findIndex((r) => r.id === rank);
   if (at < 0) throw new Error(`nitrateCaseRule: ${rank} is not a rank of the nitrate gate`);
   const above = NITRATE_RANKS.slice(0, at);
@@ -240,7 +241,15 @@ export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: stri
   const outranked: Check = (s, sc, id) => {
     if (!s.pulse) return true;
     const top = topOf(above, s, sc, id);
-    return top !== null && NITRATE_CONTRAINDICATIONS.includes(top) && !beside.includes(top) && !hiddenByCase(top, harm.id, s, sc, id);
+    if (top !== null && NITRATE_CONTRAINDICATIONS.includes(top) && !beside.includes(top) && !hiddenByCase(top, harm.id, s, sc, id)) return true;
+    // a rank of `yieldTo` above this one holds for the dose: e.g. a check ranked higher (one check a dose) — the built-in, or
+    // the case's own rule with its id, which may judge an action the built-in does not (a case's IV nitroglycerin). Whoever
+    // charges it (that rule, or a case rule standing in for it), this one gives way. A rank that charged an earlier dose is
+    // passed over, as the gate passes it over: a later dose is judged anew
+    return above.filter((r) => yieldTo.includes(r.id) && !chargedBefore(s, r.id)).some((r) => {
+      const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id));
+      return own.length ? own.some((h) => !h.when || h.when(s, sc, id)) : r.actions.includes(id) && r.applies(s, sc, id) && !indicationCovered(r.id, s, sc, id);
+    });
   };
   const covers = NITRATE_RANKS.map((r) => r.id)
     .filter((id, i) => id === rank || (!beside.includes(id) && (i >= at || !NITRATE_CONTRAINDICATIONS.includes(id))))
@@ -254,11 +263,13 @@ export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: stri
 
 /**
  * A case rule that is one of the checks before a sublingual dose (the pressure, the interval, the PDE-5 question), at its
- * rank: the other checks, the low-pressure rule and the 0.8 mg dose rule charge beside it — each a mistake of its own, as
- * they were before the gate — and any other contraindication the gate ranks above it charges the dose in its place
+ * rank in the gate, as the built-in check is: one dose, one penalty. It gives way to any rank above it that holds for the
+ * dose — a contraindication, the 0.8 mg dose rule, no pain to treat, or a check ranked higher (the pressure, then the
+ * interval, then the PDE-5 question): the built-in, or the case's own rule with its id — and hides the built-in ranks
+ * below it. (The ER nurse's missing order is no rank of the gate: a check still charges beside it, lead decision 2)
  */
 export const nitrateCheckRule = (harm: Harm, rank: string = harm.id) =>
-  nitrateCaseRule(harm, rank, [...NITRATE_CHECKS, 'nitro-hypotension', 'nitro-high-not-hypertensive']);
+  nitrateCaseRule(harm, rank, [], NITRATE_RANKS.map((r) => r.id));
 
 /**
  * The nitrate gate charges this dose: its top rule, or a case rule standing in for that rule (its id, or listing it in
@@ -363,6 +374,12 @@ const ANTITHROMBOTIC_GATE = gate([
     text: 'Heparin for a patient with heparin-induced thrombocytopenia, now or before. It can set off a new fall in the platelets with clots in the arteries and veins (heparin label; ACCP and ASH: no heparin with HIT): anticoagulate with bivalirudin or argatroban.',
   },
   {
+    // a bleed in the head, or a stroke under way that no CT has yet shown is not one: no antithrombotic until the stroke
+    // team decides (an ischemic stroke's aspirin comes after the scan)
+    id: 'antithrombotic-intracranial', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['intracranial-hemorrhage', 'stroke']), points: 15, severity: 'critical',
+    text: 'An antiplatelet or anticoagulant with a bleed in the head, or a stroke under way that no CT has yet shown is not a bleed. It can turn a small bleed into a fatal one (aspirin, P2Y12 inhibitor, heparin, bivalirudin and cangrelor labels: active pathological or intracranial bleeding; AHA/ASA stroke guidelines: no antithrombotic before the scan, and none within 24 hours of thrombolysis): get the CT, and leave the antithrombotic drugs to the stroke team.',
+  },
+  {
     id: 'antithrombotic-bleeding', actions: ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['bleeding']), points: 10, severity: 'major',
     text: 'An antiplatelet or anticoagulant with active bleeding. It keeps the bleeding going (the aspirin, P2Y12 inhibitor, heparin, bivalirudin, eptifibatide and cangrelor labels: contraindicated with active pathological bleeding): hold the antithrombotics, stop the bleeding, and reverse what can be reversed.',
   },
@@ -375,7 +392,9 @@ const ANTITHROMBOTIC_GATE = gate([
     text: 'Aspirin for a patient with a true aspirin allergy (anaphylaxis, angioedema, hives) or aspirin-exacerbated asthma. It can set off the same reaction: give clopidogrel instead (2014 AHA/ACC NSTE-ACS, kept in the 2025 ACC/AHA ACS guideline).',
   },
   {
-    id: 'antithrombotic-tamponade', actions: TAMPONADE_ANTITHROMBOTICS, applies: (_s, sc) => hasProblem(sc, ['tamponade']), points: 8, severity: 'major',
+    // a tamponade that began mid-case (a perforation: the flag 'tamponade') counts too, drained or not — the blood in the sac
+    // is still the reason
+    id: 'antithrombotic-tamponade', actions: TAMPONADE_ANTITHROMBOTICS, applies: (s, sc) => hasProblem(sc, ['tamponade']) || has(s, 'tamponade'), points: 8, severity: 'major',
     text: 'An anticoagulant or an antiplatelet loading dose in cardiac tamponade. Blood in the pericardium can be the cause (a dissection, a ruptured wall, a perforation), and the needle that drains it needs blood that clots: an antithrombotic keeps the effusion bleeding and makes the drain riskier. Drain it and find the cause first.',
   },
   {
@@ -406,7 +425,20 @@ const ANTITHROMBOTIC_GATE = gate([
     id: 'heparin-after-lmwh', actions: ['heparin'], applies: (_s, sc) => hasProblem(sc, ['lmwh-on-board']), points: 3, severity: 'minor',
     text: 'Unfractionated heparin within 12 hours of enoxaparin. Switching between them adds bleeding (SYNERGY; 2014 AHA/ACC NSTE-ACS: no crossover): for PCI, an extra IV dose of enoxaparin if the last was 8–12 hours ago, none if under 8.',
   },
+  {
+    // an indication rule (INDICATION_RULES): the ER nurse's missing order covers it. In the lab the PCI is the indication
+    id: 'antithrombotic-no-indication', actions: ['heparin', 'p2y12', 'gp2b3a', 'cangrelor', 'bivalirudin'],
+    applies: (s, sc) => sc.setting !== 'cathlab' && !anticoagulationIndicated(s, sc), points: 3, severity: 'minor',
+    text: 'An anticoagulant or a P2Y12 loading dose with nothing to treat. Heparin is for an acute coronary syndrome, a pulmonary embolism or atrial fibrillation and flutter (around a cardioversion), and a P2Y12 inhibitor for an acute coronary syndrome or a stent (their labels; 2025 ACC/AHA ACS): without one they bring only bleeding — and a P2Y12 load holds the platelets for 5–7 days, through any line, wire or surgery to come.',
+  },
 ]);
+
+/**
+ * Something heparin or a P2Y12 inhibitor is given for: an acute coronary syndrome, a pulmonary embolism, AF or flutter (lasting,
+ * or on the monitor now), or another reason the case declares ('anticoagulation-indicated')
+ */
+const anticoagulationIndicated = (s: SimState, sc: Scenario) =>
+  hasProblem(sc, ['acs', 'pulmonary-embolism', 'af-over-48h', 'anticoagulation-indicated']) || (s.pulse && ['af', 'flutter'].includes(rhythmKind(s)));
 
 /** Every built-in antithrombotic rule: a case rule that says an antithrombotic is wrong for its patient lists them in `replaces` */
 export const ANTITHROMBOTIC_RULES = ANTITHROMBOTIC_GATE.harms.map((h) => h.id);
@@ -474,6 +506,14 @@ export const unsafeToSedate: Check = (s, sc, id) =>
   // a seizure under way: midazolam is its treatment, given with the airway supported (2016 AES status epilepticus guideline)
   && !(id === 'midazolam' && hasProblem(sc, ['seizure']));
 
+/**
+ * A cath-lab procedure is under way: consented, timed out or with a sheath in, and no hemostasis yet. Moderate sedation —
+ * a benzodiazepine and an opioid — is part of it (for opioid-no-pain only: the wider procedure test above is for a
+ * cardioversion or a pacer)
+ */
+const labProcedureUnderWay = (s: SimState, sc: Scenario) =>
+  sc.setting === 'cathlab' && (has(s, 'consent') || has(s, 'timeout') || has(s, 'access')) && !has(s, 'hemostasis');
+
 /** The opioid (fentanyl), ranked: the breathing first, then the pressure, then whether there is pain to treat */
 const OPIOID_GATE = gate([
   {
@@ -488,8 +528,10 @@ const OPIOID_GATE = gate([
   {
     // an intubated patient (RSI, or a tube after the arrest) feels the tube whatever the pain score says: analgesia first
     // (SCCM PADIS 2018), and promptly after a long-acting paralytic
-    id: 'opioid-no-pain', actions: ['fentanyl'], applies: (s, sc) => s.vitals.pain === 0 && !has(s, 'airway') && !sedationForProcedure(s, sc), points: 3, severity: 'minor',
-    text: 'An opioid with no pain to treat, and no cardioversion, pacing or breathing tube to give it for. Without one it brings only its risks — slower breathing, a lower pressure, nausea — and in an acute coronary syndrome an opioid also slows the oral P2Y12 inhibitor (2025 ACC/AHA ACS).',
+    // a cath-lab procedure under way (consent, the time-out or a sheath in, no hemostasis yet): fentanyl is part of the
+    // moderate sedation for it (ASA 2018 moderate procedural sedation; SCAI cath lab best practices)
+    id: 'opioid-no-pain', actions: ['fentanyl'], applies: (s, sc) => s.vitals.pain === 0 && !has(s, 'airway') && !sedationForProcedure(s, sc) && !labProcedureUnderWay(s, sc), points: 3, severity: 'minor',
+    text: 'An opioid with no pain to treat, and no cardioversion, pacing, procedure or breathing tube to give it for. Without one it brings only its risks — slower breathing, a lower pressure, nausea — and in an acute coronary syndrome an opioid also slows the oral P2Y12 inhibitor (2025 ACC/AHA ACS).',
   },
 ], (s) => s.pulse);
 

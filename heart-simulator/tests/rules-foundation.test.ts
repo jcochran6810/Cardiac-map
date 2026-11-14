@@ -458,9 +458,10 @@ describe('in the cases: one dose, one penalty in every state a case rule speaks 
     expect(lastStep('scape-ed', 7, ['ems-handoff', 'cpap', 'lungs', 'nitro-high', 'sample', 'pocus', 'reassess', 'reassess', 'reassess', 'nitro-high'])).toEqual(['nitro-below-target']);
     expect(lastStep('scape-ed', 6, ['notify-physician', 'ems-handoff', 'cpap', 'notify-physician', 'monitor', 'nibp', 'nitro-high', 'iv', 'nibp', 'nitro', 'ecg12',
       'read:lvh', 'labs', 'neuro', 'reassess', 'notify-physician', 'nitro-high'], 'manual')).toEqual(['nitro-below-target']);
-    // a systolic of 94: the field case's under-100 rule (with its too-soon repeat, a separate mistake), not also the 0.8 mg rule
+    // a systolic of 94: the field case's under-100 rule alone — not the 0.8 mg rule, and not its too-soon check (a check gives
+    // way to the ranks above it: one dose, one penalty)
     expect(lastStep('scape-field', 2, ['iv', 'amio-arrest', 'lvad-check', 'ecg12', 'read:nsr', 'ecg-right', 'call-help', 'lungs', 'aspirin', 'transport-pci', 'midazolam',
-      'albuterol', 'cardiovert', 'adenosine12', 'nitro', 'push-epi', 'ecg12-repeat', 'read:nsr', 'diltiazem', 'nitro-high'], 'manual')).toEqual(['nitro-repeat-unsafe', 'nitro-pressure-fallen']);
+      'albuterol', 'cardiovert', 'adenosine12', 'nitro', 'push-epi', 'ecg12-repeat', 'read:nsr', 'diltiazem', 'nitro-high'], 'manual')).toEqual(['nitro-pressure-fallen']);
   });
 
   it('aortic dissection (ED): the case judges the 0.8 mg dose before rate control and below the goal; otherwise the gate (here the interval rule)', () => {
