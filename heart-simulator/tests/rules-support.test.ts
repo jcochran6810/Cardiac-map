@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FixtureSpec } from './ruleFixture';
 import { fixture, penaltyIds } from './ruleFixture';
+import { runScenario as runSteps } from './helpers';
 import type { Harm, Problem } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 
@@ -218,5 +219,51 @@ describe('the bag-mask, the advanced airway and RSI', () => {
     expect(ids(7, withProblems('tamponade'), ['monitor', 'iv', 'rsi'])).toEqual(['rsi-no-indication']);
     expect(ids(7, { ...withProblems('tamponade'), vitals: { ...LOW, gcs: 12 } }, ['monitor', 'iv', 'rsi'])).toEqual(['rsi-unresuscitated']);
     expect(ids(7, tamponade, ['iv', 'rsi'])).toEqual(['rsi-unmonitored']);
+  });
+});
+
+describe('the legs, fluids and blood', () => {
+  const HIGH = { sbp: 172, dbp: 96 };
+  it('legs-up-hypertensive: raised legs push a high pressure higher', () => {
+    expect(ids(2, { vitals: HIGH }, ['legs-up'])).toEqual(['legs-up-hypertensive']);
+    expect(ids(2, { vitals: { sbp: 150, dbp: 90 } }, ['legs-up'])).toEqual([]);
+    expect(ids(2, { lvad: true, vitals: { sbp: 98, dbp: 92 } }, ['legs-up'])).toEqual(['legs-up-hypertensive']);
+    expect(ids(2, { lvad: true, vitals: { sbp: 84, dbp: 76 } }, ['legs-up'])).toEqual([]);
+    expect(ids(2, { vitals: HIGH, harms: [exempt('legs-up-hypertensive', ['legs-up'])] }, ['legs-up'])).toEqual([]);
+    // the gate: fluid on the lungs is the other rule's — one penalty
+    expect(ids(2, { ...withProblems('pulmonary-edema'), vitals: HIGH }, ['legs-up'])).toEqual(['legs-up-pulmonary-edema']);
+  });
+
+  it('fluid-loading-pe: one small bolus at most for a pulmonary embolism', () => {
+    const pe = { ...withProblems('pulmonary-embolism'), vitals: LOW };
+    expect(ids(7, pe, ['iv', 'fluid'])).toEqual([]);
+    expect(ids(7, pe, ['iv', 'fluid', 'fluid', 'fluid'])).toEqual(['fluid-loading-pe']);
+    expect(ids(7, { ...pe, harms: [exempt('fluid-loading-pe', ['fluid'])] }, ['iv', 'fluid', 'fluid'])).toEqual([]);
+    // the gate: fluid on the lungs first — the first bolus is charged for that, the second for nothing more
+    expect(ids(7, { ...withProblems('pulmonary-embolism', 'pulmonary-edema'), vitals: LOW }, ['iv', 'fluid', 'fluid'])).toEqual(['fluid-pulmonary-edema']);
+  });
+
+  it('fluid-hypertensive: no bolus for a dissection without a low pressure', () => {
+    const dissection = withProblems('aortic-dissection');
+    expect(ids(7, dissection, ['iv', 'fluid'])).toEqual(['fluid-hypertensive']);
+    expect(ids(7, { ...dissection, vitals: LOW }, ['iv', 'fluid'])).toEqual([]);
+    expect(ids(7, { ...dissection, harms: [exempt('fluid-hypertensive', ['fluid'])] }, ['iv', 'fluid'])).toEqual([]);
+    // the gate: the second bolus in a PE is that rule's, not this one as well
+    const both = withProblems('aortic-dissection', 'pulmonary-embolism');
+    const sc = fixture({ setting: 'ed', role: 7, rhythm: SINUS, ...both });
+    const s = runSteps(sc, 7, ['iv', 'fluid', 'fluid']);
+    expect(s.penalties.map((p) => [p.id, p.minute])).toEqual([['fluid-hypertensive', 2], ['fluid-loading-pe', 3]]);
+  });
+
+  it('saline-instead-of-blood: a third saline bolus with no blood yet, where there is blood to give', () => {
+    const bleeding = { ...withProblems('bleeding'), vitals: VERY_LOW };
+    expect(ids(7, bleeding, ['iv', 'fluid', 'fluid'])).toEqual([]);
+    expect(ids(7, bleeding, ['iv', 'fluid', 'fluid', 'fluid'])).toEqual(['saline-instead-of-blood']);
+    expect(ids(7, bleeding, ['iv', 'fluid', 'fluid', 'transfuse', 'fluid'])).toEqual([]);
+    // the field carries no blood
+    expect(ids(2, bleeding, ['iv', 'fluid', 'fluid', 'fluid'])).toEqual([]);
+    expect(ids(7, { ...bleeding, harms: [exempt('saline-instead-of-blood', ['fluid'])] }, ['iv', 'fluid', 'fluid', 'fluid'])).toEqual([]);
+    // the gate: a dissection with no low pressure is that rule's — one penalty for the case, none added
+    expect(ids(7, withProblems('bleeding', 'aortic-dissection'), ['iv', 'fluid', 'fluid', 'fluid'])).toEqual(['fluid-hypertensive']);
   });
 });
