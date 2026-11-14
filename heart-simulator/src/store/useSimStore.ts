@@ -78,7 +78,11 @@ export function staleEtco2(prev: SimState | null, next: SimState, wasStale: bool
  */
 export function monitorVitals(s: SimState, stale = false): ScriptedVitals {
   const v = s.vitals;
-  if (s.pulse) return { pulse: true, sbp: v.sbp, dbp: v.dbp, spo2: v.spo2, rr: v.rr, etco2: v.etco2, ...(s.lvad ? { continuousFlow: true } : {}) };
+  // a wedged catheter damps the arterial trace: a case whose damping is an artifact (the patient's own pressure unchanged)
+  // gives the reading the line shows in the timers dampedSbp and dampedDbp
+  const damped = attached(s).art === 'damped' && s.timers.dampedSbp !== undefined && s.timers.dampedDbp !== undefined;
+  const bp = damped ? { sbp: s.timers.dampedSbp, dbp: s.timers.dampedDbp } : { sbp: v.sbp, dbp: v.dbp };
+  if (s.pulse) return { pulse: true, ...bp, spo2: v.spo2, rr: v.rr, etco2: v.etco2, ...(s.lvad ? { continuousFlow: true } : {}) };
   return { pulse: false, sbp: 0, dbp: 0, spo2: v.spo2, rr: ventilated(s) ? 10 : 0, etco2: stale ? arrestEtco2(s) : v.etco2 };
 }
 

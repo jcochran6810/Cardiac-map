@@ -601,6 +601,13 @@ describe('the IV nitroglycerin and the diuretic in the SCAPE case', () => {
     expect(missed(s)).not.toContain(criticalsFor(sc, 7).find((c) => c.id === 'md-nitro')!.label);
   });
 
+  it('the case\'s nitrate checks cover the IV bolus too: the pressure, the PDE-5 question and the interval', () => {
+    // the nurse before any pressure or the PDE-5 question, and without the order: each check beside the missing order
+    expect(ids(run(sc, 6, ['iv', 'nitro-iv']))).toEqual(['rn-without-order-nitro-iv', 'nitro-no-bp', 'nitro-no-pde5']);
+    // the doctor's second bolus straight after the first
+    expect(ids(md(['ems-handoff', 'iv', 'nitro-iv', 'nitro-iv']))).toEqual(['nitro-repeat-unsafe']);
+  });
+
   it('furosemide for a man who is not carrying extra fluid costs a little, once', () => {
     const s = md(['ems-handoff', 'cpap', 'lungs', 'nitro-high', 'iv', 'furosemide']);
     expect(ids(s).filter((id) => /furosemide|diuretic/.test(id))).toEqual(['diuretic-not-overloaded']);

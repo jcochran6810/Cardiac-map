@@ -246,8 +246,11 @@ export const cathlabStemi: Scenario = {
           ['monitor', 'Aortic pressure 82/64 — and the arterial trace has changed shape.', 'bad'],
           ...(s.role === 5 ? [line('team', 'Tech: "Doctor — the pressure\'s damped!"', 'warn')] : []),
         ],
-        // the arterial line reads the pressure at the wedged tip
-        vitals: { sbp: 82, dbp: 64 },
+        // the arterial line reads the pressure at the wedged tip: an artifact, so the patient's own pressure (what the
+        // safety rules read) is unchanged; the monitor prints the damped reading while the guide stays wedged
+        // (useSimStore monitorVitals: the timers dampedSbp and dampedDbp). Treating that number is the mistake this
+        // event teaches against: call it out and back the guide out
+        timers: { dampedSbp: 82, dampedDbp: 64 },
         flags: ['damped'],
         ...(s.role !== 5 ? {
           read: {

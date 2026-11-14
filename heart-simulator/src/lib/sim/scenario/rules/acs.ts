@@ -143,8 +143,9 @@ const NITRATE_RANKS: GateRule[] = [
     text: 'Nitroglycerin for an inferior STEMI before a right-sided lead. Up to half of inferior infarcts take in the right ventricle, which lives on its preload: record V4R first — ST elevation there means no nitrates (2025 ACC/AHA ACS).',
   },
   {
-    // with an LVAD a Doppler MAP over 90 is the high pressure, 60 the low one
-    id: 'nitro-high-not-hypertensive', actions: ['nitro-high', 'nitro-iv'], applies: (s) => !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160),
+    // with an LVAD a Doppler MAP over 90 is the high pressure, 60 the low one. The IV infusion is dosed by its indication
+    // (the high-dose bolus only for hypertensive pulmonary edema at 160 or more; otherwise 10 mcg/min, no bolus): not this rule's
+    id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], applies: (s) => !lowPressure(s) && (s.lvad ? mapOf(s.vitals) <= 90 : s.vitals.sbp < 160),
     points: 3, severity: 'minor',
     text: 'High-dose nitroglycerin without a high blood pressure. 0.8 mg is for hypertensive pulmonary edema with a systolic of 160 or more (with an LVAD, a Doppler MAP over 90); below that step down to 0.4 mg, and hold nitrates when the pressure is low.',
   },

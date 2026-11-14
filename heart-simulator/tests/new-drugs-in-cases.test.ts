@@ -94,6 +94,10 @@ describe('IV nitroglycerin meets the cases\' nitrate traps', () => {
     expect(s.ended?.reason).toBe('complete');
     expect(review(sc, s).toFix.filter((t) => t.kind === 'missed')).toEqual([]);
     expect(said(s, /^Nitroglycerin infusion started at 10 mcg\/min/)).toBe(true);
+    // the standard infusion at a systolic under 160 is no 0.8 mg dose: it costs nothing (nitro-iv is dosed by its indication)
+    expect(s.vitals.sbp).toBeLessThan(160);
+    expect(ids(s)).toEqual([]);
+    expect(review(sc, s).percent).toBe(100);
   });
 });
 

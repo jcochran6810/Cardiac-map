@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONDITIONS } from '@/data/content';
 import { ECG_PROFILES, resolveProfile } from '@/lib/ecg/profiles';
-import { answerRead, criticalsFor, perform, review, start, stop } from '@/lib/sim/scenario/engine';
+import { BUILT_IN_HARMS, answerRead, criticalsFor, perform, review, start, stop } from '@/lib/sim/scenario/engine';
 import { INTERVENTIONS, INTERVENTION_BY_ID, interventionsFor } from '@/lib/sim/scenario/interventions';
 import { READ_SETS } from '@/lib/sim/scenario/reads';
 import { SCENARIOS, SCENARIO_BY_ID, scenariosFor } from '@/lib/sim/scenario/scenarios';
@@ -254,9 +254,9 @@ const IDEAL: Record<string, Partial<Record<LearningLevel, string[]>>> = {
     7: ['ems-handoff', 'pocus', 'heparin', 'pressor', 'sample', 'alteplase', 'consult-cardiology', 'admit', ...R(5), 'handoff'],
   },
   'aortic-dissection-ed': {
-    6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'ask-pde5', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(9),
+    6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'ask-pde5', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nicardipine', ...R(9),
       'handoff'],
-    7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro', 'ct-urgent', ...R(5), 'handoff'],
+    7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'ask-pde5', 'nicardipine', 'ct-urgent', ...R(5), 'handoff'],
   },
   'tamponade-ed': {
     6: ['triage', 'monitor', 'o2-nc', 'vitals', 'perfusion', 'lungs', 'notify-physician', 'iv', 'labs', 'ecg12', 'sample', 'fluid', 'pads',
@@ -1053,16 +1053,28 @@ describe('US spelling in everything a learner reads', () => {
 
 describe('the cath lab monitor', () => {
   it('shows the arterial line once the sheath is in and zeroed, damped while the guide is wedged', async () => {
-    const { attached } = await import('@/store/useSimStore');
+    const { attached, monitorVitals } = await import('@/store/useSimStore');
     const sc = SCENARIO_BY_ID['stemi-cathlab'];
     let s = run(sc, 3, ['prep', 'transducer', 'pads']);
     expect(attached(s).art).toBe(false);
     s = run(sc, 3, ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger', 'guide-ebu']);
     expect(attached(s).art).toBe('damped');
-    expect(s.vitals.sbp).toBe(82);
+    // the damped trace is an artifact: the monitor prints 82/64, the patient's own pressure (what the rules read) is unchanged
+    expect(monitorVitals(s)).toMatchObject({ sbp: 82, dbp: 64 });
+    expect(s.vitals.sbp).toBe(138);
     s = perform(sc, s, 'callout');
     expect(attached(s).art).toBe(true);
     expect(s.vitals.sbp).toBe(136);
+    expect(monitorVitals(s)).toMatchObject({ sbp: 136, dbp: 84 });
+  });
+
+  it('no vasodilator or sedative rule charges on the damped number: a dose then is judged on the true pressure', async () => {
+    const { attached } = await import('@/store/useSimStore');
+    const sc = SCENARIO_BY_ID['stemi-cathlab'];
+    const s = run(sc, 3, ['prep', 'transducer', 'pads', 'timeout', 'act', 'cath-tiger', 'guide-ebu']);
+    expect(attached(s).art).toBe('damped');
+    expect(BUILT_IN_HARMS.find((h) => h.id === 'nitro-hypotension')!.when!(s, sc, 'ic-nitro')).toBe(false);
+    expect(BUILT_IN_HARMS.find((h) => h.id === 'midazolam-unsafe')!.when!(s, sc, 'midazolam')).toBe(false);
   });
 });
 

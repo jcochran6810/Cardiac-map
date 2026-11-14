@@ -19,8 +19,8 @@ const bp = (s: SimState) => [s.vitals.sbp, s.vitals.dbp];
 
 /** The ideal runs (the lead copies them into tests/scenarios.test.ts) */
 const IDEAL: Record<6 | 7, string[]> = {
-  6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'ask-pde5', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nitro', ...R(9), 'handoff'],
-  7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro', 'ct-urgent', ...R(5), 'handoff'],
+  6: ['triage', 'monitor', 'ecg12', 'bp-both-arms', 'opqrst', 'ask-pde5', 'notify-physician', 'iv', 'metoprolol', 'fentanyl', 'labs', 'nicardipine', ...R(9), 'handoff'],
+  7: ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'ask-pde5', 'nicardipine', 'ct-urgent', ...R(5), 'handoff'],
 };
 
 /** The nurse's work up to the report, when the physician comes to the bedside (minute 6.5) */
@@ -149,7 +149,7 @@ describe('aortic dissection in the emergency department — the ideal runs', () 
       { label: 'Blood pressure in both arms', minute: 4, target: 10, met: true },
       { label: 'Rate control (IV beta-blocker)', minute: 8.8, target: 15, met: true },
       { label: 'Cardiac surgeon called', minute: 8.8, target: 20, met: true },
-      { label: 'Arrival to the operating room', minute: 29.8, met: null },
+      { label: 'Arrival to the operating room', minute: 30.3, met: null },
     ]);
     // the doctor's run: the computer nurse's 12-lead counts for the team
     expect(review(sc, doctor(IDEAL[7])).timings).toEqual([
@@ -157,7 +157,7 @@ describe('aortic dissection in the emergency department — the ideal runs', () 
       { label: 'Blood pressure in both arms', minute: 1, target: 10, met: true },
       { label: 'Rate control (IV beta-blocker)', minute: 5.2, target: 15, met: true },
       { label: 'Cardiac surgeon called', minute: 5, target: 20, met: true },
-      { label: 'Arrival to the operating room', minute: 28, met: null },
+      { label: 'Arrival to the operating room', minute: 28.5, met: null },
     ]);
   });
 
@@ -413,6 +413,8 @@ describe('aortic dissection in the emergency department — the ER doctor\'s tra
     expect(first.rhythm.hr).toBe(110);
     expect(penalties(first)).toEqual(['vasodilator-before-rate-md']);
     expect(penalties(doctor([...MD_ASSESSED, 'nitro-high']))).toEqual(['vasodilator-before-rate-md']);
+    // the nicardipine infusion too: the case's rule speaks for the built-in vasodilator-before-rate-control (one penalty)
+    expect(penalties(doctor([...MD_ASSESSED, 'nicardipine']))).toEqual(['vasodilator-before-rate-md']);
     const right = doctor([...MD_ASSESSED, 'metoprolol', 'fentanyl', 'ask-pde5', 'nitro']);
     expect(right.penalties).toEqual([]);
     expect(bp(right)).toEqual([144, 78]);
