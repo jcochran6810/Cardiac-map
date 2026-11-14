@@ -216,7 +216,8 @@ describe('the PCI', () => {
     expect(ids(5, {}, [...WIRED, 'stent-covered'])).toEqual(['covered-no-perforation']);
     const perforated = { extra: { events: [{ id: 'hole', when: () => true, effect: () => ({ flags: ['perforation'] }) }] } };
     expect(ids(5, perforated, [...WIRED, 'stent-covered'])).toEqual([]);
-    expect(ids(5, withProblems('bleeding'), [...WIRED, 'stent-covered'])).toEqual([]);
+    // (with active bleeding the heparin on the way in is the antithrombotic gate's mistake, rules/acs.ts; the stent costs nothing)
+    expect(ids(5, withProblems('bleeding'), [...WIRED, 'stent-covered'])).toEqual(['antithrombotic-bleeding']);
     expect(ids(5, { harms: [exempt('covered-no-perforation', ['stent-covered'])] }, [...WIRED, 'stent-covered'])).toEqual([]);
   });
 });

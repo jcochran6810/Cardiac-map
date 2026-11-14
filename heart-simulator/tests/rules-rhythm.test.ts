@@ -14,6 +14,7 @@ import {
 import { SCENARIO_BY_ID, SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem, Scenario, Setting, Vitals } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
+import { runScenario } from './helpers';
 import { fixture, penaltyIds } from './ruleFixture';
 
 const SINUS = { profile: 'normal-sinus', hr: 80 };
@@ -164,7 +165,7 @@ describe('nodal-blocker-slow', () => {
     expect(pen(field({ rhythm: SLOW_SINUS }), ['iv', 'metoprolol'])).toEqual(['nodal-blocker-slow']);
     // and the cath lab's intracoronary drugs and the radial cocktail
     for (const drug of ['ic-adenosine', 'ic-verapamil']) expect(pen(lab({ rhythm: CHB, vitals: { sbp: 110 } }), [drug]), drug).toEqual(['nodal-blocker-slow']);
-    expect(pen(lab({ rhythm: CHB, vitals: { sbp: 110 } }), ['access', 'radial-cocktail'])).toEqual(['nodal-blocker-slow']);
+    expect(pen(lab({ rhythm: CHB, vitals: { sbp: 110 } }), ['consent', 'access', 'radial-cocktail'])).toEqual(['nodal-blocker-slow']);
   });
 
   it('does not fire at a rate of 50 or more, or over a pacer', () => {
@@ -440,6 +441,16 @@ describe('pace-no-analgesia', () => {
     expect(pen(field({ ...awake, harms: [exempt('pace-no-analgesia', ['pace'])] }), ['pads', 'pace'])).toEqual([]);
   });
 
+  it('a pressure held up only by a push-dose pressor is a crashing patient\'s: paced at once (rules/support.ts pressorBridging)', () => {
+    const low = { ...awake, vitals: { sbp: 78, dbp: 48 } };
+    // the push lifts the pressure over 90 for now: the pacer is the next step, not analgesia
+    const pushed = ['iv', 'push-epi', 'pads'];
+    expect(runScenario(field(low), 2, pushed).vitals.sbp).toBeGreaterThanOrEqual(90);
+    expect(pen(field(low), [...pushed, 'pace'])).toEqual([]);
+    // more than 10 minutes on, the pressure is his own again: analgesia first
+    expect(pen(field(low), [...pushed, ...Array(6).fill('reassess'), 'pace'])).toEqual(['pace-no-analgesia']);
+  });
+
   it('fentanyl before the pads, with no pain, is the opioid gate\'s (rules/acs.ts): one penalty, and the pacing is then covered', () => {
     expect(pen(field(awake), ['iv', 'fentanyl', 'pads', 'pace'])).toEqual(['opioid-no-pain']);
   });
@@ -591,19 +602,19 @@ describe('the transvenous wire', () => {
   it('temp-wire-without-pads: the wire with no pads on (the ED physician and the lab\'s operator)', () => {
     expect(pen(edMd({ rhythm: CHB }), ['central-line', 'temp-wire'])).toEqual(['temp-wire-without-pads']);
     expect(pen(edMd({ rhythm: CHB }), ['central-line', 'pads', 'temp-wire'])).toEqual([]);
-    expect(pen(lab({ rhythm: CHB }), ['access-venous', 'temp-wire'])).toEqual(['temp-wire-without-pads']);
+    expect(pen(lab({ rhythm: CHB }), ['consent', 'access-venous', 'temp-wire'])).toEqual(['temp-wire-without-pads']);
     expect(pen(edMd({ rhythm: CHB, harms: [exempt('temp-wire-without-pads', ['temp-wire'])] }), ['central-line', 'temp-wire'])).toEqual([]);
   });
 
   it('temp-wire-no-indication: in the lab, a wire for a heart that has never slowed', () => {
-    expect(pen(lab(), ['pads', 'access-venous', 'temp-wire'])).toEqual(['temp-wire-no-indication']);
+    expect(pen(lab(), ['pads', 'consent', 'access-venous', 'temp-wire'])).toEqual(['temp-wire-no-indication']);
     // a slow rate seen once (atropine has brought it up since): the wire on demand is its backup
-    expect(pen(lab({ rhythm: SLOW_SINUS }), ['iv', 'atropine', 'pads', 'access-venous', 'temp-wire'])).toEqual([]);
-    expect(pen(lab({ harms: [exempt('temp-wire-no-indication', ['temp-wire'])] }), ['pads', 'access-venous', 'temp-wire'])).toEqual([]);
+    expect(pen(lab({ rhythm: SLOW_SINUS }), ['iv', 'atropine', 'pads', 'consent', 'access-venous', 'temp-wire'])).toEqual([]);
+    expect(pen(lab({ harms: [exempt('temp-wire-no-indication', ['temp-wire'])] }), ['pads', 'consent', 'access-venous', 'temp-wire'])).toEqual([]);
   });
 
   it('one penalty: no indication outranks no pads; in the ED a normal rate outranks them', () => {
-    expect(pen(lab(), ['access-venous', 'temp-wire'])).toEqual(['temp-wire-no-indication']);
+    expect(pen(lab(), ['consent', 'access-venous', 'temp-wire'])).toEqual(['temp-wire-no-indication']);
     expect(pen(edMd(), ['central-line', 'temp-wire'])).toEqual(['temp-wire-not-slow']);
   });
 });
@@ -650,15 +661,15 @@ describe('amiodarone-arrest-long-qt', () => {
 
 describe('the cath lab\'s verapamil and intracoronary adenosine', () => {
   it('cocktail-low-pressure: the radial cocktail or IC verapamil with a systolic under 90', () => {
-    expect(pen(lab({ vitals: { sbp: 84, dbp: 50 } }), ['access', 'radial-cocktail'])).toEqual(['cocktail-low-pressure']);
+    expect(pen(lab({ vitals: { sbp: 84, dbp: 50 } }), ['consent', 'access', 'radial-cocktail'])).toEqual(['cocktail-low-pressure']);
     expect(pen(lab({ vitals: { sbp: 84, dbp: 50 } }), ['ic-verapamil'])).toEqual(['cocktail-low-pressure']);
-    expect(pen(lab({ vitals: { sbp: 110 } }), ['access', 'radial-cocktail'])).toEqual([]);
-    expect(pen(lab({ vitals: { sbp: 84, dbp: 50 }, harms: [exempt('cocktail-low-pressure', ['radial-cocktail'])] }), ['access', 'radial-cocktail'])).toEqual([]);
+    expect(pen(lab({ vitals: { sbp: 110 } }), ['consent', 'access', 'radial-cocktail'])).toEqual([]);
+    expect(pen(lab({ vitals: { sbp: 84, dbp: 50 }, harms: [exempt('cocktail-low-pressure', ['radial-cocktail'])] }), ['consent', 'access', 'radial-cocktail'])).toEqual([]);
   });
 
   it('verapamil-cardiogenic-shock: verapamil in cardiogenic shock, even with the pressure held over 90', () => {
-    expect(pen(lab({ problems: ['cardiogenic-shock'], vitals: { sbp: 96, dbp: 60 } }), ['access', 'radial-cocktail'])).toEqual(['verapamil-cardiogenic-shock']);
-    expect(pen(lab({ vitals: { sbp: 96, dbp: 60 } }), ['access', 'radial-cocktail'])).toEqual([]);
+    expect(pen(lab({ problems: ['cardiogenic-shock'], vitals: { sbp: 96, dbp: 60 } }), ['consent', 'access', 'radial-cocktail'])).toEqual(['verapamil-cardiogenic-shock']);
+    expect(pen(lab({ vitals: { sbp: 96, dbp: 60 } }), ['consent', 'access', 'radial-cocktail'])).toEqual([]);
     expect(pen(lab({ problems: ['cardiogenic-shock'], vitals: { sbp: 96, dbp: 60 }, harms: [exempt('verapamil-cardiogenic-shock', ['ic-verapamil'])] }), ['ic-verapamil'])).toEqual([]);
     // one penalty: under 90 the low-pressure rule speaks for it
     expect(pen(lab({ problems: ['cardiogenic-shock'], vitals: { sbp: 84, dbp: 50 } }), ['ic-verapamil'])).toEqual(['cocktail-low-pressure']);

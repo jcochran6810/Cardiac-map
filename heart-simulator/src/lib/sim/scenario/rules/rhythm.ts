@@ -18,6 +18,7 @@ import {
   lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
 import { SCOPE_RULES, rnWithoutOrderId } from './scope';
+import { pressorBridging } from './support';
 
 /** The drugs that slow the AV node or the rate (and amiodarone's infusion), with the cath lab's intracoronary ones */
 export const RATE_DRUGS = [
@@ -111,8 +112,9 @@ const RULES: Harm[] = [
   // pads on standby over a paced heart (a temporary wire) are a backup, not a mistake
   { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow heart rate to treat. Pacing is for symptomatic bradycardia (usually under 50/min) that atropine has not fixed.' },
   { id: 'pace-in-arrest', actions: ['pace'], when: (s) => !s.pulse, points: 5, severity: 'major', text: 'Pacing in cardiac arrest. It does not restart a heart in arrest and cannot treat VF: CPR, a shock for VF or pulseless VT, and epinephrine.' },
-  // the same id as torsades-field's. A patient who is crashing (a low pressure) is paced first
-  { id: 'pace-no-analgesia', actions: ['pace'], when: (s) => s.pulse && s.rhythm.hr < 50 && !paced(s) && s.vitals.gcs >= 13 && !lowPressure(s) && unsedated(s), points: 2, severity: 'minor', text: 'Transcutaneous pacing of an awake patient, with a pressure that allows analgesia, and none given. Each paced beat jolts the chest wall: fentanyl or a small titrated sedative first (2025 AHA) — without delaying pacing in a patient who is crashing.' },
+  // the same id as torsades-field's. A patient who is crashing is paced first: a low pressure, or one held up only by a
+  // push-dose pressor given in the last minutes (the bridge to the pacer, rules/support.ts pressorBridging)
+  { id: 'pace-no-analgesia', actions: ['pace'], when: (s, sc) => s.pulse && s.rhythm.hr < 50 && !paced(s) && s.vitals.gcs >= 13 && !lowPressure(s) && !pressorBridging(s, sc, 'push-epi') && unsedated(s), points: 2, severity: 'minor', text: 'Transcutaneous pacing of an awake patient, with a pressure that allows analgesia, and none given. Each paced beat jolts the chest wall: fentanyl or a small titrated sedative first (2025 AHA) — without delaying pacing in a patient who is crashing.' },
   // the emergency physician's invasive procedures need their indication (the cath lab's cases score their own). In the lab
   // a transvenous wire can be a backup on demand, so the rate rule is the department's only
   { id: 'temp-wire-not-slow', actions: ['temp-wire'], when: (s, sc) => sc.setting === 'ed' && s.pulse && s.rhythm.hr >= 50 && !paced(s), points: 5, severity: 'minor', text: 'A transvenous pacing wire without a slow heart rate to treat. It is for bradycardia (usually under 50/min) that drugs and the transcutaneous pacer cannot hold; with a faster rate it brings only its risks — a perforated ventricle, arrhythmias, a pneumothorax, bleeding and infection.' },
