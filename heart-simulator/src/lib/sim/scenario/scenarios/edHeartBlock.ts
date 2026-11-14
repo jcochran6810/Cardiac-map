@@ -3,7 +3,7 @@ import { PADS, allOf, bpAfter, firstDone, has, line, orderedFlag, paced } from '
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, physicianDispo } from '../edKit';
 import { INTERVENTION_BY_ID } from '../interventions';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Complete heart block in the emergency department. A 78-year-old woman comes in by a basic (BLS) ambulance after two
@@ -776,7 +776,7 @@ export const edHeartBlock: Scenario = {
     { id: 'md-admit', label: 'Admit her to the CCU', roles: ED_MD, done: ['admit'], points: 5, why: 'A pacing wire, a potassium being corrected and, very likely, a permanent pacemaker tomorrow: a monitored bed with nurses who manage temporary pacing.' },
     { id: 'md-handoff', label: 'Hand-off', roles: ED_MD, done: ['handoff'], points: 5, why: 'The rhythm and the pacing settings, the potassium and what was given for it, the drugs held, and the plan.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'amio-arrest', 'procainamide'], when: (s) => s.pulse, points: 20, severity: 'critical',
       replaces: ['arrest-amio-with-pulse', 'procainamide-slow', 'procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
@@ -829,7 +829,7 @@ export const edHeartBlock: Scenario = {
       id: 'rsi-no-indication', actions: ['rsi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.gcs >= 9, points: 10, severity: 'major', replaces: ['rsi-unresuscitated'],
       text: 'Rapid sequence intubation for a low pressure that comes from a slow heart. She protects her airway and oxygenates; the induction drug and positive pressure drop the pressure further and can stop a heart beating 34 times a minute. Fix the rate (pacing) first.',
     },
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Pads on', actions: [], flag: 'pads', target: 4 },

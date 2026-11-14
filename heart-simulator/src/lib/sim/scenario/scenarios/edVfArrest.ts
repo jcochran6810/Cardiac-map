@@ -2,7 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { arrestEtco2, bpAfter, count, firstDone, has, mapOf, ventilated } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A witnessed, monitored cardiac arrest in the emergency department. A 61-year-old man came in 40 minutes ago with two
@@ -857,7 +857,7 @@ export const edVfArrest: Scenario = {
       why: 'SBAR with the times: the collapse, each shock, each drug and its time, the airway, ROSC, the post-arrest pressure and the norepinephrine, the 12-lead, the neuro exam and the temperature control, the IV and his allergies (none).',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'airway-before-shock', actions: ['airway'], when: (s) => shockDue(s), points: 8, severity: 'major',
       text: 'Intubating while the shock waits. The defibrillator was ready and the rhythm called for a shock: the laryngoscope stopped the compressions and held the shock back. Shock first; place the airway while the compressions go on after it — a bag-mask at 30:2 is fine until then (2025 AHA: weigh the airway against the compression fraction, above all in VF).',
@@ -944,7 +944,7 @@ export const edVfArrest: Scenario = {
       id: 'transfer-pci-here', actions: ['transfer'], roles: ED_MD, when: (s) => !has(s, 'alert'), points: 10, severity: 'major',
       text: 'Transferring a post-arrest STEMI out of a hospital with its own cath lab. A transfer adds an hour or more to opening the artery: activate your own lab.',
     },
-  ],
+  ]),
   timings: TIMINGS,
   cathLabMinutes: CATH_MINUTES,
   deathAfter: DEATH_AFTER,

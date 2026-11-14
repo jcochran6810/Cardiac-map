@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * The version this case teaches: a regular wide-complex tachycardia in a man with an old infarct, whose pressure and
@@ -373,7 +373,7 @@ export const stableVtField: Scenario = {
     { id: 'transport', label: 'Transport', why: 'He needs a monitored bed, his potassium and magnesium, an echo and an electrophysiology review (ICD, ablation) — the heart center has them. The pads stay on en route; an unstable patient is shocked on scene, not driven further first.', done: ['transport-pci', 'transport-near'], points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report both 12-leads, the drug and dose, when it stopped and any shocks.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'ccb-wide-complex', actions: ['diltiazem'], when: (s) => inVt(s), points: 15, severity: 'critical', replaces: ['diltiazem-vt'], text: 'Diltiazem for a regular wide-complex tachycardia. Treat it as VT until proven otherwise: diltiazem and verapamil drop the pressure and can turn VT into VF or arrest — COR 3: Harm (2025 AHA). For a stable one the drugs are procainamide or amiodarone.' },
     // a manual shock only: with his pulse the AED is not applied, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock to a patient with a pulse. It can land on the T wave and set off VF. A tachycardia with a pulse that needs a shock gets synchronized cardioversion: 100 J for monomorphic VT (2025).' },
@@ -405,7 +405,7 @@ export const stableVtField: Scenario = {
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90 && !has(s, 'rosc'), points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. The tachycardia algorithm gives oxygen only if he is hypoxemic (below 90 %).' },
     // calcium is a fair answer to the pressure drop diltiazem caused, so only without it does it count as no indication
     { id: 'calcium-no-indication', actions: ['calcium-chloride'], when: (s) => !has(s, 'diltiazem'), points: 3, severity: 'minor', text: 'Calcium chloride without an indication. He has no high potassium, no low calcium and no calcium-channel-blocker overdose: it cannot stop the tachycardia, and it burns the tissue if it leaks.' },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 4 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 8 },

@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line, paced } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Drug-induced long QT with torsades de pointes. A 58-year-old woman who has taken a thiazide for years (it drains potassium
@@ -466,7 +466,7 @@ export const torsadesField: Scenario = {
       why: 'Report the faints, what the monitor showed, the 12-lead and its QT, the new medicines (with the bottles), the magnesium, any shock and when, and the times.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // during a run she is unresponsive and pulseless for a few seconds: starting compressions then is right
       id: 'cpr-with-pulse', actions: ['cpr'], when: (s) => s.pulse && !inRun(s), points: 10, severity: 'major',
@@ -549,7 +549,7 @@ export const torsadesField: Scenario = {
       id: 'nitro-no-pain', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse && s.vitals.pain === 0, points: 3, severity: 'minor', replaces: ['nitro-high-not-hypertensive'],
       text: 'Nitroglycerin with no chest pain. It treats ischemic chest pain; she has none, and it only lowers her pressure.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 3 },
     // the EMT's medics give it: the flag counts theirs

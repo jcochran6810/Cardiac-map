@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { bpAfter, canSwallow, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LEFT_VIEWS, MD, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Acute stent thrombosis on the table. A primary PCI of the proximal LAD: the stent went in on the emergency
@@ -670,7 +670,7 @@ export const cathlabStentThrombosis: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always — with full heparin, aspirin, ticagrelor and an IV platelet drug on board.', done: ['hemostasis'], after: 'final-angio', roles: [3, 4], points: 5, applies: (s) => has(s, 'final-angio') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'The stent thrombosis and its causes (the low ACT, the missed ticagrelor, the under-expanded stent), every drug and when — how long the cangrelor or eptifibatide runs — the final result, and the access site: a second stent thrombosis is the risk to watch for.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'stent-without-imaging', actions: ['stent-des'], roles: MD, when: (s) => !has(s, 'imaged'), points: 10, severity: 'major', text: 'Another stent for a stent thrombosis, before imaging the first one. The clot is the result; the cause is in the drugs (a low ACT, no P2Y12 inhibitor) or in the stent itself (under-expansion, malapposition, an edge dissection). A second stent fixes none of these, and stenting into fresh clot squeezes it downstream. Fix the drugs, reopen it, image it, then treat what the imaging shows.' },
     { id: 'stent-for-underexpansion', actions: ['stent-des'], roles: MD, when: (s) => has(s, 'imaged') && !has(s, 'expanded'), points: 6, severity: 'major', text: 'Another stent for an under-expanded stent. The imaging showed no edge dissection: the first stent never opened fully over a band of calcium. A second layer of metal does not expand it — a non-compliant balloon at high pressure does.' },
     // once the imaging has shown it fully open there is nothing left for a stent to fix: metal for nothing
@@ -695,7 +695,7 @@ export const cathlabStentThrombosis: Scenario = {
     // the nurse's bivalirudin for the heparin order (respond.bivalirudin closes it): the platelet order's own wrong answer covers it when that one is open too
     { id: 'wrong-rn-heparin', actions: ['bivalirudin'], roles: [4], when: (s) => openOrder(s, 'rn-heparin', 'heparin-given') && !openOrder(s, 'rn-platelets', 'platelets-given'), points: 3, severity: 'minor', text: 'Bivalirudin when the operator asked for a heparin top-up. Switching the anticoagulant is the operator\'s decision, with its own dosing: give what was ordered, or ask first.' },
     askHarm(RN_ASKS[3], 'Midazolam when the operator asked for something for the pain. A sedative does not relieve ischemic pain, and it lowers the pressure and the breathing: fentanyl 25–50 mcg IV.'),
-  ],
+  ]),
   timings: [
     { label: 'ACT known', actions: ['act'], flag: 'act', target: 3, from: 'thrombosis' },
     { label: 'Platelets blocked IV', actions: ['cangrelor', 'gp2b3a'], flag: 'iv-platelets', target: 5, from: 'thrombosis' },

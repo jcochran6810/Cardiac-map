@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { atRate, bpAfter, firstDone, has, line, paced } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LAD_VIEWS, MD, RCA_VIEWS, TECH, askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Coronary air embolism during a staged PCI of the right coronary. The pre-dilation balloon has just come out fast
@@ -742,7 +742,7 @@ export const cathlabAirEmbolism: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always — on two antiplatelet drugs and heparin.', done: ['hemostasis'], after: 'final-angio', roles: [3, 4], points: 5, applies: (s) => has(s, 'final-angio') },
     { id: 'handoff', label: 'Hand-off to the recovery area', why: 'What happened and how it happened, how it was cleared and how long the artery was blocked, the drugs given, the stent, the access site — watch the rhythm and the troponin, and report it as a safety event so the set-up is reviewed.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'nitro-low-pressure', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension'], when: (s) => s.pulse && s.vitals.sbp < 90, points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90 mmHg. The artery is blocked by gas, not by spasm or clot: nitroglycerin cannot move a bubble, and it drops the pressure that pushes the blood — and the bubbles — through. Hold the pressure up instead.' },
     { id: 'vasodilator-low-pressure', actions: ['ic-adenosine', 'ic-verapamil', 'ic-nitroprusside'], replaces: ['nitroprusside-hypotension', ...RATE_RULES], when: (s) => s.pulse && s.vitals.sbp < 90, points: 6, severity: 'major', text: 'An intracoronary vasodilator with a systolic pressure under 90 mmHg. It drops the pressure further (adenosine and verapamil also slow the heart): air is moved by aspiration and a forceful flush, with the pressure held up while it clears.' },
     { id: 'inject-through-air', actions: INJECTIONS, roles: MD, when: (s) => s.pulse && blocked(s), points: 8, severity: 'major', text: 'Another injection before the guide was aspirated. The air sits in the guide and the manifold: every injection pushes more of it down the artery. Stop injecting, aspirate back through the guide until the blood comes back free of bubbles, then flush.' },
@@ -763,7 +763,7 @@ export const cathlabAirEmbolism: Scenario = {
     { id: 'protamine-mid-pci', actions: ['protamine'], when: (s) => !has(s, 'pci'), points: 8, severity: 'major', text: 'Protamine in the middle of a PCI, with a wire in the artery and the stent still to go in. Reversing the heparin lets clot form on the wire and the guide; air embolism is not a bleeding problem.' },
     { id: 'vasopressor-normal-pressure', actions: ['ic-epinephrine', 'push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 110, points: 3, severity: 'minor', text: 'A vasopressor with a systolic of 110 or more. It only speeds the heart and raises its oxygen need: support the pressure when it is low.' },
     askHarm(TECH_ASKS[2],'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
-  ],
+  ]),
   timings: [
     { label: 'Injections stopped', actions: ['stop-contrast'], flag: 'contrast-stopped', target: 1, from: 'air' },
     // the flag, not the action: the tech's 'clear-air' is the syringe set-up, and the operator aspirates after it

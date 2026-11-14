@@ -1,7 +1,7 @@
 import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../types';
 import { PADS, atRate, bpAfter, count, firstDone, has, line, paced } from '../kit';
 import { MD, TECH, askCritical, askDone, askEvents, askHarm, type LabAsk } from '../labKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Complete heart block with a slow wide escape, sent up from the emergency department for a temporary transvenous pacing
@@ -651,7 +651,7 @@ export const cathlabTempWire: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off to the cardiac ICU', why: 'The block and the escape rate, the wire (site, depth, threshold, output, rate, mode), the perforation, the drain and how much came out, a repeat echo, pads on, the threshold checked every shift — and the permanent pacemaker plan.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'wire-without-pads', actions: ['temp-wire'], roles: MD, when: (s) => !has(s, 'pads'), replaces: ['temp-wire-without-pads'], points: 10, severity: 'major', text: 'A transvenous wire with no pads on. Crossing the tricuspid valve can set off VT, and a wire can stop pacing at any moment in a patient whose own escape is 30: pads on (and transcutaneous pacing ready) before the wire goes in, and until it is secure.' },
     { id: 'atropine-repeat', actions: ['atropine'], roles: [4, 5], when: (s) => s.pulse && count(s, 'atropine') >= 1 && !paced(s), replaces: ['atropine-infranodal-repeat'], points: 5, severity: 'major', text: 'More atropine for a block that atropine has already failed. A wide escape means the block is below the AV node: atropine speeds the sinus node, not the ventricles. Pace (pads, then the wire), or start an epinephrine or dopamine drip.' },
     { id: 'escape-suppressant', actions: ['lidocaine', 'amio-infusion', 'procainamide'], replaces: ['procainamide-slow', ...LIDOCAINE_RULES, ...RATE_RULES], points: 20, severity: 'critical', text: 'Never give lidocaine, amiodarone or procainamide to a patient living on a ventricular escape: it is what keeps her alive, and suppressing it can leave nothing at all — even with a wire in, which can stop pacing at any time.' },
@@ -668,7 +668,7 @@ export const cathlabTempWire: Scenario = {
     { id: 'sedation-low-pressure', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && s.rhythm.profile === 'paced' && s.vitals.sbp < 90, points: 5, severity: 'major', text: 'Sedation with a falling pressure once the wire is pacing. The wire needs no sedation (only the pads pacing hurts), and a benzodiazepine drops the pressure and the breathing further: support the pressure and find out why it is falling.' },
     { id: 'anticoagulant-perforation', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], when: (s) => has(s, 'perforated'), points: 8, severity: 'major', text: 'An anticoagulant or antiplatelet drug after the wire has come through the RV wall. It keeps the hole bleeding into the pericardium.' },
     askHarm(RN_ASKS[0], 'Atropine when the operator asked you to get the rate up. It already failed in the ED, and a wide escape means the block is below the AV node, where atropine rarely works: pace her through the pads (or start an epinephrine drip).'),
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, flag: 'pads', target: 3 },
     { label: 'Rate up (pacing or a drip)', actions: ['pace', 'pressor'], flag: 'rate-support', target: 4 },

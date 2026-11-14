@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { ARREST_ETCO2, arrestEtco2, bpAfter, firstDone, has, interpret, line, mapOf, ventilated } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Minutes after the crew reaches him (he collapsed about 5 minutes before, with the coach's CPR since) within which the
@@ -553,7 +553,7 @@ export const commotioField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'The blow and the time of collapse, the coach\'s CPR, each shock and its time, the time of ROSC, every drug, and the vitals and 12-lead after it.', done: ['handoff'], points: 5, applies: (s) => has(s, 'rosc') },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'iv-before-shock', actions: ['iv', 'io'], when: (s) => !s.pulse && vfShocks(s) === 0, roles: [2], points: 5, severity: 'major',
       text: 'IV or IO access before the first shock. In VF the shock is the treatment, and every minute without it cuts the chance of survival: pads on and shock first — the line comes during the CPR after the shock.',
@@ -623,7 +623,7 @@ export const commotioField: Scenario = {
       id: 'no-indication', actions: ['glucagon', 'diphenhydramine', 'albuterol'], roles: [2], points: 3, severity: 'minor',
       text: 'A drug with nothing to treat. Glucagon is for a beta- or calcium-channel-blocker overdose, diphenhydramine for an allergic reaction, albuterol for wheezing: he has none of them, and each brings its own side effects.',
     },
-  ],
+  ]),
   timings: [
     { label: 'First shock', actions: ['aed', 'defib'], target: 2 },
     { label: 'Compressions after the first shock', actions: ['cpr'], from: 'shocked', target: 0.5 },

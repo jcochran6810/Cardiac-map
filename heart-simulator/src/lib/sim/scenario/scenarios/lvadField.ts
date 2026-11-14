@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { allOf, atRate, bpAfter, count, firstDone, flagAt, has, mapOf } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A man on a continuous-flow LVAD (a HeartMate 3, the only durable LVAD implanted in the US today) with two days of vomiting
@@ -617,7 +617,7 @@ export const lvadField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', points: 5, done: ['handoff'], why: 'Report the alarm and the controller\'s numbers, the Doppler MAP before and after the fluid, the losses and the diuretic, the 12-lead, the VAD team\'s advice, and his anticoagulants and sildenafil.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words and weight: the case's main trap
       id: 'cpr-lvad-perfusing', actions: ['cpr'], when: (s) => perfusing(s), points: 15, severity: 'critical',
@@ -710,7 +710,7 @@ export const lvadField: Scenario = {
       id: 'long-ride-unstable', actions: ['transport-pci'], when: (s) => s.pulse && !stableEnough(s), points: 8, severity: 'major',
       text: 'The 22-minute ride to his VAD center for a man who is now confused, with his Doppler MAP down around 50. He is too unstable for the long ride: the nearest emergency department, 8 minutes away, with the VAD team on the phone — they call ahead, talk the department through the pump and take him once he is stable — and IV fluid on the way.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Pump checked', actions: ['lvad-check'], target: 5 },
     { label: 'Doppler MAP', actions: ['doppler-map'], target: 6 },

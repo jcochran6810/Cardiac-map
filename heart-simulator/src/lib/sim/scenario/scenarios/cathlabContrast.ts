@@ -1,7 +1,8 @@
 import type { Effect, PendingRead, Scenario, SimState } from '../types';
 import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import { MD, RN, TECH, angioGate, askCritical, askEvents, askHarm, operator, type LabAsk } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { lowPressure, slowOrBlocked } from '../rules/helpers';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES */
 const IMAGES: Partial<Record<string, string>> = { angio: 'normal-left-rao-caudal' };
@@ -235,13 +236,29 @@ export const cathlabContrast: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always.', done: ['hemostasis'], after: 'recovered', roles: [3, 4], points: 5, applies: (s) => has(s, 'recovered') },
     { id: 'handoff', label: 'Hand-off and documentation', why: 'Record the reaction as a contrast allergy, the drugs given, and the premedication plan for any future contrast; observe for a biphasic reaction.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'contrast-during-reaction', actions: CONTRAST, when: (s) => has(s, 'reaction') && !has(s, 'recovered'), points: 10, severity: 'major', text: 'More contrast during the reaction. Every injection adds to it: stop the contrast until she is stable.' },
     { id: 'premed-for-shellfish', actions: ['steroid', 'diphenhydramine'], roles: [4, 5], when: (s) => !has(s, 'reaction'), points: 2, severity: 'minor', text: 'Premedication for a shellfish allergy. Shellfish allergy is not a contrast allergy: premedication is for a previous reaction to contrast.' },
     { id: 'antihistamine-first', actions: ['diphenhydramine', 'steroid'], roles: [4, 5], when: (s) => has(s, 'reaction') && !has(s, 'epi-given'), points: 5, severity: 'major', text: 'An antihistamine or steroid before epinephrine. They are second-line and slow: epinephrine first, then the rest.' },
     { id: 'beta-blocker', actions: ['metoprolol'], replaces: RATE_RULES, points: 8, severity: 'major', text: 'A beta-blocker in anaphylaxis. It blocks the response to epinephrine.' },
+    // the problems list describes her once the reaction has begun: before it her lungs are clear. So the built-in rules that
+    // read her bronchospasm are said here, timed to the reaction (the same ids: they replace the built-ins), each leaving
+    // to the built-in ranking what outranks it (a slow rate, an arrest)
+    {
+      id: 'adenosine-asthma', actions: ['adenosine6', 'adenosine12'], when: (s) => s.pulse && has(s, 'reaction') && !slowOrBlocked(s), points: 8, severity: 'major',
+      text: 'Adenosine during an anaphylactic reaction with bronchospasm. It can tighten the airways further (adenosine labels: avoid it in bronchoconstrictive or bronchospastic lung disease), and her fast rate is the reaction\'s, not a rhythm through the AV node: epinephrine, fluid and oxygen treat it.',
+    },
+    {
+      id: 'ffr-adenosine-unsafe', actions: ['adenosine-iv-ffr'], when: (s) => s.pulse && (slowOrBlocked(s) || lowPressure(s) || has(s, 'reaction')), points: 8, severity: 'major',
+      text: 'IV adenosine for hyperemia with AV block, a slow rate, a low pressure, or the bronchospasm of the reaction. Its label rules the infusion out in second- or third-degree AV block and sinus node disease without a pacemaker and in bronchospastic lung disease, and it drops the pressure: there is no FFR to measure during a reaction — treat her first.',
+    },
+    {
+      // once the reaction has begun, magnesium for its bronchospasm is a fair second-line try — when the pressure allows
+      id: 'magnesium-no-indication', actions: ['magnesium-sulfate'], when: (s) => s.pulse && (!has(s, 'reaction') || lowPressure(s)), points: 3, severity: 'minor',
+      text: 'IV magnesium with nothing it is right for now. Magnesium is for torsades, a low magnesium, or a severe bronchospasm once the pressure allows: before the reaction her lungs are clear and her rhythm normal, and during it, with the pressure low, it relaxes the vessels and drops the pressure further — epinephrine and fluid first, albuterol for the wheeze.',
+    },
     askHarm(TECH_ASKS[0], 'The wrong diagnostic catheter for what the operator asked.'),
-  ],
+  ]),
   timings: [
     { label: 'Contrast stopped', actions: ['stop-contrast', 'callout'], target: 1, from: 'reaction' },
     { label: 'Epinephrine given', actions: EPI, flag: 'epi-given', target: 2, from: 'reaction' },

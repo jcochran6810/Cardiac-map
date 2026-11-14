@@ -3,7 +3,7 @@ import { PADS, bpAfter, firstDone, has, line } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-occlusion', 'final-angio': 'lad-open-impella' };
@@ -321,7 +321,7 @@ export const cathlabShock: Scenario = {
     { id: 'post-ecg', label: '12-lead after the procedure', why: 'ST resolution, and a baseline for the CCU.', done: ['ecg12', 'ecg12-repeat'], after: 'pci', points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac ICU', why: 'The shock numbers, the pump settings and purge, the pressor, the culprit and the stent, the RCA left for later, the leg checks.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a high wedge. A failing, overfilled LV cannot use more volume: it goes to the lungs.' },
     { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high', 'ic-nitro'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], points: 8, severity: 'major', text: 'Nitroglycerin with a systolic pressure under 90. It drops the pressure further.' },
     { id: 'phenylephrine-in-shock', actions: ['phenylephrine'], replaces: ['phenylephrine-no-hypotension', 'phenylephrine-slow'], points: 5, severity: 'major', text: 'Phenylephrine in cardiogenic shock. A pure vasoconstrictor raises the afterload the failing LV must pump against: the pressure rises a little while the output falls. Norepinephrine is the first vasopressor in cardiogenic shock (with an inotrope if the output stays low).' },
@@ -337,7 +337,7 @@ export const cathlabShock: Scenario = {
     askHarm(TECH_ASKS[3], 'The wrong device when the operator asked for a drug-eluting stent.'),
     askHarm(RN_ASKS[1], 'Protamine when the operator asked for heparin.', 5),
     askHarm(RN_ASKS[2], 'Oral P2Y12 tablets for a drowsy, shocked patient when the operator asked for the IV drug.'),
-  ],
+  ]),
   timings: [
     { label: 'Pressor running', actions: ['pressor', 'push-epi'], flag: 'pressor', target: 6 },
     { label: 'Mechanical support in', actions: ['impella'], flag: 'impella', target: 25 },

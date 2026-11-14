@@ -2,7 +2,7 @@ import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo, physicianOrder } from '../edKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Pulmonary embolism with shock, in the emergency department. A 52-year-old woman, four days after a 15-hour flight and
@@ -874,7 +874,7 @@ export const edPeLysis: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off to the ICU team', roles: ED_TEAM, points: 5, done: ['handoff'], why: 'The faint and the story, the scan, the 12-lead, every drug and when — the heparin, the norepinephrine, the alteplase and when it ends (then the heparin restarts) — the bleeding seen, and the rescue plan if she worsens.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // before anyone has looked at her IVC one small bolus is a fair try; after the doctor's own scan shows it full, it is not
       id: 'fluid-full-ivc', actions: ['fluid'], roles: ED_MD, when: (s) => s.pulse && count(s, 'fluid') === 0 && has(s, 'pocus'), points: 3, severity: 'minor',
@@ -1002,7 +1002,7 @@ export const edPeLysis: Scenario = {
       ],
       text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, metoprolol and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the clot, and a lytic for it.',
     },
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Heparin in', actions: ['heparin'], flag: 'heparin' },

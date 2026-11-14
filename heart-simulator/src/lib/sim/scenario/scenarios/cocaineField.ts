@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Cocaine-associated chest pain in the field. A 34-year-old man snorted cocaine at a party an hour ago: squeezing chest pain,
@@ -478,7 +478,7 @@ export const cocaineField: Scenario = {
       why: 'Witnessed VF with the pads on: shock it at once — every minute without a shock lowers survival.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words and weight: the beta-blocker is this case's main trap, weighted
       // as the other field cases weight a Class 3 — Harm drug (it must not leave an otherwise perfect run "Excellent")
@@ -546,7 +546,7 @@ export const cocaineField: Scenario = {
       id: 'legs-up-hypertensive', actions: ['legs-up'], when: (s) => s.pulse, points: 2, severity: 'minor',
       text: 'Raising the legs of a patient whose pressure is already high. It returns more blood to a heart that is already working too hard: let him sit in the position of comfort.',
     },
-  ],
+  ]),
   timings: [
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     // the EMT's intercept gives it: the flag counts theirs

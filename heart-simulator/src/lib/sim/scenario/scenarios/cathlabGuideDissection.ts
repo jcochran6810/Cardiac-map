@@ -4,7 +4,7 @@ import { INTERVENTION_BY_ID } from '../interventions';
 import {
   LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, TECH, WIRES, askCritical, askEvents, askHarm, operator, type LabAsk,
 } from '../labKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A guide catheter tears the RCA ostium. Elective PCI of a proximal RCA narrowing from the right radial: the JR4 kept
@@ -779,7 +779,7 @@ export const cathlabGuideDissection: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always — with heparin, aspirin and clopidogrel on board.', done: ['hemostasis'], after: 'root-checked', roles: [3, 4], points: 5, applies: (s) => has(s, 'root-checked') },
     { id: 'handoff', label: 'Hand-off to the cardiac unit', why: 'The tear at the RCA ostium and how far it went (the aortic root), the stent, the drugs, the final flow, the access site — and the plan: watch the pressure and the chest pain, CT of the aorta once she is stable, aspirin and clopidogrel without a break.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'inject-into-dissection', actions: [...VIEWS, 'clear-air'], roles: MD, when: (s) => mdTorn(s) && !has(s, 'inj-1'), points: 8, severity: 'major', text: 'Another contrast injection through a guide in a torn ostium. Each injection drives the tear further — down the RCA, or back up into the aortic root — and repeat injections are the commonest reason a catheter dissection spreads. Stop injecting; wire the true lumen without contrast and look with IVUS.' },
     { id: 'inject-again', actions: [...VIEWS, 'oct', 'clear-air'], roles: MD, when: (s) => mdTorn(s) && has(s, 'inj-1'), points: 12, severity: 'critical', text: 'Injecting again after the stain had already spread into the aortic wall. The next injection drives it up the ascending aorta — an aortocoronary dissection that may need surgery — and closes the RCA.' },
     { id: 'angio-after-dissection', actions: ['angio'], roles: MD, when: (s) => mdTorn(s), points: 10, severity: 'major', text: 'A diagnostic angiogram of both coronaries after the tear. Standard views need a diagnostic catheter: the guide comes out — and any wire with it — and a fresh catheter injects into the torn ostium. Never pull a wire out of a dissected artery: getting back into the true lumen may be impossible.' },
@@ -830,7 +830,7 @@ export const cathlabGuideDissection: Scenario = {
     askHarm(TECH_ASKS[2], 'The wrong device when the operator asked for a drug-eluting stent to seal the ostium. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[3], 'A compliant balloon when the operator asked for a non-compliant one. Taken to high pressure, it grows past its size and can tear the vessel at the stent edges.'),
     { ...askHarm(RN_ASKS[0], 'A drug that slows the rate further when the operator asked for something for a rate of 48. Atropine 1 mg IV.', 5), actions: ['adenosine6', 'adenosine12', 'diltiazem'], replaces: RATE_RULES },
-  ],
+  ]),
   timings: [
     { label: 'Contrast stopped', actions: ['stop-contrast'], flag: 'contrast-stopped', target: 1, from: 'dissection' },
     { label: 'Wire in the true lumen', actions: [], flag: 'wire-true', target: 4, from: 'dissection' },

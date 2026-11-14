@@ -2,7 +2,7 @@ import type { Effect, Line, Scenario, ScenarioEvent, SimState, Timing } from '..
 import { allOf, bpAfter, firstDone, has, shocks, PADS } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ECG_TO_ACTIVATION, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A walk-in anterior STEMI in a PCI-capable emergency department, on a Saturday evening (the cath lab team is on call from
@@ -529,7 +529,7 @@ export const edStemiWalkIn: Scenario = {
       why: 'SBAR with the times (onset, arrival, 12-lead, activation), every drug with its dose and time (aspirin, heparin, ticagrelor, fentanyl), the tadalafil (no nitrates for 48 hours), the VF and the shock, allergies, weight, kidney function and the IV.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the standing order's own exclusion: one rule for both roles, whether or not anyone asked
       id: 'nitro-pde5', actions: ['nitro', 'nitro-high'], when: (s) => s.pulse, points: 10, severity: 'major',
@@ -581,8 +581,11 @@ export const edStemiWalkIn: Scenario = {
     },
     {
       // with his own sinus rhythm there is nothing for an antiarrhythmic to treat; after the VF and the shock it is no mistake
-      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide'], roles: ED_MD, when: (s) => s.pulse && !has(s, 'rosc'), replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
-      text: 'An antiarrhythmic with no arrhythmia to treat. Prophylactic lidocaine in an acute MI prevents some VF without saving lives, and amiodarone or procainamide only drop the pressure of a failing heart: the protection against VF is the monitor and the pads, a shock the moment it comes, and the artery opened.',
+      // (an antiarrhythmic to hold the rhythm), but adenosine still has nothing to treat. The same id as the built-in rule,
+      // which it hides for every action: so it says adenosine too
+      id: 'antiarrhythmic-no-arrhythmia', actions: ['lidocaine', 'amio-infusion', 'procainamide', 'adenosine6', 'adenosine12'], roles: ED_MD,
+      when: (s, _sc, id) => s.pulse && (!has(s, 'rosc') || id.startsWith('adenosine')), replaces: [...LIDOCAINE_RULES, ...RATE_RULES], points: 3, severity: 'minor',
+      text: 'An antiarrhythmic with no arrhythmia to treat. Prophylactic lidocaine in an acute MI prevents some VF without saving lives, amiodarone or procainamide only drop the pressure of a failing heart, and adenosine only pauses a sinus rhythm: the protection against VF is the monitor and the pads, a shock the moment it comes, and the artery opened.',
     },
     {
       // the nurse's amiodarone or procainamide is already scored as given without an order (the built-in rule, which keeps
@@ -601,7 +604,7 @@ export const edStemiWalkIn: Scenario = {
       id: 'pressor-normal-pressure', actions: ['pressor', 'push-epi'], roles: ED_MD, when: (s) => s.pulse && s.vitals.sbp >= 100, points: 3, severity: 'minor',
       text: 'A vasopressor with a normal blood pressure. It raises the afterload and the oxygen demand of a heart whose artery is shut, and drives the rate; it is for a pressure that has fallen and does not come back with fluid.',
     },
-  ],
+  ]),
   timings: TIMINGS,
   cathLabMinutes: CATH_MINUTES,
   teaching: [

@@ -529,7 +529,7 @@ describe('PEA arrest in the field — the traps', () => {
     expect(penalties(perform(sc, perform(sc, medic(TO_ROSC), 'bvm'), 'procainamide'))).toEqual(['rate-control-post-rosc']);
   });
 
-  it('after ROSC, amiodarone drops her pressure and costs; adenosine and lidocaine treat nothing and cost a little', () => {
+  it('after ROSC, amiodarone drops her pressure and costs; adenosine and lidocaine treat nothing and cost a little — adenosine in her wheezing lungs, more', () => {
     const rosc = perform(sc, medic(TO_ROSC), 'bvm');
     const amio = perform(sc, rosc, 'amio-infusion');
     expect(penalties(amio)).toEqual(['rate-control-post-rosc']);
@@ -537,11 +537,13 @@ describe('PEA arrest in the field — the traps', () => {
     const push = perform(sc, rosc, 'amio-arrest');
     expect(penalties(push)).toEqual(['arrest-amio-with-pulse']);
     expect(push.vitals.sbp).toBeLessThan(rosc.vitals.sbp);
-    for (const id of ['adenosine6', 'lidocaine']) {
-      const s = perform(sc, rosc, id);
-      expect(penalties(s), id).toEqual(['antiarrhythmic-post-rosc']);
-      expect(s.penalties[0].points, id).toBe(3);
-    }
+    const lido = perform(sc, rosc, 'lidocaine');
+    expect(penalties(lido)).toEqual(['antiarrhythmic-post-rosc']);
+    expect(lido.penalties[0].points).toBe(3);
+    // her COPD with wheeze: adenosine's bronchospasm warning (major) outranks the case's minor rule
+    const aden = perform(sc, rosc, 'adenosine6');
+    expect(penalties(aden)).toEqual(['adenosine-asthma']);
+    expect(aden.penalties[0]).toMatchObject({ points: 8, severity: 'major' });
   });
 
   it('fentanyl and sedation: impossible in the arrest (no time, no cost); after ROSC, for a GCS of 3, they cost and lower the pressure', () => {

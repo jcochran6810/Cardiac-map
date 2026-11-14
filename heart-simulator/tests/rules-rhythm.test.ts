@@ -6,9 +6,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_HARMS, start } from '@/lib/sim/scenario/engine';
-import { orderedFlag } from '@/lib/sim/scenario/kit';
+import { has, orderedFlag } from '@/lib/sim/scenario/kit';
 import { INDICATION_RULES } from '@/lib/sim/scenario/rules/scope';
-import { LADDERS, LIDOCAINE_RULES, RATE_DRUGS, RATE_RULES, RHYTHM_RULES, topRhythmRule } from '@/lib/sim/scenario/rules/rhythm';
+import {
+  LADDERS, LIDOCAINE_RULES, RATE_DRUGS, RATE_RULES, RHYTHM_RULES, topRhythmRule, yieldToHeavier, yieldsToHeavier,
+} from '@/lib/sim/scenario/rules/rhythm';
+import { SCENARIO_BY_ID, SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem, Scenario, Setting, Vitals } from '@/lib/sim/scenario/types';
 import type { LearningLevel } from '@/store/useAppStore';
 import { fixture, penaltyIds } from './ruleFixture';
@@ -87,6 +90,70 @@ describe('the gate: one dose, one penalty', () => {
     const ids = BUILT_IN_HARMS.map((h) => h.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  const VT_LOW = { rhythm: VT, vitals: { sbp: 82, dbp: 50, gcs: 13 } };
+  it('a case rule charged already on another dose: the gate passes this dose on to the next rule down (one dose, one penalty)', () => {
+    const caseRule: Harm = {
+      id: 'case-antiarrhythmic', actions: ['amio-infusion', 'procainamide'], points: 8, severity: 'major',
+      replaces: [...RATE_RULES, 'procainamide-hypotension'], text: 'The case\'s words.',
+    };
+    // procainamide at 82 after amiodarone: the case rule was charged on the amiodarone; procainamide-hypotension, which it
+    // stands in for, is passed over, and stacking a second antiarrhythmic is charged
+    expect(pen(field({ ...VT_LOW, harms: [caseRule] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['case-antiarrhythmic', 'procainamide-after-amiodarone']);
+    // without the case: each drug its own pressure rule
+    expect(pen(field(VT_LOW), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['amiodarone-hypotension', 'procainamide-hypotension']);
+  });
+
+  it('a repeat of a mistake charged already — the built-in rule or the case\'s rule with its id — costs nothing more', () => {
+    const own: Harm = { id: 'av-blocker-preexcited-af', actions: ['diltiazem', 'metoprolol'], points: 15, severity: 'critical', text: 'The case\'s words.' };
+    for (const harms of [[], [own]]) {
+      expect(pen(field({ rhythm: PREEXCITED, vitals: { sbp: 84, dbp: 50 }, harms }), ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af']);
+    }
+  });
+
+  it('a case that narrows a rule under its id and says the rest in another rule: the dose is the case\'s alone', () => {
+    const narrowed: Harm = { id: 'procainamide-hypotension', actions: ['procainamide'], when: () => false, points: 8, severity: 'major', text: 'Not here.' };
+    const rest: Harm = { id: 'case-unstable', actions: ['procainamide'], points: 8, severity: 'major', text: 'The case\'s words.' };
+    expect(pen(field({ ...VT_LOW, harms: [narrowed, rest] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['amiodarone-hypotension', 'case-unstable']);
+  });
+});
+
+describe('a minor case rule never speaks for a major contraindication (yieldToHeavier)', () => {
+  const askLike: Harm = { id: 'case-wrong-drug', actions: ['adenosine6', 'diltiazem'], points: 5, severity: 'minor', replaces: RATE_RULES, text: 'The wrong drug for the order.' };
+  const slow = { rhythm: { profile: 'sinus-bradycardia', hr: 38 }, vitals: { sbp: 68, dbp: 40 } };
+
+  it('with a heavier, major rule on top it steps aside, and that rule charges alone; otherwise the case speaks', () => {
+    const [yielding] = yieldToHeavier([askLike]);
+    expect(yieldsToHeavier(yielding)).toBe(true);
+    for (const drug of ['adenosine6', 'diltiazem']) {
+      expect(pen(field({ ...slow, harms: [yielding] }), ['iv', drug]), drug).toEqual(['nodal-blocker-slow']);
+      // as the rule was written, the minor wrong answer spoke for the contraindication
+      expect(pen(field({ ...slow, harms: [askLike] }), ['iv', drug]), drug).toEqual(['case-wrong-drug']);
+    }
+    // at a normal rate and pressure the indication rule on top is minor: the case's words
+    expect(pen(field({ harms: [yielding] }), ['iv', 'adenosine6'])).toEqual(['case-wrong-drug']);
+  });
+
+  it('it steps aside only for a rule that would charge: once that rule, or another case rule standing in for it, was charged, the case speaks', () => {
+    const [yielding] = yieldToHeavier([askLike]);
+    expect(pen(field({ ...slow, harms: [yielding] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['nodal-blocker-slow', 'case-wrong-drug']);
+    const [standIn, wrong] = yieldToHeavier([{ id: 'case-unstable', actions: ['adenosine6', 'diltiazem'], points: 8, severity: 'major', replaces: RATE_RULES, text: 'The case\'s words.' }, askLike]);
+    expect(pen(field({ ...slow, harms: [standIn, wrong] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['case-unstable', 'case-wrong-drug']);
+  });
+
+  it('a major case rule, or the case\'s rule with the top rule\'s own id, keeps the dose in its own words', () => {
+    const [major] = yieldToHeavier([{ ...askLike, severity: 'major' }]);
+    expect(pen(field({ ...slow, harms: [major] }), ['iv', 'adenosine6'])).toEqual(['case-wrong-drug']);
+    const [own, wrong] = yieldToHeavier([{ ...exempt('nodal-blocker-slow', ['adenosine6']), when: () => true, points: 3 }, askLike]);
+    expect(pen(field({ ...slow, harms: [own, wrong] }), ['iv', 'adenosine6'])).toEqual(['nodal-blocker-slow', 'case-wrong-drug']);
+  });
+
+  it('every case rule that stands in for rules of rhythm.ts goes through yieldToHeavier', () => {
+    const ids = new Set(RHYTHM_RULES.map((r) => r.id));
+    for (const sc of SCENARIOS) {
+      for (const h of sc.harms) if (h.replaces?.some((id) => ids.has(id))) expect(yieldsToHeavier(h), `${sc.id}: ${h.id}`).toBe(true);
+    }
+  });
 });
 
 describe('nodal-blocker-slow', () => {
@@ -126,8 +193,9 @@ describe('lidocaine-slow-or-block', () => {
     expect(pen(field({ rhythm: { profile: 'tcp', hr: 70 } }), ['iv', 'lidocaine'])).toEqual(['lidocaine-no-arrhythmia']);
   });
 
-  it('a case rule with its id replaces it', () => {
-    expect(pen(field({ rhythm: CHB, harms: [exempt('lidocaine-slow-or-block', ['lidocaine'])] }), ['iv', 'lidocaine'])).toEqual([]);
+  it('a case rule with its id replaces it (the gate then passes the dose on: lidocaine in heart block still treats nothing)', () => {
+    expect(pen(field({ rhythm: CHB, harms: [exempt('lidocaine-slow-or-block', ['lidocaine'])] }), ['iv', 'lidocaine'])).toEqual(['lidocaine-no-arrhythmia']);
+    expect(pen(field({ rhythm: CHB, harms: [exempt('lidocaine-slow-or-block', ['lidocaine']), exempt('lidocaine-no-arrhythmia', ['lidocaine'])] }), ['iv', 'lidocaine'])).toEqual([]);
   });
 
   it('one penalty: heart block with a high potassium is the block\'s', () => {
@@ -216,6 +284,13 @@ describe('rate-drug-in-arrest', () => {
     expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'amio-infusion'])).toEqual(['rn-without-order-amio-infusion']);
     expect(pen(edRn({ rhythm: VF, pulse: false, extra: ordered('amio-infusion') }), ['io', 'amio-infusion'])).toEqual(['rate-drug-in-arrest']);
     expect(pen(edMd({ rhythm: VF, pulse: false }), ['io', 'amio-infusion'])).toEqual(['rate-drug-in-arrest']);
+    // her second unordered dose: the missing order is charged already, so the drug's own mistake is
+    expect(pen(edRn({ rhythm: VF, pulse: false }), ['io', 'adenosine12', 'adenosine12'])).toEqual(['rn-without-order-adenosine12', 'rate-drug-in-arrest']);
+  });
+
+  it('the FFR adenosine infusion in an arrest is a rate drug in arrest too', () => {
+    expect(pen(lab({ rhythm: VF, pulse: false, extra: flagged('wired') }), ['iv', 'adenosine-iv-ffr'])).toEqual(['rate-drug-in-arrest']);
+    expect(pen(lab({ rhythm: VF, pulse: false }), ['iv', 'adenosine-iv-ffr'])).toEqual(['rate-drug-in-arrest']);
   });
 });
 
@@ -235,6 +310,17 @@ describe('antiarrhythmic-nonshockable', () => {
 
   it('one penalty: a high potassium outranks it', () => {
     expect(pen(field({ rhythm: PEA, pulse: false, problems: ['hyperkalemia'] }), ['io', 'amio-arrest'])).toEqual(['antiarrhythmic-hyperkalemia']);
+  });
+
+  it('not in the CPR cycle right after a shock to VF: the rhythm under the compressions is not known until the check', () => {
+    // the shock organizes the rhythm, with no pulse yet
+    const organized: Partial<Scenario> = { events: [{ id: 'organized', when: (s) => has(s, 'shocked'), effect: () => ({ rhythm: { profile: 'normal-sinus', hr: 96 } }) }] };
+    for (const drug of ['amio-arrest', 'lidocaine']) {
+      expect(pen(field({ rhythm: VF, pulse: false, extra: organized }), ['io', 'defib', drug]), drug).toEqual([]);
+      // a pulse check shows the rhythm, and two minutes of CPR end the cycle
+      expect(pen(field({ rhythm: VF, pulse: false, extra: organized }), ['io', 'defib', 'pulse-check', drug]), drug).toEqual(['antiarrhythmic-nonshockable']);
+      expect(pen(field({ rhythm: VF, pulse: false, extra: organized }), ['io', 'defib', 'cpr', drug]), drug).toEqual(['antiarrhythmic-nonshockable']);
+    }
   });
 });
 
@@ -272,6 +358,9 @@ describe('antiarrhythmic-no-arrhythmia', () => {
     expect(pen(field({ rhythm: VT, vitals: { sbp: 110 } }), ['iv', 'procainamide'])).toEqual([]);
     expect(pen(field({ extra: flagged('rosc') }), ['iv', 'amio-infusion'])).toEqual([]);
     expect(pen(field({ problems: ['aortic-dissection'] }), ['iv', 'diltiazem'])).toEqual([]);
+    // an amiodarone infusion to hold the rhythm a cardioversion restored is fair; adenosine then still treats nothing
+    expect(pen(field({ extra: flagged('cardioverted') }), ['iv', 'amio-infusion'])).toEqual([]);
+    expect(pen(field({ extra: flagged('cardioverted') }), ['iv', 'adenosine6'])).toEqual(['antiarrhythmic-no-arrhythmia']);
   });
 
   it('a case rule with its id replaces it', () => {
@@ -302,6 +391,7 @@ describe('vagal-slow', () => {
   it('does not fire for a regular narrow-complex tachycardia, or over a pacer', () => {
     expect(pen(field({ rhythm: SVT, vitals: { sbp: 110 } }), ['vagal'])).toEqual([]);
     expect(pen(field({ rhythm: { profile: 'tcp', hr: 70 } }), ['vagal'])).toEqual([]);
+    expect(pen(field({ rhythm: { profile: 'tcp', hr: 40 } }), ['vagal'])).toEqual([]);
   });
 
   it('a case rule with its id replaces it', () => {
@@ -352,10 +442,13 @@ describe('magnesium-no-indication', () => {
     expect(rule('magnesium-no-indication').text).toMatch(/heart block/);
   });
 
-  it('does not fire for a long QT, a low magnesium, or atrial fibrillation', () => {
+  it('does not fire for a long QT, a low magnesium, atrial fibrillation, a severe asthma or bronchospasm, or digoxin toxicity', () => {
     expect(pen(field({ rhythm: { profile: 'long-qt', hr: 58 } }), ['iv', 'magnesium-sulfate'])).toEqual([]);
     expect(pen(field({ problems: ['hypomagnesemia'] }), ['iv', 'magnesium-sulfate'])).toEqual([]);
     expect(pen(field({ rhythm: AF }), ['iv', 'magnesium-sulfate'])).toEqual([]);
+    for (const problem of ['asthma', 'bronchospasm', 'digoxin-toxicity'] as Problem[]) {
+      expect(pen(field({ problems: [problem], rhythm: { profile: 'sinus-tachycardia', hr: 124 }, vitals: { spo2: 88 } }), ['iv', 'magnesium-sulfate']), problem).toEqual([]);
+    }
   });
 
   it('a case rule with its id replaces it', () => {
@@ -369,17 +462,23 @@ describe('magnesium-no-indication', () => {
 });
 
 describe('magnesium-renal-failure', () => {
-  it('fires for magnesium with failing kidneys or on dialysis', () => {
-    expect(pen(field({ problems: ['renal-failure'], rhythm: { profile: 'long-qt', hr: 58 } }), ['iv', 'magnesium-sulfate'])).toEqual(['magnesium-renal-failure']);
+  it('fires for magnesium with failing kidneys or on dialysis and nothing it is needed for — atrial fibrillation too', () => {
+    expect(pen(field({ problems: ['renal-failure'] }), ['iv', 'magnesium-sulfate'])).toEqual(['magnesium-renal-failure']);
     expect(pen(field({ problems: ['dialysis'] }), ['iv', 'magnesium-sulfate'])).toEqual(['magnesium-renal-failure']);
+    expect(pen(field({ problems: ['dialysis'], rhythm: AF }), ['iv', 'magnesium-sulfate'])).toEqual(['magnesium-renal-failure']);
   });
 
-  it('does not fire with working kidneys', () => {
+  it('does not fire with working kidneys, nor for magnesium that is needed (torsades, a long QT, a low magnesium) — a reduced dose', () => {
     expect(pen(field({ rhythm: { profile: 'long-qt', hr: 58 } }), ['iv', 'magnesium-sulfate'])).toEqual([]);
+    expect(pen(field({ problems: ['renal-failure'], rhythm: { profile: 'long-qt', hr: 58 } }), ['iv', 'magnesium-sulfate'])).toEqual([]);
+    expect(pen(field({ problems: ['dialysis'], rhythm: TORSADES, vitals: { sbp: 104 } }), ['iv', 'magnesium-sulfate'])).toEqual([]);
+    expect(pen(field({ problems: ['renal-failure'], rhythm: TORSADES, pulse: false }), ['io', 'magnesium-sulfate'])).toEqual([]);
+    expect(pen(field({ problems: ['dialysis', 'hypomagnesemia'] }), ['iv', 'magnesium-sulfate'])).toEqual([]);
+    expect(rule('magnesium-renal-failure').text).toMatch(/still given, at a reduced dose/);
   });
 
   it('a case rule with its id replaces it', () => {
-    expect(pen(field({ problems: ['dialysis'], rhythm: { profile: 'long-qt', hr: 58 }, harms: [exempt('magnesium-renal-failure', ['magnesium-sulfate'])] }), ['iv', 'magnesium-sulfate'])).toEqual([]);
+    expect(pen(field({ problems: ['dialysis'], rhythm: AF, harms: [exempt('magnesium-renal-failure', ['magnesium-sulfate'])] }), ['iv', 'magnesium-sulfate'])).toEqual([]);
   });
 
   it('one penalty: routine magnesium in an arrest outranks it', () => {
@@ -434,9 +533,15 @@ describe('beta-blocker-mi-shock-risk', () => {
     expect(pen(field({ problems: ['acs'], rhythm: { profile: 'sinus-tachycardia', hr: 116 } }), ['iv', 'metoprolol'])).toEqual(['beta-blocker-mi-shock-risk']);
   });
 
-  it('does not fire for a stable MI, nor outside an MI', () => {
+  it('fires for a PR interval of 0.24 s or more in an MI (the metoprolol label)', () => {
+    expect(pen(field({ problems: ['acs'], rhythm: { profile: 'first-degree-avb', hr: 68 }, vitals: { sbp: 140 } }), ['iv', 'metoprolol'])).toEqual(['beta-blocker-mi-shock-risk']);
+    expect(rule('beta-blocker-mi-shock-risk').text).toMatch(/PR interval of 0\.24 s or more/);
+  });
+
+  it('does not fire for a stable MI, nor outside an MI, nor for a fast AF in an ACS (an IV beta-blocker is its rate drug)', () => {
     expect(pen(field({ problems: ['acs'] }), ['iv', 'metoprolol'])).toEqual([]);
     expect(pen(field({ vitals: { sbp: 96, dbp: 60 } }), ['iv', 'metoprolol'])).toEqual([]);
+    expect(pen(field({ problems: ['acs'], rhythm: { profile: 'atrial-fibrillation', hr: 140 }, vitals: { sbp: 138 } }), ['iv', 'metoprolol'])).toEqual([]);
   });
 
   it('a case rule with its id replaces it', () => {
@@ -449,17 +554,22 @@ describe('beta-blocker-mi-shock-risk', () => {
 });
 
 describe('antiarrhythmic-hyperkalemia', () => {
-  it('fires for lidocaine, procainamide or amiodarone in hyperkalemia — in an arrest too', () => {
+  it('fires for lidocaine, procainamide or amiodarone in hyperkalemia — in a PEA arrest too', () => {
     for (const drug of ['lidocaine', 'procainamide', 'amio-infusion']) expect(pen(field({ problems: ['hyperkalemia'] }), ['iv', drug]), drug).toEqual(['antiarrhythmic-hyperkalemia']);
-    expect(pen(field({ problems: ['hyperkalemia'], rhythm: VF, pulse: false }), ['io', 'amio-arrest'])).toEqual(['antiarrhythmic-hyperkalemia']);
+    for (const drug of ['amio-arrest', 'lidocaine']) expect(pen(field({ problems: ['hyperkalemia'], rhythm: PEA, pulse: false }), ['io', drug]), drug).toEqual(['antiarrhythmic-hyperkalemia']);
   });
 
-  it('does not fire with a normal potassium (VT is what they are for)', () => {
+  it('does not fire with a normal potassium (VT is what they are for), nor in shock-refractory VF or pulseless VT (2025 AHA: with calcium)', () => {
     for (const drug of ['lidocaine', 'procainamide', 'amio-infusion']) expect(pen(field({ rhythm: VT, vitals: { sbp: 110 } }), ['iv', drug]), drug).toEqual([]);
+    for (const drug of ['amio-arrest', 'lidocaine']) {
+      expect(pen(field({ problems: ['hyperkalemia'], rhythm: VF, pulse: false }), ['io', 'defib', 'defib', 'defib', 'calcium-chloride', drug]), drug).toEqual([]);
+      expect(pen(field({ problems: ['hyperkalemia'], rhythm: { profile: 'vt', hr: 180 }, pulse: false }), ['io', 'defib', drug]), drug).toEqual([]);
+    }
+    expect(rule('antiarrhythmic-hyperkalemia').text).toMatch(/still gets amiodarone or lidocaine/);
   });
 
   it('a case rule with its id replaces it', () => {
-    expect(pen(field({ problems: ['hyperkalemia'], harms: [exempt('antiarrhythmic-hyperkalemia', ['lidocaine'])] }), ['iv', 'lidocaine'])).toEqual([]);
+    expect(pen(field({ problems: ['hyperkalemia'], rhythm: VT, vitals: { sbp: 110 }, harms: [exempt('antiarrhythmic-hyperkalemia', ['lidocaine'])] }), ['iv', 'lidocaine'])).toEqual([]);
   });
 
   it('one penalty: a 300 mg push with a pulse is the arrest-dose rule\'s', () => {
@@ -521,8 +631,10 @@ describe('amiodarone-arrest-long-qt', () => {
     expect(pen(field({ rhythm: TORSADES, pulse: false, harms: [exempt('amiodarone-arrest-long-qt', ['amio-arrest'])] }), ['io', 'amio-arrest'])).toEqual([]);
   });
 
-  it('one penalty: a high potassium outranks it', () => {
-    expect(pen(field({ rhythm: TORSADES, pulse: false, problems: ['hyperkalemia'] }), ['io', 'amio-arrest'])).toEqual(['antiarrhythmic-hyperkalemia']);
+  it('one penalty: it outranks the PEA rule; a high potassium outranks it in PEA, not in torsades (shockable)', () => {
+    expect(pen(field({ rhythm: PEA, pulse: false, problems: ['long-qt'] }), ['io', 'amio-arrest'])).toEqual(['amiodarone-arrest-long-qt']);
+    expect(pen(field({ rhythm: PEA, pulse: false, problems: ['long-qt', 'hyperkalemia'] }), ['io', 'amio-arrest'])).toEqual(['antiarrhythmic-hyperkalemia']);
+    expect(pen(field({ rhythm: TORSADES, pulse: false, problems: ['hyperkalemia'] }), ['io', 'amio-arrest'])).toEqual(['amiodarone-arrest-long-qt']);
   });
 });
 
@@ -579,10 +691,13 @@ describe('epinephrine in the arrest', () => {
   it('epi-too-soon: another dose within 3 minutes', () => {
     expect(pen(field({ rhythm: PEA, pulse: false }), ['io', 'epinephrine', 'epinephrine'])).toEqual(['epi-too-soon']);
     expect(pen(field({ rhythm: PEA, pulse: false }), ['io', 'epinephrine', 'cpr', 'cpr', 'epinephrine'])).toEqual([]);
+    // 2.5 minutes after the last dose is still too soon; 3 minutes on the clock (5.1 after 2.1) is not
+    expect(pen(field({ rhythm: PEA, pulse: false }), ['io', 'epinephrine', 'cpr', 'epinephrine'])).toEqual(['epi-too-soon']);
+    expect(pen(field({ rhythm: PEA, pulse: false }), ['io', ...Array(3).fill('pulse-check'), 'epinephrine', 'cpr', 'capno', 'epinephrine'])).toEqual([]);
     expect(pen(field({ rhythm: PEA, pulse: false, harms: [exempt('epi-too-soon', ['epinephrine'])] }), ['io', 'epinephrine', 'epinephrine'])).toEqual([]);
   });
 
-  it('one penalty: two doses before any shock are the shock rule\'s (charged once)', () => {
+  it('one penalty: two doses before any shock are the shock rule\'s, charged once — a repeat of a mistake costs nothing more', () => {
     expect(pen(field({ rhythm: VF, pulse: false }), ['io', 'epinephrine', 'epinephrine'])).toEqual(['epi-before-shock']);
   });
 });
@@ -664,6 +779,137 @@ describe('what the patient has: the history rules', () => {
     expect(pen(field({ ...tca, harms: [exempt('procainamide-sodium-channel', ['procainamide'])] }), ['iv', 'procainamide'])).toEqual([]);
     // one penalty: it outranks the high potassium
     expect(pen(field({ ...tca, problems: ['sodium-channel-blocker-overdose', 'hyperkalemia'] }), ['iv', 'procainamide'])).toEqual(['procainamide-sodium-channel']);
+  });
+});
+
+describe('rate-drug-compensatory', () => {
+  const pe = { problems: ['pulmonary-embolism'] as Problem[], rhythm: { profile: 'sinus-tachycardia', hr: 118 }, vitals: { sbp: 112, dbp: 70 } };
+  const tamponade = { problems: ['tamponade'] as Problem[], rhythm: { profile: 'sinus-tachycardia', hr: 118 }, vitals: { sbp: 96, dbp: 70 } };
+  it('fires for a beta-blocker or diltiazem in the sinus tachycardia of a pulmonary embolism or a tamponade not yet drained', () => {
+    for (const drug of ['metoprolol', 'diltiazem']) {
+      expect(pen(field(pe), ['iv', drug]), drug).toEqual(['rate-drug-compensatory']);
+      expect(pen(field(tamponade), ['iv', drug]), drug).toEqual(['rate-drug-compensatory']);
+      // a tamponade that began mid-case (the flag)
+      expect(pen(field({ ...tamponade, problems: [], extra: flagged('tamponade') }), ['iv', drug]), drug).toEqual(['rate-drug-compensatory']);
+    }
+    // the drugs still to come are judged by the same ladder
+    const sc = field(pe);
+    expect(topRhythmRule(start(sc, 2), sc, 'esmolol')).toBe('rate-drug-compensatory');
+    expect(rule('rate-drug-compensatory')).toMatchObject({ points: 8, severity: 'major' });
+    expect(rule('rate-drug-compensatory').text).toMatch(/esmolol label rules it out in pulmonary hypertension/);
+  });
+
+  it('does not fire once the tamponade is drained, nor for atrial fibrillation in a pulmonary embolism', () => {
+    expect(pen(field({ ...tamponade, extra: flagged('drained') }), ['iv', 'metoprolol'])).toEqual([]);
+    expect(pen(field({ ...pe, rhythm: AF }), ['iv', 'diltiazem'])).toEqual([]);
+  });
+
+  it('a case rule with its id replaces it; a case rule that replaces RATE_RULES speaks for it', () => {
+    expect(pen(field({ ...pe, harms: [exempt('rate-drug-compensatory', ['metoprolol'])] }), ['iv', 'metoprolol'])).toEqual([]);
+    const caseRule: Harm = { id: 'rate-control-pe', actions: ['metoprolol'], points: 8, severity: 'major', replaces: RATE_RULES, text: 'The case\'s words.' };
+    expect(pen(field({ ...pe, harms: [caseRule] }), ['iv', 'metoprolol'])).toEqual(['rate-control-pe']);
+  });
+
+  it('one penalty: a low pressure outranks it', () => {
+    expect(pen(field({ ...pe, vitals: { sbp: 84, dbp: 50 } }), ['iv', 'metoprolol'])).toEqual(['nodal-blocker-hypotension']);
+  });
+});
+
+describe('beta-blocker-cardiogenic-shock', () => {
+  const shock = { problems: ['cardiogenic-shock'] as Problem[], rhythm: { profile: 'sinus-tachycardia', hr: 104 }, vitals: { sbp: 96, dbp: 60 } };
+  it('fires for a beta-blocker in cardiogenic shock with the pressure held over 90', () => {
+    expect(pen(field(shock), ['iv', 'metoprolol'])).toEqual(['beta-blocker-cardiogenic-shock']);
+    const sc = field(shock);
+    for (const drug of ['esmolol', 'labetalol']) expect(topRhythmRule(start(sc, 2), sc, drug), drug).toBe('beta-blocker-cardiogenic-shock');
+  });
+
+  it('does not fire outside shock', () => {
+    expect(pen(field({ ...shock, problems: [] }), ['iv', 'metoprolol'])).toEqual([]);
+  });
+
+  it('a case rule with its id replaces it', () => {
+    expect(pen(field({ ...shock, harms: [exempt('beta-blocker-cardiogenic-shock', ['metoprolol'])] }), ['iv', 'metoprolol'])).toEqual([]);
+  });
+
+  it('one penalty: under 90 the low-pressure rule speaks for it, and fluid on the lungs outranks it', () => {
+    expect(pen(field({ ...shock, vitals: { sbp: 84, dbp: 50 } }), ['iv', 'metoprolol'])).toEqual(['nodal-blocker-hypotension']);
+    expect(pen(field({ ...shock, problems: ['cardiogenic-shock', 'pulmonary-edema'] }), ['iv', 'metoprolol'])).toEqual(['beta-blocker-pulmonary-edema']);
+  });
+});
+
+describe('the corrected rules: what is right care is not charged', () => {
+  it('cardioversion-digoxin-toxicity: an unstable rhythm is cardioverted, at the lowest energy', () => {
+    const toxic = { problems: ['digoxin-toxicity'] as Problem[] };
+    expect(pen(field({ ...toxic, rhythm: { profile: 'vt', hr: 180 }, vitals: { sbp: 70, dbp: 40, gcs: 12 } }), ['pads', 'cardiovert'])).toEqual([]);
+    expect(pen(field({ ...toxic, problems: ['digoxin-toxicity', 'pulmonary-edema'], rhythm: AF, vitals: { sbp: 100, spo2: 86 } }), ['iv', 'midazolam', 'pads', 'cardiovert'])).toEqual([]);
+  });
+
+  it('cardioversion-unanticoagulated: pulmonary edema makes the AF unstable — cardioverted at once; procainamide still converts it', () => {
+    const edema = { rhythm: { profile: 'atrial-fibrillation', hr: 160 }, vitals: { sbp: 100, spo2: 86 }, problems: ['af-over-48h', 'pulmonary-edema'] as Problem[] };
+    expect(pen(field(edema), ['iv', 'midazolam', 'pads', 'cardiovert'])).toEqual([]);
+    expect(pen(field(edema), ['iv', 'procainamide'])).toEqual(['cardioversion-unanticoagulated']);
+  });
+
+  it('atropine-infranodal-repeat: a narrow-escape complete block of an inferior MI sits at the AV node — a repeat dose is fair', () => {
+    expect(pen(field({ rhythm: { profile: 'inferior-stemi-chb', hr: 40 }, vitals: { sbp: 86, dbp: 54 } }), ['iv', 'atropine', 'atropine'])).toEqual([]);
+    expect(pen(field({ rhythm: { profile: 'mobitz-ii', hr: 44 }, vitals: { sbp: 104 } }), ['iv', 'atropine', 'atropine'])).toEqual(['atropine-infranodal-repeat']);
+  });
+
+  it('amiodarone-may-convert: in decompensated heart failure IV amiodarone may be considered for the rate', () => {
+    expect(pen(field({ rhythm: { profile: 'atrial-fibrillation', hr: 150 }, problems: ['af-over-48h', 'heart-failure', 'pulmonary-edema'] }), ['iv', 'amio-infusion'])).toEqual([]);
+    expect(rule('amiodarone-may-convert').text).toMatch(/anticoagulate \(heparin\) at once/);
+  });
+
+  it('adenosine-full-dose: the 3 mg first dose is the AHA\'s; the label warns of dipyridamole and carbamazepine', () => {
+    expect(rule('adenosine-full-dose').text).toMatch(/the AHA first dose is 3 mg \(the label warns that dipyridamole potentiates adenosine/);
+  });
+
+  it('ffr-adenosine-no-wire: only with a pulse (in an arrest the infusion is a rate drug in arrest)', () => {
+    expect(pen(lab({ rhythm: PEA, pulse: false }), ['iv', 'adenosine-iv-ffr'])).toEqual(['rate-drug-in-arrest']);
+    expect(LADDERS['adenosine-iv-ffr']).toEqual(['rate-drug-in-arrest', 'ffr-adenosine-unsafe', 'ffr-adenosine-no-wire']);
+  });
+});
+
+describe('in the cases: one dose, one penalty, at the right weight', () => {
+  const caseRun = (id: string, role: LearningLevel, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+
+  it('a dose whose case rule was charged on the first drug still costs its own mistake (P0 charged it too)', () => {
+    expect(caseRun('tamponade-field', 2, ['iv', 'amio-infusion', 'procainamide'])).toEqual(['antiarrhythmic-tamponade', 'procainamide-after-amiodarone']);
+    expect(caseRun('lvad-field', 2, ['iv', 'procainamide', 'amio-infusion'])).toEqual(['antiarrhythmic-sinus', 'amiodarone-after-procainamide']);
+    expect(caseRun('beta-blocker-overdose-field', 2, ['iv', 'amio-infusion', 'procainamide'])).toEqual(['antiarrhythmic-brady', 'procainamide-after-amiodarone']);
+    const tempWire = caseRun('heart-block-temp-wire-cathlab', 5, ['bp-both-arms', 'legs-up', 'vitals', 'bvm', 'p2y12', 'phenylephrine', 'albuterol-hyperk', 'ic-nitroprusside', 'lidocaine', 'procainamide']);
+    expect(tempWire.slice(-2)).toEqual(['escape-suppressant', 'procainamide-hypotension']);
+  });
+
+  it('a minor case rule does not speak for a major contraindication', () => {
+    // stable VT become unstable (84/52): IV metoprolol is the low-pressure rule's, not the case's minor beta-blocker rule
+    expect(caseRun('stable-vt-field', 2, ['iv', ...Array(7).fill('reassess'), 'metoprolol'])).toEqual(['nodal-blocker-hypotension']);
+    expect(caseRun('stable-vt-field', 2, ['iv', 'metoprolol'])).toEqual(['beta-blocker-vt']);
+    // cocaine: diltiazem on top of IV metoprolol is the diltiazem label's contraindication
+    expect(caseRun('cocaine-chest-pain-field', 2, ['iv', 'metoprolol', 'diltiazem'])).toEqual(['beta-blocker-stimulant', 'iv-beta-blocker-with-diltiazem']);
+  });
+
+  it('left main in shock: intracoronary verapamil at 78 costs what the radial cocktail does', () => {
+    expect(caseRun('left-main-shock-cathlab', 5, ['ic-verapamil'])).toEqual(['cocktail-low-pressure']);
+    expect(caseRun('left-main-shock-cathlab', 4, ['iv', 'ic-verapamil'])).toEqual(['cocktail-low-pressure']);
+    expect(caseRun('left-main-shock-cathlab', 5, ['pressor', 'ic-verapamil'])).toEqual(['verapamil-cardiogenic-shock']);
+  });
+
+  it('the walk-in STEMI: the ER doctor\'s adenosine in sinus rhythm treats nothing (the case\'s rule says adenosine too)', () => {
+    for (const drug of ['adenosine6', 'adenosine12']) expect(caseRun('stemi-walk-in-ed', 7, ['iv', drug]), drug).toEqual(['antiarrhythmic-no-arrhythmia']);
+  });
+
+  it('the contrast reaction: the rules that read her bronchospasm wait for the reaction', () => {
+    const MD = ['consent', 'timeout', 'access', 'cath-tiger', 'angio'];
+    // before the contrast her lungs are clear: the indication rules speak
+    expect(caseRun('contrast-cathlab', 4, ['iv', 'adenosine6'])).toEqual(['antiarrhythmic-no-arrhythmia']);
+    expect(caseRun('contrast-cathlab', 5, ['adenosine-iv-ffr'])).toEqual(['ffr-adenosine-no-wire']);
+    expect(caseRun('contrast-cathlab', 5, ['iv', 'magnesium-sulfate'])).toEqual(['magnesium-no-indication']);
+    // in the reaction: bronchospasm, and a pressure of 76
+    expect(caseRun('contrast-cathlab', 5, [...MD, 'iv', 'adenosine6'])).toEqual(['adenosine-asthma']);
+    expect(caseRun('contrast-cathlab', 5, [...MD, 'adenosine-iv-ffr'])).toEqual(['ffr-adenosine-unsafe']);
+    expect(caseRun('contrast-cathlab', 5, [...MD, 'iv', 'magnesium-sulfate'])).toEqual(['magnesium-no-indication']);
+    expect(caseRun('contrast-cathlab', 5, [...MD, 'iv', 'epi-im', 'fluid', 'magnesium-sulfate'])).not.toContain('magnesium-no-indication');
   });
 });
 

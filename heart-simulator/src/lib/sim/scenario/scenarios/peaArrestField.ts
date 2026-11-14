@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, firstDone, has, interpret, line } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Minutes from the EMT's call until the paramedic intercept is at her side */
 const ALS_MINUTES = 6;
@@ -486,7 +486,7 @@ export const peaArrestField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'Report the downtime and bystander CPR, the first rhythm, what brought her back (breaths with oxygen), each epinephrine dose and its time, the time of ROSC, and the vitals and 12-lead after it.', done: ['handoff'], points: 5, applies: (s) => has(s, 'rosc') },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // she never has a shockable rhythm: organized complexes, or a flat line
       id: 'shock-pea', actions: ['defib', 'cardiovert'], when: (s) => !s.pulse, points: 10, severity: 'major', replaces: ['shock-nonshockable'],
@@ -562,7 +562,7 @@ export const peaArrestField: Scenario = {
       id: 'stemi-alert-no-ste', actions: ['stemi-alert'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'A STEMI alert without ST elevation. Her 12-lead after ROSC shows none, and her arrest began with her breathing: it calls in the cath lab team for an artery that is not blocked.',
     },
-  ],
+  ]),
   timings: [
     { label: 'CPR taken over', actions: ['cpr'], target: 1.5 },
     { label: 'Rhythm analyzed (AED or monitor)', actions: ['aed', 'pads', 'monitor'], target: 3 },

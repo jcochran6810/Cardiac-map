@@ -424,8 +424,12 @@ describe('aortic dissection in the emergency department — the ER doctor\'s tra
     expect(penalties(over)).toEqual(['vasodilator-below-goal']);
   });
 
-  it('a second rate drug on top of the first costs 3 points; a rate drug in shock, 8', () => {
-    expect(penalties(doctor([...MD_ASSESSED, 'metoprolol', 'diltiazem']))).toEqual(['second-rate-drug']);
+  it('a second rate drug on top of the first costs points (diltiazem on IV metoprolol: the label\'s 5); a rate drug in shock, 8', () => {
+    // the diltiazem label rules out an IV beta-blocker and IV diltiazem within hours of each other: that major
+    // contraindication outranks the case's minor second-drug rule
+    const both = doctor([...MD_ASSESSED, 'metoprolol', 'diltiazem']);
+    expect(penalties(both)).toEqual(['iv-beta-blocker-with-diltiazem']);
+    expect(both.penalties[0]).toMatchObject({ points: 5, severity: 'major' });
     const shock = doctor(R(20));
     expect(shock.flags.tamponade).toBeDefined();
     expect(penalties(perform(sc, shock, 'metoprolol'))).toEqual(['rate-drug-low']);

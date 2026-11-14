@@ -3,7 +3,7 @@ import { INTERVENTION_BY_ID } from '../interventions';
 import { LOW_GLUCOSE, PADS, bpAfter, count, cprCycles, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edNurse, physicianDispo, physicianOrder } from '../edKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Severe hyperkalemia in the emergency department. A 66-year-old man walks in with his wife: two days of nausea, legs
@@ -976,7 +976,7 @@ export const edHyperkalemia: Scenario = {
       why: 'A glucose of 52 after insulin: dextrose 25 g IV now, then a dextrose infusion and a glucose every 15 minutes until it is steady.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     // the trap: the 12-lead already shows it, and the calcium waited for the lab
     {
       id: 'calcium-waited-for-lab', actions: ['calcium-chloride'], roles: ED_MD, points: 8, severity: 'major',
@@ -1047,7 +1047,7 @@ export const edHyperkalemia: Scenario = {
     { id: 'opioid-no-pain', actions: ['fentanyl'], roles: ED_MD, when: (s) => s.pulse && s.vitals.pain === 0 && s.rhythm.profile !== 'tcp', points: 3, severity: 'minor', text: 'An opioid for a patient with no pain. With his pressure this low and his breathing muscles weak, it only adds hypotension and slower, shallower breathing.' },
     askHarm(CALCIUM, 'Atropine when the physician ordered calcium. The potassium, not the vagus, slows this heart: give what was ordered, and if you disagree with an order, say so before giving anything else.'),
     askHarm(NEB, 'Albuterol 2.5 mg when the physician ordered 10–20 mg. The wheezing dose is a quarter to an eighth of what moves potassium into the cells: check the dose on the order before you give it.'),
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: '12-lead to calcium', actions: ['calcium-chloride'], flag: 'calcium', from: 'ecg12', target: 5 },

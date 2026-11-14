@@ -5,7 +5,7 @@ import {
   LAD_VIEWS, LEFT_VIEWS, MD, RCA_VIEWS, TECH, WIRES, angioGate, anticoagulated, askCritical, askDone, askEvents, askHarm, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Spontaneous coronary artery dissection (SCAD). A 42-year-old woman eight weeks after childbirth, breastfeeding, comes
@@ -751,7 +751,7 @@ export const cathlabScad: Scenario = {
     { id: 'defib', label: 'Defibrillate VF within 1 minute', why: 'In the lab VF is witnessed with the pads on: shock it within seconds.', done: ['defib', 'aed'], after: 'arrest', points: 15, target: { within: { flag: 'arrest', minutes: 1 } }, applies: (s) => has(s, 'arrest') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'SCAD extends in 5–10 % of patients in the first week: she stays on telemetry for 3–5 days, not an early discharge. Say what was found and done, that no more heparin is to be given, and what should bring the team back.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'inject-damped', actions: ['angio', ...LEFT_VIEWS], roles: MD, when: (s) => dampedNow(s), points: 10, severity: 'major', text: 'Contrast injected into a damped catheter. With the tip against the wall the jet hits the wall: that is how catheters dissect coronaries, and a fragile artery (a young woman after a pregnancy) tears more easily — catheter-induced dissection is about 3 % in SCAD patients, under 0.2 % in others. Back out, re-seat coaxially, inject gently.' },
@@ -780,7 +780,7 @@ export const cathlabScad: Scenario = {
     { ...askHarm(RN_ASKS[1], 'Not the drug the operator ordered: nitroglycerin 200 mcg into the coronary, to see whether the narrowing relaxes. Read the order back and check the syringe label.'), replaces: RATE_RULES },
     { ...askHarm(RN_ASKS[3], 'Not the drug the operator ordered: metoprolol 5 mg IV. Read the order back before you give it.'), replaces: RATE_RULES },
     askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain.', 2),
-  ],
+  ]),
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     // from the damping to the catheter backed out, whoever did it (a call-out, the back-out, the operator alone or the VF)

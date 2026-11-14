@@ -3,7 +3,7 @@ import { PADS, bpAfter, firstDone, has, line, mapOf } from '../kit';
 import {
   LEFT_GUIDES, MD, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, type LabAsk,
 } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A thrombotic left main in cardiogenic shock. A 72-year-old man comes straight up from the emergency department with
@@ -839,7 +839,7 @@ export const cathlabLeftMain: Scenario = {
     { id: 'post-ecg', label: '12-lead once the left main is open', why: 'The ST depression and the ST elevation in aVR resolving confirm the reperfusion; it is the baseline for the cardiac ICU.', done: ['ecg12', 'ecg12-repeat'], after: 'pci', points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to the cardiac ICU', why: 'The shock and the lactate, the Impella settings, purge and flow, the femoral sheath and the hourly leg checks, the pressor, the left main stent and its IVUS result, cangrelor and the switch to a tablet, and the RCA left for the heart team.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'fluid-in-shock', actions: ['fluid'], replaces: ['fluid-pulmonary-edema'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'A fluid bolus with pulmonary edema and a failing left ventricle. An overfilled ventricle cannot use more volume: it goes to the lungs, and the oxygen falls.' },
     { id: 'nitro-in-shock', actions: ['nitro', 'nitro-high'], replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'], when: (s) => s.pulse, points: 8, severity: 'major', text: 'Nitroglycerin in cardiogenic shock. It drops a pressure that is already too low to perfuse the heart and the brain; the chest pain is treated by opening the artery.' },
     // the built-in nitroglycerin rule is replaced above for every nitrate: intracoronary nitroglycerin with a low pressure keeps its own
@@ -875,8 +875,9 @@ export const cathlabLeftMain: Scenario = {
     { id: 'covered-no-perforation', actions: ['stent-covered'], roles: [3, 5], when: (s) => !has(s, 'perforation'), points: 4, severity: 'minor', text: 'A covered stent without a perforation. Covered stents seal perforations; they restenose and clot more than drug-eluting stents.' },
     // IV adenosine for hyperemia: no physiology to measure at an acute culprit, and it drops the pressure of a shocked patient
     { id: 'adenosine-in-shock', actions: ['adenosine-iv-ffr'], when: (s) => s.pulse, replaces: ['ffr-adenosine-unsafe', 'ffr-adenosine-no-wire'], points: 5, severity: 'major', text: 'An IV adenosine infusion in cardiogenic shock. It is for hyperemia during FFR of a stable lesion: here it drops a pressure that is already failing, and FFR means nothing at an acute culprit.' },
-    // the radial cocktail is verapamil and nitroglycerin: both drop a low pressure
-    { id: 'cocktail-low-pressure', actions: ['radial-cocktail'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: RATE_RULES, points: 3, severity: 'minor', text: 'The radial cocktail with a systolic pressure under 90 mmHg. Its verapamil and nitroglycerin drop the pressure further: in shock, heparin alone through the sheath — and no verapamil even once a pressor holds the pressure (its label rules it out in cardiogenic shock).' },
+    // the radial cocktail is verapamil and nitroglycerin: both drop a low pressure. The same id as the built-in rule, which
+    // it hides for every action: so it says intracoronary verapamil too
+    { id: 'cocktail-low-pressure', actions: ['radial-cocktail', 'ic-verapamil'], when: (s) => s.pulse && s.vitals.sbp < 90, replaces: RATE_RULES, points: 3, severity: 'minor', text: 'Verapamil — the radial cocktail, or intracoronary — with a systolic pressure under 90 mmHg. Verapamil (and the cocktail\'s nitroglycerin) drops the pressure further: in shock, heparin alone through the sheath — and no verapamil even once a pressor holds the pressure (its label rules it out in cardiogenic shock).' },
     { id: 'opened-early', actions: ['balloon-predil', 'stent-des', 'balloon-nc', 'stent-covered'], roles: TECH, when: (s) => !has(s, 'wired'), points: 2, severity: 'minor', text: 'A balloon or stent opened before there was a wire to put it on. Open devices when the operator asks for them.' },
     askHarm(TECH_ASKS[0], 'The wrong catheter when the operator asked for one for the left coronary from the groin. A JR4 is shaped for the right coronary, a pigtail for the left ventricle, and a Tiger for the radial approach.', 2),
     askHarm(TECH_ASKS[1], 'A balloon pump when the operator asked for the Impella. In infarct-related shock a routine IABP does not improve survival (IABP-SHOCK II; 2025 ACC/AHA: 3, no benefit).'),
@@ -885,7 +886,7 @@ export const cathlabLeftMain: Scenario = {
     askHarm(TECH_ASKS[5], 'The wrong device when the operator asked for a drug-eluting stent. Check the order and the box before you open it.'),
     askHarm(TECH_ASKS[6], 'The wrong balloon when the operator asked for a non-compliant one. A compliant balloon at high pressure over-stretches the vessel at the stent edges instead of expanding the stent.'),
     askHarm(RN_ASKS[4], 'Oral P2Y12 tablets when the operator asked for the IV drug. In shock they are absorbed poorly and a drowsy patient may aspirate them; if the surgeon has to take him, a ticagrelor load means days of bleeding risk.'),
-  ],
+  ]),
   timings: [
     { label: 'Pressor running', actions: ['pressor'], flag: 'pressor', target: 6 },
     // when the pump is working (the tech's priming does not count)

@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, ScenarioEvent, SimState, Spea
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH, askCritical, askEvents, askHarm, cine, type LabAsk } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A retroperitoneal bleed after femoral access. Three hours after a PCI from the right groin, a small 76-year-old woman
@@ -709,7 +709,7 @@ export const cathlabRpBleed: Scenario = {
     { id: 'md-final', label: 'Final run: no more leak', why: 'Prove the seal, and that the femoral, the profunda and the internal iliac still fill, before you leave.', done: ['final-angio'], after: 'sealed', roles: MD, points: 5, applies: (s) => has(s, 'sealed') },
     { id: 'handoff', label: 'Hand-off to the ICU', why: 'The bleed and where it was, how it was sealed, the blood given and the hemoglobin, the protamine and the ACT, the aspirin and ticagrelor kept for the stent, the leg checks — and a hemoglobin again in a few hours.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'more-antithrombotic', actions: ['heparin', 'bivalirudin', 'gp2b3a', 'cangrelor'], points: 12, severity: 'critical',
       text: 'More anticoagulant or a GP IIb/IIIa or IV P2Y12 drug in a patient who is bleeding. It keeps the hole open and speeds the blood loss: stop every anticoagulant and give no more, and reverse what is left of the heparin with protamine — bivalirudin, eptifibatide and cangrelor have no antidote, so once given they keep working until they wear off.',
@@ -753,7 +753,7 @@ export const cathlabRpBleed: Scenario = {
       text: 'A mechanical pump for a bleeding patient. Her heart squeezes hard and has nothing to pump: a pump needs another large-bore arterial sheath and full anticoagulation, and fixes neither.',
     },
     askHarm(TECH_ASKS[2], 'The wrong device when the operator asked for a covered stent. A coronary stent or balloon neither fits the iliac artery nor seals a hole: read the order back and check the box before you open it.'),
-  ],
+  ]),
   timings: [
     { label: 'First unit of blood', actions: [], flag: 'transfused', target: 8 },
     { label: 'On the table in the lab', actions: [], flag: 'on-table', target: 12 },

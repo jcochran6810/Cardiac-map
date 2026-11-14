@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState, Vitals } from '../types';
 import { atRate, bpAfter, has, line } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Acute type A aortic dissection in the field. A hypertensive man who ran out of his pills tears his ascending aorta lifting
@@ -406,7 +406,7 @@ export const dissectionField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'Report the onset, the pressure in each arm and the pulses, the 12-lead, what was given — and what was held (aspirin, nitroglycerin) — and how he changed.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words and weight: the aspirin is this case's main trap
       id: 'antithrombotic-dissection', actions: ['aspirin'], points: 10, severity: 'major',
@@ -489,7 +489,7 @@ export const dissectionField: Scenario = {
       id: 'cpap-no-distress', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; his lungs are clear, and positive pressure cuts the blood returning to the heart — dangerous if the tear bleeds into the pericardium.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Blood pressure in both arms', actions: ['bp-both-arms'], target: 10 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },

@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Pre-excited atrial fibrillation (Wolff-Parkinson-White). A 24-year-old man whose heart took off in a pickup basketball
@@ -587,7 +587,7 @@ export const wpwAfField: Scenario = {
       why: 'Report the onset, the 12-lead of the arrhythmia and the one after it, every drug and shock with its time, and that no AV-nodal blocker was given.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the same id as the built-in rule, in this case's words; the 300 mg push with a pulse is the same mistake made worse
       id: 'av-blocker-preexcited-af', actions: ['adenosine6', 'adenosine12', 'diltiazem', 'metoprolol', 'amio-infusion', 'amio-arrest'],
@@ -663,7 +663,7 @@ export const wpwAfField: Scenario = {
       when: (s) => !s.pulse && s.rhythm.profile === 'vf' && has(s, 'pads') && !shockedThisArrest(s), replaces: ['epi-before-shock'], points: 5, severity: 'major',
       text: 'Something else before the shock, with the pads already on. Witnessed VF needs a shock first: IV access, drugs and the airway come after it, during CPR.',
     },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 4 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 8 },

@@ -1,7 +1,7 @@
 import type { Effect, Line, Scenario, ScenarioEvent, SimState, Vitals } from '../types';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { LOW_GLUCOSE, PADS, PERFUSING_FLOOR, canSwallow, count, firstDone, has, paced } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Extended-release metoprolol overdose. The patient is computed, not patched: her rate and pressure are the untreated
@@ -608,7 +608,7 @@ export const betaBlockerField: Scenario = {
     { id: 'transport', label: 'Transport early', why: 'Treat on the way: she needs high-dose insulin, perhaps a transvenous pacing wire or ECMO, and 24 hours of ICU monitoring for an extended-release tablet.', done: ['transport-pci', 'transport-near'], points: 10, target: { by: 20 } },
     { id: 'handoff', label: 'Hand-off', why: 'The drug and its form (extended-release), the dose and the time, the glucose, what you gave and how she responded, and that this was a suicide attempt.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'av-blocker', actions: ['diltiazem', 'metoprolol'], replaces: RATE_RULES, points: 20, severity: 'critical', text: 'Another AV-nodal blocker on top of a beta-blocker overdose. A calcium-channel blocker or more beta-blocker slows the heart, weakens the squeeze and opens the vessels further, and can stop the heart: treat the poison, never add to it.' },
     { id: 'adenosine-brady', actions: ['adenosine6', 'adenosine12'], replaces: RATE_RULES, points: 10, severity: 'major', text: 'Adenosine for a slow rhythm. It blocks the AV node and gives seconds of standstill; it is a drug for a fast, regular narrow-complex tachycardia.' },
     // one penalty for one mistake: these stand in for the engine's procainamide and arrest-dose amiodarone rules
@@ -634,7 +634,7 @@ export const betaBlockerField: Scenario = {
     // stands in for the engine's rule (a rate of 50 or more): here a rate of 50–59 with the pressure still low may be paced
     { id: 'pace-not-slow', actions: ['pace'], when: (s) => s.pulse && !has(s, 'paced') && !slowAndFailing(s), points: 5, severity: 'minor', text: 'Transcutaneous pacing without a slow, failing rate to treat. Pace a rate under 50 — or under 60 with the pressure still under 90 — that the drugs have not fixed; above that it adds pain, not perfusion.' },
     { id: 'vagal-brady', actions: ['vagal'], when: (s) => s.pulse, replaces: ['vagal-slow'], points: 3, severity: 'minor', text: 'A vagal maneuver for a slow rhythm. It slows the heart further; it is for a fast, regular narrow-complex tachycardia.' },
-  ],
+  ]),
   timings: [
     { label: 'Pads on', actions: PADS, target: 5 },
     { label: 'Glucose checked', actions: ['glucose'], target: 10 },

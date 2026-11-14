@@ -2,7 +2,7 @@ import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../
 import { atRate, bpAfter, has } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * A stroke on the table. A diagnostic angiogram from the right radial: the left coronary is done, and a JR4 has just gone up
@@ -574,7 +574,7 @@ export const cathlabStroke: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off to the stroke and neurointerventional team', why: `What happened and when (last known well ${LAST_WELL}), the NIHSS, the glucose, the heparin and the ACT, the sedation, the pressure, the sheath, and the CT — so thrombectomy starts without a question.`, done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'carry-on', actions: MD_CARRY_ON, roles: MD, when: (s) => deficit(s) && !has(s, 'stopped'), points: 8, severity: 'major', text: 'More catheter work after a new neurologic deficit. Every pass in the arch can knock off more debris, and every minute before the stroke team is called costs brain: stop the injections, bring the catheter out over a wire and leave the sheath in — the coronary pictures can wait.' },
     { id: 'tech-carry-on', actions: TECH_CARRY_ON, roles: TECH, when: deficit, points: 3, severity: 'minor', text: 'Setting up the next step of the case when the patient has a new deficit. Call it out and help stop the procedure instead: slurred speech and a weak arm during catheter work in the arch is a stroke until proven otherwise.' },
     { id: 'sedation-for-deficit', actions: ['midazolam', 'fentanyl', 'sedation'], when: (s) => deficit(s) && s.pulse, replaces: ['midazolam-unsafe'], points: 8, severity: 'major', text: 'More sedation for a new one-sided deficit. Sedation does not cause a one-sided weakness or a facial droop: more of it hides the exam the stroke team needs, slows the breathing and lowers the pressure the brain is living on.' },
@@ -590,7 +590,7 @@ export const cathlabStroke: Scenario = {
     // to bring back up, not a normal one; only before it does the built-in's line hold)
     { id: 'phenylephrine-no-hypotension', actions: ['phenylephrine'], when: (s) => s.pulse && !deficit(s) && s.vitals.sbp >= 120, points: 3, severity: 'minor', text: 'Phenylephrine without a low blood pressure. It is a pure vasoconstrictor for hypotension; with a normal pressure it only adds afterload and slows the heart.' },
     { id: 'pressor-high-bp', actions: PRESSORS, when: (s) => s.pulse && deficit(s) && s.vitals.sbp >= LOW_FOR_STROKE, replaces: ['phenylephrine-no-hypotension'], points: 3, severity: 'minor', text: 'A vasopressor with a systolic of 140 or more. Raising the pressure with drugs has no established benefit in acute ischemic stroke and adds their risks: keep it where it is, and support it only if it falls well below his usual.' },
-  ],
+  ]),
   timings: [
     { label: 'Procedure stopped', actions: [], flag: 'stopped', target: 1, from: 'deficit' },
     { label: 'Stroke team called', actions: ['stroke-team'], flag: 'stroke-alert', target: 3, from: 'deficit' },

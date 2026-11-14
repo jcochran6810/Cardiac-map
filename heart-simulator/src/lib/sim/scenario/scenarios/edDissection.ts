@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Vitals } from '../type
 import { atRate, bpAfter, has, line, orderedFlag } from '../kit';
 import { askCritical, askEvents, askHarm, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder } from '../edKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Acute type A aortic dissection in the emergency department. A 63-year-old man whose blood pressure has gone untreated
@@ -704,7 +704,7 @@ export const edDissection: Scenario = {
     // both
     { id: 'handoff', label: 'Hand-off to the operating room team (SBAR)', why: 'The onset and the pain, the pressure in each arm, the murmur, the scans, every drug and dose — and what was held (aspirin, heparin) — his rate and pressure now, and the blood on hold.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // the chest pain standing order's aspirin is this case's main trap for the nurse; heparin or a P2Y12 would also be given
       // with no order, so this rule stands for that one too (one mistake, one penalty)
@@ -807,7 +807,7 @@ export const edDissection: Scenario = {
     // the nurse's answer to an order that is not the order: a medication error, scored once (not also as a drug with no order)
     { ...askHarm(RN_BETA, 'Diltiazem in place of the metoprolol the physician ordered. He has no reason not to take a beta-blocker, the drug the guideline puts first (2022 ACC/AHA); diltiazem is for a patient who cannot. Give the drug, the dose and the route that were ordered — read the order back, and ask if it seems wrong.', 5), replaces: RATE_RULES },
     askHarm(RN_VASODILATOR, 'Nitroglycerin 0.8 mg when 0.4 mg was ordered. Twice the ordered dose of a vasodilator in a patient whose pressure is coming down to a goal of 100–120 is a medication error: give the dose that was ordered, read it back, and recheck the pressure in the higher arm.'),
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Blood pressure in both arms', actions: ['bp-both-arms'], target: 10 },

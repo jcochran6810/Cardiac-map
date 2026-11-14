@@ -4,7 +4,7 @@ import {
   LAD_VIEWS, LEFT_GUIDES, LEFT_VIEWS, MD, RCA_VIEWS, RIGHT_GUIDES, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm,
   cine, doneAfter, nextStep, operator, type LabAsk,
 } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /** Real angiograms for this patient: cine view id → key of CATH_IMAGES (a run without one is described in words) */
 const IMAGES: Partial<Record<string, string>> = { angio: 'lad-intermediate-ffr-positive', ffr: 'ffr-significant', 'final-angio': 'lad-stented-after-ffr' };
@@ -395,7 +395,7 @@ export const cathlabFfr: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis: just enough pressure to stop the bleeding while the artery stays open.', done: ['hemostasis'], after: 'pci', roles: [3, 4], points: 5, applies: (s) => has(s, 'pci') },
     { id: 'handoff', label: 'Hand-off to recovery', why: 'Report the FFR, the stent, the spasm, the drugs given and the band.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'wire-no-heparin', actions: ['ffr-equalize', ...WIRES, 'balloon-predil', 'stent-des'], roles: MD, when: (s) => !anticoagulated(s), points: 15, severity: 'critical', text: 'A coronary wire without anticoagulation. The pressure wire is a coronary wire: heparin first.' },
     { id: 'stent-before-ffr', actions: ['stent-des', 'balloon-predil'], roles: MD, when: (s) => !has(s, 'ffr-done'), points: 10, severity: 'major', text: 'Treating a borderline narrowing without showing it is significant. Intermediate lesions need physiology first: about two-thirds of them do not limit flow (FAME).' },
     { id: 'svt-adenosine', actions: ['adenosine6', 'adenosine12'], roles: [4, 5], when: (s) => has(s, 'equalized'), replaces: RATE_RULES, points: 3, severity: 'minor', text: 'A 6 or 12 mg adenosine push for hyperemia. That is the SVT dose: seconds of AV block, not the steady hyperemia FFR needs.' },
@@ -415,7 +415,7 @@ export const cathlabFfr: Scenario = {
     { ...askHarm(RN_ASKS[3], 'The wrong nitroglycerin: the operator asked for intracoronary nitroglycerin through the guide.'), replaces: RATE_RULES },
     { ...askHarm(RN_ASKS[4], 'The SVT dose of adenosine instead of the hyperemia infusion.'), replaces: RATE_RULES },
     { id: 'oxygen-normoxic', actions: ['o2-nc', 'o2-nrb'], when: (s) => s.pulse && s.vitals.spo2 >= 90, points: 2, severity: 'minor', text: 'Oxygen with an SpO₂ of 90 % or more. Oxygen is for SpO₂ below 90 %.' },
-  ],
+  ]),
   timings: [
     { label: 'Spasm treated', actions: ['radial-cocktail', 'sedation', 'fentanyl', 'midazolam'], target: 2, from: 'spasm' },
   ],

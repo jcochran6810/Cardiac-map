@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { bpAfter, has } from '../kit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * The version this case teaches: atrial fibrillation with a rapid ventricular response in a man whose heart pumps at
@@ -407,7 +407,7 @@ export const afRvrField: Scenario = {
     { id: 'transport', label: 'Transport', why: 'He needs the hospital to decide on rhythm control and anticoagulation, and his heart failure treated.', done: ['transport-near', 'transport-pci'], points: 5 },
     { id: 'handoff', label: 'Hand-off', why: 'Report the onset time (about 3 hours: under 48), the ejection fraction of 30 %, his medicines (no anticoagulant), what you gave and when, and how he responded.', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     // the case's central trap: rescued perfectly, it still leaves the run below "Competent"
     { id: 'diltiazem-hfref', actions: ['diltiazem'], when: (s) => s.pulse, points: 25, severity: 'critical', replaces: ['diltiazem-heart-failure'], text: 'Diltiazem in a heart that pumps at 30 %. Calcium-channel blockers weaken the squeeze and dilate the vessels: with a reduced ejection fraction IV diltiazem and verapamil must not be given, with or without decompensated heart failure (2023 ACC/AHA AF guideline: 3 — Harm), and his failing heart could not hold its pressure. Take the history before the drug; with a weak, congested heart, amiodarone (or a synchronized shock if he is unstable).' },
     { id: 'metoprolol-decompensated', actions: ['metoprolol'], when: (s) => inAf(s), replaces: RATE_RULES, points: 4, severity: 'minor', text: 'IV metoprolol in a weak heart that is backing up into the lungs. A beta-blocker is a fair choice for a weak heart that is not congested (2023 AF guideline), but his crackles, low SpO₂ and new breathlessness are decompensated heart failure, where IV beta-blockers are to be avoided (2025 AHA) — and he already takes carvedilol: the extra dose weakened the squeeze more than it slowed the rate. Amiodarone is the drug here.' },
@@ -433,7 +433,7 @@ export const afRvrField: Scenario = {
     // calcium for the low pressure diltiazem caused: the built-in rule 'calcium-no-indication' spares it (a pulse and a
     // systolic under 90), and still charges it once the pressure is back or in the arrest an unsynchronized shock can cause
     { id: 'pressor-not-low', actions: ['push-epi', 'pressor'], when: (s) => s.pulse && s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'A pressor or push-dose epinephrine with a systolic pressure of 90 or more. His pressure did not need raising, and adrenergic drugs speed AV conduction: in atrial fibrillation the rate goes up.' },
-  ],
+  ]),
   timings: [
     { label: '12-lead', actions: ['ecg12'], target: 8 },
     { label: 'Rate control started (amiodarone or a synchronized shock)', actions: ['amio-infusion', 'cardiovert'], target: 12 },

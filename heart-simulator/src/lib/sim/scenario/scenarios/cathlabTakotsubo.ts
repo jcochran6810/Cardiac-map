@@ -5,7 +5,7 @@ import {
   LEFT_VIEWS, MD, RCA_VIEWS, RN, TECH, WIRES, angioGate, anticoagulated, askCritical, askEvents, askHarm, cine, doneAfter, operator,
   type LabAsk,
 } from '../labKit';
-import { RATE_RULES } from '../rules/rhythm';
+import { RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Takotsubo syndrome with dynamic LV outflow tract obstruction. A 70-year-old woman comes to the lab as a STEMI alert an hour
@@ -828,7 +828,7 @@ export const cathlabTakotsubo: Scenario = {
     { id: 'hemostasis', label: 'Radial band and distal perfusion check', why: 'Patent hemostasis, as always — she has had heparin and aspirin.', done: ['hemostasis'], after: 'proc-over', roles: [3, 4], points: 5, applies: (s) => has(s, 'proc-over') },
     { id: 'handoff', label: 'Hand-off to the cardiac care unit', why: 'What was found and done, what never to give her (inotropes, nitrates, diuretics, a balloon pump), the QTc and the electrolytes, the echo tomorrow — and that she has just lost her husband.', done: ['handoff'], roles: [4, 5], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     { id: 'access-no-timeout', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'timeout'), points: 5, severity: 'major', text: 'Arterial access before the time-out.' },
     { id: 'access-no-consent', actions: ['access', 'access-femoral'], when: (s) => !has(s, 'consent'), points: 5, severity: 'major', text: 'Access before confirming consent and allergies in an awake patient who can give them.' },
     { id: 'catecholamine-lvoto', actions: ['pressor', 'push-epi'], roles: [4, 5], when: (s) => s.pulse, points: 10, severity: 'major', text: CATECHOLAMINE_TEXT },
@@ -867,7 +867,7 @@ export const cathlabTakotsubo: Scenario = {
     { ...askHarm(TECH_ASKS[1], 'A coronary catheter when the operator asked for a pigtail. The coronaries are clean: the answer is in the ventricle.'), actions: ['cath-jl4', 'cath-jr4'] },
     askHarm(RN_ASKS[0], 'Not the drug the operator ordered: unfractionated heparin, 4,300 units. Read the order back before you give it.'),
     { ...askHarm(RN_ASKS[4], 'Midazolam when the operator asked for something for the pain. A benzodiazepine calms; it does not treat pain — and it drops the pressure.', 2), actions: ['midazolam'] },
-  ],
+  ]),
   timings: [
     { label: 'Time-out', actions: ['timeout'], target: 6 },
     { label: 'Gradient measured after the fall', actions: [], flag: 'gradient-timed', target: 3, from: 'obstructed' },

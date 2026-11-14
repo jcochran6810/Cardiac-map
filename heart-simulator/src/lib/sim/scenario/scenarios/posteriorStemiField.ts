@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, atRate, bpAfter, has, interpret, line } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Posterior STEMI in the field. A 61-year-old woman with diabetes and high blood pressure had to sit down halfway up the
@@ -426,7 +426,7 @@ export const posteriorStemiField: Scenario = {
     // wherever she arrives: the destination is scored by 'pci' and the nearest-ED harm, so the label names no hospital
     { id: 'handoff', label: 'Hand-off on arrival (SBAR)', points: 5, done: ['handoff'], why: 'SBAR: when the pain began, the 12-lead and V7–V9, what was given and when, the pressure — at the heart center the team takes her straight to the lab.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'nearest-ed', actions: ['transport-near'], roles: [2], points: 10, severity: 'major',
       text: 'Transport to the nearest emergency department, which has no cath lab. ST depression in V1–V3 with tall R waves and upright T waves is a STEMI in the back wall until the posterior leads say otherwise — not "just ischemia". A STEMI goes straight to a PCI-capable center (first medical contact to device within 90 minutes); a stop at a hospital without a cath lab adds a transfer.',
@@ -462,7 +462,7 @@ export const posteriorStemiField: Scenario = {
       id: 'cpap-clear', actions: ['cpap'], when: (s) => s.pulse, points: 3, severity: 'minor',
       text: 'CPAP with clear lungs. It is for respiratory distress from fluid on the lungs; hers are clear, and the pressure in the chest lowers the blood returning to the heart.',
     },
-  ],
+  ]),
   timings: [
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },
     // the EMT's intercept records them: the flag counts theirs

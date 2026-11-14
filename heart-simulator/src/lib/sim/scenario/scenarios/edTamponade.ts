@@ -2,7 +2,7 @@ import type { Critical, Effect, Line, Scenario, SimState, Speaker } from '../typ
 import { atRate, bpAfter, count, firstDone, has, line, orderedFlag } from '../kit';
 import { askCritical, askDone, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, ED_TEAM, edOrder, physicianDispo } from '../edKit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Cardiac tamponade from a malignant pericardial effusion, in the emergency department. A 58-year-old woman with breast
@@ -874,7 +874,7 @@ export const edTamponade: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off to the CCU team', roles: ED_TEAM, points: 5, done: ['handoff'], why: 'The story, the low pressure with its narrow pulse pressure, Beck\'s triad and the pulsus, the 12-lead, the scan, what was given (the fluid, any vasopressor) and what was held (nitroglycerin, CPAP, sedation, a tube), the drain — how much came off and what it looked like — and the pressure since.' },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       id: 'nitro-tamponade', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && !drained(s), points: 15, severity: 'critical',
       // whatever her pressure: after a bolus her systolic can be over 90, and nitroglycerin is still wrong for her
@@ -1024,7 +1024,7 @@ export const edTamponade: Scenario = {
       ],
       text: 'A rate or rhythm drug in PEA, with no order. An amiodarone infusion, procainamide, adenosine, metoprolol and diltiazem are for tachycardias with a pulse — and even in an arrest they are given only on the physician\'s order (the code leader\'s ACLS drugs are epinephrine, and amiodarone 300 mg or lidocaine for VF or pulseless VT that shocks have not fixed). CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },
-  ],
+  ]),
   timings: [
     DOOR_TO_ECG,
     { label: 'Bedside ultrasound', actions: ['pocus'], flag: 'pocus' },

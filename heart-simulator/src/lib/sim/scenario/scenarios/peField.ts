@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, firstDone, has, line } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Pulmonary embolism with obstructive shock, in the field. A 45-year-old woman ten days after a plate and screws for a
@@ -597,7 +597,7 @@ export const peField: Scenario = {
     },
     { id: 'handoff', label: 'Hand-off', why: 'Report the sudden onset and the faint, the surgery and the swollen calf, the pressures and the neck veins with clear lungs, the 12-lead, what was given — and what was held (fluid, nitroglycerin, CPAP).', done: ['handoff'], points: 5 },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // one small bolus is tolerated; a second is beyond the 500 mL that cautious volume loading allows
       id: 'fluid-loading-pe', actions: ['fluid'], when: (s) => s.pulse && count(s, 'fluid') >= 1, points: 10, severity: 'major',
@@ -646,7 +646,7 @@ export const peField: Scenario = {
       when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest', ...LIDOCAINE_RULES, ...RATE_RULES, 'amiodarone-arrest-long-qt'],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause.',
     },
-  ],
+  ]),
   timings: [
     { label: 'High-flow oxygen', actions: ['o2-nrb'], target: 5 },
     { label: 'First 12-lead', actions: ['ecg12'], target: 10 },

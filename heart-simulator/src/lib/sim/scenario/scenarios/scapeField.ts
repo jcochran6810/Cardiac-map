@@ -1,6 +1,6 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { atRate, bpAfter, count, has, line } from '../kit';
-import { LIDOCAINE_RULES, RATE_RULES } from '../rules/rhythm';
+import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * Hypertensive acute pulmonary edema — "sympathetic crashing acute pulmonary edema" (SCAPE). A surge of sympathetic tone
@@ -659,7 +659,7 @@ export const scapeField: Scenario = {
       why: 'Report the sudden onset at 3 am, the pressure of 224/122, the missed blood pressure pills, the CPAP setting, each nitroglycerin dose with the pressure before it, the 12-lead, and how she responded.',
     },
   ],
-  harms: [
+  harms: yieldToHeavier([
     {
       // a fluid bolus and raised legs are the built-in rules ('fluid-pulmonary-edema', 'legs-up-pulmonary-edema'); these are the case's own
       id: 'opioid-dyspnea', actions: ['fentanyl'], when: (s) => s.pulse, points: 8, severity: 'major',
@@ -737,7 +737,7 @@ export const scapeField: Scenario = {
       id: 'sedative-unsupported', actions: ['midazolam', 'sedation'], when: (s) => s.pulse && (!onCpap(s) || s.vitals.gcs <= 12 || s.vitals.sbp < 90), points: 5, severity: 'major', replaces: ['midazolam-unsafe'],
       text: 'A sedative before CPAP, or for a patient who is tiring. Her panic is air hunger, which CPAP and nitroglycerin treat; a benzodiazepine without that support blunts the breathing she has left. A small dose is for a patient on CPAP who is awake and fighting the mask.',
     },
-  ],
+  ]),
   timings: [
     { label: 'CPAP on', actions: ['cpap'], target: 5 },
     // the EMT's patient may get hers from the intercept paramedic: the flag counts theirs
