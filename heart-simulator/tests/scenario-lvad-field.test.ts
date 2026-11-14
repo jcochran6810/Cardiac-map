@@ -393,9 +393,11 @@ describe('LVAD in the field — the traps', () => {
     expect(penalties(medic(['iv', 'adenosine6']))).toEqual(['adenosine-sinus']);
   });
 
-  it('an opioid or a sedative with nothing to treat: 5 points once, not also the built-in midazolam rule', () => {
+  it('an opioid or a sedative with nothing to treat: 5 points for each drug, not also the built-in midazolam rule', () => {
     expect(penalties(medic(['midazolam']))).toEqual(['sedative-no-indication']);
-    expect(penalties(medic(['iv', 'fentanyl', 'midazolam']))).toEqual(['sedative-no-indication']);
+    // a second, different drug is a second mistake (rules/charge.ts); the same drug again is not
+    expect(penalties(medic(['iv', 'fentanyl', 'midazolam']))).toEqual(['sedative-no-indication', 'sedative-no-indication']);
+    expect(penalties(medic(['iv', 'fentanyl', 'fentanyl']))).toEqual(['sedative-no-indication']);
   });
 
   it('aspirin with no chest pain, IM epinephrine and glucagon: minor errors', () => {

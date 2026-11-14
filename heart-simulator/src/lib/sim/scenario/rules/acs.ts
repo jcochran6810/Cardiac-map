@@ -9,10 +9,10 @@
 import { READ_OPTIONS } from '../reads';
 import { has, mapOf, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
-import { NITRATE_CHECK_IDS, builtInChargedBefore } from './charge';
+import { NITRATE_CHECK_IDS, builtInChargedBefore, caseChargedBefore, caseChargesPerDrug, chargedBeforeAs, chargesPerDrug, isNitrateCheck, markNitrateCheck } from './charge';
 import { indicationCovered } from './scope';
 import {
-  ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, chargedBefore, did, ecgShowsStemi, hasProblem, lastDoneAt,
+  ANTITHROMBOTICS, AV_BLOCKS, BETA_BLOCKERS, LYTICS, NITRATES_ACS, NITRATES_ALL, NITRATES_SL, NO_DONORS, did, ecgShowsStemi, hasProblem, lastDoneAt,
   longQt, lowPressure, outflowObstruction, preloadDependent, rhythmKind, tachyarrhythmia,
 } from './helpers';
 
@@ -27,17 +27,19 @@ type GateRule = Omit<Harm, 'when'> & { applies: Check };
  * covers it (the gate stops there, so no lower-ranked built-in adds a second penalty); while it does not — a deliberate
  * exemption, or its condition is false — the gate goes on to the next rank: the case has said this reason does not hold
  * here, not that the dose is right. (A case rule that lists the top rule in its `replaces` hides it while it applies: the
- * whole dose is covered.) A rank that already charged an earlier dose is passed over, and so is an indication rank the ER
- * nurse's missing order covers (rules/scope.ts indicationCovered).
+ * whole dose is covered.) A rank already charged against this dose — on the same drug, or once a case — is passed over (the
+ * one repeat policy of every gate, rules/charge.ts chargedBeforeAs), and so is an indication rank the ER nurse's missing
+ * order covers (rules/scope.ts indicationCovered).
  */
 function topOf(rules: GateRule[], s: SimState, sc: Scenario, id: string): string | null {
   for (const r of rules) {
     if (!r.actions.includes(id)) continue;
-    // a rank that charged an earlier dose is passed over: each rule charges once a case, so a later dose is judged by the
-    // next reason that holds and never goes free because an earlier one was charged (the penalty pushed for this dose has
-    // this minute: every drug the gates judge takes time)
-    if (builtInChargedBefore(s, r, id)) continue;
     const own = sc.harms.filter((h) => h.id === r.id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id));
+    // a rank charged already against this dose is passed over (rules/charge.ts chargedBeforeAs: a per-drug rank charges
+    // again for another drug; the penalty pushed for this dose has this minute: every drug the gates judge takes time). The
+    // case's own rule with the rank's id decides whether the rank charges once a case or once for each drug
+    const perDrug = own.length ? own.some((h) => caseChargesPerDrug(h, id)) : chargesPerDrug(r, id);
+    if (chargedBeforeAs(s, r.id, perDrug, id)) continue;
     if (own.length) {
       if (own.some((h) => !h.when || h.when(s, sc, id))) return r.id;
     } else if (r.applies(s, sc, id) && !indicationCovered(r.id, s, sc, id)) return r.id;
@@ -220,10 +222,14 @@ const hiddenByCase = (ruleId: string, selfId: string, s: SimState, sc: Scenario,
 
 /** The rank in the nitrate gate each case rule built by nitrateCaseRule stands at (its index in NITRATE_RANKS) */
 const RANK_AT = new WeakMap<Harm, number>();
-/** A copy of a case nitrate rule (e.g. rules/rhythm.ts yieldToHeavier's) stands at the rank of the rule it copies */
+/**
+ * A copy of a case nitrate rule (e.g. rules/rhythm.ts yieldToHeavier's) stands at the rank of the rule it copies, and is a
+ * check before a nitrate if that rule is one
+ */
 export const carryNitrateRank = (from: Harm, to: Harm) => {
   const r = RANK_AT.get(from);
   if (r !== undefined) RANK_AT.set(to, r);
+  if (isNitrateCheck(from)) markNitrateCheck(to);
 };
 
 /**
@@ -241,14 +247,13 @@ export const carryNitrateRank = (from: Harm, to: Harm) => {
  * - While it applies it hides the built-in ranks it stands for: the contraindications from `rank` down, and every check,
  *   dose and indication rank.
  * - The ranks in `beside` it neither gives way to nor hides: they charge beside it.
- * - A rule with a built-in's id stands aside once it has charged, as the gate passes its rank over: a later dose is judged
- *   by the gate again. A rule with another id keeps covering its ranks, so a repeated mistake is charged once.
+ * - It stands aside once it has charged against this dose (on this drug if it charges per drug, rules/charge.ts), as the
+ *   gate passes a charged rank over: a later dose is judged by the gate again (the one repeat policy of every gate).
  */
 export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: string[] = [], yieldTo: string[] = []): Harm {
   const at = NITRATE_RANKS.findIndex((r) => r.id === rank);
   if (at < 0) throw new Error(`nitrateCaseRule: ${rank} is not a rank of the nitrate gate`);
   const above = NITRATE_RANKS.slice(0, at);
-  const builtInId = NITRATE_RANKS.some((r) => r.id === harm.id);
   const yields = [...yieldTo, ...NITRATE_CHECK_IDS.filter((c) => !beside.includes(c))];
   const roleOk = (h: Harm, s: SimState) => !h.roles || h.roles.includes(s.role);
   const outranked: Check = (s, sc, id) => {
@@ -257,19 +262,19 @@ export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: stri
     if (top !== null && NITRATE_CONTRAINDICATIONS.includes(top) && !beside.includes(top) && !hiddenByCase(top, harm.id, s, sc, id)) return true;
     // a rank it gives way to above this one holds for the dose: e.g. a check ranked higher (one check a dose) — the built-in,
     // or the case's own rule with its id, which may judge an action the built-in does not (a case's IV nitroglycerin). Whoever
-    // charges it (that rule, or a case rule standing in for it), this one gives way. A rank that charged an earlier dose is
-    // passed over, as the gate passes it over: a later dose is judged anew
-    if (above.filter((r) => yields.includes(r.id) && !chargedBefore(s, r.id)).some((r) => {
+    // charges it (that rule, or a case rule standing in for it), this one gives way. A rank already charged against this dose
+    // is passed over, as the gate passes it over: a later dose is judged anew
+    if (above.filter((r) => yields.includes(r.id) && !builtInChargedBefore(s, r, id)).some((r) => {
       const own = sc.harms.filter((h) => h.id === r.id && roleOk(h, s) && h.actions.includes(id));
       return own.length ? own.some((h) => !h.when || h.when(s, sc, id)) : r.actions.includes(id) && r.applies(s, sc, id) && !indicationCovered(r.id, s, sc, id);
     })) return true;
     // another of the case's nitrate rules, under its own id, stands at such a rank and charges this dose (its own condition,
-    // its own place in the gate; not charged on an earlier dose): e.g. a case's repeat-dose check at the interval's rank, or
+    // its own place in the gate; not charged already against this dose): e.g. a case's repeat-dose check at the interval's rank, or
     // its 0.8 mg rule. Its rank is above this one, so the question never comes back here
     return sc.harms.some((h) => {
       const r = RANK_AT.get(h);
       return r !== undefined && r < at && h.id !== harm.id && yields.includes(NITRATE_RANKS[r].id) && roleOk(h, s) && h.actions.includes(id)
-        && (!h.when || h.when(s, sc, id)) && !chargedBefore(s, h.id);
+        && (!h.when || h.when(s, sc, id)) && !caseChargedBefore(s, h, id);
     });
   };
   const covers = NITRATE_RANKS.map((r) => r.id)
@@ -277,10 +282,11 @@ export function nitrateCaseRule(harm: Harm, rank: string = harm.id, beside: stri
     .filter((id) => !harm.replaces?.includes(id));
   const rule: Harm = {
     ...harm,
-    when: (s, sc, id) => (!harm.when || harm.when(s, sc, id)) && !outranked(s, sc, id) && !(builtInId && chargedBefore(s, harm.id)),
+    when: (s, sc, id) => (!harm.when || harm.when(s, sc, id)) && !outranked(s, sc, id) && !caseChargedBefore(s, rule, id),
     replaces: [...(harm.replaces ?? []), ...covers],
   };
   RANK_AT.set(rule, at);
+  if (NITRATE_CHECK_IDS.includes(rank)) markNitrateCheck(rule);
   return rule;
 }
 
@@ -297,15 +303,15 @@ export const nitrateCheckRule = (harm: Harm, rank: string = harm.id) =>
 
 /**
  * The nitrate gate charges this dose: its top rule, or a case rule standing in for that rule (its id, or listing it in
- * `replaces`) that has not charged an earlier dose. For a rule elsewhere that must not add a second penalty to the same
- * dose — the rhythm rules on the radial cocktail, which carries nitroglycerin with its verapamil (rules/rhythm.ts)
+ * `replaces`) not charged already against this dose (rules/charge.ts). For a rule elsewhere that must not add a second
+ * penalty to the same dose — the rhythm rules on the radial cocktail, which carries nitroglycerin with its verapamil (rules/rhythm.ts)
  */
 export function nitrateCharges(s: SimState, sc: Scenario, id: string): boolean {
   const top = NITRATE_GATE.top(s, sc, id);
   if (!top) return false;
   const standIns = sc.harms.filter((h) => (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id)
     && (h.id === top || !!h.replaces?.includes(top)) && (!h.when || h.when(s, sc, id)));
-  return !standIns.length || standIns.some((h) => !chargedBefore(s, h.id));
+  return !standIns.length || standIns.some((h) => !caseChargedBefore(s, h, id));
 }
 
 // ─── Fibrinolytics ─────────────────────────────────────────────────────────
@@ -469,16 +475,16 @@ export const ANTITHROMBOTIC_RULES = ANTITHROMBOTIC_GATE.harms.map((h) => h.id);
 
 /**
  * The antithrombotic gate charges this dose: its top rule, or a case rule standing in for that rule (its id, or listing it
- * in `replaces`) that has not charged an earlier dose. For a rule elsewhere that must not add a second penalty to the same
- * dose (e.g. the unguided heparin top-up, rules/added.ts). A stand-in that charged already makes this dose a repeat of
- * that mistake, which costs nothing more: the dose is then left to the next reason that holds
+ * in `replaces`) not charged already against this dose (rules/charge.ts). For a rule elsewhere that must not add a second
+ * penalty to the same dose (e.g. the unguided heparin top-up, rules/added.ts). A stand-in charged already against this
+ * dose is not charged again by it: the dose is then left to the next reason that holds
  */
 export function antithromboticCharges(s: SimState, sc: Scenario, id: string): boolean {
   const top = ANTITHROMBOTIC_GATE.top(s, sc, id);
   if (!top) return false;
   const standIns = sc.harms.filter((h) => (!h.roles || h.roles.includes(s.role)) && h.actions.includes(id)
     && (h.id === top || !!h.replaces?.includes(top)) && (!h.when || h.when(s, sc, id)));
-  return !standIns.length || standIns.some((h) => !chargedBefore(s, h.id));
+  return !standIns.length || standIns.some((h) => !caseChargedBefore(s, h, id));
 }
 
 /** Protamine, ranked: an earlier reaction to it, the PCI not finished, no heparin to reverse, then a sensitized patient */

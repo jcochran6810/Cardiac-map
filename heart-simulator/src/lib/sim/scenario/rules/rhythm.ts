@@ -7,18 +7,18 @@
  * One dose, one penalty: for the drugs and shocks in LADDERS the rules are ranked, and only the highest-ranked rule whose
  * condition holds charges the dose (topRhythmRule). A case rule that stands in for that rule therefore covers the whole
  * dose — unless the case rule is minor and that rule a heavier, major one (yieldToHeavier), or the case rule was charged
- * already on another dose (the gate then passes the dose on). Sources: the drug labels, 2025 AHA ALS (Part 9), 2018
+ * already against this dose (on the same drug, or once a case: the gate then passes the dose on). Sources: the drug labels, 2025 AHA ALS (Part 9), 2018
  * ACC/AHA/HRS bradycardia, 2023 ACC/AHA/ACCP/HRS AF and 2015 ACC/AHA/HRS SVT guidelines.
  */
 import { resolveProfile } from '@/lib/ecg/profiles';
 import { has, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
 import {
-  ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, chargedBefore, did, hasProblem, lastDoneAt, longQt, lowPressure,
+  ADENOSINE_PUSH, AV_BLOCKS, AV_NODAL_BLOCKERS, BETA_BLOCKERS, IV_BETA_BLOCKERS, did, hasProblem, lastDoneAt, longQt, lowPressure,
   lvadPerfusing, preexcitedAf, rhythmKind, shockable, shockedThisArrest, slowOrBlocked, tachyarrhythmia,
 } from './helpers';
 import { NITRATE_RULES, carryNitrateRank, nitrateCharges } from './acs';
-import { builtInChargedBefore } from './charge';
+import { builtInChargedBefore, caseChargedBefore } from './charge';
 import { indicationCovered } from './scope';
 import { pressorBridging } from './support';
 
@@ -276,7 +276,8 @@ export const LADDERS: Record<string, string[]> = {
  * patient lists them in its `replaces`: while it applies it speaks for the dose, whichever of them the gate would have
  * picked (one dose, one penalty) — unless it is minor and the rule the gate picked a heavier, major one (yieldToHeavier).
  * An older rule ranked above the gate's pick still charges beside the case rule, as before; one ranked below it is silent
- * while a case rule speaks for the dose.
+ * while a case rule speaks for the dose. The second antiarrhythmic (amiodarone-after-procainamide) is a mistake of its
+ * own: beside a case rule on the same dose the heavier of the two charges alone (engine harmsFor, SECOND_ANTIARRHYTHMIC)
  */
 export const RATE_RULES = RATE_LADDER.filter((id) => ![
   'av-blocker-preexcited-af', 'diltiazem-vt', 'diltiazem-heart-failure', 'beta-blocker-stimulant', 'amiodarone-long-qt', 'amiodarone-after-procainamide',
@@ -286,16 +287,20 @@ export const LIDOCAINE_RULES = LADDERS.lidocaine;
 /**
  * The rules on procainamide but the older procainamide-after-amiodarone (as RATE_RULES leaves out its mirror,
  * amiodarone-after-procainamide): a case rule that says procainamide is wrong for its patient lists them in its
- * `replaces`. The second antiarrhythmic stays a mistake of its own, charged beside the case rule (or after it was charged
- * on the first drug)
+ * `replaces`. The second antiarrhythmic stays a mistake of its own: charged after a case rule was charged on the first
+ * drug (never free), and beside a case rule on the same dose the heavier of the two charges alone (SECOND_ANTIARRHYTHMIC)
  */
 export const PROCAINAMIDE_RULES = LADDERS.procainamide.filter((id) => id !== 'procainamide-after-amiodarone');
+/**
+ * The second antiarrhythmic on top of the first (minor, 5 points): a stacking mistake of its own. When it and a case rule
+ * both charge one dose, the heavier charges alone, the case's words on a tie (engine harmsFor: one dose, one penalty)
+ */
+export const SECOND_ANTIARRHYTHMIC = ['amiodarone-after-procainamide', 'procainamide-after-amiodarone'];
 
 const BY_ID = new Map(RULES.map((r) => [r.id, r]));
 const roleOk = (h: Harm, s: SimState) => !h.roles || h.roles.includes(s.role);
 /** A rule — of this file or of the case — applies to this act: its action, its role and its condition */
 const applies = (h: Harm, s: SimState, sc: Scenario, id: string) => h.actions.includes(id) && roleOk(h, s) && (!h.when || h.when(s, sc, id));
-const charged = (s: SimState, ruleId: string) => s.penalties.some((p) => p.id === ruleId);
 
 /** The highest-ranked rule of the action's ladder whose own condition holds, whatever the case says (or null) */
 function firstHolding(s: SimState, sc: Scenario, id: string): string | null {
@@ -308,29 +313,28 @@ function firstHolding(s: SimState, sc: Scenario, id: string): string | null {
 
 /**
  * What the case says about this rule for this act:
- * - 'speaks': a case rule with its id, or one that lists it in `replaces`, applies and has not been charged — it charges
- *   for the dose, in the case's words;
- * - 'repeat': the case's rule with its id applies but was charged already — a repeat of that mistake costs nothing more,
- *   as with a built-in rule charged already;
+ * - 'speaks': a case rule with its id, or one that lists it in `replaces`, applies and has not been charged against this
+ *   dose (rules/charge.ts caseChargedBefore: a stand-in for a drug contraindication charges once for each drug) — it
+ *   charges for the dose, in the case's words;
  * - 'covered': the case hides it and charges nothing for it under its name, but another of the case's rules charges this
  *   act (a case that narrows a rule with its id and says the rest in another rule's words);
  * - 'passed': the case hides it and charges nothing at all for this act — its rule with that id does not cover the act (an
- *   exemption), or the only rule standing in for it, under another id, was charged already on another dose. The gate then
- *   passes the dose on to the next rule down;
+ *   exemption), or the rules standing in for it were charged already against this dose (the same drug again, or a rule
+ *   that charges once a case). The gate then passes the dose on to the next rule down, as it passes over a built-in rule
+ *   charged already (the one repeat policy of every gate, rules/charge.ts chargedBeforeAs);
  * - null: the case leaves it to the built-in rule.
  */
-function caseVoice(s: SimState, sc: Scenario, id: string, ruleId: string): 'speaks' | 'repeat' | 'covered' | 'passed' | null {
-  let hidden: 'repeat' | 'hidden' | null = null;
+function caseVoice(s: SimState, sc: Scenario, id: string, ruleId: string): 'speaks' | 'covered' | 'passed' | null {
+  let hidden: 'hidden' | null = null;
   for (const h of sc.harms) {
     // a rule with its id speaks only for the actions it lists: for another action the built-in judges
     if (!roleOk(h, s) || (h.id === ruleId ? !h.actions.includes(id) && !h.replaces?.includes(ruleId) : !h.replaces?.includes(ruleId))) continue;
     const on = applies(h, s, sc, id);
-    if (on && !charged(s, h.id)) return 'speaks';
-    if (on && h.id === ruleId) hidden = 'repeat';
-    else if ((on || h.id === ruleId) && hidden === null) hidden = 'hidden';
+    if (on && !caseChargedBefore(s, h, id)) return 'speaks';
+    if ((on || h.id === ruleId) && hidden === null) hidden = 'hidden';
   }
-  if (hidden !== 'hidden') return hidden;
-  return sc.harms.some((h) => applies(h, s, sc, id) && !charged(s, h.id)) ? 'covered' : 'passed';
+  if (hidden === null) return null;
+  return sc.harms.some((h) => applies(h, s, sc, id) && !caseChargedBefore(s, h, id)) ? 'covered' : 'passed';
 }
 
 /**
@@ -342,8 +346,11 @@ const cocktailNitrateCharges = (s: SimState, sc: Scenario, id: string) => id ===
 
 /**
  * The one rule of this file that charges this dose (or that a case rule charges for): the highest-ranked rule in the
- * action's ladder that applies and that the case has not passed over, or null. A rule charged already (or the case's
- * rule with its id) stays on top: a repeat of a mistake costs nothing more, and the rules below it do not charge it.
+ * action's ladder that applies and that the case has not passed over, or null. A rule charged already against this dose —
+ * on the same drug, or once a case — is passed over, as every gate does (rules/charge.ts chargedBeforeAs): a later dose of
+ * a different drug is judged anew, and a repeat of the same drug is not charged again by the rule already charged on it
+ * but by the next reason that holds (another epinephrine too soon after the last, a repeat atropine the block does not
+ * answer).
  */
 export function topRhythmRule(s: SimState, sc: Scenario, id: string): string | null {
   if (cocktailNitrateCharges(s, sc, id)) return null;
@@ -354,6 +361,7 @@ export function topRhythmRule(s: SimState, sc: Scenario, id: string): string | n
     if (voice === 'passed') continue;
     // an indication rank the ER nurse's missing order covers stands aside: the dose goes on to the next reason that holds
     if (voice === null && indicationCovered(ruleId, s, sc, id)) continue;
+    if (voice === null && builtInChargedBefore(s, r, id)) continue;
     return ruleId;
   }
   return null;
@@ -362,11 +370,11 @@ export function topRhythmRule(s: SimState, sc: Scenario, id: string): string | n
 /**
  * A minor case rule steps aside for a heavier rule: the rule the gate would pick for this dose (the highest-ranked of this
  * file whose own condition holds) is one it lists in `replaces`, and the rule that would charge for it is major or
- * critical, weighs more than the case rule and charges this dose. That is the built-in rule — unless it was charged on an
- * earlier act, or another case rule standing in for it was — or the case's own rule with its id, when that rule applies.
- * The case rule then does not apply, and the heavier rule charges alone at its own weight: a case's minor wrong-answer or
- * teaching rule never speaks for a major contraindication (one dose, one penalty, at the right weight). A major case rule
- * keeps speaking for the dose in its own words.
+ * critical, weighs more than the case rule and charges this dose. That is the built-in rule — unless it was charged already
+ * against this dose, or another case rule standing in for it was — or the case's own rule with its id, when that rule
+ * applies. The case rule then does not apply, and the heavier rule charges alone at its own weight: a case's minor
+ * wrong-answer or teaching rule never speaks for a major contraindication (one dose, one penalty, at the right weight). A
+ * major case rule keeps speaking for the dose in its own words.
  */
 export function yieldsTo(s: SimState, sc: Scenario, id: string, h: Harm): boolean {
   // the cocktail's nitrate reason charges it: a case rule that speaks for rhythm rules only steps aside, whatever its weight
@@ -379,9 +387,9 @@ export function yieldsTo(s: SimState, sc: Scenario, id: string, h: Harm): boolea
   // the case judges it under its own id: step aside only for that rule, heavier and charging this act (if that rule
   // steps aside too, its own check finds itself here and stops)
   const own = sc.harms.find((c) => c.id === top && roleOk(c, s) && c.actions.includes(id));
-  if (own) return own.id !== h.id && heavier(own) && applies(own, s, sc, id) && !chargedBefore(s, own.id);
+  if (own) return own.id !== h.id && heavier(own) && applies(own, s, sc, id) && !caseChargedBefore(s, own, id);
   if (!heavier(BY_ID.get(top)!) || builtInChargedBefore(s, BY_ID.get(top)!, id)) return false;
-  return !sc.harms.some((c) => c.id !== h.id && roleOk(c, s) && c.actions.includes(id) && !!c.replaces?.includes(top) && chargedBefore(s, c.id));
+  return !sc.harms.some((c) => c.id !== h.id && roleOk(c, s) && c.actions.includes(id) && !!c.replaces?.includes(top) && caseChargedBefore(s, c, id));
 }
 
 const YIELDING = new WeakSet<Harm>();

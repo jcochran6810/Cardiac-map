@@ -9,7 +9,7 @@ import { BUILT_IN_HARMS, start } from '@/lib/sim/scenario/engine';
 import { has, orderedFlag } from '@/lib/sim/scenario/kit';
 import { INDICATION_RULES } from '@/lib/sim/scenario/rules/scope';
 import {
-  LADDERS, LIDOCAINE_RULES, RATE_DRUGS, RATE_RULES, RHYTHM_RULES, topRhythmRule, yieldToHeavier, yieldsToHeavier,
+  LADDERS, LIDOCAINE_RULES, PROCAINAMIDE_RULES, RATE_DRUGS, RATE_RULES, RHYTHM_RULES, topRhythmRule, yieldToHeavier, yieldsToHeavier,
 } from '@/lib/sim/scenario/rules/rhythm';
 import { SCENARIO_BY_ID, SCENARIOS } from '@/lib/sim/scenario/scenarios';
 import type { Harm, Problem, Scenario, Setting, Vitals } from '@/lib/sim/scenario/types';
@@ -77,6 +77,7 @@ describe('the gate: one dose, one penalty', () => {
     }
     expect(RATE_RULES).toContain('nodal-blocker-slow');
     expect(RATE_RULES).toContain('antiarrhythmic-no-arrhythmia');
+    expect(PROCAINAMIDE_RULES).not.toContain('procainamide-after-amiodarone');
     expect(LIDOCAINE_RULES).toEqual(LADDERS.lidocaine);
   });
 
@@ -94,27 +95,45 @@ describe('the gate: one dose, one penalty', () => {
   });
 
   const VT_LOW = { rhythm: VT, vitals: { sbp: 82, dbp: 50, gcs: 13 } };
-  it('a case rule charged already on another dose: the gate passes this dose on to the next rule down (one dose, one penalty)', () => {
+  it('a case stand-in for a drug contraindication charges again for a second drug; one that charges once a case passes the dose on', () => {
     const caseRule: Harm = {
       id: 'case-antiarrhythmic', actions: ['amio-infusion', 'procainamide'], points: 8, severity: 'major',
       replaces: [...RATE_RULES, 'procainamide-hypotension'], text: 'The case\'s words.',
     };
-    // procainamide at 82 after amiodarone: the case rule was charged on the amiodarone; procainamide-hypotension, which it
-    // stands in for, is passed over, and stacking a second antiarrhythmic is charged
-    expect(pen(field({ ...VT_LOW, harms: [caseRule] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['case-antiarrhythmic', 'procainamide-after-amiodarone']);
+    // procainamide at 82 after amiodarone: the case rule stands in for procainamide-hypotension, a drug contraindication, so it
+    // charges once for each drug (rules/charge.ts) — the procainamide is its own mistake, in the case's words, and the
+    // second antiarrhythmic ranked below is silent (one dose, one penalty)
+    expect(pen(field({ ...VT_LOW, harms: [caseRule] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['case-antiarrhythmic', 'case-antiarrhythmic']);
+    // a minor stand-in charges once a case: charged on the amiodarone, it passes the procainamide on to the next rule down
+    // (procainamide-hypotension, which it stands in for, is passed over, and stacking a second antiarrhythmic is charged)
+    const minorRule: Harm = { ...caseRule, points: 3, severity: 'minor' };
+    expect(pen(field({ ...VT_LOW, harms: [minorRule] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['case-antiarrhythmic', 'procainamide-after-amiodarone']);
     // without the case: each drug its own pressure rule
     expect(pen(field(VT_LOW), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['amiodarone-hypotension', 'procainamide-hypotension']);
   });
 
-  it('a repeat of a mistake charged already — the built-in rule or the case\'s rule with its id — costs nothing more', () => {
+  it('a repeat of a mistake charged already — the built-in rule or the case\'s rule with its id — is not charged again; a second drug is', () => {
     const own: Harm = { id: 'av-blocker-preexcited-af', actions: ['diltiazem', 'metoprolol'], points: 15, severity: 'critical', text: 'The case\'s words.' };
     const patient = (harms: Harm[]) => field({ rhythm: PREEXCITED, vitals: { sbp: 84, dbp: 50 }, harms });
-    // the same drug again costs nothing more, the built-in's or the case's
+    // the same drug again is not charged again, the built-in's or the case's
     expect(pen(patient([]), ['iv', 'adenosine12', 'adenosine12'])).toEqual(['av-blocker-preexcited-af']);
-    // a second, different drug into the same contraindication is a mistake of its own for a built-in drug rule (each label rules
-    // its drug out: rules/charge.ts); the case's own rule with the id still charges once a case
+    expect(pen(patient([{ ...own, actions: ['adenosine6', 'adenosine12'] }]), ['iv', 'adenosine6', 'adenosine12'])).toEqual(['av-blocker-preexcited-af']);
+    // a second, different drug into the same contraindication is a mistake of its own (each label rules its drug out:
+    // rules/charge.ts) — for the built-in, and for the case's own rule with its id that stands in for it
     expect(pen(patient([]), ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af', 'av-blocker-preexcited-af']);
-    expect(pen(patient([own]), ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af']);
+    expect(pen(patient([own]), ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af', 'av-blocker-preexcited-af']);
+  });
+
+  it('the second antiarrhythmic beside a case rule on the same dose: one penalty, the heavier — the case\'s words on a tie', () => {
+    const stable = { rhythm: VT, vitals: { sbp: 118, dbp: 74 } };
+    const own = (points: number, severity: Harm['severity']): Harm => ({ id: 'case-procainamide', actions: ['procainamide'], points, severity, text: 'The case\'s words.' });
+    // the stacking rule (5, minor) outweighs a minor 3-point case rule…
+    expect(pen(field({ ...stable, harms: [own(3, 'minor')] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['procainamide-after-amiodarone']);
+    // …a major case rule outweighs it, and a tie keeps the case's words
+    expect(pen(field({ ...stable, harms: [own(8, 'major')] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['case-procainamide']);
+    expect(pen(field({ ...stable, harms: [own(5, 'minor')] }), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['case-procainamide']);
+    // with no case rule on the dose the stacking rule charges, as before
+    expect(pen(field(stable), ['iv', 'amio-infusion', 'procainamide'])).toEqual(['procainamide-after-amiodarone']);
   });
 
   it('a case that narrows a rule under its id and says the rest in another rule: the dose is the case\'s alone', () => {
@@ -147,8 +166,12 @@ describe('a minor case rule never speaks for a major contraindication (yieldToHe
     expect(pen(field({ ...slow, harms: [repeatable] }), ['iv', 'adenosine12', 'adenosine12'])).toEqual(['nodal-blocker-slow', 'case-wrong-drug']);
     // a second drug into the slow rate is the label rule's again (it charges once for each drug)
     expect(pen(field({ ...slow, harms: [yielding] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['nodal-blocker-slow', 'nodal-blocker-slow']);
-    const [standIn, wrong] = yieldToHeavier([{ id: 'case-unstable', actions: ['adenosine6', 'diltiazem'], points: 8, severity: 'major', replaces: RATE_RULES, text: 'The case\'s words.' }, askLike]);
-    expect(pen(field({ ...slow, harms: [standIn, wrong] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['case-unstable', 'case-wrong-drug']);
+    // a major stand-in charges once for each drug (rules/charge.ts): the second drug is its own again, and the minor rule
+    // steps aside; the same drug again it does not charge, so the minor rule speaks
+    const standInRule: Harm = { id: 'case-unstable', actions: ['adenosine6', 'adenosine12', 'diltiazem'], points: 8, severity: 'major', replaces: RATE_RULES, text: 'The case\'s words.' };
+    const [standIn, wrong] = yieldToHeavier([standInRule, { ...askLike, actions: [...askLike.actions, 'adenosine12'] }]);
+    expect(pen(field({ ...slow, harms: [standIn, wrong] }), ['iv', 'adenosine6', 'diltiazem'])).toEqual(['case-unstable', 'case-unstable']);
+    expect(pen(field({ ...slow, harms: [standIn, wrong] }), ['iv', 'adenosine6', 'adenosine12'])).toEqual(['case-unstable', 'case-wrong-drug']);
   });
 
   it('a major case rule, or the case\'s rule with the top rule\'s own id, keeps the dose in its own words', () => {
@@ -650,8 +673,10 @@ describe('atropine-infranodal-repeat', () => {
     expect(pen(field({ rhythm: CHB, harms: [exempt('atropine-infranodal-repeat', ['atropine'])] }), ['iv', 'atropine', 'atropine'])).toEqual([]);
   });
 
-  it('one penalty: a transplanted heart outranks it (charged once, on the first dose)', () => {
-    expect(pen(field({ rhythm: CHB, problems: ['heart-transplant'] }), ['iv', 'atropine', 'atropine'])).toEqual(['atropine-heart-transplant']);
+  it('one penalty a dose: a transplanted heart outranks it on the first dose; the repeat is judged anew', () => {
+    // the transplant rule is not charged again for the same drug, and the repeat is the next reason that holds (the one
+    // repeat policy of every gate, rules/charge.ts chargedBeforeAs)
+    expect(pen(field({ rhythm: CHB, problems: ['heart-transplant'] }), ['iv', 'atropine', 'atropine'])).toEqual(['atropine-heart-transplant', 'atropine-infranodal-repeat']);
   });
 });
 
@@ -750,8 +775,12 @@ describe('epinephrine in the arrest', () => {
     expect(pen(field({ rhythm: PEA, pulse: false, harms: [exempt('epi-too-soon', ['epinephrine'])] }), ['io', 'epinephrine', 'epinephrine'])).toEqual([]);
   });
 
-  it('one penalty: two doses before any shock are the shock rule\'s, charged once — a repeat of a mistake costs nothing more', () => {
-    expect(pen(field({ rhythm: VF, pulse: false }), ['io', 'epinephrine', 'epinephrine'])).toEqual(['epi-before-shock']);
+  it('one penalty a dose: the shock rule is charged once; the repeat at once is judged anew — too soon', () => {
+    // a repeat of the same drug is not charged again by the rule already charged on it, but by the next reason that holds
+    // (the one repeat policy of every gate, rules/charge.ts chargedBeforeAs)
+    expect(pen(field({ rhythm: VF, pulse: false }), ['io', 'epinephrine', 'epinephrine'])).toEqual(['epi-before-shock', 'epi-too-soon']);
+    // three minutes on, nothing else holds: the repeat costs nothing more
+    expect(pen(field({ rhythm: VF, pulse: false }), ['io', 'epinephrine', 'cpr', 'cpr', 'epinephrine'])).toEqual(['epi-before-shock']);
   });
 });
 
@@ -953,12 +982,32 @@ describe('in the cases: one dose, one penalty, at the right weight', () => {
       'pace', 'perfusion', 'pressor', 'restrain-prone', 'doppler-map', 'monitor', 'cool', 'diltiazem'])).toEqual(['diltiazem-hfref']);
   });
 
-  it('a dose whose case rule was charged on the first drug still costs its own mistake (P0 charged it too)', () => {
-    expect(caseRun('tamponade-field', 2, ['iv', 'amio-infusion', 'procainamide'])).toEqual(['antiarrhythmic-tamponade', 'procainamide-after-amiodarone']);
-    expect(caseRun('lvad-field', 2, ['iv', 'procainamide', 'amio-infusion'])).toEqual(['antiarrhythmic-sinus', 'amiodarone-after-procainamide']);
-    expect(caseRun('beta-blocker-overdose-field', 2, ['iv', 'amio-infusion', 'procainamide'])).toEqual(['antiarrhythmic-brady', 'procainamide-after-amiodarone']);
+  it('a second antiarrhythmic after the case rule charged on the first still costs its own mistake: the case rule\'s again, the heavier', () => {
+    // each case rule stands in for a drug contraindication, so it charges once for each drug (rules/charge.ts); the
+    // second-antiarrhythmic rule is among the rules it stands in for (one dose, one penalty: the heavier, here the case's)
+    expect(caseRun('tamponade-field', 2, ['iv', 'amio-infusion', 'procainamide'])).toEqual(['antiarrhythmic-tamponade', 'antiarrhythmic-tamponade']);
+    expect(caseRun('lvad-field', 2, ['iv', 'procainamide', 'amio-infusion'])).toEqual(['antiarrhythmic-sinus', 'antiarrhythmic-sinus']);
+    expect(caseRun('beta-blocker-overdose-field', 2, ['iv', 'amio-infusion', 'procainamide'])).toEqual(['antiarrhythmic-brady', 'antiarrhythmic-brady']);
+    // a patient living on a ventricular escape: the escape-suppressant rule (20, critical) for each drug, never the
+    // procainamide ladder beside it
     const tempWire = caseRun('heart-block-temp-wire-cathlab', 5, ['bp-both-arms', 'legs-up', 'vitals', 'bvm', 'p2y12', 'phenylephrine', 'albuterol-hyperk', 'ic-nitroprusside', 'lidocaine', 'procainamide']);
-    expect(tempWire.slice(-2)).toEqual(['escape-suppressant', 'procainamide-hypotension']);
+    expect(tempWire.slice(-2)).toEqual(['escape-suppressant', 'escape-suppressant']);
+  });
+
+  it('the second antiarrhythmic and the case\'s rule on the same dose: one penalty, the heavier', () => {
+    // SCAPE: amiodarone after procainamide — the case's minor no-arrhythmia rule (3) gives way to the stacking rule (5)
+    expect(caseRun('scape-field', 2, ['iv', 'procainamide', 'amio-infusion'])).toEqual(['iv-before-cpap', 'procainamide-heart-failure', 'amiodarone-after-procainamide']);
+    expect(caseRun('scape-ed', 7, ['iv', 'procainamide', 'amio-infusion'])).toEqual(['procainamide-heart-failure', 'amiodarone-after-procainamide']);
+    // the nurse's twin (5, major: it stands for the missing order too) outweighs it, and charges once for each drug
+    expect(caseRun('scape-ed', 6, ['iv', 'procainamide', 'amio-infusion']))
+      .toEqual(['procainamide-heart-failure', 'rn-antiarrhythmic-no-arrhythmia', 'rn-antiarrhythmic-no-arrhythmia']);
+    // a case rule that charges once a case (an indication rule's id), charged on the first drug: the second is the stacking
+    // rule's — never free
+    expect(caseRun('guide-dissection-cathlab', 4, ['procainamide', 'amio-infusion'])).toEqual(['antiarrhythmic-no-arrhythmia', 'amiodarone-after-procainamide']);
+    // a patient living on a ventricular escape: the escape-suppressant rule for each drug, never the procainamide ladder or
+    // the stacking rule beside it
+    expect(caseRun('heart-block-temp-wire-cathlab', 5, ['read:nsr', 'lidocaine', 'procainamide', 'amio-infusion']))
+      .toEqual(['escape-suppressant', 'escape-suppressant', 'escape-suppressant']);
   });
 
   it('a minor case rule does not speak for a major contraindication', () => {

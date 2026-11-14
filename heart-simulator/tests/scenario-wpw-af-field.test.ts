@@ -194,8 +194,8 @@ describe('pre-excited AF in the field — the AV-nodal blockers', () => {
     }
   });
 
-  it('a second blocker on top costs no second penalty; amiodarone on top of procainamide is the same one mistake', () => {
-    expect(penalties(medic([...WORKED_UP, 'diltiazem', 'metoprolol']))).toEqual(['av-blocker-preexcited-af']);
+  it('a second blocker on top is a second mistake (each label rules its drug out); amiodarone on top of procainamide is one penalty', () => {
+    expect(penalties(medic([...WORKED_UP, 'diltiazem', 'metoprolol']))).toEqual(['av-blocker-preexcited-af', 'av-blocker-preexcited-af']);
     expect(penalties(medic([...WORKED_UP, 'procainamide', 'amio-infusion']))).toEqual(['av-blocker-preexcited-af']);
   });
 

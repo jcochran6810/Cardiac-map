@@ -715,12 +715,15 @@ describe('review fixes: a case\'s own nitrate rule keeps the gate\'s order', () 
     expect(penaltyIds(sc, 2, ['vitals', 'nitro'])).toEqual(['case-low']);
   });
 
-  it('a rule with another id stands for its rank and those under it every time, and gives way to a contraindication above', () => {
+  it('a rule with another id stands for its rank and those under it until it has charged, and gives way to a contraindication above', () => {
     const noIndication = nitrateCaseRule({ id: 'case-no-indication', actions: ['nitro', 'nitro-high'], when: (s) => s.vitals.sbp >= 90, points: 3, severity: 'minor', text: 'No chest pain here.' }, 'nitro-high-not-hypertensive');
     expect(noIndication.replaces).toEqual(expect.arrayContaining(['nitro-high-not-hypertensive', 'nitro-tachycardia', 'nitro-no-pain', 'nitro-no-bp', 'nitro-too-soon', 'nitro-no-pde5']));
     expect(noIndication.replaces).not.toContain('nitro-bradycardia');
     const sc = (rhythm = SINUS) => patient({ rhythm, vitals: { pain: 0 }, harms: [noIndication] });
-    expect(penaltyIds(sc(), 2, ['vitals', 'nitro', 'nitro-high'])).toEqual(['case-no-indication']);
+    // once it has charged it stands aside, as the gate passes a charged rank over: the later dose is judged anew (the one
+    // repeat policy of every gate, rules/charge.ts chargedBeforeAs) — here 0.8 mg without a high pressure
+    expect(penaltyIds(sc(), 2, ['vitals', 'nitro', 'nitro-high'])).toEqual(['case-no-indication', 'nitro-high-not-hypertensive']);
+    expect(penaltyIds(sc(), 2, ['vitals', 'nitro'])).toEqual(['case-no-indication']);
     // with no pressure taken it gives way to the pressure check, ranked above it, on the first dose: the second is its own
     expect(penaltyIds(sc(), 2, ['nitro', 'nitro-high'])).toEqual(['nitro-no-bp', 'case-no-indication']);
     expect(penaltyIds(sc({ profile: 'sinus-bradycardia', hr: 44 }), 2, ['vitals', 'nitro'])).toEqual(['nitro-bradycardia']);

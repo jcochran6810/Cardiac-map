@@ -1,8 +1,10 @@
-import type { Effect, Line, PendingRead, Scenario, SimState, Speaker } from '../types';
+import type { Effect, Harm, Line, PendingRead, Scenario, SimState, Speaker } from '../types';
 import { atRate, bpAfter, has } from '../kit';
 import { INTERVENTION_BY_ID } from '../interventions';
 import { MD, RN, TECH } from '../labKit';
 import { ANTITHROMBOTIC_RULES, LYTIC_RULES, PROTAMINE_RULES, SEDATIVE_RULES, nitrateRulesExcept } from '../rules/acs';
+import { caseChargedBefore } from '../rules/charge';
+import { lowPressure } from '../rules/helpers';
 import { RATE_RULES, rateDrugContraindicated, yieldToHeavier } from '../rules/rhythm';
 
 /**
@@ -47,17 +49,30 @@ const MD_CARRY_ON = [...CARRY_ON, 'iabp', 'impella'];
 const TECH_CARRY_ON = CARRY_ON.filter((id) => id !== 'angio' && id !== 'lvedp');
 /** Drugs that bring the pressure down (the radial cocktail is verapamil and nitroglycerin) */
 /**
- * The built-in rules the pressure-lowering rules stand in for: every nitrate and rate-drug rule but the label
- * contraindications they leave to the built-ins — a nitrate or nitroprusside under 90, and a rate drug into a slow rate or
- * block, a low pressure or IV diltiazem with an IV beta-blocker (the stroke rules step aside for those: rateDrugContraindicated)
+ * The built-in rules the pressure-lowering rules stand in for: every nitrate and rate-drug rule, and nicardipine's "no high
+ * pressure to treat", but the label contraindications they leave to the built-ins — a nitrate or nitroprusside under 90,
+ * nicardipine under 90, and a rate drug into a slow rate or block, a low pressure or IV diltiazem with an IV beta-blocker
+ * (the stroke rules step aside for those: labelContraindicated)
  */
 const STROKE_LABEL_RULES = ['nodal-blocker-slow', 'nodal-blocker-hypotension', 'cocktail-low-pressure', 'iv-beta-blocker-with-diltiazem'];
+
 const STROKE_LOWERING_REPLACES = [
   ...nitrateRulesExcept('nitro-hypotension', 'nitroprusside-hypotension'), ...RATE_RULES.filter((id) => !STROKE_LABEL_RULES.includes(id)),
+  'nicardipine-no-hypertension',
 ];
+/** A label contraindication of the lowering drug itself holds for this dose: the built-in rule charges it at its own weight */
+const labelContraindicated = (s: SimState, id: string) => rateDrugContraindicated(s, id) || (id === 'nicardipine' && lowPressure(s));
+
 const LOWERING = [
   'nitro', 'nitro-high', 'nitro-iv', 'ic-nitro', 'radial-cocktail', 'metoprolol', 'esmolol', 'labetalol', 'diltiazem', 'nicardipine', 'ic-nitroprusside', 'ic-verapamil',
 ];
+/** Lowering the pressure in the stroke: charged once for each drug it stands in for a drug contraindication on (rules/charge.ts) */
+const LOWER_BP_STROKE: Harm = { id: 'lower-bp-stroke', actions: LOWERING, when: (s, _sc, id) => s.pulse && deficit(s) && s.vitals.sbp <= 185 && s.vitals.dbp <= 110 && !labelContraindicated(s, id), replaces: STROKE_LOWERING_REPLACES, points: 8, severity: 'major', text: 'Lowering the blood pressure in an acute ischemic stroke. The tissue around the blocked artery lives on collaterals that need the pressure: a pressure of 185/110 or less is left alone (before thrombolysis or thrombectomy it must be 185/110 or less; without either it is treated only above 220/120). Nitroglycerin, a beta-blocker, the radial cocktail and the other vasodilators all drop it.' };
+/**
+ * lower-bp-stroke was charged on an earlier dose of this drug — at another dose or by another route too — or, for a drug it
+ * charges once a case, on any earlier dose (rules/charge.ts caseChargedBefore)
+ */
+const loweredBefore = (s: SimState, id: string) => caseChargedBefore(s, LOWER_BP_STROKE, id);
 /** What brings a pressure that has fallen too low back up */
 const RAISE = ['fluid', 'phenylephrine', 'pressor', 'push-epi', 'legs-up'];
 /** Vasopressors: for a pressure that has fallen, not for one that is already high */
@@ -598,9 +613,11 @@ export const cathlabStroke: Scenario = {
     // a rate drug's own label contraindication (a slow rate or block, a low pressure, IV diltiazem with an IV beta-blocker)
     // is the built-in rule's: these rules stand aside for it, so it charges at its own weight — and never goes free once
     // they have charged (as the nitrates under 90 are the built-in rule's)
-    { id: 'lower-bp-stroke', actions: LOWERING, when: (s, _sc, id) => s.pulse && deficit(s) && s.vitals.sbp <= 185 && s.vitals.dbp <= 110 && !rateDrugContraindicated(s, id), replaces: STROKE_LOWERING_REPLACES, points: 8, severity: 'major', text: 'Lowering the blood pressure in an acute ischemic stroke. The tissue around the blocked artery lives on collaterals that need the pressure: a pressure of 185/110 or less is left alone (before thrombolysis or thrombectomy it must be 185/110 or less; without either it is treated only above 220/120). Nitroglycerin, a beta-blocker, the radial cocktail and the other vasodilators all drop it.' },
-    // the monitor has already shown the fall: another dose on top is a second mistake, so a run of them cannot cost the same as one
-    { id: 'lower-bp-again', actions: LOWERING, when: (s, _sc, id) => s.pulse && deficit(s) && has(s, 'bp-drug') && s.vitals.sbp <= 185 && s.vitals.dbp <= 110 && !rateDrugContraindicated(s, id), replaces: STROKE_LOWERING_REPLACES, points: 5, severity: 'major', text: 'Lowering his pressure again after a first drug had already brought it down. The monitor showed the fall: each further dose takes more pressure from the brain living on collaterals around the clot. Stop the drugs that lower it, and bring it back if it has fallen well below his usual.' },
+    LOWER_BP_STROKE,
+    // the monitor has already shown the fall: another dose of a drug that brought it down is a second mistake, so a run of
+    // them cannot cost the same as one (a different lowering drug is lower-bp-stroke's again: it charges once for each drug,
+    // rules/charge.ts — one dose, one penalty)
+    { id: 'lower-bp-again', actions: LOWERING, when: (s, _sc, id) => s.pulse && deficit(s) && has(s, 'bp-drug') && loweredBefore(s, id) && s.vitals.sbp <= 185 && s.vitals.dbp <= 110 && !labelContraindicated(s, id), replaces: STROKE_LOWERING_REPLACES, points: 5, severity: 'major', text: 'Lowering his pressure again after a first drug had already brought it down. The monitor showed the fall: each further dose takes more pressure from the brain living on collaterals around the clot. Stop the drugs that lower it, and bring it back if it has fallen well below his usual.' },
     // the built-in lab rule's id, and every other lytic rank with it (the stroke under way is an absolute contraindication too):
     // one dose, one penalty, in this case's words
     { id: 'lytic-in-lab', actions: ['tnk'], points: 15, severity: 'critical', replaces: LYTIC_RULES, text: 'A fibrinolytic from the cardiologist, for the stroke. Before a CT has excluded a bleed it can kill; after 5,000 units of heparin (a long ACT) IV thrombolysis is generally not given at all; the stroke dose of tenecteplase is 0.25 mg/kg (25 mg at most), not the STEMI dose; and the decision is the stroke team\'s. A blocked large artery is treated with thrombectomy.' },

@@ -291,11 +291,13 @@ describe('aortic dissection in the emergency department — finding it', () => {
 });
 
 describe('aortic dissection in the emergency department — the ER nurse\'s traps', () => {
-  it('aspirin from the chest pain standing order costs 10 points once — heparin after it adds nothing, and is no second "without an order"', () => {
+  it('aspirin from the chest pain standing order costs 10 points — heparin after it is a second drug (10 more), and no second "without an order"', () => {
     const s = nurse(['aspirin']);
     expect(s.penalties).toEqual([expect.objectContaining({ id: 'antithrombotic-dissection-rn', points: 10, severity: 'major' })]);
     expect(s.penalties[0].text).toMatch(/The chest pain standing order covers aspirin, but it also asks you to screen first/);
-    expect(penalties(nurse(['aspirin', 'iv', 'heparin']))).toEqual(['antithrombotic-dissection-rn']);
+    // each antithrombotic is its own mistake (the case rule stands in for the built-in drug contraindications, so it charges
+    // once for each drug: rules/charge.ts); the missing order for the heparin is in its words
+    expect(penalties(nurse(['aspirin', 'iv', 'heparin']))).toEqual(['antithrombotic-dissection-rn', 'antithrombotic-dissection-rn']);
     expect(penalties(nurse(['iv', 'heparin']))).toEqual(['antithrombotic-dissection-rn']);
     // the physician hears of it at the bedside
     expect(saidBy(nurse(['bp-both-arms', 'aspirin', 'notify-physician']), 'physician')).toMatch(/He has had aspirin\? Not for this pain/);
@@ -379,10 +381,15 @@ describe('aortic dissection in the emergency department — the physician\'s ord
 });
 
 describe('aortic dissection in the emergency department — the ER doctor\'s traps', () => {
-  it('aspirin, heparin or a P2Y12 costs 10 points once (not the built-in rule as well)', () => {
-    for (const steps of [['aspirin'], ['aspirin', 'p2y12'], [...MD_ASSESSED, 'heparin']]) {
+  it('aspirin, heparin or a P2Y12 costs 10 points each (not the built-in rule as well)', () => {
+    for (const steps of [['aspirin'], [...MD_ASSESSED, 'heparin']]) {
       expect(doctor(steps).penalties).toEqual([expect.objectContaining({ id: 'antithrombotic-dissection-md', points: 10, severity: 'major' })]);
     }
+    // a P2Y12 load after the aspirin is a second drug into the same tear: its own 10 (rules/charge.ts)
+    expect(doctor(['aspirin', 'p2y12']).penalties).toEqual([
+      expect.objectContaining({ id: 'antithrombotic-dissection-md', points: 10, action: 'aspirin' }),
+      expect.objectContaining({ id: 'antithrombotic-dissection-md', points: 10, action: 'p2y12' }),
+    ]);
     // the surgeon hears of it
     expect(last(doctor(['aspirin', 'call-surgery']))).toMatch(/He has had an antithrombotic: we'll have platelets ready/);
   });

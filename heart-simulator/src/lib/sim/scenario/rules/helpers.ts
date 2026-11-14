@@ -132,7 +132,8 @@ export const stemiNow = (s: SimState) => has(s, 'ecg-stemi') || profileShowsStem
  * This rule (by its id) was charged on an earlier act. Every act takes at least a tenth of a minute, and the engine judges an
  * act before its clock moves, so a penalty of this act carries the current minute: a condition that reads it does not change
  * while the engine charges the act's rules one after the other (harmsFor calls each `when` again as it goes). One copy for
- * the rule files (the per-drug variant for the built-in drug rules is rules/charge.ts builtInChargedBefore)
+ * the rule files (the per-drug variants for the drug contraindications are rules/charge.ts builtInChargedBefore and
+ * caseChargedBefore)
  */
 export const chargedBefore = (s: SimState, ruleId: string) => s.penalties.some((p) => p.id === ruleId && p.minute < s.minute);
 

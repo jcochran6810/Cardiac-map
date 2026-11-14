@@ -1,7 +1,7 @@
 import type { Effect, Line, Scenario, SimState } from '../types';
 import { PADS, bpAfter, has, line } from '../kit';
 import { nitrateCaseRule } from '../rules/acs';
-import { LIDOCAINE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
+import { LIDOCAINE_RULES, PROCAINAMIDE_RULES, RATE_RULES, yieldToHeavier } from '../rules/rhythm';
 
 /**
  * The version this case teaches: a regular wide-complex tachycardia in a man with an old infarct, whose pressure and
@@ -385,15 +385,17 @@ export const stableVtField: Scenario = {
     // a manual shock only: with his pulse the AED is not applied, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock to a patient with a pulse. It can land on the T wave and set off VF. A tachycardia with a pulse that needs a shock gets synchronized cardioversion: 100 J for monomorphic VT (2025).' },
     {
-      // its words cover the pressure too: procainamide with a low one is this same mistake (one penalty)
-      id: 'two-antiarrhythmics', actions: ANTIARRHYTHMICS, when: (s) => s.pulse && (has(s, 'amiodarone') || has(s, 'procainamide')), points: 8, severity: 'major',
+      // its words cover the pressure too: procainamide with a low one is this same mistake (one penalty). In unstable VT the
+      // drug itself is the mistake (drug-while-unstable, as heavy): that rule speaks for the dose — one dose, one penalty
+      id: 'two-antiarrhythmics', actions: ANTIARRHYTHMICS, when: (s) => s.pulse && (has(s, 'amiodarone') || has(s, 'procainamide')) && !(inVt(s) && unstable(s)), points: 8, severity: 'major',
       replaces: ['procainamide-after-amiodarone', 'amiodarone-after-procainamide', 'procainamide-hypotension', ...RATE_RULES],
       text: 'A second antiarrhythmic dose on top of the first. Procainamide and amiodarone both lengthen the QT and drop the pressure: give one, and if it fails the next step is synchronized cardioversion (with sedation) or expert advice — not a second drug.',
     },
     {
       id: 'drug-while-unstable', actions: [...ANTIARRHYTHMICS, 'lidocaine'], when: (s) => inVt(s) && unstable(s), points: 8, severity: 'major',
-      // the same mistake as procainamide with a low pressure, in the words of this case: one penalty, not two
-      replaces: ['procainamide-hypotension', ...LIDOCAINE_RULES, ...RATE_RULES],
+      // the same mistake as procainamide with a low pressure (or any other reason on its ladder), in the words of this case:
+      // one penalty, not two. A second antiarrhythmic beside it is the lighter mistake (engine harmsFor: the heavier charges)
+      replaces: [...PROCAINAMIDE_RULES, ...LIDOCAINE_RULES, ...RATE_RULES],
       text: 'An antiarrhythmic for a tachycardia that had become unstable. Hypotension, a change in mental status, chest pain or heart failure make it unstable: synchronized cardioversion now (100 J), not a drug that takes minutes and drops the pressure further.',
     },
     { id: 'no-sedation', actions: ['cardiovert'], when: (s) => inVt(s) && s.vitals.gcs >= 14 && !comfortable(s), points: 3, severity: 'minor', text: 'Cardioversion of an awake patient without sedation or analgesia. Sedate the conscious patient when you can.' },

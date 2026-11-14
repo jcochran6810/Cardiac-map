@@ -4,7 +4,9 @@
  * requests (labKit / edKit).
  */
 import { describe, expect, it } from 'vitest';
-import { DRUGS_OF, chargesPerDrug, drugsOf, sameDrug } from '@/lib/sim/scenario/rules/charge';
+import { DRUGS_OF, caseChargesPerDrug, chargesPerDrug, drugsOf, sameDrug } from '@/lib/sim/scenario/rules/charge';
+import { nitrateCheckRule } from '@/lib/sim/scenario/rules/acs';
+import { RATE_RULES } from '@/lib/sim/scenario/rules/rhythm';
 import { BUILT_IN_HARMS, RN_ORDER_ONLY, perform, review, start } from '@/lib/sim/scenario/engine';
 import { askCritical, askEvents, askHarm, type LabAsk } from '@/lib/sim/scenario/labKit';
 import { edOrder, standingOrders } from '@/lib/sim/scenario/edKit';
@@ -566,9 +568,45 @@ describe('a drug contraindication charges once for each drug given into it (rule
     expect(penaltyIds(arrest, 2, ['io', 'midazolam', 'fentanyl']).filter((p) => p === 'no-role-in-arrest')).toHaveLength(1);
   });
 
-  it('a case rule keeps charging once a case, as its case decides (wpw-af-field: a second blocker on top is the same one mistake)', () => {
-    const own: Harm = { id: 'av-blocker-preexcited-af', actions: ['diltiazem', 'metoprolol'], points: 15, severity: 'critical', text: 'The case\'s words.' };
-    const preexcited = fixture({ setting: 'field', role: 2, rhythm: { profile: 'af-wpw', hr: 210 }, harms: [own] });
-    expect(penaltyIds(preexcited, 2, ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af']);
+  it('a case rule standing in for a drug contraindication charges once for each drug too, as the built-in it stands in for', () => {
+    // the case's rule with the built-in's id (wpw-af-field: a second blocker on top is a second mistake)
+    const own: Harm = { id: 'av-blocker-preexcited-af', actions: ['diltiazem', 'metoprolol', 'adenosine6', 'adenosine12'], points: 15, severity: 'critical', text: 'The case\'s words.' };
+    const preexcited = (harms: Harm[]) => fixture({ setting: 'field', role: 2, rhythm: { profile: 'af-wpw', hr: 210 }, harms });
+    expect(penaltyIds(preexcited([own]), 2, ['iv', 'diltiazem', 'metoprolol'])).toEqual(['av-blocker-preexcited-af', 'av-blocker-preexcited-af']);
+    // a case rule under its own id that lists built-in drug contraindications in `replaces`
+    const standIn: Harm = { id: 'case-blocker', actions: ['diltiazem', 'metoprolol', 'adenosine6', 'adenosine12'], replaces: ['av-blocker-preexcited-af', ...RATE_RULES], points: 15, severity: 'critical', text: 'The case\'s words.' };
+    expect(penaltyIds(preexcited([standIn]), 2, ['iv', 'diltiazem', 'metoprolol'])).toEqual(['case-blocker', 'case-blocker']);
+    // the same drug again — at another dose too — is not charged again
+    expect(penaltyIds(preexcited([own]), 2, ['iv', 'adenosine6', 'adenosine12'])).toEqual(['av-blocker-preexcited-af']);
+    expect(penaltyIds(preexcited([standIn]), 2, ['iv', 'adenosine6', 'adenosine12'])).toEqual(['case-blocker']);
+    expect(caseChargesPerDrug(standIn, 'diltiazem')).toBe(true);
+    expect(caseChargesPerDrug(own, 'metoprolol')).toBe(true);
+  });
+
+  it('in the cases: a second, different drug into the case\'s contraindication is its own mistake, in the case\'s words', () => {
+    const ids = (id: string, role: 2 | 5 | 7, steps: string[]) => penaltyIds(SCENARIO_BY_ID[id], role, steps);
+    expect(ids('stemi-walk-in-ed', 7, ['iv', 'esmolol', 'labetalol'])).toEqual(['rate-drug-heart-failure', 'rate-drug-heart-failure']);
+    expect(ids('takotsubo-lvot-cathlab', 5, ['esmolol', 'metoprolol'])).toEqual(['bb-before-diagnosis', 'bb-before-diagnosis']);
+    expect(ids('beta-blocker-overdose-field', 2, ['iv', 'metoprolol', 'diltiazem'])).toEqual(['av-blocker', 'av-blocker']);
+    expect(ids('pulmonary-embolism-field', 2, ['iv', 'metoprolol', 'diltiazem'])).toEqual(['rate-control-pe', 'rate-control-pe']);
+    // oral metoprolol after IV metoprolol is the same drug: nothing more
+    expect(ids('stemi-walk-in-ed', 7, ['iv', 'metoprolol', 'metoprolol-po']).filter((p) => p === 'rate-drug-heart-failure')).toHaveLength(1);
+  });
+
+  it('a minor case rule, an indication rule, a nitrate check and a rule on what is not a drug still charge once a case', () => {
+    const standIn: Harm = { id: 'case-blocker', actions: ['diltiazem', 'metoprolol'], replaces: ['av-blocker-preexcited-af', ...RATE_RULES], points: 15, severity: 'critical', text: 'The case\'s words.' };
+    expect(caseChargesPerDrug({ ...standIn, points: 3, severity: 'minor' }, 'diltiazem')).toBe(false);
+    // a case rule with an indication rule's id, or standing in only for indication rules
+    expect(caseChargesPerDrug({ ...standIn, id: 'antiarrhythmic-no-arrhythmia', replaces: undefined }, 'diltiazem')).toBe(false);
+    expect(caseChargesPerDrug({ ...standIn, replaces: ['antiarrhythmic-no-arrhythmia'] }, 'diltiazem')).toBe(false);
+    // one of the nitrate checks, under its own id or a built-in's
+    expect(caseChargesPerDrug(nitrateCheckRule({ id: 'case-no-bp', actions: ['nitro'], points: 5, severity: 'major', text: 'No pressure.' }, 'nitro-no-bp'), 'nitro')).toBe(false);
+    expect(caseChargesPerDrug({ id: 'nitro-no-bp', actions: ['nitro'], points: 5, severity: 'major', text: 'No pressure.' }, 'nitro')).toBe(false);
+    // a case rule that stands in for nothing built in, or judges a procedure
+    expect(caseChargesPerDrug({ ...standIn, replaces: undefined }, 'diltiazem')).toBe(false);
+    expect(caseChargesPerDrug({ id: 'case-shock', actions: ['cardiovert'], replaces: ['shock-nonshockable'], points: 10, severity: 'major', text: 'No.' }, 'cardiovert')).toBe(false);
+    const minor: Harm = { ...standIn, points: 3, severity: 'minor' };
+    const preexcited = fixture({ setting: 'field', role: 2, rhythm: { profile: 'af-wpw', hr: 210 }, harms: [minor] });
+    expect(penaltyIds(preexcited, 2, ['iv', 'diltiazem', 'metoprolol']).filter((p) => p === 'case-blocker')).toHaveLength(1);
   });
 });

@@ -508,7 +508,9 @@ describe('stroke in the cath lab: the traps', () => {
     const s = run(sc, 3, ['radial-cocktail', 'ic-nitroprusside', 'ic-nitro', 'callout']);
     expect(s.fired).toEqual(expect.arrayContaining(['pressure-falls', 'worse', 'nurse-supports']));
     expect(s.vitals.sbp).toBeGreaterThanOrEqual(140);
-    expect(penalties(s)).toEqual(['lower-bp-stroke', 'lower-bp-again']);
+    // the cocktail, then nitroprusside — a second lowering drug, lower-bp-stroke's again (it charges once for each drug,
+    // rules/charge.ts) — then intracoronary nitroglycerin, the cocktail's nitrate again: lower-bp-again (one dose, one penalty)
+    expect(penalties(s)).toEqual(['lower-bp-stroke', 'lower-bp-stroke', 'lower-bp-again']);
     // the tech has no item for it: the nurse's
     expect(criticalsFor(sc, 3).map((c) => c.id)).not.toContain('bp-low');
   });
@@ -576,8 +578,9 @@ describe('periprocedural stroke: the rate drugs\' own label contraindications ar
     }
     // the second lowering drug, diltiazem after IV metoprolol: the label's combination rule speaks for it (one dose, one penalty)
     expect(penalties(run(sc, 4, ['callout', 'metoprolol', 'diltiazem']))).toEqual(['lower-bp-stroke', 'iv-beta-blocker-with-diltiazem']);
-    // …and still after both stroke rules have charged
+    // …and still after both stroke rules have charged; the metoprolol before it, a new lowering drug, is lower-bp-stroke's
+    // again (it charges once for each drug)
     expect(penalties(run(sc, 4, ['callout', 'nitro', 'nitro', 'metoprolol', 'diltiazem'])))
-      .toEqual(['lower-bp-stroke', 'lower-bp-again', 'iv-beta-blocker-with-diltiazem']);
+      .toEqual(['lower-bp-stroke', 'lower-bp-again', 'lower-bp-stroke', 'iv-beta-blocker-with-diltiazem']);
   });
 });

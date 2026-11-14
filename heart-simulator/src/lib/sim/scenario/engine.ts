@@ -29,7 +29,8 @@ import type {
 } from './types';
 import { BUILT_IN_HARMS } from './rules';
 import { NITRATE_CHECKS, sedationForProcedure } from './rules/acs';
-import { countsFor } from './rules/charge';
+import { caseCountsFor, countsFor } from './rules/charge';
+import { SECOND_ANTIARRHYTHMIC } from './rules/rhythm';
 import { INDICATION_RULES, RN_ORDER_ONLY, missingOrderCovers } from './rules/scope';
 import {
   cprThisArrest, did, ecgShowsStemi, hasProblem, lowPressure, lvadPerfusing, outflowObstruction, preexcitedAf, preloadDependent, profileShowsStemi,
@@ -1236,9 +1237,9 @@ function askRead(s: SimState, r: PendingRead) {
 
 /**
  * The rules that charge this action (`id`), judged on the state just before it takes effect. Each rule charges at most
- * once per case — but a built-in drug contraindication charges once for each drug given into it (rules/charge.ts: a second,
- * different drug into the same contraindication is a mistake of its own; the same drug again is not). One mistake, one
- * penalty:
+ * once per case — but a drug contraindication charges once for each drug given into it, the built-in and a case rule that
+ * stands in for one alike (rules/charge.ts: a second, different drug into the same contraindication is a mistake of its own;
+ * the same drug again is not). One mistake, one penalty:
  * - a case rule with the same id as a built-in replaces it for the actions the case rule lists, for the roles it is
  *   written for (a deliberate exemption, or the case's own words). For any other action the built-in still judges;
  * - a case rule's `replaces` hides those built-ins only while the case rule applies to this action — same action, a role
@@ -1251,8 +1252,9 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
   const roleOk = (h: Harm) => !h.roles || h.roles.includes(s.role);
   const applies = (h: Harm) => h.actions.includes(id) && roleOk(h) && (!h.when || h.when(s, sc, id));
   const builtInSet = new Set<Harm>(BUILT_IN_HARMS);
-  // a built-in drug contraindication charges once for each drug given into it (rules/charge.ts); a case rule once a case
-  const charged = (h: Harm) => s.penalties.some((p) => (builtInSet.has(h) ? countsFor(p, h, id) : p.id === h.id));
+  // a drug contraindication — built-in, or a case rule standing in for one — charges once for each drug given into it
+  // (rules/charge.ts); any other rule once a case
+  const charged = (h: Harm) => s.penalties.some((p) => (builtInSet.has(h) ? countsFor(p, h, id) : caseCountsFor(p, h, id)));
   const own = new Set([
     ...sc.harms.filter((h) => roleOk(h) && h.actions.includes(id)).map((h) => h.id),
     ...sc.harms.filter(applies).flatMap((h) => h.replaces ?? []),
@@ -1267,6 +1269,7 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
     chargedNow.push(h);
   }
   oneAnswerOnePenalty(s, from, chargedNow);
+  secondAntiarrhythmicBesideCase(s, from, chargedNow, new Set(sc.harms));
 }
 
 const SEVERITY_RANK: Record<Harm['severity'], number> = { minor: 1, major: 2, critical: 3 };
@@ -1282,6 +1285,22 @@ function oneAnswerOnePenalty(s: SimState, from: number, chargedNow: Harm[]) {
   if (!wrong.length || !judged.length) return;
   const weight = (hs: Harm[]) => Math.max(...hs.map((h) => h.points * 10 + SEVERITY_RANK[h.severity]));
   const drop = new Set((weight(judged) > weight(wrong) ? wrong : judged).map((h) => h.id));
+  s.penalties = [...s.penalties.slice(0, from), ...s.penalties.slice(from).filter((p) => !drop.has(p.id))];
+}
+
+/**
+ * The second antiarrhythmic on top of the first (rules/rhythm.ts SECOND_ANTIARRHYTHMIC) and a case rule that judges the same
+ * dose: one dose, one penalty, the heavier (points, then severity) — on a tie the case's words. A case rule that stands in
+ * for a drug contraindication charges once for each drug (rules/charge.ts), so it speaks for the second drug too; one charged
+ * already leaves the dose to the stacking rule, which never lets it go free
+ */
+function secondAntiarrhythmicBesideCase(s: SimState, from: number, chargedNow: Harm[], caseRules: Set<Harm>) {
+  const still = new Set(s.penalties.slice(from).map((p) => p.id));
+  const stacking = chargedNow.filter((h) => SECOND_ANTIARRHYTHMIC.includes(h.id) && !caseRules.has(h) && still.has(h.id));
+  const own = chargedNow.filter((h) => caseRules.has(h) && !h.wrongAnswer && still.has(h.id));
+  if (!stacking.length || !own.length) return;
+  const weight = (hs: Harm[]) => Math.max(...hs.map((h) => h.points * 10 + SEVERITY_RANK[h.severity]));
+  const drop = new Set((weight(stacking) > weight(own) ? own : stacking).map((h) => h.id));
   s.penalties = [...s.penalties.slice(0, from), ...s.penalties.slice(from).filter((p) => !drop.has(p.id))];
 }
 

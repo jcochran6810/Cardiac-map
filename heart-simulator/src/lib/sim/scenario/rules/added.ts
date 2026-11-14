@@ -7,6 +7,7 @@ import { has, paced } from '../kit';
 import type { Harm, Scenario, SimState } from '../types';
 import { antithromboticCharges, vasodilatorBeforeRateControl } from './acs';
 import { BETA_BLOCKERS, did, hasProblem, lastDoneAt, lowPressure, outflowObstruction, preloadDependent, slowOrBlocked, tachyarrhythmia } from './helpers';
+import { caseChargedBefore, caseChargesPerDrug, chargedBeforeAs, chargesPerDrug } from './charge';
 import { RATE_RULES } from './rhythm';
 import { indicationCovered } from './scope';
 
@@ -17,11 +18,16 @@ type Check = (s: SimState, sc: Scenario) => boolean;
  * (for this role and this action) decides that rank in the built-in's place, as in the ACS rules' gate: while it applies to
  * the dose the gate stops there (it charges, and nothing ranked lower adds a second penalty); while it does not — an
  * exemption, or its condition is false — the gate goes on to the next rank: the case has said this one reason does not
- * hold here. An indication rank the ER nurse's missing order covers is passed over (rules/scope.ts indicationCovered).
+ * hold here. An indication rank the ER nurse's missing order covers is passed over (rules/scope.ts indicationCovered), and
+ * so is a rank already charged against this dose, as in every gate (rules/charge.ts chargedBeforeAs).
  */
 function topOf(ranks: [string, Check][], s: SimState, sc: Scenario, action: string): string | null {
   for (const [id, applies] of ranks) {
     const own = sc.harms.filter((h) => h.id === id && (!h.roles || h.roles.includes(s.role)) && h.actions.includes(action));
+    // a rank charged already against this dose is passed over: the one repeat policy of every gate (rules/charge.ts chargedBeforeAs)
+    const rule = BY_ID.get(id);
+    const perDrug = own.length ? own.some((h) => caseChargesPerDrug(h, action)) : !!rule && chargesPerDrug(rule, action);
+    if (chargedBeforeAs(s, id, perDrug, action)) continue;
     if (own.length) {
       if (own.some((h) => !h.when || h.when(s, sc, action))) return id;
     } else if (applies(s, sc) && !indicationCovered(id, s, sc, action)) return id;
@@ -89,13 +95,13 @@ const tamponadeUndrained = (s: SimState, sc: Scenario) => (hasProblem(sc, ['tamp
  */
 /**
  * A case rule speaks for this beta-blocker dose: it names the tablet, stands in for the rate-drug rules (RATE_RULES of
- * rules/rhythm.ts) and applies — the case's words for a beta-blocker that is wrong for this patient — and has not charged an
- * earlier dose. The oral rule then adds no second penalty to the same tablet. A stand-in charged already passes the tablet on
- * to this rule, as the rhythm gate passes a dose on (rules/rhythm.ts caseVoice)
+ * rules/rhythm.ts) and applies — the case's words for a beta-blocker that is wrong for this patient — and has not been
+ * charged already against this dose (rules/charge.ts). The oral rule then adds no second penalty to the same tablet. A
+ * stand-in charged already passes the tablet on to this rule, as the rhythm gate passes a dose on (rules/rhythm.ts caseVoice)
  */
 const caseSpeaksForBetaBlocker = (s: SimState, sc: Scenario, id: string) => sc.harms.some((h) =>
   h.actions.includes(id) && (!h.roles || h.roles.includes(s.role)) && !!h.replaces?.some((r) => RATE_RULES.includes(r)) && (!h.when || h.when(s, sc, id))
-  && !s.penalties.some((p) => p.id === h.id && p.minute < s.minute));
+  && !caseChargedBefore(s, h, id));
 
 const oralBetaBlockerShockRisk = (s: SimState, sc: Scenario) =>
   s.pulse && hasProblem(sc, ['acs']) && !lowPressure(s) && !slowOrBlocked(s) && !hasProblem(sc, ['pulmonary-edema', 'asthma', 'bronchospasm'])
@@ -235,3 +241,6 @@ export const ADDED_RULES: Harm[] = [
     text: 'Stopping the anticoagulant with a wire still in the coronary and nothing bleeding. The wire, the balloon and a fresh stent sit in blood that clots without it: thrombus on the hardware, no-reflow and an acute stent thrombosis (ACCF/AHA/SCAI PCI guideline: anticoagulation through the procedure, to the ACT target). Stop it for a perforation, a dissection of the coronary wall (SCAD) or real bleeding — and after the final angiogram.',
   },
 ];
+
+/** This file's rules by id: a gate rank's weight decides whether it charges once a case or once for each drug */
+const BY_ID = new Map(ADDED_RULES.map((r) => [r.id, r]));
