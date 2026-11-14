@@ -330,7 +330,7 @@ export const CONDITIONS_C: Record<string, ConditionContent> = {
     ],
     medications: [
       'ACEi/ARB during recovery (associated with better survival in registry data)',
-      'Diuretics for congestion; avoid nitrates when LVOT obstruction is present',
+      'Diuretics for congestion without outflow obstruction; with LVOT obstruction avoid diuretics and nitrates (fluid and phenylephrine instead)',
       'Beta-blocker reasonable for LVOT obstruction without cardiogenic shock; caution with bradycardia and QT prolongation',
       'Avoid catecholamine inotropes in shock; levosimendan (where available) or MCS are preferred alternatives',
       'Fluids and phenylephrine for hypotension due to LVOT obstruction',

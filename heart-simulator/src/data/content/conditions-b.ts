@@ -1396,7 +1396,10 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
   },
 
   // Sources: AHA scientific statement on SCAD (Hayes et al., Circulation 2018;137:e523–e557, doi 10.1161/CIR.0000000000000564)
-  // and the ESC position paper on SCAD (Adlam et al., Eur Heart J 2018;39:3353–3368)
+  // for the conservative care, the heparin, the GP IIb/IIIa line, the beta-blocker, the 3–5 days of monitoring and the
+  // pregnancy warnings (renin-angiotensin blockers are teratogenic; atenolol and statins are avoided in pregnancy); the ESC
+  // position paper on SCAD (Adlam et al., Eur Heart J 2018;39:3353–3368, doi 10.1093/eurheartj/ehy080) for avoiding
+  // fibrinolysis — the AHA statement does not address lysis
   scad: {
     id: 'scad',
     name: 'Spontaneous Coronary Artery Dissection (SCAD)',
@@ -1452,11 +1455,12 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     medications: [
       'Aspirin, as in any acute coronary syndrome, usually continued long term',
       'Heparin is often started before the angiogram; once SCAD is diagnosed and no stent is placed, stopping it is appropriate (it may feed the bleed in the wall)',
-      'Avoid fibrinolysis: there is no clot to dissolve, and lysis can extend the hematoma — a young woman with a STEMI goes to the cath lab',
+      'Avoid fibrinolysis (ESC position paper 2018): there is no clot to dissolve, and lysis can extend the hematoma — a young woman with a STEMI goes to the cath lab',
       'GP IIb/IIIa inhibitors: no evidence of benefit and a theoretical risk of extending the dissection',
       'A beta-blocker is reasonable: it was linked to fewer recurrences in a large Vancouver series',
       'Dual antiplatelet therapy after a stent as usual; without a stent its role is uncertain',
       'Nitrates or calcium-channel blockers for the chest pain many patients have afterward',
+      'ACE inhibitors and ARBs only with LV dysfunction or hypertension, never in pregnancy (fetal toxicity); atenolol and statins are avoided in pregnancy (AHA 2018)',
     ],
     fieldCare: [
       'Treat as ACS: 12-lead and transmission, aspirin per protocol, and a STEMI alert for ST elevation',
@@ -1474,7 +1478,7 @@ export const CONDITIONS_B: Record<string, ConditionContent> = {
     cardiologyCare: [
       'Revascularization only for ongoing ischemia, hemodynamic instability, a left main dissection or a closing artery — PCI in SCAD fails or extends the tear more often than in plaque',
       'When a stent is needed: long stents well beyond both ends of the hematoma, direct stenting or a small balloon, and minimal injections',
-      'Aspirin, a beta-blocker, and medicines for the chest pain; an ACE inhibitor or ARB with a reduced ejection fraction',
+      'Aspirin, a beta-blocker, and medicines for the chest pain; an ACE inhibitor or ARB with a reduced ejection fraction — never in pregnancy (fetal toxicity: stop it before a planned pregnancy); while breastfeeding, enalapril or captopril',
       'Screen for fibromuscular dysplasia once, head to pelvis',
       'Cardiac rehabilitation, with heavy lifting and extreme effort avoided',
       'Counseling about future pregnancy and hormone therapy, and attention to anxiety and depression, which are common afterward',

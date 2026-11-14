@@ -70,4 +70,22 @@ describe('library conditions', () => {
     // the page links no clot-dissolving drug
     expect(scad.relatedMedications).not.toContain('tenecteplase');
   });
+
+  it('SCAD: every line that recommends an ACE inhibitor or ARB warns against it in pregnancy; the lysis line names its source', () => {
+    // her population is peripartum: renin-angiotensin blockers are fetotoxic (AHA 2018 statement; the labels' boxed warning)
+    const scad = CONDITIONS.scad;
+    const lines = [...scad.levelNotes, ...scad.medications, ...scad.hospitalCare, ...scad.cardiologyCare].filter((l) => /ACE inhibitor|ARB/.test(l));
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    for (const l of lines) expect(l).toMatch(/never in pregnancy/);
+    expect(scad.medications.join(' ')).toMatch(/atenolol and statins are avoided in pregnancy/);
+    expect(scad.cardiologyCare.join(' ')).toMatch(/while breastfeeding, enalapril or captopril/);
+    // the AHA statement does not address lysis: the ESC position paper does
+    expect(scad.medications.find((l) => /fibrinolysis/.test(l))).toMatch(/^Avoid fibrinolysis \(ESC position paper 2018\)/);
+  });
+
+  it('Takotsubo: with outflow obstruction no diuretic or nitrate (they empty the ventricle); diuretics only without it', () => {
+    const meds = CONDITIONS.takotsubo.medications.join(' ');
+    expect(meds).toMatch(/Diuretics for congestion without outflow obstruction; with LVOT obstruction avoid diuretics and nitrates \(fluid and phenylephrine instead\)/);
+    expect(meds).not.toMatch(/Diuretics for congestion;/);
+  });
 });
