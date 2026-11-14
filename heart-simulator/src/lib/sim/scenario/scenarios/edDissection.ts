@@ -731,6 +731,13 @@ export const edDissection: Scenario = {
       text: 'More vasodilator with the systolic already at 120 or less. The goal is a systolic under 120, or the lowest pressure that keeps the brain, the kidneys and the gut perfused — not lower: a falling pressure in a torn aorta also hides the bleed into the pericardium.',
     },
     {
+      // the built-in 0.8 mg rule, same id: a deliberate exemption. This case judges every vasodilator dose itself — before the
+      // rate is controlled, in shock, at the goal, and the nurse's 0.8 mg for an ordered 0.4 (the order's own rule); with the
+      // rate controlled and the systolic still over 120 it allows a vasodilator toward its goal of under 120 (one rule per dose)
+      id: 'nitro-high-not-hypertensive', actions: ['nitro-high'], when: () => false, points: 3, severity: 'minor',
+      text: 'High-dose nitroglycerin without a high blood pressure.',
+    },
+    {
       id: 'rate-drug-low', actions: RATE_DRUGS, when: (s) => s.pulse && (bled(s) || s.vitals.sbp < 100 || s.rhythm.hr < 60), points: 8, severity: 'major',
       text: 'A beta-blocker or diltiazem in shock, or with a systolic under 100 or a rate under 60. With a torn aorta a falling pressure means tamponade, rupture or a badly leaking aortic valve: slowing the heart takes away the rate that is holding up his output.',
     },

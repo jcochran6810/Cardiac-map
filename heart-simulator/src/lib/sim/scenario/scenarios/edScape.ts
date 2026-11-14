@@ -903,7 +903,8 @@ export const edScape: Scenario = {
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it the infusion, titrated down, does the rest — once the surge has broken, each dose drops the pressure far more.',
     },
     {
-      id: 'nitro-below-target', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 120, points: 8, severity: 'major', replaces: ['nitro-hypotension'],
+      // under 120 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
+      id: 'nitro-below-target', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 120, points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
       text: 'Nitroglycerin with a systolic under 120. The surge has broken and the pressure is falling: hold the sublingual doses and turn the infusion down — a low pressure starves the heart, the brain and the kidneys.',
     },
     ...bothRoles({

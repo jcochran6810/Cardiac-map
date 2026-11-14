@@ -377,8 +377,9 @@ export const stableVtField: Scenario = {
     // a manual shock only: with his pulse the AED is not applied, so nothing happened to penalize
     { id: 'shock-with-pulse', actions: ['defib'], when: (s) => s.pulse, points: 20, severity: 'critical', text: 'An unsynchronized shock to a patient with a pulse. It can land on the T wave and set off VF. A tachycardia with a pulse that needs a shock gets synchronized cardioversion: 100 J for monomorphic VT (2025).' },
     {
+      // its words cover the pressure too: procainamide with a low one is this same mistake (one penalty)
       id: 'two-antiarrhythmics', actions: ANTIARRHYTHMICS, when: (s) => s.pulse && (has(s, 'amiodarone') || has(s, 'procainamide')), points: 8, severity: 'major',
-      replaces: ['procainamide-after-amiodarone', 'amiodarone-after-procainamide'],
+      replaces: ['procainamide-after-amiodarone', 'amiodarone-after-procainamide', 'procainamide-hypotension'],
       text: 'A second antiarrhythmic dose on top of the first. Procainamide and amiodarone both lengthen the QT and drop the pressure: give one, and if it fails the next step is synchronized cardioversion (with sedation) or expert advice — not a second drug.',
     },
     {

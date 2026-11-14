@@ -9,7 +9,8 @@ import { askCritical, askEvents, type LabAsk } from '@/lib/sim/scenario/labKit';
 import { edOrder, standingOrders } from '@/lib/sim/scenario/edKit';
 import { INDICATION_RULES, RN_ORDER_CRITICAL, SCOPE_RULES } from '@/lib/sim/scenario/rules/scope';
 import { lastDoneAt, outflowObstruction, preloadDependent, slowOrBlocked } from '@/lib/sim/scenario/rules/helpers';
-import type { Harm, Scenario, SimState } from '@/lib/sim/scenario/types';
+import { SCENARIO_BY_ID } from '@/lib/sim/scenario/scenarios';
+import type { Effect, Harm, Scenario, SimState } from '@/lib/sim/scenario/types';
 import { fixture, penaltyIds } from './ruleFixture';
 import { UNTIL_ARRIVED, runScenario } from './helpers';
 
@@ -112,9 +113,30 @@ describe('the ER nurse: one act, one penalty', () => {
     expect(penaltyIds(nurse({ problems: ['aortic-dissection'] }), 6, ['iv', 'alteplase']).sort()).toEqual(['lytic-dissection', 'rn-without-order-alteplase']);
   });
 
-  it('a case rule that stands in for the missing order leaves the indication rules to judge', () => {
-    const harms: Harm[] = [{ id: 'rn-calcium', actions: ['calcium-chloride'], roles: [6], points: 5, severity: 'major', text: 'Calcium with no order.', replaces: ['rn-without-order-calcium-chloride'] }];
-    expect(penaltyIds(nurse({ harms }), 6, ['iv', 'calcium-chloride'])).toEqual(['calcium-no-indication', 'rn-calcium']);
+  it('a case rule that stands in for the missing order covers the indication too: one act, one penalty', () => {
+    const rnCalcium = (over: Partial<Harm> = {}): Harm => ({
+      id: 'rn-calcium', actions: ['calcium-chloride'], roles: [6], points: 5, severity: 'major', text: 'Calcium with no order.', replaces: ['rn-without-order-calcium-chloride'], ...over,
+    });
+    expect(penaltyIds(nurse({ harms: [rnCalcium()] }), 6, ['iv', 'calcium-chloride'])).toEqual(['rn-calcium']);
+    // still covered once the case rule has been charged: it applies to the second dose too
+    expect(penaltyIds(nurse({ harms: [rnCalcium()] }), 6, ['iv', 'calcium-chloride', 'calcium-chloride'])).toEqual(['rn-calcium']);
+    // a case rule with the order rule's own id (an exemption) stands in for it the same way
+    const sameId = rnCalcium({ id: 'rn-without-order-calcium-chloride', replaces: undefined });
+    expect(penaltyIds(nurse({ harms: [sameId] }), 6, ['iv', 'calcium-chloride'])).toEqual(['rn-without-order-calcium-chloride']);
+    // while the case rule does not apply it stands in for nothing: the built-in order rule is back, and covers the indication
+    const never = rnCalcium({ when: () => false });
+    expect(penaltyIds(nurse({ harms: [never] }), 6, ['iv', 'calcium-chloride'])).toEqual(['rn-without-order-calcium-chloride']);
+    // …and once that has been charged, a second dose meets the indication rule
+    expect(penaltyIds(nurse({ harms: [never] }), 6, ['iv', 'calcium-chloride', 'calcium-chloride'])).toEqual(['rn-without-order-calcium-chloride', 'calcium-no-indication']);
+    // a contraindication still applies on top of it
+    const failing = nurse({ rhythm: { profile: 'afib', hr: 140 }, problems: ['heart-failure'], harms: [{ ...rnCalcium(), id: 'rn-diltiazem', actions: ['diltiazem'], replaces: ['rn-without-order-diltiazem'] }] });
+    expect(penaltyIds(failing, 6, ['iv', 'diltiazem']).sort()).toEqual(['diltiazem-heart-failure', 'rn-diltiazem']);
+  });
+
+  it('a case rule for every role that stands in for the nurse\'s missing order is no order for the doctor', () => {
+    const everyone: Harm = { id: 'case-calcium', actions: ['calcium-chloride'], points: 3, severity: 'minor', text: 'Calcium for nothing.', replaces: ['rn-without-order-calcium-chloride'] };
+    expect(penaltyIds(fixture({ setting: 'ed', role: 7, rhythm: SINUS, harms: [everyone] }), 7, ['iv', 'calcium-chloride']).sort()).toEqual(['calcium-no-indication', 'case-calcium']);
+    expect(penaltyIds(nurse({ harms: [everyone] }), 6, ['iv', 'calcium-chloride'])).toEqual(['case-calcium']);
   });
 });
 
@@ -127,6 +149,25 @@ describe('the flags and effects the engine adds', () => {
     expect('bp' in runScenario(lvad, 2, ['reassess']).flags).toBe(false);
     const arrest = fixture({ setting: 'field', role: 2, rhythm: { profile: 'vf', hr: 0 }, pulse: false });
     expect('bp' in runScenario(arrest, 2, ['reassess']).flags).toBe(false);
+  });
+
+  it('a case that answers the reassessment itself sets bp too, so a pressure-before-nitroglycerin rule agrees', () => {
+    const shared = { say: [['you', 'BP 132/80, heart rate 88.']] } as Effect;
+    const noBp: Harm = { id: 'nitro-no-bp', actions: ['nitro'], when: (s) => !('bp' in s.flags), points: 5, severity: 'major', text: 'Nitroglycerin without a pressure.' };
+    const sc = fixture({ setting: 'field', role: 2, rhythm: SINUS, harms: [noBp], extra: { respond: { reassess: () => shared } } });
+    const s = runScenario(sc, 2, ['reassess', 'nitro']);
+    expect(s.flags.bp).toBeDefined();
+    expect(ids(s)).toEqual([]);
+    expect(penaltyIds(sc, 2, ['nitro'])).toEqual(['nitro-no-bp']);
+    // the case's own Effect object is left as it was
+    expect(shared.flags).toBeUndefined();
+  });
+
+  it('a real case: reassess in the cocaine chest pain case shows the pressure before the nitroglycerin', () => {
+    const cocaine = SCENARIO_BY_ID['cocaine-chest-pain-field'];
+    const s = runScenario(cocaine, 2, ['primary', 'reassess', 'ask-pde5', 'nitro']);
+    expect(s.flags.bp).toBeDefined();
+    expect(ids(s)).not.toContain('nitro-no-bp');
   });
 
   it('brady-seen: set the first time a slow heart of its own is on the monitor, and kept', () => {
@@ -187,6 +228,9 @@ describe('the rule helpers', () => {
     expect(slowOrBlocked(state('mobitz-ii', 64))).toBe(true);
     expect(slowOrBlocked(state('normal-sinus', 80))).toBe(false);
     expect(slowOrBlocked(state('tcp', 70))).toBe(false);
+    // a pacer driving the heart is not a slow heart of its own, even at a slow paced rate
+    expect(slowOrBlocked(state('tcp', 40))).toBe(false);
+    expect(slowOrBlocked(state('paced', 45))).toBe(false);
     const tamponade = fixture({ setting: 'ed', role: 7, rhythm: SINUS, problems: ['tamponade'] });
     expect(preloadDependent(state('normal-sinus', 80), tamponade)).toBe(true);
     expect(preloadDependent(state('normal-sinus', 80, { drained: 5 }), tamponade)).toBe(false);
@@ -265,5 +309,113 @@ describe('team requests (labKit and edKit)', () => {
     expect(penaltyIds(nurse(order({ doses: 2 })), 6, ['iv', 'fentanyl', 'fentanyl', 'fentanyl'])).toEqual(['rn-without-order-fentanyl']);
     // an order without `doses` stays open (a titration)
     expect(penaltyIds(nurse(order()), 6, ['iv', 'fentanyl', 'fentanyl', 'fentanyl'])).toEqual([]);
+  });
+
+  it('doses counts only the doses given since the order: one given before it leaves the order its own dose', () => {
+    const after = nurse(order({ doses: 1, when: (s) => s.performed.some((p) => p.id === 'fentanyl') }));
+    const s = runScenario(after, 6, ['iv', 'fentanyl']);
+    expect(ids(s)).toEqual(['rn-without-order-fentanyl']);
+    expect(s.fired).toContain('fentanyl-ask');
+    expect(s.fired).not.toContain('fentanyl-used');
+    expect('ordered:fentanyl' in s.flags).toBe(true);
+    const next = perform(after, s, 'fentanyl');
+    expect(ids(next)).toEqual(['rn-without-order-fentanyl']);
+    expect(next.fired).toContain('fentanyl-used');
+    expect('ordered:fentanyl' in next.flags).toBe(false);
+  });
+});
+
+/**
+ * The cases whose own rules stand in for a built-in: since a case rule replaces it only while it applies, each case rule that
+ * judges a dose in a state lists the built-ins that would also charge that dose there (one dose, one penalty)
+ */
+describe('in the cases: one dose, one penalty in every state a case rule speaks for', () => {
+  /** The penalties the last step adds, after the steps before it (reads answered correctly, unless 'manual') */
+  const lastStep = (id: string, role: 2 | 6 | 7, steps: string[], reads: 'correct' | 'manual' = 'correct') => {
+    const sc = SCENARIO_BY_ID[id];
+    const s = runScenario(sc, role, steps.slice(0, -1), undefined, reads);
+    return ids(perform(sc, s, steps.at(-1)!)).slice(s.penalties.length);
+  };
+
+  it('pulmonary embolism (ED): the nurse\'s rate drug in shock, and a rate drug in PEA', () => {
+    expect(lastStep('pulmonary-embolism-lysis-ed', 6, ['iv', 'procainamide'])).toEqual(['rate-control-pe-rn']);
+    // PEA by the last step: the drug that has no place there is one penalty, not also the missing order
+    expect(lastStep('pulmonary-embolism-lysis-ed', 6, ['iv', 'primary', 'perfusion', 'nitro', 'adenosine12', 'bvm', 'cxr', 'io', 'adenosine6'])).toEqual(['antiarrhythmic-pea']);
+  });
+
+  it('tamponade (ED): a rate drug in PEA, and nitroglycerin after the drain', () => {
+    expect(lastStep('tamponade-ed', 6, ['iv', 'bp-both-arms', 'procainamide', 'cpr', 'vitals', 'magnesium-sulfate', 'midazolam', 'metoprolol'])).toEqual(['antiarrhythmic-pea']);
+    expect(lastStep('tamponade-ed', 7, ['perfusion', 'lungs', 'sample', 'pocus', 'fluid', 'pericardiocentesis', 'nitro-high'])).toEqual(['nitro-no-indication']);
+    const nurseDrained = ['triage', 'monitor', 'o2-nc', 'vitals', 'perfusion', 'lungs', 'notify-physician', 'iv', 'labs', 'ecg12', 'sample', 'fluid', 'pads',
+      'notify-physician', 'pressor', 'reassess', 'notify-physician', 'vitals', 'reassess'];
+    expect(lastStep('tamponade-ed', 6, [...nurseDrained, 'nitro-high'])).toEqual(['nitro-no-indication']);
+  });
+
+  it('tamponade (ED): if she arrests before the pads are on, the team puts them on (the set-up order is not held)', () => {
+    const sc = SCENARIO_BY_ID['tamponade-ed'];
+    const s = runScenario(sc, 6, ['p2y12', 'glucagon', 'hs-ts', 'fluid', 'procainamide', 'bp-both-arms', 'ecg-right', 'cpr', 'alteplase', 'opqrst', 'iv', 'neuro',
+      'sodium-bicarbonate', 'sample', 'reassess', 'magnesium-sulfate', 'procainamide', 'fentanyl', 'bp-both-arms', 'lidocaine']);
+    expect(s.pulse).toBe(false);
+    expect(s.fired).toContain('rn-setup-fallback');
+    expect(perform(sc, s, 'nibp').counts.nibp).toBe(1);
+  });
+
+  it('SCAPE (ED and field): nitroglycerin 0.8 mg under the pressure goal is the goal rule alone', () => {
+    expect(lastStep('scape-ed', 7, ['ems-handoff', 'cpap', 'lungs', 'nitro-high', 'sample', 'pocus', 'reassess', 'reassess', 'reassess', 'nitro-high'])).toEqual(['nitro-below-target']);
+    expect(lastStep('scape-ed', 6, ['notify-physician', 'ems-handoff', 'cpap', 'notify-physician', 'monitor', 'nibp', 'nitro-high', 'iv', 'nibp', 'nitro', 'ecg12',
+      'read:lvh', 'labs', 'neuro', 'reassess', 'notify-physician', 'nitro-high'], 'manual')).toEqual(['nitro-below-target']);
+    // a systolic of 94: the field case's under-100 rule (with its too-soon repeat, a separate mistake), not also the 0.8 mg rule
+    expect(lastStep('scape-field', 2, ['iv', 'amio-arrest', 'lvad-check', 'ecg12', 'read:nsr', 'ecg-right', 'call-help', 'lungs', 'aspirin', 'transport-pci', 'midazolam',
+      'albuterol', 'cardiovert', 'adenosine12', 'nitro', 'push-epi', 'ecg12-repeat', 'read:nsr', 'diltiazem', 'nitro-high'], 'manual')).toEqual(['nitro-repeat-unsafe', 'nitro-pressure-fallen']);
+  });
+
+  it('aortic dissection (ED): the case judges every 0.8 mg dose itself', () => {
+    const rateControlled = ['opqrst', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro'];
+    // rate controlled, systolic 144: a vasodilator toward the goal of under 120 is allowed here
+    expect(lastStep('aortic-dissection-ed', 7, [...rateControlled, 'nitro-high'])).toEqual([]);
+    expect(lastStep('aortic-dissection-ed', 7, ['opqrst', 'read:lvh', 'bp-both-arms', 'pocus', 'call-surgery', 'metoprolol', 'fentanyl', 'nitro', 'ct-urgent', 'nitro-high'], 'manual'))
+      .toEqual(['vasodilator-below-goal']);
+    // before the rate is controlled
+    expect(lastStep('aortic-dissection-ed', 7, ['opqrst', 'nitro-high'])).toEqual(['vasodilator-before-rate-md']);
+    // the nurse's 0.8 mg for an ordered 0.4: the order's own rule
+    expect(lastStep('aortic-dissection-ed', 6, ['iv', 'handoff', 'vitals', 'sodium-bicarbonate', 'transfuse', 'atropine', 'call-help', 'capno', 'sodium-bicarbonate', 'pulse-check',
+      'magnesium-sulfate', 'transfuse', 'nitro-high'])).toEqual(['wrong-rn-vasodilator']);
+  });
+
+  it('pre-excited AF (field): amiodarone after the procainamide that converted him is one penalty', () => {
+    const converted = ['primary', 'pads', 'nibp', 'ecg12', 'sample', 'iv', 'med-control', 'procainamide', 'transport-pci', 'reassess', 'reassess', 'reassess', 'reassess'];
+    const sc = SCENARIO_BY_ID['wpw-af-field'];
+    expect('converted' in runScenario(sc, 2, converted).flags).toBe(true);
+    expect(lastStep('wpw-af-field', 2, [...converted, 'amio-infusion'])).toEqual(['rate-drug-after-conversion']);
+  });
+
+  it('stable VT (field): procainamide on top of amiodarone with a low pressure is one penalty', () => {
+    expect(lastStep('stable-vt-field', 2, ['iv', 'primary', 'cardiovert', 'amio-arrest', 'poison-control', 'hs-ts', 'epi-im', 'cpr', 'stemi-alert', 'epinephrine', 'amio-arrest',
+      'bp-both-arms', 'nitro-high', 'adenosine6', 'fentanyl', 'nitro', 'aspirin', 'dextrose', 'ondansetron', 'oral-glucose', 'lvad-check', 'ecg-transmit', 'pulse-check',
+      'procainamide'])).toEqual(['two-antiarrhythmics']);
+  });
+
+  it('beta-blocker overdose (field): midazolam as premedication for the pacer is right even with a low pressure', () => {
+    const slowAndFailing = ['primary', 'pads', 'ecg12', 'sample', 'iv', 'glucose', 'dextrose', 'atropine', 'glucagon'];
+    const s = runScenario(SCENARIO_BY_ID['beta-blocker-overdose-field'], 2, slowAndFailing);
+    expect(s.vitals.sbp).toBeLessThan(90);
+    expect(s.rhythm.hr).toBeGreaterThanOrEqual(50);
+    expect(lastStep('beta-blocker-overdose-field', 2, [...slowAndFailing, 'midazolam'])).toEqual([]);
+    // with no pacing in sight, the case's sedation rule charges it (once)
+    expect(lastStep('beta-blocker-overdose-field', 2, [...slowAndFailing, 'pressor', 'midazolam'])).toEqual(['sedative-no-indication']);
+  });
+
+  it('unstable AF (ED): magnesium on the order is not "given before the order" once the order is used up', () => {
+    const sc = SCENARIO_BY_ID['unstable-af-cardioversion-ed'];
+    const ideal = runScenario(sc, 6, ['ems-handoff', 'notify-physician', 'pads', 'neuro', 'ecg12', 'iv', 'labs', 'capno', 'bvm', 'cardiovert', 'cardiovert', 'nibp',
+      'notify-physician', 'heparin', 'ecg12-repeat', 'magnesium-sulfate', 'sample', 'handoff']);
+    expect(ideal.fired).toContain('magnesium-used');
+    expect(ideal.fired).not.toContain('md-unordered');
+    expect(ideal.log.some((l) => l.text.startsWith('That went in before I ordered it'))).toBe(false);
+    // given before the order: the physician says so
+    const early = runScenario(sc, 6, ['ems-handoff', 'notify-physician', 'pads', 'neuro', 'ecg12', 'iv', 'labs', 'capno', 'bvm', 'cardiovert', 'cardiovert',
+      'magnesium-sulfate', 'reassess']);
+    expect(early.fired).not.toContain('magnesium-ask');
+    expect(early.fired).toContain('md-unordered');
   });
 });

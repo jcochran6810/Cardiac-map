@@ -515,10 +515,17 @@ describe('the ER nurse gives a medication on an order', () => {
   });
 
   it('every order-only drug is one the ER nurse is offered, scored once per drug', () => {
-    // the list also names actions still to come (no case offers them yet): every one that exists is the nurse's to give
-    const existing = Object.keys(RN_ORDER_ONLY).filter((id) => INTERVENTION_BY_ID[id]);
+    // the list also names actions still to come (no case offers them yet), each named here: every other one exists and is
+    // the nurse's to give. When an action on this list is added, it moves off it (and the loop below checks it)
+    const PENDING = ['adenosine3', 'esmolol', 'labetalol', 'metoprolol-po', 'nicardipine', 'inotrope', 'nitro-iv', 'furosemide', 'calcium-gluconate'];
+    for (const id of PENDING) expect(INTERVENTION_BY_ID[id], `${id} exists now: take it off PENDING`).toBeUndefined();
+    for (const id of PENDING) expect(Object.keys(RN_ORDER_ONLY), id).toContain(id);
+    const existing = Object.keys(RN_ORDER_ONLY).filter((id) => !PENDING.includes(id));
     expect(existing).toEqual(expect.arrayContaining(['heparin', 'alteplase', 'lidocaine']));
-    for (const id of existing) expect(scope(6).has(id), id).toBe(true);
+    for (const id of existing) {
+      expect(INTERVENTION_BY_ID[id], `${id} is not an action (a typo, or add it to PENDING)`).toBeDefined();
+      expect(scope(6).has(id), id).toBe(true);
+    }
     const twice = run(edPatient({ vitals: { pain: 8 } }), 6, ['iv', 'fentanyl', 'fentanyl']);
     expect(ids(twice).filter((p) => p === 'rn-without-order-fentanyl')).toHaveLength(1);
   });

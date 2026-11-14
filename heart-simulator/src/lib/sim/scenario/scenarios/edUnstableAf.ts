@@ -1,5 +1,5 @@
 import type { Effect, Line, Scenario, SimState, Speaker } from '../types';
-import { bpAfter, firstDone, has, orderedFlag, PADS } from '../kit';
+import { bpAfter, firstDone, has, PADS } from '../kit';
 import { askCritical, askEvents, type LabAsk } from '../labKit';
 import { DOOR_TO_ECG, ED_MD, ED_RN, edNurse, edOrder, physicianDispo } from '../edKit';
 
@@ -160,6 +160,9 @@ function mdFirstLook(s: SimState): Line {
     ? `The ED physician comes straight over and looks at the monitor: "${s.rhythm.hr}, irregular, ${s.vitals.sbp} over ${s.vitals.dbp} and confused — she is unstable, and the rate is why. We shock her, synchronized, and I will sedate her for it. Pads on, a line — and get set up for the sedation."`
     : 'The ED physician comes straight over and looks at the monitor: "A regular rhythm now — tell me exactly what happened, and get me a pressure."'];
 }
+
+/** The flag each drug's order sets when the physician gives it (labKit: asked-<order id>) */
+const ORDER_ASKED: Record<string, string> = { heparin: 'asked-heparin', 'magnesium-sulfate': 'asked-magnesium' };
 
 const HEPARIN: LabAsk = edOrder({
   id: 'heparin',
@@ -639,9 +642,14 @@ export const edUnstableAf: Scenario = {
       },
     },
     {
-      // heparin or magnesium the nurse gave before the order: the physician says so (the built-in rule scores it, once)
+      // heparin or magnesium the nurse gave before the order: the physician says so (the built-in rule scores it, once). The
+      // first dose is judged against the minute the order came — not the live 'ordered:' flag, which a one-dose order clears
+      // once it is used up
       id: 'md-unordered',
-      when: (s) => s.role === 6 && mdHere(s) && s.pulse && ['heparin', 'magnesium-sulfate'].some((id) => (s.counts[id] ?? 0) > 0 && !has(s, orderedFlag(id))),
+      when: (s) => s.role === 6 && mdHere(s) && s.pulse && Object.entries(ORDER_ASKED).some(([id, asked]) => {
+        const first = s.performed.find((p) => p.id === id);
+        return !!first && !(s.flags[asked] <= first.minute);
+      }),
       effect: () => ({ say: [['physician', 'That went in before I ordered it. It is what she needs, so it stays — but tell me first, and give a drug once it is ordered.', 'warn']] }),
     },
     {

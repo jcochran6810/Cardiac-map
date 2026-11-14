@@ -285,7 +285,9 @@ const RN_FLUID: LabAsk = edOrder({
 });
 
 const RN_SETUP: LabAsk = edOrder({
-  id: 'rn-setup', when: (s) => s.pulse && has(s, 'fluid-given') && !drained(s), early: true,
+  // pads and the monitor matter most in an arrest: if she arrests before they are on, the team puts them on (not held; the
+  // order itself is only given with a pulse)
+  id: 'rn-setup', when: (s) => s.pulse && has(s, 'fluid-given') && !drained(s), early: true, holdInArrest: false,
   ask: 'Now set me up to drain it. The tech is bringing the pericardiocentesis tray and the ultrasound: the pads on her if they\'re not on yet — below her right collarbone and on her left side, clear of where my needle goes — and open the crash cart. Then watch the monitor while I\'m in.',
   accept: ['pads'],
   thanks: 'Thanks. Call out anything you see on the monitor while I\'m in.', fallback: 'I\'m putting the pads on her myself — nobody goes near her heart with a needle without them.', gives: 'setup-ready',
@@ -879,9 +881,10 @@ export const edTamponade: Scenario = {
       text: 'Nitroglycerin for a woman whose heart cannot fill. A vasodilator pools the blood in the veins, and a heart squeezed by fluid lives on the blood coming back to it: the pressure crashes. Vasodilators and diuretics are not recommended in tamponade (2015 ESC pericardial guideline) and can tip a large effusion into it. Her chest heaviness is the effusion, not a blocked artery — and the chest pain standing order excludes a systolic under 90 anyway.',
     },
     {
-      // after the drain the crash is gone, but there is still nothing for it to treat (the one above stands in for the
-      // built-in nitrate rules, so this one says it)
+      // after the drain the crash is gone, but there is still nothing for it to treat. Like the one above, it stands in for the
+      // built-in nitrate rules (and the 0.8 mg the nurse has no order for), which its words cover: one dose, one penalty
       id: 'nitro-no-indication', actions: ['nitro', 'nitro-high'], roles: ED_TEAM, when: (s) => s.pulse && drained(s), points: 3, severity: 'minor',
+      replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive', ...noOrder(['nitro-high'])],
       text: 'Nitroglycerin with nothing to treat. Her chest heaviness was the effusion, now drained: nitroglycerin is for coronary ischemia (and 0.8 mg, which no standing order covers, for hypertensive pulmonary edema), and here it only takes preload from a heart that has just started to fill again.',
     },
     {
@@ -997,8 +1000,11 @@ export const edTamponade: Scenario = {
       text: 'Sending her out of the department with the fluid still on. Tamponade with shock is drained where she is, now: she can arrest in the elevator, in the CCU before anyone is ready, or in an ambulance far from a needle — and the cardiologist is tied up for the next 45 minutes.',
     },
     {
+      // one penalty for the drug that has no place in PEA: for the nurse it also stands for the missing order of those that
+      // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'procainamide', 'adenosine6', 'adenosine12', 'metoprolol', 'diltiazem'],
-      roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'])],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the fluid around the heart, and the needle to drain it.',
     },
   ],

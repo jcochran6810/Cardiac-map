@@ -169,11 +169,8 @@ function defaultEffect(sc: Scenario, s: SimState, id: string): Effect {
     case 'glucose': return { say: [['you', `Blood glucose ${v.glucose} mg/dL.`]] };
     case 'neuro': return { say: [['you', `GCS ${v.gcs}. ${fact('neuro') ?? 'No focal deficit.'}`]] };
     case 'reassess':
-      // the line prints the pressure (not with an LVAD: no cuff reads it), so the learner has seen one ('bp')
-      return {
-        say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? (s.pulse ? `Pain ${v.pain}/10.` : 'Unresponsive.')]],
-        ...(s.pulse && !s.lvad ? { flags: ['bp'] } : {}),
-      };
+      // the line prints the pressure: perform() sets the flag 'bp' after any reassessment, this one or a case's own
+      return { say: [['you', vitalsLine(s)], ['patient', sc.status?.(s) ?? (s.pulse ? `Pain ${v.pain}/10.` : 'Unresponsive.')]] };
 
     case 'monitor': return { say: [['monitor', monitorLine(s)]], flags: ['monitor'] };
     case 'pads': return { say: [['you', 'Pads on: anterior–lateral.']], flags: ['pads', 'monitor'] };
@@ -1011,9 +1008,10 @@ function askRead(s: SimState, r: PendingRead) {
  *   deliberate exemption);
  * - a case rule's `replaces` hides those built-ins only while the case rule applies to this action — same action, a role
  *   it is written for, its `when` true now (whether or not it was charged before). In any other state the built-ins apply;
- * - the ER nurse giving a drug without the order it needs: when 'rn-without-order-<id>' charges this act, the built-in
- *   indication rules (INDICATION_RULES) are skipped for it — the missing order covers the indication. The
- *   contraindication rules still apply.
+ * - the ER nurse giving a drug without the order it needs: when the missing order is scored for this act — the built-in
+ *   'rn-without-order-<id>' charges it, or a case rule that stands in for that one (same id, or listed in its `replaces`)
+ *   applies to it, whether it charges now or already did — the built-in indication rules (INDICATION_RULES) are skipped
+ *   for it: the missing order covers the indication. The contraindication rules still apply.
  */
 function harmsFor(sc: Scenario, s: SimState, id: string) {
   const roleOk = (h: Harm) => !h.roles || h.roles.includes(s.role);
@@ -1021,8 +1019,13 @@ function harmsFor(sc: Scenario, s: SimState, id: string) {
   const charged = (h: Harm) => s.penalties.some((p) => p.id === h.id);
   const own = new Set([...sc.harms.filter(roleOk).map((h) => h.id), ...sc.harms.filter(applies).flatMap((h) => h.replaces ?? [])]);
   const builtIn = BUILT_IN_HARMS.filter((b) => !own.has(b.id));
-  const noOrder = builtIn.find((b) => b.id === rnWithoutOrderId(id));
-  const orderCovers = !!noOrder && !charged(noOrder) && applies(noOrder);
+  const noOrderId = rnWithoutOrderId(id);
+  const noOrderRule = BUILT_IN_HARMS.find((b) => b.id === noOrderId);
+  // only for the role the order rule is written for (the ER nurse): a case rule for every role is no order for the doctor
+  const orderCovers = !!noOrderRule && roleOk(noOrderRule) && (
+    (!own.has(noOrderId) && !charged(noOrderRule) && applies(noOrderRule))
+    || sc.harms.some((h) => (h.id === noOrderId || !!h.replaces?.includes(noOrderId)) && applies(h))
+  );
   for (const h of [...builtIn.filter((b) => !(orderCovers && INDICATION_RULES.includes(b.id))), ...sc.harms]) {
     if (!applies(h) || charged(h)) continue;
     s.penalties.push({ id: h.id, minute: s.minute, points: h.points, severity: h.severity, text: h.text });
@@ -1229,13 +1232,17 @@ export function perform(sc: Scenario, prev: SimState, id: string): SimState {
     return s;
   }
   harmsFor(sc, s, id);
+  // a reassessment prints the pressure — the default line, and a case's own reassessment alike (not with an LVAD: no cuff
+  // reads it; not in an arrest) — so the learner has seen one: the "pressure before nitroglycerin" rules read 'bp'. (A
+  // copy: a case may answer with a shared Effect object)
+  const shown = id === 'reassess' && s.pulse && !s.lvad ? { ...effect, flags: [...(effect.flags ?? []), 'bp'] } : effect;
   // an intervention counts from the minute it was started; its result comes when it is finished
   const detail = detailFor(iv, sc.setting);
   say(s, 'you', detail ? `${iv.label} — ${detail}` : iv.label);
   s.counts[id] = (s.counts[id] ?? 0) + 1;
   s.performed.push({ id, minute: s.minute });
   s.minute = round(s.minute + iv.minutes);
-  applyEffect(s, effect);
+  applyEffect(s, shown);
   if (!s.ended) advance(sc, s);
   if (id === 'ecg12' || id === 'ecg12-repeat') requestRead(sc, s);
   finish(sc, s);

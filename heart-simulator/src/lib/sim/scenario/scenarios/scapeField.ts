@@ -699,7 +699,8 @@ export const scapeField: Scenario = {
       text: 'High-dose nitroglycerin after the pressure had come down below 160. The 0.8 mg dose is for a systolic of 160 or more; below it step down to 0.4 mg — once the surge has passed, each dose drops the pressure far more.',
     },
     {
-      id: 'nitro-pressure-fallen', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 100, points: 8, severity: 'major', replaces: ['nitro-hypotension'],
+      // under 100 this rule is the one penalty for any nitrate: the low-pressure rule, and the 0.8 mg dose rule below 160
+      id: 'nitro-pressure-fallen', actions: NITRATES, when: (s) => s.pulse && s.vitals.sbp < 100, points: 8, severity: 'major', replaces: ['nitro-hypotension', 'nitro-high-not-hypertensive'],
       text: 'Nitroglycerin with a systolic pressure under 100. Hold nitrates once the pressure has fallen (protocols set the line at 90, 100 or 110): CPAP and the nitrate already on board keep lowering it, and a low pressure starves the heart and the brain.',
     },
     {

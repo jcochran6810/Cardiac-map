@@ -923,8 +923,9 @@ export const edPeLysis: Scenario = {
       text: 'A drug to slow or convert her rhythm. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest.',
     },
     {
+      // the nurse's version also stands for the missing order (and, like the doctor's, for the low-pressure procainamide rule)
       id: 'rate-control-pe-rn', actions: ['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide'], roles: ED_RN, when: (s) => s.pulse, points: 10, severity: 'major',
-      replaces: noOrder(['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide']),
+      replaces: [...noOrder(['metoprolol', 'diltiazem', 'amio-infusion', 'procainamide']), 'procainamide-hypotension'],
       text: 'A drug to slow or convert her rhythm, with no order. Her sinus tachycardia is how a failing right ventricle keeps any output at all: beta-blockers, diltiazem, amiodarone and procainamide weaken the squeeze, drop the pressure and can bring on the arrest — and none of them is on a standing order. Tell the physician what you see instead.',
     },
     {
@@ -972,8 +973,11 @@ export const edPeLysis: Scenario = {
       text: 'Transferring her out of a hospital that has everything she needs — an ICU, a PE response team, catheter-directed therapy, cardiac surgery and ECMO. A transport of a patient in shock, on a lytic and a vasopressor, only adds risk: admit her to your ICU.',
     },
     {
+      // one penalty for the drug that has no place in PEA: for the nurse it also stands for the missing order of those that
+      // need one even in an arrest (lidocaine and the arrest dose of amiodarone are the code leader's, with no order)
       id: 'antiarrhythmic-pea', actions: ['amio-arrest', 'amio-infusion', 'lidocaine', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'],
-      roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor', replaces: ['procainamide-in-arrest'],
+      roles: ED_TEAM, when: (s) => !s.pulse, points: 3, severity: 'minor',
+      replaces: ['procainamide-in-arrest', ...noOrder(['amio-infusion', 'adenosine6', 'adenosine12', 'procainamide', 'metoprolol', 'diltiazem'])],
       text: 'A rate or rhythm drug in PEA. Amiodarone and lidocaine are for VF or pulseless VT that shocks have not fixed; the others are for tachycardias with a pulse. CPR, epinephrine and the cause — here the clot, and a lytic for it.',
     },
   ],
